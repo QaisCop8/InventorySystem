@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getManagementSession } from "@/lib/management-auth"
 import { getPricing, getSalesContacts, savePricing, saveSalesContacts } from "@/lib/company-billing"
-import { isLahzaConfigured, isLahzaTestMode } from "@/lib/lahza"
+import { isLahzaConfigured, isLahzaTestMode, lahzaPublicKey } from "@/lib/lahza"
 
 // أسعار اشتراك الشركات: GET لأي مستخدم إدارة (لعرض السعر عند إنشاء شركة)، PUT لمسؤول المنصة فقط.
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
     const session = await getManagementSession()
     if (!session) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const [pricing, contacts] = await Promise.all([getPricing(), getSalesContacts()])
-    return NextResponse.json({ pricing, contacts, enabled: isLahzaConfigured() && pricing.base_price > 0, testMode: isLahzaTestMode() })
+    return NextResponse.json({ pricing, contacts, enabled: isLahzaConfigured() && pricing.base_price > 0, popup: isLahzaConfigured() && Boolean(lahzaPublicKey()), testMode: isLahzaTestMode() })
   } catch (error) {
     console.error("[management/pricing GET] error:", error)
     return NextResponse.json({ error: "تعذّر تحميل الأسعار" }, { status: 500 })

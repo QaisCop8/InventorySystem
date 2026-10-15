@@ -21,8 +21,10 @@ import {
   Hourglass,
   CreditCard,
   RefreshCw,
+  CalendarClock,
 } from "lucide-react"
 import { priceFor, type Pricing } from "@/lib/company-pricing"
+import { SubscriptionDialog } from "@/components/management/subscription-dialog"
 import { activateCompany } from "@/lib/tenant-client"
 import { useToast } from "@/hooks/use-toast"
 
@@ -33,6 +35,11 @@ interface Company {
   created_at: string
   provisioning_error?: string | null
   provisioning_stale?: boolean | null
+  is_trial?: boolean
+  renewal_due?: boolean
+  number_of_users?: number
+  number_of_branches?: number
+  number_of_pos_points?: number
   expiry_date?: string | null
   db_name?: string | null
   requested_by_name?: string | null
@@ -153,6 +160,9 @@ export default function ManagementCompaniesPage() {
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [paymentTestMode, setPaymentTestMode] = useState(false)
   const [payingId, setPayingId] = useState<number | null>(null)
+  // تجديد الاشتراك / تحويل النسخة التجريبية إلى حقيقية (نافذة لحظة المنبثقة — تتطلب المفتاح العام)
+  const [paymentPopup, setPaymentPopup] = useState(false)
+  const [subscription, setSubscription] = useState<{ company: Company; purpose: "renewal" | "upgrade" } | null>(null)
 
   useEffect(() => {
     fetch("/api/management/me")
@@ -180,7 +190,7 @@ export default function ManagementCompaniesPage() {
   useEffect(() => {
     fetch("/api/management/pricing", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (!data) return; setPricing(data.pricing); setPaymentEnabled(Boolean(data.enabled)); setPaymentTestMode(Boolean(data.testMode)) })
+      .then((data) => { if (!data) return; setPricing(data.pricing); setPaymentEnabled(Boolean(data.enabled)); setPaymentPopup(Boolean(data.popup)); setPaymentTestMode(Boolean(data.testMode)) })
       .catch(() => undefined)
   }, [])
 
@@ -406,7 +416,7 @@ export default function ManagementCompaniesPage() {
                   }}
                   className={
                     "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-right outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
-                    (canOpenCompany ? "cursor-pointer" : ["awaiting_payment", "provisioning", "provisioning_failed"].includes(company.status) ? "cursor-default" : "cursor-not-allowed opacity-60")
+                    (canOpenCompany ? "cursor-pointer" : ["awaiting_payment", "provisioning", "provisioning_failed", "approved"].includes(company.status) ? "cursor-default" : "cursor-not-allowed opacity-60")
                   }
                 >
                   <div className="flex w-full items-start justify-between">
@@ -421,6 +431,12 @@ export default function ManagementCompaniesPage() {
 
                   <div className="flex flex-1 flex-col gap-2">
                     <h3 className="line-clamp-2 text-lg font-black text-white">{company.name}</h3>
+                    {company.is_trial && (
+                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-violet-500/15 px-2.5 py-1 text-[11px] font-bold text-violet-200 ring-1 ring-violet-300/25">
+                        <Gift className="h-3 w-3" />
+                        نسخة تجريبية
+                      </span>
+                    )}
                     {isExpired && (
                       <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-bold text-rose-200 ring-1 ring-rose-300/25">
                         <Clock className="h-3 w-3" />
@@ -463,6 +479,19 @@ export default function ManagementCompaniesPage() {
                         {retryingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}اعادة المحاولة
                       </button>
                     </div>
+                  )}
+                  {company.status === "approved" && (company.is_trial || company.renewal_due) && (
+                    paymentPopup && pricing ? (
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); setSubscription({ company, purpose: company.is_trial ? "upgrade" : "renewal" }) }}
+                        className={`cp-btn ${company.is_trial ? "is-trial" : ""} inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white`}
+                      >
+                        {company.is_trial ? <><Sparkles className="h-4 w-4" />التحويل إلى نسخة حقيقية</> : <><CalendarClock className="h-4 w-4" />تمديد الاشتراك</>}
+                      </button>
+                    ) : (
+                      <p className="rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">{company.is_trial ? "للتحويل إلى نسخة حقيقية" : "لتمديد الاشتراك"} تواصل مع إدارة النظام.</p>
+                    )
                   )}
                   {company.status === "awaiting_payment" && (
                     <button
@@ -511,6 +540,28 @@ export default function ManagementCompaniesPage() {
 
         <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">ARAAK ERP</span></p>
       </main>
+
+      {subscription && pricing && (
+        <SubscriptionDialog
+          company={{
+            id: subscription.company.id, name: subscription.company.name, expiry_date: subscription.company.expiry_date,
+            number_of_users: Number(subscription.company.number_of_users) || 1, number_of_branches: Number(subscription.company.number_of_branches) || 1,
+            number_of_pos_points: Number(subscription.company.number_of_pos_points) || 0,
+          }}
+          purpose={subscription.purpose}
+          pricing={pricing}
+          testMode={paymentTestMode}
+          onClose={() => setSubscription(null)}
+          onDone={(expiryDate) => {
+            const label = subscription.purpose === "upgrade" ? "تم تحويل الشركة إلى نسخة حقيقية" : "تم تمديد الاشتراك"
+            setSubscription(null)
+            const message = expiryDate ? `${label} — ينتهي الاشتراك في ${formatArabicDate(new Date(expiryDate))}` : label
+            setNotice(message)
+            toast({ title: "تم الدفع", description: message })
+            void loadCompanies()
+          }}
+        />
+      )}
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent dir="rtl" className="cp-dialog max-w-md">

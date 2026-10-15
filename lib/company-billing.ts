@@ -1,5 +1,5 @@
 import managementSql, { ensureManagementTables, getManagementPool } from "@/lib/management-db"
-import { ensureLicenseTables, LICENSE_RESOURCE_LABELS, type LicenseResource } from "@/lib/company-license"
+import { countTenantUsage, ensureLicenseTables, LICENSE_RESOURCE_LABELS, type LicenseResource } from "@/lib/company-license"
 import { initializeLahzaTransaction, isLahzaConfigured, isLahzaTestMode, LAHZA_CURRENCIES, lahzaPublicKey, toMinorUnits, verifyLahzaTransaction, type LahzaCurrency } from "@/lib/lahza"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
 import { sendMail } from "@/lib/email"
@@ -55,6 +55,14 @@ export function ensureBillingTables() {
       await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS license_request_id INTEGER`
       await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS tenant_user_id VARCHAR(50)`
       await managementSql`ALTER TABLE company_payments ALTER COLUMN user_id DROP NOT NULL`
+      // نسخة تجريبية؟ (تُنشأ بـ/companies/trial). الشركات التجريبية السابقة تُعرَف مرة واحدة من مدة اشتراكها (~10 أيام من الاعتماد)
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_trial BOOLEAN`
+      await managementSql`
+        UPDATE companies SET is_trial = (approved_at IS NOT NULL AND expiry_date IS NOT NULL AND expiry_date <= approved_at + INTERVAL '15 days')
+        WHERE is_trial IS NULL`
+      await managementSql`ALTER TABLE companies ALTER COLUMN is_trial SET DEFAULT false`
+      // دفعات التجديد/التحويل لنسخة حقيقية: تُطبَّق مرة واحدة فقط (applied_at)
+      await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS applied_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_started_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_error TEXT`
       // أرقام التواصل مع المبيعات (صفحة خيارات الدفع) — يعدّلها مسؤول المنصة مع الأسعار
@@ -202,6 +210,7 @@ export async function confirmCompanyPayment(reference: string, session: Session)
     JOIN user_company uc ON uc.company_id = c.id AND uc.user_id = ${session.id}
     WHERE p.reference = ${reference}`
   if (!payment) throw Object.assign(new Error("عملية الدفع غير موجودة"), { status: 404 })
+  if (payment.purpose === "renewal" || payment.purpose === "upgrade") return confirmSubscriptionPayment(payment)
   if (payment.company_status === "approved") return { status: "approved" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name) }
 
   const settled = await settlePayment(payment)
@@ -321,6 +330,100 @@ export async function confirmLicensePayment(reference: string, companyId: number
     }).catch(() => undefined)
   }
   return { status: "approved" as const }
+}
+
+// ───────────── تجديد الاشتراك / تحويل النسخة التجريبية إلى حقيقية ─────────────
+// المدة الجديدة سنة تبدأ من نهاية الاشتراك الحالي إن لم ينتهِ بعد، وإلا من اليوم (مثال: ينتهي 1/11/2026 وجُدِّد 15/10/2026
+// ⇒ من 1/11/2026 إلى 1/11/2027). التجديد متاح لشركة حقيقية بقي على اشتراكها أقل من شهر أو انتهى؛ التحويل لأي نسخة تجريبية.
+
+export const RENEWAL_WINDOW_DAYS = 30
+export type SubscriptionPurpose = "renewal" | "upgrade"
+
+async function subscriptionCompany(companyId: number, userId: number) {
+  const [company] = await managementSql`
+    SELECT c.id, c.name, c.status, c.db_name, c.expiry_date, COALESCE(c.is_trial, false) AS is_trial,
+           COALESCE(c.number_of_users, 1) AS number_of_users, COALESCE(c.number_of_branches, 1) AS number_of_branches, COALESCE(c.number_of_pos_points, 0) AS number_of_pos_points,
+           GREATEST(COALESCE(c.expiry_date, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) AS period_start,
+           GREATEST(COALESCE(c.expiry_date, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + INTERVAL '1 year' AS period_end,
+           (c.expiry_date IS NULL OR c.expiry_date < CURRENT_TIMESTAMP + (${RENEWAL_WINDOW_DAYS} * INTERVAL '1 day')) AS renewal_due
+    FROM companies c JOIN user_company uc ON uc.company_id = c.id
+    WHERE c.id = ${companyId} AND uc.user_id = ${userId} AND COALESCE(uc.is_active, true) = true`
+  return company || null
+}
+
+export async function startSubscriptionPayment(companyId: number, session: Session, purpose: SubscriptionPurpose, requested?: Partial<LicenseCounts>) {
+  await ensureBillingTables()
+  if (!isLahzaConfigured() || !lahzaPublicKey()) throw Object.assign(new Error("الدفع الإلكتروني غير مفعّل"), { status: 400 })
+  const company = await subscriptionCompany(companyId, session.id)
+  if (!company) throw Object.assign(new Error("الشركة غير موجودة"), { status: 404 })
+  if (company.status !== "approved" || !company.db_name) throw Object.assign(new Error("الشركة غير جاهزة للتجديد"), { status: 400 })
+  if (purpose === "upgrade" && !company.is_trial) throw Object.assign(new Error("هذه الشركة ليست نسخة تجريبية"), { status: 400 })
+  if (purpose === "renewal" && company.is_trial) throw Object.assign(new Error("حوّل النسخة التجريبية إلى نسخة حقيقية بدل التجديد"), { status: 400 })
+  if (purpose === "renewal" && !company.renewal_due) throw Object.assign(new Error(`التجديد متاح عندما يتبقى على الاشتراك أقل من ${RENEWAL_WINDOW_DAYS} يوماً`), { status: 400 })
+
+  let counts: LicenseCounts = { users: Number(company.number_of_users) || 1, branches: Number(company.number_of_branches) || 1, posPoints: Number(company.number_of_pos_points) || 0 }
+  if (purpose === "upgrade") {
+    // الترخيص المطلوب لا يقل عن الاستخدام الفعلي الحالي (وإلا تُحجب الإضافات القائمة)
+    const usage = await countTenantUsage(String(company.db_name)).catch(() => ({ users: 1, branches: 1, pos_points: 0 }))
+    const whole = (value: unknown, min: number) => Math.max(min, Math.floor(Number(value)))
+    counts = {
+      users: whole(requested?.users ?? counts.users, 1), branches: whole(requested?.branches ?? counts.branches, 1), posPoints: whole(requested?.posPoints ?? counts.posPoints, 0),
+    }
+    if (![counts.users, counts.branches, counts.posPoints].every((value) => Number.isFinite(value) && value <= 100000)) throw Object.assign(new Error("الأعداد المطلوبة غير صالحة"), { status: 400 })
+    if (counts.users < usage.users) throw Object.assign(new Error(`عدد المستخدمين لا يقل عن المستخدمين الحاليين (${usage.users})`), { status: 400 })
+    if (counts.branches < usage.branches) throw Object.assign(new Error(`عدد الفروع لا يقل عن الفروع الحالية (${usage.branches})`), { status: 400 })
+    if (counts.posPoints < usage.pos_points) throw Object.assign(new Error(`عدد نقاط البيع لا يقل عن النقاط الحالية (${usage.pos_points})`), { status: 400 })
+  }
+  const pricing = await getPricing()
+  const quote = priceFor(pricing, counts)
+  if (!(quote.total > 0)) throw Object.assign(new Error("لم يُحدَّد سعر الاشتراك بعد — تواصل مع إدارة النظام"), { status: 400 })
+  const reference = `ARK-${purpose === "upgrade" ? "U" : "R"}${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  await managementSql`
+    INSERT INTO company_payments (company_id, user_id, purpose, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points)
+    VALUES (${companyId}, ${session.id}, ${purpose}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints})`
+  return {
+    reference, amount: quote.total, amountMinor: toMinorUnits(quote.total), currency: quote.currency, email: session.email, fullName: session.full_name, publicKey: lahzaPublicKey(),
+    periodStart: company.period_start, periodEnd: company.period_end,
+  }
+}
+
+/** بعد التحقق من الدفع: سنة جديدة من نهاية الاشتراك (أو اليوم إن انتهى) + الترخيص المدفوع، وإلغاء علامة "تجريبية" — مرة واحدة فقط. */
+async function confirmSubscriptionPayment(payment: any) {
+  const settled = await settlePayment(payment)
+  if (!settled.ok) return { status: "unpaid" as const, gatewayStatus: settled.gatewayStatus, message: settled.message }
+  const client = await getManagementPool().connect()
+  let applied = false
+  let expiry: string | null = null
+  try {
+    await client.query("BEGIN")
+    const claimed = await client.query(`UPDATE company_payments SET applied_at = CURRENT_TIMESTAMP WHERE reference = $1 AND applied_at IS NULL RETURNING id`, [payment.reference])
+    if (claimed.rows[0]) {
+      const updated = await client.query(
+        `UPDATE companies SET
+           expiry_date = GREATEST(COALESCE(expiry_date, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + INTERVAL '1 year',
+           is_trial = false, status = CASE WHEN status = 'stopped' THEN status ELSE 'approved' END,
+           number_of_users = $2, number_of_branches = $3, number_of_pos_points = $4, license_initialized = true, pos_license_initialized = true
+         WHERE id = $1 RETURNING expiry_date`,
+        [payment.company_id, Number(payment.number_of_users) || 1, Number(payment.number_of_branches) || 1, Number(payment.number_of_pos_points) || 0],
+      )
+      expiry = updated.rows[0]?.expiry_date ? new Date(updated.rows[0].expiry_date).toISOString() : null
+      applied = true
+    }
+    await client.query("COMMIT")
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined)
+    throw error
+  } finally {
+    client.release()
+  }
+  if (applied) {
+    void sendMail({
+      to: PLATFORM_ADMIN_EMAIL,
+      subject: payment.purpose === "upgrade" ? `تحويل نسخة تجريبية إلى حقيقية — ${payment.company_name}` : `تجديد اشتراك — ${payment.company_name}`,
+      html: `<div dir="rtl"><p>${payment.purpose === "upgrade" ? "تم تحويل النسخة التجريبية" : "تم تجديد اشتراك"} شركة "${payment.company_name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع${expiry ? `، وينتهي الاشتراك في ${expiry.slice(0, 10)}` : ""}.</p></div>`,
+    }).catch(() => undefined)
+  }
+  return { status: "approved" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name), expiryDate: expiry }
 }
 
 const STALE_PROVISIONING_MINUTES = 10

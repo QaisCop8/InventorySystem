@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getManagementSession } from "@/lib/management-auth"
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
+import { ensureBillingTables } from "@/lib/company-billing"
 
 const TRIAL_EXPIRY_DAYS = 10
 
@@ -59,6 +60,10 @@ export async function POST(request: NextRequest) {
       session.id,
       { expiryDays: TRIAL_EXPIRY_DAYS },
     )
+
+    // علامة "نسخة تجريبية" — تتيح لاحقاً "التحويل إلى نسخة حقيقية" بالدفع الإلكتروني
+    await ensureBillingTables()
+    await managementSql`UPDATE companies SET is_trial = true WHERE id = ${company.id}`
 
     return NextResponse.json({ success: true, dbName, expiryDate })
   } catch (error) {

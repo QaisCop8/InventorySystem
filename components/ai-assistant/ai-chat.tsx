@@ -52,6 +52,24 @@ type MediaRecorderLike = {
   onerror: (() => void) | null
 }
 
+// المساعد يختم رده بسطر "تأكيد: <أمر>" حين يفهم طلب مستند (سند قبض/صرف) — يُعرض كزر "تأكيد" ينفّذ الأمر فعلياً
+const CONFIRM_LINE = /^\s*[*_`]*تأكيد\s*[:：][*_`]*\s*(.+?)\s*[*_`]*\s*$/m
+const confirmCommandOf = (content: string) => content.match(CONFIRM_LINE)?.[1]?.replace(/[*_`]/g, "").trim() || null
+const withoutConfirmLine = (content: string) => content.replace(CONFIRM_LINE, "").trim()
+// ردود الموافقة المكتوبة ("نعم"، "تأكيد"، "اعتمد"...) تنفّذ آخر أمر مقترح
+const CONFIRM_WORDS = /^\s*(?:نعم|ايوه|أيوه|ايوا|اكيد|أكيد|اكد|أكد|تأكيد|تاكيد|اعتمد|موافق|احفظ|نفذ|نفّذ|تمام|ok|okay|yes)(?:\s|[.!،,]|$)/i
+
+// تنسيق بسيط لردود المساعد: **عريض** والنقاط "* " ⇒ "• " (بدل ظهور رموز markdown كما هي)
+function renderAssistantText(text: string) {
+  return text.split("\n").map((line, lineIndex) => {
+    const bullet = /^\s*[*-]\s+/.test(line)
+    const body = bullet ? line.replace(/^\s*[*-]\s+/, "") : line
+    const parts = body.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
+      /^\*\*[^*]+\*\*$/.test(part) ? <strong key={index}>{part.slice(2, -2)}</strong> : <span key={index}>{part.replace(/\*\*/g, "")}</span>)
+    return <span key={lineIndex} className="block min-h-[1em]">{bullet ? "• " : null}{parts}</span>
+  })
+}
+
 interface Message {
   role: "user" | "assistant"
   content: string
@@ -62,6 +80,8 @@ interface Message {
   voucherLink?: { id: number; code: string; voucherType: 4 | 5 }
   documentLink?: { section: string; code: string; id?: number }
   at?: number
+  /** زر "تأكيد" استُخدم لهذا الرد */
+  confirmed?: boolean
 }
 
 interface PendingCustomerVoucher {
@@ -209,7 +229,7 @@ export function AIChat() {
     window.setTimeout(() => window.dispatchEvent(new CustomEvent("ai-open-document")), 0)
   }
 
-  const handleSubmit = async (question?: string, options?: { appendUser?: boolean }) => {
+  const handleSubmit = async (question?: string, options?: { appendUser?: boolean; command?: string }) => {
     const messageText = question || input
     if (!messageText.trim()) return
 
@@ -217,16 +237,21 @@ export function AIChat() {
     if (options?.appendUser !== false) setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
+    // "نعم/تأكيد..." بعد رد يقترح أمراً ⇒ يُنفَّذ الأمر المقترح (لا تُرسل كلمة الموافقة وحدها للتحليل)
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant")
+    const suggested = !options?.command && lastAssistant && !lastAssistant.kind && !lastAssistant.confirmed && CONFIRM_WORDS.test(messageText) ? confirmCommandOf(lastAssistant.content) : null
+    if (suggested && lastAssistant) setMessages((prev) => prev.map((message) => (message === lastAssistant ? { ...message, confirmed: true } : message)))
+    const commandText = options?.command || suggested || messageText
 
     try {
       const draftResponse = await fetch("/api/ai-assistant/receipt-draft", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: messageText }),
+          body: JSON.stringify({ command: commandText }),
         })
       const draftData = await draftResponse.json()
       if (!draftResponse.ok && draftData.code === "CUSTOMER_NOT_FOUND") {
-        setPendingCustomer({ command: messageText, customer_name: draftData.customer_name, voucher_type: draftData.voucher_type, document_kind: "voucher" })
+        setPendingCustomer({ command: commandText, customer_name: draftData.customer_name, voucher_type: draftData.voucher_type, document_kind: "voucher" })
         pushAssistant({ content: `العميل "${draftData.customer_name}" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال ${draftData.voucher_type === 5 ? "سند الصرف" : "سند القبض"}؟` })
         return
       }
@@ -262,11 +287,11 @@ export function AIChat() {
       const orderDraftResponse = await fetch("/api/ai-assistant/order-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: messageText, active_branch_id: activeBranchId, user_id: user?.id }),
+        body: JSON.stringify({ command: commandText, active_branch_id: activeBranchId, user_id: user?.id }),
       })
       const orderDraftData = await orderDraftResponse.json()
       if (!orderDraftResponse.ok && orderDraftData.code === "CUSTOMER_NOT_FOUND") {
-        setPendingCustomer({ command: messageText, customer_name: orderDraftData.customer_name, voucher_type: 4,
+        setPendingCustomer({ command: commandText, customer_name: orderDraftData.customer_name, voucher_type: 4,
           document_kind: "sales_draft", active_branch_id: Number(activeBranchId), user_id: Number(user?.id) })
         pushAssistant({ content: `العميل "${orderDraftData.customer_name}" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال مسودة طلبية المبيعات؟` })
         return
@@ -622,7 +647,37 @@ export function AIChat() {
                               : "rounded-bl-md border border-slate-200 bg-white text-slate-800 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100",
                           )}
                         >
-                          <p className="whitespace-pre-wrap break-words text-sm leading-7" dir="auto">{message.content}</p>
+                          {isUser ? (
+                            <p className="whitespace-pre-wrap break-words text-sm leading-7" dir="auto">{message.content}</p>
+                          ) : (
+                            <div className="break-words text-sm leading-7" dir="auto">{renderAssistantText(withoutConfirmLine(message.content))}</div>
+                          )}
+                          {!isUser && confirmCommandOf(message.content) && (
+                            <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 dark:border-white/10">
+                              <p className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200" dir="auto">{confirmCommandOf(message.content)}</p>
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={isLoading || message.confirmed}
+                                  className="h-8 gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700"
+                                  onClick={() => {
+                                    const command = confirmCommandOf(message.content)
+                                    if (!command) return
+                                    setMessages((prev) => prev.map((item) => (item === message ? { ...item, confirmed: true } : item)))
+                                    void handleSubmit("تأكيد", { command })
+                                  }}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />{message.confirmed ? "تم التأكيد" : "تأكيد"}
+                                </Button>
+                                {!message.confirmed && (
+                                  <Button type="button" size="sm" variant="outline" disabled={isLoading} className="h-8 rounded-lg" onClick={() => applyPrompt(confirmCommandOf(message.content) || "")}>
+                                    تعديل
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           {isUser && (
                             <button
                               type="button"

@@ -74,9 +74,10 @@ const mentionsCardPayment = (value: string) => /(?:بطاقه|بطاقه\s+ائ�
 
 const extractClearCommand = (command: string, currencies: CurrencyRow[]) => {
   const normalized = normalizeArabicText(toEnglishDigits(command))
-  const intent = /(?:سند\s*(?:ال)?صرف|(?:^|\s)صرف(?=\s|$)|اصرف|ادفع|دفعنا|(?:^|\s)دفع(?=\s|$))/i.test(normalized)
+  // أخطاء إملائية شائعة: "قبص"/"قبظ" بدل "قبض"، "سرف" بدل "صرف" (كانت تُفوَّت فتذهب الرسالة للمحادثة العامة)
+  const intent = /(?:سند\s*(?:ال)?(?:صرف|سرف)|(?:^|\s)صرف(?=\s|$)|اصرف|ادفع|دفعنا|(?:^|\s)دفع(?=\s|$))/i.test(normalized)
     ? "create_payment" as const
-    : /(?:سند\s*(?:ال)?قبض|(?:^|\s)قبض(?=\s|$)|اقبض|قبضنا|استلمنا|استلام)/i.test(normalized)
+    : /(?:سند\s*(?:ال)?(?:قبض|قبص|قبظ)|(?:^|\s)(?:قبض|قبص)(?=\s|$)|اقبض|قبضنا|استلمنا|استلام)/i.test(normalized)
       ? "create_receipt" as const
       : null
   const numberValue = (match: RegExpMatchArray | null) => match ? Number(match[1].replace(/,/g, "")) : null
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
     `
     const local = extractClearCommand(commandText, currencyRows)
     // رسالة بلا أي كلمة سندات (سؤال، تقرير، استعلام) ⇐ ليست أمر سند — تُمرَّر للمحادثة دون استدعاء التحليل
-    const voucherWords = /(?:سند|قبض|اقبض|استلم|صرف|اصرف|ادفع|دفع|دفعنا|receipt|payment)/i
+    const voucherWords = /(?:سند|قبض|قبص|اقبض|استلم|صرف|اصرف|ادفع|دفع|دفعنا|receipt|payment)/i
     if (!local.intent && !voucherWords.test(normalizeArabicText(commandText))) return Response.json({ type: "other" })
     let ai: z.infer<typeof draftSchema> | null = null
     try {
