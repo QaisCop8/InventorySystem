@@ -125,7 +125,7 @@ export function useLicenseRequestDialog(onSent?: () => void) {
   const element = (
     <WorkspaceDialogProvider container={null} confined={false}>
       <Dialog open={!!state && !popupOpen} onOpenChange={(value) => { if (!value && !busy) setState(null) }}>
-        <DialogContent className="z-[3001] w-[min(460px,calc(100vw-2rem))] max-w-none gap-0 overflow-hidden rounded-2xl p-0" dir="rtl">
+        <DialogContent className="z-[3001] flex w-[min(540px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir="rtl">
           <div className="flex items-center gap-3 bg-gradient-to-l from-amber-500 to-orange-500 px-5 py-4 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><AlertTriangle className="h-5 w-5" /></span>
             <div className="text-right">
@@ -133,7 +133,7 @@ export function useLicenseRequestDialog(onSent?: () => void) {
               <DialogDescription className="text-xs text-amber-50">{canPay ? "ادفع إلكترونياً لتُضاف فوراً، أو أرسل طلباً لإدارة النظام" : "يُرسل الطلب لإدارة النظام للاعتماد أو الرفض"}</DialogDescription>
             </div>
           </div>
-          <div className="space-y-3 p-5 text-sm">
+          <div className="min-w-0 space-y-3 p-5 text-sm">
             {state?.message && <p className="rounded-lg bg-amber-50 p-3 text-amber-800">{state.message}</p>}
             {paid ? (
               <p className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 font-semibold text-emerald-700"><CheckCircle2 className="h-5 w-5 shrink-0" />تم الدفع وزيادة عدد {label.plural} المرخّص بمقدار {quantity}. يمكنك الإضافة الآن.</p>
@@ -161,10 +161,10 @@ export function useLicenseRequestDialog(onSent?: () => void) {
               </>
             )}
           </div>
-          <div className="flex justify-end gap-2 border-t bg-slate-50 px-5 py-3">
+          <div className="flex min-w-0 flex-wrap justify-end gap-2 border-t bg-slate-50 px-5 py-3">
             <Button variant="outline" disabled={busy} onClick={() => setState(null)}>إغلاق</Button>
             {!sent && !paid && !state?.pending && <Button variant={canPay ? "outline" : "default"} disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className={canPay ? "gap-1" : "gap-1 bg-amber-600 hover:bg-amber-700"}>{busy && !canPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{canPay ? "إرسال طلب للاعتماد" : "إرسال الطلب"}</Button>}
-            {!sent && !paid && canPay && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void payOnline()} className="gap-1 bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت ({total.toFixed(2)} {payInfo?.currency})</Button>}
+            {!sent && !paid && canPay && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void payOnline()} className="gap-1 bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت</Button>}
           </div>
         </DialogContent>
       </Dialog>
