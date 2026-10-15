@@ -145,6 +145,11 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   // طابعة مجموعة الأصناف: تُطبع عليها أصناف المجموعة (الاسم والكمية) عند حفظ فاتورة الكاشير مع print_by_item_group
   await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_invoices BOOLEAN NOT NULL DEFAULT FALSE`
+  // طباعة الفواتير: 0 عدم الطباعة، 1 فاتورة كاملة، 2 فاتورة QR فقط (رمز يحمل كل بيانات الفاتورة).
+  // print_invoices يبقى (= الوضع > 0) لتوافق النسخ/البيانات القديمة؛ النقاط القائمة تُرحَّل منه مرة واحدة.
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS invoice_print_mode SMALLINT`
+  await sql`UPDATE pos_points_tbl SET invoice_print_mode = CASE WHEN print_invoices THEN 1 ELSE 0 END WHERE invoice_print_mode IS NULL`
+  await sql`ALTER TABLE pos_points_tbl ALTER COLUMN invoice_print_mode SET DEFAULT 0`
   await sql`CREATE INDEX IF NOT EXISTS idx_pos_sale_drafts_owner ON pos_sale_drafts_tbl(pos_point_id,user_id,status,updated_at DESC)`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_cashier_log_tbl (

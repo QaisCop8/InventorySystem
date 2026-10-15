@@ -34,6 +34,7 @@ import {useToast} from "@/hooks/use-toast"
 import {currentPosTenantKey,listPosSales,loadPosCatalog,markPosSaleFailed,queuePosSale,removePosSale,savePosCatalog,type PosQueuedSale} from "@/lib/pos-offline"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { invoiceQrDataUrl, qrReceiptHtml, type QrInvoice } from "@/lib/pos-invoice-qr"
 
 type BarcodeOption={barcode:string;price:number;unitId:number|null;unitName:string}
 type Product={unitPrices?:{unitId:number|null;price:number;unitName?:string}[];soldUsingScale:boolean;id:number;code:string;name:string;barcode:string;price:number;unitId:number|null;unitName:string;accountId:number|null;returnAccountId:number|null;category:string;groupId?:number|null;groupPrinter?:string;image?:string;available:number;barcodeOptions:BarcodeOption[]}
@@ -395,8 +396,20 @@ export default function PosCashier(){
  const validate=()=>{if(mode==="return"&&payments.some(p=>p.amount>0&&p.method!=="cash"&&p.method!=="account"))return"المردودات متاحة نقداً أو على الذمة فقط";if(!point)return"اختر نقطة بيع";if(!session)return"يجب فتح عهدة";if(!cart.length)return"السلة فارغة";if(cart.some(line=>!Number.isFinite(line.discount)||line.discount<0||line.discount>Math.min(100,Math.max(0,Number(point.max_discount_percent??100)))||line.price*line.quantity*line.discount/100>line.price*line.quantity+0.009))return"خصم الصنف يجب ألا يتجاوز قيمته أو 100%";if(mode!=="gift"&&discountLimitExceeded)return`مجموع خصم الفاتورة وخصم الأصناف (${manualDiscountPercent.toFixed(2)}%) يتجاوز أعلى نسبة خصم مسموحة في نقطة البيع (${maxDiscountPercent}%)`;if(mode==="gift"){if(!point.allow_gifts)return"الهدايا غير مفعلة لهذه النقطة";if(cart.some(l=>l.quantity>l.available))return"كمية الهدية أكبر من الرصيد المتاح";return null}if(total<=0)return"لا يمكن حفظ فاتورة بإجمالي صفر";if(cashTendered<(payments.find(p=>p.method==="cash")?.amount||0))return"المبلغ النقدي المستلم أقل من الدفعة النقدية";const issue=paymentIssue();if(issue)return issue;if(allocated<total-.009)return"مجموع تفاصيل الدفع أقل من إجمالي الفاتورة";if(allocated>total+.009&&!cashChangeAllowed)return"الزيادة على إجمالي الفاتورة مسموحة للدفع النقدي فقط (الباقي يُرَدّ بعملة نقطة البيع)";if(payments.some(p=>p.amount>0&&p.method==="cheque"&&!p.reference.trim()))return"رقم الشيك مطلوب";if(payments.some(p=>p.amount>0&&p.method==="gift_card"&&!p.reference.trim()))return"رقم بطاقة الهدية مطلوب";if(payments.some(p=>p.amount>0&&p.method==="account")&&!customerId)return"اختر العميل للدفع على الحساب";if(cart.some(l=>!(mode==="return"?(point.return_account_id||l.returnAccountId):l.accountId)))return mode==="return"?"يوجد صنف بلا حساب مردود مبيعات":"يوجد صنف بلا حساب مبيعات";return null}
  const makeReceiptSnapshot=(code:string,pending:boolean,lines:CartLine[]):NonNullable<Receipt>=>{const customer=catalog.customers.find(row=>row.id===customerId);return {code,total,pending,lines,mode,date:localDateTime(),customerName:customer?.name||"عميل نقدي",customerPhone:customer?.mobile1,customerAddress:customer?.address,note,subtotal:lines.reduce((sum,line)=>sum+line.price*line.quantity,0),itemDiscount:lines.reduce((sum,line)=>sum+line.price*line.quantity*line.discount/100,0),invoiceDiscount:invoiceDiscount+campaignResult.invoiceDiscount+cardDiscount,tax,payments:payments.filter(payment=>payment.amount>0),refundAmount:change,currencyCode:point?.currency_code||"",pointName:point?.name||"نقطة البيع"}}
  const printReceiptDirect=async(receiptData:NonNullable<Receipt>,browserPrintWindow:Window|null=null)=>{
-  if(!point?.print_invoices)return
+  // طباعة الفواتير (إعداد نقطة البيع): 0 عدم الطباعة، 1 فاتورة كاملة، 2 فاتورة QR فقط
+  const invoicePrintMode=point?.invoice_print_mode!=null?Number(point.invoice_print_mode):point?.print_invoices?1:0
+  if(invoicePrintMode===0)return
   if(!receiptData.pending)logVoucherAudit({action:"print_original",vch_type:receiptData.mode==="return"?16:receiptData.mode==="gift"?9:12,vch_code:receiptData.code,channel:"pos"})
+  const qrOnly=invoicePrintMode===2
+  const qrInvoice:QrInvoice|null=qrOnly?{title:receiptData.mode==="return"?"إشعار مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة مبيعات",code:receiptData.code,date:receiptData.date,companyName:catalog.receiptSettings.company_name||receiptData.pointName,taxNumber:catalog.receiptSettings.tax_number,customerName:receiptData.customerName,customerPhone:receiptData.customerPhone,cashierName:user?.fullName||user?.username||"",currencyCode:receiptData.currencyCode,lines:receiptData.lines.map(line=>({name:line.name,quantity:line.quantity,price:line.price,discount:line.discount,campaign_discount:line.campaign_discount,gift:line.gift})),subtotal:receiptData.subtotal,itemDiscount:receiptData.itemDiscount,invoiceDiscount:receiptData.invoiceDiscount,tax:receiptData.tax,total:receiptData.total,payments:receiptData.payments.filter(payment=>payment.amount>0).map(payment=>({label:paymentLabels[payment.method]||payment.method,amount:payment.amount,reference:payment.reference})),change:receiptData.refundAmount,note:receiptData.note}:null
+  const qr=qrInvoice?await invoiceQrDataUrl(qrInvoice).catch(()=>null):null
+  if(qrOnly&&!qr){setMessage({type:"error",text:"تعذر إنشاء رمز QR للفاتورة"});return}
+  if(isMobilePrintDevice()&&qrInvoice&&qr){
+   if(!browserPrintWindow){setMessage({type:"error",text:"تعذر فتح صفحة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."});return}
+   browserPrintWindow.document.open();browserPrintWindow.document.write(qrReceiptHtml(qrInvoice,qr.dataUrl));browserPrintWindow.document.close()
+   browserPrintWindow.focus();window.setTimeout(()=>browserPrintWindow.print(),400)
+   return
+  }
   if(isMobilePrintDevice()){
    if(!browserPrintWindow){setMessage({type:"error",text:"تعذر فتح صفحة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."});return}
    const printDocument=browserPrintWindow.document
@@ -488,6 +501,12 @@ export default function PosCashier(){
    y+=32
   }
 
+  if(qrOnly&&qr){
+   fill(left,y,fullWidth,26);text(`الإجمالي: ${money(receiptData.total)} ${receiptData.currencyCode||""}`,left+4,y+3,fullWidth-8,20,12,1,1);y+=32
+   const qrSize=210;commands.push({type:1,image:qr.dataUrl,x:left+Math.round((fullWidth-qrSize)/2),y,width:qrSize,height:qrSize});y+=qrSize+4
+   text("امسح الرمز لعرض تفاصيل الفاتورة كاملة",left,y,fullWidth,14,7,1,0,3);y+=18
+   text("شكراً لتسوقكم معنا",left,y,fullWidth,16,8,1,1);y+=19
+  }else{
   const itemWidth=102,quantityWidth=32,priceWidth=38,discountWidth=40,campaignWidth=42,amountWidth=fullWidth-itemWidth-quantityWidth-priceWidth-discountWidth-campaignWidth
   const itemX=right-itemWidth,quantityX=itemX-quantityWidth,priceX=quantityX-priceWidth,discountX=priceX-discountWidth,campaignX=discountX-campaignWidth,amountX=left
   fill(left,y,fullWidth,21)
@@ -561,6 +580,7 @@ export default function PosCashier(){
   const footer=[catalog.receiptSettings.company_address,catalog.receiptSettings.company_phone,catalog.receiptSettings.company_email].filter(Boolean).join(" | ")
   if(footer){text(footer,left,y,fullWidth,18,6,1,0,3);y+=19}
   text("شكراً لتسوقكم معنا",left,y,fullWidth,16,8,1,1);y+=19
+  }
   try{
    await new Promise<void>((resolve,reject)=>{
     const timer=window.setTimeout(()=>reject(new Error("لم يتم العثور على خدمة الطباعة في هذا الجهاز")),5000)
