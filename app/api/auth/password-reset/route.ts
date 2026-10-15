@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
       }
       const { sent } = await issuePasswordCode({ email, purpose: "reset", tenantDb })
       if (!sent) {
-        return NextResponse.json({ error: "تعذّر إرسال البريد الإلكتروني — إعدادات البريد (SMTP) غير مضبوطة على الخادم. تواصل مع مسؤول النظام." }, { status: 503 })
+        // السبب الفعلي (مفتاح خاطئ، مرسِل غير موثَّق، رفض SMTP...) مسجّل في سجلات الخادم من lib/email.ts
+        return NextResponse.json({ error: "تعذّر إرسال البريد الإلكتروني الآن — إعدادات البريد على الخادم غير مكتملة أو رفض مزوّد البريد الإرسال. تواصل مع مسؤول النظام." }, { status: 503 })
       }
       return NextResponse.json({ success: true, message: "تم إرسال رمز التحقق إلى بريدك الإلكتروني" })
     }
