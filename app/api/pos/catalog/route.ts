@@ -21,61 +21,77 @@ export async function GET(request:NextRequest) {
       priceCategoryId = Number(customer.pricecategory) || priceCategoryId
     }
     const [products,customers,rates,session,salesmen,banks,bankBranches,cardTypes,systemSettings]=await Promise.all([
+      // كتالوج الكاشير: كل جزء (آخر سعر لكل وحدة، الوحدة الافتراضية، قائمة الوحدات، الباركودات، الرصيد) يُحسب مرة واحدة لكل
+      // الأصناف بتجميع ثم يُربط — بدل ~5 استعلامات فرعية مترابطة لكل صنف (16 ألف صنف ⇐ ~7 ثوانٍ). نفس قواعد الاختيار:
+      // الوحدة الافتراضية = أول وحدة لها سعر في فئة السعر (ثم الأقدم)، والسعر = سعر وحدتها ثم سعر صف وحدة الصنف ثم السعر
+      // الوحيد إن كان للصنف وحدة وسعر واحدان، والأحدث (id الأعلى) عند التكرار.
       sql`
+        WITH prices AS (
+          SELECT id, product_id, unit_id, price, currency_id FROM product_prices WHERE price_category_id=${priceCategoryId}
+        ), price_by_unit AS (
+          SELECT DISTINCT ON (product_id, unit_id) product_id, unit_id, price, currency_id FROM prices ORDER BY product_id, unit_id, id DESC
+        ), single_price AS (
+          SELECT DISTINCT ON (product_id) product_id, price, currency_id, COUNT(*) OVER (PARTITION BY product_id) n FROM prices ORDER BY product_id, id DESC
+        ), unit_counts AS (
+          SELECT product_id, COUNT(*) n FROM product_units GROUP BY product_id
+        ), first_barcode AS (
+          SELECT DISTINCT ON (product_id, unit_id) product_id, unit_id, barcode FROM product_unit_barcodes ORDER BY product_id, unit_id, id
+        ), default_unit AS (
+          SELECT DISTINCT ON (x.product_id) x.product_id, x.id pu_id, x.unit_id, fb.barcode first_barcode
+          FROM product_units x
+          LEFT JOIN price_by_unit has_price ON has_price.product_id=x.product_id AND has_price.unit_id=x.unit_id
+          LEFT JOIN first_barcode fb ON fb.product_id=x.product_id AND fb.unit_id=x.id
+          ORDER BY x.product_id, CASE WHEN has_price.product_id IS NOT NULL THEN 0 ELSE 1 END, x.id
+        ), unit_prices AS (
+          SELECT up.product_id, jsonb_agg(jsonb_build_object(
+              'unit_id',up.unit_id,'unit_name',un.unit_name,
+              'source_price',COALESCE(CASE WHEN by_unit.product_id IS NOT NULL THEN by_unit.price ELSE by_row.price END,0),
+              'price_currency_id',CASE WHEN by_unit.product_id IS NOT NULL THEN by_unit.currency_id ELSE by_row.currency_id END
+            ) ORDER BY up.id) list
+          FROM product_units up
+          LEFT JOIN units un ON un.id=up.unit_id
+          LEFT JOIN price_by_unit by_unit ON by_unit.product_id=up.product_id AND by_unit.unit_id=up.unit_id
+          LEFT JOIN price_by_unit by_row ON by_row.product_id=up.product_id AND by_row.unit_id=up.id
+          GROUP BY up.product_id
+        ), barcode_options AS (
+          SELECT pub.product_id, jsonb_agg(jsonb_build_object(
+              'barcode',pub.barcode,'unit_id',all_pu.unit_id,'unit_name',all_u.unit_name,
+              'source_price',COALESCE(CASE WHEN by_row.product_id IS NOT NULL THEN by_row.price ELSE by_unit.price END,0),
+              'price_currency_id',CASE WHEN by_row.product_id IS NOT NULL THEN by_row.currency_id ELSE by_unit.currency_id END
+            ) ORDER BY pub.id) list
+          FROM product_unit_barcodes pub
+          JOIN product_units all_pu ON all_pu.id=pub.unit_id AND all_pu.product_id=pub.product_id
+          JOIN units all_u ON all_u.id=all_pu.unit_id
+          LEFT JOIN price_by_unit by_row ON by_row.product_id=pub.product_id AND by_row.unit_id=all_pu.id
+          LEFT JOIN price_by_unit by_unit ON by_unit.product_id=pub.product_id AND by_unit.unit_id=all_pu.unit_id
+          GROUP BY pub.product_id
+        ), stock AS (
+          SELECT product_id, SUM(CASE WHEN transaction_type='in' THEN quantity ELSE -quantity END) qty
+          FROM inventory_transactions WHERE warehouse_id=${Number(point.main_warehouse_id)} GROUP BY product_id
+        )
         SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,p.pos_sold_using_scale,
                COALESCE(NULLIF(ig.group_name,''),NULLIF(main_group.group_name,''),'غير مصنف') category_name,
                COALESCE(ig.id,main_group.id) group_id,
                CASE WHEN ig.id IS NOT NULL THEN NULLIF(TRIM(ig.default_printer),'') ELSE NULLIF(TRIM(main_group.default_printer),'') END group_printer,
                u.id unit_id,u.unit_name,COALESCE(pu.first_barcode,p.barcode,'') first_barcode,
-               COALESCE(pr.price,0) source_price,pr.currency_id price_currency_id,
-               COALESCE((SELECT jsonb_agg(jsonb_build_object('unit_id',units_price.unit_id,'unit_name',(SELECT unit_name FROM units WHERE units.id=units_price.unit_id),'source_price',COALESCE(selected_price.price,0),'price_currency_id',selected_price.currency_id))
-                 FROM product_units units_price
-                 LEFT JOIN LATERAL (SELECT pp.price,pp.currency_id FROM product_prices pp
-                   WHERE pp.product_id=p.id AND pp.price_category_id=${priceCategoryId} AND pp.unit_id IN (units_price.unit_id,units_price.id)
-                   ORDER BY CASE WHEN pp.unit_id=units_price.unit_id THEN 0 ELSE 1 END,pp.id DESC LIMIT 1) selected_price ON TRUE
-                 WHERE units_price.product_id=p.id),'[]'::jsonb) unit_prices,
-               COALESCE((
-                 SELECT jsonb_agg(jsonb_build_object(
-                   'barcode',pub.barcode,'unit_id',all_pu.unit_id,'unit_name',all_u.unit_name,
-                   'source_price',COALESCE(all_pr.price,0),'price_currency_id',all_pr.currency_id
-                 ) ORDER BY pub.id)
-                 FROM product_unit_barcodes pub
-                 JOIN product_units all_pu ON all_pu.id=pub.unit_id AND all_pu.product_id=p.id
-                 JOIN units all_u ON all_u.id=all_pu.unit_id
-                 LEFT JOIN LATERAL (
-                   SELECT pp.price,pp.currency_id FROM product_prices pp
-                   WHERE pp.product_id=p.id AND pp.price_category_id=${priceCategoryId}
-                     AND pp.unit_id IN (all_pu.id,all_pu.unit_id)
-                   ORDER BY CASE WHEN pp.unit_id=all_pu.id THEN 0 ELSE 1 END,pp.id DESC LIMIT 1
-                 ) all_pr ON TRUE
-                 WHERE pub.product_id=p.id
-               ),'[]'::jsonb) barcode_options,
-               COALESCE(
-                 (SELECT SUM(CASE WHEN it.transaction_type='in' THEN it.quantity ELSE -it.quantity END)
-                  FROM inventory_transactions it WHERE it.product_id=p.id AND it.warehouse_id=${Number(point.main_warehouse_id)}),
-                 CASE WHEN COALESCE(p.main_stock_id,p.default_store)=${Number(point.main_warehouse_id)} THEN ps.available_stock ELSE 0 END,0
-               ) available_stock
+               COALESCE(CASE WHEN pr_unit.product_id IS NOT NULL THEN pr_unit.price WHEN pr_row.product_id IS NOT NULL THEN pr_row.price WHEN uc.n=1 AND sp.n=1 THEN sp.price END,0) source_price,
+               CASE WHEN pr_unit.product_id IS NOT NULL THEN pr_unit.currency_id WHEN pr_row.product_id IS NOT NULL THEN pr_row.currency_id WHEN uc.n=1 AND sp.n=1 THEN sp.currency_id END price_currency_id,
+               COALESCE(unit_prices.list,'[]'::jsonb) unit_prices,
+               COALESCE(barcode_options.list,'[]'::jsonb) barcode_options,
+               COALESCE(stock.qty, CASE WHEN COALESCE(p.main_stock_id,p.default_store)=${Number(point.main_warehouse_id)} THEN ps.available_stock ELSE 0 END, 0) available_stock
         FROM products p
         LEFT JOIN item_groups ig ON ig.id=p.category_id
         LEFT JOIN item_groups main_group ON main_group.id=p.main_stock_id AND COALESCE(main_group.status,1)=1
         LEFT JOIN product_stock ps ON ps.product_id=p.id AND ps.organization_id=1
-        LEFT JOIN LATERAL (SELECT x.*,b.barcode first_barcode FROM product_units x LEFT JOIN LATERAL
-          (SELECT barcode FROM product_unit_barcodes WHERE product_id=x.product_id AND unit_id=x.id ORDER BY id LIMIT 1) b ON TRUE
-          WHERE x.product_id=p.id
-          ORDER BY CASE WHEN EXISTS (
-            SELECT 1 FROM product_prices selected_price
-            WHERE selected_price.product_id=p.id AND selected_price.price_category_id=${priceCategoryId}
-              AND selected_price.unit_id=x.unit_id
-          ) THEN 0 ELSE 1 END, x.id LIMIT 1) pu ON TRUE
+        LEFT JOIN default_unit pu ON pu.product_id=p.id
         LEFT JOIN units u ON u.id=pu.unit_id
-        LEFT JOIN LATERAL (SELECT x.price,x.currency_id FROM product_prices x WHERE x.product_id=p.id
-          AND x.price_category_id=${priceCategoryId}
-          AND (x.unit_id IN (pu.unit_id,pu.id) OR (
-            (SELECT COUNT(*) FROM product_units one_unit WHERE one_unit.product_id=p.id)=1
-            AND (SELECT COUNT(*) FROM product_prices one_price WHERE one_price.product_id=p.id
-              AND one_price.price_category_id=${priceCategoryId})=1
-          ))
-          ORDER BY CASE WHEN x.unit_id=pu.unit_id THEN 0 WHEN x.unit_id=pu.id THEN 1 ELSE 2 END,x.id DESC LIMIT 1) pr ON TRUE
+        LEFT JOIN price_by_unit pr_unit ON pr_unit.product_id=p.id AND pr_unit.unit_id=pu.unit_id
+        LEFT JOIN price_by_unit pr_row ON pr_row.product_id=p.id AND pr_row.unit_id=pu.pu_id
+        LEFT JOIN single_price sp ON sp.product_id=p.id
+        LEFT JOIN unit_counts uc ON uc.product_id=p.id
+        LEFT JOIN unit_prices ON unit_prices.product_id=p.id
+        LEFT JOIN barcode_options ON barcode_options.product_id=p.id
+        LEFT JOIN stock ON stock.product_id=p.id
         WHERE COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
           AND (NOT EXISTS(SELECT 1 FROM product_warehouses pw WHERE pw.product_id=p.id)
                OR EXISTS(SELECT 1 FROM product_warehouses pw WHERE pw.product_id=p.id AND pw.warehouse_id=${Number(point.main_warehouse_id)}))
