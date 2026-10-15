@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CompanyLicenseBar, LicenseRequestsPanel } from "@/components/management/company-license-admin"
+import { PricingPanel } from "@/components/management/pricing-panel"
 import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit } from "lucide-react"
 
 interface PendingCompany {
@@ -57,7 +58,7 @@ interface AccessDefinition {
 }
 
 export default function ManagementAdminPage() {
-  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "permissions">("pending")
+  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "permissions" | "pricing">("pending")
   const [companies, setCompanies] = useState<PendingCompany[]>([])
   const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -427,7 +428,15 @@ export default function ManagementAdminPage() {
           >
             تعريف الصلاحيات
           </button>
+          <button
+            onClick={() => setTab("pricing")}
+            className={`px-4 py-2 text-sm font-medium ${tab === "pricing" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+          >
+            الأسعار
+          </button>
         </div>
+
+        {tab === "pricing" && <PricingPanel />}
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 

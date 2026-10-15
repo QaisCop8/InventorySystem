@@ -4,6 +4,7 @@ import { ensureManagementTables } from "@/lib/management-db"
 import managementSql from "@/lib/management-db"
 import { sendMail } from "@/lib/email"
 import { ensureLicenseTables } from "@/lib/company-license"
+import { paymentsEnabled } from "@/lib/company-billing"
 
 const PLATFORM_ADMIN_EMAIL = "qais.sabbah@iscosoft.com"
 
@@ -59,9 +60,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "اسم الشركة مكرر يرجى اختيار اسم اخر" }, { status: 400 })
     }
 
+    // الدفع الإلكتروني (لحظة) مفعّل ⇒ الشركة تنتظر الدفع ثم تُنشأ تلقائياً عند نجاحه، بدل انتظار موافقة مسؤول المنصة
+    const payNow = data.pay === true && (await paymentsEnabled())
     const inserted = await managementSql`
       INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, number_of_pos_points, license_initialized, pos_license_initialized)
-      VALUES (${name}, 'pending', ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, true, true)
+      VALUES (${name}, ${payNow ? "awaiting_payment" : "pending"}, ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, true, true)
       RETURNING id, name, status, created_at
     `
     const company = inserted[0]
@@ -70,6 +73,7 @@ export async function POST(request: NextRequest) {
       INSERT INTO user_company (user_id, company_id, role)
       VALUES (${session.id}, ${company.id}, 'owner')
     `
+    if (payNow) return NextResponse.json({ success: true, company, payment_required: true })
 
     await sendMail({
       to: PLATFORM_ADMIN_EMAIL,

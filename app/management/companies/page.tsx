@@ -19,14 +19,16 @@ import {
   LayoutDashboard,
   CheckCircle2,
   Hourglass,
+  CreditCard,
 } from "lucide-react"
+import { priceFor, type Pricing } from "@/lib/company-pricing"
 import { activateCompany } from "@/lib/tenant-client"
 import { useToast } from "@/hooks/use-toast"
 
 interface Company {
   id: number
   name: string
-  status: "pending" | "approved" | "rejected" | "stopped"
+  status: "pending" | "approved" | "rejected" | "stopped" | "awaiting_payment" | "provisioning"
   created_at: string
   expiry_date?: string | null
   db_name?: string | null
@@ -58,6 +60,8 @@ const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof Shi
   pending: { label: "في انتظار الموافقة", icon: Clock, classes: "bg-amber-400/10 text-amber-200 ring-1 ring-inset ring-amber-300/25" },
   rejected: { label: "مرفوضة", icon: XCircle, classes: "bg-rose-500/10 text-rose-200 ring-1 ring-inset ring-rose-300/25" },
   stopped: { label: "موقوفة", icon: Ban, classes: "bg-white/5 text-slate-300 ring-1 ring-inset ring-white/15" },
+  awaiting_payment: { label: "بانتظار الدفع", icon: CreditCard, classes: "bg-sky-400/10 text-sky-200 ring-1 ring-inset ring-sky-300/25" },
+  provisioning: { label: "جاري الإنشاء", icon: Loader2, classes: "bg-emerald-400/10 text-emerald-200 ring-1 ring-inset ring-emerald-300/25" },
 }
 
 // نفس هوية شاشة الدخول (components/auth/management-login.tsx): شفق متحرك، نقاط، زجاج، حدّ متدرّج متحرك.
@@ -137,6 +141,11 @@ export default function ManagementCompaniesPage() {
   const [showTrialDialog, setShowTrialDialog] = useState(false)
   const [trialCompanyName, setTrialCompanyName] = useState("")
   const [trialSaving, setTrialSaving] = useState(false)
+  // الدفع الإلكتروني عبر لحظة عند إنشاء شركة (مفعّل حين يضبط الخادم LAHZA_SECRET_KEY وسعراً أساسياً)
+  const [pricing, setPricing] = useState<Pricing | null>(null)
+  const [paymentEnabled, setPaymentEnabled] = useState(false)
+  const [paymentTestMode, setPaymentTestMode] = useState(false)
+  const [payingId, setPayingId] = useState<number | null>(null)
 
   useEffect(() => {
     fetch("/api/management/me")
@@ -162,6 +171,29 @@ export default function ManagementCompaniesPage() {
   }
 
   useEffect(() => {
+    fetch("/api/management/pricing", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!data) return; setPricing(data.pricing); setPaymentEnabled(Boolean(data.enabled)); setPaymentTestMode(Boolean(data.testMode)) })
+      .catch(() => undefined)
+  }, [])
+
+  // يبدأ (أو يكمل) الدفع ويحوّل لصفحة لحظة؛ إن كانت دفعة سابقة قد اكتملت تُنشأ الشركة مباشرة
+  const startPayment = async (companyId: number) => {
+    setPayingId(companyId)
+    try {
+      const res = await fetch(`/api/management/companies/${companyId}/payment`, { method: "POST" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "تعذّر بدء عملية الدفع")
+      if (data.authorizationUrl) { window.location.href = data.authorizationUrl; return }
+      if (data.provisioned) { toast({ title: "تم", description: "تم تأكيد الدفع وإنشاء الشركة" }); await loadCompanies() }
+    } catch (e) {
+      toast({ title: "خطأ", description: e instanceof Error ? e.message : "تعذّر بدء عملية الدفع", variant: "destructive" })
+    } finally {
+      setPayingId(null)
+    }
+  }
+
+  useEffect(() => {
     loadCompanies()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -175,7 +207,7 @@ export default function ManagementCompaniesPage() {
       const res = await fetch("/api/management/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0) }),
+        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0), pay: paymentEnabled }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -186,6 +218,7 @@ export default function ManagementCompaniesPage() {
       setNewCompanyName("")
       setNewCompanyPosPoints("0")
       await loadCompanies()
+      if (data.payment_required && data.company?.id) await startPayment(Number(data.company.id))
     } catch {
       toast({ title: "خطأ", description: "تعذّر الاتصال بالخادم", variant: "destructive" })
     } finally {
@@ -352,7 +385,7 @@ export default function ManagementCompaniesPage() {
                   }}
                   className={
                     "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-right outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
-                    (canOpenCompany ? "cursor-pointer" : "cursor-not-allowed opacity-60")
+                    (canOpenCompany ? "cursor-pointer" : company.status === "awaiting_payment" ? "cursor-default" : "cursor-not-allowed opacity-60")
                   }
                 >
                   <div className="flex w-full items-start justify-between">
@@ -388,6 +421,16 @@ export default function ManagementCompaniesPage() {
                     )}
                   </div>
 
+                  {company.status === "awaiting_payment" && (
+                    <button
+                      type="button"
+                      disabled={payingId !== null}
+                      onClick={(event) => { event.stopPropagation(); void startPayment(company.id) }}
+                      className="cp-btn inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white"
+                    >
+                      {payingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}إكمال الدفع
+                    </button>
+                  )}
                   {canOpenCompany && (
                     <span className="inline-flex items-center gap-1.5 self-start text-sm font-black text-emerald-300 transition group-hover:text-emerald-200">
                       دخول الشركة <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
@@ -403,7 +446,7 @@ export default function ManagementCompaniesPage() {
               <Plus className="h-7 w-7" />
             </span>
             <span className="text-base font-black">اضافة شركة جديدة</span>
-            <span className="text-xs text-slate-400">تُفعَّل بعد موافقة إدارة النظام</span>
+            <span className="text-xs text-slate-400">{paymentEnabled ? "ادفع إلكترونياً وتُفعَّل فوراً" : "تُفعَّل بعد موافقة إدارة النظام"}</span>
           </button>
 
           <button type="button" onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-200">
@@ -431,7 +474,7 @@ export default function ManagementCompaniesPage() {
           <style dangerouslySetInnerHTML={{ __html: css }} />
           <DialogHeader className="text-right">
             <DialogTitle className="flex items-center gap-2 text-xl font-black text-white"><Building2 className="h-5 w-5 text-emerald-300" />اضافة شركة جديدة</DialogTitle>
-            <DialogDescription className="text-slate-400">تُرسل للموافقة من إدارة النظام قبل تفعيلها.</DialogDescription>
+            <DialogDescription className="text-slate-400">{paymentEnabled ? "ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً." : "تُرسل للموافقة من إدارة النظام قبل تفعيلها."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <label htmlFor="new-company-name" className="text-sm font-bold text-slate-200">اسم الشركة</label>
@@ -449,7 +492,22 @@ export default function ManagementCompaniesPage() {
               </div>
             ))}
           </div>
-          <p className="text-xs leading-6 text-slate-400">العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.</p>
+          {paymentEnabled && pricing ? (() => {
+            const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0 })
+            return (
+              <div className="space-y-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-4">
+                <p className="flex items-center gap-2 text-sm font-black text-emerald-200"><CreditCard className="h-4 w-4" />تكلفة الاشتراك السنوي</p>
+                {quote.lines.filter((line) => line.amount > 0).map((line) => (
+                  <div key={line.label} className="flex justify-between text-xs text-slate-300"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
+                ))}
+                <div className="flex justify-between border-t border-white/10 pt-2 text-base font-black"><span>الإجمالي</span><span className="tabular-nums text-emerald-300" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
+                <p className="text-[11px] leading-5 text-slate-400">الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع.</p>
+                {paymentTestMode && <p className="rounded-lg bg-amber-400/10 px-2 py-1.5 text-[11px] leading-5 text-amber-200" dir="rtl">وضع تجريبي: استخدم البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — تاريخ <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+              </div>
+            )
+          })() : (
+            <p className="text-xs leading-6 text-slate-400">العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.</p>
+          )}
           <DialogFooter className="gap-2 sm:gap-2">
             <button type="button" onClick={() => setShowAddDialog(false)} className="h-11 rounded-xl border border-white/15 px-5 text-sm font-bold text-slate-200 transition hover:bg-white/10">
               إلغاء
@@ -460,7 +518,7 @@ export default function ManagementCompaniesPage() {
               disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0)}
               className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
             >
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />جاري الإنشاء...</> : "إنشاء"}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled ? "جاري التحويل للدفع..." : "جاري الإنشاء..."}</> : paymentEnabled ? <><CreditCard className="h-4 w-4" />الدفع وإنشاء الشركة</> : "إنشاء"}
             </button>
           </DialogFooter>
         </DialogContent>
