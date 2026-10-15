@@ -4,6 +4,8 @@ import type React from "react"
 import { ReportAccessGate } from "@/components/auth/report-access-gate"
 import { FileAccessGate } from "@/components/auth/file-access-gate"
 import { fileFamilyForSection } from "@/lib/file-permission-definitions"
+import { TransactionAccessGate } from "@/components/auth/transaction-access-gate"
+import { transactionFamilyForSection } from "@/lib/transaction-permission-definitions"
 import { isReportSection } from "@/lib/report-permission-definitions"
 import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -400,6 +402,7 @@ function resolveSectionNode(section: string | null, onOpenSection: (section: str
     }
     if (isReportSection(section)) return <ReportAccessGate section={section}><Component /></ReportAccessGate>
     if (fileFamilyForSection(section)) return <FileAccessGate section={section}><Component /></FileAccessGate>
+    if (transactionFamilyForSection(section)) return <TransactionAccessGate section={section}><Component /></TransactionAccessGate>
     return <Component />
   }
 

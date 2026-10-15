@@ -38,8 +38,9 @@ interface Props {
 // مع صيغ قديمة متفاوتة الإملاء ("ادخال"/"إدخال"، "عرض"/"استعلام") — المطابقة بعد توحيد الحروف، وكل
 // الصيغ المكررة لنفس الخلية تُفعَّل/تُعطَّل معاً.
 
-type Action = "view" | "create" | "update" | "delete" | "post"
+type Action = "access" | "view" | "create" | "update" | "delete" | "post"
 const ACTIONS: { key: Action; label: string; tone: string }[] = [
+  { key: "access", label: "الدخول للشاشة", tone: "teal" },
   { key: "view", label: "استعلام", tone: "sky" },
   { key: "create", label: "إدخال", tone: "emerald" },
   { key: "update", label: "تعديل", tone: "amber" },
@@ -59,6 +60,7 @@ const toneClasses: Record<string, { on: string; soft: string; text: string }> = 
   amber: { on: "bg-amber-500 border-amber-500 text-white", soft: "bg-amber-50", text: "text-amber-700" },
   rose: { on: "bg-rose-500 border-rose-500 text-white", soft: "bg-rose-50", text: "text-rose-700" },
   violet: { on: "bg-violet-500 border-violet-500 text-white", soft: "bg-violet-50", text: "text-violet-700" },
+  teal: { on: "bg-teal-600 border-teal-600 text-white", soft: "bg-teal-50", text: "text-teal-700" },
 }
 
 const VOUCHER_SECTIONS: { title: string; icon: any; gradient: string; vouchers: { name: string; icon: any }[] }[] = [
@@ -146,6 +148,7 @@ const normalize = (value: string) =>
     .toLocaleLowerCase("ar")
 
 const ACTION_PREFIXES: { action: Action; prefixes: string[] }[] = [
+  { action: "access", prefixes: ["الدخول لشاشه", "الدخول الي شاشه", "الدخول لشاشات", "فتح شاشه"] },
   { action: "view", prefixes: ["استعلام", "عرض"] },
   { action: "create", prefixes: ["ادخال", "اضافه"] },
   { action: "update", prefixes: ["تعديل"] },
@@ -246,19 +249,23 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
   }
   const rowAll = (row: VoucherRow) => [...Object.values(row.cells).flat(), ...row.extras.flatMap((extra) => extra.items)] as PermissionItem[]
 
-  // أي عملية على السند تتطلب الاستعلام عنه: تفعيلها يفعّل الاستعلام، وإلغاء الاستعلام يلغي باقي عمليات السند.
+  // أي عملية على السند تتطلب الدخول لشاشته والاستعلام عنه: تفعيلها يفعّلهما. إلغاء "الدخول للشاشة" يلغي كل عمليات السند،
+  // وإلغاء الاستعلام يلغي باقي العمليات ويُبقي الدخول للشاشة.
+  const withoutAccess = (row: VoucherRow) => rowAll(row).filter((item) => !(row.cells.access || []).includes(item))
   const toggleCell = (row: VoucherRow, action: Action) => {
     const list = row.cells[action] || []
     const value = !isOn(list)
     let next = set(list, value)
-    if (value && action !== "view") next = set(row.cells.view || [], true, next)
-    if (!value && action === "view") next = set(rowAll(row), false, next)
+    if (value && action !== "access") next = set(row.cells.access || [], true, next)
+    if (value && action !== "view" && action !== "access") next = set(row.cells.view || [], true, next)
+    if (!value && action === "access") next = set(rowAll(row), false, next)
+    if (!value && action === "view") next = set(withoutAccess(row), false, next)
     onChange(next)
   }
   const toggleExtra = (row: VoucherRow, list: PermissionItem[]) => {
     const value = !isOn(list)
     let next = set(list, value)
-    if (value) next = set(row.cells.view || [], true, next)
+    if (value) next = set([...(row.cells.view || []), ...(row.cells.access || [])], true, next)
     onChange(next)
   }
 
@@ -360,7 +367,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
       ) : tab === "vouchers" ? (
         sections.length === 0 ? <Empty text="لا توجد سندات مطابقة للبحث أو الفلتر." /> : (
           <>
-            <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5" />تفعيل أي عملية على السند يفعّل الاستعلام عنه تلقائياً، وإلغاء الاستعلام يلغي باقي عملياته. اضغط رأس العمود لتبديله لكل سندات المجموعة.</p>
+            <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5" />تفعيل أي عملية على السند يفعّل الدخول لشاشته والاستعلام عنه تلقائياً، وإلغاء الدخول للشاشة يلغي كل عملياته (ويختفي السند من القائمة). اضغط رأس العمود لتبديله لكل سندات المجموعة.</p>
             {sections.map((section) => {
               const sectionItems = section.rows.flatMap((entry) => rowAll(entry.row))
               const sectionGranted = count(sectionItems)
@@ -402,8 +409,10 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                     title={on ? `إلغاء ${action.label} لكل سندات ${section.title}` : `تفعيل ${action.label} لكل سندات ${section.title}`}
                                     onClick={() => {
                                       let next = set(columnItems, !on)
-                                      if (!on && action.key !== "view") next = set(section.rows.flatMap((entry) => entry.row.cells[action.key]?.length ? entry.row.cells.view || [] : []), true, next)
-                                      if (on && action.key === "view") next = set(section.rows.flatMap((entry) => rowAll(entry.row)), false, next)
+                                      if (!on && action.key !== "access") next = set(section.rows.flatMap((entry) => entry.row.cells[action.key]?.length ? entry.row.cells.access || [] : []), true, next)
+                                      if (!on && action.key !== "view" && action.key !== "access") next = set(section.rows.flatMap((entry) => entry.row.cells[action.key]?.length ? entry.row.cells.view || [] : []), true, next)
+                                      if (on && action.key === "access") next = set(section.rows.flatMap((entry) => rowAll(entry.row)), false, next)
+                                      if (on && action.key === "view") next = set(section.rows.flatMap((entry) => withoutAccess(entry.row)), false, next)
                                       onChange(next)
                                     }}
                                     className={cn("w-full rounded-lg px-2 py-1.5 text-xs font-bold transition hover:opacity-80 disabled:opacity-40", toneClasses[action.tone].soft, toneClasses[action.tone].text)}

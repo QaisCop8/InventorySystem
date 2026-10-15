@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useReportAccess } from "@/components/auth/use-report-access"
 import { useFileSectionAccess } from "@/components/auth/use-file-access"
+import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -549,7 +550,8 @@ export function Sidebar({
 }: SidebarProps) {
   const canOpenReport = useReportAccess()
   const canOpenFile = useFileSectionAccess()
-  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, section => canOpenReport(section) && canOpenFile(section)), [canOpenReport, canOpenFile])
+  const canOpenTransaction = useTransactionSectionAccess()
+  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, section => canOpenReport(section) && canOpenFile(section) && canOpenTransaction(section)), [canOpenReport, canOpenFile, canOpenTransaction])
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [companyLogo, setCompanyLogo] = useState("")

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { CornerDownLeft, Search, X } from "lucide-react"
 import { menuItems, type MenuItem } from "@/components/sidebar"
 import { useReportAccess } from "@/components/auth/use-report-access"
+import { useFileSectionAccess } from "@/components/auth/use-file-access"
+import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
 import { cn } from "@/lib/utils"
 
 // بحث النظام بالشريط العلوي: يبحث في كل شاشات القائمة (بنفس صلاحيات الشريط الجانبي — التقارير غير
@@ -31,6 +33,8 @@ function flatten(items: MenuItem[], path: string[] = []): Omit<SearchEntry, "hay
 
 export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: string) => void; className?: string }) {
   const canOpenReport = useReportAccess()
+  const canOpenFile = useFileSectionAccess()
+  const canOpenTransaction = useTransactionSectionAccess()
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -40,10 +44,10 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
   const entries = useMemo<SearchEntry[]>(() => {
     const seen = new Set<string>()
     return flatten(menuItems)
-      .filter((entry) => canOpenReport(entry.section))
+      .filter((entry) => canOpenReport(entry.section) && canOpenFile(entry.section) && canOpenTransaction(entry.section))
       .filter((entry) => (seen.has(entry.section) ? false : (seen.add(entry.section), true)))
       .map((entry) => ({ ...entry, haystack: normalizeArabic(`${entry.title} ${entry.path.join(" ")}`) }))
-  }, [canOpenReport])
+  }, [canOpenReport, canOpenFile, canOpenTransaction])
 
   const results = useMemo(() => {
     const terms = normalizeArabic(query).split(" ").filter(Boolean)

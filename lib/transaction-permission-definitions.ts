@@ -1,4 +1,4 @@
-export type TransactionAction = "view" | "create" | "update" | "delete" | "post"
+export type TransactionAction = "access" | "view" | "create" | "update" | "delete" | "post"
 
 export const TRANSACTION_FAMILIES = {
   salesman_commission: "عمولات المندوبين",
@@ -28,6 +28,8 @@ export const TRANSACTION_FAMILIES = {
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
 
 export const TRANSACTION_ACTION_LABELS: Record<TransactionAction, string> = {
+  // الدخول لشاشة الحركة (ظهورها في القائمة وفتحها) — مثل "الدخول لشاشة فاتورة مبيعات"
+  access: "الدخول لشاشة",
   view: "استعلام",
   create: "إدخال",
   update: "تعديل",
@@ -64,6 +66,47 @@ export function transactionPermissionName(family: TransactionFamily, action: Tra
 
 export function legacyTransactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return action === "view" ? `عرض ${TRANSACTION_FAMILIES[family]}` : null
+}
+
+// شاشات القائمة (section بـapp/page.tsx) لكل نوع حركة — لصلاحية "الدخول لشاشة"
+const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
+  "sales-orders": "sales_order",
+  "purchase-orders": "purchase_order",
+  "sale-invoices": "sales_invoice",
+  "sales-invoices": "sales_invoice",
+  "sales-delivery": "sales_delivery",
+  "delivery-consignment-sale": "consignment_delivery",
+  "return-delivery-consignment-sale": "consignment_return",
+  "return-sell": "sales_return",
+  "purchase-invoices": "purchase_invoice",
+  "delivery-pay": "purchase_delivery",
+  "return-purchase": "purchase_return",
+  "stock-in-vouchers": "stock_in",
+  "stock-out-vouchers": "stock_out",
+  "internal-delivery-vouchers": "internal_delivery",
+  "use-vouchers": "stock_use",
+  "receipt-vouchers": "receipt",
+  "payment-vouchers": "payment",
+  "cheque-payment-vouchers": "cheque_payment",
+  "journal-vouchers": "journal",
+  "credit-notes": "credit_note",
+  "debit-notes": "debit_note",
+  "fixed-assets": "fixed_asset",
+  "salesman-commissions": "salesman_commission",
+}
+
+export function transactionFamilyForSection(section: string | null | undefined): TransactionFamily | null {
+  return section && Object.prototype.hasOwnProperty.call(TRANSACTION_SECTIONS, section) ? TRANSACTION_SECTIONS[section] : null
+}
+
+export type TransactionAccessEntry = { access_name?: string | null; is_granted?: unknown }
+/** الدخول لشاشة الحركة في الفرع النشط. قبل أن تصل الصلاحية الجديدة لقائمة المستخدم المخزّنة (لم تُحدَّث بعد) تبقى الشاشة متاحة. */
+export function canAccessTransactionScreen(entries: TransactionAccessEntry[] | null, family: TransactionFamily): boolean {
+  if (!entries) return true
+  const name = transactionPermissionName(family, "access")
+  const matches = entries.filter((entry) => String(entry.access_name || "").trim() === name)
+  if (!matches.length) return true
+  return matches.every((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
 }
 
 export const ALL_TRANSACTION_PERMISSION_NAMES = (

@@ -558,6 +558,40 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     }
   }
 
+  // "الدخول لشاشة {الحركة}" (أُضيفت 2026-10-15): مرة واحدة لكل شركة تُمنح لكل مستخدم/دور (وعلى مستوى الفروع) يملك أي
+  // صلاحية ممنوحة على نفس الحركة — فلا يفقد أحد شاشة يعمل عليها اليوم. لا تُعاد بعد ذلك، فتقييد المسؤول لاحقاً يبقى.
+  await client.query(`CREATE TABLE IF NOT EXISTS permission_migrations (name VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`, [])
+  const screenAccessMigration = "transaction-screen-access-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [screenAccessMigration])).length) {
+    const accessNames: string[] = []
+    const sourceNames: string[] = []
+    for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
+      for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+        if (action === "access") continue
+        accessNames.push(transactionPermissionName(family, "access"))
+        sourceNames.push(transactionPermissionName(family, action))
+      }
+    }
+    for (const [table, keys] of [
+      ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+      ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+    ] as const) {
+      const columns = keys.join(",")
+      const selected = keys.map((key) => `granted.${key}`).join(",")
+      await client.query(
+        `INSERT INTO ${table} (${columns}, access_id, is_granted)
+         SELECT DISTINCT ${selected}, target.id, TRUE
+         FROM unnest($1::text[], $2::text[]) AS m(access_name, source_name)
+         JOIN access_list target ON LOWER(BTRIM(target.name)) = LOWER(BTRIM(m.access_name))
+         JOIN access_list source ON LOWER(BTRIM(source.name)) = LOWER(BTRIM(m.source_name))
+         JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+         ON CONFLICT (${columns}, access_id) DO NOTHING`,
+        [accessNames, sourceNames],
+      )
+    }
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [screenAccessMigration])
+  }
+
   // صلاحيات التقارير: صلاحية "استعلام" لكل تقرير. عند إنشائها لأول مرة في الشركة تُمنح لكل الأدوار
   // القائمة (لا يفقد أحد وصوله للتقارير بعد التحديث) — ثم يقيّدها المسؤول من شاشة الصلاحيات.
   const reportCategoryRows = await client.query(
