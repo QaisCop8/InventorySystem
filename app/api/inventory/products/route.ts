@@ -289,6 +289,7 @@ export async function GET(request: NextRequest) {
     const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
     const requestedProductId = Number.parseInt(url.searchParams.get('productId') || url.searchParams.get('id') || '0', 10) || 0
     const activeOnly = url.searchParams.get('activeOnly') === 'true' || url.searchParams.get('activeOnly') === '1'
+    const requestedProductIds = [...new Set(String(url.searchParams.get('ids') || '').split(',').map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 500)
     const organizationId = 1
 
     const resolvedType =
@@ -331,6 +332,8 @@ export async function GET(request: NextRequest) {
       '(p.deleted IS NULL OR p.deleted = false)',
       ...(requestedProductId > 0 && effectiveType === null ? [] : [`COALESCE(p.type, 1) = ANY(ARRAY[${permittedTypes.join(",")}]::int[])`]),
       ...(requestedProductId > 0 ? [`p.id = ${requestedProductId}::int`] : []),
+      // ids=1,2,3: أصناف محددة (إضافة أصناف نموذج العميل تلقائياً للحركة) — أعداد صحيحة فقط تُضمَّن حرفياً
+      ...(requestedProductIds.length ? [`p.id = ANY(ARRAY[${requestedProductIds.join(",")}]::int[])`] : []),
       ...(activeOnly ? [`(p.status = 1 OR p.status::text = 'نشط' OR p.status::text = 'active' OR p.status::text = 'ACTIVE')`] : []),
       `(NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
         OR EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id AND pb.branch_id = ANY(ARRAY[${grantedBranchIdsLiteral}]::int[])))`,

@@ -377,6 +377,7 @@ function UnifiedSalesOrder({
   const message = useRef(Messages);
   const [loading, setLoading] = useState(false);
   const setFromExcelRef = useRef(false);
+  const appendItemsRef = useRef(false);
   const priceCategoryIdRef = useRef(1)
   const [definitions, setDefinitions] = useState({
     categories: [] as Array<{ id: number; group_name: string }>,
@@ -1069,6 +1070,12 @@ function UnifiedSalesOrder({
     const lastRowIndex = CollectionView.items.length - 1;
     if (setFromExcelRef.current) {
       selectedIndexL = lastRowIndex;
+    }
+    // إضافة تلقائية (أصناف نموذج العميل): تبدأ من أول سطر فارغ في النهاية — لا تستبدل أي سطر قائم
+    if (appendItemsRef.current) {
+      let firstEmpty = CollectionView.items.length;
+      for (let k = CollectionView.items.length - 1; k >= 0 && !CollectionView.items[k]?.id; k--) firstEmpty = k;
+      selectedIndexL = firstEmpty;
     }
     for (let i = 0; i < items.length; i++) {
       const ii = items[i];
@@ -2743,6 +2750,49 @@ function UnifiedSalesOrder({
     setFromExcelRef.current = true
     await FillItem(products);
   };
+
+  // نماذج العملاء والأصناف المعلَّمة "إضافة الأصناف تلقائياً في الحركات عند اختيار العميل": عند اختيار العميل في
+  // طلبية جديدة تُضاف أصناف نماذجه الفعّالة بتاريخ الطلبية — عبر FillItem نفسها، دون تكرار صنف موجود.
+  const fillItemRef = useRef(FillItem);
+  fillItemRef.current = FillItem;
+  const autoAddedForRef = useRef("");
+  useEffect(() => {
+    const accountId = Number(state.formData?.customer_id) || 0;
+    if (Number(state.formData?.id) > 0 || !accountId) {
+      if (!accountId) autoAddedForRef.current = "";
+      return;
+    }
+    const orderDate = String(state.formData?.order_date || "").slice(0, 10);
+    const key = `${accountId}:${orderDate}`;
+    if (autoAddedForRef.current === key) return;
+    autoAddedForRef.current = key;
+    let cancelled = false;
+    let finished = false;
+    void (async () => {
+      try {
+        const query = new URLSearchParams({ account_id: String(accountId), auto: "1", ...(orderDate ? { date: orderDate } : {}) });
+        const templateData = await fetch(`/api/customer-product-templates/customer-products?${query}`, { cache: "no-store" }).then((response) => response.ok ? response.json() : null);
+        const existing = new Set((CollectionView.items || []).map((row: any) => Number(row?.id)).filter(Boolean));
+        const ids: number[] = (Array.isArray(templateData?.product_ids) ? templateData.product_ids : []).map(Number).filter((id: number) => !existing.has(id));
+        if (cancelled || !ids.length) return;
+        const products = await fetch(`/api/inventory/products?priceCategoryId=${priceCategoryIdRef.current || 1}&activeOnly=true&ids=${ids.join(",")}`, { cache: "no-store" }).then((response) => response.ok ? response.json() : []);
+        if (cancelled || !Array.isArray(products) || !products.length) return;
+        const ordered = ids.map((id) => products.find((product: any) => Number(product.id) === id)).filter(Boolean);
+        appendItemsRef.current = true;
+        try { await fillItemRef.current(ordered); } finally { appendItemsRef.current = false; }
+        toast.current?.show({ severity: "info", summary: "أصناف نموذج العميل", detail: `أُضيف ${ordered.length} صنف${templateData?.templates?.length ? ` من: ${templateData.templates.map((row: any) => row.name || row.code).join("، ")}` : ""}`, life: 4000 });
+      } catch (error) {
+        console.error("Failed to auto-add customer template items", error);
+      } finally {
+        finished = true;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (!finished && autoAddedForRef.current === key) autoAddedForRef.current = "";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.formData?.customer_id, state.formData?.id, state.formData?.order_date]);
   const filteredCustomers = state.customers.filter(
     (customer) =>
       customer.customer_name.toLowerCase().includes(state.customerSearch.toLowerCase()) ||

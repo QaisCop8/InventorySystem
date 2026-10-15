@@ -2215,6 +2215,72 @@ export default function UnifiedSalesDelivery({
     pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
   }
 
+  // نماذج العملاء والأصناف المعلَّمة "إضافة الأصناف تلقائياً في الحركات عند اختيار العميل": عند اختيار العميل
+  // في فاتورة/إرسالية مبيعات جديدة (إدخال مباشر، لا من طلبية/إرسالية) تُضاف أصناف نماذجه الفعّالة بتاريخ
+  // السند كسطور — عبر handleProductSelect نفسها (سعر/وحدة/مستودع/حساب كالاختيار اليدوي)، دون تكرار صنف موجود.
+  const handleProductSelectRef = useRef(handleProductSelect)
+  handleProductSelectRef.current = handleProductSelect
+  const autoAddedForRef = useRef<string>("")
+  useEffect(() => {
+    const accountId = Number(form.account_id) || 0
+    const eligible = !form.id && accountId > 0 && !isLocked
+      && ([SALES_INVOICE_VCH_TYPE, DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE] as number[]).includes(Number(voucherType))
+      && Number(form.invoice_source_type || 1) === 1
+    if (!eligible) {
+      if (!accountId) autoAddedForRef.current = ""
+      return
+    }
+    const key = `${accountId}:${String(form.vch_date || "").slice(0, 10)}`
+    if (autoAddedForRef.current === key) return
+    autoAddedForRef.current = key
+    let cancelled = false
+    let finished = false
+    void (async () => {
+      try {
+        const query = new URLSearchParams({ account_id: String(accountId), auto: "1", ...(form.vch_date ? { date: String(form.vch_date).slice(0, 10) } : {}) })
+        const templateData = await fetch(`/api/customer-product-templates/customer-products?${query}`, { cache: "no-store" }).then((response) => response.ok ? response.json() : null)
+        const existing = new Set(itemsRef.current.map((row) => Number(row.product_id)).filter(Boolean))
+        const ids: number[] = (Array.isArray(templateData?.product_ids) ? templateData.product_ids : []).map(Number).filter((id: number) => !existing.has(id))
+        if (cancelled || !ids.length) return
+        const products = await fetch(`/api/inventory/products?priceCategoryId=1&activeOnly=true&ids=${ids.join(",")}`, { cache: "no-store" }).then((response) => response.ok ? response.json() : [])
+        if (cancelled || !Array.isArray(products) || !products.length) return
+        // وحدات كل صنف (كما تفعل نافذة البحث قبل الاختيار) — وإلا يصل السطر بلا قائمة وحدات
+        const ordered = await Promise.all(ids
+          .map((id) => products.find((product: any) => Number(product.id) === id))
+          .filter(Boolean)
+          .map(async (product: any) => {
+            const units = await fetch(`/api/products/${product.id}/units?price_category_id=1`).then((response) => response.ok ? response.json() : []).catch(() => [])
+            return { ...product, units: Array.isArray(units) ? units : [], selected_unit: Array.isArray(units) ? units[0] : undefined }
+          }))
+        if (cancelled || !ordered.length) return
+        // السطر الأخير الفارغ (إن وُجد) يُملأ أولاً، وإلا تُضاف السطور في النهاية
+        const rows = itemsRef.current
+        const lastRow = rows[rows.length - 1]
+        if (lastRow && !lastRow.product_id) pendingFocusRow.current = rows.length - 1
+        else {
+          const withEmpty = [...rows, { ...emptyItemRow }]
+          itemsRef.current = withEmpty
+          onItemsChange(withEmpty)
+          pendingFocusRow.current = withEmpty.length - 1
+        }
+        popupHasCalled()
+        await handleProductSelectRef.current(ordered)
+        pendingFocusRow.current = null
+        messagesRef.current?.show?.([{ severity: "info", summary: "", detail: `أُضيف ${ordered.length} صنف من نماذج العميل${templateData?.templates?.length ? `: ${templateData.templates.map((row: any) => row.name || row.code).join("، ")}` : ""}`, life: 4000 }])
+      } catch (error) {
+        console.error("Failed to auto-add customer template items", error)
+      } finally {
+        finished = true
+      }
+    })()
+    return () => {
+      cancelled = true
+      // أُلغي قبل الاكتمال (تغيّر التاريخ/العميل) ⇐ يُسمح بإعادة المحاولة للمفتاح الجديد
+      if (!finished && autoAddedForRef.current === key) autoAddedForRef.current = ""
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.account_id, form.id, form.vch_date, form.invoice_source_type, voucherType, isLocked])
+
   const handleKeyDown = (grid: any, e: any) => {
     // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة (grid/e سليمَين)، ومرة أخرى
     // بمعطيات غير مكتملة (onKeyDown ليس حدثاً مُوثَّقاً في FlexGridInputs، فيبدو أن React يلتقطها

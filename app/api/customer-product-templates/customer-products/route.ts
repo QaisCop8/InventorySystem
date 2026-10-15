@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     if (!Number.isInteger(accountId) || accountId <= 0) return NextResponse.json({ error: "العميل مطلوب" }, { status: 400 })
     const dateParam = request.nextUrl.searchParams.get("date") || ""
     const date = /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : new Date().toISOString().slice(0, 10)
+    // auto=1: فقط النماذج المعلَّمة "إضافة الأصناف تلقائياً في الحركات عند اختيار العميل"
+    const autoOnly = request.nextUrl.searchParams.get("auto") === "1"
     await ensureCustomerProductTemplateTables()
     const rows = await sql`
       SELECT DISTINCT tp.product_id, t.template_code, t.name_ar
@@ -22,6 +24,7 @@ export async function GET(request: NextRequest) {
       WHERE t.status = 1
         AND t.start_date <= ${date}::date
         AND (t.end_date IS NULL OR t.end_date >= ${date}::date)
+        AND (${autoOnly}::boolean = false OR t.auto_add_items = true)
     `
     const templates = new Map<string, string>()
     for (const row of rows as any[]) templates.set(String(row.template_code), String(row.name_ar || ""))
