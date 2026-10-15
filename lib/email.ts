@@ -16,8 +16,13 @@ function provider(): Provider {
   return null
 }
 
-const senderEmail = () => String(process.env.MAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || "").trim()
-const senderName = () => String(process.env.MAIL_FROM_NAME || "ARAAK ERP").trim()
+// MAIL_FROM/SMTP_FROM قد يُضبط باسم عرض بدل بريد (مثل "ARAAK ERP System") — يُستخدم حينها كاسم العرض والمرسِل يبقى البريد
+const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+const senderEmail = () => [process.env.MAIL_FROM, process.env.SMTP_FROM, process.env.SMTP_USER].map((value) => String(value || "").trim()).find(isEmail) || ""
+const senderName = () => {
+  const named = [process.env.MAIL_FROM_NAME, process.env.MAIL_FROM, process.env.SMTP_FROM].map((value) => String(value || "").trim()).find((value) => value && !isEmail(value))
+  return named || "ARAAK ERP"
+}
 
 export function isMailConfigured() {
   return provider() !== null && Boolean(senderEmail())
