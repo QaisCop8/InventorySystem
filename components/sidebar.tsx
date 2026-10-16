@@ -560,7 +560,7 @@ export function Sidebar({
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [companyLogo, setCompanyLogo] = useState("")
-  const [companyName, setCompanyName] = useState("ARAAK ERP System")
+  const [companyName, setCompanyName] = useState("Noon ERP")
   const { menuDarkMode } = useMenuTheme()
   // أثناء حفظ أي سند لا يُسمح بفتح صفحة أخرى
   const savingLocked = useSavingLock()
@@ -591,7 +591,7 @@ export function Sidebar({
         const data = await response.json()
         const settings = data?.settings ?? data
         setCompanyLogo(typeof settings?.company_logo === "string" ? settings.company_logo : "")
-        setCompanyName(String(settings?.company_name || "ARAAK ERP System"))
+        setCompanyName(String(settings?.company_name || "Noon ERP"))
       } catch (error) {
         console.error("Failed to load company branding", error)
       }
@@ -892,7 +892,7 @@ export function Sidebar({
             {isOpen && (
               <>
                 <span className="text-emerald-700 dark:text-emerald-300">متصل</span>
-                <span className="mr-auto font-mono text-[10.5px] text-slate-400">ARAAK ERP</span>
+                <span className="mr-auto font-mono text-[10.5px] text-slate-400">Noon ERP</span>
               </>
             )}
           </div>

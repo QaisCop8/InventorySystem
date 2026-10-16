@@ -20,10 +20,10 @@ export function ManagementAuthShell({ eyebrow, title, description, children, com
       <div className={`relative z-10 w-full ${compact ? "max-w-[470px]" : "max-w-[500px]"}`}>
         <header className="mb-5 flex items-center justify-center gap-3">
           <div className="relative flex h-11 w-11 items-center justify-center rounded-[14px] bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/20">
-            <Boxes className="h-5 w-5" />
+            <span className="text-2xl font-black leading-none" aria-hidden="true">ن</span>
             <span className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-violet-100 bg-white text-violet-600 shadow-sm"><Sparkles className="h-3 w-3" /></span>
           </div>
-          <div><div className="text-base font-black tracking-tight">ARAAK ERP System</div><div className="text-[9px] font-bold tracking-[0.22em] text-slate-400">ARAAK MANAGEMENT CLOUD</div></div>
+          <div><div className="text-base font-black tracking-tight">Noon ERP</div><div className="text-[9px] font-bold tracking-[0.22em] text-slate-400">NOON MANAGEMENT CLOUD</div></div>
         </header>
 
         <section className="relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-[0_28px_75px_-38px_rgba(15,23,42,0.32)]">

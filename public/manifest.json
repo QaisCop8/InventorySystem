@@ -1,7 +1,7 @@
 {
-  "name": "شامل للأعمال ونقاط البيع",
-  "short_name": "شامل POS",
-  "description": "نظام الأعمال ونقطة البيع المتصلة وغير المتصلة",
+  "name": "نون ERP — الأعمال ونقاط البيع",
+  "short_name": "نون ERP",
+  "description": "نظام نون ERP للأعمال ونقاط البيع المتصلة وغير المتصلة",
   "start_url": "/?section=pos-cashier",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -23,21 +23,34 @@
       "purpose": "maskable any"
     }
   ],
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "shortcuts": [
     {
       "name": "كاشير نقطة البيع",
       "short_name": "الكاشير",
       "description": "فتح نقطة البيع مباشرة",
       "url": "/?section=pos-cashier",
-      "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.jpg",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "طلبية جديدة",
       "short_name": "طلبية جديدة",
       "description": "إنشاء طلبية جديدة",
       "url": "/mobile",
-      "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.jpg",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

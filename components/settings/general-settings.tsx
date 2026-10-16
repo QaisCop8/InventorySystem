@@ -265,7 +265,7 @@ export default function GeneralSettings() {
                       <Input
                         value={state.companyName}
                         onChange={(e) => setState((prev) => ({ ...prev, companyName: e.target.value }))}
-                        placeholder="ARAAK ERP System"
+                        placeholder="Noon ERP"
                         className="text-right"
                         dir="rtl"
                       />

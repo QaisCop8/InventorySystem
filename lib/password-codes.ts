@@ -59,9 +59,9 @@ export async function issuePasswordCode(options: { email: string; purpose: Passw
   const link = appUrl() ? `${appUrl()}/management/login?set_password=1&email=${encodeURIComponent(email)}&code=${code}` : ""
   const greeting = options.fullName ? `مرحباً ${options.fullName}،` : "مرحباً،"
   const html = options.purpose === "invite"
-    ? `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${greeting}</p><p>تم إنشاء حساب لك في نظام ARAAK ERP${options.companyName ? ` لدى شركة <b>${options.companyName}</b>` : ""}.</p><p>لتعيين كلمة المرور الخاصة بك استخدم رمز التحقق التالي (صالح لمدة 72 ساعة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p>${link ? `<p><a href="${link}">اضغط هنا لتعيين كلمة المرور</a></p>` : `<p>من صفحة تسجيل الدخول اختر "نسيت كلمة المرور؟" ثم أدخل بريدك وهذا الرمز.</p>`}</div>`
+    ? `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${greeting}</p><p>تم إنشاء حساب لك في نظام Noon ERP${options.companyName ? ` لدى شركة <b>${options.companyName}</b>` : ""}.</p><p>لتعيين كلمة المرور الخاصة بك استخدم رمز التحقق التالي (صالح لمدة 72 ساعة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p>${link ? `<p><a href="${link}">اضغط هنا لتعيين كلمة المرور</a></p>` : `<p>من صفحة تسجيل الدخول اختر "نسيت كلمة المرور؟" ثم أدخل بريدك وهذا الرمز.</p>`}</div>`
     : `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${greeting}</p><p>رمز التحقق لاستعادة كلمة المرور (صالح لمدة 15 دقيقة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p><p>إن لم تطلب استعادة كلمة المرور فتجاهل هذه الرسالة.</p></div>`
-  const sent = await sendMail({ to: email, subject: options.purpose === "invite" ? "تعيين كلمة المرور لحسابك الجديد — ARAAK ERP" : "رمز استعادة كلمة المرور — ARAAK ERP", html })
+  const sent = await sendMail({ to: email, subject: options.purpose === "invite" ? "تعيين كلمة المرور لحسابك الجديد — Noon ERP" : "رمز استعادة كلمة المرور — Noon ERP", html })
   if (!sent) console.log(`[password-codes] email not sent; ${options.purpose} code for ${email} was generated (check SMTP settings)`)
   return { sent }
 }
@@ -113,7 +113,7 @@ export async function setPasswordWithCode(email: string, code: string, newPasswo
 export async function sendAddedToCompanyEmail(email: string, fullName?: string, companyName?: string) {
   return sendMail({
     to: normalize(email),
-    subject: "تمت إضافتك إلى شركة — ARAAK ERP",
-    html: `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${fullName ? `مرحباً ${fullName}،` : "مرحباً،"}</p><p>تمت إضافتك كمستخدم${companyName ? ` لدى شركة <b>${companyName}</b>` : ""} في نظام ARAAK ERP.</p><p>يمكنك الدخول بنفس بريدك وكلمة المرور الحالية لحسابك.</p></div>`,
+    subject: "تمت إضافتك إلى شركة — Noon ERP",
+    html: `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${fullName ? `مرحباً ${fullName}،` : "مرحباً،"}</p><p>تمت إضافتك كمستخدم${companyName ? ` لدى شركة <b>${companyName}</b>` : ""} في نظام Noon ERP.</p><p>يمكنك الدخول بنفس بريدك وكلمة المرور الحالية لحسابك.</p></div>`,
   })
 }

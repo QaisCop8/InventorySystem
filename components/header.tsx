@@ -288,7 +288,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     }
     return null;
   };
-  const pageTitle = sectionTitles[activeSection] || SECTION_TITLES[activeSection] || "ARAAK ERP System";
+  const pageTitle = sectionTitles[activeSection] || SECTION_TITLES[activeSection] || "Noon ERP";
   const pagePath = (findPath(menuItems) || []).join(" › ");
   const toolButtonClass = "flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-background hover:text-emerald-700 hover:shadow-sm dark:hover:text-emerald-300";
 

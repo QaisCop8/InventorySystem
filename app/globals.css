@@ -2771,3 +2771,82 @@ td {
 .dark .p-dropdown-panel .p-dropdown-items .p-dropdown-item, .dark .p-multiselect-panel .p-multiselect-items .p-multiselect-item { color: #e5e7eb; }
 .dark .p-dropdown-panel .p-dropdown-items .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover { background-color: #1e293b; }
 .dark .p-dropdown-panel .p-dropdown-header, .dark .p-multiselect-panel .p-multiselect-header { background-color: #111827; border-color: #334155; }
+
+/* ── الوضع الداكن: قواعد الشاشات المفروضة بـ!important (نماذج السندات، القوائم المنسدلة، شريط الأدوات) ──
+   !important في طبقة أسبق (base) يغلب !important في طبقة components (ترتيب الطبقات معكوس للمهمّ). */
+@layer base {
+  .dark .universal-toolbar[data-toolbar-template]:not([data-toolbar-template="gradient"]) { background: #0f172a !important; border-color: #1e293b !important; }
+  .dark .universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-navigation,
+  .dark .universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-record,
+  .dark .universal-toolbar[data-toolbar-template="compact"] .universal-toolbar-navigation button:not(:disabled):hover,
+  .dark .universal-toolbar[data-toolbar-template="gradient"] .universal-toolbar-new { background: #1e293b !important; color: #e5e7eb !important; }
+
+  .dark .account-search-results-grid .wj-flexgrid { background: #0f172a !important; }
+  .dark .account-search-results-grid .wj-flexgrid .wj-header { background: #1e293b !important; color: #cbd5e1 !important; }
+
+  .dark .invoice-currency-dropdown,
+  .dark .invoice-currency-dropdown.p-focus,
+  .dark .sales-delivery-form .invoice-currency-dropdown,
+  .dark .sales-delivery-form .p-dropdown,
+  .dark .date-time-control,
+  .dark .sales-delivery-form .date-time-control,
+  .dark .sales-delivery-form input:not([type="checkbox"]):not([type="radio"]):not(.date-time-control-input),
+  .dark .sales-delivery-form select,
+  .dark .sales-delivery-form textarea { background: #0f172a !important; color: #e5e7eb !important; border-color: #334155 !important; }
+  .dark .date-time-control-disabled,
+  .dark .sales-delivery-form input:disabled,
+  .dark .sales-delivery-form .p-disabled { background: #172033 !important; color: #94a3b8 !important; }
+  .dark .date-time-control-input { color: #e5e7eb !important; background: transparent !important; }
+  .dark .date-time-control-input::-webkit-calendar-picker-indicator { filter: invert(1); }
+  .dark .date-time-control-icon { color: #60a5fa !important; }
+  .dark .invoice-currency-dropdown .p-dropdown-label,
+  .dark .invoice-currency-dropdown .p-inputtext,
+  .dark .invoice-currency-dropdown .p-dropdown-trigger { color: #e5e7eb !important; background: transparent !important; }
+
+  .dark .invoice-currency-dropdown-panel,
+  .dark .invoice-currency-dropdown-panel.p-multiselect-panel,
+  .dark .invoice-currency-dropdown-panel .p-dropdown-header,
+  .dark .invoice-currency-dropdown-panel .p-multiselect-header,
+  .dark .invoice-currency-dropdown-panel .p-dropdown-filter,
+  .dark .invoice-currency-dropdown-panel .p-multiselect-filter,
+  .dark .invoice-currency-dropdown-panel .p-dropdown-item,
+  .dark .invoice-currency-dropdown-panel .p-multiselect-item,
+  .dark .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box { background: #0f172a !important; color: #e5e7eb !important; border-color: #334155 !important; }
+  .dark .invoice-currency-dropdown-panel .p-dropdown-item:hover,
+  .dark .invoice-currency-dropdown-panel .p-dropdown-item.p-highlight,
+  .dark .invoice-currency-dropdown-panel .p-multiselect-item:hover,
+  .dark .invoice-currency-dropdown-panel .p-multiselect-item.p-highlight { background: #1e293b !important; }
+
+  .dark .sales-order-form-body > div > .grid > .sales-order-details-panel { background: #111827 !important; }
+
+  /* Wijmo: صفوف بديلة/خلايا بخلفيات بيضاء مفروضة في ملفات الشبكات */
+  .dark .wj-flexgrid .wj-cell:not(.wj-header):not(.wj-state-selected):not(.wj-state-multi-selected) { background-color: #0f172a !important; color: #e5e7eb !important; }
+  .dark .wj-flexgrid .wj-cell.wj-alt:not(.wj-header):not(.wj-state-selected):not(.wj-state-multi-selected) { background-color: #111c30 !important; }
+}
+
+/* تدرّجات فاتحة ملوّنة (شرائط الملخص …) */
+@layer utilities {
+  .dark :where(.from-emerald-50, .from-green-50, .from-teal-50) { --tw-gradient-from: rgb(16 185 129 / 0.14); }
+  .dark :where(.to-emerald-50, .to-green-50, .to-teal-50, .to-cyan-50) { --tw-gradient-to: rgb(20 184 166 / 0.08); }
+  .dark :where(.from-blue-50, .from-sky-50, .from-indigo-50, .from-cyan-50) { --tw-gradient-from: rgb(59 130 246 / 0.14); }
+  .dark :where(.to-blue-50, .to-sky-50, .to-indigo-50) { --tw-gradient-to: rgb(59 130 246 / 0.06); }
+  .dark :where(.from-amber-50, .from-orange-50, .from-yellow-50) { --tw-gradient-from: rgb(245 158 11 / 0.14); }
+  .dark :where(.to-amber-50, .to-orange-50, .to-yellow-50) { --tw-gradient-to: rgb(245 158 11 / 0.06); }
+  .dark :where(.from-violet-50, .from-purple-50, .from-rose-50, .from-pink-50) { --tw-gradient-from: rgb(139 92 246 / 0.14); }
+  .dark :where(.to-violet-50, .to-purple-50, .to-rose-50, .to-pink-50) { --tw-gradient-to: rgb(139 92 246 / 0.06); }
+  .dark :where(.border-emerald-200, .border-emerald-100, .border-teal-200, .border-green-200) { border-color: rgb(16 185 129 / 0.35); }
+  .dark :where(.text-emerald-700, .text-emerald-800, .text-teal-700, .text-green-700) { color: #6ee7b7; }
+  .dark :where(.text-blue-700, .text-sky-700, .text-indigo-700) { color: #93c5fd; }
+}
+@layer base {
+  .dark .universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-nav-wrap { background: #111827 !important; border-color: #1e293b !important; }
+}
+@layer utilities {
+  .dark :where(.from-emerald-100, .from-green-100, .from-teal-100, .from-blue-100, .from-sky-100, .from-indigo-100, .from-cyan-100, .from-amber-100, .from-orange-100, .from-yellow-100, .from-violet-100, .from-purple-100, .from-rose-100, .from-pink-100, .from-red-100, .from-slate-100, .from-gray-100) { --tw-gradient-from: rgb(148 163 184 / 0.10); }
+  .dark :where(.to-emerald-100, .to-green-100, .to-teal-100, .to-blue-100, .to-sky-100, .to-indigo-100, .to-cyan-100, .to-amber-100, .to-orange-100, .to-yellow-100, .to-violet-100, .to-purple-100, .to-rose-100, .to-pink-100, .to-red-100, .to-gray-100) { --tw-gradient-to: rgb(148 163 184 / 0.05); }
+  .dark :where(.bg-emerald-100, .bg-green-100, .bg-teal-100, .bg-blue-100, .bg-sky-100, .bg-indigo-100, .bg-cyan-100, .bg-amber-100, .bg-orange-100, .bg-yellow-100, .bg-violet-100, .bg-purple-100, .bg-rose-100, .bg-pink-100, .bg-red-100) { background-color: rgb(148 163 184 / 0.14); }
+  .dark :where(.border-purple-200, .border-violet-200, .border-blue-200, .border-sky-200, .border-amber-200, .border-orange-200, .border-rose-200, .border-red-200) { border-color: rgb(148 163 184 / 0.25); }
+}
+@layer utilities {
+  .dark :where(.bg-white\/95, .bg-white\/85, .bg-white\/75, .bg-white\/65, .bg-white\/50) { background-color: rgb(17 24 39 / 0.85); }
+}

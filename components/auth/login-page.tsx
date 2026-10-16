@@ -76,11 +76,11 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
-                <Boxes className="h-5 w-5" />
+                <span className="text-2xl font-black leading-none" aria-hidden="true">ن</span>
               </div>
               <div>
-                <div className="text-base font-bold">ARAAK ERP System</div>
-                <div className="text-[11px] font-medium tracking-[0.12em] text-slate-500">ARAAK ERP</div>
+                <div className="text-base font-bold">Noon ERP</div>
+                <div className="text-[11px] font-medium text-slate-500">نون — نظام إدارة الأعمال</div>
               </div>
             </div>
             <div className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
@@ -138,7 +138,7 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
           </div>
 
           <footer className="flex items-center justify-between gap-4 border-t border-slate-100 pt-5 text-[11px] text-slate-400">
-            <span>© {new Date().getFullYear()} ARAAK ERP System</span>
+            <span>© {new Date().getFullYear()} Noon ERP</span>
             <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />بياناتك محمية ومشفّرة</span>
           </footer>
         </div>

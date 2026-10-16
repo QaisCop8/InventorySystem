@@ -122,12 +122,10 @@ function Wordmark() {
   return (
     <div className="flex items-center gap-3" dir="ltr">
       <span className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,.8)] ring-1 ring-white/30">
-        <svg viewBox="0 0 32 32" className="h-6 w-6" aria-hidden="true">
-          <path d="M16 4 4 28h5.2l2.4-5.2h8.8l2.4 5.2H28L16 4Zm-2.6 14.6L16 12.8l2.6 5.8h-5.2Z" fill="currentColor" className="text-white" />
-        </svg>
+        <span className="text-[22px] font-black leading-none text-white" aria-hidden="true">ن</span>
       </span>
       <span className="leading-none">
-        <span className="block text-xl font-black tracking-[0.18em] text-white">ARAAK</span>
+        <span className="block text-xl font-black tracking-[0.18em] text-white">NOON</span>
         <span className="mt-1 block text-[10px] font-bold tracking-[0.42em] text-emerald-300">ERP SYSTEM</span>
       </span>
     </div>
@@ -538,7 +536,7 @@ export default function ManagementCompaniesPage() {
           </p>
         )}
 
-        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">ARAAK ERP</span></p>
+        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
       </main>
 
       {subscription && pricing && (

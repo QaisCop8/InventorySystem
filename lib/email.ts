@@ -5,7 +5,7 @@
 //   2) RESEND_API_KEY — Resend عبر HTTP (يتطلب نطاقاً موثَّقاً للمرسِل)
 //   3) SMTP_HOST/SMTP_USER/SMTP_PASS — nodemailer (مناسب للتشغيل المحلي/خادم Node). ملاحظة: Hotmail/Outlook.com أوقف
 //      تسجيل الدخول بكلمة المرور لـSMTP (خطأ 535 5.7.139)، وSMTP على Workers يعتمد على مقابس TCP غير مضمونة.
-// المرسِل: MAIL_FROM أو SMTP_FROM أو SMTP_USER، واسم العرض MAIL_FROM_NAME (افتراضياً ARAAK ERP).
+// المرسِل: MAIL_FROM أو SMTP_FROM أو SMTP_USER، واسم العرض MAIL_FROM_NAME (افتراضياً Noon ERP).
 
 type Provider = "brevo" | "resend" | "smtp" | null
 
@@ -16,12 +16,12 @@ function provider(): Provider {
   return null
 }
 
-// MAIL_FROM/SMTP_FROM قد يُضبط باسم عرض بدل بريد (مثل "ARAAK ERP System") — يُستخدم حينها كاسم العرض والمرسِل يبقى البريد
+// MAIL_FROM/SMTP_FROM قد يُضبط باسم عرض بدل بريد (مثل "Noon ERP") — يُستخدم حينها كاسم العرض والمرسِل يبقى البريد
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 const senderEmail = () => [process.env.MAIL_FROM, process.env.SMTP_FROM, process.env.SMTP_USER].map((value) => String(value || "").trim()).find(isEmail) || ""
 const senderName = () => {
   const named = [process.env.MAIL_FROM_NAME, process.env.MAIL_FROM, process.env.SMTP_FROM].map((value) => String(value || "").trim()).find((value) => value && !isEmail(value))
-  return named || "ARAAK ERP"
+  return named || "Noon ERP"
 }
 
 export function isMailConfigured() {
