@@ -1048,10 +1048,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         resolveDefaultVatPercent={resolveDefaultVatPercent}
         isSaving={isSaving}
         isLoading={isLoading}
-        currentIndex={currentIndex}
+        // الترقيم والأول/السابق حسب ترتيب السندات (id تصاعدياً) — نفس ترتيب أزرار التنقل في الخادم؛ القائمة نفسها مرتبة من الأحدث
+        currentIndex={Math.max(0, [...filteredVouchers].sort((a, b) => a.id - b.id).findIndex((row) => row.id === form.id))}
         totalRecords={filteredVouchers.length}
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={currentIndex >= filteredVouchers.length - 1}
+        isFirstRecord={form.id > 0 && !filteredVouchers.some((row) => row.id < form.id)}
+        isLastRecord={form.id > 0 && !filteredVouchers.some((row) => row.id > form.id)}
         onNew={openNewDialog}
         onSave={saveVoucher}
         onValidateSave={async () => { await pendingBookChangeRef.current; return validateVoucher(formRef.current) }}
