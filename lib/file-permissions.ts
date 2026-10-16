@@ -93,7 +93,7 @@ const LOOKUP_FIELDS: Record<FileFamily, string[]> = {
   items: ["product_code", "product_name", "product_number", "item_code", "item_name", "barcode", "main_barcode", "item_type", "product_type", "is_service", "unit_id", "unit_name", "unit_code", "to_main_unit_qty", "price", "selling_price", "sale_price", "vat_rate", "tax_rate", "store_id", "store_name", "warehouse_id", "has_expiry", "has_batch", "has_serial", "track_expiry", "track_batches", "track_serials", "has_lots", "has_units", "category_id"],
   services: ["product_code", "product_name", "product_number", "item_code", "item_name", "barcode", "item_type", "product_type", "is_service", "unit_id", "unit_name", "price", "selling_price", "sale_price", "vat_rate", "tax_rate", "category_id"],
   cars: ["car_number", "car_code", "car_name", "plate_number", "driver_id"], drivers: ["driver_number", "driver_code", "driver_name", "full_name"],
-  accounts: ["account_code", "account_name", "account_id", "classification_type_id", "type_name", "classification_type_name", "father_id", "parent_account_id", "finanical_list_id", "has_deliveries", "has_orders"],
+  accounts: ["account_code", "account_name", "account_id", "classification_type_id", "type_name", "classification_type_name", "father_id", "parent_account_id", "finanical_list_id", "has_deliveries", "has_orders", "has_children"],
   banks: ["bank_code", "bank_name"], branches: ["branch_code", "branch_name", "bank_id"],
   "bank-accounts": ["bank_id", "branch_id", "bank_branch_id", "account_id", "bank_name", "branch_name", "account_name", "account_code"],
   "credit-cards": ["main_type", "main_type_id", "credit_card_type_id", "card_name", "card_code", "account_id"],

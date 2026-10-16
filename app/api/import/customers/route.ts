@@ -4,6 +4,8 @@ import sql from "@/lib/database"
 import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount, MissingParentAccountError, toNullableInt, ensureCustomerCompatibilityColumns } from "@/app/api/customers/_lib"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { authorizeCustomerType } from "@/app/api/customers/_permissions"
+import { postOpeningBalances, type OpeningBalanceLine } from "@/lib/opening-balances"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 
 const CODE_LENGTH = 10
 
@@ -38,9 +40,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { data } = body
     const types = body.check === true ? [Number(body.type) || 1] : Array.isArray(data) ? [...new Set(data.map((item: any) => Number(item?.type) || 1))] : [1]
+    let actor: { userId: string; branchId: number } | null = null
     for (const type of types) {
       const permission = await authorizeCustomerType(request, type, "create")
       if (!permission.ok) return permission.response
+      actor = { userId: String(permission.userId), branchId: Number(permission.branchId) || 0 }
     }
     await ensureCustomerCompatibilityColumns()
 
@@ -78,6 +82,9 @@ export async function POST(request: NextRequest) {
     // نتيجة كل سطر (rowIndex كما أرسله المستورِد) — تعرضها شاشة الاستيراد بجانب السطر نفسه.
     const results: Array<{ rowIndex: number; status: "success" | "failed" | "duplicate"; error?: string }> = [];
     const prefixByType = new Map<number, string>();
+    // الأرصدة الافتتاحية (الرصيد ≠ 0): تُقيَّد بعد حفظ الدفعة بسند قيد لكل (عملة، تاريخ) مقابل الحساب الوسيط
+    const openingLines: OpeningBalanceLine[] = [];
+    const today = new Date().toISOString().slice(0, 10);
 
     for (const item of data) {
       try {
@@ -127,7 +134,8 @@ export async function POST(request: NextRequest) {
         const accountId = await ensureCustomerAccount({
           code: customerCode,
           name: item.name || item.customer_name,
-          currencyId: toNullableInt(item.currency_id) ?? 1,
+          // عملة الحساب = عملة الرصيد الافتتاحي إن حُدِّدت
+          currencyId: toNullableInt(item.opening_currency_id) ?? toNullableInt(item.currency_id) ?? 1,
           allowTransWithDiffCurr: item.allow_trans_with_diff_curr ?? 0,
           isCalcCurrDiffRates: item.iscalc_curr_diff_rates ?? false,
           fatherId: parent.fatherId,
@@ -187,12 +195,45 @@ export async function POST(request: NextRequest) {
 
         success++;
         results.push({ rowIndex: item.rowIndex || data.indexOf(item) + 1, status: "success" });
+        const openingBalance = Number(item.opening_balance) || 0
+        if (Math.abs(openingBalance) >= 0.0005) {
+          // العميل/المشترك: موجب = مدين (عليه). المورد: موجب = دائن (له). الإشارة السالبة تعكس الاتجاه.
+          const openingDate = /^\d{4}-\d{2}-\d{2}$/.test(String(item.opening_date || "").slice(0, 10)) ? String(item.opening_date).slice(0, 10) : today
+          openingLines.push({
+            key: item.rowIndex || data.indexOf(item) + 1, accountId: Number(accountId), amount: type === 2 ? -openingBalance : openingBalance,
+            currencyId: toNullableInt(item.opening_currency_id) ?? toNullableInt(item.currency_id) ?? 1, date: openingDate, label: `${customerCode} ${item.customer_name}`,
+          })
+        }
       } catch (error: any) {
         const rowIndex = item.rowIndex || data.indexOf(item) + 1;
         errors.push(`السطر ${rowIndex}: ${error.message}`);
         results.push({ rowIndex, status: "failed", error: error.message });
         failed++;
         console.error(`Error importing customer ${item.customer_name}:`, error);
+      }
+    }
+
+    if (openingLines.length) {
+      const failOpening = (message: string) => {
+        for (const line of openingLines) {
+          const result = results.find((entry) => entry.rowIndex === line.key)
+          if (result) { result.status = "failed"; result.error = `تم حفظ الحساب لكن لم يُقيَّد الرصيد الافتتاحي: ${message}`; success--; failed++ }
+        }
+      }
+      // قيد الأرصدة يتطلب صلاحية إدخال سند قيد
+      const journalPermission = await authorizeTransaction(request, "journal", "create")
+      if (!journalPermission.ok) failOpening("لا تملك صلاحية إدخال سند قيد")
+      else {
+        let branchId = actor?.branchId || journalPermission.branchId
+        if (!branchId) branchId = Number((await sql`SELECT branch_id FROM user_settings WHERE user_id = ${actor?.userId || ""} LIMIT 1`)[0]?.branch_id) || 0
+        const posted = await postOpeningBalances(openingLines, { userId: actor?.userId || String(journalPermission.userId), branchId, note: "أرصدة افتتاحية - استيراد من Excel" })
+        for (const line of openingLines) {
+          const outcome = posted.get(line.key)
+          const result = results.find((entry) => entry.rowIndex === line.key)
+          if (!result || !outcome) continue
+          if (outcome.ok) (result as any).voucher_code = outcome.voucherCode
+          else { result.status = "failed"; result.error = `تم حفظ الحساب لكن لم يُقيَّد الرصيد الافتتاحي: ${outcome.error}`; success--; failed++ }
+        }
       }
     }
 

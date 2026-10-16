@@ -13,6 +13,9 @@ import { Save, Settings, Building2, Globe, FileText, Loader2, AlertCircle, Walle
 import VouchersGeneralSettings from "@/components/settings/vouchers-general-settings"
 import { buildVoucherCode } from "@/lib/voucher-code"
 
+// حقول "حساب الأب" تُختار منها حسابات رئيسية — بقية الحسابات الافتراضية يجب أن تكون فرعية (بلا أبناء)
+const PARENT_ACCOUNT_SETTING_KEYS = new Set(["customerParentAccount", "customerCreditAccount", "salesmanParentAccount", "supplierParentAccount", "newEmployeeAccount", "customerSubscriptionAccount"])
+
 const defaultAccountFields = [
   { key: "customerParentAccount", label: "حساب اب العملاء في ملف تعريف العملاء" },
   { key: "customerCreditAccount", label: "حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات" },
@@ -1125,7 +1128,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                       className="w-full"
                       showCostCenterButton={false}
                       requiredTypeValues={[1]}
-                      leafOnly
+                      leafOnly={!PARENT_ACCOUNT_SETTING_KEYS.has(field.key)}
                     />
                   </div>
                 ))}

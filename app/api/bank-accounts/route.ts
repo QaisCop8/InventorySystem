@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 
 const ensureTable = async () => { return runSchemaOnce("app/api/bank-accounts/route.ts#ensureTable", async () => {
   await sql`
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest) {
     if (!authorization.ok) return authorization.response
     await ensureTable()
     const data = await request.json()
+    const leafAccountsError = await validateLeafAccountFields({ "الحساب الجاري": data.jary_account_id, "حساب التحصيل": data.tahsil_account_id, "حساب عمولة التحصيل": data.tahsil_commission_account_id, "حساب الشيكات المدفوعة": data.payed_checks_account_id, "حساب الشيكات المرتجعة": data.returned_checks_account_id })
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
 
     if (!data.code || !data.name) {
       return NextResponse.json({ error: "رقم الحساب واسم الحساب مطلوبان" }, { status: 400 })
@@ -105,6 +108,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const leafAccountsError = await validateLeafAccountFields({ "الحساب الجاري": data.jary_account_id, "حساب التحصيل": data.tahsil_account_id, "حساب عمولة التحصيل": data.tahsil_commission_account_id, "حساب الشيكات المدفوعة": data.payed_checks_account_id, "حساب الشيكات المرتجعة": data.returned_checks_account_id })
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     const authorization = await authorizeFile(request, "bank-accounts", Number(data.status) === 3 ? "delete" : "update")
     if (!authorization.ok) return authorization.response
     await ensureTable()

@@ -1,4 +1,6 @@
 import { NextResponse,type NextRequest } from "next/server"
+import { validateLeafAccounts } from "@/lib/leaf-accounts"
+import { validateAccountStops } from "@/lib/account-stops"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql,{withTenantTransaction} from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
@@ -65,6 +67,8 @@ async function postHandler(request:NextRequest){
     return await withTenantTransaction(async()=>{
     const account=(await sql`SELECT id,currency_id,allow_trans_with_diff_curr FROM account_tbl WHERE id=${accountId} AND COALESCE(status,1)<>3`)[0]
     if(!account)return NextResponse.json({error:"الحساب المحدد غير موجود أو غير فعال"},{status:400})
+    const parentError=await validateLeafAccounts([accountId]);if(parentError)return NextResponse.json({error:parentError},{status:400})
+    const stopError=await validateAccountStops([accountId],CHEQUE_PAYMENT_VCH_TYPE,vchDate);if(stopError)return NextResponse.json({error:stopError},{status:400})
     const chosen=await sql`SELECT c.*,source.branch_id source_branch_id FROM cheques_tbl c LEFT JOIN voucher_header_tbl source ON source.id=c.voucher_id WHERE c.id=ANY(${chequeIds}::int[]) ORDER BY c.id FOR UPDATE OF c`
     if(chosen.length!==chequeIds.length)return NextResponse.json({error:"أحد الشيكات المحددة غير موجود"},{status:409})
     const invalid=chosen.find((c:any)=>Number(c.cheq_type)!==1||!ENDORSEMENT_STATUS_IDS.includes(Number(c.status_id))||!c.current_account_id)

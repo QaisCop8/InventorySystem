@@ -12,6 +12,7 @@ import {
   POS_CASHIER_PERMISSIONS,
   CREDIT_LIMIT_PERMISSION_CATEGORY,
   CREDIT_LIMIT_OVERRIDE_PERMISSION,
+  ACCOUNT_BALANCE_VIEW_PERMISSION,
   transactionPermissionName,
   type PosCashierPermission,
   type TransactionAction,
@@ -430,7 +431,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -725,13 +726,13 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     `SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`,
     [CREDIT_LIMIT_PERMISSION_CATEGORY],
   ))[0]
-  if (creditCategory?.id) {
+  for (const permissionName of [CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION]) if (creditCategory?.id) {
     const inserted = await client.query(
       `INSERT INTO access_list (name, category_id)
        SELECT $1::varchar, $2::integer
        WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING
        RETURNING id`,
-      [CREDIT_LIMIT_OVERRIDE_PERMISSION, creditCategory.id],
+      [permissionName, creditCategory.id],
     )
     if (inserted[0]?.id) {
       await client.query(

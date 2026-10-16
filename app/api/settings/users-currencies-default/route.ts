@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { validateLeafAccounts } from "@/lib/leaf-accounts"
 
 const ensureTables = async () => { return runSchemaOnce("app/api/settings/users-currencies-default/route.ts#ensureTables", async () => {
   await sql`
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest) {
     }
     const currencyIds = Array.from(new Set(rows.map((row: any) => Number(row.currency_id)).filter((id: number) => Number.isInteger(id) && id > 0)))
     if (currencyIds.length !== rows.length) return NextResponse.json({ error: "Invalid currency_id" }, { status: 400 })
+    // حسابات الصندوق/الشيكات/البطاقات الافتراضية يجب أن تكون حسابات فرعية
+    const leafAccountsError = await validateLeafAccounts(rows.flatMap((row: any) => accountFields.map((field) => row[field])))
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
 
     await ensureTables()
     const { primaryId } = await resolveUserKeys(user_id)

@@ -3186,6 +3186,26 @@ export function CompactProductForm({
                               disabled
                             />
                           </div>
+                          {/* تُحدَّث تلقائياً من فاتورة/إرسالية المشتريات (lib/last-purchase.ts) */}
+                          <div>
+                            <Label htmlFor="last_purchase_date" className="text-sm font-medium">تاريخ آخر شراء</Label>
+                            <Input id="last_purchase_date" value={String((formData as any).last_purchase_date || "").slice(0, 10)} className="text-right" disabled readOnly />
+                          </div>
+                          <div>
+                            <Label htmlFor="last_purchase_currency" className="text-sm font-medium">عملة آخر شراء</Label>
+                            <Input
+                              id="last_purchase_currency"
+                              value={(() => {
+                                const currencyId = Number((formData as any).last_purchase_currency_id) || 0
+                                if (!currencyId) return ""
+                                const currency: any = definitionsRef.current.currencies.find((item: any) => Number(item.id) === currencyId)
+                                return currency?.currency_code || currency?.currency_name || String(currencyId)
+                              })()}
+                              className="text-right"
+                              disabled
+                              readOnly
+                            />
+                          </div>
                           <div>
                             <Label htmlFor="minimum_order_quantity" className="text-sm font-medium">
                               أقل كمية للطلب

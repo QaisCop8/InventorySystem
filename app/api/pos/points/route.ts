@@ -4,6 +4,7 @@ import { ensureTables as ensureVoucherTables } from "@/app/api/sales-vouchers/_l
 import { canUsePosCashierPermission, ensurePosTables, requestBranchId, requestUserId } from "../_lib"
 import { normalizePosPointUsers } from "@/lib/pos-point-users"
 import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
+import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 
 const bool = (value: unknown, fallback = false) => value == null ? fallback : Boolean(value)
 const optionalId = (value: unknown) => Number(value || 0) || null
@@ -44,6 +45,11 @@ async function validate(data: any) {
       AND COALESCE(status,1)<>3 AND (currency_id IS NULL OR currency_id=${Number(data.currency_id)})`
     if (!accounts[0]) return "الحساب المحدد غير نشط أو لا يتوافق مع عملة نقطة البيع"
   }
+  const leafAccountsError = await validateLeafAccountFields({
+    "حساب الصندوق": data.cash_account_id, "العميل النقدي": data.walk_in_account_id, "حساب البطاقات": data.card_account_id,
+    "حساب الشيكات": data.cheque_account_id, "حساب الهدايا": data.gift_account_id, "حساب الضريبة": data.tax_account_id, "حساب المرتجعات": data.return_account_id,
+  })
+  if (leafAccountsError) return leafAccountsError
   return null
 }
 

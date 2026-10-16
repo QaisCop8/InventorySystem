@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql, { memoInTransaction } from "@/lib/database"
 import { ensureWorkingPeriodGuard } from "@/lib/working-period"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { validateLeafAccounts } from "@/lib/leaf-accounts"
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -355,10 +356,24 @@ export async function GET() {
   }
 }
 
+const PARENT_ACCOUNT_SETTING_KEYS = new Set([
+  "default_customer_parent_account", "default_customer_credit_account", "default_salesman_parent_account",
+  "default_supplier_parent_account", "default_customer_subscription_account", "default_new_employee_account",
+])
+
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
     const payload = normalizePayload(data)
+    // الحسابات الافتراضية يجب أن تكون فرعية — عدا حقول "حساب الأب" (عملاء/موردين/مندوبين/مشتركين/موظفين/اعتمادات).
+    // يُفحص فقط ما تغيّر عن المحفوظ: حساب محفوظ أصبح رئيسياً لاحقاً لا يمنع حفظ بقية الإعدادات.
+    const storedSettings = await loadStoredSettings().catch(() => ({} as Record<string, unknown>))
+    const leafAccountIds = Object.entries(payload)
+      .filter(([key, value]) => /^default_\w*account(_id)?$/.test(key) && !PARENT_ACCOUNT_SETTING_KEYS.has(key)
+        && (Number(value) || 0) !== (Number(storedSettings[key]) || 0))
+      .map(([, value]) => value)
+    const leafAccountsError = await validateLeafAccounts(leafAccountIds, "الحسابات الافتراضية")
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     const saved = await saveSettingsPayload(payload)
     await ensureWorkingPeriodGuard().catch((error) => console.error("Failed to install working period guard:", error))
     return NextResponse.json(saved)

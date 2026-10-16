@@ -1,3 +1,4 @@
+import { validateAccountStops } from "@/lib/account-stops"
 import { unlinkPayrollJournal } from "./_lib"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import { releaseAutoJournal } from "@/lib/auto-journals"
@@ -94,6 +95,8 @@ async function postHandler(request: NextRequest) {
     if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
     const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+    const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), JOURNAL_VCH_TYPE, data.vch_date)
+    if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     const amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
 
     const insertStatus = Number(data.status || 1)
@@ -194,6 +197,8 @@ async function putHandler(request: NextRequest) {
       if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), JOURNAL_VCH_TYPE, data.vch_date)
+      if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
       amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
     }
 

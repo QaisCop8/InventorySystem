@@ -1,3 +1,4 @@
+import { validateAccountStops } from "@/lib/account-stops"
 import { NextRequest, NextResponse } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { ensureHrSchema } from "@/lib/hr-schema"
@@ -10,6 +11,7 @@ import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUN
 import { JournalDefaultsError, nextJournalVoucherCode, resolveUserDefaultJournalBook, type JournalBookContext } from "@/lib/journal-defaults"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 import { attendancePayrollSettings, attendancePayrollTotals } from "@/lib/attendance-payroll"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 
@@ -279,6 +281,16 @@ export async function GET(request: NextRequest, { params }: { params: { resource
   } catch (error) { console.error("HR GET", error); return NextResponse.json({ error: "تعذر تحميل البيانات" }, { status: 500 }) }
 }
 
+// حسابات الموظف/بنود الراتب/قوانين الضريبة تُرحَّل عليها الرواتب — يجب أن تكون حسابات فرعية (حساب الأب مستثنى)
+const hrLeafAccountsError = async (resource: string, body: any): Promise<string | null> => {
+  if (resource === "employees") return validateLeafAccountFields({ "حساب صرف الراتب": await canonicalSalaryAccountId(body?.salary_account) })
+  if ((resource === "salary-items" || resource === "tax-laws") && String(body?.account_code || "").trim()) {
+    const account = (await sql`SELECT id FROM account_tbl WHERE LOWER(TRIM(code))=LOWER(${String(body.account_code).trim()}) LIMIT 1`)[0]
+    return validateLeafAccountFields({ "الحساب المحاسبي": account?.id })
+  }
+  return null
+}
+
 export async function POST(request: NextRequest, { params }: { params: { resource: string } }) {
   const resource = params.resource
   if (resource === "employees") {
@@ -287,6 +299,8 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
   }
   await ensureHrSchema(); const body = await request.json()
   try {
+    const leafAccountsError = await hrLeafAccountsError(resource, body)
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     if (definitions[resource]) {
       if (resource === "salary-items" && (body.calculation_method || body.calculation_type) === "percentage" && (Number(body.default_amount) < 0 || Number(body.default_amount) > 100)) return NextResponse.json({ error: "النسبة يجب أن تكون أقل من أو تساوي 100" }, { status: 400 })
       const d = definitions[resource]; const fields = d.fields.filter(f => body[f] !== undefined)
@@ -454,6 +468,8 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
         // إعداد الحساب "السماح بعمل حركة على الحساب بغير عملته" = ممنوع ⇒ يُرفض القيد (مثل بقية السندات)
         const currencyError = await validateJournalAccountCurrencies(journalRows, Number(journalRows[0]?.currency_id) || null)
         if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+        const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), 3, null)
+        if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
         await ensureVoucherTables()
         const authorization = await authorizeTransaction(request, "journal", "create", selectedBranchId)
         if (!authorization.ok) return authorization.response
@@ -545,6 +561,8 @@ export async function PUT(request: NextRequest, { params }: { params: { resource
   }
   await ensureHrSchema()
   try {
+    const leafAccountsError = await hrLeafAccountsError(resource, body)
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     if (definitions[resource]) { if (resource === "salary-items" && (body.calculation_method || body.calculation_type) === "percentage" && (Number(body.default_amount) < 0 || Number(body.default_amount) > 100)) return NextResponse.json({ error: "النسبة يجب أن تكون أقل من أو تساوي 100" }, { status: 400 }); const d=definitions[resource]; const fields=d.fields.filter(f=>body[f]!==undefined); const values=fields.map(f=>body[f]); values.push(body.id); const sets=fields.map((f,i)=>`${ident(f)}=$${i+1}`).join(","); const rows=await sql.unsafe(`UPDATE ${ident(d.table)} SET ${sets} WHERE id=$${values.length} RETURNING *`,values); return NextResponse.json(rows[0]) }
     if(resource==="employees") { body.father_account = await canonicalSalaryAccountId(body.father_account || body.father_account_code); if (body.id && body.father_account) await sql`UPDATE employees_tbl SET father_account=${Number(body.father_account)} WHERE id=${body.id}` }
     if(resource==="employees") { body.salary_account = await canonicalSalaryAccountId(body.salary_account); const validationError = validateEmployee(body); if (validationError) return NextResponse.json({ error: validationError }, { status: 400 }); const cardError = await validateEmployeeCard(body); if (cardError) return NextResponse.json({ error: cardError }, { status: 400 }); await saveEmployeeCard(Number(body.id), body); const rows=await sql`UPDATE employees_tbl SET employee_code=${body.employee_code},full_name=${body.full_name},other_name=${body.other_name||null},image_url=${body.image_url||null},national_id=${body.national_id||null},passport_no=${body.passport_no||null},gender=${body.gender||null},birth_date=${body.birth_date||null},hire_date=${body.hire_date},end_date=${body.end_date||null},department_id=${body.department_id||null},job_id=${body.job_id||null},branch_id=${body.branch_id||null},salary_type=${body.salary_type||"monthly"},basic_salary=${Number(body.basic_salary)||0},salary_currency=${body.salary_currency||null},contract_type=${body.contract_type||null},bank_name=${body.bank_name||null},bank_branch=${body.bank_branch||null},bank_account=${body.bank_account||null},iban=${body.iban||null},salary_account=${body.salary_account||null},phone=${body.phone||null},email=${body.email||null},address=${body.address||null},region=${body.region||null},permanent_address=${body.permanent_address||null},tax_exemption_id=${body.tax_exemption_id||null},tax_law_id=${body.tax_law_id||null},is_taxed=${body.is_taxed!==false},social_status=${body.social_status||null},father_account_code=${body.father_account_code||null},account_currency=${body.account_currency||null},allow_different_currency=${body.allow_different_currency === true || String(body.allow_different_currency) === "1"},currency_difference=${!!body.currency_difference},stop_transactions=${!!body.stop_transactions},status=${body.status??1},notes=${body.notes||null},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${body.id}`; for(const item of body.salary_items||[]) if(item.salary_item_id) await sql`INSERT INTO employee_salary_items_tbl(employee_id,salary_item_id,amount,percentage) VALUES(${body.id},${item.salary_item_id},${Number(item.amount)||0},${Number(item.percentage)||0}) ON CONFLICT(employee_id,salary_item_id) DO UPDATE SET amount=EXCLUDED.amount,percentage=EXCLUDED.percentage`; await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${body.id}`; for(const item of body.tax_exemptions||[]) if(item.tax_exemption_id) await sql`INSERT INTO employee_tax_exemptions_tbl(employee_id,tax_exemption_id,exemption_type,amount) VALUES(${body.id},${item.tax_exemption_id},${item.exemption_type||"annual"},${Number(item.amount)||0}) ON CONFLICT(employee_id,tax_exemption_id) DO UPDATE SET exemption_type=EXCLUDED.exemption_type,amount=EXCLUDED.amount`; await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${body.id}`; for(const item of body.stop_transactions||[]) if(item.is_stopped) await sql`INSERT INTO employee_stop_transactions_tbl(employee_id,voucher_type_id,is_stopped,stop_date) VALUES(${body.id},${item.voucher_type_id},true,${item.stop_date||null})`; return NextResponse.json(rows[0]) }

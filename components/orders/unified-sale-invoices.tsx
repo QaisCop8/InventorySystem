@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -53,6 +54,7 @@ import { stat } from "fs"
 import { set } from "date-fns"
 import React from "react"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import AccountBalanceField from "@/components/common/account-balance-field"
 import type { AccountItem } from "@/components/customer/account-search-dialog"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
@@ -1708,6 +1710,13 @@ function UnifiedSaleInvoices({
     setState((prev) => ({ ...prev, showProductSearch: false, activeItemId: null }))
   }
 
+  // مندوب العميل يُعبّأ تلقائياً عند اختيار العميل (إن كان له مندوب، وإلا يبقى كما هو)
+  useCustomerDefaultSalesman({
+    recordId: state.formData.id,
+    accountId: state.formData.customer_id,
+    onSalesman: (salesmanId) => setState((prev) => ({ ...prev, formData: { ...prev.formData, salesman: String(salesmanId) } })),
+  })
+
   const selectCustomer = (customer: Customer) => {
     const allowedVoucherBooks = ["L", "P", "M", "R"]
     const customerVoucherBook = (customer as any).vch_book?.toString().trim().toUpperCase()
@@ -2505,12 +2514,6 @@ function UnifiedSaleInvoices({
     setShowCustomerSearch(true)
   }
 
-  const selectedCustomerBalance = useMemo(() => {
-    const selectedCustomer = state.customers.find((customer) =>
-      Number(customer.id) === Number(state.formData.customer_id),
-    )
-    return Number(selectedCustomer?.credit_limit ?? 0)
-  }, [state.customers, state.formData.customer_id])
 
   const refocusDropdownInput = (inputId: string) => {
     setTimeout(() => {
@@ -3605,14 +3608,7 @@ function UnifiedSaleInvoices({
                           />
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">الرصيد</Label>
-                          <Input
-                            value={selectedCustomerBalance.toFixed(2)}
-                            readOnly
-                            className="text-right h-11 bg-muted"
-                          />
-                        </div>
+                        <AccountBalanceField accountId={state.formData.customer_id} refreshKey={`${state.formData.id}-${state.formData.order_status ?? state.formData.status ?? ""}`} className="space-y-2" labelClassName="text-sm font-medium" inputClassName="h-11 bg-muted" />
 
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">مشغل مرخص للعميل</Label>

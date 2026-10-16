@@ -1,3 +1,4 @@
+import { validateAccountStops } from "@/lib/account-stops"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
@@ -27,6 +28,7 @@ import {
 // مستخدم آخر) — وقاية من حلقة لا نهائية في الحالة النادرة لفشل توليد رقم صالح باستمرار.
 const MAX_CODE_RETRY_ATTEMPTS = 5
 import { saveJournalRows, validateJournalAccountCurrencies } from "../receipts/_lib"
+import { validateLeafAccounts } from "@/lib/leaf-accounts"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
 import { workingPeriodErrorMessage } from "@/lib/working-period"
@@ -117,6 +119,10 @@ async function postHandler(request: NextRequest) {
     // المستودع/الوحدة موجودان ونشِطان فعلياً — بمعزل عمّا رآه العميل عند اختيارهما (قد يكونان حُذفا
     // أو أُوقِفا منذ ذلك الحين)، ونفس فحص حسابَي المصروف/المشتريات لسند الاستعمال تحديداً.
     const referencesError = await validateItemReferences(items, vchType === USE_VOUCHER_VCH_TYPE ? ["expense_account_id", "purchase_account_id"] : [])
+    const leafAccountsError = await validateLeafAccounts([data.account_id, ...items.flatMap((item: any) => [item.expense_account_id, item.purchase_account_id])])
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
+    const stopError = await validateAccountStops([data.account_id, ...items.flatMap((item: any) => [item.expense_account_id, item.purchase_account_id])], vchType, data.vch_date)
+    if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     if (referencesError) {
       return NextResponse.json({ error: referencesError }, { status: 400 })
     }
@@ -278,6 +284,10 @@ async function putHandler(request: NextRequest) {
         return NextResponse.json({ error: measurementError }, { status: 400 })
       }
       const referencesError = await validateItemReferences(items, vchType === USE_VOUCHER_VCH_TYPE ? ["expense_account_id", "purchase_account_id"] : [])
+      const leafAccountsError = await validateLeafAccounts([data.account_id, ...items.flatMap((item: any) => [item.expense_account_id, item.purchase_account_id])])
+      if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
+      const stopError = await validateAccountStops([data.account_id, ...items.flatMap((item: any) => [item.expense_account_id, item.purchase_account_id])], vchType, data.vch_date)
+      if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
       if (referencesError) {
         return NextResponse.json({ error: referencesError }, { status: 400 })
       }

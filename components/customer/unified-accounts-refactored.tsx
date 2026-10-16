@@ -2310,6 +2310,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   <div>
                     <AutoCompleteAccount
                       label="الحساب الرئيسي (تابع ل)"
+                      leafOnly={false}
                       value={fatherAccountCode}
                       placeholder="اختر الحساب الرئيسي"
                       onValueChange={(nextCode) => {
@@ -2896,6 +2897,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           onOpenChange={setSearchModalOpen}
           accounts={activeAccounts}
           allowedTypeValues={[1]}
+          // اختيار حساب الأب أو التنقل لحساب لتعديله — تُعرض الحسابات الرئيسية أيضاً
+          leafOnly={false}
           onSelect={handleSelectSearchResult}
         />
 

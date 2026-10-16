@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
+import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
+import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -15,7 +17,8 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
-import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
+import AccountBalanceField from "@/components/common/account-balance-field"
+import AccountSearchDialog, { type AccountItem, isParentAccount, PARENT_ACCOUNT_MESSAGE } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import BanksSearch, { type BankSearchRecord } from "@/components/admin/banks-search"
 import BranchesSearch, { type BranchSearchRecord } from "@/components/admin/branches-search"
@@ -340,6 +343,7 @@ const validateChequeRow = (row: VoucherChequeRow | undefined): string | null => 
 
 const mapAccount = (item: any): AccountItem => ({
   id: Number(item.id),
+  has_children: item.has_children == null ? undefined : Boolean(item.has_children),
   code: String(item.code || item.account_code || ""),
   name: String(item.name || item.account_name || ""),
   name_lang2: item.name_lang2 ?? null,
@@ -488,6 +492,8 @@ export default function UnifiedReceiptVoucher({
   // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
   // (3) — لا فرق بينهما من ناحية إمكانية التعديل، الفرق فقط في نص رسالة تأكيد الحذف أدناه.
   const isLocked = form.status === 2 || form.status === 3
+  // مندوب الحساب (العميل) المقبوض منه/المدفوع له يُعبّأ تلقائياً عند اختياره (إن كان له مندوب)
+  useCustomerDefaultSalesman({ recordId: form.id, accountId: form.to_account_id, locked: isLocked, onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
   // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك
   // "مرحل" وحدها إن لم تُطبع بعد، أو "مرحل - مطبوع" إن طُبعت (is_printed=1) بعد الترحيل.
   const statusBadge =
@@ -861,6 +867,12 @@ export default function UnifiedReceiptVoucher({
       return
     }
     const match = accountsList.find((a) => a.code.toUpperCase() === code)
+    if (match && isParentAccount(match)) {
+      patchJournalRow(index, { account_id: null, account_code: "", account_name: "" })
+      if (index === 0) onFormChange("to_account_id", null)
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `${PARENT_ACCOUNT_MESSAGE}: ${match.code} - ${match.name}`, life: 3500 }])
+      return
+    }
     if (match) {
       if (!checkAccountCurrencyCompatibility(match)) {
         patchJournalRow(index, { account_id: null, account_code: "", account_name: "" })
@@ -1956,6 +1968,7 @@ export default function UnifiedReceiptVoucher({
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
+            onWhatsApp={onPrint ? () => { armVoucherWhatsApp(form.to_account_id); onPrint() } : undefined}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
@@ -2183,10 +2196,7 @@ export default function UnifiedReceiptVoucher({
                       onCostCentersChange={(selection) => patchJournalRow(0, { cost_centers: selection })}
                       disabled={isLocked}
                     />
-                    <div className="grid gap-1.5">
-                      <Label>الرصيد</Label>
-                      <Input value="0.000" readOnly disabled />
-                    </div>
+                    <AccountBalanceField accountId={form.to_account_id} refreshKey={`${form.id}-${form.status}`} />
                   </div>
                   <div className={isPayment ? "grid gap-2 sm:grid-cols-3" : "grid gap-2 sm:grid-cols-4"}>
                     <div className="grid gap-1.5">

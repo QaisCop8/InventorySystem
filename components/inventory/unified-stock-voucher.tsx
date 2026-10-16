@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import AccountBalanceField from "@/components/common/account-balance-field"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
@@ -2359,6 +2361,7 @@ export default function UnifiedStockVoucher({
           onNext={() => guardedAction(() => onNavigate?.("next"))}
           onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={onPrint}
+          onWhatsApp={onPrint ? () => { armVoucherWhatsApp(form.account_id); onPrint() } : undefined}
           onClone={onClone}
           isSaving={isSaving}
           isLoading={isLoading}
@@ -2503,6 +2506,7 @@ export default function UnifiedStockVoucher({
                     searchAllowedTypeValues={[2, 3, 5]}
                     disabled={isLocked}
                   />
+                  {form.account_id ? <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${form.status}`} /> : null}
                   {priceCategoryBlock}
                   {isInternalDelivery && (
                     <>

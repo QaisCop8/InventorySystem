@@ -4,6 +4,7 @@ import { ensureTables as ensureCreditCardTables } from "../credit-cards/_lib"
 import { getSystemSettingValue } from "@/lib/system-settings"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { validateLeafAccounts } from "@/lib/leaf-accounts"
 
 export { buildVoucherCode, normalizeVoucherPrefix }
 
@@ -773,10 +774,12 @@ export const validateJournalAccountCurrencies = async (
   journalRows: { account_id: number }[],
   voucherCurrencyId: number | null,
 ): Promise<string | null> => {
-  if (voucherCurrencyId == null) return null
-
   const accountIds = Array.from(new Set(journalRows.map((row) => Number(row.account_id)).filter((id) => id > 0)))
   if (accountIds.length === 0) return null
+  // كل الحركات تمر من هنا قبل الحفظ: الحساب الرئيسي (له حسابات فرعية) لا يُقبل في أي سطر قيد
+  const parentError = await validateLeafAccounts(accountIds)
+  if (parentError) return parentError
+  if (voucherCurrencyId == null) return null
 
   const accounts = await sql`
     SELECT id, code, name, currency_id, allow_trans_with_diff_curr

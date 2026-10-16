@@ -23,6 +23,8 @@ export type PrintDocument = {
   notes?: string
   // أرشفة السندات: معرّف السند (اختياري — وإلا يُحدَّد بنوعه ورقمه)، وnoAudit لطباعات ليست سنداً (عيّنة/قسائم مطبخ)
   auditVoucherId?: number | null
+  // مصدر السجل في أرشفة السندات: الطلبيات في جدول مستقل (orders) — افتراضياً سند
+  auditSource?: "voucher" | "order" | "purchase_order"
   noAudit?: boolean
 }
 

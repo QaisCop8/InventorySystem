@@ -12,7 +12,7 @@ const LABELS: Record<PartyImportKind, { plural: string; single: string; type: nu
   subscribers: { plural: "المشتركين", single: "المشترك", type: 4, parentSetting: "default_customer_subscription_account", parentLabel: "للمشتركين" },
 }
 
-type Lookups = { cities: string[]; classifications: string[]; priceCategories: Array<{ id: number; name: string }>; hasParentAccount: boolean }
+type Lookups = { cities: string[]; classifications: string[]; priceCategories: Array<{ id: number; name: string }>; currencies: Array<{ id: number; code: string; name: string }>; hasParentAccount: boolean }
 
 const asArray = (data: any, key?: string) => (Array.isArray(data) ? data : key && Array.isArray(data?.[key]) ? data[key] : [])
 
@@ -24,7 +24,7 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
   useEffect(() => {
     if (!open) return
     const json = (url: string) => fetch(url).then((response) => (response.ok ? response.json() : [])).catch(() => [])
-    Promise.all([json("/api/cities"), json(kind === "suppliers" ? "/api/supplier-categories" : "/api/customer-categories"), json("/api/pricecategory"), json("/api/settings/system")]).then(([cities, categories, prices, settingsData]) => {
+    Promise.all([json("/api/cities"), json(kind === "suppliers" ? "/api/supplier-categories" : "/api/customer-categories"), json("/api/pricecategory"), json("/api/settings/system"), json("/api/exchange-rates")]).then(([cities, categories, prices, settingsData, ratesData]) => {
       const settings = (settingsData as any)?.settings ?? settingsData
       const parentId = Number(settings?.[LABELS[kind].parentSetting] || 0)
       setLookups({
@@ -32,6 +32,7 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
         cities: asArray(cities).map((city: any) => String(city.name || city.city_name || "")).filter(Boolean),
         classifications: asArray(categories, "categories").map((category: any) => String(category.name || "")).filter(Boolean),
         priceCategories: asArray(prices).map((price: any) => ({ id: Number(price.id), name: String(price.name || price.category_name || price.id) })),
+        currencies: asArray(ratesData, "rates").map((currency: any) => ({ id: Number(currency.currency_id ?? currency.id), code: String(currency.currency_code ?? currency.code ?? ""), name: String(currency.currency_name ?? currency.name ?? "") })).filter((currency: any) => currency.id > 0),
       })
     })
   }, [open, kind])
@@ -53,12 +54,27 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
         { key: "email", label: "البريد الإلكتروني", aliases: ["email", "الايميل"], maxLength: 150 },
         { key: "classification", label: "التصنيف", aliases: ["classification", "classifications"], options: lookups.classifications.map((name) => ({ value: name, label: name })) },
         { key: "price_category", label: "فئة السعر", aliases: ["priceClass", "price_category", "pricecategory"], options: lookups.priceCategories.map((price) => ({ value: price.id, label: price.name, aliases: [String(price.id)] })) },
+        {
+          key: "opening_balance", label: "الرصيد", type: "number",
+          aliases: ["opening_balance", "balance", "الرصيد", "الرصيد الافتتاحي", "رصيد افتتاحي"],
+          description: kind === "suppliers"
+            ? "رصيد افتتاحي: موجب = دائن (له)، سالب = مدين (عليه). يُقيَّد بسند قيد مقابل الحساب الوسيط للأرصدة الافتتاحية"
+            : "رصيد افتتاحي: موجب = مدين (عليه)، سالب = دائن (له). يُقيَّد بسند قيد مقابل الحساب الوسيط للأرصدة الافتتاحية",
+        },
+        {
+          key: "opening_currency", label: "عملة الرصيد الافتتاحي",
+          aliases: ["opening_currency", "currency", "العملة", "عملة الرصيد", "عملة الرصيد الافتتاحي"],
+          options: lookups.currencies.map((currency) => ({ value: currency.id, label: currency.code || currency.name, aliases: [currency.name, String(currency.id)] })),
+          description: "وهي عملة الحساب أيضاً. فارغة ⇐ عملة الأساس",
+        },
+        { key: "opening_date", label: "تاريخ الرصيد", type: "date", aliases: ["opening_date", "تاريخ الرصيد", "تاريخ الرصيد الافتتاحي"], description: "تاريخ سند القيد — فارغ ⇐ تاريخ اليوم" },
       ],
       validate: async (rows) => {
         const result = new Map<number, ImportIssue[]>()
         const add = (id: number, issue: ImportIssue) => result.set(id, [...(result.get(id) || []), issue])
         for (const row of rows) {
           const email = String(row.data.email || "")
+          if (Number(row.data.opening_balance) && !row.data.opening_currency && lookups.currencies.length > 1) add(row.id, { field: "opening_currency", message: "حدّد عملة الرصيد الافتتاحي" })
           if (email && !/^\S+@\S+\.\S+$/.test(email)) add(row.id, { field: "email", message: "صيغة البريد الإلكتروني غير صحيحة" })
         }
         // الأرقام الموجودة مسبقاً في النظام
@@ -88,6 +104,9 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
             city: row.data.city, address: row.data.address, email: row.data.email,
             classification: row.data.classification,
             priceCategory: row.data.price_category,
+            opening_balance: Number(row.data.opening_balance) || 0,
+            opening_currency_id: row.data.opening_currency || null,
+            opening_date: row.data.opening_date || null,
           }))
           try {
             const response = await fetch("/api/import/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: payload }), signal })
@@ -105,7 +124,7 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
         }
       },
     }
-  }, [lookups, label])
+  }, [lookups, label, kind])
 
   if (!config) return null
   return <ExcelImportWizard open={open} onOpenChange={onOpenChange} config={config} onImported={({ success }) => { if (success) onImported?.() }} />

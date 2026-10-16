@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
+import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemVatRateFor, useItemVatRates } from "@/lib/use-item-vat-rates"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -17,6 +19,7 @@ import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
 import AttachmentManager from "@/components/common/AttachmentManager"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import AccountBalanceField from "@/components/common/account-balance-field"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
@@ -167,6 +170,14 @@ export interface SalesVoucherItemRow {
   product_density?: number | null
   // للعرض فقط (تفاصيل كميات الصنف) — لا تُرسَل للحفظ.
   current_stock?: number
+  // العروض والأسعار الخاصة (lib/promotions.ts): آخر قيمة طبّقها العرض — تُحدَّث تلقائياً ما دام المستخدم لم
+  // يغيّر الحقل يدوياً (القيمة الحالية = قيمة العرض)، وتُرجَع عند زوال العرض. promo_free: سطر صنف مجاني أضافه العرض.
+  promo_price?: number | null
+  promo_original_price?: number | null
+  promo_discount?: number | null
+  promo_bonus?: number | null
+  promo_free?: string | null
+  promo_label?: string
   units?: { unit_id: number; unit_name: string; price: number; barcode: string; to_main_qnty: number }[]
   // تبويب "تفاصيل حسابات الاصناف" — يظهر فقط لفاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات (انظر
   // ITEM_ACCOUNT_CONFIG أدناه). حساب واحد لكل سطر (بخلاف سند الاستعمال في unified-stock-voucher.tsx
@@ -481,6 +492,8 @@ export default function UnifiedSalesDelivery({
   const summaryLabel = TITLE.includes("مرتجع") ? "ملخص المرتجع" : TITLE.includes("فاتورة") ? "ملخص الفاتورة" : "ملخص الارسالية"
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
+  // مندوب العميل يُعبّأ تلقائياً عند اختيار العميل (إن كان له مندوب، وإلا يبقى كما هو)
+  useCustomerDefaultSalesman({ recordId: form.id, accountId: form.account_id, locked: isLocked, onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
   // عنوان الشحن (فاتورة/إرسالية مبيعات) وتسديد الفواتير (فاتورة/مرتجع مبيعات محفوظ).
   const [shippingOpen, setShippingOpen] = useState(false)
   const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
@@ -2281,6 +2294,164 @@ export default function UnifiedSalesDelivery({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.account_id, form.id, form.vch_date, form.invoice_source_type, voucherType, isLocked])
 
+  // العروض والأسعار الخاصة (شاشة "العروض والأسعار الخاصة" ⇐ /api/promotions/evaluate): تُقيَّم عند تغيّر العميل/
+  // التاريخ/العملة/الأصناف/الكميات (مهلة قصيرة بعد آخر تغيير) وتُطبَّق على السطور:
+  //  - سعر خاص ⇐ unit_price، خصم ⇐ discount_percent، اشترِ X احصل X ⇐ bonus_quantity
+  //  - اشترِ X احصل Y ⇐ سطر Y بخصم 100% (promo_free) يُضاف/يُعدَّل/يُحذف تلقائياً
+  // حقل عدّله المستخدم يدوياً بعد تطبيق العرض لا يُكتب فوقه. أسطر الطلبيات/الإرساليات المستوردة لا تتأثر.
+  // سند جديد فقط: سند محفوظ يُفتح بأسعاره/خصوماته المحفوظة كما هي (حالة العروض لا تُخزَّن مع السند)
+  const promotionsEligible = !form.id && !isLocked && ([SALES_INVOICE_VCH_TYPE, DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE] as number[]).includes(Number(voucherType))
+  const promoLineUnitId = (row: SalesVoucherItemRow) =>
+    row.unit_id ?? row.units?.find((unit) => unit.unit_name === (row.unit_name || row.unit))?.unit_id ?? null
+  const promoSourceRow = (row: SalesVoucherItemRow) => Boolean(row.product_id) && !row.promo_free && !row.order_item_id && !row.delivery_item_id
+  const promotionsSignature = promotionsEligible
+    ? JSON.stringify([
+        form.account_id, String(form.vch_date || "").slice(0, 10), form.currency_id, form.branch_id,
+        items.filter(promoSourceRow).map((row) => [row.product_id, promoLineUnitId(row), Number(row.quantity) || 0]),
+      ])
+    : ""
+  const promotionsRunRef = useRef(0)
+  useEffect(() => {
+    if (!promotionsSignature) return
+    const run = ++promotionsRunRef.current
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const rows = itemsRef.current
+          const sourceIndexes = rows.map((row, index) => (promoSourceRow(row) ? index : -1)).filter((index) => index >= 0)
+          const hasFreeRows = rows.some((row) => row.promo_free)
+          const hasPromoState = rows.some((row) => row.promo_price != null || row.promo_discount != null || row.promo_bonus != null)
+          if (!sourceIndexes.length && !hasFreeRows && !hasPromoState) return
+          const currentForm = formRef.current
+          const response = await fetch("/api/promotions/evaluate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              account_id: currentForm.account_id, date: String(currentForm.vch_date || "").slice(0, 10), branch_id: currentForm.branch_id,
+              vch_type: voucherType, currency_id: currentForm.currency_id,
+              lines: sourceIndexes.map((index) => ({ key: String(index), product_id: rows[index].product_id, unit_id: promoLineUnitId(rows[index]), quantity: Number(rows[index].quantity) || 0 })),
+            }),
+          })
+          if (!response.ok || run !== promotionsRunRef.current || !isMountedRef.current) return
+          const data = await response.json()
+          // تغيّرت السطور أثناء الطلب (تحرير/حذف) ⇐ يُترك للتقييم التالي
+          if (run !== promotionsRunRef.current || itemsRef.current !== rows) return
+          const results = new Map<string, any>((Array.isArray(data?.lines) ? data.lines : []).map((line: any) => [String(line.key), line]))
+          const same = (a: unknown, b: unknown) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.0005
+          const rate = Number(currentForm.rate || 1)
+          const applied: string[] = []
+          let changed = false
+          let next: SalesVoucherItemRow[] = await Promise.all(rows.map(async (row, index) => {
+            if (!promoSourceRow(row)) return row
+            const result = results.get(String(index))
+            let updated: SalesVoucherItemRow = row
+            const patch = (fields: Partial<SalesVoucherItemRow>) => { updated = { ...updated, ...fields } }
+            // السعر الخاص (يُحوَّل لغير شامل الضريبة كأي سعر مُدخل)
+            const specialNet = result?.special_price != null ? entryPriceToNet(Number(result.special_price), await itemVatRateFor(Number(row.product_id))) : null
+            const priceUntouched = row.promo_price == null || same(row.unit_price, row.promo_price)
+            if (specialNet != null) {
+              if (priceUntouched && !same(row.unit_price, specialNet)) {
+                patch({ unit_price: specialNet, base_unit_price: specialNet * rate, promo_price: specialNet, promo_original_price: row.promo_price == null ? row.unit_price : row.promo_original_price })
+              } else if (priceUntouched && row.promo_price == null) patch({ promo_price: specialNet, promo_original_price: row.unit_price })
+            } else if (row.promo_price != null) {
+              patch(priceUntouched && row.promo_original_price != null
+                ? { unit_price: row.promo_original_price, base_unit_price: Number(row.promo_original_price) * rate, promo_price: null, promo_original_price: null }
+                : { promo_price: null, promo_original_price: null })
+            }
+            // الخصم
+            const discount = result?.discount_percent != null ? Number(result.discount_percent) : null
+            const discountUntouched = row.promo_discount == null ? !(Number(row.discount_percent) > 0) : same(row.discount_percent, row.promo_discount)
+            if (discount != null) {
+              if (discountUntouched && (!same(row.discount_percent, discount) || row.promo_discount == null)) patch({ discount_percent: discount, promo_discount: discount })
+            } else if (row.promo_discount != null) {
+              patch(discountUntouched ? { discount_percent: 0, promo_discount: null } : { promo_discount: null })
+            }
+            // البونص (نفس الصنف)
+            const bonus = result?.bonus_quantity != null ? Number(result.bonus_quantity) : null
+            const bonusUntouched = row.promo_bonus == null ? !(Number(row.bonus_quantity) > 0) : same(row.bonus_quantity, row.promo_bonus)
+            if (bonus != null) {
+              if (bonusUntouched && (!same(row.bonus_quantity, bonus) || row.promo_bonus == null)) patch({ bonus_quantity: bonus, promo_bonus: bonus })
+            } else if (row.promo_bonus != null) {
+              patch(bonusUntouched ? { bonus_quantity: null, promo_bonus: null } : { promo_bonus: null })
+            }
+            const label = (result?.promotions || []).map((promotion: any) => promotion.name).join("، ")
+            if (label) applied.push(...(result?.promotions || []).map((promotion: any) => promotion.name))
+            if ((updated.promo_label || "") !== label) patch({ promo_label: label })
+            if (updated === row) return row
+            changed = true
+            return { ...updated, ...recalcLineAmounts(updated) }
+          }))
+          if (run !== promotionsRunRef.current) return
+
+          // الأصناف المجانية (صنف آخر): سطر بخصم 100% لكل (عرض، صنف)
+          const wanted: any[] = Array.isArray(data?.free_lines) ? data.free_lines : []
+          const wantedKeys = new Set(wanted.map((line) => `${line.promotion_id}:${line.product_id}`))
+          const before = next.length
+          next = next.filter((row) => !row.promo_free || wantedKeys.has(row.promo_free))
+          if (next.length !== before) changed = true
+          const missing = wanted.filter((line) => !next.some((row) => row.promo_free === `${line.promotion_id}:${line.product_id}`))
+          for (const line of wanted) {
+            const key = `${line.promotion_id}:${line.product_id}`
+            const index = next.findIndex((row) => row.promo_free === key)
+            if (index >= 0 && !same(next[index].quantity, line.quantity)) {
+              const row = { ...next[index], quantity: Number(line.quantity) }
+              next[index] = { ...row, ...recalcLineAmounts(row) }
+              changed = true
+            }
+          }
+          if (missing.length) {
+            const ids = [...new Set(missing.map((line) => Number(line.product_id)))]
+            const products: any[] = await fetch(`/api/inventory/products?priceCategoryId=1&activeOnly=true&ids=${ids.join(",")}`, { cache: "no-store" }).then((res) => (res.ok ? res.json() : [])).catch(() => [])
+            if (run !== promotionsRunRef.current || !isMountedRef.current) return
+            const freeRows: SalesVoucherItemRow[] = []
+            for (const line of missing) {
+              const product = products.find((item) => Number(item.id) === Number(line.product_id))
+              if (!product) continue
+              const units = await fetch(`/api/products/${product.id}/units?price_category_id=1`).then((res) => (res.ok ? res.json() : [])).catch(() => [])
+              const unitList = Array.isArray(units) ? units : []
+              const unit = unitList.find((item: any) => Number(item.unit_id) === Number(line.unit_id)) || unitList[0]
+              const warehousePatch = resolveDefaultWarehouse(product)
+              const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
+              const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
+              const unitPrice = entryPriceToNet(Number(unit?.price ?? product.first_price ?? 0), await itemVatRateFor(product.id)) ?? 0
+              const row: SalesVoucherItemRow = {
+                ...emptyItemRow,
+                product_id: Number(product.id), product_code: product.product_code, product_name: product.product_name,
+                base_product_name: product.base_product_name || product.product_name, barcode: product.barcode || product.first_barcode || "",
+                unit: unit?.unit_name || product.first_unit || "", unit_name: unit?.unit_name || product.first_unit || "", unit_id: unit?.unit_id != null ? Number(unit.unit_id) : null,
+                unit_price: unitPrice, base_unit_price: unitPrice * rate, quantity: Number(line.quantity), discount_percent: 100,
+                units: normalizeUnits(unitList), has_expiry: hasExpiry, has_batch: hasBatch, has_serial: Boolean(product.serial_tracking), serials: [],
+                measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1, count: 1,
+                note: `مجاناً — ${line.promotion_name}`, promo_free: `${line.promotion_id}:${line.product_id}`, promo_label: line.promotion_name,
+                ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
+                ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
+              } as SalesVoucherItemRow
+              freeRows.push({ ...row, serials_text: serialsSummary(row), ...recalcLineAmounts(row) })
+              applied.push(line.promotion_name)
+            }
+            if (freeRows.length) {
+              // قبل السطر الفارغ الأخير (سطر الإدخال الجديد) إن وُجد
+              const insertAt = next.length && !next[next.length - 1].product_id ? next.length - 1 : next.length
+              next = [...next.slice(0, insertAt), ...freeRows, ...next.slice(insertAt)]
+              changed = true
+            }
+          }
+          if (!changed || run !== promotionsRunRef.current || itemsRef.current !== rows) return
+          itemsRef.current = next
+          onItemsChange(next)
+          requestAnimationFrame(refreshItemsGrid)
+          next.forEach((row, index) => { if (row.promo_free && !rows.includes(row)) void applyLineCostCenters(index) })
+          const names = [...new Set(applied)].filter(Boolean)
+          if (names.length) messagesRef.current?.show?.([{ severity: "info", summary: "", detail: `طُبّقت العروض: ${names.join("، ")}`, life: 3500 }])
+        } catch (error) {
+          console.error("Failed to apply promotions", error)
+        }
+      })()
+    }, 600)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promotionsSignature])
+
   const handleKeyDown = (grid: any, e: any) => {
     // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة (grid/e سليمَين)، ومرة أخرى
     // بمعطيات غير مكتملة (onKeyDown ليس حدثاً مُوثَّقاً في FlexGridInputs، فيبدو أن React يلتقطها
@@ -2830,6 +3001,7 @@ export default function UnifiedSalesDelivery({
           onNext={() => guardedAction(() => onNavigate?.("next"))}
           onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={() => guardedAction(() => onPrint?.())}
+          onWhatsApp={onPrint ? () => guardedAction(() => { armVoucherWhatsApp(form.account_id); onPrint?.() }) : undefined}
           // مرتجع ارسالية برسم البيع يُنشأ من الارسالية فقط — لا نسخ (كما في شامل)
           onClone={isConsignmentReturn ? undefined : () => guardedAction(() => onClone?.())}
           showUtilityLabels
@@ -3089,7 +3261,7 @@ export default function UnifiedSalesDelivery({
                   </div>
                 </div>
               )}
-              {!isSalesmanVoucher && <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+              {!isSalesmanVoucher && <div className="grid gap-2 grid-cols-1 sm:grid-cols-[2fr_1.2fr_1fr]">
                 <div className="col-span-1">
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label={isPurchaseDeliveryVoucher ? "المورد *" : "العميل *"}
@@ -3121,6 +3293,7 @@ export default function UnifiedSalesDelivery({
                     className="text-right"
                   />
                 </div>
+                <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${form.status}`} className="col-span-1 grid gap-1.5" />
               </div>}
 
               <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">

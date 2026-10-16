@@ -1,3 +1,5 @@
+import { updateLastPurchasePrices } from "@/lib/last-purchase"
+import { validateAccountStops } from "@/lib/account-stops"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql, { withTenantTransaction } from "@/lib/database"
@@ -504,6 +506,9 @@ async function postHandler(request: NextRequest) {
     }
     let journalRows: any[] = []
     let journalTypes = null
+    // إيقاف الحركات على حساب العميل/المورد لهذا النوع من السندات (كل الأنواع، ومنها الإرساليات بلا قيد)
+    const headerStopError = await validateAccountStops([data.account_id], vchType, data.vch_date)
+    if (headerStopError) return NextResponse.json({ error: headerStopError }, { status: 400 })
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       journalTypes = await resolveSalesVoucherJournalTypes(vchType)
       if (!journalTypes) throw new Error("تعذّر تحديد أنواع قيود الفاتورة")
@@ -542,6 +547,8 @@ async function postHandler(request: NextRequest) {
       }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      const stopError = await validateAccountStops([data.account_id, ...journalRows.map((row: any) => row.account_id)], vchType, data.vch_date)
+      if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
       if (vchType === SALES_INVOICE_VCH_TYPE) {
         // حد الائتمان: بالكاشير فقط الجزء "على الحساب" يبقى ذمة (النقد/البطاقة/الشيك يُسدَّد بسند قبض فوراً)
         const creditError = await validateCustomerCreditLimit({
@@ -627,6 +634,8 @@ async function postHandler(request: NextRequest) {
     // إجمالي الضريبة في رأس السند (تعتمده التقارير الضريبية — دقيق أيضاً مع الضريبة على مستوى الصنف)
     await sql`UPDATE voucher_header_tbl SET vat = ${Math.round(saveBreakdown.tax * 100) / 100} WHERE id = ${voucher.id}`
     await saveVoucherSerials(voucher.id, vchType, savedItems)
+    // فاتورة/إرسالية مشتريات: آخر سعر وتاريخ وعملة شراء للأصناف (إن كان تاريخ السند >= آخر شراء مسجّل)
+    await updateLastPurchasePrices(Number(voucher.id))
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)
       await linkSalesVoucherItemsToJournals(savedItems, journalRows, journalIds)
@@ -741,6 +750,9 @@ async function putHandler(request: NextRequest) {
       `
       if (duplicate.length > 0) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
 
+      // إيقاف الحركات على حساب العميل/المورد لهذا النوع من السندات (كل الأنواع، ومنها الإرساليات بلا قيد)
+      const headerStopError = await validateAccountStops([data.account_id], vchType, data.vch_date)
+      if (headerStopError) return NextResponse.json({ error: headerStopError }, { status: 400 })
       if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
         journalTypes = await resolveSalesVoucherJournalTypes(vchType)
         if (!journalTypes) throw new Error("تعذّر تحديد أنواع قيود الفاتورة")
@@ -759,6 +771,8 @@ async function putHandler(request: NextRequest) {
         )
         const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
         if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+        const stopError = await validateAccountStops([data.account_id, ...journalRows.map((row: any) => row.account_id)], vchType, data.vch_date)
+        if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
         if (vchType === SALES_INVOICE_VCH_TYPE) {
           // الرصيد يُحسب بلا قيد هذه الفاتورة القديم (يُستبدل بالجديد)
           const creditError = await validateCustomerCreditLimit({
@@ -857,6 +871,8 @@ async function putHandler(request: NextRequest) {
     // إجمالي الضريبة في رأس السند (تعتمده التقارير الضريبية — دقيق أيضاً مع الضريبة على مستوى الصنف)
     await sql`UPDATE voucher_header_tbl SET vat = ${Math.round(saveBreakdown.tax * 100) / 100} WHERE id = ${voucher.id}`
     await saveVoucherSerials(voucher.id, vchType, savedItems)
+    // فاتورة/إرسالية مشتريات: آخر سعر وتاريخ وعملة شراء للأصناف (إن كان تاريخ السند >= آخر شراء مسجّل)
+    await updateLastPurchasePrices(Number(voucher.id))
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)
       await linkSalesVoucherItemsToJournals(savedItems, journalRows, journalIds)

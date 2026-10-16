@@ -1,3 +1,4 @@
+import { validateAccountStops } from "@/lib/account-stops"
 import sql from "@/lib/database"
 import {
   JournalDefaultsError,
@@ -66,6 +67,8 @@ export async function createChequeBulkOperationJournal(input:{
   const journalRows=lines.map((line,index)=>({journal_type_id:JOURNAL_TYPE_COUNTER_ACCOUNT,account_id:line.accountId,credit_debit:line.creditDebit,amount:line.amount,note:line.note.slice(0,70),cost_centers:costCenters.get(line.accountId)||[],order_no:index+1,currency_id:line.currencyId,rate:line.rate,base_curr_amount:Math.round(line.amount*line.rate*100)/100}))
   const currencyError=await validateJournalAccountCurrencies(journalRows,input.currencyId)
   if(currencyError)return {ok:false,error:currencyError}
+  const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), 3, input.operationDate)
+  if (stopError) return { ok: false, error: stopError }
   const code=await nextJournalVoucherCode(book, input.branchId)
   const voucher=(await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,note,status,vch_status,is_printed,insert_user,update_user) VALUES(3,${code},${input.operationDate},${book.bookId},${input.branchId},${input.currencyId},${input.rate||1},${debit},${input.note.slice(0,1000)},2,2,0,${book.userSettingId},${book.userSettingId}) RETURNING id,vch_code`)[0]
   await saveJournalRows(Number(voucher.id),journalRows)
@@ -121,6 +124,8 @@ export async function createChequeOperationJournal(input: CreateChequeJournalInp
   ]
   const currencyError = await validateJournalAccountCurrencies(rows,input.currencyId)
   if (currencyError) return { ok:false,error:currencyError }
+  const stopError = await validateAccountStops(rows.map((row: any) => row.account_id), 3, input.operationDate)
+  if (stopError) return { ok: false, error: stopError }
 
   const code = await nextJournalVoucherCode(book, input.branchId)
   const fullNote = (input.note || `${input.operationName} للشيك رقم ${input.chequeNumber}`).slice(0,1000)

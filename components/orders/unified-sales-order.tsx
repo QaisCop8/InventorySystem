@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { useItemVatRates } from "@/lib/use-item-vat-rates"
 import { Button } from "@/components/ui/button"
+import AccountBalanceField from "@/components/common/account-balance-field"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,7 +38,8 @@ import {
   Printer,
   CheckCircle2,
 } from "lucide-react"
-import { loadVoucherPrintSettings, printVoucherWithSettings } from "@/lib/voucher-print/print"
+import { loadVoucherPrintSettings, printVoucher, printVoucherWithSettings } from "@/lib/voucher-print/print"
+import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import type { PrintDocument } from "@/lib/voucher-print/document"
 import { settingEnabled } from "@/lib/item-vat"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
@@ -1817,6 +1820,13 @@ function UnifiedSalesOrder({
     setState((prev) => ({ ...prev, showProductSearch: false, activeItemId: null }))
   }
 
+  // مندوب العميل يُعبّأ تلقائياً عند اختيار العميل (إن كان له مندوب، وإلا يبقى كما هو)
+  useCustomerDefaultSalesman({
+    recordId: state.formData.id,
+    accountId: state.formData.customer_id,
+    onSalesman: (salesmanId) => setState((prev) => ({ ...prev, formData: { ...prev.formData, salesman: String(salesmanId) } })),
+  })
+
   const selectCustomer = (customer: Customer) => {
     const allowedVoucherBooks = ["L", "P", "M", "R"]
     const customerVoucherBook = (customer as any).vch_book?.toString().trim().toUpperCase()
@@ -2076,158 +2086,69 @@ function UnifiedSalesOrder({
 
     }
 
+    // الطباعة عبر المحرك الموحّد (lib/voucher-print): إعدادات طباعة "طلبية مبيعات" (نوع 1)، نسخة أصلية/نسخة
+    // (النسخة تطابق الأصلية — لقطة الإعدادات)، أرشفة الطباعة، وزر واتساب في شريط الأدوات.
     setLoading(true)
-    const { pageType = "custom", width = "120mm", height = "100mm" } = settings;
-
-    const html = `
-    <html>
-      <head>
-        <title>Order ${order.order_number}</title>
-        <style>
-          @media print {
-            @page {
-              margin: 0; /* remove browser header/footer */
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: Arial, sans-serif;
-              -webkit-print-color-adjust: exact;
-            }
-            .order-page {
-              page-break-after: always;
-            }
-          }
-
-          .order-page {
-            width: ${pageType === "custom" ? width : "120mm"};
-            min-height: ${pageType === "custom" ? height : "100mm"};
-            padding: 20px;
-            box-sizing: border-box;
-          }
-
-          .header {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 16px;
-            font-weight: bold;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            border: 3px solid black;
-          }
-
-          th, td {
-            border: 2px solid black;
-            padding: 6px 8px;
-            font-size: 20px;
-          }
-
-          th {
-            text-align: left;
-          }
-
-          /* column widths */
-          .col-index { width: 10%; }
-          .col-item { width: 70%; }
-          .col-quantity { width: 20%; text-align: center; }
-
-          .notes {
-            margin-top: 20px;
-            font-size: 16px;
-            font-weight: bold;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="order-page">
-          <div class="header">
-            <div>Reference: ${order.reference_number}</div>
-            <div></div>
-          </div>
-          <div class="header">
-          <div>Date: ${order.order_date}</div>
-            <div>Order No: ${order.customer_order_no}</div>
-            
-          </div>
-          <div class="header">
-            <div>Name: ${order.customer_name}</div>
-            <div>Received By: ${order.received_by || ""}</div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th class="col-index">#</th>
-                <th class="col-item">Item & No.</th>
-                <th class="col-quantity">Quantity</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map((item, idx) => `
-                <tr>
-                  <td class="col-index">${idx + 1}</td>
-                  <td class="col-item">${item.name}</td>
-                  <td class="col-quantity">${item.quantity + (item.bonus || 0)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-
-          <div class="notes">
-            Notes: ${order.general_notes || ""}
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-
-    // Get saved user
-    const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user");
-    if (!savedUser) return;
-    const user = JSON.parse(savedUser);
-    if (!user?.id) return;
-
-    // Update printed status in backend
-    console.log("order order ", order)
-    await fetch(`/api/orders/sales/${order.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-user-id": user.id,
-      },
-      body: JSON.stringify({ printed: 1 }),
-    });
-
-    // Use iframe to print without opening about:blank
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) return;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    if (Number(order?.id) > 0) logVoucherAudit({ action: "print", source: "order", voucher_id: Number(order.id) })
-    document.body.removeChild(iframe);
-    setState((prev) => ({
-      ...prev,
-      formData: { ...prev.formData, printed: 1 },
-    }))
-    setLoading(false)
-    setTimeout(() => {
-      referenceNumberRef.current?.focus();
-    }, 1000)
+    try {
+      const alreadyPrinted = Number(order?.printed) === 1
+      const lines = (items || []).filter((item: any) => (Number(item?.product_id ?? item?.id) || 0) > 0 || String(item?.name || item?.product_name || "").trim())
+      const document: PrintDocument = {
+        voucherTypeId: 1,
+        title: "طلبية مبيعات",
+        code: String(order?.order_number || ""),
+        date: String(order?.order_date || "").slice(0, 10),
+        copyLabel: alreadyPrinted ? "نسخة" : "نسخة اصلية",
+        auditSource: "order",
+        auditVoucherId: Number(order?.id) || null,
+        fields: [
+          { label: "العميل", value: order?.customer_name || "" },
+          { label: "المرجع", value: order?.reference_number || "" },
+          { label: "رقم طلبية العميل", value: order?.customer_order_no || "" },
+          { label: "استلمت بواسطة", value: order?.received_by || "" },
+          { label: "هاتف العميل", value: order?.customer_phone || "" },
+          { label: "المندوب", value: order?.salesman_name || (salesmen as any[]).find((salesman) => String(salesman.id) === String(order?.salesman ?? order?.salesman_id ?? ""))?.name || "" },
+        ],
+        columns: [
+          { key: "ser", label: "#", align: "center", weight: 0.5 },
+          { key: "code", label: "رقم الصنف", weight: 1.3 },
+          { key: "name", label: "اسم الصنف", weight: 3 },
+          { key: "unit", label: "الوحدة", weight: 1 },
+          { key: "qnty", label: "الكمية", align: "end", weight: 1, numeric: true },
+          { key: "bonus", label: "البونص", align: "end", weight: 0.9, numeric: true },
+        ],
+        rows: lines.map((line: any, index: number) => ({
+          ser: index + 1,
+          code: line.code || line.product_code || "",
+          name: [line.name || line.product_name || "", line.attribute_summary ? `(${line.attribute_summary})` : ""].filter(Boolean).join(" "),
+          unit: line.unit_name || line.unit || "",
+          qnty: Number(line.qnty ?? line.quantity ?? 0),
+          bonus: Number(line.bonus || 0) || null,
+        })),
+        totals: [{ label: "إجمالي الكمية", value: lines.reduce((sum: number, line: any) => sum + Number(line.qnty ?? line.quantity ?? 0) + Number(line.bonus || 0), 0), strong: true }],
+        notes: String(order?.general_notes || order?.notes || ""),
+      }
+      const result = await printVoucher(document)
+      // إرسال واتساب ليس طباعة: لا تُعلَّم الطلبية "مطبوعة"
+      if (result.method !== "whatsapp" && Number(order?.id) > 0) {
+        const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
+        const user = savedUser ? JSON.parse(savedUser) : null
+        await fetch(`/api/orders/sales/${order.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...(user?.id ? { "x-user-id": String(user.id) } : {}) },
+          body: JSON.stringify({ printed: 1 }),
+        })
+        setState((prev) => ({ ...prev, formData: { ...prev.formData, printed: 1 } }))
+      }
+      if (result.method === "service") Util.showSuccessMessage(message, "تم إرسال الطلبية إلى الطابعة")
+      else if (result.warning) Util.showErrorMessage(message, `تمت الطباعة عبر المتصفح — خدمة الطباعة غير متاحة: ${result.warning}`)
+    } catch (error) {
+      Util.showErrorMessage(message, error instanceof Error ? error.message : "تعذرت الطباعة")
+    } finally {
+      setLoading(false)
+      setTimeout(() => {
+        referenceNumberRef.current?.focus();
+      }, 1000)
+    }
   };
 
   async function handleSaveOrder(orderToSave: any, isNewRecord: boolean, showPrintPrompt = true): Promise<boolean> {
@@ -3396,6 +3317,7 @@ function UnifiedSalesOrder({
             onSave={handleSave}
             onDelete={() => guardToolbarAction(() => handleDeleteClick(false))}
             onPrint={() => guardToolbarAction(() => handlePrint())}
+            onWhatsApp={() => guardToolbarAction(() => { armVoucherWhatsApp(state.formData?.customer_id); handlePrint() })}
             isLoading={navLoading}
             isSaving={state.isSaving}
             canSave={canSave}
@@ -4056,7 +3978,7 @@ function UnifiedSalesOrder({
 
 
                     {/* اسم العميل */}
-                    <div className="col-span-12 md:col-span-7">
+                    <div className="col-span-12 md:col-span-4">
                       <Label>اسم العميل *</Label>
                       <Input
                         ref={customerNameRef}
@@ -4069,6 +3991,9 @@ function UnifiedSalesOrder({
                         }
                       />
                     </div>
+
+                    {/* رصيد العميل — حسب صلاحية "السماح بمشاهدة رصيد الحساب في الحركات" */}
+                    <AccountBalanceField accountId={state.formData.customer_id} refreshKey={`${state.formData.id}-${state.formData.order_status}`} className="col-span-12 md:col-span-3" />
 
                     {/* هاتف */}
                     <div className="col-span-4">

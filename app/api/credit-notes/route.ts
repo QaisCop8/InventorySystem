@@ -1,3 +1,4 @@
+import { validateAccountStops } from "@/lib/account-stops"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
@@ -79,6 +80,8 @@ async function postHandler(request: NextRequest) {
     }
     const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+    const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), vchType, data.vch_date)
+    if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
 
     const status = Number(data.status || 1)
     const settings = await getCreditNoteNumberSettings(request.url, vchType)
@@ -185,6 +188,8 @@ async function putHandler(request: NextRequest) {
       }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), vchType, data.vch_date)
+      if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     }
 
     const result = await sql`

@@ -16,6 +16,7 @@ import {
   type SearchResultsTableHandle,
 } from "@/components/common/search-dialog-kit"
 import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
+import { useToast } from "@/hooks/use-toast"
 
 // كل كلمة في نص البحث يجب أن تكون موجودة في النص الهدف (بأي ترتيب) — وليس تطابق سلسلة متتالية
 // فقط، فيجد "احمد علي" نتيجة عند البحث "علي احمد" أيضاً.
@@ -71,6 +72,7 @@ export interface AccountItem {
   show_notes_in_transactions_soa: boolean
   has_deliveries?: boolean
   has_orders?: boolean
+  has_children?: boolean
   status: string
   cost_centers?: any[]
   created_at?: string
@@ -93,7 +95,15 @@ interface AccountSearchDialogProps {
   lockOrderOnlyFilter?: boolean
   orderType?: number | null
   branchId?: number | null
+  /** الحسابات الرئيسية (التي لها حسابات فرعية) لا تُعرض ولا تُختار — افتراضياً في كل الحركات والتعريفات */
+  leafOnly?: boolean
 }
+
+/** حساب رئيسي = له حساب فرعي واحد على الأقل (has_children من الخادم، أو father_id لحساب آخر في القائمة) */
+export const isParentAccount = (account: Pick<AccountItem, "id" | "has_children">, accounts: Pick<AccountItem, "father_id">[] = []) =>
+  account.has_children === true || accounts.some((candidate) => Number(candidate.father_id ?? 0) === Number(account.id))
+
+export const PARENT_ACCOUNT_MESSAGE = "لا يمكن اختيار حساب رئيسي (له حسابات فرعية) — اختر حساباً فرعياً"
 
 interface CurrencyOption {
   currency_id: number
@@ -147,8 +157,10 @@ export default function AccountSearchDialog({
   lockOrderOnlyFilter = false,
   orderType = null,
   branchId = null,
+  leafOnly = true,
 }: AccountSearchDialogProps) {
   const { confined } = useWorkspaceDialog()
+  const { toast } = useToast()
   const [searchResults, setSearchResults] = useState<AccountItem[]>([])
   const [allAccounts, setAllAccounts] = useState<AccountItem[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])
@@ -288,6 +300,7 @@ export default function AccountSearchDialog({
                 ? Number((account as any).parent_account_id)
                 : null,
           has_orders: Boolean((account as any).has_orders),
+          has_children: (account as any).has_children == null ? undefined : Boolean((account as any).has_children),
           type:
             account.type != null
               ? Number(account.type)
@@ -298,18 +311,19 @@ export default function AccountSearchDialog({
           finanical_list_id: Number(account.finanical_list_id ?? (account as any).financial_list_id ?? 1),
         }))
 
-        setAllAccounts(nextAccounts)
+        const selectableAccounts = leafOnly ? nextAccounts.filter((account) => !isParentAccount(account, nextAccounts)) : nextAccounts
+        setAllAccounts(selectableAccounts)
         // Closing the dialog already resets filters. While it remains open,
         // refreshes (including window-focus refreshes) must preserve what the
         // user checked or unchecked instead of restoring the default-only flag.
-        applySearchFilters(searchFilters, nextAccounts)
+        applySearchFilters(searchFilters, selectableAccounts)
       } finally {
         setLoading(false)
       }
     }
 
     void loadFreshAccounts()
-  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, branchId, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion])
+  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, branchId, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion, leafOnly])
 
   useEffect(() => {
     if (!open) return
@@ -448,6 +462,10 @@ export default function AccountSearchDialog({
   useEnterAsTabFilters(open, filterContainerRef, focusGridFirstRow)
 
   const handleRowDoubleClick = (account: AccountItem) => {
+    if (leafOnly && isParentAccount(account, allAccounts)) {
+      toast({ title: "تعذر اختيار الحساب", description: `${PARENT_ACCOUNT_MESSAGE}: ${account.code} - ${account.name}`, variant: "destructive" })
+      return
+    }
     if (onSelect) {
       onSelect(account)
     }

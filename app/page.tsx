@@ -157,6 +157,10 @@ const DraftOrdersPage = lazyNamed(() => import("@/components/order-drafts/draft-
 const OrderConfirmationBoard = lazyNamed(() => import("@/components/order-drafts/order-confirmation-board"), "OrderConfirmationBoard")
 const ChecklistDesigner = lazyNamed(() => import("@/components/order-drafts/checklist-designer"), "ChecklistDesigner")
 const CustomerProductTemplates = lazyDefault(() => import("@/components/products/customer-product-templates"))
+const BankReconciliation = lazyDefault(() => import("@/components/accounting/bank-reconciliation"))
+const Promotions = lazyDefault(() => import("@/components/sales/promotions"))
+const PeriodLocks = lazyDefault(() => import("@/components/accounting/period-locks"))
+const VoucherWhatsAppHost = dynamic(() => import("@/components/common/voucher-whatsapp-host"), { ssr: false })
 const InternalManufacturingDashboardPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingDashboardPage")
 const InternalManufacturingSettingsPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingSettingsPage")
 const InternalManufacturingRequestPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingRequestPage")
@@ -349,6 +353,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "order-confirmation": OrderConfirmationBoard,
   "order-checklists": ChecklistDesigner,
   "customer-product-templates": CustomerProductTemplates,
+  "bank-reconciliation": BankReconciliation,
+  promotions: Promotions,
+  "period-locks": PeriodLocks,
   "internal-manufacturing-dashboard": InternalManufacturingDashboardPage,
   "internal-manufacturing-settings": InternalManufacturingSettingsPage,
   "internal-manufacturing-request": InternalManufacturingRequestPage,
@@ -700,6 +707,8 @@ function HomePageContent() {
             />
           )}
         </div>
+        {/* زر واتساب في شريط أدوات الحركات ⇐ نافذة إرسال السند PDF */}
+        <VoucherWhatsAppHost />
       </ERPLayout>
     </ProtectedRoute>
   )

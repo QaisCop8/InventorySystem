@@ -6,6 +6,8 @@ import { getGrantedBranchIds } from "@/lib/permissions"
 import { projectFileLookup } from "@/lib/file-permissions"
 import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupScope } from "./_permissions"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { validateLeafAccountFields } from "@/lib/leaf-accounts"
+import { ensureLastPurchaseColumns } from "@/lib/last-purchase"
 
 
 
@@ -68,6 +70,9 @@ async function ensureProductSchemaColumns(client: any) {
     ["measurment_unit", "INTEGER DEFAULT 1"],
     ["measurment_id", "INTEGER DEFAULT 1"],
     ["last_purchase_price", "NUMERIC(18,4) DEFAULT 0"],
+    ["last_purchase_date", "DATE"],
+    ["last_purchase_currency_id", "INTEGER"],
+    ["last_purchase_voucher_id", "INTEGER"],
     ["currency_id", "INTEGER DEFAULT 1"],
     ["tax_rate", "NUMERIC(18,4) DEFAULT 0"],
     ["discount_rate", "NUMERIC(18,4) DEFAULT 0"],
@@ -284,6 +289,8 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: 'Database client not initialized' }, { status: 500 })
 
   try {
+    // أعمدة وتعبئة أولى لآخر سعر/تاريخ/عملة شراء (مرة لكل عملية خادم)
+    await ensureLastPurchaseColumns()
     const url = new URL(request.url)
     const typeParam = url.searchParams.get('type') ?? 'NULL'
     const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
@@ -774,6 +781,33 @@ async function getLastProductCode() {
 
 const productSchemaReady = new Map<string, Promise<void>>()
 
+// حسابات الصنف يجب أن تكون حسابات فرعية (لا حساب رئيسي له حسابات فرعية). عند تعديل صنف موجود يُفحص
+// فقط الحساب الذي تغيّر: أصناف قديمة قد تحمل حساباً أصبح رئيسياً لاحقاً (أُضيفت تحته حسابات فرعية)
+// فلا يُمنع تعديل بقية بيانات الصنف بسببه — يُصحَّح من "نسخ الحساب للأصناف التالية".
+const PRODUCT_ACCOUNT_LABELS: Record<string, string> = {
+  selling_account_id: "حساب المبيعات",
+  purchase_account_id: "حساب المشتريات",
+  selling_returns_account_id: "حساب مرتجعات المبيعات",
+  purchase_returns_account_id: "حساب مرتجعات المشتريات",
+  stock_start_account_id: "حساب بضاعة أول المدة",
+  stock_end_account_id: "حساب بضاعة آخر المدة",
+  lsti3mal_account_id: "حساب الاستعمال",
+  production_account_id: "حساب الإنتاج",
+  municipality_service_account_id: "حساب خدمات البلدية",
+}
+const productAccountsError = async (data: any, productId?: number) => {
+  const stored = productId && productId > 0
+    ? (await sql.unsafe(`SELECT ${Object.keys(PRODUCT_ACCOUNT_LABELS).join(", ")} FROM products WHERE id = $1`, [productId]))[0] as any
+    : null
+  const fields: Record<string, unknown> = {}
+  for (const [column, label] of Object.entries(PRODUCT_ACCOUNT_LABELS)) {
+    const value = Number(data?.[column]) || 0
+    if (stored && value === (Number(stored[column]) || 0)) continue
+    fields[label] = value
+  }
+  return validateLeafAccountFields(fields)
+}
+
 export async function POST(request: NextRequest) {
   const client = await (await getTenantPool()).connect();
 
@@ -783,6 +817,8 @@ export async function POST(request: NextRequest) {
       ? await authorizeStoredProduct(request, productData.id, "update", productData.type)
       : await authorizeProductType(request, productData.type, "create")
     if (!permission.ok) return permission.response
+    const accountsError = await productAccountsError(productData, productData.id)
+    if (accountsError) return NextResponse.json({ error: accountsError }, { status: 400 })
     // فحوصات المخطط (DDL) تُنفَّذ مرة واحدة لكل قاعدة شركة ولكل عملية خادم بدل كل حفظ — كانت تُبطئ استيراد
     // آلاف الأصناف إذ يُكرَّر عشرات أوامر ALTER/CREATE IF NOT EXISTS لكل صنف.
     const schemaDb = await resolveCurrentDbName()
@@ -1490,6 +1526,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const productData = normalizeProductPayload(requestBody)
+    const accountsError = await productAccountsError(productData, normalizedId)
+    if (accountsError) return NextResponse.json({ error: accountsError }, { status: 400 })
     const currentScaleRows = await sql`SELECT pos_sold_using_scale FROM products WHERE id=${normalizedId}`
     const scaleEnabled = isScaleProduct(requestBody.pos_sold_using_scale ?? currentScaleRows[0]?.pos_sold_using_scale)
     if (scaleEnabled) {

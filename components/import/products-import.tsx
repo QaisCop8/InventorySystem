@@ -73,7 +73,13 @@ function createLookupResolver<T extends { id: number }>(records: T[], url: strin
   }
 }
 
-function buildFields(lookups: Lookups): ImportField[] {
+type ImportMode = "create" | "update"
+
+// وضع التحديث: لا سعر شراء ولا كمية ابتدائية (لا سند إدخال بضاعة) ولا تغيير لتتبّع الصلاحية/التشغيلي/المتسلسل،
+// والاسم والوحدة الرئيسية اختياريان (الفارغ يُبقي القيمة الحالية).
+const UPDATE_EXCLUDED_FIELDS = new Set(["last_purchase_price", "initial_quantity", "initial_warehouse", "expiry_tracking", "batch_tracking", "serial_tracking"])
+
+function buildFields(lookups: Lookups, mode: ImportMode = "create"): ImportField[] {
   const fields: ImportField[] = [
     { key: "product_code", label: "رقم الصنف", required: true, unique: true, aliases: ["product_code", "code", "رقم", "كود الصنف"], description: "يُكمَّل إلى 10 خانات تلقائياً", example: "1001" },
     { key: "product_name", label: "اسم الصنف", required: true, aliases: ["product_name", "name", "الاسم"], maxLength: 200, example: "سكر أبيض 1 كغم" },
@@ -105,7 +111,11 @@ function buildFields(lookups: Lookups): ImportField[] {
     ]),
     { key: "notes", label: "ملاحظات", aliases: ["notes"] },
   )
+  if (mode === "create") return fields
   return fields
+    .filter((field) => !UPDATE_EXCLUDED_FIELDS.has(field.key))
+    .map((field) => field.key === "product_name" || field.key === "unit_1" ? { ...field, required: false, description: "اتركه فارغاً لإبقاء القيمة الحالية" }
+      : field.key === "product_code" ? { ...field, description: "رقم صنف موجود — يُكمَّل إلى 10 خانات تلقائياً" } : field)
 }
 
 const barcodesOf = (data: Record<string, any>) => {
@@ -145,10 +155,12 @@ async function loadDefaultItemAccounts() {
 /** استيراد الأصناف بالمحرك الموحّد — نفس قواعد وحفظ نافذة استيراد الأصناف السابقة. */
 export function ProductsImportDialog({ open, onOpenChange, onImported }: { open: boolean; onOpenChange: (open: boolean) => void; onImported?: () => void }) {
   const [lookups, setLookups] = useState<Lookups | null>(null)
+  const [mode, setMode] = useState<ImportMode>("create")
   const { user, activeBranchId } = useAuth()
 
   useEffect(() => {
     if (!open) return
+    setMode("create")
     const json = (url: string) => fetch(url).then((response) => (response.ok ? response.json() : [])).catch(() => [])
     Promise.all([json("/api/product-categories"), json("/api/warehouses"), json("/api/units"), json("/api/item-groups"), json("/api/pricecategory")]).then(([categories, warehouses, units, groups, prices]) => {
       setLookups({
@@ -164,9 +176,22 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
   const config = useMemo<ImportConfig | null>(() => {
     if (!lookups) return null
     return {
-      title: "استيراد الأصناف من Excel",
-      templateFileName: "نموذج-الأصناف",
-      fields: buildFields(lookups),
+      title: mode === "update" ? "تحديث الأصناف من Excel" : "استيراد الأصناف من Excel",
+      description: mode === "update"
+        ? "تحديث أصناف موجودة برقمها: تُحدَّث الأعمدة المعبّأة فقط، وتُضاف الوحدات/الباركودات الجديدة وتُحدَّث أسعار البيع. سعر الشراء والكميات لا تُستورد في هذا الوضع."
+        : undefined,
+      templateFileName: mode === "update" ? "نموذج-تحديث-الأصناف" : "نموذج-الأصناف",
+      fields: buildFields(lookups, mode),
+      uploadExtras: ({ busy }) => (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 text-sm">
+          <span className="px-1 font-semibold text-slate-600">نوع الاستيراد:</span>
+          {([["create", "إضافة أصناف جديدة"], ["update", "تحديث أصناف موجودة"]] as const).map(([value, label]) => (
+            <button key={value} type="button" disabled={busy} onClick={() => setMode(value)}
+              className={`rounded-lg px-3 py-1.5 font-semibold transition ${mode === value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 hover:bg-emerald-50"}`}>{label}</button>
+          ))}
+          {mode === "update" && <span className="text-xs text-amber-700">لا يُحدَّث سعر الشراء ولا يُنشأ سند إدخال بضاعة</span>}
+        </div>
+      ),
       validate: async (rows) => {
         const result = new Map<number, ImportIssue[]>()
         const add = (id: number, issue: ImportIssue) => result.set(id, [...(result.get(id) || []), issue])
@@ -181,13 +206,13 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
             if (previous !== undefined && previous !== row.rowNumber) add(row.id, { field, message: `الباركود ${value} مكرر مع السطر ${previous}` })
             else barcodeRows.set(key, row.rowNumber)
           }
-          const initialQuantity = Number(row.data.initial_quantity) || 0
+          const initialQuantity = mode === "create" ? Number(row.data.initial_quantity) || 0 : 0
           if (initialQuantity > 0) {
             if (!Number(row.data.initial_warehouse)) add(row.id, { field: "initial_warehouse", message: "مستودع الكمية الابتدائية مطلوب عند وجود كمية ابتدائية" })
             if (row.data.expiry_tracking || row.data.batch_tracking || row.data.serial_tracking) add(row.id, { field: "initial_quantity", message: "الأصناف ذات تاريخ الصلاحية أو الرقم التشغيلي أو المتسلسل لا تقبل كمية ابتدائية بالاستيراد؛ أدخلها بسند إدخال" })
           }
           for (let unit = 2; unit <= UNIT_COUNT; unit++) {
-            if (String(row.data[`unit_${unit}`] || "").trim() && !(Number(row.data[`unit_${unit}_to_main_qnty`]) > 0)) {
+            if (mode === "create" && String(row.data[`unit_${unit}`] || "").trim() && !(Number(row.data[`unit_${unit}_to_main_qnty`]) > 0)) {
               add(row.id, { field: `unit_${unit}_to_main_qnty`, message: `العلاقة بالوحدة الرئيسية ${unit} يجب أن تكون أكبر من صفر` })
             }
           }
@@ -201,8 +226,10 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
           const existingBarcodes: Record<string, string> = data.barcodes || {}
           for (const row of rows) {
             const code = adjustProductCodeTo10(String(row.data.product_code || ""))
-            if (code && existingCodes.has(code)) add(row.id, { field: "product_code", message: `رقم الصنف ${code} موجود مسبقاً في النظام` })
-            for (const { field, value } of barcodesOf(row.data)) if (existingBarcodes[value]) add(row.id, { field, message: `الباركود ${value} مستخدم للصنف ${existingBarcodes[value]}` })
+            if (mode === "create" && code && existingCodes.has(code)) add(row.id, { field: "product_code", message: `رقم الصنف ${code} موجود مسبقاً في النظام — اختر «تحديث أصناف موجودة» لتحديثه` })
+            if (mode === "update" && code && !existingCodes.has(code)) add(row.id, { field: "product_code", message: `رقم الصنف ${code} غير موجود — التحديث للأصناف الموجودة فقط` })
+            // في التحديث: باركود الصنف نفسه ليس تعارضاً
+            for (const { field, value } of barcodesOf(row.data)) if (existingBarcodes[value] && !(mode === "update" && existingBarcodes[value] === code)) add(row.id, { field, message: `الباركود ${value} مستخدم للصنف ${existingBarcodes[value]}` })
           }
         }
         return result
@@ -262,6 +289,24 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
               stores: data.default_store ? [{ store_id: Number(data.default_store), shelf: "", reorder_quantity: 0, max_quantity: 0, min_quantity: 0 }] : [],
               prices,
               ...defaultAccounts,
+            }
+            if (mode === "update") {
+              // تحديث جزئي (app/api/import/products-update): بلا سعر شراء ولا كمية ابتدائية
+              const updateResponse = await fetch("/api/import/products-update", {
+                method: "POST", headers: { "Content-Type": "application/json" }, signal,
+                body: JSON.stringify({
+                  product_code: body.product_code, product_name: body.product_name || "", product_name_en: body.product_name_en, description: body.description,
+                  category_id: body.category_id, main_stock_id: body.main_stock_id, default_store: data.default_store || null, notes: body.notes,
+                  units: [1, 2, 3, 4, 5, 6].map((unit) => {
+                    const unitId = unitIds.get(unit)
+                    return unitId ? { unit_id: unitId, is_main: unit === 1, to_main_qnty: unit === 1 ? 1 : Number(data[`unit_${unit}_to_main_qnty`]) || null, barcode_list: unitEntries.get(unitId)?.barcode_list || [] } : null
+                  }).filter(Boolean),
+                  prices, factory_numbers: body.factory_numbers, original_numbers: body.original_numbers,
+                }),
+              })
+              const updated = await updateResponse.json().catch(() => ({}))
+              report(row.id, updateResponse.ok ? { ok: true } : { ok: false, message: updated?.error || "تعذر تحديث الصنف" })
+              return
             }
             // الحفظ بالتوازي: إعادة المحاولة (حتى 3 مرات) عند تعارض أقفال قاعدة البيانات (deadlock/serialization)
             let response: Response
@@ -340,7 +385,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
         }
       },
     }
-  }, [lookups, user?.id, activeBranchId])
+  }, [lookups, user?.id, activeBranchId, mode])
 
   if (!config) return null
   return <ExcelImportWizard open={open} onOpenChange={onOpenChange} config={config} onImported={({ success }) => { if (success) onImported?.() }} />

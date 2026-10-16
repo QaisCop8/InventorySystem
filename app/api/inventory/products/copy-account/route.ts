@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
 import { authorizeProductType } from "@/app/api/inventory/products/_permissions"
 import type { PoolClient } from "pg"
+import { validateLeafAccounts } from "@/lib/leaf-accounts"
 
 const accountColumns = {
   selling_account_id: "selling_account_id",
@@ -33,6 +34,8 @@ export async function POST(request: NextRequest) {
     if (accountId !== null && (!Number.isInteger(accountId) || accountId <= 0)) {
       return NextResponse.json({ error: "يجب اختيار حساب صالح قبل النسخ" }, { status: 400 })
     }
+    const parentError = accountId !== null ? await validateLeafAccounts([accountId]) : null
+    if (parentError) return NextResponse.json({ error: parentError }, { status: 400 })
     // النسخ إلى الأصناف التالية فقط (ترتيب التنقل حسب id)
     const afterProductId = Number(body?.after_product_id)
     if (!Number.isInteger(afterProductId) || afterProductId <= 0) {

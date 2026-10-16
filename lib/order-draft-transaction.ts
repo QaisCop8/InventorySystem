@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg"
+import { PARENT_ACCOUNT_SAVE_MESSAGE } from "@/lib/leaf-accounts"
 import { getVoucherNumberSettings, nextVoucherSequence, resolveVoucherBookName, RECEIPT_VCH_TYPE } from "@/app/api/receipts/_lib"
 import { buildVoucherCode } from "@/lib/voucher-code"
 
@@ -116,6 +117,11 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
     [[Number(accountId), Number(cashAccountId)], Number(currencyId)],
   )
   if (blocked.rowCount) throw new DraftValidationError(`عملة سند العربون تختلف عن عملة الحساب لا يمكن اختياره: ${blocked.rows[0].code} - ${blocked.rows[0].name}`)
+  const parent = await client.query(`SELECT a.code, a.name FROM account_tbl a WHERE a.id = ANY($1::int[]) AND EXISTS (SELECT 1 FROM account_tbl ch WHERE ch.father_id = a.id AND COALESCE(ch.status, 1) <> 3) LIMIT 1`, [[Number(accountId), Number(cashAccountId)]])
+  if (parent.rowCount) throw new DraftValidationError(`${PARENT_ACCOUNT_SAVE_MESSAGE}: ${parent.rows[0].code} - ${parent.rows[0].name}`)
+  // إيقاف الحركات على الحساب لنوع "سند قبض" (4) في تاريخ اليوم
+  const stopped = await client.query(`SELECT a.code, a.name, st.stop_date::date::text stop_date FROM account_stop_transactions_tbl st JOIN account_tbl a ON a.id = st.account_id WHERE st.account_id = ANY($1::int[]) AND st.voucher_types_id = 4 AND (st.stop_date IS NULL OR st.stop_date::date <= CURRENT_DATE) LIMIT 1`, [[Number(accountId), Number(cashAccountId)]])
+  if (stopped.rowCount) throw new DraftValidationError(`الحساب ${stopped.rows[0].code} - ${stopped.rows[0].name} موقوف عن الحركة في «سند قبض»${stopped.rows[0].stop_date ? ` اعتباراً من ${stopped.rows[0].stop_date}` : ""}`)
   const note = `مبلغ عربون من مسودة طلبية رقم ${draftNumber}`
   // فرع المسودة ودفتر سندات القبض الافتراضي للمستخدم: بدونهما لا يظهر السند في قائمة سندات القبض (مُقيّدة بفروع
   // المستخدم) ولا يتبع ترقيم النظام

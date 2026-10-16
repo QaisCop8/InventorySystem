@@ -5,6 +5,7 @@ import { generatePurchaseOrderNumber } from "@/lib/number-generator"
 import { createPurchaseOrder } from "@/lib/orders"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { validateAccountStops } from "@/lib/account-stops"
 
 async function ensureBranchColumn() { return runSchemaOnce("app/api/purchase-orders/route.ts#ensureBranchColumn", async () => {
   await sql`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
@@ -43,6 +44,9 @@ async function postHandler(request: NextRequest) {
     const authorization = await authorizeTransaction(request, "purchase_order", "create", data.branch_id)
     if (!authorization.ok) return authorization.response
     data.branch_id = authorization.branchId
+    // إيقاف الحركات على حساب المورد لنوع "طلبية مشتريات" (2)
+    const stopError = await validateAccountStops([data.supplier_id, data.customer_id, data.account_id], 2, data.order_date)
+    if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     if (payload.orderData) {
       const order = await createPurchaseOrder(data, items)
       return NextResponse.json(order, { status: 201 })
@@ -111,6 +115,8 @@ async function putHandler(request: NextRequest) {
     if (!existing) return NextResponse.json({ error: "Purchase order not found" }, { status: 404 })
     const authorization = await authorizeTransaction(request, "purchase_order", "update", updateData.branch_id ?? existing.branch_id)
     if (!authorization.ok) return authorization.response
+    const stopError = await validateAccountStops([updateData.supplier_id, updateData.customer_id, updateData.account_id], 2, updateData.order_date)
+    if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
 
     const result = await sql`
       UPDATE purchase_orders SET

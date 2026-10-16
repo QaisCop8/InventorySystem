@@ -58,7 +58,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -168,6 +168,8 @@ export const menuItems: MenuItem[] = [
           { title: "قيد تحويل عملة", section: "currency-transfer-journal", icon: ArrowLeftRight },
           { title: "قيود تحويل عملة حساب", section: "account-currency-transfer-journals", icon: ArrowLeftRight },
           { title: "قيود فرق عملة", section: "currency-difference-journals", icon: DollarSign },
+          { title: "التسوية البنكية", section: "bank-reconciliation", icon: Landmark },
+          { title: "إقفال الفترات", section: "period-locks", icon: Lock },
           { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
           { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
         ],
@@ -290,6 +292,7 @@ export const menuItems: MenuItem[] = [
           { title: "المندوبين", section: "salesmen", icon: UserCheck },
           { title: "عمولات المندوبين", section: "salesman-commissions", icon: WalletCards },
           { title: "نماذج العملاء والأصناف", section: "customer-product-templates", icon: Grid3x3 },
+          { title: "العروض والأسعار الخاصة", section: "promotions", icon: Megaphone },
         ],
       },
       {

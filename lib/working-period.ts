@@ -1,6 +1,7 @@
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
+// + إقفال الفترات (period_locks_tbl: فترة لفرع أو لكل الفروع) بنفس الـTrigger — شاشة "إقفال الفترات".
 // فترة العمل (سنة العمل + أشهر العمل من "إعدادات النظام ← اعدادات عامة") تُفرَض على كل الحركات عبر
 // Trigger على voucher_header_tbl — نقطة واحدة تغطي كل مسارات إنشاء/تعديل/حذف السندات (مخزون، مبيعات،
 // قبض/صرف، قيود، شيكات، نقاط البيع، القيود الآلية، الرواتب...) بدل تكرار الفحص في كل مسار API.
@@ -16,6 +17,44 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
   if (preparedDatabases.has(databaseName)) return
   const tables = await sql`SELECT to_regclass('voucher_header_tbl') IS NOT NULL AS vouchers`
   if (!tables[0]?.vouchers) return
+
+  // إقفال الفترات: فترة (من/إلى) لفرع محدد أو لكل الفروع (branch_id فارغ). is_active=false ⇐ فُتحت (يبقى السجل للأرشفة)
+  await sql`
+    CREATE TABLE IF NOT EXISTS period_locks_tbl (
+      id SERIAL PRIMARY KEY,
+      branch_id INTEGER,
+      from_date DATE NOT NULL,
+      to_date DATE NOT NULL,
+      note TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_by VARCHAR(100),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by VARCHAR(100),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (to_date >= from_date)
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_period_locks_dates ON period_locks_tbl(from_date, to_date) WHERE is_active`
+
+  await sql.unsafe(`
+    CREATE OR REPLACE FUNCTION period_lock_violation(p_date date, p_branch int) RETURNS text AS $fn$
+    DECLARE
+      v_lock record;
+    BEGIN
+      IF p_date IS NULL OR to_regclass('period_locks_tbl') IS NULL THEN RETURN NULL; END IF;
+      SELECT l.from_date, l.to_date, l.branch_id, b.branch_name INTO v_lock
+        FROM period_locks_tbl l LEFT JOIN branches b ON b.id = l.branch_id
+        WHERE l.is_active AND p_date BETWEEN l.from_date AND l.to_date
+          AND (l.branch_id IS NULL OR l.branch_id = p_branch)
+        ORDER BY l.branch_id NULLS FIRST, l.from_date LIMIT 1;
+      IF NOT FOUND THEN RETURN NULL; END IF;
+      RETURN format('الفترة من %s إلى %s مقفلة%s — لا يمكن إضافة أو تعديل أو ترحيل أو حذف سند بتاريخ %s (إقفال الفترات)',
+        to_char(v_lock.from_date, 'YYYY-MM-DD'), to_char(v_lock.to_date, 'YYYY-MM-DD'),
+        CASE WHEN v_lock.branch_id IS NULL THEN ' لكل الفروع' ELSE ' للفرع ' || COALESCE(v_lock.branch_name, v_lock.branch_id::text) END,
+        to_char(p_date, 'YYYY-MM-DD'));
+    END;
+    $fn$ LANGUAGE plpgsql STABLE
+  `)
 
   await sql.unsafe(`
     CREATE OR REPLACE FUNCTION working_period_violation(p_date date) RETURNS text AS $fn$
@@ -65,11 +104,11 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
       v_error text;
     BEGIN
       IF TG_OP IN ('INSERT', 'UPDATE') THEN
-        v_error := working_period_violation(NEW.vch_date::date);
+        v_error := COALESCE(working_period_violation(NEW.vch_date::date), period_lock_violation(NEW.vch_date::date, NEW.branch_id));
         IF v_error IS NOT NULL THEN RAISE EXCEPTION '%', v_error USING ERRCODE = 'P0001'; END IF;
       END IF;
       IF TG_OP IN ('UPDATE', 'DELETE') THEN
-        v_error := working_period_violation(OLD.vch_date::date);
+        v_error := COALESCE(working_period_violation(OLD.vch_date::date), period_lock_violation(OLD.vch_date::date, OLD.branch_id));
         IF v_error IS NOT NULL THEN RAISE EXCEPTION '%', v_error USING ERRCODE = 'P0001'; END IF;
       END IF;
       IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
@@ -81,7 +120,7 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
   await sql`DROP TRIGGER IF EXISTS voucher_working_period_trigger ON voucher_header_tbl`
   await sql.unsafe(`
     CREATE TRIGGER voucher_working_period_trigger
-    BEFORE INSERT OR UPDATE OF vch_date, status, amount OR DELETE ON voucher_header_tbl
+    BEFORE INSERT OR UPDATE OF vch_date, status, amount, branch_id OR DELETE ON voucher_header_tbl
     FOR EACH ROW EXECUTE FUNCTION check_voucher_working_period()
   `)
   preparedDatabases.add(databaseName)
@@ -90,5 +129,5 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
 /** نص الخطأ إن كانت الرسالة صادرة عن فحص فترة العمل (لعرضها كما هي بدل رسالة عامة). */
 export const workingPeriodErrorMessage = (error: unknown): string | null => {
   const message = String((error as any)?.message || "")
-  return message.includes("فترة العمل") || message.includes("سنة العمل") || message.includes("غير مفتوح للعمل") ? message : null
+  return message.includes("فترة العمل") || message.includes("سنة العمل") || message.includes("غير مفتوح للعمل") || message.includes("إقفال الفترات") ? message : null
 }

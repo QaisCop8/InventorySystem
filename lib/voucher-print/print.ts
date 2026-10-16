@@ -6,6 +6,7 @@ import { renderPrintHtml, type PrintContext } from "./html"
 import { normalizePrintSettings, paperDimensions, type VoucherPrintSettings } from "./settings"
 import { printWithCashierService } from "./win-service"
 import { logVoucherAudit, printActionForCopyLabel } from "@/lib/audit-client"
+import { dispatchVoucherWhatsApp, takeVoucherWhatsApp } from "./whatsapp-share"
 
 type SettingsBundle = { settings: VoucherPrintSettings; company: CompanyInfo }
 const cache = new Map<number, { at: number; promise: Promise<SettingsBundle> }>()
@@ -91,7 +92,7 @@ function printHtmlInWindow(target: Window, html: string) {
   window.setTimeout(() => target.print(), 500)
 }
 
-export type PrintResult = { method: "service" | "browser"; warning?: string }
+export type PrintResult = { method: "service" | "browser" | "whatsapp"; warning?: string }
 
 /**
  * Prints a voucher using the saved settings of its voucher type.
@@ -106,13 +107,47 @@ export function printVoucherWithSettings(document: PrintDocument, settings: Vouc
   return printVoucherWith(document, async () => ({ settings, company }))
 }
 
+// "نسخة" بعد "النسخة الأصلية": نفس إعدادات الطباعة وبيانات الشركة التي طُبعت بها الأصلية (لقطة محفوظة لكل
+// سند)، فلا تتأثر بتعديل إعدادات الطباعة لاحقاً. فقط توجيه الطابعة (الطريقة واسم الطابعة) يبقى من الإعداد الحالي
+// لأنه يخص الجهاز لا شكل السند. الأصلية تحفظ اللقطة؛ السند بلا لقطة (أصلية قديمة قبل هذه الميزة) يُطبع بالإعداد الحالي.
+async function withOriginalSnapshot(document: PrintDocument, bundle: SettingsBundle): Promise<SettingsBundle> {
+  if (document.noAudit || !document.code || !document.voucherTypeId) return bundle
+  const action = printActionForCopyLabel(document.copyLabel)
+  const query = `vch_type=${encodeURIComponent(String(document.voucherTypeId))}&vch_code=${encodeURIComponent(String(document.code))}`
+  if (action === "print_original") {
+    void fetch("/api/voucher-print-snapshots", {
+      method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+      body: JSON.stringify({ vch_type: document.voucherTypeId, vch_code: document.code, settings: bundle.settings, company: bundle.company }),
+    }).catch(() => undefined)
+    return bundle
+  }
+  if (action !== "print_copy") return bundle
+  try {
+    const data = await fetch(`/api/voucher-print-snapshots?${query}`, { cache: "no-store" }).then((response) => (response.ok ? response.json() : null))
+    const snapshot = data?.snapshot
+    if (!snapshot?.settings || !snapshot?.company) return bundle
+    return {
+      settings: normalizePrintSettings({ ...snapshot.settings, print_method: bundle.settings.print_method, printer_name: bundle.settings.printer_name }),
+      company: snapshot.company,
+    }
+  } catch {
+    return bundle
+  }
+}
+
 async function printVoucherWith(document: PrintDocument, resolve: () => Promise<SettingsBundle>): Promise<PrintResult> {
+  // زر واتساب: نفس المستند يُرسل لنافذة واتساب (PDF) بدل الطابعة
+  const whatsapp = document.noAudit ? null : takeVoucherWhatsApp()
+  if (whatsapp) {
+    dispatchVoucherWhatsApp({ document, accountId: whatsapp.accountId })
+    return { method: "whatsapp" }
+  }
   const mobile = isMobilePrintDevice()
   const mobileWindow = mobile ? window.open("", "_blank") : null
   try {
-    const { settings, company } = await resolve()
+    const { settings, company } = await withOriginalSnapshot(document, await resolve())
     // تقرير ارشفة السندات: كل طباعة (نسخة أصلية/نسخة/للتدقيق) تُسجَّل باسم المستخدم ووقتها
-    if (!document.noAudit) logVoucherAudit({ action: printActionForCopyLabel(document.copyLabel), voucher_id: document.auditVoucherId ?? null, vch_type: document.voucherTypeId, vch_code: document.code, copy_label: document.copyLabel ?? null })
+    if (!document.noAudit) logVoucherAudit({ action: printActionForCopyLabel(document.copyLabel), source: document.auditSource, voucher_id: document.auditVoucherId ?? null, vch_type: document.voucherTypeId, vch_code: document.code, copy_label: document.copyLabel ?? null })
     const context = buildPrintContext(document, company, settings)
     const html = () => renderPrintHtml(document, settings, context)
 
@@ -139,6 +174,22 @@ async function printVoucherWith(document: PrintDocument, resolve: () => Promise<
     mobileWindow?.close()
     throw error
   }
+}
+
+/** ملف PDF للسند بإعدادات طباعة نوعه (نفس شكل الطباعة) — لإرساله عبر واتساب. */
+export async function voucherPdfBlob(document: PrintDocument): Promise<Blob> {
+  const { settings, company } = await withOriginalSnapshot(document, await loadVoucherPrintSettings(document.voucherTypeId))
+  const html = renderPrintHtml(document, settings, buildPrintContext(document, company, settings))
+  const paper = paperDimensions(settings)
+  const { reportPdfBlob } = await import("@/lib/report-pdf")
+  return reportPdfBlob({
+    html,
+    title: document.title,
+    landscape: paper.widthMm > (paper.heightMm || 0),
+    // ورق الإيصالات بطول تلقائي ⇐ صفحات بطول A4 بنفس العرض
+    paper: { widthMm: paper.widthMm, heightMm: paper.receipt || !paper.heightMm ? 297 : paper.heightMm },
+    margins: { top: settings.margin_top_mm, right: settings.margin_right_mm, bottom: settings.margin_bottom_mm, left: settings.margin_left_mm },
+  })
 }
 
 export function previewHtml(document: PrintDocument, settings: VoucherPrintSettings, company: CompanyInfo, previewScale?: number) {

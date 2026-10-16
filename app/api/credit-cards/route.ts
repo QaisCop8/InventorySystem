@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { ensureTables, saveHolidays } from "./_lib"
+import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,6 +53,8 @@ export async function POST(request: NextRequest) {
     if (!authorization.ok) return authorization.response
     await ensureTables()
     const data = await request.json()
+    const leafAccountsError = await validateLeafAccountFields({ "الحساب المحاسبي": data.financial_account_id, "حساب الوسيط": data.waseet_account_id, "حساب العمولة": data.commission_account_id })
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
 
     const validationError = validate(data)
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
@@ -84,6 +87,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const leafAccountsError = await validateLeafAccountFields({ "الحساب المحاسبي": data.financial_account_id, "حساب الوسيط": data.waseet_account_id, "حساب العمولة": data.commission_account_id })
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     const authorization = await authorizeFile(request, "credit-cards", Number(data.status) === 3 ? "delete" : "update")
     if (!authorization.ok) return authorization.response
     await ensureTables()

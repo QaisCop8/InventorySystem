@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Copy, Trash2, FileText, Download, Printer, Menu, Loader2 } from "lucide-react"
+import { cancelVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Copy, Trash2, FileText, Download, Printer, Menu, Loader2, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import "./universal-toolbar.css"
@@ -25,6 +26,8 @@ interface UniversalToolbarProps {
   onReport?: () => void
   onExportExcel?: () => void
   onPrint?: () => void
+  /** إرسال السند PDF عبر واتساب (يمرّ عبر مسار الطباعة نفسه — lib/voucher-print/whatsapp-share.ts) */
+  onWhatsApp?: () => void
   onClone?: () => void
   isLoading?: boolean
   isSaving?: boolean
@@ -55,7 +58,7 @@ const navClass = "h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white p
 
 export function UniversalToolbar({
   currentRecord = 1, totalRecords = 0, onFirst: firstAction, onPrevious: previousAction, onNext: nextAction, onLast: lastAction, onNew: newAction, onSave, onDelete,
-  onReport: reportAction, onExportExcel: exportAction, onPrint, onClone, isLoading = false, isSaving = false, canSave: saveEnabled = true,
+  onReport: reportAction, onExportExcel: exportAction, onPrint, onWhatsApp, onClone, isLoading = false, isSaving = false, canSave: saveEnabled = true,
   canPrint: printEnabled = true, canDelete: deleteEnabled = true, canClone: cloneEnabled = true, isFirstRecord = false, isLastRecord = false,
   isNewRecord = false, labels = defaultLabels, showUtilityLabels = false, hotkeys, disableHotkeys = false,
   fileFamily,
@@ -80,13 +83,15 @@ export function UniversalToolbar({
 
   // نفس شروط تفعيل الأزرار — الاختصار لا يعمل حين يكون زره معطّلاً
   const navigationBusyNow = isLoading || isSaving
+  // الطباعة العادية تُلغي أي طلب واتساب معلّق (زر واتساب أُلغي قبل وصوله للطباعة)
+  const printAction = onPrint ? () => { cancelVoucherWhatsApp(); onPrint() } : undefined
   const actionsRef = useRef<Record<HotkeyAction, (() => void) | undefined>>({} as any)
   actionsRef.current = {
     save: onSave && !navigationBusyNow && canSave ? onSave : undefined,
     delete: onDelete && !navigationBusyNow && canDelete ? onDelete : undefined,
     clone: onClone && !navigationBusyNow && canClone ? onClone : undefined,
     new: onNew && !navigationBusyNow ? onNew : undefined,
-    print: onPrint && !navigationBusyNow && canPrint ? onPrint : undefined,
+    print: onPrint && !navigationBusyNow && canPrint ? printAction : undefined,
     report: onReport && !navigationBusyNow ? onReport : undefined,
     first: onFirst && !navigationBusyNow && totalRecords > 0 && (isNewRecord || !isFirstRecord) ? onFirst : undefined,
     previous: onPrevious && !navigationBusyNow && totalRecords > 0 && (isNewRecord || !isFirstRecord) ? () => (isNewRecord ? onLast?.() : onPrevious()) : undefined,
@@ -123,7 +128,7 @@ export function UniversalToolbar({
   const iconOnly = template === "compact" && !showUtilityLabels
   const compact = width < (iconOnly ? 620 : 920)
   const veryCompact = width < 560
-  const hasUtilities = Boolean(onPrint || onClone || onReport || onExportExcel || onDelete)
+  const hasUtilities = Boolean(onPrint || onWhatsApp || onClone || onReport || onExportExcel || onDelete)
   const navigationBusy = isLoading || isSaving
   const previous = () => isNewRecord ? onLast?.() : onPrevious?.()
   const next = () => isNewRecord ? onFirst?.() : onNext?.()
@@ -153,7 +158,8 @@ export function UniversalToolbar({
         <div className={`universal-toolbar-nav-wrap ${compact ? "order-3 flex w-full justify-center border-t border-slate-100 pt-2" : "flex"}`}>{navigation}</div>
 
         <div className="universal-toolbar-utilities mr-auto flex items-center gap-1">
-          {!compact && onPrint && <Button type="button" variant="ghost" aria-label={labels.print} title={hint(labels.print, "print")} onClick={onPrint} disabled={isLoading || isSaving || !canPrint} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-amber-50 hover:text-amber-700"><Printer className="h-4 w-4" />{!iconOnly && <span>{labels.print}</span>}</Button>}
+          {!compact && onPrint && <Button type="button" variant="ghost" aria-label={labels.print} title={hint(labels.print, "print")} onClick={printAction} disabled={isLoading || isSaving || !canPrint} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-amber-50 hover:text-amber-700"><Printer className="h-4 w-4" />{!iconOnly && <span>{labels.print}</span>}</Button>}
+          {!compact && onWhatsApp && <Button type="button" variant="ghost" aria-label="واتساب" title="إرسال السند PDF عبر واتساب للعميل" onClick={onWhatsApp} disabled={isLoading || isSaving || !canPrint} className="h-9 gap-2 rounded-lg px-3 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"><MessageCircle className="h-4 w-4" />{!iconOnly && <span>واتساب</span>}</Button>}
           {!compact && onClone && <Button type="button" variant="ghost" aria-label={labels.clone} title={hint(labels.clone, "clone")} onClick={onClone} disabled={navigationBusy || !canClone} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-sky-50 hover:text-sky-700"><Copy className="h-4 w-4" />{!iconOnly && <span>{labels.clone}</span>}</Button>}
           {!compact && onReport && <Button type="button" variant="ghost" title={hint(labels.report, "report")} aria-label={labels.report} disabled={navigationBusy} onClick={onReport} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-violet-50 hover:text-violet-700"><FileText className="h-4 w-4" />{!iconOnly && <span>{labels.report}</span>}</Button>}
           {!compact && onExportExcel && <Button type="button" variant="ghost" title={labels.exportExcel} aria-label={labels.exportExcel} disabled={navigationBusy} onClick={onExportExcel} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"><Download className="h-4 w-4" />{!iconOnly && <span>{labels.exportExcel}</span>}</Button>}
@@ -163,7 +169,8 @@ export function UniversalToolbar({
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild><Button type="button" variant="outline" className="universal-toolbar-menu h-10 gap-2 rounded-xl border-slate-200 bg-slate-50 px-3 text-slate-700 hover:bg-slate-100"><Menu className="h-4 w-4" />{!veryCompact && "الأدوات"}</Button></DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="z-[100] min-w-48 [direction:rtl]">
-                {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onPrint}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
+                {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={printAction}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
+                {onWhatsApp && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onWhatsApp}><MessageCircle className="ml-2 h-4 w-4 text-emerald-600" />واتساب</DropdownMenuItem>}
                 {onClone && <DropdownMenuItem disabled={navigationBusy || !canClone} onSelect={onClone}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
                 {onReport && <DropdownMenuItem disabled={navigationBusy} onSelect={onReport}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
                 {onExportExcel && <DropdownMenuItem disabled={navigationBusy} onSelect={onExportExcel}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}

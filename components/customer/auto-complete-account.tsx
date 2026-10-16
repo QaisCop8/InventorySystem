@@ -5,7 +5,7 @@ import { Search, X, CircleDollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
+import AccountSearchDialog, { AccountItem, isParentAccount, PARENT_ACCOUNT_MESSAGE } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import { useToast } from "@/hooks/use-toast"
 
@@ -72,8 +72,7 @@ const formatAccountLabel = (account: AccountItem, displayNameFirst = false, disp
     : displayNameFirst
       ? `${account.name} / ${account.code}`
       : `${account.code} - ${account.name}`
-const isLeafAccount = (account: AccountItem, allAccounts: AccountItem[]) =>
-  !allAccounts.some((candidate) => Number(candidate.father_id ?? 0) === Number(account.id))
+const isLeafAccount = (account: AccountItem, allAccounts: AccountItem[]) => !isParentAccount(account, allAccounts)
 
 const mapAccount = (item: any): AccountItem => ({
   id: Number(item.id),
@@ -89,6 +88,7 @@ const mapAccount = (item: any): AccountItem => ({
         ? Number(item.parent_account_id)
         : null,
   father_name: item.father_name || item.parent_account_name || undefined,
+  has_children: item.has_children == null ? undefined : Boolean(item.has_children),
   level_no: Number(item.level_no || 1),
   finanical_list_id: Number(item.finanical_list_id || 1),
   finanical_list_assests_id: item.finanical_list_assests_id != null ? Number(item.finanical_list_assests_id) : null,
@@ -161,6 +161,8 @@ export default function AutoCompleteAccount({
   const [isFocused, setIsFocused] = useState(false)
   const [displayValue, setDisplayValue] = useState(value)
   const onValueChangeRef = useRef(onValueChange)
+  // كل الحسابات قبل استبعاد الرئيسية — لتمييز "كود حساب رئيسي" عن "كود غير موجود" عند الكتابة
+  const allAccountsRef = useRef<AccountItem[]>([])
 
   const normalizedValue = useMemo(() => (valueMode === "id" ? String(value).trim() : normalizeAccountCode(value)), [value, valueMode])
   const resolvedDisplayValue = useMemo(() => {
@@ -209,6 +211,7 @@ export default function AutoCompleteAccount({
         .map(mapAccount)
         .filter((account: AccountItem) => Number(account.status ?? 1) !== 3)
 
+      allAccountsRef.current = mappedAccounts
       const nextAccounts = leafOnly ? mappedAccounts.filter((account) => isLeafAccount(account, mappedAccounts)) : mappedAccounts
 
       setAccounts(nextAccounts)
@@ -363,6 +366,20 @@ export default function AutoCompleteAccount({
       return
     }
 
+    // كود حساب رئيسي (له حسابات فرعية): يُرفض برسالة واضحة بدل "غير موجود"
+    if (!account && leafOnly) {
+      const paddedTyped = padAccountCode(typed)
+      const parent = allAccountsRef.current.find((item) => padAccountCode(normalizeAccountCode(item.code)) === paddedTyped)
+      if (parent && isParentAccount(parent, allAccountsRef.current)) {
+        toast({ title: "تعذر اختيار الحساب", description: `${PARENT_ACCOUNT_MESSAGE}: ${parent.code} - ${parent.name}`, variant: "destructive" })
+        typedTextRef.current = null
+        onValueChange("")
+        setDisplayValue("")
+        notifySelection(null)
+        if (fromEnter && showSearchButton && !disabled) void handleOpenSearch()
+        return
+      }
+    }
     if (fromEnter && showSearchButton && !disabled) {
       void handleOpenSearch()
       return
@@ -538,6 +555,7 @@ export default function AutoCompleteAccount({
         lockOrderOnlyFilter={lockOrderOnlyFilter}
         orderType={orderType}
         branchId={branchId}
+        leafOnly={leafOnly}
       />
 
       {showCostCenterDialog && (

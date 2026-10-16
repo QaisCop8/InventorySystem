@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
+    const leafAccountsError = await validateLeafAccountFields({ "حساب الصندوق": data.cash_account_id, "حساب الشيكات الواردة": data.incoming_checks_account_id, "حساب الشيكات المرتجعة": data.returned_checks_account_id, "حساب البطاقات": data.card_account_id })
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     const result = await sql`
       INSERT INTO virtual_cash_bank_accounts (
         currency_id, cash_account_id, incoming_checks_account_id, returned_checks_account_id, card_account_id
@@ -45,6 +48,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const leafAccountsError = await validateLeafAccountFields({ "حساب الصندوق": data.cash_account_id, "حساب الشيكات الواردة": data.incoming_checks_account_id, "حساب الشيكات المرتجعة": data.returned_checks_account_id, "حساب البطاقات": data.card_account_id })
+    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
     if (!data.id) return NextResponse.json({ error: "id required" }, { status: 400 })
     const result = await sql`
       UPDATE virtual_cash_bank_accounts SET

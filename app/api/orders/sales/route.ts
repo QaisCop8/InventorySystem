@@ -4,6 +4,7 @@ import { getSalesOrders, getPurchaseOrders, createOrder, createPurchaseOrder } f
 import { createOrderWorkflowStatus } from "@/lib/workflow"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getTenantPool } from "@/lib/database"
+import { validateAccountStops } from "@/lib/account-stops"
 
 async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
   const orderId = Number(orderData?.id || 0)
@@ -107,6 +108,9 @@ async function postHandler(request: NextRequest) {
       return NextResponse.json({ error: "اسم العميل أو رقم العميل مطلوب" }, { status: 400 });
     if (!items || items.length === 0)
       return NextResponse.json({ error: "عناصر الطلبية مطلوبة" }, { status: 400 });
+    // إيقاف الحركات على حساب العميل لنوع "طلبية مبيعات" (1) — أو "طلبية مشتريات" (2) لطلبيات الشراء
+    const stopError = await validateAccountStops([orderData.customer_id], Number(orderData.order_type) === 2 ? 2 : 1, orderData.order_date)
+    if (stopError) return NextResponse.json({ error: stopError }, { status: 400 });
 
     await normalizeSalesOrderStatuses(orderData, items)
 

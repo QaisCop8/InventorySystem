@@ -1190,7 +1190,7 @@ export default function UnifiedCustomers({
             <div className="space-y-1"><Label>المنطقة</Label><Input value={formData.region} onChange={(e) => updateField("region", e.target.value)} /></div>
             <div className="space-y-1"><Label>الجوال</Label><Input value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} /></div>
             <div className="space-y-1"><Label>البريد الإلكتروني</Label><Input type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} /></div>
-            <div className="space-y-1"><Label>حساب الأب (الحساب الرئيسي)</Label><AutoCompleteAccount label="" value={fatherAccountCode} placeholder="اختر حساب المندوبين" showCostCenterButton={false} requiredTypeValues={[4]} onValueChange={(value) => { setFatherAccountCode(value); if (!value) updateField("father_id", "") }} onAccountSelect={(account) => { setFatherAccountCode(account?.code || ""); updateField("father_id", account ? String(account.id) : "") }} /></div>
+            <div className="space-y-1"><Label>حساب الأب (الحساب الرئيسي)</Label><AutoCompleteAccount label="" leafOnly={false} value={fatherAccountCode} placeholder="اختر حساب المندوبين" showCostCenterButton={false} requiredTypeValues={[4]} onValueChange={(value) => { setFatherAccountCode(value); if (!value) updateField("father_id", "") }} onAccountSelect={(account) => { setFatherAccountCode(account?.code || ""); updateField("father_id", account ? String(account.id) : "") }} /></div>
             <div className="space-y-1"><Label>عمولة المبيعات %</Label><Input type="number" min="0" max="100" step="0.001" value={formData.sales_commission} onChange={(e) => updateField("sales_commission", e.target.value)} /></div>
             <div className="space-y-1"><Label>عمولة التحصيل %</Label><Input type="number" min="0" max="100" step="0.001" value={formData.collection_commission} onChange={(e) => updateField("collection_commission", e.target.value)} /></div>
             <div className="space-y-1 md:col-span-2"><Label>العنوان</Label><Input value={formData.address} onChange={(e) => updateField("address", e.target.value)} /></div>
@@ -1428,6 +1428,7 @@ export default function UnifiedCustomers({
                 <div>
                   <AutoCompleteAccount
                     label="الحساب الرئيسي (تابع ل)"
+                    leafOnly={false}
                     value={fatherAccountCode}
                     placeholder="اختر الحساب الرئيسي"
                     showCostCenterButton={false}

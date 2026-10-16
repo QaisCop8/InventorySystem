@@ -1,3 +1,4 @@
+import { validateAccountStops } from "@/lib/account-stops"
 import sql from "@/lib/database"
 import {
   JournalDefaultsError,
@@ -23,6 +24,8 @@ export const INTERNAL_VOUCHER = {
   CURRENCY_CONVERT: 4, // قيود تحويل عملة
   ACCOUNT_CURRENCY_CONVERT: 5, // قيود تحويل عملة حساب
   CURRENCY_DIFFERENCE: 10, // قيود فرق العملة
+  BANK_RECONCILIATION: 31, // قيود التسوية البنكية (عمولات/فوائد البنك من كشف البنك)
+  OPENING_BALANCE: 32, // قيود الأرصدة الافتتاحية (استيراد العملاء/الموردين من Excel)
 } as const
 
 // The journal voucher screen (receipts/_lib.ts fetchDetails) only loads lines of this type, and every
@@ -32,7 +35,7 @@ export const JOURNAL_LINE_TYPE = 5
 // Types previously written by auto journals; repaired to JOURNAL_LINE_TYPE in ensureAutoJournalTables.
 const LEGACY_AUTO_LINE_TYPES = [1, 13]
 // internal_voucher_id 30 = fixed assets (lib/fixed-assets/schema.ts), which also posts through here.
-const AUTO_INTERNAL_VOUCHERS = [2, 4, 5, 10, 30]
+const AUTO_INTERNAL_VOUCHERS = [2, 4, 5, 10, 30, 31, 32]
 
 const round = (value: number, digits = 2) => {
   const factor = 10 ** digits
@@ -132,6 +135,8 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
     if (Number(account.status) === 3) throw new AutoJournalError(`الحساب ${account.code} - ${account.name} موقوف`)
     if (account.is_parent) throw new AutoJournalError(`الحساب ${account.code} - ${account.name} حساب أب ولا يقبل حركات`)
   }
+  const stopError = await validateAccountStops(accountIds, AUTO_JOURNAL_VCH_TYPE, input.date)
+  if (stopError) throw new AutoJournalError(stopError)
 
   const ctx = context ?? (await resolveJournalContext(input.userId))
   const code = await nextJournalVoucherCode(ctx, input.branchId)

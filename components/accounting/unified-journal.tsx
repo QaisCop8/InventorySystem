@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { Plus, ListPlus, Paperclip, FileText } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
@@ -16,7 +17,7 @@ import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
 import DateTimeControl from "@/components/common/date-time-control"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
-import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
+import AccountSearchDialog, { type AccountItem, isParentAccount, PARENT_ACCOUNT_MESSAGE } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
@@ -252,6 +253,7 @@ const createDropdownKeyHandler = (
 
 const mapAccount = (item: any): AccountItem => ({
   id: Number(item.id),
+  has_children: item.has_children == null ? undefined : Boolean(item.has_children),
   code: String(item.code || item.account_code || ""),
   name: String(item.name || item.account_name || ""),
   name_lang2: item.name_lang2 ?? null,
@@ -674,6 +676,12 @@ export default function UnifiedJournal({
     }
     const list = await ensureAccountsLoaded()
     const match = list.find((a) => a.code.toUpperCase() === code)
+    if (match && isParentAccount(match)) {
+      patchJournalRow(index, { account_id: null, account_code: "", account_name: "", cost_centers: [] })
+      focusGridCell(index, "account_code")
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `${PARENT_ACCOUNT_MESSAGE}: ${match.code} - ${match.name}`, life: 3500 }])
+      return
+    }
     if (match) {
       if (!checkAccountCurrencyCompatibility(match)) {
         patchJournalRow(index, { account_id: null, account_code: "", account_name: "", cost_centers: [] })
@@ -1035,6 +1043,7 @@ export default function UnifiedJournal({
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
+            onWhatsApp={onPrint ? () => { armVoucherWhatsApp(null); onPrint() } : undefined}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}

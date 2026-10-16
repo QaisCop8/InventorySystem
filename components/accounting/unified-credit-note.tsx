@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
+import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { FileText, User, Percent, Users2, MessageSquare, Wallet, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -13,6 +15,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import AccountBalanceField from "@/components/common/account-balance-field"
 import type { JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import DateTimeControl from "@/components/common/date-time-control"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
@@ -164,6 +167,8 @@ export default function UnifiedCreditNote({
   const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
   // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
   const isLocked = form.status === 2 || form.status === 3
+  // مندوب العميل يُعبّأ تلقائياً عند اختياره (إن كان له مندوب)
+  useCustomerDefaultSalesman({ recordId: form.id, accountId: form.account_id, locked: isLocked, onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
   const statusBadge =
     form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
 
@@ -476,6 +481,7 @@ export default function UnifiedCreditNote({
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
+            onWhatsApp={onPrint ? () => { armVoucherWhatsApp(form.account_id); onPrint() } : undefined}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
@@ -686,10 +692,7 @@ export default function UnifiedCreditNote({
                         notFoundMessage="العميل المحدد غير موجود"
                         disabled={isLocked}
                       />
-                      <div className="grid gap-1.5">
-                        <Label>الرصيد</Label>
-                        <Input value="0.000" readOnly disabled className="bg-slate-50" />
-                      </div>
+                      <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${form.status}`} />
                     </div>
                     <div className="grid gap-3">
                       <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}

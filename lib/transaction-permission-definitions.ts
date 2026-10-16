@@ -23,6 +23,9 @@ export const TRANSACTION_FAMILIES = {
   sales_order: "طلبية مبيعات",
   purchase_order: "طلبية مشتريات",
   fixed_asset: "الأصول الثابتة",
+  bank_reconciliation: "التسوية البنكية",
+  promotion: "العروض والأسعار الخاصة",
+  period_lock: "إقفال الفترات",
 } as const
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
@@ -63,6 +66,8 @@ export type PosCashierPermission = keyof typeof POS_CASHIER_PERMISSIONS
 // تجاوز حد الائتمان (حد الدين) المعرّف على العميل عند حفظ فاتورة مبيعات آجلة
 export const CREDIT_LIMIT_PERMISSION_CATEGORY = "العملاء والذمم"
 export const CREDIT_LIMIT_OVERRIDE_PERMISSION = "السماح بتجاوز حد الدين"
+// رؤية حقل "الرصيد" للعميل/المورد/الحساب داخل شاشات الحركات (نفس فئة حد الائتمان)
+export const ACCOUNT_BALANCE_VIEW_PERMISSION = "السماح بمشاهدة رصيد الحساب في الحركات"
 
 export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
@@ -96,6 +101,9 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "credit-notes": "credit_note",
   "debit-notes": "debit_note",
   "fixed-assets": "fixed_asset",
+  "bank-reconciliation": "bank_reconciliation",
+  promotions: "promotion",
+  "period-locks": "period_lock",
   "salesman-commissions": "salesman_commission",
 }
 
