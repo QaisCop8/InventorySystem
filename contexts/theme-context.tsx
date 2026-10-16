@@ -37,7 +37,8 @@ export interface ThemeSettings {
 export interface ThemeContextType {
   settings: ThemeSettings
   updateSettings: (newSettings: Partial<ThemeSettings>) => void
-  saveSettings: () => Promise<void>
+  /** overrides: قيم تُحفظ فوراً (updateSettings لا تكون قد طُبِّقت على الحالة بعد عند استدعاء الحفظ مباشرة) */
+  saveSettings: (overrides?: Partial<ThemeSettings>) => Promise<void>
   resetToDefaults: () => void
   applyTheme: () => void
   loading: boolean
@@ -142,13 +143,14 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
     setSettings((prev) => ({ ...prev, ...newSettings }))
   }
 
-  const saveSettings = async () => {
+  const saveSettings = async (overrides: Partial<ThemeSettings> = {}) => {
     try {
       console.log("[v0] Saving theme settings for user:", user?.id)
       console.log("[v0] Settings to save:", settings)
 
       const settingsToSave = {
         ...settings,
+        ...overrides,
         user_id: user?.id,
         organization_id: settings.organization_id || 1,
       }
@@ -217,23 +219,30 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
     root.style.setProperty("--secondary-foreground", "#ffffff")
     root.style.setProperty("--accent", settings.accent_color)
     root.style.setProperty("--accent-foreground", "#ffffff")
-    root.style.setProperty("--background", settings.background_color)
-    root.style.setProperty("--foreground", settings.text_color)
+    // الوضع الداكن: ألوان الخلفية/النص/البطاقات/الحدود تأتي من رموز .dark في globals.css — لا تُكتب فوقها
+    // ألوان الوضع الفاتح المحفوظة كقيم مضمّنة (inline) وإلا تبقى الخلفيات بيضاء رغم تفعيل الداكن.
+    const darkOwned = ["--background", "--foreground", "--muted", "--muted-foreground", "--border", "--input", "--card", "--card-foreground"]
+    if (settings.dark_mode) darkOwned.forEach((name) => root.style.removeProperty(name))
+    if (!settings.dark_mode) root.style.setProperty("--background", settings.background_color)
+    if (!settings.dark_mode) root.style.setProperty("--foreground", settings.text_color)
 
     // Apply muted colors based on primary
     const primaryRgb = hexToRgb(settings.primary_color)
-    if (primaryRgb) {
+    if (primaryRgb && !settings.dark_mode) {
       root.style.setProperty("--muted", `rgb(${primaryRgb.r} ${primaryRgb.g} ${primaryRgb.b} / 0.1)`)
       root.style.setProperty("--muted-foreground", settings.text_color)
     }
 
     // Apply border and card colors
-    root.style.setProperty("--border", settings.dark_mode ? "#374151" : "#e5e7eb")
-    root.style.setProperty("--input", settings.dark_mode ? "#374151" : "#e5e7eb")
+    if (!settings.dark_mode) {
+      root.style.setProperty("--border", "#e5e7eb")
+      root.style.setProperty("--input", "#e5e7eb")
+    }
     root.style.setProperty("--ring", settings.primary_color)
 
-    // Card styling based on card_style
-    switch (settings.card_style) {
+    // Card styling based on card_style (الداكن: بطاقات من رموز .dark)
+    if (settings.dark_mode) root.style.setProperty("--card-shadow", "0 4px 6px -1px rgb(0 0 0 / 0.3)")
+    else switch (settings.card_style) {
       case "flat":
         root.style.setProperty("--card", settings.background_color)
         root.style.setProperty("--card-foreground", settings.text_color)

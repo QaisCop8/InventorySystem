@@ -2734,3 +2734,40 @@ td {
 .unified-customers-compact .p-multiselect .p-multiselect-trigger {
   height: 32px !important;
 }
+
+/* ── الوضع الداكن لكامل النظام: احتياط للشاشات المكتوبة بألوان فاتحة ثابتة (bg-white…) بلا dark: ──
+   داخل @layer utilities وبأولوية منخفضة (.dark :where(...)) — أي dark:… مكتوب صراحة في شاشة يبقى هو الغالب. */
+@layer utilities {
+  .dark :where(.bg-white, .bg-gray-50, .bg-slate-50, .bg-zinc-50, .bg-neutral-50, .bg-stone-50) { background-color: #111827; }
+  .dark :where(.bg-gray-100, .bg-slate-100, .bg-zinc-100, .bg-neutral-100, .bg-gray-200, .bg-slate-200) { background-color: #1f2937; }
+  .dark :where(.bg-white\/90, .bg-white\/80, .bg-white\/70, .bg-white\/60, .bg-slate-50\/60, .bg-slate-50\/50, .bg-gray-50\/50) { background-color: rgb(17 24 39 / 0.85); }
+  .dark :where(.text-black, .text-gray-900, .text-slate-900, .text-gray-800, .text-slate-800, .text-zinc-900, .text-neutral-900) { color: #e5e7eb; }
+  .dark :where(.text-gray-700, .text-slate-700, .text-gray-600, .text-slate-600) { color: #cbd5e1; }
+  .dark :where(.text-gray-500, .text-slate-500) { color: #94a3b8; }
+  .dark :where(.border-gray-100, .border-slate-100, .border-gray-200, .border-slate-200, .border-gray-300, .border-slate-300, .border-zinc-200) { border-color: #334155; }
+  .dark :where(.divide-gray-200, .divide-slate-200, .divide-slate-100) > :not(:last-child) { border-color: #334155; }
+  .dark :where(.from-white, .from-slate-50, .from-gray-50) { --tw-gradient-from: #111827; }
+  .dark :where(.to-white, .to-slate-50, .to-gray-50, .to-slate-100) { --tw-gradient-to: #0b1220; }
+  .dark :where(.via-white) { --tw-gradient-via: #111827; }
+  .dark :where(.bg-emerald-50, .bg-green-50, .bg-teal-50) { background-color: rgb(16 185 129 / 0.12); }
+  .dark :where(.bg-blue-50, .bg-sky-50, .bg-indigo-50, .bg-cyan-50) { background-color: rgb(59 130 246 / 0.12); }
+  .dark :where(.bg-amber-50, .bg-yellow-50, .bg-orange-50) { background-color: rgb(245 158 11 / 0.12); }
+  .dark :where(.bg-rose-50, .bg-red-50, .bg-pink-50) { background-color: rgb(244 63 94 / 0.12); }
+  .dark :where(.bg-violet-50, .bg-purple-50) { background-color: rgb(139 92 246 / 0.12); }
+  .dark :where(input, textarea, select):not([type="checkbox"]):not([type="radio"]) { background-color: #0f172a; color: #e5e7eb; border-color: #334155; }
+  .dark :where(input, textarea)::placeholder { color: #64748b; }
+  .dark { color-scheme: dark; }
+}
+
+/* شبكات Wijmo وقوائم PrimeReact (أنماط مكتباتها خارج Tailwind) */
+.dark .wj-control, .dark .wj-flexgrid, .dark .wj-flexgrid .wj-cell, .dark .wj-content { background-color: #0f172a; color: #e5e7eb; border-color: #1e293b; }
+.dark .wj-flexgrid .wj-cell.wj-header, .dark .wj-flexgrid .wj-colheaders .wj-cell { background-color: #1e293b; color: #cbd5e1; }
+.dark .wj-flexgrid .wj-cell.wj-alt { background-color: #111c30; }
+.dark .wj-flexgrid .wj-cell.wj-state-selected, .dark .wj-flexgrid .wj-cell.wj-state-multi-selected { background-color: #1d4ed8; color: #ffffff; }
+.dark .wj-dropdown-panel, .dark .wj-listbox, .dark .wj-listbox .wj-listbox-item { background-color: #0f172a; color: #e5e7eb; }
+.dark .p-dropdown, .dark .p-multiselect, .dark .p-inputtext, .dark .p-calendar .p-inputtext { background-color: #0f172a; color: #e5e7eb; border-color: #334155; }
+.dark .p-dropdown .p-dropdown-label { color: #e5e7eb; }
+.dark .p-dropdown-panel, .dark .p-multiselect-panel, .dark .p-datepicker { background-color: #0f172a; color: #e5e7eb; border-color: #334155; }
+.dark .p-dropdown-panel .p-dropdown-items .p-dropdown-item, .dark .p-multiselect-panel .p-multiselect-items .p-multiselect-item { color: #e5e7eb; }
+.dark .p-dropdown-panel .p-dropdown-items .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover { background-color: #1e293b; }
+.dark .p-dropdown-panel .p-dropdown-header, .dark .p-multiselect-panel .p-multiselect-header { background-color: #111827; border-color: #334155; }

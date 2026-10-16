@@ -17,17 +17,15 @@ export function ThemeToggle() {
   const { settings, updateSettings, saveSettings } = useThemeSettings()
 
   const toggleDarkMode = async () => {
-    updateSettings({ dark_mode: !settings.dark_mode })
-    await saveSettings()
+    const dark_mode = !settings.dark_mode
+    updateSettings({ dark_mode })
+    await saveSettings({ dark_mode })
   }
 
   const changeColorScheme = async (primary: string, accent: string, name: string) => {
-    updateSettings({
-      primary_color: primary,
-      accent_color: accent,
-      theme_name: name,
-    })
-    await saveSettings()
+    const next = { primary_color: primary, accent_color: accent, theme_name: name }
+    updateSettings(next)
+    await saveSettings(next)
   }
 
   return (
@@ -78,16 +76,24 @@ export function ThemeToggle() {
   )
 }
 
-// يُبدِّل الوضع الداكن للقائمة الجانبية فقط (Sidebar) — لا لكامل النظام كما يفعل toggleDarkMode
-// في ThemeToggle أعلاه (ذاك يُبدِّل صنف "dark" على <html> فيغيّر كل الواجهة). هذا مستقل تماماً
-// (انظر contexts/menu-theme-context.tsx) ويُطبَّق فقط داخل جذر القائمة الجانبية.
+// زر شريط العنوان: الوضع الداكن لكامل النظام (صنف "dark" على <html> + حفظه بإعدادات مظهر المستخدم)،
+// والقائمة الجانبية تتبعه (وضعها المستقل يُزامَن بنفس القيمة).
 export function QuickThemeToggle() {
+  const { settings, updateSettings, saveSettings } = useThemeSettings()
   const { menuDarkMode, toggleMenuDarkMode } = useMenuTheme()
+  const dark = Boolean(settings.dark_mode)
+
+  const toggle = () => {
+    const dark_mode = !dark
+    updateSettings({ dark_mode })
+    if (menuDarkMode !== dark_mode) toggleMenuDarkMode()
+    void saveSettings({ dark_mode })
+  }
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggleMenuDarkMode} title="تبديل الوضع الداكن للقائمة الجانبية">
-      {menuDarkMode ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
-      <span className="sr-only">تبديل الوضع الداكن للقائمة الجانبية</span>
+    <Button variant="ghost" size="icon" onClick={toggle} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}>
+      {dark ? <Sun className="h-[1.2rem] w-[1.2rem]" /> : <Moon className="h-[1.2rem] w-[1.2rem]" />}
+      <span className="sr-only">{dark ? "الوضع الفاتح" : "الوضع الداكن"}</span>
     </Button>
   )
 }
@@ -106,12 +112,9 @@ export function ColorSchemeToggle() {
   const nextScheme = colorSchemes[(currentSchemeIndex + 1) % colorSchemes.length]
 
   const toggleColorScheme = async () => {
-    updateSettings({
-      primary_color: nextScheme.primary,
-      accent_color: nextScheme.accent,
-      theme_name: nextScheme.id,
-    })
-    await saveSettings()
+    const next = { primary_color: nextScheme.primary, accent_color: nextScheme.accent, theme_name: nextScheme.id }
+    updateSettings(next)
+    await saveSettings(next)
   }
 
   return (
