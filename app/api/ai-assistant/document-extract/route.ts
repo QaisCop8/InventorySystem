@@ -14,7 +14,7 @@ const MAX_BYTES = 10 * 1024 * 1024
 const ALLOWED = /^(image\/(png|jpe?g|webp|heic|heif)|application\/pdf)$/i
 
 const schema = z.object({
-  document_type: z.enum(["sales_invoice", "purchase_invoice", "receipt", "payment", "unknown"]),
+  document_type: z.enum(["sales_invoice", "purchase_invoice", "receipt", "payment", "journal_voucher", "unknown"]),
   party_name: z.string().nullish(),
   party_tax_number: z.string().nullish(),
   document_number: z.string().nullish(),
@@ -32,6 +32,13 @@ const schema = z.object({
     discount_percent: z.coerce.number().nullish(),
     line_total: z.coerce.number().nullish(),
   })).default([]),
+  journal_lines: z.array(z.object({
+    account_code: z.string().nullish(),
+    account_name: z.string().nullish(),
+    debit: z.coerce.number().nullish(),
+    credit: z.coerce.number().nullish(),
+    note: z.string().nullish(),
+  })).default([]),
   payment: z.object({
     cash_amount: z.coerce.number().nullish(),
     card_amount: z.coerce.number().nullish(),
@@ -45,12 +52,13 @@ const schema = z.object({
 })
 
 const instructions = `أنت تقرأ مستنداً تجارياً (صورة أو PDF) لشركة تستخدم نظام ERP عربياً، وتستخرج بياناته فقط دون اختراع.
-- document_type: sales_invoice (فاتورة صادرة منّا لعميل)، purchase_invoice (فاتورة من مورد لنا)، receipt (سند قبض: استلمنا مبلغاً)، payment (سند صرف: دفعنا مبلغاً)، أو unknown.
+- document_type: sales_invoice (فاتورة صادرة منّا لعميل)، purchase_invoice (فاتورة من مورد لنا)، receipt (سند قبض: استلمنا مبلغاً)، payment (سند صرف: دفعنا مبلغاً)، journal_voucher (سند قيد / قيد يومية: جدول حسابات بأعمدة مدين ودائن)، أو unknown.
   ملاحظة نوع الفاتورة: إن ذكر المستخدم النوع في الملاحظة فاعتمده. فاتورة باسم مورد/شركة أخرى كبائع ⇒ purchase_invoice.
 - party_name: اسم العميل أو المورد أو الجهة المقبوض منها/المدفوع لها (كما هو مكتوب).
 - date بصيغة YYYY-MM-DD. currency: رمز أو اسم العملة كما يظهر (ILS, USD, شيكل...).
 - lines: لكل سطر صنف: الرمز/الباركود إن وُجد، الاسم، الوحدة، الكمية، سعر الوحدة، نسبة الخصم، إجمالي السطر. الأرقام كأرقام لا نص.
 - payment للسندات: المبلغ النقدي، البطاقة، والشيكات (رقم، بنك، تاريخ استحقاق، مبلغ).
+- journal_lines لسند القيد: لكل سطر رقم الحساب واسمه كما يظهران، المدين، الدائن، والبيان. لا تضع الصنف في lines لسند القيد.
 - أي حقل غير واضح اتركه فارغاً (null).`
 
 const normalize = (value: unknown) => String(value ?? "")
@@ -84,22 +92,37 @@ export async function POST(request: NextRequest) {
 
     let extracted: z.infer<typeof schema> | null = null
     let lastError: unknown = null
+    const userContent = (extra = "") => [{
+      role: "user" as const,
+      content: [
+        { type: "text" as const, text: `استخرج بيانات هذا المستند.${hint ? ` ملاحظة المستخدم: ${hint}` : ""}${extra}` },
+        { type: "file" as const, data: bytes, mediaType: file.type },
+      ],
+    }]
     for (const modelName of geminiModels()) {
       try {
-        const { output } = await generateText({
-          ...aiCallOptions(modelName, { timeoutMs: 60_000, thinking: "low" }),
-          model: google(modelName),
-          output: Output.object({ schema }),
-          instructions,
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: `استخرج بيانات هذا المستند.${hint ? ` ملاحظة المستخدم: ${hint}` : ""}` },
-              { type: "file", data: bytes, mediaType: file.type },
-            ],
-          }],
-        })
-        extracted = schema.parse(output)
+        try {
+          const { output } = await generateText({
+            ...aiCallOptions(modelName, { timeoutMs: 60_000, thinking: "low" }),
+            model: google(modelName),
+            output: Output.object({ schema }),
+            instructions,
+            messages: userContent(),
+          })
+          extracted = schema.parse(output)
+        } catch (structuredError) {
+          if (isTemporaryAiError(structuredError)) throw structuredError
+          // بعض المستندات/النماذج ترفض المخرجات المنظّمة ⇐ JSON نصي ثم تحقق بنفس المخطط
+          console.warn("[ai-assistant] document-extract structured output failed, retrying as JSON", structuredError)
+          const generated = await generateText({
+            ...aiCallOptions(modelName, { timeoutMs: 60_000, thinking: "low" }),
+            model: google(modelName),
+            instructions: `${instructions}\nأعد JSON فقط (بلا أي نص آخر) بالحقول: document_type, party_name, party_tax_number, document_number, date, currency, total, note, lines, journal_lines, payment.`,
+            messages: userContent(),
+          })
+          const clean = String(generated.text || "").replace(/```(?:json)?/gi, "").trim()
+          extracted = schema.parse(JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)))
+        }
         break
       } catch (error) {
         lastError = error
@@ -108,7 +131,9 @@ export async function POST(request: NextRequest) {
     }
     if (!extracted) {
       console.error("[ai-assistant] document-extract failed", lastError)
-      return NextResponse.json({ error: "تعذر قراءة المستند — جرّب صورة أوضح" }, { status: 502 })
+      const reason = lastError instanceof Error ? lastError.message : String(lastError || "")
+      const busy = isTemporaryAiError(lastError)
+      return NextResponse.json({ error: busy ? "خدمة الذكاء الاصطناعي مشغولة الآن — أعد المحاولة بعد قليل" : `تعذر قراءة المستند${reason ? `: ${reason.slice(0, 300)}` : ""}` }, { status: 502 })
     }
 
     // الطرف: عملاء (2/5) للمبيعات والقبض، موردون (3) للمشتريات والصرف — مع الرجوع لكل الأنواع
@@ -175,6 +200,45 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // سند قيد: مطابقة الحسابات (رقم الحساب ⇐ الاسم) مع الحسابات الفرعية فقط (الرئيسية لا تقبل حركات)
+    let journalLines: any[] = []
+    if (extracted.document_type === "journal_voucher") {
+      const accounts = (await sql`
+        SELECT a.id, a.code, a.name FROM account_tbl a
+        WHERE COALESCE(a.status, 1) IN (1, 2)
+          AND NOT EXISTS (SELECT 1 FROM account_tbl c WHERE c.father_id = a.id AND COALESCE(c.status, 1) <> 3)
+      `) as any[]
+      const byAccountCode = new Map(accounts.map((row) => [String(row.code).toUpperCase(), row]))
+      const padCode = (raw: string) => {
+        const code = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+        const match = /^([A-Z]*)(\d+)$/.exec(code)
+        return match && code.length < 10 ? match[1] + match[2].padStart(10 - match[1].length, "0") : code
+      }
+      journalLines = extracted.journal_lines
+        .filter((line) => Number(line.debit) > 0 || Number(line.credit) > 0)
+        .map((line) => {
+          let account: any = null, matchedBy = ""
+          if (line.account_code) {
+            account = byAccountCode.get(String(line.account_code).trim().toUpperCase()) || byAccountCode.get(padCode(String(line.account_code))) || null
+            if (account) matchedBy = "code"
+          }
+          if (!account && line.account_name) {
+            let best: any = null, bestScore = 0
+            for (const row of accounts) { const score = nameScore(row.name, line.account_name); if (score > bestScore) { best = row; bestScore = score } }
+            if (best && bestScore >= 70) { account = best; matchedBy = "name" }
+          }
+          return {
+            ...line,
+            debit: Number(line.debit) || 0,
+            credit: Number(line.credit) || 0,
+            account_id: account ? Number(account.id) : null,
+            matched_code: account ? String(account.code) : null,
+            matched_name: account ? String(account.name) : null,
+            matched_by: matchedBy || null,
+          }
+        })
+    }
+
     // نص أمر لسند قبض/صرف — يمرّ بنفس مسار المحادثة (مطابقة الحساب/العملة/الشيكات/الحفظ وتعريف العميل إن لزم)
     let receiptCommand: string | null = null
     if (extracted.document_type === "receipt" || extracted.document_type === "payment") {
@@ -202,7 +266,8 @@ export async function POST(request: NextRequest) {
       currency: extracted.currency || null,
       total: extracted.total ?? null,
       note: extracted.note || null,
-      lines: matchedLines,
+      lines: extracted.document_type === "journal_voucher" ? [] : matchedLines,
+      journal_lines: journalLines,
       receipt_command: receiptCommand,
     })
   } catch (error) {

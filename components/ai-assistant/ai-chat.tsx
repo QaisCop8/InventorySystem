@@ -7,6 +7,7 @@ import { saveAIReceiptDraft } from "@/lib/ai-receipt-direct-save"
 import { voucherHref } from "@/lib/voucher-links"
 import { cn } from "@/lib/utils"
 import { storeVoucherPrefill, type VoucherPrefill } from "@/lib/ai-voucher-prefill"
+import { saveAIJournalDraft } from "@/lib/ai-journal-direct-save"
 import {
   Paperclip,
   FileSearch,
@@ -253,6 +254,45 @@ export function AIChat() {
       if ((data.document_type === "receipt" || data.document_type === "payment") && data.receipt_command) {
         pushAssistant({ content: `قرأت ${data.document_type === "receipt" ? "سند قبض" : "سند صرف"} من المرفق:\n${data.receipt_command}` })
         continueWith = data.receipt_command
+      } else if (data.document_type === "journal_voucher") {
+        // سند قيد: كل الحسابات مطابقة ومتوازن ⇐ يُحفظ مباشرة (غير مرحّل) للمراجعة والترحيل من شاشة سند القيد
+        const lines = (Array.isArray(data.journal_lines) ? data.journal_lines : []) as any[]
+        const unmatched = lines.filter((line) => !line.account_id)
+        const debit = lines.reduce((sum, line) => sum + (Number(line.debit) || 0), 0)
+        const credit = lines.reduce((sum, line) => sum + (Number(line.credit) || 0), 0)
+        if (!lines.length) {
+          pushAssistant({ kind: "error", content: "قرأت سند قيد لكن لم أجد أسطر حسابات فيه" })
+        } else if (unmatched.length) {
+          pushAssistant({
+            kind: "error",
+            content: `قرأت سند قيد (${lines.length} سطر) لكن لم أطابق بعض الحسابات مع دليل الحسابات — لم يُحفظ`,
+            details: unmatched.slice(0, 8).map((line, index) => ({ label: `حساب ${index + 1}`, value: `${line.account_code || ""} ${line.account_name || ""}`.trim() || "—" })),
+          })
+        } else {
+          const result = await saveAIJournalDraft(
+            { vch_date: data.date, currency: data.currency, manual_voucher: data.document_number, note: data.note, lines: lines.map((line) => ({ account_id: Number(line.account_id), debit: Number(line.debit) || 0, credit: Number(line.credit) || 0, note: line.note })) },
+            { userId: user?.id, branchId: activeBranchId },
+          )
+          if (result.ok) {
+            pushAssistant({
+              kind: "success",
+              content: "تم حفظ سند القيد من المرفق (غير مرحّل) — راجعه ثم رحّله",
+              details: [
+                { label: "رقم السند", value: result.code },
+                { label: "الأسطر", value: String(lines.length) },
+                { label: "المدين = الدائن", value: formatAmount(result.amount) },
+                ...(data.date ? [{ label: "التاريخ", value: String(data.date) }] : []),
+              ],
+              documentLink: { section: "journal-vouchers", code: result.code, id: result.id },
+            })
+          } else {
+            pushAssistant({
+              kind: "error",
+              content: `تعذر حفظ سند القيد: ${result.error}`,
+              details: [{ label: "المدين", value: formatAmount(debit) }, { label: "الدائن", value: formatAmount(credit) }],
+            })
+          }
+        }
       } else if (data.document_type === "sales_invoice" || data.document_type === "purchase_invoice") {
         const vchType: 12 | 17 = data.document_type === "purchase_invoice" ? 17 : 12
         const lines = (Array.isArray(data.lines) ? data.lines : []) as any[]
@@ -286,7 +326,7 @@ export function AIChat() {
           invoicePrefill: matched.length ? prefill : undefined,
         })
       } else {
-        pushAssistant({ kind: "error", content: "لم أتعرّف على نوع المستند. اكتب نوعه في الرسالة (فاتورة مبيعات / فاتورة مشتريات / سند قبض / سند صرف) ثم أرفقه مجدداً." })
+        pushAssistant({ kind: "error", content: "لم أتعرّف على نوع المستند. اكتب نوعه في الرسالة (فاتورة مبيعات / فاتورة مشتريات / سند قبض / سند صرف / سند قيد) ثم أرفقه مجدداً." })
       }
     } catch (error) {
       pushAssistant({ kind: "error", content: error instanceof Error ? error.message : "تعذر قراءة المرفق" })
