@@ -62,7 +62,7 @@ export default function InternalRequestsArchiveReport() {
     quantities: rows.reduce((sum, row) => sum + (row.items || []).reduce((itemSum: number, item: any) => itemSum + Number(item.requested_quantity || 0), 0), 0),
   }), [rows])
 
-  return <ReportPage>
+  return <ReportPage loading={loading}>
     <ReportHeader title={<>تقرير أرشفة الطلبات الداخلية</>} description={<>سجل إداري كامل لجميع المراحل والتغييرات والكميات والمستخدمين.</>} actions={<Button className="bg-white text-slate-950 hover:bg-slate-100" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث التقرير</Button>} />
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

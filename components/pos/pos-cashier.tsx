@@ -73,6 +73,9 @@ export default function PosCashier(){
   const workspaceTabActive = useWorkspaceTabActive()
  const {user}=useAuth(),{toast}=useToast(),baseKey=useMemo(()=>currentPosTenantKey(user?.id),[user?.id]),searchRef=useRef<HTMLInputElement>(null),categoriesRef=useRef<HTMLDivElement>(null),syncingRef=useRef(false),focusBarcodeAfterSaveRef=useRef(false)
  const [restoredWorkspace,setRestoredWorkspace]=useState<string|null>(null)
+ // معاينة طباعة الفاتورة على الجوال (نفس التبويب) + لوحة الجوال المعروضة (الأصناف/السلة)
+ const [printPreview,setPrintPreview]=useState<{title:string;html:string}|null>(null)
+ const [mobilePane,setMobilePane]=useState<"catalog"|"cart">("cart")
  const selectedPointRef=useRef<number|null>(null),initialPointResolutionRef=useRef(false)
  const [points,setPoints]=useState<Point[]>([]),[pointId,setPointId]=useState<number|null>(null),[catalog,setCatalog]=useState<Catalog>(EMPTY),[cart,setCart]=useState<CartLine[]>([]),[query,setQuery]=useState(""),[barcodeQuery,setBarcodeQuery]=useState(""),[category,setCategory]=useState("all"),[customerId,setCustomerId]=useState<number|null>(null),[mode,setMode]=useState<"sale"|"return"|"gift">("sale"),[note,setNote]=useState("")
  const [online,setOnline]=useState(true),[loading,setLoading]=useState(true),[syncing,setSyncing]=useState(false),[pendingCount,setPendingCount]=useState(0),[message,setMessage]=useState<{type:"success"|"error"|"info";text:string}|null>(null),[receipt,setReceipt]=useState<Receipt>(null)
@@ -222,9 +225,13 @@ export default function PosCashier(){
   setEditingInvoiceId(saved?.editingInvoiceId??null);setEditingDraftId(saved?.editingDraftId??null)
   setRestoredWorkspace(key);void loadCatalogData()
  },[baseKey,pointId,loadCatalogData])
+ // بيع محفوظ (على الخادم أو بطابور العمل دون اتصال): تُمسح السلة المحفوظة على الجهاز فوراً — قبل أي انتظار — حتى لو
+ // غادر الكاشير الشاشة (قائمة أخرى) قبل اكتمال التصفير؛ وإلا تُستعاد أصناف فاتورة محفوظة كأنها لم تُحفظ (وقد تُحفظ مرتين).
+ const saleCommittedRef=useRef(false)
+ const commitSaleWorkspace=()=>{saleCommittedRef.current=true;if(!pointId)return;try{localStorage.removeItem(baseKey+":workspace:"+pointId)}catch{}}
  useEffect(()=>{
   const key=baseKey+":workspace:"+pointId
-  if(!pointId||restoredWorkspace!==key)return
+  if(!pointId||restoredWorkspace!==key||saleCommittedRef.current)return
   try{localStorage.setItem(key,JSON.stringify({cart,customerProducts,customerId,salesmanId,discountValue,note,mode,payments,cashCurrencyAmounts,cashTendered,editingInvoiceId,editingDraftId}))}
   catch{setMessage({type:"error",text:"تعذر حفظ السلة على الجهاز"})}
  },[baseKey,pointId,restoredWorkspace,cart,customerProducts,customerId,salesmanId,discountValue,note,mode,payments,cashCurrencyAmounts,cashTendered,editingInvoiceId,editingDraftId])
@@ -404,21 +411,13 @@ export default function PosCashier(){
   const qrInvoice:QrInvoice|null=qrOnly?{title:receiptData.mode==="return"?"إشعار مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة مبيعات",code:receiptData.code,date:receiptData.date,companyName:catalog.receiptSettings.company_name||receiptData.pointName,taxNumber:catalog.receiptSettings.tax_number,customerName:receiptData.customerName,customerPhone:receiptData.customerPhone,cashierName:user?.fullName||user?.username||"",currencyCode:receiptData.currencyCode,lines:receiptData.lines.map(line=>({name:line.name,quantity:line.quantity,price:line.price,discount:line.discount,campaign_discount:line.campaign_discount,gift:line.gift})),subtotal:receiptData.subtotal,itemDiscount:receiptData.itemDiscount,invoiceDiscount:receiptData.invoiceDiscount,tax:receiptData.tax,total:receiptData.total,payments:receiptData.payments.filter(payment=>payment.amount>0).map(payment=>({label:paymentLabels[payment.method]||payment.method,amount:payment.amount,reference:payment.reference})),change:receiptData.refundAmount,note:receiptData.note}:null
   const qr=qrInvoice?await invoiceQrDataUrl(qrInvoice).catch(()=>null):null
   if(qrOnly&&!qr){setMessage({type:"error",text:"تعذر إنشاء رمز QR للفاتورة"});return}
+  // الجوال: معاينة الفاتورة داخل نفس الصفحة (طباعة / إغلاق) بدل فتح تبويب جديد
   if(isMobilePrintDevice()&&qrInvoice&&qr){
-   if(!browserPrintWindow){setMessage({type:"error",text:"تعذر فتح صفحة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."});return}
-   browserPrintWindow.document.open();browserPrintWindow.document.write(qrReceiptHtml(qrInvoice,qr.dataUrl));browserPrintWindow.document.close()
-   browserPrintWindow.focus();window.setTimeout(()=>browserPrintWindow.print(),400)
+   setPrintPreview({title:qrInvoice.title,html:qrReceiptHtml(qrInvoice,qr.dataUrl)})
    return
   }
   if(isMobilePrintDevice()){
-   if(!browserPrintWindow){setMessage({type:"error",text:"تعذر فتح صفحة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."});return}
-   const printDocument=browserPrintWindow.document
-   printDocument.open()
-   printDocument.write(receiptHtml(receiptData,catalog.receiptSettings,user?.fullName||user?.username||"",catalog.taxRate))
-   printDocument.close()
-  const thermalPrintStyles=printDocument.createElement("style")
-  thermalPrintStyles.media="print"
-  thermalPrintStyles.textContent=`
+   const thermalPrintStyles=`
    @page{size:80mm auto;margin:0}
    *,*::before,*::after{box-sizing:border-box!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
    html,body{width:80mm!important;min-width:80mm!important;max-width:80mm!important;margin:0!important;padding:0!important;background:#fff!important}
@@ -451,10 +450,8 @@ export default function PosCashier(){
    .total-row b{font-size:10px!important}
    .footer{gap:2mm!important;margin-top:3mm!important;padding-top:2mm!important;font-size:8px!important;overflow-wrap:anywhere!important}
   `
-  printDocument.head.appendChild(thermalPrintStyles)
-   browserPrintWindow.document.title=""
-   browserPrintWindow.focus()
-   window.setTimeout(()=>browserPrintWindow.print(),400)
+   const html=receiptHtml(receiptData,catalog.receiptSettings,user?.fullName||user?.username||"",catalog.taxRate).replace("</head>",`<style media="print">${thermalPrintStyles}</style></head>`)
+   setPrintPreview({title:receiptData.mode==="return"?"مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة بيع",html})
    return
   }
   const socket=new WebSocket("ws://localhost:32999/cashier")
@@ -617,10 +614,10 @@ export default function PosCashier(){
    socket.close()
   }
  }
- const finish=async()=>{if(pricingBusy)return;const v=validate();if(v){setCheckoutError(v);return}if(editingInvoiceId&&!navigator.onLine){setCheckoutError(" تعديل الفاتورة يحتاج اتصالاً بالخادم");return}const browserPrintWindow=point?.print_invoices&&isMobilePrintDevice()?window.open("about:blank","_blank"):null;setSaving(true);
+ const finish=async()=>{if(pricingBusy)return;const v=validate();if(v){setCheckoutError(v);return}if(editingInvoiceId&&!navigator.onLine){setCheckoutError(" تعديل الفاتورة يحتاج اتصالاً بالخادم");return}const browserPrintWindow=null as Window|null;setSaving(true);
  const id=makeId(),payload=buildPayload(id),snapshot=campaignItems.map(x=>({...x})),queued:PosQueuedSale={id,tenantKey:baseKey,createdAt:new Date().toISOString(),payload,attempts:0};let completed=false;try{
-  if(!navigator.onLine)throw new TypeError("offline");if(editingInvoiceId){const remove=await fetch(`/api/pos/history?point_id=${pointId}&id=${editingInvoiceId}`,{method:"DELETE"}),removed=await remove.json();if(!remove.ok)throw new Error(errorText(removed,"تعذر إلغاء الفاتورة القديمة"))}const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok){setCheckoutError(errorText(d,"فشل الحفظ"));browserPrintWindow?.close();return}const receiptData=makeReceiptSnapshot(String(d.vch_code||""),false,snapshot);const receiptPrinting=point?.print_invoices?printReceiptDirect(receiptData,browserPrintWindow):(setReceipt(null),Promise.resolve());if(point?.print_by_item_group&&mode==="sale")void Promise.resolve(receiptPrinting).catch(()=>undefined).then(()=>printItemGroupSlips(receiptData.code,snapshot));setMessage({type:"success",text:`تم ${editingInvoiceId?"تعديل":"حفظ"} ${mode==="return"?"المردود":mode==="gift"?"الهدية":"الفاتورة"} ${d.vch_code||""}`});completed=true;/* الطباعة ورسالة النجاح فوراً، ثم تحديث استخدام الحملات والجلسة معاً (لا واحداً بعد الآخر) قبل البيع التالي */await Promise.all([refreshCampaignUsage(),loadSession()])}catch(e){if(!(e instanceof TypeError)&&navigator.onLine){setCheckoutError(e instanceof Error?e.message:"فشل الحفظ");browserPrintWindow?.close();return}if(!point?.allow_offline){setCheckoutError("العمل دون اتصال غير مسموح لهذه النقطة");browserPrintWindow?.close();return}await queuePosSale(queued);await updateQueue();const localCode=`OFF-${id.slice(0,8).toUpperCase()}`,receiptData=makeReceiptSnapshot(localCode,true,snapshot);const receiptPrinting=point?.print_invoices?printReceiptDirect(receiptData,browserPrintWindow):(setReceipt(null),Promise.resolve());if(point?.print_by_item_group&&mode==="sale")void Promise.resolve(receiptPrinting).catch(()=>undefined).then(()=>printItemGroupSlips(receiptData.code,snapshot));setMessage({type:"info",text:"حُفظت العملية على الجهاز وستُزامن تلقائيًا"});completed=true}finally{setSaving(false)}if(completed){
-  setCart([]);setEditingInvoiceId(null);setEditingDraftId(null);focusBarcodeAfterSaveRef.current=true;setCheckoutOpen(false);setMode("sale");resetTransaction();if(pendingActionRef.current){setReceipt(null);resumeTransactionAction()}}}
+  if(!navigator.onLine)throw new TypeError("offline");if(editingInvoiceId){const remove=await fetch(`/api/pos/history?point_id=${pointId}&id=${editingInvoiceId}`,{method:"DELETE"}),removed=await remove.json();if(!remove.ok)throw new Error(errorText(removed,"تعذر إلغاء الفاتورة القديمة"))}const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok){setCheckoutError(errorText(d,"فشل الحفظ"));browserPrintWindow?.close();return}const receiptData=makeReceiptSnapshot(String(d.vch_code||""),false,snapshot);const receiptPrinting=point?.print_invoices?printReceiptDirect(receiptData,browserPrintWindow):(setReceipt(null),Promise.resolve());if(point?.print_by_item_group&&mode==="sale")void Promise.resolve(receiptPrinting).catch(()=>undefined).then(()=>printItemGroupSlips(receiptData.code,snapshot));setMessage({type:"success",text:`تم ${editingInvoiceId?"تعديل":"حفظ"} ${mode==="return"?"المردود":mode==="gift"?"الهدية":"الفاتورة"} ${d.vch_code||""}`});commitSaleWorkspace();completed=true;/* الطباعة ورسالة النجاح فوراً، ثم تحديث استخدام الحملات والجلسة معاً (لا واحداً بعد الآخر) قبل البيع التالي */await Promise.all([refreshCampaignUsage(),loadSession()])}catch(e){if(!(e instanceof TypeError)&&navigator.onLine){setCheckoutError(e instanceof Error?e.message:"فشل الحفظ");browserPrintWindow?.close();return}if(!point?.allow_offline){setCheckoutError("العمل دون اتصال غير مسموح لهذه النقطة");browserPrintWindow?.close();return}await queuePosSale(queued);await updateQueue();const localCode=`OFF-${id.slice(0,8).toUpperCase()}`,receiptData=makeReceiptSnapshot(localCode,true,snapshot);const receiptPrinting=point?.print_invoices?printReceiptDirect(receiptData,browserPrintWindow):(setReceipt(null),Promise.resolve());if(point?.print_by_item_group&&mode==="sale")void Promise.resolve(receiptPrinting).catch(()=>undefined).then(()=>printItemGroupSlips(receiptData.code,snapshot));commitSaleWorkspace();setMessage({type:"info",text:"حُفظت العملية على الجهاز وستُزامن تلقائيًا"});completed=true}finally{setSaving(false)}if(completed){
+  setCart([]);setEditingInvoiceId(null);setEditingDraftId(null);focusBarcodeAfterSaveRef.current=true;setCheckoutOpen(false);setMode("sale");resetTransaction();saleCommittedRef.current=false;if(pendingActionRef.current){setReceipt(null);resumeTransactionAction()}}}
  const custody=async(sourceId?:number,shiftGuid?:string)=>{if(saving)return;setCustodyError("");if(!navigator.onLine){setCustodyError("عمليات العهدة تحتاج اتصالاً بالخادم");return}setSaving(true);try{const closeAmounts=catalog.currencies.map(row=>({currency_id:row.currency_id,amount:Number(custodyAmounts[row.currency_id]??0)}));const closeTotal=closeAmounts.reduce((sum,row)=>sum+row.amount*Number(session?.currencies?.find((currency:any)=>Number(currency.currency_id)===row.currency_id)?.rate_to_point||catalog.currencies.find(currency=>currency.currency_id===row.currency_id)?.rate_to_point||1),0);const r=await fetch("/api/pos/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:!session?(sourceId?"receive":"open"):custodyAction,point_id:pointId,shift_guid:shiftGuid,amount:custodyAction==="close"?Math.round(closeTotal*100)/100:custodyAmount,currency_id:custodyCurrencyId||point?.currency_id,currency_amounts:(custodyAction==="cash_in"||custodyAction==="cash_out")?catalog.currencies.filter(row=>Number(movementAmounts[row.currency_id]||0)>0).map(row=>({currency_id:row.currency_id,amount:movementAmounts[row.currency_id]})):custodyAction==="close"?closeAmounts:(custodyAction==="open"||custodyAction==="handover")?catalog.currencies.map(row=>({currency_id:row.currency_id,amount:custodyAmounts[row.currency_id]||0})):undefined,note:custodyNote,source_session_id:sourceId})}),d=await r.json();if(!r.ok)throw new Error(d.error);setCatalog(c=>({...c,session:d.session||null}));setMessage({type:"success",text:"تم تنفيذ عملية العهدة بنجاح"});setCustodyOpen(false);setCustodyAmount(0);setCustodyAmounts({});setMovementAmounts({});setCustodyNote("");await loadSession()}catch(e){setCustodyError(e instanceof Error?e.message:"فشلت عملية العهدة")}finally{setSaving(false)}}
  const loadHistory=async(q=historyQuery,scope: "shift"|"all"=historyScope)=>{if(!pointId||!navigator.onLine){setHistoryError("سجل الفواتير يحتاج اتصالاً بالخادم");setHistoryOpen(true);return}const effectiveScope=scope==="shift"&&!session?.id?"all":scope;setHistoryScope(effectiveScope);setHistoryLoading(true);setHistoryError("");setHistoryOpen(true);try{const sessionFilter=effectiveScope==="shift"?`&session_id=${session?.id}`:"",r=await fetch(`/api/pos/history?point_id=${pointId}&q=${encodeURIComponent(q)}${sessionFilter}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(errorText(d,"تعذر تحميل الفواتير"));setHistoryRows(d.rows||[])}catch(e){setHistoryError(e instanceof Error?e.message:"تعذر تحميل الفواتير")}finally{setHistoryLoading(false)}}
  const loadReturnSourceInvoices=async(query=returnSourceQuery)=>{if(!pointId||!navigator.onLine){setReturnSourceError("اختيار فاتورة مصدر يحتاج اتصالاً بالخادم");return}setReturnSourceLoading(true);setReturnSourceError("");try{const response=await fetch(`/api/pos/history?point_id=${pointId}&source_invoices=1&q=${encodeURIComponent(query)}`,{cache:"no-store"}),data=await response.json();if(!response.ok)throw new Error(errorText(data,"تعذر تحميل فواتير المبيعات"));setReturnSourceInvoices((data.rows||[]).filter((row:ReturnSourceInvoice)=>Number(row.vch_type)===12))}catch(error){setReturnSourceError(error instanceof Error?error.message:"تعذر تحميل فواتير المبيعات")}finally{setReturnSourceLoading(false)}}
@@ -637,7 +634,7 @@ export default function PosCashier(){
  const historyIndex=historySelected?historyRows.findIndex(row=>Number(row.id)===Number(historySelected.id)):-1
  const moveHistory=(index:number)=>{const row=historyRows[index];if(row)void selectHistoryInvoice(row)}
  const deleteHistoryInvoice=async(row:PosInvoice)=>{if(!pointId||Number(row.id)<=0||!window.confirm(`تأكيد حذف الفاتورة ${row.vch_code}${row.receipt_vch_code?` وسند القبض المرتبط ${row.pos_receipts?.length ? row.pos_receipts.map(receipt=>receipt.vch_code).join(" / ") : row.receipt_vch_code}`:""}${row.pos_payment_vouchers?.length?` وسند/سندات الصرف المرتبطة ${row.pos_payment_vouchers.map(payment=>payment.vch_code).join(" / ")}`:""}؟`))return;setHistoryDeleting(true);setHistoryError("");try{const r=await fetch(`/api/pos/history?point_id=${pointId}&id=${row.id}`,{method:"DELETE"}),d=await r.json();if(!r.ok)throw new Error(errorText(d,"تعذر حذف الفاتورة"));const index=historyRows.findIndex(item=>Number(item.id)===Number(row.id)),remaining=historyRows.filter(item=>Number(item.id)!==Number(row.id));setHistoryRows(remaining);setHistorySelected(null);if(remaining.length)void selectHistoryInvoice(remaining[Math.min(index,remaining.length-1)]);await loadSession();await loadCatalogData();setMessage({type:"success",text:`تم حذف الفاتورة ${row.vch_code}`})}catch(e){setMessage({type:"error",text:e instanceof Error?e.message:"تعذر حذف الفاتورة"})}finally{setHistoryDeleting(false)}}
- const print=()=>{if(!receipt)return;const rows=receipt.lines.map(l=>`<tr><td>${l.name}</td><td>${l.quantity}</td><td>${l.price.toFixed(2)}</td><td>${round(l.price*l.quantity*(1-l.discount/100)).toFixed(2)}</td></tr>`).join("");const w=window.open("","_blank","width=420,height=680");if(!w)return;w.document.write(`<html dir=rtl><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px dashed #aaa}</style><h2>${receipt.mode==="return"?"مردود مبيعات":mode==="gift"?"سند إخراج هدية":"فاتورة بيع"}</h2><p>${receipt.code}</p><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>${rows}</table><h2>الإجمالي ${receipt.total.toFixed(2)} ${point?.currency_code||""}</h2></html>`);w.document.close();w.print()}
+ const print=()=>{if(!receipt)return;if(isMobilePrintDevice()){void printReceiptDirect(receipt);return}const rows=receipt.lines.map(l=>`<tr><td>${l.name}</td><td>${l.quantity}</td><td>${l.price.toFixed(2)}</td><td>${round(l.price*l.quantity*(1-l.discount/100)).toFixed(2)}</td></tr>`).join("");const w=window.open("","_blank","width=420,height=680");if(!w)return;w.document.write(`<html dir=rtl><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px dashed #aaa}</style><h2>${receipt.mode==="return"?"مردود مبيعات":mode==="gift"?"سند إخراج هدية":"فاتورة بيع"}</h2><p>${receipt.code}</p><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>${rows}</table><h2>الإجمالي ${receipt.total.toFixed(2)} ${point?.currency_code||""}</h2></html>`);w.document.close();w.print()}
  const actions=[{label:mode==="gift"?"تأكيد الهدية":"تفاصيل الدفع",shortcut:"F3",icon:CreditCard,onClick:openCheckout},{label:"خصم",shortcut:"F5",icon:Percent,onClick:()=>setDiscountOpen(true)},{label:discountCard?`بطاقة ${discountCard.card_number}`:"بطاقة خصم",icon:BadgePercent,onClick:()=>{if(mode!=="sale")return setMessage({type:"error",text:"بطاقة الخصم متاحة لفواتير البيع فقط"});setCardError("");setCardNumberInput("");setCardOpen(true)}},{label:mode==="return"?"إلغاء المردود":"مردودات",icon:RotateCcw,onClick:()=>{if(!point?.allow_returns)return setMessage({type:"error",text:"المردودات غير مفعلة لهذه النقطة"});if(mode==="return"){requestTransactionAction(()=>{resetTransaction();setMode("sale")});return}requestTransactionAction(()=>setReturnChoiceOpen(true))}},{label:mode==="gift"?"إلغاء الهدية":"هدية",icon:Gift,onClick:()=>{if(!point?.allow_gifts)return setMessage({type:"error",text:"الهدايا غير مفعلة لهذه النقطة"});const nextMode=mode==="gift"?"sale":"gift";requestTransactionAction(()=>{resetTransaction();setMode(nextMode)})}},{label:"ملاحظة",shortcut:"F11",icon:StickyNote,onClick:()=>setNoteOpen(true)},{label:"الفواتير",shortcut:"F4",icon:History,onClick:()=>requestTransactionAction(()=>void loadHistory())},{label:"العهدة",shortcut:"F2",icon:HandCoins,onClick:()=>requestTransactionAction(()=>setCustodyOpen(true))},{label:"تحديث",shortcut:"F12",icon:RefreshCw,onClick:()=>void loadCatalogData()}]
  const visibleDraftRows=draftRows.filter(draft=>`${draft.draft_code||""} ${draft.customer_name||""} ${draft.note||""}`.toLowerCase().includes(draftQuery.trim().toLowerCase()))
  const discountLine=cart.find(line=>posCartLineKey(line)===itemDiscountId)
@@ -646,6 +643,7 @@ export default function PosCashier(){
  const discountLineRemaining=Math.max(0,discountLineGross-discountCampaignAmount)
  const discountLineInitialPercent=discountLineRemaining>0?Math.min(100,discountLineGross*discountLine.discount/discountLineRemaining*100):0
  return <div dir="rtl" className="pos-workspace pos-cashier" data-mode={mode}>
+  {printPreview&&<PosPrintPreview title={printPreview.title} html={printPreview.html} onClose={()=>{setPrintPreview(null);requestAnimationFrame(()=>searchRef.current?.focus())}}/>}
   {pricingBusy && <div role="status" className="fixed inset-x-0 top-0 z-[1300] bg-teal-700 p-2 text-center text-sm text-white">جاري تحميل أسعار فئة العميل…</div>}
   <ConfirmDialogYesNo visible={Boolean(pendingCustomer)} title="فئة سعر العميل" message="فئة السعر للعميل المختار تختلف عن فئة السعر لنقطة البيع هل تريد احتساب اسعار الاصناف ؟" showBack useAppDialog busy={pricingBusy} confirmLabel="نعم" cancelLabel="لا" backLabel="إلغاء" onConfirm={()=>{if(pendingCustomer)void applyCustomerPrices(pendingCustomer)}} onCancel={keepCustomerPrices} onBack={cancelCustomerSelection} onDismiss={cancelCustomerSelection}/>
   <Dialog open={Boolean(customerPriceError)} onOpenChange={open=>{if(!open)setCustomerPriceError("")}}><DialogContent dir="rtl" className="z-[1200] max-w-md"><DialogHeader><DialogTitle>تعذر اختيار العميل</DialogTitle><DialogDescription>{customerPriceError}</DialogDescription></DialogHeader><DialogFooter><Button onClick={()=>setCustomerPriceError("")}>حسناً</Button></DialogFooter></DialogContent></Dialog>
@@ -696,7 +694,7 @@ export default function PosCashier(){
   </section>
   </div>
   {message&&<div role="status" className={cn("pos-message",message.type==="error"&&"is-error")}><span>{message.text}</span><button aria-label="إغلاق الرسالة" onClick={()=>setMessage(null)}><X size={16}/></button></div>}
-  <main className="pos-layout">
+  <main className="pos-layout" data-mobile-pane={mobilePane}>
    <section className="pos-catalog">
     <div className="pos-catalog-head">
      <div className="pos-search-field"><Search size={19}/><Input aria-label="البحث باسم الصنف" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="F10"){e.preventDefault();e.stopPropagation();openItemSearch(e.currentTarget.value)}}} placeholder="ابحث باسم الصنف… (F10 بحث)"/>{query&&<button type="button" aria-label="مسح البحث" onClick={()=>setQuery("")}><X size={16}/></button>}<button type="button" className="pos-item-search-btn" aria-label="بحث الأصناف (F10)" title="بحث الأصناف (F10)" onClick={()=>openItemSearch(query)} disabled={pricingBusy||Boolean(historySelected)}><Search size={16}/><span>بحث</span></button></div>
@@ -765,6 +763,12 @@ export default function PosCashier(){
     </footer>}
    </section>
   </main>
+  {/* الجوال: تبديل الأصناف/السلة + الإجمالي والدفع (يظهر فقط بعرض صغير — pos-workspace.css) */}
+  <nav className="pos-mobile-bar" aria-label="تنقل الكاشير على الجوال">
+   <button type="button" className={cn(mobilePane==="catalog"&&"is-active")} onClick={()=>setMobilePane("catalog")}><PackageOpen size={18}/>الأصناف</button>
+   <button type="button" className={cn(mobilePane==="cart"&&"is-active")} onClick={()=>setMobilePane("cart")}><ShoppingCart size={18}/>السلة{cart.length>0&&<span className="pos-badge">{cart.length}</span>}</button>
+   <button type="button" className="pos-mobile-pay" onClick={openCheckout} disabled={!cart.length||saving}><CreditCard size={18}/><span><bdi>{total.toFixed(2)}</bdi> <small>{point?.currency_code}</small></span></button>
+  </nav>
 
  {partyPicker&&<PosPartyPicker title={partyPicker==="customer"?"بحث الحساب":"بحث المندوب"} rows={partyPicker==="customer"?catalog.customers:catalog.salesmen||[]} onClose={()=>setPartyPicker(null)} onSelect={id=>{if(partyPicker==="customer")selectCustomer(id);else setSalesmanId(id);setPartyPicker(null)}}/>}
  <PosPaymentDetailsDialog open={checkoutOpen} onOpenChange={open=>{setCheckoutOpen(open);if(!open)pendingActionRef.current=null}} mode={mode} total={total} currencyCode={point?.currency_code||""} pointCurrencyId={Number(point?.currency_id||0)} currencies={catalog.currencies} customers={catalog.customers} customerId={customerId} onCustomerChange={selectCustomer} banks={catalog.banks} branches={catalog.bankBranches} cardTypes={catalog.cardTypes.filter(card=>Number(card.currency_id)===Number(point?.currency_id))} payments={payments} cashAmounts={cashCurrencyAmounts} onCashChange={updateCashCurrency} onPaymentAmount={(method,value,currencyId)=>{updatePayment(method,value,undefined,currencyId);setCheckoutError("")}} onPaymentField={updatePaymentField} onConfirm={()=>void finish()} onSavedClose={()=>{if(!focusBarcodeAfterSaveRef.current)return false;focusBarcodeAfterSaveRef.current=false;searchRef.current?.focus();return true}} busy={saving} error={checkoutError}/>
@@ -783,4 +787,18 @@ export default function PosCashier(){
  </div>
 }
 
+// معاينة طباعة فاتورة الكاشير على الجوال داخل نفس الصفحة: إطار بمحتوى الفاتورة + طباعة / إغلاق.
+// تُطلب الطباعة تلقائياً مرة عند اكتمال التحميل؛ زر "طباعة" يعيدها، و"إغلاق" يعود للكاشير.
+function PosPrintPreview({title,html,onClose}:{title:string;html:string;onClose:()=>void}){
+ const frameRef=useRef<HTMLIFrameElement>(null),autoPrinted=useRef(false)
+ const printNow=()=>{try{const target=frameRef.current?.contentWindow;target?.focus();target?.print()}catch{window.print()}}
+ return <div className="pos-print-preview" role="dialog" aria-modal="true" aria-label={`معاينة ${title}`}>
+  <div className="pos-print-preview-bar">
+   <button type="button" className="pos-print-preview-close" onClick={onClose}><X size={18}/>إغلاق</button>
+   <b>{title}</b>
+   <button type="button" className="pos-print-preview-print" onClick={printNow}><Printer size={18}/>طباعة</button>
+  </div>
+  <iframe ref={frameRef} title={title} srcDoc={html} className="pos-print-preview-frame" onLoad={()=>{if(autoPrinted.current)return;autoPrinted.current=true;window.setTimeout(printNow,350)}}/>
+ </div>
+}
 function Field({label,children}:any){return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>}

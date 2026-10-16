@@ -7,7 +7,8 @@ import { ReportShareButton } from "./report-share-button"
 
 export function ReportPage({ children, loading = false }: { children: ReactNode; loading?: boolean }) {
   return <main dir="rtl" className="report-page" aria-busy={loading}>
-    {loading && <div role="status" className="report-loading print:hidden"><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true"/>جاري تحميل بيانات التقرير...</div>}
+    {/* تحميل بيانات أي تقرير: طبقة فوق التقرير بالكامل (تبقى ظاهرة مهما كان موضع التمرير) */}
+    {loading && <div role="status" aria-live="polite" className="report-loading print:hidden"><div className="report-loading-box"><Loader2 className="h-6 w-6 animate-spin" aria-hidden="true"/>جاري تحميل البيانات...</div></div>}
     <div className="report-body">{children}</div></main>
 }
 

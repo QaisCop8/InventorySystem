@@ -126,7 +126,7 @@ export function SerialMovementsReport() {
   )
 
   return (
-    <ReportPage>
+    <ReportPage loading={loading || movementsLoading}>
       <ReportHeader
         title={<>تقرير حركات السيريال</>}
         description={<>الأرقام التسلسلية للأصناف وحالتها الحالية، مع كل السندات التي حرّكت كل رقم.</>}

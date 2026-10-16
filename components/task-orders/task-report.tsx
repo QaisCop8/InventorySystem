@@ -112,7 +112,7 @@ export function TaskReport() {
   }, [items])
 
   return (
-    <ReportPage>
+    <ReportPage loading={loading}>
       <ReportHeader title={<>تقرير متابعة أصناف الطلبية</>} description={<>كل الأصناف بحالاتها ومراحلها الحالية وآخر ملاحظة مسجَّلة عليها</>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

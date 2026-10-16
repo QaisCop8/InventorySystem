@@ -318,3 +318,37 @@
 .pos-product-visual { overflow: hidden; }
 .pos-product-icon.has-image { position: absolute; inset: 0; width: auto; height: auto; padding: 8px; }
 .pos-product-icon.has-image img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* ── معاينة طباعة الفاتورة على الجوال (نفس التبويب) ───────────────────── */
+.pos-print-preview { position: fixed; inset: 0; z-index: 2000; display: flex; flex-direction: column; background: #e2e8f0; }
+.pos-print-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); color: #fff; background: linear-gradient(115deg, #262653, #433b91); box-shadow: 0 4px 14px #0f172a40; }
+.pos-print-preview-bar b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.pos-print-preview-bar button { display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border-radius: 12px; font-size: 15px; font-weight: 800; }
+.pos-print-preview-print { border: 1px solid #ec9677; color: #fff; background: #c7512d; }
+.pos-print-preview-close { border: 1px solid #ffffff40; color: #fff; background: #ffffff1a; }
+.pos-print-preview-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
+
+/* ── واجهة الجوال: لوحة واحدة (الأصناف أو السلة) + شريط سفلي للتنقل والدفع ── */
+.pos-mobile-bar { display: none; }
+@container cashier (max-width: 640px) {
+  .pos-mobile-bar { position: sticky; bottom: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 6px; margin-top: 8px; padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); border: 1px solid var(--pos-edge); border-radius: 16px; background: var(--pos-surface); box-shadow: 0 -6px 18px -10px rgb(15 23 42 / 35%); }
+  .pos-mobile-bar > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 52px; border: 1px solid var(--pos-edge); border-radius: 12px; color: var(--pos-muted); background: var(--pos-soft); font-size: 12px; font-weight: 800; }
+  .pos-mobile-bar > button.is-active { border-color: var(--pos-accent); color: var(--pos-accent-strong); background: var(--pos-accent-soft); }
+  .pos-mobile-bar > button .pos-badge { position: absolute; top: 4px; inset-inline-end: 8px; }
+  .pos-mobile-bar > .pos-mobile-pay { flex-direction: row; gap: 8px; border-color: #c7512d; color: #fff; background: #c7512d; font-size: 16px; }
+  .pos-mobile-bar > .pos-mobile-pay:disabled { opacity: .55; }
+  .pos-mobile-bar > .pos-mobile-pay small { font-size: 11px; opacity: .85; }
+  .pos-layout[data-mobile-pane="cart"] .pos-catalog { display: none; }
+  .pos-layout[data-mobile-pane="catalog"] .pos-sale { display: none; }
+  .pos-catalog, .pos-products, .pos-cart { max-height: none; }
+  .pos-cart { min-height: 220px; }
+  .pos-toolbar-actions { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .pos-toolbar-actions::-webkit-scrollbar { display: none; }
+  .pos-toolbar-actions > button { flex-shrink: 0; height: 38px; padding: 0 12px; font-size: 13px; }
+  .pos-topbar { padding: 8px 10px; border-radius: 14px; }
+  .pos-eyebrow { display: none; }
+  .pos-net { flex: 1 1 auto; }
+  .pos-actions > button { min-height: 52px; }
+}
+/* لمس بلا لوحة مفاتيح: لا داعي لعرض اختصارات F2/F3… */
+@media (hover: none) and (pointer: coarse) { .pos-workspace kbd { display: none; } }
