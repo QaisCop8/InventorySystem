@@ -6,7 +6,10 @@ import { useAuth } from "@/components/auth/auth-context"
 import { saveAIReceiptDraft } from "@/lib/ai-receipt-direct-save"
 import { voucherHref } from "@/lib/voucher-links"
 import { cn } from "@/lib/utils"
+import { storeVoucherPrefill, type VoucherPrefill } from "@/lib/ai-voucher-prefill"
 import {
+  Paperclip,
+  FileSearch,
   Loader2,
   Send,
   Bot,
@@ -79,6 +82,8 @@ interface Message {
   details?: { label: string; value: string }[]
   voucherLink?: { id: number; code: string; voucherType: 4 | 5 }
   documentLink?: { section: string; code: string; id?: number }
+  /** فاتورة مقروءة من مرفق: زر فتح شاشة الفاتورة معبّأة للمراجعة */
+  invoicePrefill?: VoucherPrefill
   at?: number
   /** زر "تأكيد" استُخدم لهذا الرد */
   confirmed?: boolean
@@ -227,6 +232,74 @@ export function AIChat() {
     sessionStorage.setItem("ai_open_document", JSON.stringify(link))
     window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: link.section } }))
     window.setTimeout(() => window.dispatchEvent(new CustomEvent("ai-open-document")), 0)
+  }
+
+  // ── مرفق: صورة/PDF لفاتورة مبيعات أو مشتريات أو سند قبض/صرف ──────────────────────
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const handleAttach = async (file: File | null) => {
+    if (!file || isLoading) return
+    const hint = input.trim()
+    setMessages((prev) => [...prev, { role: "user", content: `📎 ${file.name}${hint ? `\n${hint}` : ""}`, at: Date.now() }])
+    setInput("")
+    setIsLoading(true)
+    let continueWith: string | null = null
+    try {
+      const body = new FormData()
+      body.append("file", file)
+      if (hint) body.append("hint", hint)
+      const response = await fetch("/api/ai-assistant/document-extract", { method: "POST", body, signal: AbortSignal.timeout(90_000) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "تعذر قراءة المرفق")
+      if ((data.document_type === "receipt" || data.document_type === "payment") && data.receipt_command) {
+        pushAssistant({ content: `قرأت ${data.document_type === "receipt" ? "سند قبض" : "سند صرف"} من المرفق:\n${data.receipt_command}` })
+        continueWith = data.receipt_command
+      } else if (data.document_type === "sales_invoice" || data.document_type === "purchase_invoice") {
+        const vchType: 12 | 17 = data.document_type === "purchase_invoice" ? 17 : 12
+        const lines = (Array.isArray(data.lines) ? data.lines : []) as any[]
+        const matched = lines.filter((line) => line.product_id)
+        const unmatched = lines.filter((line) => !line.product_id)
+        const prefill: VoucherPrefill = {
+          vch_type: vchType,
+          account_id: data.party?.id ?? null,
+          account_name: data.party?.name || data.party_name || "",
+          vch_date: data.date || null,
+          manual_voucher: data.document_number || "",
+          note: data.note || "",
+          lines: matched.map((line) => ({
+            product_id: Number(line.product_id), unit_id: line.unit_id ?? null,
+            quantity: Number(line.quantity) || 1, unit_price: line.unit_price ?? null, discount_percent: line.discount_percent ?? null,
+          })),
+          unmatched: unmatched.map((line) => String(line.name || line.code || line.barcode || "")).filter(Boolean),
+        }
+        const label = vchType === 17 ? "فاتورة مشتريات" : "فاتورة مبيعات"
+        pushAssistant({
+          kind: matched.length ? "success" : "error",
+          content: matched.length ? `قرأت ${label} من المرفق — راجعها ثم احفظها` : `قرأت ${label} لكن لم أطابق أي صنف مع النظام`,
+          details: [
+            { label: vchType === 17 ? "المورد" : "العميل", value: data.party ? `${data.party.name} (${data.party.code})` : `${data.party_name || "—"} — غير موجود، اختره في الفاتورة` },
+            ...(data.date ? [{ label: "التاريخ", value: String(data.date) }] : []),
+            ...(data.document_number ? [{ label: "رقم المستند", value: String(data.document_number) }] : []),
+            { label: "الأصناف", value: `${matched.length} مطابق من ${lines.length}` },
+            ...(unmatched.length ? [{ label: "غير موجودة", value: prefill.unmatched!.slice(0, 6).join("، ") + (unmatched.length > 6 ? " …" : "") }] : []),
+            ...(data.total != null ? [{ label: "الإجمالي بالمستند", value: formatAmount(Number(data.total)) }] : []),
+          ],
+          invoicePrefill: matched.length ? prefill : undefined,
+        })
+      } else {
+        pushAssistant({ kind: "error", content: "لم أتعرّف على نوع المستند. اكتب نوعه في الرسالة (فاتورة مبيعات / فاتورة مشتريات / سند قبض / سند صرف) ثم أرفقه مجدداً." })
+      }
+    } catch (error) {
+      pushAssistant({ kind: "error", content: error instanceof Error ? error.message : "تعذر قراءة المرفق" })
+    } finally {
+      setIsLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+    if (continueWith) void handleSubmit(continueWith, { appendUser: false, command: continueWith })
+  }
+
+  const openInvoicePrefill = (prefill: VoucherPrefill) => {
+    storeVoucherPrefill(prefill)
+    window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: prefill.vch_type === 17 ? "purchase-invoices" : "sales-invoices" } }))
   }
 
   const handleSubmit = async (question?: string, options?: { appendUser?: boolean; command?: string }) => {
@@ -623,6 +696,13 @@ export function AIChat() {
                               ))}
                             </dl>
                           ) : null}
+                          {message.invoicePrefill && (
+                            <div className="flex justify-end border-t border-slate-100 px-3 py-2 dark:border-white/10">
+                              <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => openInvoicePrefill(message.invoicePrefill!)}>
+                                <FileSearch className="h-3.5 w-3.5" />فتح الفاتورة للمراجعة
+                              </Button>
+                            </div>
+                          )}
                           {(message.voucherLink || message.documentLink) && (
                             <div className="flex justify-end border-t border-slate-100 px-3 py-2 dark:border-white/10">
                               <Button
@@ -752,6 +832,18 @@ export function AIChat() {
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
+              <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(event) => void handleAttach(event.target.files?.[0] || null)} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                title="إرفاق فاتورة أو سند (صورة/PDF) لإدخاله — يمكنك كتابة نوعه في الرسالة"
+                className="h-10 w-10 shrink-0 rounded-xl"
+              >
+                <Paperclip className="h-5 w-5" />
+              </Button>
               <textarea
                 id="ai-chat-message"
                 ref={textareaRef}
@@ -780,7 +872,7 @@ export function AIChat() {
               </Button>
             </div>
             <p className="mt-1.5 px-1 text-[11px] text-slate-400">
-              Enter للإرسال · Shift+Enter لسطر جديد · السندات المكتملة تُحفظ مباشرة بدفترك الافتراضي
+              Enter للإرسال · Shift+Enter لسطر جديد · 📎 أرفق فاتورة أو سند (صورة/PDF) لإدخاله · السندات المكتملة تُحفظ مباشرة بدفترك الافتراضي
             </p>
           </div>
         </div>

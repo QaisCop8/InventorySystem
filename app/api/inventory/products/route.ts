@@ -285,6 +285,9 @@ function normalizeProductPayload(productData: any) {
   }
 }
 
+// حقول نافذة بحث الأصناف (lite=1)
+const LITE_PRODUCT_FIELDS = ["id", "product_code", "product_name", "base_product_name", "type", "product_type", "first_unit", "unit_id", "first_barcode", "barcode", "first_price", "first_price_name", "currency_name", "last_purchase_price", "product_image", "image_url", "current_stock", "available_stock", "has_colors"] as const
+
 export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: 'Database client not initialized' }, { status: 500 })
 
@@ -505,10 +508,21 @@ export async function GET(request: NextRequest) {
       default_store_name: product.default_store_name || "بلا تحديد",
     }));
 
-    return NextResponse.json(mappedProducts.map((product: any) => {
+    const rows = mappedProducts.map((product: any) => {
       const rowPermission = scope?.ok ? Number(product.type) === 2 ? scope.services : scope.items : permission
       return rowPermission.ok && rowPermission.lookupOnly ? projectFileLookup(Number(product.type) === 2 ? "services" : "items", [product])[0] : product
-    }));
+    })
+    // lite=1 (نافذة بحث الأصناف): فقط حقول العرض والبحث — الصنف الكامل يُجلب للأصناف المختارة فقط (?ids=).
+    // كان كل فتح للنافذة ينقل ~31MB (84 حقلاً × كل الأصناف).
+    if (url.searchParams.get("lite") === "1") {
+      return NextResponse.json(rows.map((product: any) => {
+        const lite: Record<string, unknown> = {}
+        for (const key of LITE_PRODUCT_FIELDS) if (product[key] !== undefined && product[key] !== null && product[key] !== "") lite[key] = product[key]
+        if (Array.isArray(product.attributes) && product.attributes.length) lite.attributes = product.attributes
+        return lite
+      }))
+    }
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("Products API error:", error);
     return NextResponse.json(

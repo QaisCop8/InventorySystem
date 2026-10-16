@@ -1,6 +1,7 @@
 "use client"
 
 import { salesVoucherSnapshot } from "@/lib/sales-voucher-changes"
+import { peekVoucherPrefill, VOUCHER_PREFILL_EVENT } from "@/lib/ai-voucher-prefill"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -518,6 +519,17 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     }
   }
 
+  // المساعد الذكي (مرفق فاتورة) ⇐ سند جديد يُعبّأ داخل الشاشة (unified-sales-delivery يستهلك المعلّق)
+  const openNewDialogRef = useRef<() => Promise<void>>(async () => undefined)
+  useEffect(() => {
+    const check = () => { if (peekVoucherPrefill(voucherType) && !dialogOpenRef.current) void openNewDialogRef.current() }
+    check()
+    window.addEventListener(VOUCHER_PREFILL_EVENT, check)
+    return () => window.removeEventListener(VOUCHER_PREFILL_EVENT, check)
+  }, [voucherType])
+  const dialogOpenRef = useRef(false)
+  dialogOpenRef.current = dialogOpen
+
   const openNewDialog = async () => {
     const cachedBookId = defaultBookId
     const cachedCurrencyId = baseCurrencyId
@@ -552,6 +564,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       setIsLoading(false)
     }
   }
+  openNewDialogRef.current = openNewDialog
 
   const openRow = async (record: SalesDeliveryRecord, index: number) => {
     setIsLoading(true)

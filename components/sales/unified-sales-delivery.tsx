@@ -20,6 +20,7 @@ import DataGridView from "@/components/common/DataGridView"
 import AttachmentManager from "@/components/common/AttachmentManager"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import AccountBalanceField from "@/components/common/account-balance-field"
+import { takeVoucherPrefill } from "@/lib/ai-voucher-prefill"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
@@ -178,6 +179,8 @@ export interface SalesVoucherItemRow {
   promo_bonus?: number | null
   promo_free?: string | null
   promo_label?: string
+  // حركات المشتريات: آخر سعر شراء للصنف بالوحدة الرئيسية — سعر السطر الافتراضي = هذا × معامل الوحدة المختارة
+  purchase_base_price?: number | null
   units?: { unit_id: number; unit_name: string; price: number; barcode: string; to_main_qnty: number }[]
   // تبويب "تفاصيل حسابات الاصناف" — يظهر فقط لفاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات (انظر
   // ITEM_ACCOUNT_CONFIG أدناه). حساب واحد لكل سطر (بخلاف سند الاستعمال في unified-stock-voucher.tsx
@@ -1930,7 +1933,12 @@ export default function UnifiedSalesDelivery({
       product = await requestProductVariant(product)
       if (!product || !isMountedRef.current) return
       const currentRow = itemsRef.current[row]
-      const unitPrice = entryPriceToNet(product.price != null ? Number(product.price) : 0, await itemVatRateFor(product.id)) ?? 0
+      // فاتورة/إرسالية/مرتجع مشتريات: السعر الافتراضي = آخر سعر شراء × معامل الوحدة (لا سعر البيع)
+      const purchaseBase = Number(product.last_purchase_price ?? 0)
+      const enteredPrice = isPurchaseDeliveryVoucher
+        ? purchaseBase * (Number(product.to_main_unit_qty ?? product.to_main_qnty) || 1)
+        : product.price != null ? Number(product.price) : 0
+      const unitPrice = entryPriceToNet(enteredPrice, await itemVatRateFor(product.id)) ?? 0
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
@@ -1940,6 +1948,7 @@ export default function UnifiedSalesDelivery({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        purchase_base_price: Number(product.last_purchase_price ?? 0),
         transaction_notes: product.transaction_notes || "",
         base_product_name: product.base_product_name || product.product_name,
         attributes: product.attributes,
@@ -2144,7 +2153,10 @@ export default function UnifiedSalesDelivery({
     }
     const row = unitsSearchRow
     const currentRow = itemsRef.current[row]
-    const unitNetPrice = entryPriceToNet(selected_unit.price == null ? null : Number(selected_unit.price), itemVatRef.current.rateOf(currentRow?.product_id))
+    const unitEntryPrice = isPurchaseDeliveryVoucher && currentRow?.purchase_base_price != null
+      ? Number(currentRow.purchase_base_price) * (Number(selected_unit.to_main_qnty) || 1)
+      : selected_unit.price == null ? null : Number(selected_unit.price)
+    const unitNetPrice = entryPriceToNet(unitEntryPrice, itemVatRef.current.rateOf(currentRow?.product_id))
     const patched = {
       ...currentRow,
       unit: selected_unit.unit_name,
@@ -2191,6 +2203,7 @@ export default function UnifiedSalesDelivery({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        purchase_base_price: Number(product.last_purchase_price ?? 0),
         transaction_notes: product.transaction_notes || "",
         base_product_name: product.base_product_name || product.product_name,
         attributes: product.attributes,
@@ -2293,6 +2306,81 @@ export default function UnifiedSalesDelivery({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.account_id, form.id, form.vch_date, form.invoice_source_type, voucherType, isLocked])
+
+  // فاتورة مقروءة من مرفق في المساعد الذكي (lib/ai-voucher-prefill): تُطبَّق مرة واحدة على السند الجديد بعد توليد
+  // رقمه — الطرف والتاريخ والمرجع والملاحظة، ثم الأصناف عبر handleProductSelect (نفس السعر/الوحدة/المستودع/الحساب)
+  // مع كمية وسعر وخصم المستند. لا تُحفظ تلقائياً: المستخدم يراجع ثم يحفظ.
+  const prefillAppliedRef = useRef(false)
+  useEffect(() => {
+    if (!dialogOpen) { prefillAppliedRef.current = false; return }
+    if (prefillAppliedRef.current || form.id || isLocked || !form.vch_code) return
+    if (itemsRef.current.some((row) => row.product_id)) return
+    const prefill = takeVoucherPrefill(Number(voucherType))
+    if (!prefill) return
+    prefillAppliedRef.current = true
+    void (async () => {
+      if (prefill.account_id) { onFormChange("account_id", prefill.account_id); onFormChange("customer_name", prefill.account_name || "") }
+      if (prefill.vch_date) onFormChange("vch_date", prefill.vch_date)
+      if (prefill.manual_voucher) onFormChange("manual_voucher", prefill.manual_voucher)
+      if (prefill.note) onFormChange("note", prefill.note)
+      const ids = [...new Set(prefill.lines.map((line) => Number(line.product_id)).filter((id) => id > 0))]
+      if (!ids.length) return
+      try {
+        const products = await fetch(`/api/inventory/products?priceCategoryId=1&activeOnly=false&ids=${ids.join(",")}`, { cache: "no-store" }).then((response) => (response.ok ? response.json() : []))
+        if (!isMountedRef.current || !Array.isArray(products)) return
+        const ordered = (await Promise.all(prefill.lines.map(async (line) => {
+          const product = products.find((item: any) => Number(item.id) === Number(line.product_id))
+          if (!product) return null
+          const units = await fetch(`/api/products/${product.id}/units?price_category_id=1`).then((response) => (response.ok ? response.json() : [])).catch(() => [])
+          const unitList = Array.isArray(units) ? units : []
+          const unit = unitList.find((item: any) => Number(item.unit_id) === Number(line.unit_id)) || unitList[0]
+          return { product: { ...product, units: unitList, selected_unit: unit }, line }
+        }))).filter(Boolean) as { product: any; line: (typeof prefill.lines)[number] }[]
+        if (!ordered.length || !isMountedRef.current) return
+        // يبدأ من السطر الفارغ الأخير (إن وُجد) ثم يضيف البقية بعده — نفس ترتيب handleProductSelect
+        const rows = itemsRef.current
+        const lastRow = rows[rows.length - 1]
+        let startRow: number
+        if (lastRow && !lastRow.product_id) startRow = rows.length - 1
+        else {
+          const withEmpty = [...rows, { ...emptyItemRow }]
+          itemsRef.current = withEmpty
+          onItemsChange(withEmpty)
+          startRow = withEmpty.length - 1
+        }
+        const appendFrom = itemsRef.current.length
+        pendingFocusRow.current = startRow
+        popupHasCalled()
+        await handleProductSelectRef.current(ordered.map((entry) => entry.product))
+        pendingFocusRow.current = null
+        if (!isMountedRef.current) return
+        // كمية/سعر/خصم المستند على السطور التي أُضيفت للتو
+        const targets = [startRow, ...ordered.slice(1).map((_, index) => appendFrom + index)]
+        const next = [...itemsRef.current]
+        for (const [index, rowIndex] of targets.entries()) {
+          const row = next[rowIndex]
+          const line = ordered[index]?.line
+          if (!row || !line || Number(row.product_id) !== Number(line.product_id)) continue
+          const price = line.unit_price != null && Number(line.unit_price) >= 0 ? entryPriceToNet(Number(line.unit_price), await itemVatRateFor(Number(line.product_id))) : row.unit_price
+          const patched = {
+            ...row,
+            quantity: Number(line.quantity) > 0 ? Number(line.quantity) : row.quantity,
+            unit_price: price,
+            base_unit_price: price != null ? Number(price) * Number(formRef.current.rate || 1) : row.base_unit_price,
+            discount_percent: line.discount_percent != null && Number(line.discount_percent) >= 0 ? Number(line.discount_percent) : row.discount_percent,
+          }
+          next[rowIndex] = { ...patched, ...recalcLineAmounts(patched) }
+        }
+        itemsRef.current = next
+        onItemsChange(next)
+        requestAnimationFrame(refreshItemsGrid)
+        messagesRef.current?.show?.([{ severity: "info", summary: "", detail: `عُبّئت الفاتورة من المرفق (${ordered.length} صنف)${prefill.unmatched?.length ? ` — أصناف لم تُطابَق: ${prefill.unmatched.join("، ")}` : ""}. راجعها ثم احفظ.`, life: 8000 }])
+      } catch (error) {
+        console.error("Failed to apply AI invoice prefill", error)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, form.vch_code, isLocked, voucherType])
 
   // العروض والأسعار الخاصة (شاشة "العروض والأسعار الخاصة" ⇐ /api/promotions/evaluate): تُقيَّم عند تغيّر العميل/
   // التاريخ/العملة/الأصناف/الكميات (مهلة قصيرة بعد آخر تغيير) وتُطبَّق على السطور:
@@ -3749,6 +3837,7 @@ export default function UnifiedSalesDelivery({
           searchText=""
           customerAccountId={Number(form.account_id) || null}
           transactionDate={form.vch_date || null}
+          priceSource={isPurchaseDeliveryVoucher ? "purchase" : "sale"}
         />
         {showAccountsTab && (
           <AccountSearchDialog

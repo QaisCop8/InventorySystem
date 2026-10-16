@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ interface Unit {
   price: number;
   barcode: string;
   primary_barcode?: string;
+  to_main_qnty?: number;
 }
 
 interface Product {
@@ -51,6 +52,11 @@ interface Product {
   attribute_summary?: string;
   attributes_display?: string;
   _variant_key?: string;
+  last_purchase_price?: number | null;
+  // نصوص بحث مُجهّزة مسبقاً (مرة واحدة عند التحميل) — الفلترة لا تعيد تحويل كل صنف مع كل حرف
+  _code?: string;
+  _name?: string;
+  _barcodes?: string;
 }
 
 interface ProductSearchPopupProps {
@@ -67,14 +73,22 @@ interface ProductSearchPopupProps {
   // من حركة: حساب العميل المختار وتاريخ الحركة — يُفعّل زر "من نموذج" (أصناف نماذج العملاء والأصناف)
   customerAccountId?: number | null;
   transactionDate?: string | null;
+  // "purchase": من حركات المشتريات — عمود السعر وأسعار الوحدات = آخر سعر شراء (بدل سعر البيع)
+  priceSource?: "sale" | "purchase";
 }
+
+// قائمة الأصناف المخففة (lite) لكل رابط — فتح النافذة مجدداً فوري من الذاكرة ثم تحديث بالخلفية
+const LIST_CACHE_MS = 20_000
+const productListCache = new Map<string, { at: number; data: any[] }>()
+
+const roundPrice = (value: number) => Math.round((Number(value) || 0) * 10000) / 10000
 
 const productThumb = (image?: string | null, alt = "") =>
   image
     ? <img src={image} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
     : <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Package className="h-3.5 w-3.5" /></div>
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null, priceSource = "sale" }) => {
   const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -107,6 +121,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [productsLoading, setProductsLoading] = useState(false);
   // "من نموذج": قصر النتائج على أصناف نماذج العميل الفعّالة بتاريخ الحركة
   const [templateFilter, setTemplateFilter] = useState<{ ids: Set<number>; label: string } | null>(null);
   const [templateLoading, setTemplateLoading] = useState(false);
@@ -144,33 +159,49 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
     let cancelled = false;
 
+    const normalize = (data: any[]) => data.map((p: any) => ({
+      ...p,
+      attributes: (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0),
+      attributes_display: "",
+      _variant_key: `${p.id}:default`,
+      selected: false,
+      selected_unit: p.selected_unit || null,
+      _code: String(p.product_code || "").toLowerCase(),
+      _name: String(p.product_name || "").toLowerCase(),
+      _barcodes: [p.first_barcode, p.barcode].filter(Boolean).join(" ").toLowerCase(),
+    }));
     const fetchProducts = async () => {
+      // lite=1: حقول العرض والبحث فقط (~عُشر الحجم)؛ الصنف الكامل يُجلب عند الاختيار (hydrateSelection)
+      let url = `/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=true&lite=1`;
+      if (selectedTypes.length === 1) {
+        url += selectedTypes[0] === 2 ? `&type=services` : `&type=products`;
+      }
+      const cached = productListCache.get(url);
+      if (cached) {
+        setProducts(normalize(cached.data));
+        setSelectedProduct(null);
+        if (Date.now() - cached.at < LIST_CACHE_MS) return;
+      } else {
+        setProductsLoading(true);
+      }
       try {
-        let url = `/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=true`;
-        if (selectedTypes.length === 1) {
-          url += selectedTypes[0] === 2 ? `&type=services` : `&type=products`;
-        }
         const res = await fetch(url);
         const data = await res.json();
+        if (!Array.isArray(data)) throw new Error("invalid products response");
+        productListCache.set(url, { at: Date.now(), data });
         if (!cancelled) {
-          // reset any previous selection state when opening so stale selections do not
-          // persist across open/close cycles (causes confusing UI and race conditions)
-          const normalized = Array.isArray(data)
-            ? data.map((p: any) => ({
-                ...p,
-                attributes: (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0),
-                attributes_display: "",
-                _variant_key: `${p.id}:default`,
-                selected: false,
-                selected_unit: p.selected_unit || null,
-              }))
-            : [];
-          setProducts(normalized);
-          setSelectedProduct(null);
+          setProducts((current) => {
+            // تحديث بالخلفية: يُحافَظ على التأشير الحالي
+            const selectedKeys = new Set(current.filter((item) => item.selected).map((item) => item._variant_key));
+            return normalize(data).map((item: Product) => selectedKeys.has(item._variant_key) ? { ...item, selected: true } : item);
+          });
+          if (!cached) setSelectedProduct(null);
         }
       } catch (err) {
         console.error("Failed to fetch products:", err);
-        if (!cancelled) setProducts([]);
+        if (!cancelled && !cached) setProducts([]);
+      } finally {
+        if (!cancelled) setProductsLoading(false);
       }
     };
 
@@ -275,30 +306,36 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
 
 
+  // السعر المعروض: حركات المشتريات ⇐ آخر سعر شراء، وإلا سعر البيع لفئة السعر
+  const displayPrice = useCallback((product: Product) =>
+    priceSource === "purchase" ? Number(product.last_purchase_price ?? 0) : Number(product.first_price ?? (product as any).price ?? 0), [priceSource]);
+
+  // الكتابة لا تنتظر الفلترة: الفلترة على قيم مؤجلة (useDeferredValue) ونصوص مُجهّزة مسبقاً
+  const deferredCode = useDeferredValue(searchCode);
+  const deferredName = useDeferredValue(searchName);
+  const deferredPrice = useDeferredValue(searchPrice);
+  const deferredBarcode = useDeferredValue(searchBarcode);
   const filteredProducts = useMemo(() => {
+    const code = deferredCode.trim().toLowerCase();
+    const nameWords = deferredName.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const price = deferredPrice.trim();
+    const barcode = deferredBarcode.trim().toLowerCase();
+    if (!code && !nameWords.length && !price && !barcode && !templateFilter) return products;
     return products.filter(p => {
       if (templateFilter && !templateFilter.ids.has(Number(p.id))) return false;
-
-      const matchCode =
-        !searchCode ||
-        p.product_code?.toLowerCase().includes(searchCode.toLowerCase());
-
-      const matchName =
-        !searchName ||
-        searchWordsMatch(p.product_name || "", searchName);
-
-      const matchPrice =
-        !searchPrice ||
-        String(p.first_price ?? (p as any).price ?? "").includes(searchPrice);
-
-      const matchBarcode =
-        !searchBarcode ||
-        [p.first_barcode, (p as any).barcode, ...(p.units || []).map((unit: Unit) => unit.barcode)].filter(Boolean).some((barcode) => String(barcode).toLowerCase().includes(searchBarcode.toLowerCase()));
-
-      return matchCode && matchName && matchPrice && matchBarcode;
-
+      if (code && !(p._code ?? String(p.product_code || "").toLowerCase()).includes(code)) return false;
+      if (nameWords.length) {
+        const name = p._name ?? String(p.product_name || "").toLowerCase();
+        if (!nameWords.every(word => name.includes(word))) return false;
+      }
+      if (price && !String(displayPrice(p)).includes(price)) return false;
+      if (barcode) {
+        const own = p._barcodes ?? "";
+        if (!own.includes(barcode) && !(p.units || []).some((unit: Unit) => String(unit.barcode || "").toLowerCase().includes(barcode))) return false;
+      }
+      return true;
     });
-  }, [products, searchCode, searchName, searchPrice, searchBarcode, templateFilter]);
+  }, [products, deferredCode, deferredName, deferredPrice, deferredBarcode, templateFilter, displayPrice]);
   const visibleProducts = useMemo(() => filteredProducts.slice(0, 200), [filteredProducts]);
 
   const clearFilters = useCallback(() => {
@@ -345,8 +382,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const finishOrConfigureProduct = useCallback((product: Product) => {
     if (selectBaseProduct) {
       const baseName = product.product_name.replace(/\s*\([^)]*\)\s*$/, "").trim();
-      onSelect([{ ...product, product_name: baseName, selected_attributes: undefined, attribute_summary: undefined }]);
-      onClose();
+      void emitSelectRef.current([{ ...product, product_name: baseName, selected_attributes: undefined, attribute_summary: undefined }]);
       return;
     }
     const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
@@ -356,9 +392,54 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       return;
     }
     const name = product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name
-    onSelect([{ ...product, product_name: name }]);
-    onClose();
+    void emitSelectRef.current([{ ...product, product_name: name }]);
   }, [onSelect, onClose, selectBaseProduct]);
+
+  // وحدات الصنف بأسعار مصدر السعر: الشراء ⇐ آخر سعر شراء × معامل الوحدة
+  const priceUnits = useCallback((product: Product, units: Unit[]) => priceSource !== "purchase" ? units
+    : units.map((unit) => ({ ...unit, price: roundPrice(Number(product.last_purchase_price ?? 0) * (Number(unit.to_main_qnty) || 1)) })), [priceSource]);
+  const loadUnits = useCallback(async (product: Product): Promise<Unit[]> => {
+    try {
+      const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
+      const units: Unit[] = response.ok ? await response.json() : [];
+      return priceUnits(product, Array.isArray(units) ? units : []);
+    } catch (err) {
+      console.error("Error fetching units:", err);
+      return [];
+    }
+  }, [priceCategoryId, priceUnits]);
+
+  // الاختيار: القائمة مخففة ⇐ تُجلب بيانات الأصناف المختارة كاملة (?ids=) وتُدمج مع حالة الاختيار
+  // (الوحدة/المتغير/السعر) ثم onSelect ثم إغلاق النافذة — نفس الترتيب السابق للمستدعين.
+  const emitSelect = useCallback(async (items: Product[]) => {
+    let merged = items;
+    const ids = [...new Set(items.map((item) => Number(item.id)).filter((id) => id > 0))];
+    if (ids.length) {
+      try {
+        const response = await fetch(`/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=false&ids=${ids.join(",")}`, { cache: "no-store" });
+        const full: any[] = response.ok ? await response.json() : [];
+        const byId = new Map((Array.isArray(full) ? full : []).map((row: any) => [Number(row.id), row]));
+        merged = items.map((item) => {
+          const { _code, _name, _barcodes, ...rest } = item;
+          return { ...(byId.get(Number(item.id)) || {}), ...rest } as Product;
+        });
+      } catch (err) {
+        console.error("Failed to load selected products:", err);
+      }
+    }
+    if (priceSource === "purchase") {
+      merged = merged.map((item) => {
+        const units = priceUnits(item, item.units || []);
+        const selectedUnit = item.selected_unit ? priceUnits(item, [item.selected_unit])[0] : units[0];
+        return { ...item, units, selected_unit: selectedUnit, first_price: selectedUnit?.price ?? roundPrice(Number(item.last_purchase_price ?? 0)) };
+      });
+    }
+    onSelect(merged);
+    onClose();
+  }, [priceCategoryId, priceSource, priceUnits, onSelect, onClose]);
+  // المعالجات المحفوظة (useCallback) تستدعي آخر نسخة دائماً
+  const emitSelectRef = useRef(emitSelect);
+  emitSelectRef.current = emitSelect;
 
   const handleProductDoubleClick = useCallback(async (product: Product) => {
     if (!product) return;
@@ -366,15 +447,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     // فتُجلَب هنا صراحة قبل onSelect، وإلا يصل المستدعي (unified-stock-voucher.tsx وغيره) بمصفوفة
     // وحدات فارغة فيظهر بعدها "لا توجد وحدات" عند فتح نافذة بحث الوحدة بالسطر.
     let units = product.units;
-    if (!units || units.length === 0) {
-      try {
-        const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
-        units = response.ok ? await response.json() : [];
-      } catch (err) {
-        console.error("Error fetching units:", err);
-        units = [];
-      }
-    }
+    if (!units || units.length === 0) units = await loadUnits(product);
     const selectedUnit = units?.[0];
     const updatedProduct: Product = { ...product, units, selected_unit: selectedUnit, selected: true };
 
@@ -400,8 +473,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         selected: true,
         image_url: firstAttribute.value_images?.[firstValue] || updatedProduct.product_image || updatedProduct.image_url || null,
       }]);
-      onSelect([firstVariant]);
-      onClose();
+      void emitSelectRef.current([firstVariant]);
       return;
     }
 
@@ -414,14 +486,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const handleMobileProductSelect = useCallback(async (product: Product) => {
     setSelectedProduct(product);
     if (product.units?.length) return;
-    try {
-      const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
-      const units: Unit[] = response.ok ? await response.json() : [];
-      setSelectedProduct({ ...product, units });
-    } catch {
-      setSelectedProduct({ ...product, units: [] });
-    }
-  }, [priceCategoryId]);
+    setSelectedProduct({ ...product, units: await loadUnits(product) });
+  }, [loadUnits]);
 
   const toggleProductChecked = useCallback((event: React.SyntheticEvent, product: Product) => {
     event.stopPropagation();
@@ -440,15 +506,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     setSelectedProduct((current) => (current && getProductSelectionKey(current) === key ? current : product));
     if (product.units?.length) return;
     unitsLoadTimerRef.current = window.setTimeout(async () => {
-      try {
-        const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
-        const units: Unit[] = response.ok ? await response.json() : [];
-        if (activeProductKeyRef.current === key) setSelectedProduct({ ...product, units });
-      } catch {
-        if (activeProductKeyRef.current === key) setSelectedProduct({ ...product, units: [] });
-      }
+      const units = await loadUnits(product);
+      if (activeProductKeyRef.current === key) setSelectedProduct({ ...product, units });
     }, 150);
-  }, [priceCategoryId]);
+  }, [loadUnits]);
 
   useEffect(() => () => {
     if (unitsLoadTimerRef.current) window.clearTimeout(unitsLoadTimerRef.current);
@@ -472,8 +533,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     const attributeRow = unit as Unit & { attribute_key?: string; attribute_name?: string; value_name?: string };
     if (attributeRow.attribute_key && attributeRow.attribute_name && attributeRow.value_name) {
       const [variant] = buildSelectedVariants(selectedProduct, [attributeRow as typeof selectedAttributeRows[number]]);
-      onSelect([variant]);
-      onClose();
+      void emitSelectRef.current([variant]);
       return;
     }
 
@@ -495,8 +555,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     if (!selectedProduct || !row) return;
     const [variant] = buildSelectedVariants(selectedProduct, [row]);
     if (!variant) return;
-    onSelect([variant]);
-    onClose();
+    void emitSelectRef.current([variant]);
   }, [selectedProduct, buildSelectedVariants, onSelect, onClose]);
   // -----------------------
   // Confirm selection
@@ -541,8 +600,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     // Reset selection flags
     setProducts(prev => prev.map(p => ({ ...p, selected: false })));
 
-    onSelect(selectedItems);
-    onClose();
+    void emitSelectRef.current(selectedItems);
   };
 
   // آخر فلتر (Enter) أو السهم للأسفل من أي فلتر ⇐ أول سطر في جدول النتائج
@@ -589,9 +647,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     { key: "product_code", header: "رقم الصنف", width: "120px", className: "font-mono text-xs text-slate-600" },
     { key: "product_name", header: "اسم الصنف", className: "max-w-[340px] truncate font-semibold text-slate-800" },
     { key: "first_unit", header: "الوحدة", width: "80px", className: "text-slate-600" },
-    { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => Number(product.first_price ?? 0).toLocaleString() },
+    { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => displayPrice(product).toLocaleString() },
     { key: "first_barcode", header: "الباركود", width: "140px", className: "font-mono text-xs text-slate-500" },
-  ], [ShowSelect, toggleProductChecked]);
+  ], [ShowSelect, toggleProductChecked, displayPrice]);
 
   type AttributeRow = (typeof selectedAttributeRows)[number];
 
@@ -746,7 +804,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               onActiveChange={(product) => handleActiveProductChange(product)}
               onToggle={ShowSelect ? (product) => setProducts((current) => current.map((item) => item._variant_key === product._variant_key ? { ...item, selected: !item.selected } : item)) : undefined}
               isRowMarked={(product) => !!product.selected}
-              emptyText="لا توجد أصناف مطابقة"
+              emptyText={productsLoading && products.length === 0 ? "جاري تحميل البيانات..." : "لا توجد أصناف مطابقة"}
             />
           </div>
 
