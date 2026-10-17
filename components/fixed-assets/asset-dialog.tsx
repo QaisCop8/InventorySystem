@@ -166,7 +166,8 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
 
   return <>
     <Dialog open={open} onOpenChange={next => { if (!next && !saving) guard(onClose) }}>
-      <DialogContent dir="rtl" className="flex h-[92dvh] max-h-[92dvh] w-[97vw] max-w-[1320px] flex-col gap-0 overflow-hidden p-0"
+      {/* المقاس نسبةً لمساحة العمل الحاوية (لا للشاشة: 92dvh/97vw كانت تتجاوزها فتُقصّ النافذة) */}
+      <DialogContent dir="rtl" className="flex h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0"
         onOpenAutoFocus={event => event.preventDefault()} onInteractOutside={event => event.preventDefault()}>
         <UniversalToolbar
           currentRecord={index + 1} totalRecords={assets.length} isNewRecord={!card} isSaving={saving}
@@ -175,31 +176,36 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
           onFirst={() => go(0)} onPrevious={() => go(index < 0 ? assets.length - 1 : index - 1)} onNext={() => go(index < 0 ? 0 : index + 1)} onLast={() => go(assets.length - 1)}
           onNew={() => guard(() => onNavigate(null))} onSave={() => void save(false)} onDelete={() => setConfirmDelete(true)}
         />
-        <div className="flex flex-wrap items-center gap-3 border-b bg-slate-50 px-5 py-3 dark:bg-slate-900/60">
-          <span className="rounded-xl bg-teal-600 p-2 text-white"><Landmark className="h-5 w-5" /></span>
-          <div className="min-w-0 flex-1">
-            <DialogTitle className="truncate text-lg font-black">{card ? `${card.asset_no} — ${card.name}` : "أصل ثابت جديد"}</DialogTitle>
-            <DialogDescription className="text-xs">{card ? `${card.category_name} · ${card.branch_name ?? ""}` : "يُحفظ كمسودة ثم يُفعَّل لترحيل قيد الاقتناء وتوليد جدول الإهلاك"}</DialogDescription>
+        {/* رأس واحد مبسّط: العنوان والحالة وزر التفعيل في سطر، وإجراءات الأصل المفعّل في سطر قابل للتمرير */}
+        <div className="border-b px-3 py-2.5 sm:px-5">
+          <div className="flex items-center gap-2.5">
+            <span className="hidden rounded-lg bg-teal-600 p-1.5 text-white sm:block"><Landmark className="h-4 w-4" /></span>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="truncate text-base font-black">{card ? `${card.asset_no} — ${card.name}` : "أصل ثابت جديد"}</DialogTitle>
+              <DialogDescription className="truncate text-xs">{card ? `${card.category_name} · ${card.branch_name ?? ""}` : "يُحفظ كمسودة ثم يُفعَّل لترحيل قيد الاقتناء وتوليد جدول الإهلاك"}</DialogDescription>
+            </div>
+            <StatusBadge status={status} />
+            {editable && <Button size="sm" className="shrink-0 bg-teal-600 hover:bg-teal-700" disabled={saving || !form.name || !form.category_id} onClick={() => void save(true)}>
+              <Rocket className="h-4 w-4 sm:ml-1.5" /><span className="hidden sm:inline">حفظ وتفعيل</span>
+            </Button>}
           </div>
-          <StatusBadge status={status} />
-          {card && !editable && <div className="flex gap-4 text-xs">
+          {card && !editable && <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <div><span className="text-slate-500">التكلفة </span><b dir="ltr">{money(card.book_cost)}</b></div>
             <div><span className="text-slate-500">المتراكم </span><b dir="ltr">{money(card.accumulated_depreciation)}</b></div>
             <div><span className="text-slate-500">الدفترية </span><b dir="ltr" className="text-teal-700">{money(card.net_book_value)}</b></div>
           </div>}
+          {card && actionsFor.length > 0 && <div className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+            {actionsFor.map(key => <Button key={key} size="sm" variant="outline" disabled={saving || dirty()} onClick={() => setAction(key)}
+              className={cn("h-8 shrink-0", key === "dispose" && "border-rose-200 text-rose-700 hover:bg-rose-50")}>{actionIcons[key]}<span className="mr-1.5">{ACTION_LABELS[key]}</span></Button>)}
+          </div>}
         </div>
-        {(editable || actionsFor.length > 0) && <div className="flex flex-wrap gap-2 border-b px-5 py-2">
-          {editable && <Button size="sm" className="bg-teal-600 hover:bg-teal-700" disabled={saving || !form.name || !form.category_id} onClick={() => void save(true)}><Rocket className="ml-1.5 h-4 w-4" />حفظ وتفعيل الأصل</Button>}
-          {card && actionsFor.map(key => <Button key={key} size="sm" variant="outline" disabled={saving || dirty()} onClick={() => setAction(key)}
-            className={cn(key === "dispose" && "border-rose-200 text-rose-700 hover:bg-rose-50")}>{actionIcons[key]}<span className="mr-1.5">{ACTION_LABELS[key]}</span></Button>)}
-        </div>}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4" data-enter-tab-root="true">
+        <div className="@container min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-4" data-enter-tab-root="true">
           {error && <Alert variant="destructive" className="mb-3 border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}
           {notice && <Alert className="mb-3 border-emerald-200 bg-emerald-50 text-emerald-700"><AlertDescription>{notice}</AlertDescription></Alert>}
           {loading ? <div className="grid h-64 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-teal-600" /></div> :
           <Tabs value={tab} onValueChange={setTab} dir="rtl" className="space-y-4">
-            <TabsList className="flex h-auto flex-wrap justify-start gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+            <TabsList className="flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800 [&>*]:shrink-0">
               <TabsTrigger value="general">البيانات الأساسية</TabsTrigger>
               <TabsTrigger value="acquisition">الاقتناء والتكلفة</TabsTrigger>
               <TabsTrigger value="depreciation">سياسة الإهلاك</TabsTrigger>
@@ -213,9 +219,9 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
             </TabsList>
 
             <TabsContent value="general" className="mt-0">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-x-4 gap-y-3 @lg:grid-cols-2 @3xl:grid-cols-3">
                 <Field label="رقم الأصل" htmlFor="fa-no" hint={card ? undefined : "اتركه فارغاً للترقيم التلقائي"}><Input id="fa-no" dir="ltr" className="text-right" value={form.asset_no ?? ""} disabled={!editable} onChange={event => set({ asset_no: event.target.value })} placeholder="FA-00001" /></Field>
-                <Field label="اسم الأصل" htmlFor="fa-name" required className="lg:col-span-2"><Input id="fa-name" value={form.name ?? ""} onChange={event => set({ name: event.target.value })} /></Field>
+                <Field label="اسم الأصل" htmlFor="fa-name" required className="@3xl:col-span-2"><Input id="fa-name" value={form.name ?? ""} onChange={event => set({ name: event.target.value })} /></Field>
                 <Field label="التصنيف" htmlFor="fa-category" required><Select id="fa-category" value={form.category_id} disabled={!editable} options={toOptions(lookups.categories.filter(row => Number(row.status) === 1 || Number(row.id) === Number(form.category_id)))} onChange={value => applyCategoryDefaults(Number(value))} /></Field>
                 <Field label="مكوّن من الأصل" htmlFor="fa-parent" hint="للمكونات بعمر مختلف (مصعد مبنى، محرك آلة)"><Select id="fa-parent" value={form.parent_asset_id} disabled={!editable} options={parentOptions} clearable onChange={value => set({ parent_asset_id: value })} /></Field>
                 <Field label="الباركود" htmlFor="fa-barcode"><Input id="fa-barcode" dir="ltr" className="text-right" value={form.barcode ?? ""} onChange={event => set({ barcode: event.target.value })} /></Field>
@@ -223,14 +229,16 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
                 <Field label="نهاية الكفالة" htmlFor="fa-warranty"><Input id="fa-warranty" type="date" value={form.warranty_end_date ?? ""} onChange={event => set({ warranty_end_date: event.target.value })} /></Field>
                 <Field label="الموديل" htmlFor="fa-model"><Input id="fa-model" value={form.model ?? ""} onChange={event => set({ model: event.target.value })} /></Field>
                 <Field label="الشركة المصنعة" htmlFor="fa-maker"><Input id="fa-maker" value={form.manufacturer ?? ""} onChange={event => set({ manufacturer: event.target.value })} /></Field>
-                <Field label="الوصف" htmlFor="fa-desc" className="sm:col-span-2"><Textarea id="fa-desc" rows={2} value={form.description ?? ""} onChange={event => set({ description: event.target.value })} /></Field>
-                <Field label="ملاحظات" htmlFor="fa-notes" className="sm:col-span-2"><Textarea id="fa-notes" rows={2} value={form.notes ?? ""} onChange={event => set({ notes: event.target.value })} /></Field>
+                <div className="col-span-full grid gap-x-4 gap-y-3 @lg:grid-cols-2">
+                  <Field label="الوصف" htmlFor="fa-desc"><Textarea id="fa-desc" rows={2} value={form.description ?? ""} onChange={event => set({ description: event.target.value })} /></Field>
+                  <Field label="ملاحظات" htmlFor="fa-notes"><Textarea id="fa-notes" rows={2} value={form.notes ?? ""} onChange={event => set({ notes: event.target.value })} /></Field>
+                </div>
               </div>
             </TabsContent>
 
             <TabsContent value="acquisition" className="mt-0 space-y-4">
               {!editable && <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">الأصل مفعّل — البيانات المالية تتغير فقط عبر الحركات (إضافة رأسمالية، إعادة تقييم، تعديل سياسة الإهلاك) للحفاظ على سجل التدقيق.</p>}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-x-4 gap-y-3 @lg:grid-cols-2 @3xl:grid-cols-3">
                 <Field label="مصدر الاقتناء" htmlFor="fa-source"><Select id="fa-source" value={form.acquisition_source} disabled={!editable} options={recordOptions(ACQUISITION_SOURCES)} onChange={value => set({ acquisition_source: value })} /></Field>
                 <Field label={opening ? "تاريخ الرصيد الافتتاحي" : "تاريخ الاقتناء"} htmlFor="fa-acq-date" required><Input id="fa-acq-date" type="date" disabled={!editable} value={form.acquisition_date ?? ""} onChange={event => set({ acquisition_date: event.target.value })} /></Field>
                 <Field label="جاهز للاستخدام" htmlFor="fa-ready" hint="التركيب / التشغيل"><Input id="fa-ready" type="date" disabled={!editable} value={form.available_for_use_date ?? ""} onChange={event => set({ available_for_use_date: event.target.value })} /></Field>
@@ -241,10 +249,10 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
                 <Field label="المبلغ بالعملة الأصلية" htmlFor="fa-foreign"><NumberField id="fa-foreign" value={form.foreign_cost} disabled={!editable} onChange={value => set({ foreign_cost: value, original_cost: n(value) && n(form.exchange_rate) ? (n(value) * n(form.exchange_rate)).toFixed(2) : form.original_cost })} /></Field>
                 <Field label="سعر الصرف" htmlFor="fa-rate"><NumberField id="fa-rate" value={form.exchange_rate} disabled={!editable} onChange={value => set({ exchange_rate: value, original_cost: n(form.foreign_cost) && n(value) ? (n(form.foreign_cost) * n(value)).toFixed(2) : form.original_cost })} /></Field>
                 <Field label="المورد" htmlFor="fa-supplier"><AccountField value={form.supplier_account_id} disabled={!editable} onChange={value => set({ supplier_account_id: value, credit_account_id: form.credit_account_id ?? value })} /></Field>
-                <Field label={opening ? "حساب الأرصدة الافتتاحية" : "الحساب الدائن لقيد الاقتناء"} htmlFor="fa-credit" required={form.post_acquisition_journal} hint={opening ? "رأس المال / أرصدة افتتاحية" : "المورد أو الصندوق أو حساب فاتورة المشتريات"} className="lg:col-span-2">
+                <Field label={opening ? "حساب الأرصدة الافتتاحية" : "الحساب الدائن لقيد الاقتناء"} htmlFor="fa-credit" required={form.post_acquisition_journal} hint={opening ? "رأس المال / أرصدة افتتاحية" : "المورد أو الصندوق أو حساب فاتورة المشتريات"} className="@3xl:col-span-2">
                   <AccountField value={form.credit_account_id} disabled={!editable} onChange={value => set({ credit_account_id: value })} />
                 </Field>
-                <label className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm lg:col-span-2">
+                <label className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm @3xl:col-span-2">
                   <span><b className="block">ترحيل قيد الاقتناء عند التفعيل</b><small className="text-slate-500">أوقفه إذا كانت التكلفة مسجلة مسبقاً على حساب الأصل</small></span>
                   <Switch checked={form.post_acquisition_journal !== false} disabled={!editable} onCheckedChange={value => set({ post_acquisition_journal: value })} />
                 </label>
@@ -253,14 +261,14 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
             </TabsContent>
 
             <TabsContent value="depreciation" className="mt-0 space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-x-4 gap-y-3 @lg:grid-cols-2 @3xl:grid-cols-3">
                 <Field label="طريقة الإهلاك" htmlFor="fa-method"><Select id="fa-method" value={form.depreciation_method} disabled={!editable || category?.is_depreciable === false} options={recordOptions(DEPRECIATION_METHODS)} onChange={value => set({ depreciation_method: value })} /></Field>
                 <Field label="العمر الإنتاجي (أشهر)" htmlFor="fa-life" hint={life ? `${(life / 12).toFixed(1)} سنة` : category ? `افتراضي ${category.default_useful_life_months} شهر` : undefined}><NumberField id="fa-life" value={form.useful_life_months} min={1} step="1" disabled={!editable} onChange={value => set({ useful_life_months: value })} /></Field>
                 {form.depreciation_method === "DECLINING_BALANCE" && <Field label="النسبة السنوية %" htmlFor="fa-db-rate" hint="فارغ = ضعف القسط الثابت"><NumberField id="fa-db-rate" value={form.declining_rate} disabled={!editable} onChange={value => set({ declining_rate: value })} /></Field>}
                 <Field label="بداية الإهلاك" htmlFor="fa-dep-start" hint="افتراضياً تاريخ الجاهزية للاستخدام — الشهر الأول يُحسب نسبياً"><Input id="fa-dep-start" type="date" disabled={!editable} value={form.depreciation_start_date ?? ""} onChange={event => set({ depreciation_start_date: event.target.value })} /></Field>
               </div>
               {editable && monthly > 0 && <p className="rounded-xl bg-teal-50 p-3 text-sm text-teal-800 dark:bg-teal-950/40 dark:text-teal-200">الإهلاك الشهري التقديري: <b dir="ltr">{money(monthly)}</b> — السنوي: <b dir="ltr">{money(monthly * 12)}</b></p>}
-              {card?.books?.map((book: Row) => <div key={book.id} className="grid grid-cols-2 gap-3 rounded-xl border p-3 text-sm sm:grid-cols-4">
+              {card?.books?.map((book: Row) => <div key={book.id} className="grid grid-cols-2 gap-3 rounded-xl border p-3 text-sm @xl:grid-cols-4">
                 <div><p className="text-xs text-slate-500">الدفتر</p><b>{book.book_type === "ACCOUNTING" ? "الدفتر المحاسبي" : book.book_type}</b></div>
                 <div><p className="text-xs text-slate-500">الطريقة / العمر</p><b>{(DEPRECIATION_METHODS as Row)[book.depreciation_method]} · {book.useful_life_months} شهر</b></div>
                 <div><p className="text-xs text-slate-500">من — إلى</p><b dir="ltr">{day(book.depreciation_start_date)} → {day(book.depreciation_end_date)}</b></div>
@@ -270,7 +278,7 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
 
             <TabsContent value="location" className="mt-0">
               {!editable && <p className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">لتغيير الموقع أو العهدة استخدم "نقل الأصل" ليُحفظ سجل النقل.</p>}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-x-4 gap-y-3 @lg:grid-cols-2 @3xl:grid-cols-3">
                 <Field label="الموقع" htmlFor="fa-location"><Select id="fa-location" value={form.location_id} disabled={!editable} options={toOptions(lookups.locations)} clearable onChange={value => set({ location_id: value })} /></Field>
                 <Field label="القسم" htmlFor="fa-dept"><Select id="fa-dept" value={form.department_id} disabled={!editable} options={toOptions(lookups.departments)} clearable onChange={value => set({ department_id: value })} /></Field>
                 <Field label="مركز التكلفة" htmlFor="fa-cc" hint="يُحمَّل عليه مصروف الإهلاك"><Select id="fa-cc" value={form.cost_center_id} disabled={!editable} options={toOptions(lookups.costCenters)} clearable onChange={value => set({ cost_center_id: value })} /></Field>
@@ -384,7 +392,7 @@ function DocumentsPanel({ assetId, documents, onChanged, onError }: { assetId: n
   }
 
   return <div className="space-y-4">
-    <div className="grid items-end gap-3 rounded-xl border border-dashed border-slate-300 p-3 sm:grid-cols-4 dark:border-slate-700">
+    <div className="grid items-end gap-3 rounded-xl border border-dashed border-slate-300 p-3 @lg:grid-cols-2 @3xl:grid-cols-4 dark:border-slate-700">
       <Field label="نوع المستند" htmlFor="fa-doc-type"><Select id="fa-doc-type" value={type} options={recordOptions(DOCUMENT_TYPES)} onChange={value => setType(value)} /></Field>
       <Field label="الوصف" htmlFor="fa-doc-desc"><Input id="fa-doc-desc" value={description} onChange={event => setDescription(event.target.value)} /></Field>
       <Field label="تاريخ الانتهاء" htmlFor="fa-doc-exp"><Input id="fa-doc-exp" type="date" value={expiry} onChange={event => setExpiry(event.target.value)} /></Field>
