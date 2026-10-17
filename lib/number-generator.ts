@@ -34,6 +34,21 @@ async function getOrderNumberSettings(vchType: number): Promise<{ prefix: string
   }
 }
 
+// دفتر السندات من رقم طلبية محفوظة (لا عمود للدفتر في orders): رقم الطلبية = بادئة الطلبية + [رمز الفرع] + رمز الدفتر +
+// تسلسل. كانت الواجهة تأخذ الحرف الثاني من الرقم (order_number[1]) — وهو جزء من البادئة "SO" (أي "O") لا الدفتر،
+// فتُنسَخ الطلبية/يُعاد ترقيمها على دفتر خاطئ. يُعاد null إن لم يطابق الحرف دفتراً معرَّفاً.
+export async function orderBookFromNumber(orderNumber: string, vchType: number, branchId?: number | null): Promise<string | null> {
+  const code = String(orderNumber || "").trim().toUpperCase()
+  const { prefix } = await getOrderNumberSettings(vchType)
+  if (!code.startsWith(prefix)) return null
+  const rest = code.slice(prefix.length)
+  const symbol = await resolveBranchSymbol(branchId)
+  const candidates = symbol && rest.startsWith(symbol) && rest.length > 2 ? [rest[1], rest[0]] : [rest[0]]
+  const rows = await memoInTransaction("voucher-book-names", () => sql`SELECT name FROM voucher_books_tbl` as Promise<any[]>)
+  const names = new Set(rows.map((row: any) => String(row.name || "").trim().toUpperCase()))
+  return candidates.find((candidate) => candidate && names.has(candidate)) ?? null
+}
+
 // دفتر السندات الافتراضي لمستخدم معيَّن على نوع سند معيَّن (voucher_book_user_permissions_tbl،
 // is_default=1) — نفس منطق app/api/receipts/voucher-books/route.ts تماماً (بما فيه حلّ المعرّف
 // النصي user_settings.user_id إلى المفتاح الرقمي user_settings.id أولاً)، لكن استعلام مباشر هنا

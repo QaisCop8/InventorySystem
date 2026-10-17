@@ -614,11 +614,15 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     logVoucherAudit({ action: "clone", voucher_id: Number(form.id) })
     setIsLoading(true)
     try {
-      const code = await generateCode(form.vch_book_id, "", form.branch_id)
+      // دفتر السند الأصلي غير متاح للمستخدم في هذا النوع ⇐ النسخة على الدفتر الافتراضي (وإلا يرفض الحفظ "يجب تحديد دفتر السندات")
+      const bookAllowed = voucherBooks.some((book) => Number(book.id) === Number(form.vch_book_id))
+      const bookId = bookAllowed ? form.vch_book_id : (await fetchDefaults()).bookId ?? form.vch_book_id
+      const code = await generateCode(bookId, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     copiedVoucherRef.current = true
     editForm((f) => ({
       ...f,
+      vch_book_id: bookId,
       id: 0,
       vch_code: code,
       vch_date: today,
@@ -629,7 +633,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       source_voucher_id: null,
       source_voucher_type: null,
       has_linked_invoice: false,
-      items: f.items.map(item => ({ ...item, order_item_id: null, delivery_item_id: null, source_voucher_id: null, source_voucher_type: null })),
+      // الأرقام التسلسلية فريدة لكل قطعة ⇐ لا تُنسَخ (تُدخَل من جديد للسند الجديد)
+      items: f.items.map(item => ({ ...item, order_item_id: null, delivery_item_id: null, source_voucher_id: null, source_voucher_type: null, ...((item as any).serials?.length || (item as any).serials_text ? { serials: [], serials_text: "" } : {}) })),
     }))
     setErrorMessages([])
     } finally {
@@ -911,6 +916,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (branchChanged) queueMicrotask(() => void regenerateCodeForBranch(Number(value) || null, initialSelection))
     editForm((f) => ({ ...f, [field]: value, ...((field === "branch_id" || field === "currency_id") && f[field] !== value ? { cash_account_id: null, cash_account_code: "", cash_account_name: "" } : {}) }))
   }
+  // قيمة محسوبة (نسبة الضريبة الفعلية على مستوى الصنف): تُحدَّث في السند وفي خط الأساس معاً فلا تُعدّ تعديلاً
+  const onDerivedFormChange = <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => {
+    cleanFormRef.current = { ...cleanFormRef.current, [field]: value }
+    editForm((f) => ({ ...f, [field]: value }))
+  }
 
   const useFullPageMode = fullscreenEnabled
 
@@ -1055,6 +1065,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         isLastRecord={form.id > 0 && !filteredVouchers.some((row) => row.id > form.id)}
         onNew={openNewDialog}
         onSave={saveVoucher}
+        onDerivedFormChange={onDerivedFormChange}
         onValidateSave={async () => { await pendingBookChangeRef.current; return validateVoucher(formRef.current) }}
         onDelete={handleDelete}
         onPrint={handlePrint}

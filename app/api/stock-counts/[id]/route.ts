@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { getBaseCurrencyId } from "@/lib/auto-journals"
 import {
   STOCK_COUNT_STATUS,
   insertCountLine,
@@ -508,6 +509,8 @@ async function postCount(request: NextRequest, countId: number, header: any, dat
     return Object.keys(result).length ? result : undefined
   }
 
+  // سند الإدخال/الإخراج يحمل عملة الأساس (سعر 1) — سند بلا عملة لا يمكن تعديله أو نسخه من شاشته ("العملة مطلوبة")
+  const baseCurrencyId = await getBaseCurrencyId()
   const note = `تسوية جرد المخازن رقم ${header.count_no} — ${header.branch_name || ""} / ${header.warehouse_name || ""} بتاريخ ${scope.countDate}`
   const buildPayload = async (vchType: number, bookId: number, rows: AdjustmentRow[]) => {
     const bookName = await resolveVoucherBookName(bookId, scope.branchId)
@@ -520,7 +523,7 @@ async function postCount(request: NextRequest, countId: number, header: any, dat
       vch_date: scope.countDate,
       vch_book_id: bookId,
       branch_id: scope.branchId || undefined,
-      currency_id: null,
+      currency_id: baseCurrencyId,
       rate: 1,
       to_store_id: warehouseId,
       note,

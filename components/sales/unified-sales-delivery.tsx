@@ -306,6 +306,8 @@ interface UnifiedSalesDeliveryProps {
   isLastRecord?: boolean
   onNew?: () => void
   onSave: (action?: PostVoucherAction, keepSavedVoucher?: boolean) => Promise<boolean>
+  // قيمة محسوبة تلقائياً (ليست تعديلاً من المستخدم) ⇐ لا تُعتبر "تم تعديل البيانات" عند فتح سند محفوظ
+  onDerivedFormChange?: <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => void
   onValidateSave?: () => string | null | Promise<string | null>
   onDelete?: () => void
   onNavigate?: (direction: "first" | "previous" | "next" | "last") => void
@@ -474,6 +476,7 @@ export default function UnifiedSalesDelivery({
   onNew,
   onSave,
   onValidateSave,
+  onDerivedFormChange,
   onDelete,
   onNavigate,
   onPrint,
@@ -1603,7 +1606,9 @@ export default function UnifiedSalesDelivery({
     if (!itemVat.enabled || isLocked || form.vat_classification_id === 2 || form.vat_classification_id === 3) return
     const netBase = totals.subtotal - totals.discount
     const effective = netBase > 0 ? Math.round((totals.tax / netBase) * 10000) / 100 : 0
-    if (Math.abs(effective - Number(form.vat_percent || 0)) > 0.001) onFormChange("vat_percent", effective)
+    // نسبة مشتقة من الأسطر (والأسطر نفسها تُتابَع كتعديل) ⇐ تحديثها وحده لا يجعل السند "معدَّلاً" (وإلا يسأل "نسخ"
+    // عن حفظ تعديلات وهمية فيحفظ السند الأصلي بدل نسخه)
+    if (Math.abs(effective - Number(form.vat_percent || 0)) > 0.001) (onDerivedFormChange ?? onFormChange)("vat_percent", effective)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemVat.enabled, totals.subtotal, totals.discount, totals.tax, isLocked, form.vat_classification_id])
 

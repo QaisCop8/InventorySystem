@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getTenantPool } from "@/lib/database";
 import { authorizeTransaction } from "@/lib/transaction-permissions";
 import { ensureOrderReadColumns } from "@/lib/order-schema";
+import { orderBookFromNumber } from "@/lib/number-generator";
+
+// دفتر السندات الحقيقي للطلبية (من رقمها) — تستخدمه شاشة الطلبية للتنقل والنسخ
+const withBook = async (order: any) => ({ ...order, vch_book: order.vch_book || (await orderBookFromNumber(order.order_number, Number(order.order_type) || 1, order.branch_id)) || undefined });
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ navigationType: string }> }) {
   try {
@@ -87,7 +91,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         [order.id]
       );
 
-      return NextResponse.json({ ...order, items: itemsResult.rows }, { status: 200 });
+      return NextResponse.json({ ...(await withBook(order)), items: itemsResult.rows }, { status: 200 });
     }
 
     if (navigationType === "Byid") {
@@ -128,7 +132,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         [id]
       );
 
-      return NextResponse.json({ ...order, items: itemsResult.rows }, { status: 200 });
+      return NextResponse.json({ ...(await withBook(order)), items: itemsResult.rows }, { status: 200 });
     }
 
     if (navigationType === "ByCode") {
@@ -177,7 +181,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       );
 
       return NextResponse.json(
-        { ...order, items: itemsResult.rows },
+        { ...(await withBook(order)), items: itemsResult.rows },
         { status: 200 }
       );
     }

@@ -606,7 +606,8 @@ function UnifiedSalesOrder({
       setTimeout(() => {
         orderdateRef.current?.focus();
       }, 50);
-    } else if (vch_book != null && !fromBlurRef.current && !fromSearch) {
+    } else if (formId === 0 && vch_book != null && !fromBlurRef.current && !fromSearch) {
+      // طلبية جديدة فقط: طلبية محفوظة تحتفظ برقمها (سابقاً كان تحميلها يستبدل رقمها بالرقم التالي فيُحفظ فوقها/يُنسخ خطأً)
       generateOrderNumber();
     }
     
@@ -2537,6 +2538,8 @@ function UnifiedSalesOrder({
 
       CollectionView.items.forEach((item: any) => {
         item.item_status = 1
+        // أسطر الطلبية الجديدة لا ترتبط بأسطر الطلبية الأصلية (حالة الإرسال/الكميات المُرسَلة)
+        item.order_item_id = null
       })
       CollectionView.refresh()
 

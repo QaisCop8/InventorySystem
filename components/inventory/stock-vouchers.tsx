@@ -426,16 +426,26 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const cloneVoucher = async () => {
     if (!form.id) return
     logVoucherAudit({ action: "clone", voucher_id: Number(form.id) })
-    const code = await generateCode(form.vch_book_id, "", form.branch_id)
+    // دفتر غير متاح للمستخدم/سند قديم بلا عملة (تسوية جرد سابقة) ⇐ النسخة تأخذ الدفتر/العملة الافتراضية
+    // وإلا يرفض الحفظ "يجب تحديد دفتر السندات" / "العملة مطلوبة"
+    const bookAllowed = voucherBooks.some((book) => Number(book.id) === Number(form.vch_book_id))
+    const defaults = bookAllowed && form.currency_id ? null : await fetchDefaults()
+    const bookId = bookAllowed ? form.vch_book_id : defaults?.bookId ?? form.vch_book_id
+    const currencyId = form.currency_id || defaults?.currencyId || null
+    const code = await generateCode(bookId, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({
       ...f,
+      vch_book_id: bookId,
+      currency_id: currencyId,
       id: 0,
       vch_code: code,
       vch_date: today,
       manual_date: today,
       status: 1,
       is_printed: 0,
+      // الأرقام التسلسلية فريدة لكل قطعة ⇐ لا تُنسَخ (وإلا يرفض الحفظ "الرقم التسلسلي موجود مسبقاً")
+      items: (f.items || []).map((item: any) => (item.serials?.length || item.serials_text ? { ...item, serials: [], serials_text: "" } : item)),
     }))
     setErrorMessages([])
   }
