@@ -31,6 +31,9 @@ export default function PageShortcutsSettings() {
   const [recording, setRecording] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<Message>(null)
+  // سبب رفض آخر ضغطة أثناء التسجيل — يُعرض على سطر الصفحة نفسه (رسالة أعلى الصفحة قد لا تكون ظاهرة)
+  const [recordError, setRecordError] = useState("")
+  useEffect(() => { setRecordError("") }, [recording])
 
   const titleOf = (section: string) => pages.find((page) => page.section === section)?.title || section
 
@@ -70,7 +73,7 @@ export default function PageShortcutsSettings() {
       const combo = comboFromEvent(event)
       if (!combo) return // مفتاح تعديل وحده (Ctrl/Alt/Shift) ⇐ انتظار بقية الاختصار
       const problem = comboProblem(combo)
-      if (problem) { setMessage({ tone: "error", text: problem }); return }
+      if (problem) { setRecordError(`${problem} — جرّب اختصاراً آخر`); return }
       const owner = Object.entries(shortcuts).find(([section, value]) => value === combo && section !== recording)?.[0]
       const next: PageShortcuts = { ...shortcuts, [recording]: combo }
       if (owner) delete next[owner]
@@ -114,7 +117,8 @@ export default function PageShortcutsSettings() {
       <Card>
         <CardContent className="space-y-3 p-4 text-sm text-slate-600 dark:text-slate-300">
           <p>اضغط «تعيين» ثم اضغط الاختصار المطلوب. يجب أن يبدأ بـ <Combo combo="Ctrl" /> أو <Combo combo="Alt" /> مع حرف أو رقم (مثل <Combo combo="Ctrl+Alt+S" /> أو <Combo combo="Alt+1" />)، أو مفتاح F غير مستخدم (مثل <Combo combo="F7" />).</p>
-          <p className="text-xs text-muted-foreground">Esc يلغي التعيين، Backspace يحذف الاختصار. اختصارات الحفظ والطباعة والمتصفح محجوزة. إن كان الاختصار مستخدماً لصفحة أخرى يُنقل للصفحة الجديدة.</p>
+          <p className="text-xs text-muted-foreground">Esc يلغي التعيين، Backspace يحذف الاختصار. إن كان الاختصار مستخدماً لصفحة أخرى يُنقل للصفحة الجديدة.</p>
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">لا يمكن استخدام اختصارات المتصفح (مثل <Combo combo="Ctrl+W" /> إغلاق التبويب، <Combo combo="Ctrl+T" />، <Combo combo="Ctrl+N" />، <Combo combo="Ctrl+1" />…<Combo combo="Ctrl+9" />) لأن المتصفح ينفّذها قبل النظام، ولا اختصارات النظام (الحفظ F3، الطباعة Ctrl+P...). الأنسب: <Combo combo="Ctrl+Alt+حرف" /> أو <Combo combo="Alt+رقم" />.</p>
         </CardContent>
       </Card>
 
@@ -160,6 +164,7 @@ export default function PageShortcutsSettings() {
                           <div className="min-w-0 flex-1">
                             <div className="truncate font-semibold">{page.title}</div>
                             {page.path.length > 1 && <div className="truncate text-xs text-muted-foreground">{page.path.slice(1).join(" / ")}</div>}
+                            {isRecording && recordError && <div role="alert" className="mt-1 text-xs font-bold text-red-600">{recordError}</div>}
                           </div>
                           <div className="flex min-w-[140px] justify-end">
                             {isRecording
