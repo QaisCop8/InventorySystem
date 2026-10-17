@@ -12,7 +12,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { useAuth } from "@/components/auth/auth-context"
 import { AccountsImportDialog } from "@/components/import/accounts-import"
 import { ProductsImportDialog } from "@/components/import/products-import"
-import { PartyImportDialog } from "@/components/import/customers-import"
+import { PartyImportDialog, type PartyImportKind } from "@/components/import/customers-import"
 
 const steps = [
   { title: "معلومات الشركة", description: "أدخل بيانات الشركة الأساسية", icon: Building2, color: "from-teal-200 via-cyan-100 to-slate-50" },
@@ -43,7 +43,13 @@ const productAccountFields = [
   ["default_lsti3mal_account_id", "حساب المصروف في سند الاستعمال"],
 ] as const
 
-type Notice = { type: "success" | "error"; text: string } | null
+type Notice = { type: "success" | "error" | "info"; text: string } | null
+// نوع الذمة في "إضافة عميل سريع": يحدد نوع السجل المُضاف يدوياً ونوع سجلات استيراد Excel (نفس أنواع PartyImportDialog)
+const PARTY_TYPES: Array<{ value: PartyImportKind; label: string; plural: string; type: number }> = [
+  { value: "customers", label: "عميل", plural: "العملاء", type: 1 },
+  { value: "suppliers", label: "مورد", plural: "الموردين", type: 2 },
+  { value: "subscribers", label: "مشترك", plural: "المشتركين", type: 4 },
+]
 type CurrencyDefaultAccountRow = {
   currency_id: number
   currency_code: string
@@ -115,6 +121,8 @@ export default function PersonalAssistantWizard() {
   const [productDefinitions, setProductDefinitions] = useState<{ units: any[]; priceCategories: any[] }>({ units: [], priceCategories: [] })
   const [savedProducts, setSavedProducts] = useState<any[]>([])
   const [customer, setCustomer] = useState({ code: "", name: "", phone: "" })
+  const [partyKind, setPartyKind] = useState<PartyImportKind>("customers")
+  const partyType = PARTY_TYPES.find((item) => item.value === partyKind) || PARTY_TYPES[0]
 
   useEffect(() => {
     fetch("/api/onboarding-assistant")
@@ -368,7 +376,7 @@ export default function PersonalAssistantWizard() {
     })
   }
 
-  const showResult = (type: "success" | "error", text: string) => {
+  const showResult = (type: "success" | "error" | "info", text: string) => {
     setNotice({ type, text })
     window.setTimeout(() => setNotice(null), 3500)
   }
@@ -443,8 +451,10 @@ export default function PersonalAssistantWizard() {
         setProduct({ code: "", name: "", unitId: "", sellingPrice: "", barcode: "" })
         await refreshSavedProducts()
       } else if (step === 7) {
-        if (!customer.name.trim()) throw new Error("أدخل اسم العميل")
-        await post("/api/import/customers", { data: [{ rowIndex: 1, isValid: true, customer_code: customer.code, customer_name: customer.name, mobile1: customer.phone, type: 1 }] })
+        if (!customer.name.trim()) throw new Error(`أدخل اسم ال${partyType.label}`)
+        const partyResult = await post("/api/import/customers", { data: [{ rowIndex: 1, isValid: true, customer_code: customer.code, customer_name: customer.name, mobile1: customer.phone, type: partyType.type }] })
+        const partyRow = Array.isArray(partyResult?.results) ? partyResult.results[0] : null
+        if (partyRow && partyRow.status !== "success") throw new Error(partyRow.error || `تعذر إضافة ال${partyType.label}`)
         setCustomer({ code: "", name: "", phone: "" })
       }
       showResult("success", "تمت الإضافة بنجاح ويمكنك إضافة سجل آخر")
@@ -593,7 +603,7 @@ export default function PersonalAssistantWizard() {
         >
           <div className={step >= 0 ? "quick-start-step flex min-h-0 w-full flex-1 flex-col" : "quick-start-step w-full"}>
             <div className="mb-4 flex items-center gap-3 sm:mb-6 sm:gap-4"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${steps[displayStep].color} ${displayStep === 0 ? "text-teal-900 ring-1 ring-teal-300" : "text-white"} shadow-lg`}><StepIcon className="h-6 w-6 sm:h-7 sm:w-7" /></div><div><h3 className="text-xl font-black text-slate-900 sm:text-2xl">{steps[displayStep].title}</h3><p className="text-sm text-slate-500 sm:text-base">{steps[displayStep].description}</p></div></div>
-            {notice && <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${notice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{notice.text}</div>}
+            {notice && <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${notice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : notice.type === "info" ? "border-sky-200 bg-sky-50 text-sky-800" : "border-red-200 bg-red-50 text-red-700"}`}>{notice.text}</div>}
             {step === -1 && <CompanyInfoStep company={company} onChange={setCompany} />}
 
             {step === 0 && <div className="space-y-5"><section className="grid gap-4 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:grid-cols-3"><Field label="رمز العملة" value={currency.code} onChange={(value) => setCurrency({ ...currency, code: value.toUpperCase() })} placeholder="USD" maxLength={3} /><Field label="اسم العملة" value={currency.name} onChange={(value) => setCurrency({ ...currency, name: value })} placeholder="دولار أمريكي" maxLength={30} /><Field label={isFirstCurrency ? "سعر الصرف (العملة الأساسية)" : "سعر الصرف"} value={currency.rate} onChange={(value) => setCurrency({ ...currency, rate: value })} placeholder="3.40" type="number" min={0.001} max={100000} step="0.001" disabled={isFirstCurrency} /><AddButton busy={busy} onClick={addCurrent} label="إضافة العملة" /></section><section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50/70 px-5 py-3"><h4 className="font-black text-emerald-950">العملات المحفوظة</h4><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{savedCurrencies.length} عملة</span></div>{savedCurrencies.length === 0 ? <div className="px-5 py-8 text-center text-sm text-slate-400">لم تتم إضافة عملات بعد</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-900 text-white"><tr><th className="px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">رمز العملة</th><th className="px-4 py-3 text-right">اسم العملة</th><th className="px-4 py-3 text-right">سعر الصرف</th></tr></thead><tbody>{savedCurrencies.map((item, index) => <tr key={item.currency_id ?? item.id ?? index} className="border-b border-slate-100 last:border-0 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-800">{item.currency_code}</td><td className="px-4 py-3 text-slate-700">{item.currency_name}</td><td className="px-4 py-3 font-semibold text-emerald-700">{Number(item.exchange_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>}</section></div>}
@@ -603,7 +613,7 @@ export default function PersonalAssistantWizard() {
             {step === 4 && <AccountSettingsStep title="حسابات الأصناف" fields={productAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(productAccountFields)} />}
             {step === 5 && <><NativeSelect label="الفرع *" value={defaultAccountsBranchId} onChange={setDefaultAccountsBranchId} options={defaultAccountsBranches.map(branch => ({ value: String(branch.id), label: branch.branch_name }))} /><CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} /></>}
             {step === 6 && <DataStep title="إضافة صنف سريع" busy={busy} onAdd={addCurrent} onImport={() => openImport("products")} fields={<><Field label="رقم الصنف" value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الصنف" value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label="الوحدة" value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel="اختر الوحدة" options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">فئة السعر</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || "يجب تعريف فئة سعر أولاً"}</div></div><Field label="سعر البيع" value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label="الباركود" value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
-            {step === 7 && <DataStep title="إضافة عميل سريع" busy={busy} onAdd={addCurrent} onImport={() => openImport("customers")} fields={<><Field label="رقم العميل (اختياري)" value={customer.code} onChange={(value) => setCustomer({ ...customer, code: value })} /><Field label="اسم العميل" value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} /><Field label="الجوال" value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} /></>} />}
+            {step === 7 && <DataStep title="إضافة عميل سريع" busy={busy} onAdd={addCurrent} onImport={() => { showResult("info", `يتم ادخال السجلات حسب نوع الذمة المختار: ${partyType.plural}`); openImport("customers") }} fields={<><NativeSelect label="نوع الذمة" value={partyKind} onChange={(value) => setPartyKind((value || "customers") as PartyImportKind)} options={PARTY_TYPES.map((item) => ({ value: item.value, label: item.label }))} /><Field label={`رقم ال${partyType.label} (اختياري)`} value={customer.code} onChange={(value) => setCustomer({ ...customer, code: value })} /><Field label={`اسم ال${partyType.label}`} value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} /><Field label="الجوال" value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} /></>} />}
           </div>
         </main>
 
@@ -614,7 +624,7 @@ export default function PersonalAssistantWizard() {
     </div>
     <AccountsImportDialog open={importDialog === "accounts"} templateType={accountTemplate} onOpenChange={(value) => { if (!value) setImportDialog(null) }} onImported={() => { void refreshSavedAccounts() }} />
     <ProductsImportDialog open={importDialog === "products"} onOpenChange={(value) => { if (!value) setImportDialog(null) }} onImported={() => { void refreshSavedProducts() }} />
-    <PartyImportDialog kind="customers" open={importDialog === "customers"} onOpenChange={(value) => { if (!value) setImportDialog(null) }} />
+    <PartyImportDialog kind={partyKind} showKindNotice open={importDialog === "customers"} onOpenChange={(value) => { if (!value) setImportDialog(null) }} />
     <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى البداية السريعة في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => router.push("/")) }} />
     <style jsx global>{`
       .rounded-2xl.border.border-slate-200 > .bg-slate-900 {

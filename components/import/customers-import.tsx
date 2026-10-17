@@ -17,7 +17,8 @@ type Lookups = { cities: string[]; classifications: string[]; priceCategories: A
 const asArray = (data: any, key?: string) => (Array.isArray(data) ? data : key && Array.isArray(data?.[key]) ? data[key] : [])
 
 /** استيراد العملاء/الموردين/المشتركين بالمحرك الموحّد. */
-export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { kind: PartyImportKind; open: boolean; onOpenChange: (open: boolean) => void; onImported?: () => void }) {
+// showKindNotice: عند اختيار النوع من خارج النافذة (البداية السريعة) ⇐ تنبيه أن السجلات تُدخَل بالنوع المختار
+export function PartyImportDialog({ kind, open, onOpenChange, onImported, showKindNotice = false }: { kind: PartyImportKind; open: boolean; onOpenChange: (open: boolean) => void; onImported?: () => void; showKindNotice?: boolean }) {
   const [lookups, setLookups] = useState<Lookups | null>(null)
   const label = LABELS[kind]
 
@@ -41,6 +42,7 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
     if (!lookups) return null
     return {
       title: `استيراد ${label.plural} من Excel`,
+      description: showKindNotice ? `يتم ادخال السجلات حسب نوع الذمة المختار: ${label.plural}` : undefined,
       blockingMessage: lookups.hasParentAccount ? undefined : `يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب ${label.parentLabel}`,
       templateFileName: `نموذج-${label.plural}`,
       fields: [
@@ -124,7 +126,7 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported }: { ki
         }
       },
     }
-  }, [lookups, label, kind])
+  }, [lookups, label, kind, showKindNotice])
 
   if (!config) return null
   return <ExcelImportWizard open={open} onOpenChange={onOpenChange} config={config} onImported={({ success }) => { if (success) onImported?.() }} />

@@ -142,6 +142,7 @@ const UserSettings = lazyNamed(() => import("@/components/settings/user-settings
 const ThemeCustomization = lazyNamed(() => import("@/components/settings/theme-customization"), "ThemeCustomization")
 const Definitions = lazyNamed(() => import("@/components/settings/definitions"), "Definitions")
 const FontSettings = lazyDefault(() => import("@/components/settings/font-settings"))
+const PageShortcutsSettings = lazyDefault(() => import("@/components/settings/page-shortcuts"))
 const VirtualAccounts = lazyDefault(() => import("@/components/settings/virtual-accounts"))
 const QADashboard = lazyDefault(() => import("@/components/qa-dashboard"))
 const WelcomeDashboard = lazyDefault(() => import("@/components/dashboard/welcome-dashboard"))
@@ -161,6 +162,7 @@ const BankReconciliation = lazyDefault(() => import("@/components/accounting/ban
 const Promotions = lazyDefault(() => import("@/components/sales/promotions"))
 const PeriodLocks = lazyDefault(() => import("@/components/accounting/period-locks"))
 const VoucherWhatsAppHost = dynamic(() => import("@/components/common/voucher-whatsapp-host"), { ssr: false })
+const PageShortcutsListener = dynamic(() => import("@/components/page-shortcuts-listener").then((mod) => mod.PageShortcutsListener), { ssr: false })
 const InternalManufacturingDashboardPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingDashboardPage")
 const InternalManufacturingSettingsPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingSettingsPage")
 const InternalManufacturingRequestPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingRequestPage")
@@ -338,6 +340,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "qa-dashboard": QADashboard,
   "home-dashboard": WelcomeDashboard,
   "personal-assistant": PersonalAssistantWizard,
+  "page-shortcuts": PageShortcutsSettings,
   "pervasive-settings": PervasiveSettings,
   "customer-portal-admin": CustomerPortalAdmin,
   "ai-assistant": AIChat,
@@ -709,6 +712,8 @@ function HomePageContent() {
         </div>
         {/* زر واتساب في شريط أدوات الحركات ⇐ نافذة إرسال السند PDF */}
         <VoucherWhatsAppHost />
+        {/* اختصارات فتح الصفحات المخصّصة (شاشة "اختصارات الصفحات") — تمرّ بنفس حارس التغييرات غير المحفوظة */}
+        <PageShortcutsListener onOpen={handleSectionChange} />
       </ERPLayout>
     </ProtectedRoute>
   )

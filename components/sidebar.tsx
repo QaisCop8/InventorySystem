@@ -58,7 +58,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -506,6 +506,7 @@ export const menuItems: MenuItem[] = [
     icon: Wrench,
     submenu: [
       { title: "البداية السريعة", section: "personal-assistant", icon: Sparkles },
+      { title: "اختصارات الصفحات", section: "page-shortcuts", icon: Keyboard },
     ],
   },
   //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
