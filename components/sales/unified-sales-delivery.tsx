@@ -2379,7 +2379,25 @@ export default function UnifiedSalesDelivery({
         itemsRef.current = next
         onItemsChange(next)
         requestAnimationFrame(refreshItemsGrid)
-        messagesRef.current?.show?.([{ severity: "info", summary: "", detail: `عُبّئت الفاتورة من المرفق (${ordered.length} صنف)${prefill.unmatched?.length ? ` — أصناف لم تُطابَق: ${prefill.unmatched.join("، ")}` : ""}. راجعها ثم احفظ.`, life: 8000 }])
+        if (!prefill.autoSave) {
+          messagesRef.current?.show?.([{ severity: "info", summary: "", detail: `عُبّئت الفاتورة من المرفق (${ordered.length} صنف)${prefill.unmatched?.length ? ` — أصناف لم تُطابَق: ${prefill.unmatched.join("، ")}` : ""}. راجعها ثم احفظ.`, life: 8000 }])
+          return
+        }
+        // حفظ مباشر غير مرحّل (زر "حفظ غير مرحّل" في المساعد الذكي): مهلة قصيرة لتستقر الحسابات المحسوبة
+        // (العروض/الضريبة/حساب الصنف)، ثم نفس فحص وحفظ زر "حفظ" — ويبقى السند المحفوظ معروضاً برقمه الجديد.
+        await new Promise((resolve) => setTimeout(resolve, 1200))
+        if (!isMountedRef.current) return
+        commitGridItemsBeforeSave()
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        const validationError = await onValidateSave?.()
+        if (validationError) {
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `عُبّئت الفاتورة من المرفق لكن تعذر حفظها تلقائياً: ${validationError} — أكمل البيانات ثم احفظ.`, sticky: true }])
+          return
+        }
+        const saved = await onSave("save", true)
+        if (saved && isMountedRef.current) {
+          messagesRef.current?.show?.([{ severity: "success", summary: "", detail: `حُفظت الفاتورة من المرفق غير مرحّلة (${ordered.length} صنف) — راجعها ثم رحّلها.`, life: 8000 }])
+        }
       } catch (error) {
         console.error("Failed to apply AI invoice prefill", error)
       }

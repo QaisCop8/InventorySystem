@@ -12,6 +12,7 @@ import { saveAIJournalDraft } from "@/lib/ai-journal-direct-save"
 import {
   Paperclip,
   FileSearch,
+  Save,
   Loader2,
   Send,
   Bot,
@@ -743,7 +744,13 @@ export function AIChat() {
                             </dl>
                           ) : null}
                           {message.invoicePrefill && (
-                            <div className="flex justify-end border-t border-slate-100 px-3 py-2 dark:border-white/10">
+                            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-3 py-2 dark:border-white/10">
+                              {/* حفظ مباشر غير مرحّل: فقط إن طوبق الطرف وكل الأصناف (وإلا المراجعة أولاً) */}
+                              {message.invoicePrefill.account_id && !message.invoicePrefill.unmatched?.length && (
+                                <Button type="button" size="sm" className="h-8 gap-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => openInvoicePrefill({ ...message.invoicePrefill!, autoSave: true })}>
+                                  <Save className="h-3.5 w-3.5" />حفظ غير مرحّل
+                                </Button>
+                              )}
                               <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => openInvoicePrefill(message.invoicePrefill!)}>
                                 <FileSearch className="h-3.5 w-3.5" />فتح الفاتورة للمراجعة
                               </Button>

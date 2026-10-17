@@ -12,6 +12,8 @@ export type VoucherPrefill = {
   note: string
   lines: { product_id: number; unit_id: number | null; quantity: number; unit_price: number | null; discount_percent: number | null }[]
   unmatched?: string[]
+  /** بعد التعبئة يُحفظ السند تلقائياً غير مرحّل (status 1) بنفس فحوصات شاشة الفاتورة، ويبقى معروضاً برقمه الجديد */
+  autoSave?: boolean
 }
 
 const KEY = "ai-voucher-prefill"
