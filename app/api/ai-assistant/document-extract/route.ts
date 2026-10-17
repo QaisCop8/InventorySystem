@@ -4,7 +4,10 @@ import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { aiCallOptions, geminiModels, isTemporaryAiError } from "@/lib/ai-model"
+import { aiCallOptions, aiFailureMessage, isTemporaryAiError, runWithAiRetry } from "@/lib/ai-model"
+
+// إعادة المحاولة التلقائية عند انشغال الخدمة قد تتجاوز مهلة المسار الافتراضية
+export const maxDuration = 120
 
 // مرفق في المساعد الذكي (صورة/PDF لفاتورة مبيعات أو مشتريات أو سند قبض/صرف): Gemini يقرأ المستند ويعيد بيانات
 // منظّمة، ثم يُطابَق الطرف (عميل/مورد) والأصناف مع النظام. السندات تُحوَّل لنص أمر يمرّ بمسار سند القبض/الصرف
@@ -99,41 +102,41 @@ export async function POST(request: NextRequest) {
         { type: "file" as const, data: bytes, mediaType: file.type },
       ],
     }]
-    for (const modelName of geminiModels()) {
-      try {
+    // الانشغال المؤقت ("high demand"/503/429) يُعاد تلقائياً على النموذج الأساسي والاحتياطية بانتظار متزايد
+    // (runWithAiRetry) بدل إظهار "مشغولة" من أول محاولة.
+    try {
+      extracted = await runWithAiRetry(async (modelName, remainingMs) => {
+        const callOptions = () => aiCallOptions(modelName, { timeoutMs: Math.min(60_000, remainingMs), thinking: "low" })
         try {
           const { output } = await generateText({
-            ...aiCallOptions(modelName, { timeoutMs: 60_000, thinking: "low" }),
+            ...callOptions(),
             model: google(modelName),
             output: Output.object({ schema }),
             instructions,
             messages: userContent(),
           })
-          extracted = schema.parse(output)
+          return schema.parse(output)
         } catch (structuredError) {
           if (isTemporaryAiError(structuredError)) throw structuredError
           // بعض المستندات/النماذج ترفض المخرجات المنظّمة ⇐ JSON نصي ثم تحقق بنفس المخطط
           console.warn("[ai-assistant] document-extract structured output failed, retrying as JSON", structuredError)
           const generated = await generateText({
-            ...aiCallOptions(modelName, { timeoutMs: 60_000, thinking: "low" }),
+            ...callOptions(),
             model: google(modelName),
             instructions: `${instructions}\nأعد JSON فقط (بلا أي نص آخر) بالحقول: document_type, party_name, party_tax_number, document_number, date, currency, total, note, lines, journal_lines, payment.`,
             messages: userContent(),
           })
           const clean = String(generated.text || "").replace(/```(?:json)?/gi, "").trim()
-          extracted = schema.parse(JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)))
+          return schema.parse(JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)))
         }
-        break
-      } catch (error) {
-        lastError = error
-        if (!isTemporaryAiError(error)) break
-      }
+      }, { deadlineMs: 100_000 })
+    } catch (error) {
+      lastError = error
     }
     if (!extracted) {
       console.error("[ai-assistant] document-extract failed", lastError)
       const reason = lastError instanceof Error ? lastError.message : String(lastError || "")
-      const busy = isTemporaryAiError(lastError)
-      return NextResponse.json({ error: busy ? "خدمة الذكاء الاصطناعي مشغولة الآن — أعد المحاولة بعد قليل" : `تعذر قراءة المستند${reason ? `: ${reason.slice(0, 300)}` : ""}` }, { status: 502 })
+      return NextResponse.json({ error: aiFailureMessage(lastError, `تعذر قراءة المستند${reason ? `: ${reason.slice(0, 300)}` : ""}`) }, { status: 502 })
     }
 
     // الطرف: عملاء (2/5) للمبيعات والقبض، موردون (3) للمشتريات والصرف — مع الرجوع لكل الأنواع

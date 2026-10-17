@@ -248,7 +248,8 @@ export function AIChat() {
       const body = new FormData()
       body.append("file", file)
       if (hint) body.append("hint", hint)
-      const response = await fetch("/api/ai-assistant/document-extract", { method: "POST", body, signal: AbortSignal.timeout(90_000) })
+      // الخادم يعيد المحاولة تلقائياً عند انشغال الخدمة حتى ~100 ثانية ⇐ مهلة أطول قليلاً هنا
+      const response = await fetch("/api/ai-assistant/document-extract", { method: "POST", body, signal: AbortSignal.timeout(115_000) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذر قراءة المرفق")
       if ((data.document_type === "receipt" || data.document_type === "payment") && data.receipt_command) {

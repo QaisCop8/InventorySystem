@@ -3,7 +3,9 @@ import { generateText } from "ai"
 import { google } from "@ai-sdk/google"
 import { resolveCurrentDbName } from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { geminiModels, isTemporaryAiError } from "@/lib/ai-model"
+import { aiCallOptions, aiFailureMessage, runWithAiRetry } from "@/lib/ai-model"
+
+export const maxDuration = 120
 import { briefingBranchIds, briefingPromptData, buildMorningBriefing, type MorningBriefing } from "@/lib/morning-briefing"
 
 // الملخص الصباحي: GET ?date=YYYY-MM-DD (افتراضياً أمس) &ai=1 لإضافة فقرة التحليل بالذكاء الاصطناعي.
@@ -26,18 +28,17 @@ const INSTRUCTIONS = `أنت محلل أعمال لشركة تجارية. ستص
 async function aiSummary(briefing: MorningBriefing): Promise<{ text: string | null; error?: string }> {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return { text: null, error: "لم يُعرَّف مفتاح خدمة الذكاء الاصطناعي" }
   const prompt = JSON.stringify(briefingPromptData(briefing))
-  let lastError: unknown = null
-  for (const modelName of geminiModels()) {
-    try {
-      const { text } = await generateText({ model: google(modelName), instructions: INSTRUCTIONS, prompt })
-      return { text: text.trim() || null }
-    } catch (error) {
-      lastError = error
-      if (!isTemporaryAiError(error)) break
-    }
+  try {
+    // إعادة تلقائية عند الانشغال المؤقت (النموذج الأساسي ثم الاحتياطية، بانتظار متزايد)
+    const text = await runWithAiRetry(async (modelName, remainingMs) => {
+      const result = await generateText({ ...aiCallOptions(modelName, { timeoutMs: Math.min(45_000, remainingMs), thinking: "low" }), model: google(modelName), instructions: INSTRUCTIONS, prompt })
+      return result.text
+    }, { deadlineMs: 75_000 })
+    return { text: text.trim() || null }
+  } catch (error) {
+    console.error("Morning briefing AI summary failed:", error)
+    return { text: null, error: aiFailureMessage(error, "تعذر إنشاء التحليل الذكي") }
   }
-  console.error("Morning briefing AI summary failed:", lastError)
-  return { text: null, error: isTemporaryAiError(lastError) ? "خدمة الذكاء الاصطناعي مشغولة حالياً — أعد المحاولة بعد قليل" : "تعذر إنشاء التحليل الذكي" }
 }
 
 export async function GET(request: NextRequest) {
@@ -58,7 +59,8 @@ export async function GET(request: NextRequest) {
       cache.set(key, entry)
       if (cache.size > 200) cache.delete(cache.keys().next().value as string)
     }
-    if (withAi && (!entry.summary || (refresh && !entry.summary.text))) entry.summary = await aiSummary(entry.briefing)
+    // تحليل فشل سابقاً (انشغال الخدمة) لا يُخزَّن — يُعاد طلبه عند الفتح التالي
+    if (withAi && (!entry.summary || !entry.summary.text)) entry.summary = await aiSummary(entry.briefing)
     return NextResponse.json({ ...entry.briefing, summary: entry.summary ?? null, generated_at: new Date(entry.at).toISOString() })
   } catch (error) {
     console.error("Morning briefing error:", error)
