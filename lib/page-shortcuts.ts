@@ -8,6 +8,9 @@ export type PageShortcuts = Record<string, string>
 
 export const PAGE_SHORTCUTS_CHANGED = "page-shortcuts-changed"
 
+/** أثناء تسجيل اختصار في شاشة الاختصارات: لا تُفتح أي صفحة بالضغطة (تخص التسجيل وحده). */
+export const shortcutRecording = { active: false }
+
 const MODIFIER_CODES = new Set(["ControlLeft", "ControlRight", "AltLeft", "AltRight", "ShiftLeft", "ShiftRight", "MetaLeft", "MetaRight"])
 
 const keyFromCode = (code: string): string | null => {
@@ -31,20 +34,18 @@ export function comboFromEvent(event: KeyboardEvent | ReactKeyboardEvent): strin
   return parts.join("+")
 }
 
-// محجوزة لاختصارات النظام (lib/hotkeys.ts، components/global-shortcuts.tsx) أو للمتصفح نفسه
-const RESERVED: Record<string, string> = {
-  F1: "مساعدة المتصفح", F2: "البحث داخل الشاشات", F3: "حفظ", F4: "نسخ", F5: "جديد", F6: "استعلام", F9: "حذف", F11: "ملء الشاشة", F12: "أدوات المطوّر",
-  "Ctrl+S": "حفظ", "Ctrl+P": "طباعة", "Ctrl+K": "البحث الشامل", "Ctrl+O": "طلبيات المبيعات", "Ctrl+T": "تبويب جديد في المتصفح",
-  "Ctrl+N": "نافذة جديدة في المتصفح", "Ctrl+W": "إغلاق تبويب المتصفح", "Ctrl+R": "تحديث الصفحة", "Ctrl+F": "البحث في الصفحة",
-  "Ctrl+C": "نسخ", "Ctrl+V": "لصق", "Ctrl+X": "قص", "Ctrl+Z": "تراجع", "Ctrl+Y": "إعادة", "Ctrl+A": "تحديد الكل",
-  "Ctrl+L": "شريط العنوان", "Ctrl+H": "سجل المتصفح", "Ctrl+J": "التنزيلات", "Ctrl+D": "إضافة للمفضلة", "Ctrl+U": "مصدر الصفحة",
-  "Ctrl+G": "البحث التالي", "Ctrl+E": "البحث في المتصفح", "Ctrl+Shift+I": "أدوات المطوّر", "Ctrl+Shift+J": "أدوات المطوّر",
-  "Ctrl+Shift+C": "أدوات المطوّر", "Ctrl+Shift+R": "تحديث الصفحة", "Ctrl+Shift+N": "نافذة خاصة", "Ctrl+Shift+T": "إعادة فتح تبويب",
-  "Ctrl+Shift+W": "إغلاق النافذة", "Ctrl+Shift+Q": "إغلاق المتصفح", "Ctrl+Shift+B": "شريط المفضلة", "Ctrl+Shift+Delete": "مسح البيانات",
-  "Alt+T": "البحث عن العملاء والموردين", "Alt+S": "البحث عن الأصناف", "Alt+F": "قائمة المتصفح", "Alt+E": "قائمة المتصفح",
-  "Alt+D": "شريط العنوان", "Alt+F4": "إغلاق النافذة",
+// اختصارات النظام نفسه (lib/hotkeys.ts، components/global-shortcuts.tsx) ومفاتيح التحرير داخل الحقول
+const APP_RESERVED: Record<string, string> = {
+  F2: "البحث داخل الشاشات", F3: "حفظ", F4: "نسخ", F5: "جديد", F6: "استعلام", F9: "حذف",
+  "Ctrl+S": "حفظ", "Ctrl+P": "طباعة", "Ctrl+K": "البحث الشامل", "Ctrl+O": "طلبيات المبيعات",
+  "Alt+T": "البحث عن العملاء والموردين", "Alt+S": "البحث عن الأصناف",
+  "Ctrl+C": "نسخ النص", "Ctrl+V": "لصق", "Ctrl+X": "قص", "Ctrl+Z": "تراجع", "Ctrl+Y": "إعادة", "Ctrl+A": "تحديد الكل",
 }
-for (let digit = 1; digit <= 9; digit += 1) RESERVED[`Ctrl+${digit}`] = "التنقل بين تبويبات المتصفح"
+// يُنفّذها Chrome نفسه قبل أن تصل للصفحة (لا يمكن لأي موقع منعها) — بقية اختصارات المتصفح تُلغى عند تعيينها لصفحة
+const BROWSER_LOCKED: Record<string, string> = {
+  "Ctrl+W": "إغلاق التبويب", "Ctrl+T": "تبويب جديد", "Ctrl+N": "نافذة جديدة", "Ctrl+F4": "إغلاق التبويب", "Alt+F4": "إغلاق النافذة",
+  "Ctrl+Shift+N": "نافذة خاصة", "Ctrl+Shift+T": "إعادة فتح تبويب", "Ctrl+Shift+W": "إغلاق النافذة", "Ctrl+Shift+Q": "إغلاق المتصفح",
+}
 
 const COMBO_PATTERN = /^(Ctrl\+)?(Alt\+)?(Shift\+)?([A-Z]|[0-9]|Num[0-9]|F[1-9]|F1[0-2])$/
 
@@ -53,8 +54,10 @@ export const isWellFormedCombo = (combo: unknown): combo is string => typeof com
 /** سبب رفض الاختصار، أو null إن كان صالحاً. */
 export function comboProblem(combo: string): string | null {
   if (!isWellFormedCombo(combo)) return "مفتاح غير مدعوم — استخدم حرفاً أو رقماً أو F1..F12"
-  const reserved = RESERVED[combo]
-  if (reserved) return `${combo} محجوز (${reserved})`
+  const locked = BROWSER_LOCKED[combo]
+  if (locked) return `${combo} (${locked}) يُنفّذه المتصفح نفسه ولا يمكن لأي موقع إيقافه`
+  const reserved = APP_RESERVED[combo]
+  if (reserved) return `${combo} مستخدم في النظام (${reserved})`
   const isFunctionKey = /(^|\+)F\d+$/.test(combo)
   if (!isFunctionKey && !/^(Ctrl|Alt)\+/.test(combo)) return "يجب أن يبدأ الاختصار بـ Ctrl أو Alt (أو مفتاح F)"
   return null

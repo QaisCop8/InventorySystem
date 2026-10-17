@@ -5,7 +5,7 @@ import { menuItems, type MenuItem } from "@/components/sidebar"
 import { useReportAccess } from "@/components/auth/use-report-access"
 import { useFileSectionAccess } from "@/components/auth/use-file-access"
 import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
-import { PAGE_SHORTCUTS_CHANGED, comboFromEvent, sanitizeShortcuts, type PageShortcuts } from "@/lib/page-shortcuts"
+import { PAGE_SHORTCUTS_CHANGED, comboFromEvent, sanitizeShortcuts, shortcutRecording, type PageShortcuts } from "@/lib/page-shortcuts"
 
 export type ShortcutPage = { section: string; title: string; path: string[] }
 
@@ -68,17 +68,19 @@ export function PageShortcutsListener({ onOpen }: { onOpen: (section: string) =>
 
   useEffect(() => {
     if (!byCombo.size) return
+    // مرحلة الالتقاط (capture): يسبق مستمعي الشاشات، وpreventDefault يلغي إجراء المتصفح لنفس المفاتيح
+    // (Ctrl+F بحث الصفحة، Ctrl+D المفضلة، F7، Ctrl+R...) فيُنفَّذ اختصار المستخدم بدلاً منه.
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || event.repeat) return
+      if (shortcutRecording.active || event.isComposing) return
       const combo = comboFromEvent(event)
       const section = combo ? byCombo.get(combo) : undefined
       if (!section) return
       event.preventDefault()
-      event.stopPropagation()
-      onOpenRef.current(section)
+      event.stopImmediatePropagation()
+      if (!event.repeat) onOpenRef.current(section)
     }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
   }, [byCombo])
 
   return null

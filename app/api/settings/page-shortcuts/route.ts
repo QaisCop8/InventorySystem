@@ -8,9 +8,10 @@ import { sanitizeShortcuts } from "@/lib/page-shortcuts"
 let columnEnsured: Promise<void> | null = null
 const ensureColumn = () => {
   if (!columnEnsured) {
-    columnEnsured = sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS page_shortcuts JSONB NOT NULL DEFAULT '{}'::jsonb`
-      .then(() => undefined)
-      .catch((error: unknown) => { columnEnsured = null; throw error })
+    // sql`` من lib/database.ts قابل للانتظار (await) فقط — .then() عليه مباشرة لا يُرجع Promise
+    columnEnsured = (async () => {
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS page_shortcuts JSONB NOT NULL DEFAULT '{}'::jsonb`
+    })().catch((error: unknown) => { columnEnsured = null; throw error })
   }
   return columnEnsured
 }

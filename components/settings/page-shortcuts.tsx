@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useShortcutPages, usePageShortcuts } from "@/components/page-shortcuts-listener"
-import { PAGE_SHORTCUTS_CHANGED, comboFromEvent, comboKeys, comboProblem, type PageShortcuts } from "@/lib/page-shortcuts"
+import { PAGE_SHORTCUTS_CHANGED, comboFromEvent, comboKeys, comboProblem, shortcutRecording, type PageShortcuts } from "@/lib/page-shortcuts"
 
 type Message = { tone: "success" | "error" | "info"; text: string } | null
 
@@ -59,6 +59,10 @@ export default function PageShortcutsSettings() {
   // وضع التسجيل: الضغطة التالية تصبح اختصار الصفحة (Esc إلغاء، Backspace/Delete مسح). يُلتقط قبل أي مستمع آخر.
   useEffect(() => {
     if (!recording) return
+    shortcutRecording.active = true
+    // Ctrl+W / Ctrl+T... ينفّذها المتصفح قبل الصفحة — على الأقل يُسأل المستخدم قبل إغلاق التبويب أثناء التسجيل
+    const onBeforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = "" }
+    window.addEventListener("beforeunload", onBeforeUnload)
     const onKeyDown = (event: KeyboardEvent) => {
       event.preventDefault()
       event.stopImmediatePropagation()
@@ -81,7 +85,11 @@ export default function PageShortcutsSettings() {
       void save(next, owner ? `${combo} نُقل من «${titleOf(owner)}» إلى «${titleOf(recording)}»` : `${combo} ⇐ «${titleOf(recording)}»`)
     }
     window.addEventListener("keydown", onKeyDown, true)
-    return () => window.removeEventListener("keydown", onKeyDown, true)
+    return () => {
+      shortcutRecording.active = false
+      window.removeEventListener("keydown", onKeyDown, true)
+      window.removeEventListener("beforeunload", onBeforeUnload)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording, shortcuts])
 
@@ -118,7 +126,7 @@ export default function PageShortcutsSettings() {
         <CardContent className="space-y-3 p-4 text-sm text-slate-600 dark:text-slate-300">
           <p>اضغط «تعيين» ثم اضغط الاختصار المطلوب. يجب أن يبدأ بـ <Combo combo="Ctrl" /> أو <Combo combo="Alt" /> مع حرف أو رقم (مثل <Combo combo="Ctrl+Alt+S" /> أو <Combo combo="Alt+1" />)، أو مفتاح F غير مستخدم (مثل <Combo combo="F7" />).</p>
           <p className="text-xs text-muted-foreground">Esc يلغي التعيين، Backspace يحذف الاختصار. إن كان الاختصار مستخدماً لصفحة أخرى يُنقل للصفحة الجديدة.</p>
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">لا يمكن استخدام اختصارات المتصفح (مثل <Combo combo="Ctrl+W" /> إغلاق التبويب، <Combo combo="Ctrl+T" />، <Combo combo="Ctrl+N" />، <Combo combo="Ctrl+1" />…<Combo combo="Ctrl+9" />) لأن المتصفح ينفّذها قبل النظام، ولا اختصارات النظام (الحفظ F3، الطباعة Ctrl+P...). الأنسب: <Combo combo="Ctrl+Alt+حرف" /> أو <Combo combo="Alt+رقم" />.</p>
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">اختصارات المتصفح (مثل <Combo combo="Ctrl+F" /> <Combo combo="Ctrl+D" /> <Combo combo="Ctrl+R" /> <Combo combo="Ctrl+1" /> <Combo combo="F7" />) يمكن تعيينها، ويُلغى عمل المتصفح لها داخل النظام. باستثناء ما ينفّذه Chrome نفسه ولا يمكن لأي موقع إيقافه: <Combo combo="Ctrl+W" /> <Combo combo="Ctrl+T" /> <Combo combo="Ctrl+N" /> <Combo combo="Ctrl+Shift+N" /> <Combo combo="Ctrl+Shift+T" /> <Combo combo="Ctrl+Shift+W" /> <Combo combo="Alt+F4" />، واختصارات النظام نفسه (الحفظ F3، الطباعة Ctrl+P، النسخ واللصق...).</p>
         </CardContent>
       </Card>
 
