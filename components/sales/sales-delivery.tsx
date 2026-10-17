@@ -633,6 +633,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       source_voucher_id: null,
       source_voucher_type: null,
       has_linked_invoice: false,
+      // هوية بيع نقطة البيع للسند الأصلي: الخادم يعيد السند الأصلي كـ"مكرر" لنفس pos_client_sale_id بلا إدراج ⇐ تُمسح مع روابطه
+      ...({ pos_client_sale_id: null, pos_point_id: null, pos_session_id: null, pos_payments: [], linked_order_id: null } as any),
       // الأرقام التسلسلية فريدة لكل قطعة ⇐ لا تُنسَخ (تُدخَل من جديد للسند الجديد)
       items: f.items.map(item => ({ ...item, order_item_id: null, delivery_item_id: null, source_voucher_id: null, source_voucher_type: null, ...((item as any).serials?.length || (item as any).serials_text ? { serials: [], serials_text: "" } : {}) })),
     }))
