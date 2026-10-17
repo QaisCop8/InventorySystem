@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { validateProductPriceCurrencies } from "@/lib/product-price-currencies"
-import { getGrantedBranchIds } from "@/lib/permissions"
+import { getGrantedBranchIds, hasNamedPermission } from "@/lib/permissions"
+import { PURCHASE_PRICE_PERMISSION_CATEGORY, PURCHASE_PRICE_VIEW_PERMISSION } from "@/lib/transaction-permission-definitions"
 import { projectFileLookup } from "@/lib/file-permissions"
 import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupScope } from "./_permissions"
 import { runSchemaOnce } from "@/lib/schema-once"
@@ -374,7 +375,9 @@ export async function GET(request: NextRequest) {
         pu.first_barcode,
         pr.price AS first_price,
         pc.name AS first_price_name,
-        c.currency_name AS currency_name
+        c.currency_name AS currency_name,
+        lpc.currency_code AS last_purchase_currency_code,
+        lpc.currency_name AS last_purchase_currency_name
 
       FROM products p
       LEFT JOIN product_stock ps
@@ -401,6 +404,8 @@ export async function GET(request: NextRequest) {
       ) pr ON TRUE
       LEFT JOIN pricecategory pc ON pc.id = pr.price_category_id
       LEFT JOIN currency c ON c.id = pr.currency_id
+      -- عملة آخر سعر شراء (عملة سند الشراء)، وإلا عملة الصنف
+      LEFT JOIN currency lpc ON lpc.id = COALESCE(p.last_purchase_currency_id, p.currency_id)
 
       WHERE ${filterExpression}
       ORDER BY p.product_code ASC;
@@ -429,7 +434,9 @@ export async function GET(request: NextRequest) {
         pu.first_barcode,
         pr.price AS first_price,
         pc.name AS first_price_name,
-        c.currency_name AS currency_name
+        c.currency_name AS currency_name,
+        lpc.currency_code AS last_purchase_currency_code,
+        lpc.currency_name AS last_purchase_currency_name
 
       FROM products p
       LEFT JOIN product_stock ps 
@@ -456,6 +463,8 @@ export async function GET(request: NextRequest) {
       ) pr ON TRUE
       LEFT JOIN pricecategory pc ON pc.id = pr.price_category_id
       LEFT JOIN currency c ON c.id = pr.currency_id
+      -- عملة آخر سعر شراء (عملة سند الشراء)، وإلا عملة الصنف
+      LEFT JOIN currency lpc ON lpc.id = COALESCE(p.last_purchase_currency_id, p.currency_id)
 
       WHERE ${filterExpression}
       ORDER BY p.product_code ASC;
@@ -508,10 +517,15 @@ export async function GET(request: NextRequest) {
       default_store_name: product.default_store_name || "بلا تحديد",
     }));
 
-    const rows = mappedProducts.map((product: any) => {
+    let rows = mappedProducts.map((product: any) => {
       const rowPermission = scope?.ok ? Number(product.type) === 2 ? scope.services : scope.items : permission
       return rowPermission.ok && rowPermission.lookupOnly ? projectFileLookup(Number(product.type) === 2 ? "services" : "items", [product])[0] : product
     })
+    // قائمة الأصناف (?list=1): آخر سعر شراء يُحذف من الرد لمن لا يملك "السماح بمشاهدة أسعار الشراء"
+    if (url.searchParams.get("list") === "1" && permission.ok
+      && !(await hasNamedPermission(String(permission.userId), PURCHASE_PRICE_VIEW_PERMISSION, PURCHASE_PRICE_PERMISSION_CATEGORY, permission.branchId))) {
+      rows = rows.map((product: any) => ({ ...product, last_purchase_price: null, purchase_price_hidden: true }))
+    }
     // lite=1 (نافذة بحث الأصناف): فقط حقول العرض والبحث — الصنف الكامل يُجلب للأصناف المختارة فقط (?ids=).
     // كان كل فتح للنافذة ينقل ~31MB (84 حقلاً × كل الأصناف).
     if (url.searchParams.get("lite") === "1") {
@@ -1507,6 +1521,39 @@ export async function POST(request: NextRequest) {
     );
   } finally {
     client.release();
+  }
+}
+
+// الجداول التي تجعل الصنف "مرتبطاً بحركات" (السندات، الطلبيات، مسودات الطلبيات، الجرد، مكوّن تصنيع لصنف آخر)
+const PRODUCT_USAGE_TABLES: Array<[table: string, column: string]> = [
+  ["voucher_items_tbl", "item_id"],
+  ["order_items", "product_id"],
+  ["sales_order_draft_items", "product_id"],
+  ["stock_count_items", "item_id"],
+  ["product_manufacturing_components", "component_id"],
+]
+
+/** حذف صنف (?id=): يُرفض إن كان مرتبطاً بأي حركة، وإلا يُعلَّم محذوفاً (deleted) ولا يُمحى فعلياً. */
+export async function DELETE(request: NextRequest) {
+  try {
+    const id = Number(new URL(request.url).searchParams.get("id"))
+    const permission = await authorizeStoredProduct(request, id, "delete")
+    if (!permission.ok) return permission.response
+    for (const [table, column] of PRODUCT_USAGE_TABLES) {
+      const [exists] = await sql`SELECT to_regclass(${table}) IS NOT NULL AS ok`
+      if (!exists?.ok) continue
+      const used = await sql`SELECT 1 FROM ${sql.unsafe(table)} WHERE ${sql.unsafe(column)} = ${id} LIMIT 1`
+      if (used.length) {
+        return NextResponse.json({ error: "لا يمكن حذف الصنف لارتباطه بحركات", code: "PRODUCT_HAS_TRANSACTIONS" }, { status: 409 })
+      }
+    }
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT false`
+    const result = await sql`UPDATE products SET deleted = true WHERE id = ${id} RETURNING id`
+    if (!result.length) return NextResponse.json({ error: "الصنف غير موجود" }, { status: 404 })
+    return NextResponse.json({ success: true, id })
+  } catch (error) {
+    console.error("Delete product error:", error)
+    return NextResponse.json({ error: "تعذر حذف الصنف" }, { status: 500 })
   }
 }
 

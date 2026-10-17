@@ -23,13 +23,14 @@ import {
   AlertTriangle,
   TrendingUp,
   Barcode,
-  DollarSign,
   X,
   AlertCircle,
   FileSpreadsheet,
   Warehouse,
+  FileBarChart,
 } from "lucide-react"
 import { CompactProductForm } from "./compact-product-form"
+import { openSectionInNewTab } from "@/lib/new-tab-handoff"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
 import { ProductsImportDialog } from "@/components/import/products-import"
 import { InitialQuantitiesDialog } from "./initial-quantities-dialog"
@@ -334,7 +335,8 @@ export function Products({ entityType = "products" }: ProductsProps) {
     if (!canViewProducts) { setState((prev) => ({ ...prev, products: [], loading: false })); return }
     try {
       if (!silent) setState((prev) => ({ ...prev, loading: true, error: null }))
-      const response = await fetch(`/api/inventory/products?type=${isService ? "services" : "products"}`)
+      // list=1: الخادم يُخفي آخر سعر شراء لمن لا يملك "السماح بمشاهدة أسعار الشراء"
+      const response = await fetch(`/api/inventory/products?type=${isService ? "services" : "products"}&list=1`)
       const data = await response.json().catch(() => null)
       if (!response.ok) {
         const errorMessage = data?.error || "فشل في تحميل المنتجات"
@@ -969,7 +971,6 @@ export function Products({ entityType = "products" }: ProductsProps) {
                       <TableHead className="text-right">رقم الصنف</TableHead>
                       <TableHead className="text-right">اسم الصنف</TableHead>
                       <TableHead className="text-right">نوع الصنف</TableHead>
-                      <TableHead className="text-right">التصنيف</TableHead>
                       <TableHead className="text-right">الوحدة</TableHead>
                       <TableHead className="text-right">المستودع الافتراضي</TableHead>
                       <TableHead className="text-right">المخزون الحالي</TableHead>
@@ -1006,8 +1007,8 @@ export function Products({ entityType = "products" }: ProductsProps) {
                           5: "بضاعة مصنعة",
                           6: "مواد للاستهلاك",
                         } as Record<number, string>)[Number(product.product_type) || 1] || "بضاعة تجارية"}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell>{product.main_unit}</TableCell>
+                        {/* الوحدة الأولى للصنف (أول وحدة في وحدات الصنف) */}
+                        <TableCell>{(product as any).first_unit || product.main_unit || "—"}</TableCell>
                         <TableCell>{product.default_store_name || "بلا تحديد"}</TableCell>
                         <TableCell className="font-medium">{product.current_stock}</TableCell>
                         <TableCell>
@@ -1019,10 +1020,15 @@ export function Products({ entityType = "products" }: ProductsProps) {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" />
-                            {product.last_purchase_price.toLocaleString()}
-                          </div>
+                          {/* بعملة الشراء (عملة سند آخر شراء)؛ **** لمن لا يملك صلاحية مشاهدة أسعار الشراء */}
+                          {(product as any).purchase_price_hidden
+                            ? <span className="font-mono tracking-widest text-muted-foreground" title="لا تملك صلاحية مشاهدة أسعار الشراء">****</span>
+                            : (
+                              <span className="inline-flex items-center gap-1 tabular-nums" dir="ltr">
+                                {Number(product.last_purchase_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                <span className="text-xs text-muted-foreground">{(product as any).last_purchase_currency_code || (product as any).last_purchase_currency_name || ""}</span>
+                              </span>
+                            )}
                         </TableCell>
                         <TableCell>{getStatusBadge(product.status)}</TableCell>
                         <TableCell>{getStockBadge(product.current_stock, product.min_stock_level || 0)}</TableCell>
@@ -1055,6 +1061,17 @@ export function Products({ entityType = "products" }: ProductsProps) {
                             </Button>
                             <Button variant="outline" size="sm">
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            {/* بطاقة الصنف (تقرير حركات الصنف) في تبويب جديد — التقرير يحدد الصنف ويعرضه مباشرة */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="بطاقة صنف"
+                              className="gap-1"
+                              onClick={() => openSectionInNewTab("item-card-report", { item_card_product_id: String(product.id) })}
+                            >
+                              <FileBarChart className="h-4 w-4" />
+                              بطاقة صنف
                             </Button>
                           </div>
                         </TableCell>

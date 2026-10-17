@@ -25,6 +25,8 @@ type Column = { name: string; header: string; width: number; numeric?: boolean; 
 const numberFormat = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const emptySummary = { opening_balance: 0, closing_balance: 0, received_quantity: 0, issued_quantity: 0 }
 const itemTypesList = [{ id: 1, name: "صنف" }, { id: 2, name: "خدمة" }, { id: 3, name: "أصل" }]
+/** معرّف الصنف المطلوب عرض بطاقته عند فتح التقرير (زر "بطاقة صنف" في قائمة الأصناف) */
+export const ITEM_CARD_PRODUCT_KEY = "item_card_product_id"
 
 export function ItemCardReport() {
   const requestRef = useRef(0)
@@ -71,6 +73,24 @@ export function ItemCardReport() {
       .finally(() => { if (!controller.signal.aborted) setLoadingProducts(false) })
     return () => { controller.abort(); requestRef.current += 1 }
   }, [])
+
+  // فُتحت من زر "بطاقة صنف" في قائمة الأصناف (sessionStorage، عبر lib/new-tab-handoff): تحديد الصنف وعرض بطاقته مباشرة
+  useEffect(() => {
+    if (!products.length) return
+    let requested = ""
+    try { requested = sessionStorage.getItem(ITEM_CARD_PRODUCT_KEY) || ""; sessionStorage.removeItem(ITEM_CARD_PRODUCT_KEY) } catch { /* ignore */ }
+    if (!requested) return
+    const product = products.find(item => Number(item.id) === Number(requested))
+    if (!product) { setError("الصنف غير متاح في بطاقة الصنف"); return }
+    const type = Number(product.type || 1)
+    setItemTypes(current => current.includes(type) ? current : [...current, type])
+    setSelectedIds([Number(product.id)])
+    const period = { fromDate, toDate, warehouseIds: [...warehouseIds], showTransfers }
+    appliedPeriod.current = period
+    setReportProducts([product])
+    void loadProduct(product, period)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products])
 
   const loadProduct = async (product: Product, period: Period) => {
     const requestId = ++requestRef.current

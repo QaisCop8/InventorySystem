@@ -103,6 +103,7 @@ export const INVOICE_TYPE_OPTIONS = [
   { label: "خدمات", value: 2 },
   { label: "أصول", value: 3 },
 ]
+const SERVICES_ONLY_ERROR = "نوع الفاتورة خدمات — يمكن اختيار الخدمات فقط"
 export const MAQASA_CODE_OPTIONS = [
   { label: "تجارية", value: 1 },
   { label: "أصول", value: 2 },
@@ -1921,6 +1922,11 @@ export default function UnifiedSalesDelivery({
     return true
   }
 
+  // نوع الفاتورة "خدمات" (invoice_type = 2): البحث وإدخال الرقم/الباركود على الخدمات فقط (نوع الصنف 2).
+  // مصفوفة ثابتة المرجع — نافذة البحث تعيد ضبط فلترها عند تغيّر productTypes.
+  const servicesOnly = Number(form.invoice_type) === 2
+  const searchProductTypes = useMemo(() => (servicesOnly ? [2] : undefined), [servicesOnly])
+
   const lookupProductByCode = async (
     row: number,
     code: string,
@@ -1935,6 +1941,8 @@ export default function UnifiedSalesDelivery({
       if (!res.ok) throw new Error("not found")
       if (!isMountedRef.current) return
       if (!product || !product.id) throw new Error("not found")
+      // نوع الفاتورة "خدمات": يُقبل رقم/باركود خدمة فقط (نفس قيد نافذة البحث)
+      if (servicesOnly && Number(product.type || 1) !== 2) throw new Error(SERVICES_ONLY_ERROR)
       product = await requestProductVariant(product)
       if (!product || !isMountedRef.current) return
       const currentRow = itemsRef.current[row]
@@ -1988,9 +1996,11 @@ export default function UnifiedSalesDelivery({
         const nextFieldIndex = findNextRelevantFieldIndex(grid, fieldOrder.indexOf("product_code") + 1)
         pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
       }
-    } catch {
+    } catch (error) {
       if (!isMountedRef.current) return
-      const message = sourceField === "barcode" ? "رقم الباركود المدخل غير موجود" : "رقم الصنف المدخل غير موجود"
+      const message = error instanceof Error && error.message === SERVICES_ONLY_ERROR
+        ? SERVICES_ONLY_ERROR
+        : sourceField === "barcode" ? "رقم الباركود المدخل غير موجود" : "رقم الصنف المدخل غير موجود"
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: message, life: 3000 }])
       if (previousRow?.product_id) {
         if (sourceField === "barcode") patchItemRow(row, { barcode: previousRow.barcode })
@@ -3861,6 +3871,7 @@ export default function UnifiedSalesDelivery({
           customerAccountId={Number(form.account_id) || null}
           transactionDate={form.vch_date || null}
           priceSource={isPurchaseDeliveryVoucher ? "purchase" : "sale"}
+          productTypes={searchProductTypes}
         />
         {showAccountsTab && (
           <AccountSearchDialog

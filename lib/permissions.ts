@@ -13,6 +13,8 @@ import {
   CREDIT_LIMIT_PERMISSION_CATEGORY,
   CREDIT_LIMIT_OVERRIDE_PERMISSION,
   ACCOUNT_BALANCE_VIEW_PERMISSION,
+  PURCHASE_PRICE_PERMISSION_CATEGORY,
+  PURCHASE_PRICE_VIEW_PERMISSION,
   transactionPermissionName,
   type PosCashierPermission,
   type TransactionAction,
@@ -431,7 +433,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -715,18 +717,23 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     }
   }
 
-  // "السماح بتجاوز حد الدين" — تظهر بشاشة الصلاحيات مباشرة (لا فقط بعد أول فحص لحد الائتمان)
+  // "السماح بتجاوز حد الدين" و"مشاهدة الرصيد" و"مشاهدة أسعار الشراء" — تظهر بشاشة الصلاحيات مباشرة
+  // (لا فقط بعد أول فحص لها)، وتُمنح لدور "مدير" ولمن يملك "جميع الصلاحيات"
+  for (const [categoryName, permissionNames] of [
+    [CREDIT_LIMIT_PERMISSION_CATEGORY, [CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION]],
+    [PURCHASE_PRICE_PERMISSION_CATEGORY, [PURCHASE_PRICE_VIEW_PERMISSION]],
+  ] as const) {
   const creditCategoryRows = await client.query(
     `INSERT INTO access_category (name)
      SELECT $1::varchar WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = $1::varchar)
      RETURNING id`,
-    [CREDIT_LIMIT_PERMISSION_CATEGORY],
+    [categoryName],
   )
   const creditCategory = creditCategoryRows[0] || (await client.query(
     `SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`,
-    [CREDIT_LIMIT_PERMISSION_CATEGORY],
+    [categoryName],
   ))[0]
-  for (const permissionName of [CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION]) if (creditCategory?.id) {
+  for (const permissionName of permissionNames) if (creditCategory?.id) {
     const inserted = await client.query(
       `INSERT INTO access_list (name, category_id)
        SELECT $1::varchar, $2::integer
@@ -749,6 +756,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
         [inserted[0].id],
       )
     }
+  }
   }
 
   // Name-based fallback for tenant databases whose locally-created access ids

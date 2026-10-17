@@ -19,6 +19,9 @@ export async function GET(
   else if (typeStr === "products") typeParam = 1;
   let productQuery = "";
   let values: any[] = [];
+  // الخدمات: النوع 2 فقط؛ الأصناف: كل ما عدا الخدمات (نوع فارغ = صنف) — التنقل والعدّ لا يخلطان بينهما
+  const typeCondition = (param: string) =>
+    `(${param}::int IS NULL OR (CASE WHEN ${param}::int = 2 THEN COALESCE(type, 1) = 2 ELSE COALESCE(type, 1) <> 2 END))`
 
   // عدد السجلات (غير المحذوفة) من نفس النوع، أو موقع سجل معيّن ضمنها (id <= upToId) — لعرض "رقم السجل / الإجمالي"
   const countRecords = async (upToId?: number): Promise<number> => {
@@ -29,7 +32,7 @@ export async function GET(
       extra = " AND id <= $2"
     }
     const counted = await pool.query(
-      `SELECT COUNT(*)::int AS n FROM products WHERE (deleted IS NULL OR deleted = false) AND ($1::int IS NULL OR type = $1::int)${extra}`,
+      `SELECT COUNT(*)::int AS n FROM products WHERE (deleted IS NULL OR deleted = false) AND ${typeCondition("$1")}${extra}`,
       countParams
     )
     return Number(counted.rows[0]?.n || 0)
@@ -113,7 +116,7 @@ export async function GET(
     if (productQuery.includes("$TYPE_FILTER$")) {
       if (typeParam != null) {
         const paramIndex = values.length + 1;
-        const cond = `$${paramIndex}::int IS NULL OR type = $${paramIndex}::int`;
+        const cond = typeCondition(`$${paramIndex}`);
         productQuery = productQuery.replace(/\$TYPE_FILTER\$/g, cond);
         values.push(typeParam);
       } else {

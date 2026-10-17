@@ -31,6 +31,8 @@ import SearchBrandDialog from "@/components/customer/search-brand-dialog"
 import './compact-product-form.css'
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
+import Messages from "@/components/common/Messages"
+import { isPopupOpenOver } from "@/lib/hotkeys"
 import { useFileAccess } from "@/components/auth/use-file-access"
 import ProductCodeInput from "./ProductCodeInput"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
@@ -389,6 +391,7 @@ export function CompactProductForm({
   const can = useFileAccess(isService ? "services" : "items")
   const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const toast = useRef<Toast>(null);
+  const messagesRef = useRef<any>(null)
   const [formData, setFormData] = useState<ProductFormData>(initialFormData)
   const [isSearching, setIsSearching] = useState(false)
   const [productCodeError, setProductCodeError] = useState("")
@@ -873,12 +876,9 @@ export function CompactProductForm({
 
     } catch (err) {
       console.error("Error deleting product:", err);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'خطأ',
-        detail: 'فشلت العملية ❌',
-        life: 5000
-      });
+      // سبب الرفض من الخادم (مثل "لا يمكن حذف الصنف لارتباطه بحركات") في مكوّن الرسائل أعلى النموذج
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: err instanceof Error && err.message ? err.message : "تعذر حذف الصنف", life: 6000 }])
     } finally {
       setLoading(false)
     }
@@ -888,7 +888,8 @@ export function CompactProductForm({
   const getNewProductCode = async (): Promise<string> => {
     if (!canCreate) return ""
     try {
-      const res = await fetch("/api/utilities/getLastProductCode");
+      // الخدمات: آخر رقم خدمة + 1، والأصناف: آخر رقم صنف + 1
+      const res = await fetch(`/api/utilities/getLastProductCode?type=${isService ? "services" : "products"}`);
       if (!res.ok) {
         throw new Error(`Product code request failed with status ${res.status}`)
       }
@@ -991,6 +992,7 @@ export function CompactProductForm({
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/related-items`).then((r) => r.ok ? r.json() : []).then((rows) => setRelatedProducts(Array.isArray(rows) ? rows.map((row: RelatedProductItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setRelatedProducts([]))
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/manufacturing-components`).then((r) => r.ok ? r.json() : []).then((rows) => setManufacturingComponents(Array.isArray(rows) ? rows.map((row: ManufacturingComponentItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setManufacturingComponents([]))
     initialHash.current = getFormDataHash(newFormData);
+    baselineCodeRef.current = String(newFormData.product_code || "");
     setCurrentProductId(product.id);
     setRecordPosition(Number(product.record_position) || 0);
     setRecordTotal(Number(product.record_total) || 0);
@@ -1244,6 +1246,8 @@ export function CompactProductForm({
   ]
 
   const initialHash = useRef(0);
+  // رقم السجل المعروض (أو الرقم المولَّد للجديد) — مغادرة حقل الرقم دون تغييره لا تعيد تحميل شيء
+  const baselineCodeRef = useRef("");
   const hashCode = (str: string) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -1339,6 +1343,7 @@ export function CompactProductForm({
     setRelatedProducts([])
     setManufacturingComponents([])
     initialHash.current = getFormDataHash(newFormData);
+    baselineCodeRef.current = String(newFormData.product_code || "");
     setCurrentProductId(0);
     setRecordPosition(0);
     fetch(`/api/inventory/ProductsNavigations/count?type=${isService ? "services" : "products"}`)
@@ -1410,7 +1415,11 @@ export function CompactProductForm({
     if (definitions.cost_center_types.length === 0) return
     if ((formData.cost_centers?.length ?? 0) > 0) return
     const costCenterRows = buildCostCenterRows(formData.cost_centers ?? [], definitions.cost_center_types, definitions.cost_centers)
-    setFormData((prev) => ({ ...prev, cost_centers: costCenterRows }))
+    // صفوف محسوبة لا تعديل من المستخدم: يُحدَّث خط الأساس معها إن كان النموذج غير معدَّل (لا رسالة "تم تعديل السجل" زائفة)
+    const wasClean = getFormDataHash(formData) === initialHash.current
+    const next = { ...formData, cost_centers: costCenterRows }
+    setFormData(next)
+    if (wasClean) initialHash.current = getFormDataHash(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definitions.cost_center_types, definitions.cost_centers])
 
@@ -1419,7 +1428,10 @@ export function CompactProductForm({
     if (definitions.brand_types.length === 0) return
     if ((formData.product_brands?.length ?? 0) > 0) return
     const brandRows = buildBrandRows(formData.product_brands ?? [], definitions.brand_types, definitions.brands)
-    setFormData((prev) => ({ ...prev, product_brands: brandRows }))
+    const wasClean = getFormDataHash(formData) === initialHash.current
+    const next = { ...formData, product_brands: brandRows }
+    setFormData(next)
+    if (wasClean) initialHash.current = getFormDataHash(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definitions.brand_types, definitions.brands])
 
@@ -1454,7 +1466,11 @@ export function CompactProductForm({
   const formRootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!visible || !formRootRef.current) return;
-    return attachEnterAsTab(formRootRef.current, doHotKeys);
+    const root = formRootRef.current
+    // Enter = Tab يعمل ما لم تكن نافذة منبثقة مفتوحة فعلاً فوق النموذج — لا يعتمد على doHotKeys وحده
+    // (علَم يدوي قد يبقى false إن لم يُستدعَ popupHasClosed بعد نافذة ما، فيتوقف Enter في النموذج كله)
+    const enabled = { get current() { return doHotKeys.current || !isPopupOpenOver(root) } }
+    return attachEnterAsTab(root, enabled);
   }, [visible]);
 
 
@@ -2014,6 +2030,10 @@ export function CompactProductForm({
   const searchProductByCode = async (code: string) => {
     if (!canView) return
     if (!code || code.length === 0) return
+    // الرقم لم يتغيّر (رقم السجل المعروض أو الرقم المولَّد للجديد) ⇐ لا بحث: كانت مغادرة حقل الرقم تعيد
+    // تحميل نفس السجل بلا فحص التغييرات فتُفقَد التعديلات غير المحفوظة بصمت
+    if (code.trim().toUpperCase() === String(baselineCodeRef.current || "").trim().toUpperCase()) return
+    const restoreCode = () => setFormData((prev) => ({ ...prev, product_code: baselineCodeRef.current }))
 
     try {
       setIsSearching(true)
@@ -2031,7 +2051,7 @@ export function CompactProductForm({
               detail: 'الرقم المدخل رقم صنف لا يمكن عرض تفاصيله',
               life: 2500,
             })
-            await reset_fields()
+            restoreCode()
             return
           }
           if (!isService && isProductServiceType) {
@@ -2041,7 +2061,7 @@ export function CompactProductForm({
               detail: 'الرقم المدخل رقم خدمة لا يمكن عرض التفاصيل',
               life: 2500,
             })
-            await reset_fields()
+            restoreCode()
             return
           }
 
@@ -2049,7 +2069,8 @@ export function CompactProductForm({
           // code below rebuilt only part of the form from the code-search response,
           // racing with ProductCodeInput's Byid request and sometimes replacing
           // prices/navigation state with an incomplete product snapshot.
-          await loadData("Byid", Number(product.id), false)
+          // مع فحص التغييرات غير المحفوظة (نافذة "تم تعديل السجل هل تريد الحفظ؟")
+          await loadData("Byid", Number(product.id), true)
           return
 
           const unitsWithNames = (product.units ?? []).map((unit: any) => {
@@ -2102,7 +2123,8 @@ export function CompactProductForm({
         reset_fields()
       }
       else if (response.status === 404) {
-        reset_fields(1, code)
+        // رقم جديد على سجل محفوظ ⇐ سجل جديد بهذا الرقم (بعد فحص التغييرات)؛ على سجل جديد يبقى ما أُدخل كما هو
+        if (currentProductId > 0) requestAfterUnsavedCheck(() => { void reset_fields(1, code) })
       }
     } catch (error) {
       console.error("Error searching for product:", error)
@@ -2562,6 +2584,7 @@ export function CompactProductForm({
           isNewRecord={currentProductId === 0}
         />
       </div>
+      <Messages innerRef={messagesRef} />
       <ConfirmDialogYesNo
         visible={showConfirm}
         onConfirm={confirmDelete}
@@ -2667,6 +2690,11 @@ export function CompactProductForm({
                           id="product_name"
                           value={formData.product_name}
                           onChange={(e) => updateFormData("product_name", e.target.value)}
+                          // الاسم الإنجليزي فارغ ⇐ يُعبّأ بالاسم العربي عند مغادرة الحقل (يمكن تعديله بعدها)
+                          onBlur={(e) => {
+                            const arabicName = e.target.value.trim()
+                            if (arabicName && !String(formData.product_name_en || "").trim()) updateFormData("product_name_en", arabicName)
+                          }}
                           className="text-right"
                           placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
                           required

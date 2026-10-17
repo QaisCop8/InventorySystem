@@ -68,6 +68,9 @@ export const CREDIT_LIMIT_PERMISSION_CATEGORY = "العملاء والذمم"
 export const CREDIT_LIMIT_OVERRIDE_PERMISSION = "السماح بتجاوز حد الدين"
 // رؤية حقل "الرصيد" للعميل/المورد/الحساب داخل شاشات الحركات (نفس فئة حد الائتمان)
 export const ACCOUNT_BALANCE_VIEW_PERMISSION = "السماح بمشاهدة رصيد الحساب في الحركات"
+// رؤية آخر سعر شراء للأصناف (قائمة الأصناف) — بلاها يظهر **** بدل السعر
+export const PURCHASE_PRICE_PERMISSION_CATEGORY = "الأصناف"
+export const PURCHASE_PRICE_VIEW_PERMISSION = "السماح بمشاهدة أسعار الشراء"
 
 export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
