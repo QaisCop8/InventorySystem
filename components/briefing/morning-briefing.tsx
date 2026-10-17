@@ -81,8 +81,9 @@ export default function MorningBriefing() {
   const alerts = data ? data.cashier.length + data.cheques.returned.length + data.watch.cancelled.length + data.watch.discounts.length + (data.watch.drafts.count ? 1 : 0) + (data.watch.portalPayments.count ? 1 : 0) : 0
 
   return (
-    <div dir="rtl" className="mx-auto w-full max-w-7xl space-y-4 p-1 md:p-2">
-      <div className="flex flex-col gap-3 rounded-3xl bg-gradient-to-l from-amber-400 via-orange-400 to-rose-400 p-5 text-white shadow-lg md:flex-row md:items-center md:justify-between">
+    // بعرض الصفحة كاملاً (كان max-w-7xl في المنتصف) وبنفس خلفية/هوامش ولون رأس بقية الصفحات (page-hero)
+    <div dir="rtl" className="min-h-full w-full space-y-4 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950">
+      <div className="page-hero flex flex-col gap-3 rounded-2xl p-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/20"><Sunrise className="h-6 w-6" /></span>
           <div>

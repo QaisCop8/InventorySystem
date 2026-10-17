@@ -1007,6 +1007,69 @@ td {
     color: #475569 !important;
   }
 
+  /* رأس الصفحات الموحّد (الرئيسية، الملخص الصباحي، الأصول الثابتة...): تدرّج زمردي/فيروزي بلون النظام
+     الأساسي (أزرار وحدود emerald-600) بدل ألوان مختلفة لكل صفحة (أسود/أزرق/برتقالي) */
+  .page-hero {
+    background: linear-gradient(to left, #047857 0%, #059669 50%, #0d9488 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 24px -12px rgba(5, 150, 105, 0.45);
+  }
+  .dark .page-hero {
+    background: linear-gradient(to left, #064e3b 0%, #065f46 50%, #115e59 100%);
+    box-shadow: none;
+  }
+
+  /* حقول نماذج الأصول الثابتة (Field في components/fixed-assets/shared.tsx): ارتفاع وزوايا موحّدة لكل
+     الحقول — القوائم المنسدلة (46px بتدرّج) كانت أعلى من المدخلات (40px) وتختلف بين قابلة للمسح وغيرها */
+  .fa-field .invoice-currency-dropdown {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-color: var(--border) !important;
+    border-radius: 10px !important;
+    background: var(--background) !important;
+    box-shadow: none !important;
+  }
+  .fa-field .invoice-currency-dropdown .p-dropdown-label {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding-block: 0 !important;
+    padding-inline: 12px 38px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--foreground) !important;
+  }
+  .fa-field .invoice-currency-dropdown .p-dropdown-label.p-placeholder {
+    color: var(--muted-foreground) !important;
+  }
+  .fa-field .invoice-currency-dropdown .p-dropdown-trigger {
+    width: 36px !important;
+  }
+  .fa-field .invoice-currency-dropdown:not(.p-disabled):hover {
+    border-color: #14b8a6 !important;
+    box-shadow: none !important;
+  }
+  .fa-field .invoice-currency-dropdown.p-focus {
+    border-color: #0d9488 !important;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
+  }
+  .fa-field input:not([type="checkbox"]):not([type="radio"]):not(.p-dropdown input):not(.p-dropdown-panel input) {
+    height: 40px !important;
+    border-radius: 10px !important;
+    border-color: var(--border);
+    font-size: 0.875rem;
+  }
+  .fa-field input:not([type="checkbox"]):not([type="radio"]):not(.p-dropdown input):not(.p-dropdown-panel input):focus-visible,
+  .fa-field textarea:focus-visible {
+    border-color: #0d9488 !important;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15) !important;
+    outline: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+  }
+  .fa-field textarea {
+    border-radius: 10px !important;
+    font-size: 0.875rem;
+  }
+
   .invoice-currency-dropdown-panel {
     border: 1px solid rgba(148, 163, 184, 0.28) !important;
     border-radius: 16px !important;

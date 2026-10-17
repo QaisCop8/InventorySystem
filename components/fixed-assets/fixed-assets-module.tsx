@@ -66,15 +66,15 @@ export default function FixedAssetsModule() {
   const setupMissing = !loading && lookups.categories.length === 0
 
   return <div dir="rtl" className="flex min-h-full flex-col gap-4 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" onKeyDown={enterAsTabKeyDown}>
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-slate-900 via-slate-800 to-teal-900 px-5 py-4 text-white shadow-sm">
+    <header className="page-hero flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4">
       <div className="flex items-center gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><Landmark className="h-6 w-6" /></span>
-        <div><h1 className="text-xl font-black">الأصول الثابتة</h1><p className="text-xs text-slate-300">دفتر فرعي مرتبط بالأستاذ العام: الاقتناء، الإهلاك، النقل، الاستبعاد</p></div>
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/15"><Landmark className="h-6 w-6" /></span>
+        <div><h1 className="text-xl font-black">الأصول الثابتة</h1><p className="text-xs text-emerald-50/85">دفتر فرعي مرتبط بالأستاذ العام: الاقتناء، الإهلاك، النقل، الاستبعاد</p></div>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => { setLoading(true); void load() }}><RefreshCw className="ml-2 h-4 w-4" />تحديث</Button>
         <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" disabled={setupMissing} onClick={() => setInvoiceOpen(true)}><FileInput className="ml-2 h-4 w-4" />من فاتورة مشتريات</Button>
-        <Button className="bg-teal-500 font-bold text-white hover:bg-teal-400" disabled={setupMissing} onClick={() => openAsset(null)}><Plus className="ml-2 h-4 w-4" />أصل جديد</Button>
+        <Button className="bg-white font-bold text-emerald-700 hover:bg-emerald-50" disabled={setupMissing} onClick={() => openAsset(null)}><Plus className="ml-2 h-4 w-4" />أصل جديد</Button>
       </div>
     </header>
 

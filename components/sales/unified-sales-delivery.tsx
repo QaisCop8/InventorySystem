@@ -98,10 +98,12 @@ export const INVOICE_SOURCE_TYPE_OPTIONS = [
   // فاتورة مبيعات فقط: تُفوتر الأصناف من المتبقي في ارسالية برسم البيع (المندوب يُؤخذ منها)
   { label: "من ارسالية برسم البيع", value: 4 },
 ]
+// "أصول" (3) أُزيل من الاختيار بطلب المستخدم (الأصول تُشترى بفاتورة مشتريات ثم تُرسمل من شاشة الأصول الثابتة)،
+// ويبقى ظاهراً فقط لسند محفوظ سابقاً بهذا النوع حتى لا تظهر قيمته فارغة.
+const LEGACY_ASSETS_INVOICE_TYPE = { label: "أصول", value: 3 }
 export const INVOICE_TYPE_OPTIONS = [
   { label: "للتجارة", value: 1 },
   { label: "خدمات", value: 2 },
-  { label: "أصول", value: 3 },
 ]
 const SERVICES_ONLY_ERROR = "نوع الفاتورة خدمات — يمكن اختيار الخدمات فقط"
 export const MAQASA_CODE_OPTIONS = [
@@ -3511,7 +3513,7 @@ export default function UnifiedSalesDelivery({
                   <Label>النوع</Label>
                   <PrimeDropdown
                     value={form.invoice_type || 1}
-                    options={INVOICE_TYPE_OPTIONS}
+                    options={Number(form.invoice_type) === 3 ? [...INVOICE_TYPE_OPTIONS, LEGACY_ASSETS_INVOICE_TYPE] : INVOICE_TYPE_OPTIONS}
                     optionLabel="label"
                     optionValue="value"
                     disabled={isLocked}

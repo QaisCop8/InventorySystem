@@ -115,10 +115,11 @@ export function AccountField({ value, onChange, disabled, clearable = true }: { 
 }
 
 export function Field({ label, htmlFor, children, hint, className, required }: { label: string; htmlFor?: string; children: ReactNode; hint?: string; className?: string; required?: boolean }) {
-  return <div className={cn("grid min-w-0 gap-1.5", className)}>
-    <Label htmlFor={htmlFor} className="text-xs font-bold text-slate-600 dark:text-slate-300">{label}{required && <span className="text-rose-500"> *</span>}</Label>
+  // fa-field: ارتفاع موحّد 40px لكل الحقول (globals.css)؛ content-start حتى لا يتمدد الحقل بارتفاع جاره في الصف
+  return <div className={cn("fa-field grid min-w-0 content-start gap-1.5", className)}>
+    <Label htmlFor={htmlFor} className="text-xs font-semibold text-slate-600 dark:text-slate-300">{label}{required && <span className="text-rose-500"> *</span>}</Label>
     {children}
-    {hint && <p className="text-[11px] leading-5 text-slate-500">{hint}</p>}
+    {hint && <p className="truncate text-[11px] leading-4 text-slate-400" title={hint}>{hint}</p>}
   </div>
 }
 
