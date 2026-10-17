@@ -185,7 +185,8 @@ export default function VoucherAuditReport() {
     </div>
 
     <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
-      <DialogContent dir="rtl" className="max-h-[94vh] max-w-6xl overflow-y-auto">
+      {/* الارتفاع/العرض نسبةً لمساحة العمل الحاوية (لا للشاشة) — 94vh كان يتجاوزها فيُقصّ أسفل النافذة */}
+      <DialogContent dir="rtl" className="max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-6xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader><DialogTitle>أرشيف السند {selected?.vch_code || ""} — {selected ? ACTION_LABELS[selected.action] || selected.action : ""}</DialogTitle></DialogHeader>
         {selected && <AuditDetails row={selected} />}
       </DialogContent>
@@ -221,8 +222,9 @@ function AuditDetails({ row }: { row: AuditRow }) {
 
   const before = detail.before_data
   const after = detail.after_data
-  return <div className="space-y-6">
-    <div className="grid gap-3 rounded-2xl bg-indigo-50 p-4 text-sm sm:grid-cols-4">
+  // @container: الأعمدة تتبع عرض النافذة نفسها لا عرض الشاشة (النافذة داخل مساحة عمل قد تكون أضيق بكثير)
+  return <div className="@container min-w-0 space-y-6">
+    <div className="grid gap-3 rounded-2xl bg-indigo-50 p-4 text-sm @md:grid-cols-2 @3xl:grid-cols-4">
       <div>المستخدم: <b>{detail.user_name || detail.user_id || "-"}</b></div>
       <div>الوقت: <b dir="ltr">{dateTime(detail.created_at)}</b></div>
       <div>نوع السند: <b>{detail.vch_type_name || "-"}</b></div>
@@ -233,7 +235,7 @@ function AuditDetails({ row }: { row: AuditRow }) {
       {before && after && <HeaderDiff before={before.header} after={after.header} />}
       {before && !after && <SnapshotView title={detail.action === "delete" ? "نسخة السند قبل الحذف" : "نسخة السند قبل العملية"} snapshot={before} tone="red" />}
       {!before && after && <SnapshotView title="السند كما حُفظ" snapshot={after} tone="emerald" />}
-      {before && after && <div className="grid gap-4 xl:grid-cols-2">
+      {before && after && <div className="grid gap-4 @5xl:grid-cols-2">
         <SnapshotView title="قبل التعديل" snapshot={before} tone="red" hideHeader />
         <SnapshotView title="بعد التعديل" snapshot={after} tone="emerald" hideHeader />
       </div>}
@@ -261,14 +263,14 @@ function HeaderDiff({ before, after }: { before: Record<string, any>; after: Rec
   if (!keys.length) return <p className="rounded-xl border bg-slate-50 p-3 text-sm text-muted-foreground">لا تغيير على بيانات رأس السند — راجع الأصناف/القيد أدناه.</p>
   return <div>
     <h3 className="mb-2 font-bold">الحقول التي تغيّرت</h3>
-    <table className="w-full text-sm">
+    <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-sm">
       <thead className="bg-slate-100"><tr><th className="p-2 text-right">الحقل</th><th className="p-2 text-right">قبل</th><th className="p-2 text-right">بعد</th></tr></thead>
       <tbody>{keys.map(key => <tr key={key} className="border-t">
         <td className="p-2 font-semibold">{HEADER_LABELS[key] || key}</td>
         <td className="p-2 text-red-700 line-through decoration-red-300">{show(key, before?.[key]) || "—"}</td>
         <td className="p-2 font-semibold text-emerald-700">{show(key, after?.[key]) || "—"}</td>
       </tr>)}</tbody>
-    </table>
+    </table></div>
   </div>
 }
 
@@ -282,14 +284,14 @@ function SnapshotView({ title, snapshot, tone, hideHeader = false }: { title: st
   const header = snapshot.header || {}
   const headerKeys = Object.keys(header).filter(key => !HIDDEN_HEADER.has(key) && show(key, header[key]) !== "")
   const itemColumns = ITEM_COLUMNS.filter(([keys]) => (snapshot.items || []).some(item => pick(item, keys) !== ""))
-  return <div className={`rounded-2xl border-2 p-4 ${tone === "red" ? "border-red-200 bg-red-50/30" : "border-emerald-200 bg-emerald-50/30"}`}>
+  return <div className={`min-w-0 rounded-2xl border-2 p-3 @md:p-4 ${tone === "red" ? "border-red-200 bg-red-50/30" : "border-emerald-200 bg-emerald-50/30"}`}>
     <h3 className="mb-3 flex items-center gap-2 font-bold"><Copy className="h-4 w-4" />{title}</h3>
-    {!hideHeader && <div className="mb-4 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+    {!hideHeader && <div className="mb-4 grid gap-x-4 gap-y-1 text-sm @md:grid-cols-2 @3xl:grid-cols-3">
       {headerKeys.map(key => <div key={key} className="flex gap-2"><span className="text-muted-foreground">{HEADER_LABELS[key] || key}:</span><b className="break-all">{show(key, header[key])}</b></div>)}
     </div>}
     {(snapshot.items || []).length > 0 && <>
       <h4 className="mb-1 text-sm font-bold">الأصناف ({snapshot.items.length})</h4>
-      <div className="overflow-x-auto"><table className="w-full text-xs">
+      <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-xs">
         <thead className="bg-white/70"><tr><th className="p-1.5 text-right">#</th>{itemColumns.map(([, label]) => <th key={label} className="p-1.5 text-right">{label}</th>)}</tr></thead>
         <tbody>{snapshot.items.map((item, index) => <tr key={item.id ?? index} className="border-t">
           <td className="p-1.5">{index + 1}</td>
@@ -299,7 +301,7 @@ function SnapshotView({ title, snapshot, tone, hideHeader = false }: { title: st
     </>}
     {(snapshot.journal || []).length > 0 && <>
       <h4 className="mb-1 mt-3 text-sm font-bold">القيد المحاسبي</h4>
-      <div className="overflow-x-auto"><table className="w-full text-xs">
+      <div className="overflow-x-auto"><table className="w-full min-w-[480px] text-xs">
         <thead className="bg-white/70"><tr><th className="p-1.5 text-right">الحساب</th><th className="p-1.5 text-right">مدين</th><th className="p-1.5 text-right">دائن</th><th className="p-1.5 text-right">ملاحظة</th></tr></thead>
         <tbody>{(snapshot.journal || []).map((line, index) => <tr key={line.id ?? index} className="border-t">
           <td className="p-1.5">{[line.account_code, line.account_name].filter(Boolean).join(" - ") || line.account_id}</td>
