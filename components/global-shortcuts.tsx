@@ -45,14 +45,7 @@ export function GlobalShortcuts() {
               description: "تم فتح شاشة طلبيات المشتريات",
             })
             break
-          case "s":
-            event.preventDefault()
-            router.push("/products")
-            toast({
-              title: "الأصناف",
-              description: "تم فتح شاشة الأصناف",
-            })
-            break
+          // Ctrl+S (فتح الأصناف) أُزيل بطلب المستخدم — Ctrl+S داخل الحركات = حفظ (lib/hotkeys.ts)
         }
       } else if (altKey && !ctrlKey) {
         switch (key.toLowerCase()) {
@@ -65,15 +58,7 @@ export function GlobalShortcuts() {
               description: "تم فتح شاشة البحث",
             })
             break
-          case "s":
-            event.preventDefault()
-            const productEvent = new CustomEvent("openProductSearch")
-            window.dispatchEvent(productEvent)
-            toast({
-              title: "البحث عن الأصناف",
-              description: "تم فتح شاشة البحث",
-            })
-            break
+          // Alt+S (بحث الأصناف) أُزيل بطلب المستخدم — يُفتح البحث من أزراره فقط
         }
       }
     },
@@ -96,9 +81,7 @@ export function ShortcutsHelp() {
     { key: "Ctrl + K", description: "البحث الشامل في النظام" },
     { key: "Ctrl + O", description: "طلبية المبيعات" },
     { key: "Ctrl + T", description: "طلبية المشتريات" },
-    { key: "Ctrl + S", description: "شاشة الأصناف" },
     { key: "Alt + T", description: "البحث عن العملاء والموردين" },
-    { key: "Alt + S", description: "البحث عن الأصناف" },
   ]
 
   return (

@@ -64,10 +64,6 @@ const data = {
       icon: Package,
       items: [
         {
-          title: "إدارة الأصناف",
-          url: "/products",
-        },
-        {
           title: "مجموعات الأصناف",
           url: "/product-groups",
         },

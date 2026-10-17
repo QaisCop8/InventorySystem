@@ -25,17 +25,6 @@ const NEGATIVE_BALANCE_SIGN_OPTIONS = [
   { value: "debit", label: "الرصيد المدين" },
 ]
 
-const ITEM_QUANTITY_UNIT_OPTIONS = [
-  { value: "decimal", label: "عشري" },
-  { value: "integer", label: "عدد صحيح" },
-]
-
-const HAZARDOUS_MATERIALS_WARNING_OPTIONS = [
-  { value: "disabled", label: "تعطيل تنبيهات الحركات على المواد الخطرة" },
-  { value: "warn", label: "تحذير المستخدم في الحركات عند تحريك مواد خطرة" },
-  { value: "block", label: "منع المستخدم من تحريك مواد خطرة (يتم التجاوز بصلاحية رقم 808)" },
-]
-
 const GENERAL_ITEM_COST_METHOD_OPTIONS = [
   { value: "last_purchase_price", label: "اخر سعر شراء" },
   { value: "average_price", label: "متوسط الأسعار" },
@@ -76,8 +65,6 @@ interface VouchersGeneralSettingsState {
   decimalPlacesCount: number
   showThousandsSeparator: boolean
   negativeBalanceSign: string
-  defaultItemQuantityUnit: string
-  hazardousMaterialsWarningMode: string
   itemGroupMandatory: boolean
   stockVoucherItemCostMethod: number | null
   generalItemCostMethod: string
@@ -107,8 +94,6 @@ const defaultSettings: VouchersGeneralSettingsState = {
   decimalPlacesCount: 3,
   showThousandsSeparator: false,
   negativeBalanceSign: "credit",
-  defaultItemQuantityUnit: "decimal",
-  hazardousMaterialsWarningMode: "disabled",
   itemGroupMandatory: false,
   stockVoucherItemCostMethod: null,
   generalItemCostMethod: "last_purchase_price",
@@ -192,9 +177,6 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         decimalPlacesCount: Number(payload.decimal_places_count ?? prev.decimalPlacesCount),
         showThousandsSeparator: Boolean(payload.show_thousands_separator ?? prev.showThousandsSeparator),
         negativeBalanceSign: payload.negative_balance_sign || prev.negativeBalanceSign,
-        defaultItemQuantityUnit: payload.default_item_quantity_unit || prev.defaultItemQuantityUnit,
-        hazardousMaterialsWarningMode:
-          payload.hazardous_materials_warning_mode || prev.hazardousMaterialsWarningMode,
         itemGroupMandatory: Boolean(payload.item_group_mandatory ?? prev.itemGroupMandatory),
         stockVoucherItemCostMethod:
           payload.stock_voucher_item_cost_method !== undefined && payload.stock_voucher_item_cost_method !== null && payload.stock_voucher_item_cost_method !== ""
@@ -271,8 +253,6 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
           decimal_places_count: settings.decimalPlacesCount,
           show_thousands_separator: settings.showThousandsSeparator,
           negative_balance_sign: settings.negativeBalanceSign,
-          default_item_quantity_unit: settings.defaultItemQuantityUnit,
-          hazardous_materials_warning_mode: settings.hazardousMaterialsWarningMode,
           item_group_mandatory: settings.itemGroupMandatory,
           stock_voucher_item_cost_method: settings.stockVoucherItemCostMethod,
           general_item_cost_method: settings.generalItemCostMethod,
@@ -502,36 +482,6 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
               <ChevronDown className={`h-4 w-4 transition-transform ${itemsOpen ? "-rotate-180" : ""}`} />
             </CollapsibleTrigger>
             <CollapsibleContent className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
-              <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">وحدة عد كميات الصنف</span>
-                <PrimeDropdown
-                  value={settings.defaultItemQuantityUnit}
-                  options={ITEM_QUANTITY_UNIT_OPTIONS}
-                  optionLabel="label"
-                  optionValue="value"
-                  className="invoice-currency-dropdown w-full"
-                  panelClassName="invoice-currency-dropdown-panel"
-                  appendTo="self"
-                  panelStyle={{ zIndex: 10000 }}
-                  onChange={(e: any) => setSettings((s) => ({ ...s, defaultItemQuantityUnit: e.value }))}
-                />
-              </div>
-
-              <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">تفعيل محاذير المواد الخطرة</span>
-                <PrimeDropdown
-                  value={settings.hazardousMaterialsWarningMode}
-                  options={HAZARDOUS_MATERIALS_WARNING_OPTIONS}
-                  optionLabel="label"
-                  optionValue="value"
-                  className="invoice-currency-dropdown w-full"
-                  panelClassName="invoice-currency-dropdown-panel"
-                  appendTo="self"
-                  panelStyle={{ zIndex: 10000 }}
-                  onChange={(e: any) => setSettings((s) => ({ ...s, hazardousMaterialsWarningMode: e.value }))}
-                />
-              </div>
-
               <label className="flex items-center gap-3 cursor-pointer">
                 <Checkbox
                   checked={settings.itemGroupMandatory}

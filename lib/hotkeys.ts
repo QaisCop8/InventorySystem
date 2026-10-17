@@ -132,7 +132,8 @@ function onKeyDown(event: KeyboardEvent) {
   const target = activeEntry()
   if (!target) {
     // نافذة منبثقة مفتوحة: لا اختصارات للشاشة، لكن يُمنع سلوك المتصفح (طباعة/تحديث الصفحة)
-    if (action === "print" || action === "new") event.preventDefault()
+    // Ctrl+S خارج شاشة حركة: لا شيء (ولا نافذة "حفظ الصفحة" للمتصفح)
+    if (action === "print" || action === "new" || action === "save") event.preventDefault()
     // صفحة قائمة الحركات (لا شاشة حركة مفتوحة): F5 = زر "إضافة ..." المعلَّم data-hotkey-new في الصفحة الظاهرة
     if (action === "new" && !event.repeat) {
       const button = listAddButton()

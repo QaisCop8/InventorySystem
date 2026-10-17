@@ -38,7 +38,7 @@ export function comboFromEvent(event: KeyboardEvent | ReactKeyboardEvent): strin
 const APP_RESERVED: Record<string, string> = {
   F2: "البحث داخل الشاشات", F3: "حفظ", F4: "نسخ", F5: "جديد", F6: "استعلام", F9: "حذف",
   "Ctrl+S": "حفظ", "Ctrl+P": "طباعة", "Ctrl+K": "البحث الشامل", "Ctrl+O": "طلبيات المبيعات",
-  "Alt+T": "البحث عن العملاء والموردين", "Alt+S": "البحث عن الأصناف",
+  "Alt+T": "البحث عن العملاء والموردين",
   "Ctrl+C": "نسخ النص", "Ctrl+V": "لصق", "Ctrl+X": "قص", "Ctrl+Z": "تراجع", "Ctrl+Y": "إعادة", "Ctrl+A": "تحديد الكل",
 }
 // يُنفّذها Chrome نفسه قبل أن تصل للصفحة (لا يمكن لأي موقع منعها) — بقية اختصارات المتصفح تُلغى عند تعيينها لصفحة
