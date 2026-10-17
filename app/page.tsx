@@ -14,6 +14,8 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
 import { activateCompany } from "@/lib/tenant-client"
 import { SECTION_TITLES } from "@/components/sidebar"
+// تبويب فُتح من المساعد الذكي (?handoff=): ينقل بياناته إلى sessionStorage قبل تركيب أي شاشة
+import "@/lib/new-tab-handoff"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { WorkspacePane } from "@/components/workspace/workspace-pane"
 import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"

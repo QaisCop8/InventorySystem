@@ -6,7 +6,8 @@ import { useAuth } from "@/components/auth/auth-context"
 import { saveAIReceiptDraft } from "@/lib/ai-receipt-direct-save"
 import { voucherHref } from "@/lib/voucher-links"
 import { cn } from "@/lib/utils"
-import { storeVoucherPrefill, type VoucherPrefill } from "@/lib/ai-voucher-prefill"
+import { voucherPrefillSessionItems, type VoucherPrefill } from "@/lib/ai-voucher-prefill"
+import { openSectionInNewTab } from "@/lib/new-tab-handoff"
 import { saveAIJournalDraft } from "@/lib/ai-journal-direct-save"
 import {
   Paperclip,
@@ -225,14 +226,17 @@ export function AIChat() {
   const openVoucher = (link: NonNullable<Message["voucherLink"]>) => openInNewTab(link.id, link.voucherType)
 
   const openDocument = (link: NonNullable<Message["documentLink"]>) => {
-    // طلب البضاعة الداخلي يدعم رابط السند المباشر؛ مسودة الطلبية تُفتح داخل التطبيق كما كانت
+    // طلب البضاعة الداخلي وسند القيد يدعمان رابط السند المباشر
     if (link.section === "internal-manufacturing-request" && link.id) {
       openInNewTab(link.id, 20)
       return
     }
-    sessionStorage.setItem("ai_open_document", JSON.stringify(link))
-    window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: link.section } }))
-    window.setTimeout(() => window.dispatchEvent(new CustomEvent("ai-open-document")), 0)
+    if (link.section === "journal-vouchers" && link.id) {
+      openInNewTab(link.id, 1)
+      return
+    }
+    // بقية المستندات (مسودة طلبية...) ⇐ تبويب جديد يستلم المستند عبر sessionStorage (ai_open_document)
+    openSectionInNewTab(link.section, { ai_open_document: JSON.stringify(link) })
   }
 
   // ── مرفق: صورة/PDF لفاتورة مبيعات أو مشتريات أو سند قبض/صرف ──────────────────────
@@ -340,10 +344,9 @@ export function AIChat() {
     if (continueWith) void handleSubmit(continueWith, { appendUser: false, command: continueWith })
   }
 
-  const openInvoicePrefill = (prefill: VoucherPrefill) => {
-    storeVoucherPrefill(prefill)
-    window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: prefill.vch_type === 17 ? "purchase-invoices" : "sales-invoices" } }))
-  }
+  // الفاتورة المعبّأة تُفتح في تبويب متصفح جديد (تبقى المحادثة كما هي) — شاشة الفاتورة تقرأ المعبّأ عند فتحها
+  const openInvoicePrefill = (prefill: VoucherPrefill) =>
+    openSectionInNewTab(prefill.vch_type === 17 ? "purchase-invoices" : "sales-invoices", voucherPrefillSessionItems(prefill))
 
   const handleSubmit = async (question?: string, options?: { appendUser?: boolean; command?: string }) => {
     const messageText = question || input

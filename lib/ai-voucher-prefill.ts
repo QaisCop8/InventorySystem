@@ -18,6 +18,11 @@ const KEY = "ai-voucher-prefill"
 const TTL_MS = 10 * 60_000
 export const VOUCHER_PREFILL_EVENT = "ai-voucher-prefill"
 
+/** نفس قيمة sessionStorage التي يقرؤها peekVoucherPrefill — لتمريرها لتبويب جديد (lib/new-tab-handoff) */
+export function voucherPrefillSessionItems(prefill: VoucherPrefill): Record<string, string> {
+  return { [KEY]: JSON.stringify({ ...prefill, created_at: Date.now() }) }
+}
+
 export function storeVoucherPrefill(prefill: VoucherPrefill) {
   try { sessionStorage.setItem(KEY, JSON.stringify({ ...prefill, created_at: Date.now() })) } catch { /* ignore */ }
   window.dispatchEvent(new CustomEvent(VOUCHER_PREFILL_EVENT, { detail: { vch_type: prefill.vch_type } }))
