@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BadgePercent, CalendarRange, Gift, Pause, Pencil, Play, Plus, RefreshCw, Search, Tag, Trash2, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -116,7 +117,7 @@ export default function Promotions() {
     catch (error) { toast({ title: "تعذر التحديث", description: error instanceof Error ? error.message : "", variant: "destructive" }) }
   }
   const remove = async (row: PromotionRow) => {
-    if (!window.confirm(`حذف العرض «${row.name}»؟`)) return
+    if (!(await confirmYesNo(`حذف العرض «${row.name}»؟`))) return
     try { await api(`/api/promotions/${row.id}`, { method: "DELETE" }); await load() }
     catch (error) { toast({ title: "تعذر الحذف", description: error instanceof Error ? error.message : "", variant: "destructive" }) }
   }

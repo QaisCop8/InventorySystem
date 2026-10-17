@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -458,7 +459,7 @@ export default function Suppliers() {
 
   const handleDeleteSupplier = useCallback(
     async (supplierId: number) => {
-      if (!confirm("هل أنت متأكد من حذف هذا المورد؟")) return
+      if (!(await confirmYesNo("هل أنت متأكد من حذف هذا المورد؟"))) return
 
       try {
         const response = await fetch(`/api/suppliers/${supplierId}`, {

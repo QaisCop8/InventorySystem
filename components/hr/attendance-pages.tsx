@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -66,7 +67,7 @@ export function AttendanceDevicesPage() {
     setSaving(false)
   }
   const remove = async () => {
-    if (!form.id || !window.confirm("هل تريد حذف الجهاز؟")) return
+    if (!form.id || !(await confirmYesNo("هل تريد حذف الجهاز؟"))) return
     const response = await fetch(`/api/hr/attendance-devices?id=${form.id}`, { method: "DELETE" })
     if (response.ok) { await load(); setOpen(false); setForm(emptyDevice) } else setMessage((await response.json()).error || "تعذر حذف الجهاز")
   }

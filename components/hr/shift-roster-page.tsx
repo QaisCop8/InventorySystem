@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -252,10 +253,10 @@ function ShiftTemplates() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر الحفظ") } finally { setSaving(false) }
   }
   const remove = async (row: Shift) => {
-    if (!window.confirm(`حذف الوردية ${row.name}؟`)) return
+    if (!(await confirmYesNo(`حذف الوردية ${row.name}؟`))) return
     const response = await fetch(`/api/hr/shift-templates?id=${row.id}`, { method: "DELETE" })
     const data = await response.json()
-    if (data.message) window.alert(data.message)
+    if (data.message) showAlert(data.message)
     await load()
   }
   const overnight = form.end_time <= form.start_time

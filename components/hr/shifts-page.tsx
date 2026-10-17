@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -45,7 +46,7 @@ export function ShiftsPage() {
     if (response.ok) { await load(); setShiftOpen(false); setShiftForm(emptyShift) } else setMessage((await response.json()).error || "تعذر حفظ الوردية")
   }
   const deleteShift = async () => {
-    if (!shiftForm.id || !window.confirm("هل تريد حذف الوردية؟")) return
+    if (!shiftForm.id || !(await confirmYesNo("هل تريد حذف الوردية؟"))) return
     const response = await fetch(`/api/hr/shifts?id=${shiftForm.id}`, { method: "DELETE" })
     if (response.ok) { await load(); setShiftOpen(false); setShiftForm(emptyShift) } else setMessage((await response.json()).error || "تعذر حذف الوردية")
   }

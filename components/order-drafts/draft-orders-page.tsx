@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { useEffect, useMemo, useState } from "react"
 import { DraftOrderForm } from "./draft-order-form"
 import { Button } from "@/components/ui/button"
@@ -66,9 +67,9 @@ export function DraftOrdersPage() {
   const statusLabel = (draft: any) => draft.status === "confirmed" && draft.confirmed_order_id ? "جاهز" : draft.status === "cancelled" ? "ملغاة" : "مسودة"
   const createNew = () => { setEditingDraft(null); setReadOnly(false); setOpen(true) }
   const removeDraft = async (draft: any) => {
-    if (!confirm(`هل تريد حذف المسودة ${draft.draft_number}؟`)) return
+    if (!(await confirmYesNo(`هل تريد حذف المسودة ${draft.draft_number}؟`))) return
     const response = await fetch(`/api/order-drafts/${draft.id}`, { method: "DELETE" })
-    if (!response.ok) { const result = await response.json(); alert(result.error || "تعذر حذف المسودة"); return }
+    if (!response.ok) { const result = await response.json(); showAlert(result.error || "تعذر حذف المسودة"); return }
     void load()
   }
 

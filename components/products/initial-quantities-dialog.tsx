@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -142,7 +143,7 @@ export function InitialQuantitiesDialog({
   const handleSave = async () => {
     const errors = validateQuantities()
     if (errors.length > 0) {
-      alert("يرجى تصحيح الأخطاء التالية:\n" + errors.join("\n"))
+      showAlert("يرجى تصحيح الأخطاء التالية:\n" + errors.join("\n"))
       return
     }
 
@@ -189,7 +190,7 @@ export function InitialQuantitiesDialog({
       onOpenChange(false)
     } catch (error) {
       console.error("Error saving initial quantities:", error)
-      alert("حدث خطأ في حفظ الكميات الابتدائية")
+      showAlert("حدث خطأ في حفظ الكميات الابتدائية")
     } finally {
       setIsSaving(false)
     }

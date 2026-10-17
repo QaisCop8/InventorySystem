@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -190,7 +191,7 @@ export function BatchReports() {
       }
     } catch (error) {
       console.error("Error exporting report:", error)
-      alert("فشل في تصدير التقرير")
+      showAlert("فشل في تصدير التقرير")
     }
   }
 

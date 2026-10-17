@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -597,7 +598,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         const data = await response.json()
         console.log("[v0] Notification settings saved successfully:", data)
         setNotificationSettings(data.settings)
-        alert("تم حفظ إعدادات الإشعارات بنجاح")
+        showAlert("تم حفظ إعدادات الإشعارات بنجاح")
       } else {
         const errorData = await response.json()
         console.error("[v0] Error saving notification settings:", errorData)

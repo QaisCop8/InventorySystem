@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { SearchButton } from "@/components/search/search-button"
 import { useState, useEffect } from "react"
@@ -91,7 +92,7 @@ export function StockMovements() {
     e.preventDefault()
 
     if (!formData.product_id || !formData.quantity) {
-      alert("يرجى ملء جميع الحقول المطلوبة")
+      showAlert("يرجى ملء جميع الحقول المطلوبة")
       return
     }
 
@@ -124,13 +125,13 @@ export function StockMovements() {
           notes: "",
         })
         fetchMovements()
-        alert("تم إضافة حركة المخزون بنجاح")
+        showAlert("تم إضافة حركة المخزون بنجاح")
       } else {
         throw new Error("فشل في إضافة حركة المخزون")
       }
     } catch (error) {
       console.error("Error creating movement:", error)
-      alert("حدث خطأ في إضافة حركة المخزون")
+      showAlert("حدث خطأ في إضافة حركة المخزون")
     }
   }
 
@@ -170,7 +171,7 @@ export function StockMovements() {
 
   const handleMovementSelect = (movement: StockMovement) => {
     // عرض تفاصيل الحركة أو فتح نافذة التعديل
-    alert(`تم اختيار الحركة: ${movement.product_name} - ${movement.transaction_type}`)
+    showAlert(`تم اختيار الحركة: ${movement.product_name} - ${movement.transaction_type}`)
   }
 
   useEffect(() => {

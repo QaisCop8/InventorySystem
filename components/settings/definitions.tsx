@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 
@@ -423,7 +424,7 @@ function Definitions() {
     e.preventDefault()
     if (!taxClassificationForm.name.trim()) return
     if (Number(taxClassificationForm.tax_percent) > 100) {
-      alert('قيمة الضريبة يجب أن لا تتجاوز 100')
+      showAlert('قيمة الضريبة يجب أن لا تتجاوز 100')
       return
     }
     try {
@@ -1125,7 +1126,7 @@ function Definitions() {
       const result = await res.json()
 
       if (!res.ok) {
-        alert(result.error || "حدث خطأ")
+        showAlert(result.error || "حدث خطأ")
         return
       }
 
@@ -1149,7 +1150,7 @@ function Definitions() {
       setCurrentUnitIndex(units.length) // select the new unit
     } catch (err) {
       console.error(err)
-      alert("فشل حفظ الوحدة")
+      showAlert("فشل حفظ الوحدة")
     }
   }
 
@@ -1387,7 +1388,7 @@ function Definitions() {
       const result = await res.json()
 
       if (!res.ok) {
-        alert(result.error || "حدث خطأ")
+        showAlert(result.error || "حدث خطأ")
         return
       }
 
@@ -1407,7 +1408,7 @@ function Definitions() {
       setCurrentPriceIndex(prices.length)
     } catch (err) {
       console.error(err)
-      alert("فشل حفظ فئة السعر")
+      showAlert("فشل حفظ فئة السعر")
     }
   }
 

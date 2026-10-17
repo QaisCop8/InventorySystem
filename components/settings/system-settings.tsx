@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -658,8 +659,8 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
     }
   }
 
-  const handleReset = () => {
-    if (confirm("هل أنت متأكد من إعادة تعيين جميع الإعدادات؟")) {
+  const handleReset = async () => {
+    if ((await confirmYesNo("هل أنت متأكد من إعادة تعيين جميع الإعدادات؟"))) {
       setSettings({
         companyName: "",
         companyNameEn: "",

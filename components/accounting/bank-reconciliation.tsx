@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ArrowRight, Banknote, CheckCircle2, FileSpreadsheet, Link2, Lock, LockOpen, Plus, RefreshCw, Search, Sparkles, Trash2, Unlink, Upload, Wand2, X,
@@ -250,7 +251,7 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
   }
 
   const remove = async () => {
-    if (!window.confirm("حذف التسوية وكل أسطر الكشف ومطابقاتها؟ (قيود التسوية المنشأة تبقى)")) return
+    if (!(await confirmYesNo("حذف التسوية وكل أسطر الكشف ومطابقاتها؟ (قيود التسوية المنشأة تبقى)"))) return
     setBusy(true)
     try {
       await api(`/api/bank-reconciliations/${id}`, { method: "DELETE" })
@@ -388,8 +389,8 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
           <Button variant="outline" onClick={() => void exportExcel()}><FileSpreadsheet className="ml-2 h-4 w-4" />تصدير Excel</Button>
           {locked
             ? <Button variant="outline" onClick={() => void run({ action: "reopen" })} disabled={busy}><LockOpen className="ml-2 h-4 w-4" />إعادة فتح</Button>
-            : <Button onClick={() => {
-                if (!balanced && !window.confirm(`يوجد فرق ${fmt(s.difference)} — إقفال التسوية رغم الفرق؟`)) return
+            : <Button onClick={async () => {
+                if (!balanced && !(await confirmYesNo(`يوجد فرق ${fmt(s.difference)} — إقفال التسوية رغم الفرق؟`))) return
                 void run({ action: "finalize", force: !balanced })
               }} disabled={busy} className={balanced ? "bg-emerald-600 hover:bg-emerald-700" : ""}><Lock className="ml-2 h-4 w-4" />إقفال التسوية</Button>}
           {!locked && <Button variant="outline" className="text-rose-600" onClick={() => void remove()} disabled={busy}><Trash2 className="h-4 w-4" /></Button>}
@@ -459,9 +460,9 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
           <span>المختار من الدفاتر: <b className="font-mono">{fmt(selectedTotal)}</b> ({selectedBook.size})</span>
           <span className={same(matchDifference, 0) ? "text-emerald-700" : "text-rose-600"}>الفرق: <b className="font-mono">{fmt(matchDifference)}</b></span>
           <div className="mr-auto flex gap-2">
-            <Button size="sm" disabled={busy || !selectedBook.size} onClick={() => {
+            <Button size="sm" disabled={busy || !selectedBook.size} onClick={async () => {
               const force = !same(matchDifference, 0)
-              if (force && !window.confirm(`المبلغان غير متساويين (الفرق ${fmt(matchDifference)}). المطابقة رغم الفرق؟`)) return
+              if (force && !(await confirmYesNo(`المبلغان غير متساويين (الفرق ${fmt(matchDifference)}). المطابقة رغم الفرق؟`))) return
               void run({ action: "match", statement_line_id: currentLine.id, journal_detail_ids: [...selectedBook], force })
             }}>مطابقة</Button>
             <Button size="sm" variant="outline" onClick={() => setJournalFor(currentLine)} disabled={busy}>تسجيل قيد</Button>
@@ -499,7 +500,7 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
                   <button type="button" title="فك المطابقة" className="shrink-0 text-slate-400 hover:text-rose-600" onClick={(event) => { event.stopPropagation(); void run({ action: "unmatch", statement_line_id: line.id }) }}><Unlink className="h-4 w-4" /></button>
                 )}
                 {!locked && !line.matched && (
-                  <button type="button" title="حذف السطر" className="shrink-0 text-slate-300 hover:text-rose-600" onClick={(event) => { event.stopPropagation(); if (window.confirm("حذف سطر الكشف؟")) void run({ action: "delete_line", statement_line_id: line.id }, { quiet: true }) }}><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" title="حذف السطر" className="shrink-0 text-slate-300 hover:text-rose-600" onClick={async (event) => { event.stopPropagation(); if ((await confirmYesNo("حذف سطر الكشف؟"))) void run({ action: "delete_line", statement_line_id: line.id }, { quiet: true }) }}><Trash2 className="h-3.5 w-3.5" /></button>
                 )}
               </div>
             ))}

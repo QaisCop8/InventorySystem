@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -206,11 +207,11 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
       } else {
         const errorData = await response.json()
         console.error("[v0] Error saving batch data:", errorData)
-        alert("خطأ في حفظ بيانات الدفعة: " + (errorData.error || "خطأ غير معروف"))
+        showAlert("خطأ في حفظ بيانات الدفعة: " + (errorData.error || "خطأ غير معروف"))
       }
     } catch (error) {
       console.error("[v0] Error saving batch data:", error)
-      alert("حدث خطأ في حفظ بيانات الدفعة")
+      showAlert("حدث خطأ في حفظ بيانات الدفعة")
     }
 
     setEditingIndex(null)

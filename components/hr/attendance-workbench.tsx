@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -501,7 +502,7 @@ export function AttendanceTransactionsPage() {
     if (response.ok) { await load(); setMessage({ text: status === "approved" ? "تم اعتماد الحركات المحددة" : status === "rejected" ? "تم رفض الحركات المحددة" : "أُعيدت لقيد الاعتماد", tone: "success" }) } else setMessage({ text: (await response.json()).error || "تعذر التحديث", tone: "error" })
   }
   const remove = async (row: any) => {
-    if (!window.confirm("حذف الحركة؟")) return
+    if (!(await confirmYesNo("حذف الحركة؟"))) return
     const response = await fetch(`/api/hr/attendance-transactions?id=${row.id}`, { method: "DELETE" })
     if (response.ok) await load(); else setMessage({ text: (await response.json()).error || "تعذر الحذف", tone: "error" })
   }

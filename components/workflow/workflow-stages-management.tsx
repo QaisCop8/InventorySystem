@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -134,11 +135,11 @@ export function WorkflowStagesManagement() {
         resetForm()
         setShowForm(false)
       } else {
-        alert(result.error || "حدث خطأ أثناء الحفظ")
+        showAlert(result.error || "حدث خطأ أثناء الحفظ")
       }
     } catch (error) {
       console.error("Error saving stage:", error)
-      alert("حدث خطأ أثناء الحفظ")
+      showAlert("حدث خطأ أثناء الحفظ")
     } finally {
       setSaving(false)
     }
@@ -146,7 +147,7 @@ export function WorkflowStagesManagement() {
 
   // حذف المرحلة
   const handleDelete = async (stageId: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذه المرحلة؟")) return
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذه المرحلة؟"))) return
 
     try {
       const response = await fetch(`/api/workflow/stages/${stageId}`, {
@@ -158,11 +159,11 @@ export function WorkflowStagesManagement() {
       if (response.ok) {
         await fetchStages()
       } else {
-        alert(result.error || "حدث خطأ أثناء الحذف")
+        showAlert(result.error || "حدث خطأ أثناء الحذف")
       }
     } catch (error) {
       console.error("Error deleting stage:", error)
-      alert("حدث خطأ أثناء الحذف")
+      showAlert("حدث خطأ أثناء الحذف")
     }
   }
 

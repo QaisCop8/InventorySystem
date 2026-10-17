@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -801,7 +802,7 @@ function UnifiedPurchaseOrder({
       throw new Error("لا توجد طلبية محددة للحذف")
     }
 
-    if (!confirm("هل أنت متأكد من حذف هذه الطلبية؟")) {
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذه الطلبية؟"))) {
       throw new Error("تم إلغاء العملية")
     }
 
@@ -889,7 +890,7 @@ function UnifiedPurchaseOrder({
       updateRecord({ ...formData, items: orderItems })
       setState(prev => ({ ...prev, formData, orderItems, currentRecordId: record.id }))
     } catch (reason) {
-      alert(reason instanceof Error ? reason.message : "تعذر التنقل بين الطلبيات")
+      showAlert(reason instanceof Error ? reason.message : "تعذر التنقل بين الطلبيات")
     } finally {
       navigationPending.current = false
       setNavigationLoading(false)
@@ -935,7 +936,7 @@ function UnifiedPurchaseOrder({
       }
 
       await saveRecord(currentOrderForNavigation, isNewRecord)
-      alert("تم حفظ الطلبية بنجاح")
+      showAlert("تم حفظ الطلبية بنجاح")
 
       if (isNewRecord) {
         if (onOpenChange) {
@@ -946,7 +947,7 @@ function UnifiedPurchaseOrder({
       }
     } catch (err: any) {
       console.error("Error saving purchase order:", err)
-      alert(err.message || "حدث خطأ أثناء حفظ البيانات")
+      showAlert(err.message || "حدث خطأ أثناء حفظ البيانات")
     } finally {
       setState((prev) => ({ ...prev, isSaving: false }))
     }
@@ -956,7 +957,7 @@ function UnifiedPurchaseOrder({
     setState((prev) => ({ ...prev, isDeleting: true }))
     try {
       await deleteRecord()
-      alert("تم حذف الطلبية بنجاح")
+      showAlert("تم حذف الطلبية بنجاح")
 
       if (onOpenChange) {
         onOpenChange(false)
@@ -965,7 +966,7 @@ function UnifiedPurchaseOrder({
       }
     } catch (err: any) {
       console.error("Error deleting purchase order:", err)
-      alert(err.message || "حدث خطأ أثناء حذف البيانات")
+      showAlert(err.message || "حدث خطأ أثناء حذف البيانات")
     } finally {
       setState((prev) => ({ ...prev, isDeleting: false }))
     }

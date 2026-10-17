@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -170,7 +171,7 @@ export default function ProductCategoriesPage() {
 
       const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع"
 
-      alert(`خطأ في ${editingCategory ? "تحديث" : "إنشاء"} التصنيف: ${message}`)
+      showAlert(`خطأ في ${editingCategory ? "تحديث" : "إنشاء"} التصنيف: ${message}`)
     }
   }
 
@@ -196,7 +197,7 @@ export default function ProductCategoriesPage() {
   }
 
   const handleDelete = async (categoryId: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا التصنيف؟")) {
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا التصنيف؟"))) {
       return
     }
 
@@ -213,7 +214,7 @@ export default function ProductCategoriesPage() {
 
       const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع"
 
-      alert(`خطأ في حذف التصنيف: ${message}`)
+      showAlert(`خطأ في حذف التصنيف: ${message}`)
     }
   }
 
@@ -235,7 +236,7 @@ export default function ProductCategoriesPage() {
 
       const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع"
 
-      alert(`خطأ في تغيير حالة التصنيف: ${message}`)
+      showAlert(`خطأ في تغيير حالة التصنيف: ${message}`)
     }
 
   }

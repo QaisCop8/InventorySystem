@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -95,11 +96,11 @@ export default function WorkflowFlexibilitySettings() {
       })
 
       if (response.ok) {
-        alert("تم حفظ الإعدادات بنجاح")
+        showAlert("تم حفظ الإعدادات بنجاح")
       }
     } catch (error) {
       console.error("Error saving workflow settings:", error)
-      alert("حدث خطأ في حفظ الإعدادات")
+      showAlert("حدث خطأ في حفظ الإعدادات")
     } finally {
       setSaving(false)
     }
@@ -116,11 +117,11 @@ export default function WorkflowFlexibilitySettings() {
       if (response.ok) {
         // تحديث الحالة المحلية
         setStageSettings((prev) => prev.map((stage) => (stage.stageId === stageId ? { ...stage, ...settings } : stage)))
-        alert("تم حفظ إعدادات المرحلة بنجاح")
+        showAlert("تم حفظ إعدادات المرحلة بنجاح")
       }
     } catch (error) {
       console.error("Error saving stage settings:", error)
-      alert("حدث خطأ في حفظ إعدادات المرحلة")
+      showAlert("حدث خطأ في حفظ إعدادات المرحلة")
     }
   }
 

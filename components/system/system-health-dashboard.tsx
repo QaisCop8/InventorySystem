@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -60,7 +61,7 @@ export default function SystemHealthDashboard() {
       const response = await fetch("/api/system/cleanup-test-data", { method: "POST" })
       const result = await response.json()
       if (result.success) {
-        alert("تم مسح البيانات التجريبية بنجاح")
+        showAlert("تم مسح البيانات التجريبية بنجاح")
         await runSystemValidation()
       }
     } catch (error) {

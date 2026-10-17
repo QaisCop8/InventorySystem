@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -222,7 +223,7 @@ export function BatchMovements() {
     e.preventDefault()
 
     if (!formData.lot_id) {
-      alert("يرجى اختيار الدفعة")
+      showAlert("يرجى اختيار الدفعة")
       return
     }
 
@@ -246,14 +247,14 @@ export function BatchMovements() {
         resetForm()
         fetchMovements()
         fetchLots()
-        alert("تم إضافة حركة الدفعة بنجاح")
+        showAlert("تم إضافة حركة الدفعة بنجاح")
       } else {
         const error = await response.json()
         throw new Error(error.error || "فشل في إضافة حركة الدفعة")
       }
     } catch (error) {
       console.error("Error creating batch movement:", error)
-      alert(error instanceof Error ? error.message : "حدث خطأ في إضافة حركة الدفعة")
+      showAlert(error instanceof Error ? error.message : "حدث خطأ في إضافة حركة الدفعة")
     }
   }
 

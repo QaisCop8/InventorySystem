@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -41,7 +42,7 @@ export function OfficialHolidaysPage() {
     setBusy(false)
   }
   const remove = async () => {
-    if (!form.id || !window.confirm("هل تريد حذف العطلة؟")) return
+    if (!form.id || !(await confirmYesNo("هل تريد حذف العطلة؟"))) return
     const response = await fetch(`/api/hr/official-holidays?id=${form.id}`, { method: "DELETE" })
     if (response.ok) { await load(); setOpen(false); setForm(emptyHoliday) } else setMessage((await response.json()).error || "تعذر حذف العطلة")
   }

@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useState } from "react"
 import { BadgeCheck, Check, Clock3, Copy, ExternalLink, FileImage, Globe, Link2, Loader2, MessageCircle, RefreshCw, Trash2, X, XCircle } from "lucide-react"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
@@ -99,7 +100,7 @@ export function CustomerPortalAdmin() {
   }
 
   const revokeLink = async (row: PortalLinkRow) => {
-    if (!window.confirm(`إلغاء رابط البوابة للعميل ${row.account_name}؟ لن يعمل الرابط المرسل بعد الآن.`)) return
+    if (!(await confirmYesNo(`إلغاء رابط البوابة للعميل ${row.account_name}؟ لن يعمل الرابط المرسل بعد الآن.`))) return
     const response = await fetch(`/api/customer-portal/links?id=${row.id}`, { method: "DELETE" })
     if (!response.ok) setMessage({ type: "error", text: "تعذر إلغاء الرابط" })
     void loadLinks()

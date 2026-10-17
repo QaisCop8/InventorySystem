@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
@@ -167,7 +168,7 @@ function CustomersWithToolbar() {
   }
 
   async function handleDeleteCustomer(customer: Customer): Promise<void> {
-    if (!confirm("هل أنت متأكد من حذف هذا العميل؟")) {
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا العميل؟"))) {
       throw new Error("تم إلغاء العملية")
     }
 

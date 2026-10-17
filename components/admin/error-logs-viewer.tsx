@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,8 +40,8 @@ export function ErrorLogsViewer() {
     URL.revokeObjectURL(url)
   }
 
-  const clearLogs = () => {
-    if (confirm("هل أنت متأكد من حذف جميع السجلات؟")) {
+  const clearLogs = async () => {
+    if ((await confirmYesNo("هل أنت متأكد من حذف جميع السجلات؟"))) {
       ErrorHandler.clearLogs()
       setLogs([])
     }

@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -156,7 +157,7 @@ function LegacyInternalManufacturingRequestPage() {
   }
 
   const deleteRequest = async (requestId: number) => {
-    if (!window.confirm("هل أنت متأكد من حذف مسودة الطلب؟")) return
+    if (!(await confirmYesNo("هل أنت متأكد من حذف مسودة الطلب؟"))) return
     const response = await fetch(`/api/internal-manufacturing-requests/${requestId}`, { method: "DELETE" })
     const data = await response.json()
     if (!response.ok) { setMessage(data.error || "تعذر حذف الطلب"); return }

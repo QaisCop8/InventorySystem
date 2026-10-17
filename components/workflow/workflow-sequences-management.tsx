@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -126,13 +127,13 @@ export function WorkflowSequencesManagement() {
         await fetchSequences()
         resetForm()
         setShowForm(false)
-        alert(result.message || "تم الحفظ بنجاح")
+        showAlert(result.message || "تم الحفظ بنجاح")
       } else {
-        alert(result.error || "حدث خطأ أثناء الحفظ")
+        showAlert(result.error || "حدث خطأ أثناء الحفظ")
       }
     } catch (error) {
       console.error("[v0] Error saving sequence:", error)
-      alert(`حدث خطأ أثناء الحفظ: ${error instanceof Error ? error.message : "خطأ غير معروف"}`)
+      showAlert(`حدث خطأ أثناء الحفظ: ${error instanceof Error ? error.message : "خطأ غير معروف"}`)
     } finally {
       setSaving(false)
     }

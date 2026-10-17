@@ -9,6 +9,7 @@ import { WorkspaceProvider } from "@/contexts/workspace-context"
 import { GlobalSearchProvider } from "@/components/global-search-provider"
 import { GlobalShortcuts } from "@/components/global-shortcuts"
 import { Toaster } from "@/components/ui/toaster"
+import { ConfirmHost } from "@/components/ui/confirm-host"
 import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 import { CompanyStatusGuard } from "@/components/auth/company-status-guard"
 import { ProductVariantProvider } from "@/components/products/product-variant-provider"
@@ -72,6 +73,8 @@ export default function ClientProviders({ children }: { children: React.ReactNod
                 <ProductVariantProvider />
                 {children}
                 <Toaster />
+                {/* بديل confirm/alert للمتصفح في كل النظام (components/ui/confirm-host.tsx) */}
+                <ConfirmHost />
               </GlobalSearchProvider>
             </WorkspaceProvider>
           </WindowManagerProvider>

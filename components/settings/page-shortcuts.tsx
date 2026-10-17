@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useMemo, useState } from "react"
 import { Keyboard, Loader2, Pencil, RotateCcw, Search, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -116,7 +117,7 @@ export default function PageShortcutsSettings() {
           <p className="mt-1 text-sm text-muted-foreground">اربط أي صفحة باختصار من لوحة المفاتيح لفتحها مباشرة من أي مكان في النظام. الاختصارات خاصة بك.</p>
         </div>
         {assignedCount > 0 && (
-          <Button variant="outline" disabled={saving} onClick={() => { if (window.confirm("حذف جميع اختصاراتك؟")) void save({}, "حُذفت جميع الاختصارات") }}>
+          <Button variant="outline" disabled={saving} onClick={async () => { if ((await confirmYesNo("حذف جميع اختصاراتك؟"))) void save({}, "حُذفت جميع الاختصارات") }}>
             <RotateCcw className="ml-2 h-4 w-4" />حذف الكل
           </Button>
         )}

@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -443,9 +444,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
     const product = filteredProducts.find((p) => p.id === id)
     if (!product) return
 
-    const confirmed = window.confirm(
+    const confirmed = (await confirmYesNo(
       `هل أنت متأكد من حذف المنتج "${product.product_name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`,
-    )
+    ))
 
     if (!confirmed) return
 

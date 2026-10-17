@@ -1,3 +1,4 @@
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
@@ -287,7 +288,7 @@ export const OrderManagement: React.FC = () => {
     });
     setLoading(false)
 
-    status === 1 ? window.confirm("تم تجهيز الطلبيات") : window.confirm("تم تسليم الطلبيات");
+    void showAlert(status === 1 ? "تم تجهيز الطلبيات" : "تم تسليم الطلبيات");
   }
   const handleUpdateStatus = async (
     order: SalesOrder,
@@ -488,8 +489,8 @@ export const OrderManagement: React.FC = () => {
               >
                 بحث
               </Button>
-              <Button className="bg-blue-500 text-white" onClick={() => {
-                if (window.confirm("هل أنت متأكد من تجهيز كل الطلبيات؟")) {
+              <Button className="bg-blue-500 text-white" onClick={async () => {
+                if ((await confirmYesNo("هل أنت متأكد من تجهيز كل الطلبيات؟"))) {
                   handleUpdateAllStatus(1);
                 }
               }}>
@@ -587,8 +588,8 @@ export const OrderManagement: React.FC = () => {
                       <td className="p-4 font-medium text-right">
                         <Button title={"تغيير حالة الطلبية الى جاهز"} variant="outline" size="sm"
                           className="border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700"
-                          onClick={() => {
-                            if (window.confirm("هل أنت متأكد من تجهيز الطلبية؟")) {
+                          onClick={async () => {
+                            if ((await confirmYesNo("هل أنت متأكد من تجهيز الطلبية؟"))) {
                               handleUpdateStatus(order, 1);
                             }
                           }}

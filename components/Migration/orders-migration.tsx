@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import React, { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -109,7 +110,7 @@ export function OrderMigrate() {
         showErrors.current = false;
 
         const selectedOrders = data.filter(d => d.selected);
-        if (selectedOrders.length === 0) return alert("اختر طلبية واحدة على الأقل");
+        if (selectedOrders.length === 0) return void showAlert("اختر طلبية واحدة على الأقل");
         setLoading(true)
         try {
             const res = await fetch("/api/migration/post-orders", {
@@ -138,19 +139,19 @@ export function OrderMigrate() {
 
                 if (failedOrders.length > 0) {
                     if (successOrders.length > 0)
-                        alert(`تم ترحيل بعض الطلبيات بنجاح، والبعض فشل. تحقق من عمود الخطأ.`);
+                        showAlert(`تم ترحيل بعض الطلبيات بنجاح، والبعض فشل. تحقق من عمود الخطأ.`);
                     else
-                        alert(`فشل ترحيل جميع الطلبيات. تحقق من عمود الخطأ.`);
+                        showAlert(`فشل ترحيل جميع الطلبيات. تحقق من عمود الخطأ.`);
                     showErrors.current = true;
                 } else {
-                    alert(`تم ترحيل جميع الطلبيات بنجاح`);
+                    showAlert(`تم ترحيل جميع الطلبيات بنجاح`);
                 }
             } else {
-                alert(result.error || "فشل الترحيل");
+                showAlert(result.error || "فشل الترحيل");
             }
         } catch (err) {
             console.error(err);
-            alert("حدث خطأ أثناء الترحيل");
+            showAlert("حدث خطأ أثناء الترحيل");
         }
         finally {
             setLoading(false)

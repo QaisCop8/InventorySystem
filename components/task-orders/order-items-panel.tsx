@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,7 +85,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
   }
 
   const handleDelete = async (itemId: number) => {
-    if (!window.confirm("هل تريد حذف هذا الصنف من الطلبية؟")) return
+    if (!(await confirmYesNo("هل تريد حذف هذا الصنف من الطلبية؟"))) return
     setBusyId(itemId)
     try {
       const res = await fetch(`/api/task-orders/order-items/${itemId}?userId=${encodeURIComponent(userId)}`, { method: "DELETE" })

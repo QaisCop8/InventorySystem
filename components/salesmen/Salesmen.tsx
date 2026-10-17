@@ -1,5 +1,6 @@
 "use client";
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ export default function Salesmen() {
       setEditingId(null);
       setForm({ code: "", name: "", is_active: true });
     } else {
-      alert(result.error);
+      showAlert(result.error);
     }
   }
 

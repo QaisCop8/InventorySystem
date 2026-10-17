@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { SearchButton } from "@/components/search/search-button"
 import { useState, useEffect } from "react"
@@ -67,7 +68,7 @@ export function StockAdjustment() {
     e.preventDefault()
 
     if (!selectedProduct || !adjustmentData.reason.trim()) {
-      alert("يرجى ملء جميع الحقول المطلوبة")
+      showAlert("يرجى ملء جميع الحقول المطلوبة")
       return
     }
 
@@ -88,13 +89,13 @@ export function StockAdjustment() {
         setSelectedProduct(null)
         setAdjustmentData({ newQuantity: 0, reason: "" })
         fetchProducts()
-        alert("تم تعديل المخزون بنجاح")
+        showAlert("تم تعديل المخزون بنجاح")
       } else {
         throw new Error("فشل في تعديل المخزون")
       }
     } catch (error) {
       console.error("Error adjusting stock:", error)
-      alert("حدث خطأ في تعديل المخزون")
+      showAlert("حدث خطأ في تعديل المخزون")
     }
   }
 

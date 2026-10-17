@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -389,7 +390,7 @@ export function PurchaseOrders() {
   }
 
   async function handleDeleteOrder(order: PurchaseOrder): Promise<void> {
-    if (!confirm("هل أنت متأكد من حذف هذه الطلبية؟")) {
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذه الطلبية؟"))) {
       throw new Error("تم إلغاء العملية")
     }
 

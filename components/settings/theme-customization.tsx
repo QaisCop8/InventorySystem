@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -95,7 +96,7 @@ export function ThemeCustomization() {
       await saveSettings()
 
       console.log("[v0] Theme settings saved successfully!")
-      alert("تم حفظ الإعدادات بنجاح!")
+      showAlert("تم حفظ الإعدادات بنجاح!")
     } catch (error) {
       console.error("[v0] Error saving theme settings:", error)
       console.error("[v0] Error details:", {
@@ -103,7 +104,7 @@ export function ThemeCustomization() {
         stack: error instanceof Error ? error.stack : undefined,
         settings: settings,
       })
-      alert("حدث خطأ في حفظ الإعدادات")
+      showAlert("حدث خطأ في حفظ الإعدادات")
     } finally {
       setSaving(false)
     }

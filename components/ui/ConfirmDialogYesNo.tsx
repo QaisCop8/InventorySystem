@@ -22,6 +22,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   backLabel?: string;
   onDismiss?: () => void;
+  /** وضع التنبيه (بديل alert): زر واحد فقط (confirmLabel، افتراضياً "حسناً") بلا زر إلغاء */
+  hideCancel?: boolean;
 }
 
 const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
@@ -39,6 +41,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   cancelLabel,
   backLabel,
   onDismiss,
+  hideCancel = false,
 }) => {
   const workspaceTabActive = useWorkspaceTabActive()
 
@@ -88,10 +91,10 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         }}
         className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border border-transparent bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_10px_25px_-12px_rgba(244,63,94,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(244,63,94,0.9)]`}
       >
-        {confirmLabel ?? (showBack ? "نعم" : "تأكيد")}
+        {confirmLabel ?? (hideCancel ? "حسناً" : showBack ? "نعم" : "تأكيد")}
       </Button>
 
-      <Button
+      {!hideCancel && <Button
         type="button"
         disabled={busy}
         onClick={onCancel}
@@ -99,7 +102,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50`}
       >
         {cancelLabel ?? (showBack ? "لا" : "إلغاء")}
-      </Button>
+      </Button>}
 
       {showBack && onBack && (
         <Button

@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { Button } from "@/components/ui/button"
@@ -2403,7 +2404,7 @@ function UnifiedSaleInvoices({
       }*/
     } catch (err: any) {
       console.error("Error saving sales order:", err)
-      alert(err.message || "حدث خطأ أثناء حفظ البيانات")
+      showAlert(err.message || "حدث خطأ أثناء حفظ البيانات")
     } finally {
       setState((prev) => ({ ...prev, isSaving: false }))
       isHandlingSave.current = false;
@@ -2424,7 +2425,7 @@ function UnifiedSaleInvoices({
       // The deleteRecord from useRecordNavigation hook handles the deletion logic
       // It expects the currentRecord to be passed or it uses the internally tracked current record.
       await deleteRecord()
-      alert("تم حذف الفاتورة بنجاح")
+      showAlert("تم حذف الفاتورة بنجاح")
 
       // Close the dialog after deletion
       if (onOpenChange) {
@@ -2434,7 +2435,7 @@ function UnifiedSaleInvoices({
       }
     } catch (err: any) {
       console.error("Error deleting sales order:", err)
-      alert(err.message || "حدث خطأ أثناء حذف البيانات")
+      showAlert(err.message || "حدث خطأ أثناء حذف البيانات")
     } finally {
       setState((prev) => ({ ...prev, isDeleting: false }))
     }

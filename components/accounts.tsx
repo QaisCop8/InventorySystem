@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useMemo, useState } from "react"
 import { CheckCircle, FileSpreadsheet, Plus, RefreshCw } from "lucide-react"
 import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
@@ -430,7 +431,7 @@ export default function Accounts() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("هل أنت متأكد من حذف الحساب؟")) return
+    if (!(await confirmYesNo("هل أنت متأكد من حذف الحساب؟"))) return
 
     try {
       const response = await fetch(`/api/accounts/${id}`, { method: "DELETE" })

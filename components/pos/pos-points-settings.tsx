@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import {useCallback,useEffect,useRef,useState,type KeyboardEvent} from "react"
 import {BadgeDollarSign,Building2,CreditCard,Edit3,Package,Plus,RefreshCw,Save,Store,Trash2,Users,X} from "lucide-react"
 import {Button} from "@/components/ui/button"
@@ -65,7 +66,7 @@ export default function PosPointsSettings(){
  const posLimitReached=!!license&&license.usage.pos_points>=license.limits.pos_points
  const edit=(point?:Point)=>{if(!point&&license&&posLimitReached){licenseRequest.open("pos_points",`تم الوصول للحد المرخّص من نقاط البيع (${license.usage.pos_points} من ${license.limits.pos_points}).`,license.pending.some(request=>request.resource==="pos_points"));return}setForm(point?{...empty,...point,users:normalizePosPointUsers(point.users)}:{...empty,price_category_id:meta.priceCategories[0]?.id?String(meta.priceCategories[0].id):""});setMessage("");setOpen(true)}
  const save=async()=>{setSaving(true);setMessage("");try{const r=await fetch("/api/pos/points",{method:form.id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)}),d=await r.json();if(!r.ok){if(licenseRequest.handleLimit(d)){setOpen(false);return}throw new Error(d.error)}setOpen(false);await load();void reloadLicense()}catch(e){setMessage(e instanceof Error?e.message:"تعذر الحفظ")}finally{setSaving(false)}}
- const remove=async(point:Point)=>{if(!confirm(`حذف نقطة البيع ${point.name}؟`))return;const r=await fetch("/api/pos/points",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:point.id,status:3})});const d=await r.json();if(!r.ok)setMessage(d.error||"تعذر الحذف");else{await load();void reloadLicense()}}
+ const remove=async(point:Point)=>{if(!(await confirmYesNo(`حذف نقطة البيع ${point.name}؟`)))return;const r=await fetch("/api/pos/points",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:point.id,status:3})});const d=await r.json();if(!r.ok)setMessage(d.error||"تعذر الحذف");else{await load();void reloadLicense()}}
  const account=(key:string,label:string)=>(
   <div data-pos-account-field><AutoCompleteAccount
    label={label}

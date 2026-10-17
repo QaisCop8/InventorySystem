@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -409,7 +410,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   const handleDelete = async () => {
     if (!currentAccount) return
-    if (!window.confirm("Are you sure?")) return
+    if (!(await confirmYesNo("Are you sure?"))) return
 
     try {
       const response = await fetch(`/api/accounts/${currentAccount.id}`, { method: "DELETE" })

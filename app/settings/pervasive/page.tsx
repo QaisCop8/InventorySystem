@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -146,7 +147,7 @@ export default function PervasiveSettingsPage() {
   }
 
   const handleDelete = async (connectionId: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا الاتصال؟")) return
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا الاتصال؟"))) return
 
     try {
       const response = await fetch(`/api/settings/pervasive?id=${connectionId}`, {

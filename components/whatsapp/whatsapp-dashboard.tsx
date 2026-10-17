@@ -1,5 +1,6 @@
 "use client"
 
+import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -137,17 +138,17 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        alert("تم إرسال الرسالة بنجاح")
+        showAlert("تم إرسال الرسالة بنجاح")
         setShowSendDialog(false)
         setSendForm({ phone: "", message: "", template_code: "", variables: {} })
         fetchMessages()
       } else {
         const error = await response.json()
-        alert(`فشل إرسال الرسالة: ${error.error}`)
+        showAlert(`فشل إرسال الرسالة: ${error.error}`)
       }
     } catch (error) {
       console.error("Error sending message:", error)
-      alert("حدث خطأ أثناء إرسال الرسالة")
+      showAlert("حدث خطأ أثناء إرسال الرسالة")
     } finally {
       setLoading(false)
     }
@@ -163,7 +164,7 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        alert("تم إنشاء النموذج بنجاح")
+        showAlert("تم إنشاء النموذج بنجاح")
         setShowTemplateDialog(false)
         setTemplateForm({
           template_name: "",
@@ -175,11 +176,11 @@ export function WhatsAppDashboard() {
         fetchTemplates()
       } else {
         const error = await response.json()
-        alert(`فشل إنشاء النموذج: ${error.error}`)
+        showAlert(`فشل إنشاء النموذج: ${error.error}`)
       }
     } catch (error) {
       console.error("Error creating template:", error)
-      alert("حدث خطأ أثناء إنشاء النموذج")
+      showAlert("حدث خطأ أثناء إنشاء النموذج")
     } finally {
       setLoading(false)
     }
@@ -194,7 +195,7 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        alert("تم حل الاستفسار بنجاح")
+        showAlert("تم حل الاستفسار بنجاح")
         fetchInquiries()
       }
     } catch (error) {

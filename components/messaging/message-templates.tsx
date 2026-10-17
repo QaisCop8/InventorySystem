@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -88,7 +89,7 @@ export function MessageTemplates() {
   }
 
   const handleDeleteTemplate = async (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا النموذج؟")) return
+    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا النموذج؟"))) return
 
     try {
       const response = await fetch(`/api/messaging/templates/${id}`, {

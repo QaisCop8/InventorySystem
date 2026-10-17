@@ -1,5 +1,6 @@
 "use client"
 
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { CalendarX2, Lock, LockOpen, Plus, RefreshCw, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -64,12 +65,12 @@ export default function PeriodLocks() {
   }
 
   const lockPeriod = (payload = form) => run(() => api("/api/period-locks", { method: "POST", body: JSON.stringify({ ...payload, branch_id: Number(payload.branch_id) || null }) }), "تم إقفال الفترة")
-  const setActive = (row: LockRow, active: boolean) => {
-    if (!active && !window.confirm(`فتح الفترة ${row.from_date} ← ${row.to_date}؟ سيصبح تعديل سنداتها ممكناً.`)) return
+  const setActive = async (row: LockRow, active: boolean) => {
+    if (!active && !(await confirmYesNo(`فتح الفترة ${row.from_date} ← ${row.to_date}؟ سيصبح تعديل سنداتها ممكناً.`))) return
     void run(() => api("/api/period-locks", { method: "PATCH", body: JSON.stringify({ id: row.id, is_active: active }) }), active ? "أُعيد إقفال الفترة" : "فُتحت الفترة")
   }
-  const remove = (row: LockRow) => {
-    if (!window.confirm("حذف سجل هذه الفترة نهائياً؟")) return
+  const remove = async (row: LockRow) => {
+    if (!(await confirmYesNo("حذف سجل هذه الفترة نهائياً؟"))) return
     void run(() => api(`/api/period-locks?id=${row.id}`, { method: "DELETE" }), "حُذف السجل")
   }
 
@@ -102,7 +103,7 @@ export default function PeriodLocks() {
             {[{ label: "الشهر السابق", offset: -1 }, { label: "الشهر الحالي", offset: 0 }].map((option) => {
               const range = monthRange(option.offset)
               return <Button key={option.label} size="sm" variant="outline" disabled={saving}
-                onClick={() => { if (window.confirm(`إقفال ${range.from} ← ${range.to} لكل الفروع؟`)) void lockPeriod({ branch_id: "", from_date: range.from, to_date: range.to, note: option.label }) }}>
+                onClick={async () => { if ((await confirmYesNo(`إقفال ${range.from} ← ${range.to} لكل الفروع؟`))) void lockPeriod({ branch_id: "", from_date: range.from, to_date: range.to, note: option.label }) }}>
                 <Lock className="ml-1.5 h-3.5 w-3.5" />{option.label}</Button>
             })}
           </div>
