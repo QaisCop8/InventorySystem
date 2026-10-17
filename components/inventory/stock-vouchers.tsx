@@ -23,7 +23,7 @@ import UnifiedStockVoucher, {
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
-import { VoucherListTable } from "@/components/common/voucher-list-table"
+import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSearch } from "@/components/common/voucher-list-table"
 import { logVoucherAudit } from "@/lib/audit-client"
 
 interface StockVouchersProps {
@@ -161,7 +161,9 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
 
-  const [searchFilters, setSearchFilters] = useState({ code: "", dateFrom: "", dateTo: "" })
+  const listSearch = useVoucherListSearch({ code: "", dateFrom: "", dateTo: "" })
+  const { draft: searchDraft, setDraft: setSearchDraft, filters: searchFilters } = listSearch
+  const runSearch = () => void listSearch.load(fetchVouchers, searchDraft)
 
   const totalVouchers = vouchers.length
   const totalAmount = useMemo(() => vouchers.reduce((sum, v) => sum + Number(v.amount || 0), 0), [vouchers])
@@ -190,7 +192,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   }, [vouchers, searchFilters])
 
   useEffect(() => {
-    fetchVouchers()
+    void listSearch.load(fetchVouchers)
     fetchLookups()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voucherType, user?.id])
@@ -779,13 +781,13 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-[1fr_1fr_1fr_auto]" onKeyDown={searchOnEnter(runSearch)}>
             <div>
               <Label htmlFor="search-code">رقم السند</Label>
               <Input
                 id="search-code"
-                value={searchFilters.code}
-                onChange={(e) => setSearchFilters((prev) => ({ ...prev, code: e.target.value }))}
+                value={searchDraft.code}
+                onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
                 className="text-right"
                 placeholder="ابحث برقم السند..."
               />
@@ -795,8 +797,8 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
               <Input
                 id="search-date-from"
                 type="date"
-                value={searchFilters.dateFrom}
-                onChange={(e) => setSearchFilters((prev) => ({ ...prev, dateFrom: e.target.value }))}
+                value={searchDraft.dateFrom}
+                onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateFrom: e.target.value }))}
               />
             </div>
             <div>
@@ -804,10 +806,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
               <Input
                 id="search-date-to"
                 type="date"
-                value={searchFilters.dateTo}
-                onChange={(e) => setSearchFilters((prev) => ({ ...prev, dateTo: e.target.value }))}
+                value={searchDraft.dateTo}
+                onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateTo: e.target.value }))}
               />
             </div>
+            <VoucherSearchButton onClick={runSearch} loading={listSearch.loading} />
           </div>
         </CardContent>
       </Card>
@@ -819,6 +822,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         <CardContent>
           <div className="min-h-0">
             <VoucherListTable
+              loading={listSearch.loading}
               rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "مرحل" : "مسودة" }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },

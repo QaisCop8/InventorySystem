@@ -14,6 +14,7 @@ import UnifiedSalesOrder from "./unified-sales-order"
 import { DraftOrderForm } from "@/components/order-drafts/draft-order-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchButton } from "@/components/search/search-button"
+import { VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
 import {
   Plus,
   Search,
@@ -30,6 +31,7 @@ import {
   DollarSign,
   ArrowUpRight,
   FileText,
+  Loader2,
 } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
 import Util from "../common/Util"
@@ -223,10 +225,31 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     return filtered
   }, [state.salesOrders, state.filters, state.sortBy, state.sortOrder])
 
+  // الحقول تعدّل مسودة فقط؛ زر «بحث» (أو Enter) يعيد جلب الطلبيات ثم يطبّقها. أي تغيير على الفلاتر المطبّقة
+  // (إعادة تعيين/تاريخ البداية الافتراضي) ينعكس على المسودة.
+  const [filterDraft, setFilterDraft] = useState(state.filters)
+  const [searching, setSearching] = useState(false)
+  useEffect(() => { setFilterDraft(state.filters) }, [state.filters])
+  const runSearch = async () => {
+    if (searching) return
+    const applied = filterDraft
+    setSearching(true)
+    try {
+      await fetchSalesOrders()
+      setState((prev) => ({ ...prev, filters: applied }))
+    } finally {
+      setSearching(false)
+    }
+  }
+  const setDraftFilter = (patch: Partial<typeof filterDraft>) => setFilterDraft((prev) => ({ ...prev, ...patch }))
+
+  // تاريخ البداية الافتراضي = أقدم طلبية — عند أول تحميل فقط (لا يُلغي تاريخاً اختاره المستخدم عند إعادة الجلب)
+  const initialDateFromAppliedRef = useRef(false)
   useEffect(() => {
 
     const orders = state.salesOrders || [];
-    if (orders.length === 0) return;
+    if (orders.length === 0 || initialDateFromAppliedRef.current) return;
+    initialDateFromAppliedRef.current = true
     const firstDate = new Date(
       Math.min(...orders.map(o => new Date(o.order_date).getTime()))
     )
@@ -518,14 +541,13 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       </div>
     )
   }
-  if (state.loading) {
+  // التحميل الأول فقط يملأ الصفحة؛ إعادة الجلب (بحث/بعد الحفظ) تُظهر طبقة تحميل فوق القائمة فتبقى الفلاتر ظاهرة
+  if (state.loading && !state.salesOrders.length && !searching) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">
-            {isPurchase ? "جاري تحميل طلبيات المشتريات..." : "جاري تحميل طلبيات المبيعات..."}
-          </p>
+          <p className="text-muted-foreground">جاري تحميل البيانات...</p>
         </div>
       </div>
     )
@@ -644,20 +666,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4" onKeyDown={searchOnEnter(() => void runSearch())}>
             <div className="lg:col-span-2">
               <Label className="text-slate-700 font-medium">البحث الذكي</Label>
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة..."
-                  value={state.filters.search}
-                  onChange={(e) =>
-                    setState((prev) => ({
-                      ...prev,
-                      filters: { ...prev.filters, search: e.target.value },
-                    }))
-                  }
+                  value={filterDraft.search}
+                  onChange={(e) => setDraftFilter({ search: e.target.value })}
                   className="pr-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
@@ -666,13 +683,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
             <div>
               <Label className="text-slate-700 font-medium">حالة الطلبية</Label>
               <Select
-                value={state.filters.status}
-                onValueChange={(value) =>
-                  setState((prev) => ({
-                    ...prev,
-                    filters: { ...prev.filters, status: value },
-                  }))
-                }
+                value={filterDraft.status}
+                onValueChange={(value) => setDraftFilter({ status: value })}
               >
                 <SelectTrigger className="bg-white border-slate-200">
                   <SelectValue />
@@ -693,13 +705,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
             <div>
               <Label className="text-slate-700 font-medium">قرار الإدارة</Label>
               <Select
-                value={state.filters.order_source}
-                onValueChange={(value) =>
-                  setState((prev) => ({
-                    ...prev,
-                    filters: { ...prev.filters, order_source: value },
-                  }))
-                }
+                value={filterDraft.order_source}
+                onValueChange={(value) => setDraftFilter({ order_source: value })}
               >
                 <SelectTrigger className="bg-white border-slate-200">
                   <SelectValue />
@@ -719,13 +726,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <Label className="text-slate-700 font-medium">من تاريخ</Label>
               <Input
                 type="date"
-                value={state.filters.dateFrom}
-                onChange={(e) =>
-                  setState((prev) => ({
-                    ...prev,
-                    filters: { ...prev.filters, dateFrom: e.target.value },
-                  }))
-                }
+                value={filterDraft.dateFrom}
+                onChange={(e) => setDraftFilter({ dateFrom: e.target.value })}
                 className="bg-white border-slate-200"
               />
             </div>
@@ -734,13 +736,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <Label className="text-slate-700 font-medium">إلى تاريخ</Label>
               <Input
                 type="date"
-                value={state.filters.dateTo}
-                onChange={(e) =>
-                  setState((prev) => ({
-                    ...prev,
-                    filters: { ...prev.filters, dateTo: e.target.value },
-                  }))
-                }
+                value={filterDraft.dateTo}
+                onChange={(e) => setDraftFilter({ dateTo: e.target.value })}
                 className="bg-white border-slate-200"
               />
             </div>
@@ -764,15 +761,26 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               </Button>
             </div>
 
-            <Button variant="outline" onClick={resetFilters} className="bg-white">
-              إعادة تعيين
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={resetFilters} className="bg-white">
+                إعادة تعيين
+              </Button>
+              <VoucherSearchButton onClick={() => void runSearch()} loading={searching} />
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Orders Display */}
-      <Card className="shadow-sm">
+      <Card className="relative shadow-sm" aria-busy={state.loading}>
+        {state.loading && (
+          <div role="status" aria-live="polite" className="absolute inset-0 z-[2] flex items-start justify-center rounded-[inherit] bg-white/70 pt-24 backdrop-blur-[1px] dark:bg-slate-900/70">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+              جاري تحميل البيانات...
+            </div>
+          </div>
+        )}
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>

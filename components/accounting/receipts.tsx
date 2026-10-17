@@ -17,7 +17,7 @@ import UnifiedReceiptVoucher, {
   type VoucherRecord,
 } from "./unified-receipt-voucher"
 import { Edit, Plus, Search } from "lucide-react"
-import { VoucherListTable } from "@/components/common/voucher-list-table"
+import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSearch } from "@/components/common/voucher-list-table"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
@@ -197,7 +197,9 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
 
 
-  const [searchFilters, setSearchFilters] = useState({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
+  const listSearch = useVoucherListSearch({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
+  const { draft: searchDraft, setDraft: setSearchDraft, filters: searchFilters } = listSearch
+  const runSearch = () => void listSearch.load(fetchVouchers, searchDraft)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
@@ -251,7 +253,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   )
 
   useEffect(() => {
-    fetchVouchers()
+    void listSearch.load(fetchVouchers)
     fetchLookups()
     // إعادة الجلب عند توفر user.id تُقيّد دفتر السندات بصلاحيات المستخدم الفعلي بمجرد اكتمال تسجيل الدخول.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1017,13 +1019,13 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4" onKeyDown={searchOnEnter(runSearch)}>
             <div>
               <Label htmlFor="search-code">رقم السند</Label>
               <Input
                 id="search-code"
-                value={searchFilters.code}
-                onChange={(e) => setSearchFilters((prev) => ({ ...prev, code: e.target.value }))}
+                value={searchDraft.code}
+                onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
                 className="text-right"
                 placeholder="ابحث برقم السند..."
               />
@@ -1032,8 +1034,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
               <Label htmlFor="search-name">{labels.customerLabel}</Label>
               <Input
                 id="search-name"
-                value={searchFilters.name}
-                onChange={(e) => setSearchFilters((prev) => ({ ...prev, name: e.target.value }))}
+                value={searchDraft.name}
+                onChange={(e) => setSearchDraft((prev) => ({ ...prev, name: e.target.value }))}
                 className="text-right"
                 placeholder="ابحث بالاسم..."
               />
@@ -1041,8 +1043,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
             <div>
               <Label htmlFor="search-currency">العملة</Label>
               <Select
-                value={searchFilters.currencyId}
-                onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, currencyId: value }))}
+                value={searchDraft.currencyId}
+                onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
               >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="اختر العملة" />
@@ -1063,8 +1065,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 <Input
                   id="search-date-from"
                   type="date"
-                  value={searchFilters.dateFrom}
-                  onChange={(e) => setSearchFilters((prev) => ({ ...prev, dateFrom: e.target.value }))}
+                  value={searchDraft.dateFrom}
+                  onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateFrom: e.target.value }))}
                 />
               </div>
               <div>
@@ -1072,11 +1074,14 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 <Input
                   id="search-date-to"
                   type="date"
-                  value={searchFilters.dateTo}
-                  onChange={(e) => setSearchFilters((prev) => ({ ...prev, dateTo: e.target.value }))}
+                  value={searchDraft.dateTo}
+                  onChange={(e) => setSearchDraft((prev) => ({ ...prev, dateTo: e.target.value }))}
                 />
               </div>
             </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <VoucherSearchButton onClick={runSearch} loading={listSearch.loading} />
           </div>
         </CardContent>
       </Card>
@@ -1089,6 +1094,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         <CardContent>
           <div className="min-h-0">
             <VoucherListTable
+              loading={listSearch.loading}
               rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },

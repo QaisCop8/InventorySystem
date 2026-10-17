@@ -1,8 +1,38 @@
 "use client"
 
-import { Eye } from "lucide-react"
+import { useCallback, useState, type KeyboardEvent } from "react"
+import { Eye, Loader2, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+
+// بحث قوائم السندات: الحقول تُعدِّل مسودة فقط، وزر «بحث» (أو Enter داخل الحقول) يعيد جلب القائمة من الخادم
+// ثم يطبّق المسودة — مع حالة تحميل تُعرض في الجدول («جاري تحميل البيانات...»).
+export function useVoucherListSearch<F extends Record<string, string>>(initial: F) {
+  const [draft, setDraft] = useState<F>(initial)
+  const [filters, setFilters] = useState<F>(initial)
+  const [loading, setLoading] = useState(false)
+  const load = useCallback(async (fetchList: () => Promise<unknown>, apply?: F) => {
+    setLoading(true)
+    try { await fetchList() } finally {
+      if (apply) setFilters(apply)
+      setLoading(false)
+    }
+  }, [])
+  return { draft, setDraft, filters, loading, load }
+}
+
+export function VoucherSearchButton({ onClick, loading = false, className }: { onClick: () => void; loading?: boolean; className?: string }) {
+  return (
+    <Button type="button" onClick={onClick} disabled={loading} className={cn("h-10 gap-2 px-6", className)}>
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+      بحث
+    </Button>
+  )
+}
+
+export const searchOnEnter = (run: () => void) => (event: KeyboardEvent<HTMLElement>) => {
+  if (event.key === "Enter") { event.preventDefault(); run() }
+}
 
 // جدول قوائم السندات (بديل DataGridView بنفس أسلوب جدول طلبيات المبيعات): رأس ثابت، صفوف بتمرير
 // فوق، نقر مزدوج أو Enter على الصف أو زر "عرض" ⇐ يفتح السند. الأعمدة بنفس تعريف scheme السابق
@@ -22,12 +52,14 @@ export function VoucherListTable<T extends Record<string, any>>({
   onOpen,
   emptyText = "لا توجد نتائج",
   maxHeight = "max(420px, calc(100dvh - 340px))",
+  loading = false,
 }: {
   rows: T[]
   columns: VoucherListColumn[]
   onOpen: (row: T) => void
   emptyText?: string
   maxHeight?: string
+  loading?: boolean
 }) {
   const cellValue = (row: T, column: VoucherListColumn) => {
     const value = row[column.name]
@@ -42,8 +74,16 @@ export function VoucherListTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white" dir="rtl">
-      <div className="overflow-auto" style={{ maxHeight }}>
+    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white" dir="rtl" aria-busy={loading}>
+      {loading && (
+        <div role="status" aria-live="polite" className="absolute inset-0 z-[2] flex items-start justify-center bg-white/70 pt-16 backdrop-blur-[1px] dark:bg-slate-900/70">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+            جاري تحميل البيانات...
+          </div>
+        </div>
+      )}
+      <div className="overflow-auto" style={{ maxHeight, minHeight: loading && !rows.length ? 200 : undefined }}>
         <table className="w-full min-w-[640px] text-sm">
           <thead className="sticky top-0 z-[1]">
             <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
@@ -97,7 +137,7 @@ export function VoucherListTable<T extends Record<string, any>>({
             ))}
           </tbody>
         </table>
-        {!rows.length && <p className="py-10 text-center text-sm text-muted-foreground">{emptyText}</p>}
+        {!rows.length && !loading && <p className="py-10 text-center text-sm text-muted-foreground">{emptyText}</p>}
       </div>
     </div>
   )
