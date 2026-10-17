@@ -271,7 +271,8 @@ export function AIChat() {
           })
         } else {
           const result = await saveAIJournalDraft(
-            { vch_date: data.date, currency: data.currency, manual_voucher: data.document_number, note: data.note, lines: lines.map((line) => ({ account_id: Number(line.account_id), debit: Number(line.debit) || 0, credit: Number(line.credit) || 0, note: line.note })) },
+            // رقم المستند المرفق لا يُنقل للسند (لا رقم ولا سند يدوي) — السند يأخذ رقماً جديداً من دفتر السندات
+            { vch_date: data.date, currency: data.currency, manual_voucher: "", note: data.note, lines: lines.map((line) => ({ account_id: Number(line.account_id), debit: Number(line.debit) || 0, credit: Number(line.credit) || 0, note: line.note })) },
             { userId: user?.id, branchId: activeBranchId },
           )
           if (result.ok) {
@@ -304,7 +305,8 @@ export function AIChat() {
           account_id: data.party?.id ?? null,
           account_name: data.party?.name || data.party_name || "",
           vch_date: data.date || null,
-          manual_voucher: data.document_number || "",
+          // رقم المستند المرفق يُعرض في المحادثة فقط — الفاتورة الجديدة تأخذ رقمها من دفتر السندات بلا سند يدوي منقول
+          manual_voucher: "",
           note: data.note || "",
           lines: matched.map((line) => ({
             product_id: Number(line.product_id), unit_id: line.unit_id ?? null,
