@@ -398,16 +398,39 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   // وحدات الصنف بأسعار مصدر السعر: الشراء ⇐ آخر سعر شراء × معامل الوحدة
   const priceUnits = useCallback((product: Product, units: Unit[]) => priceSource !== "purchase" ? units
     : units.map((unit) => ({ ...unit, price: roundPrice(Number(product.last_purchase_price ?? 0) * (Number(unit.to_main_qnty) || 1)) })), [priceSource]);
+  // ذاكرة لكل فتحة للنافذة: وحدات الصنف وبياناته الكاملة تُجلب مرة واحدة (وتبدأ عند تحديد السطر)، فيصبح
+  // الاختيار بنقر مزدوج فورياً تقريباً بدل انتظار طلبين متتاليين بعد النقر
+  const unitsCacheRef = useRef(new Map<string, Promise<Unit[]>>());
+  const fullCacheRef = useRef(new Map<string, Promise<any | null>>());
+  useEffect(() => { if (!visible) { unitsCacheRef.current.clear(); fullCacheRef.current.clear(); } }, [visible]);
+
   const loadUnits = useCallback(async (product: Product): Promise<Unit[]> => {
-    try {
-      const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
-      const units: Unit[] = response.ok ? await response.json() : [];
-      return priceUnits(product, Array.isArray(units) ? units : []);
-    } catch (err) {
-      console.error("Error fetching units:", err);
-      return [];
+    const key = `${product.id}:${priceCategoryId}`;
+    let pending = unitsCacheRef.current.get(key);
+    if (!pending) {
+      pending = fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`)
+        .then(async (response) => { const units = response.ok ? await response.json() : []; return Array.isArray(units) ? units as Unit[] : []; })
+        .catch((err) => { console.error("Error fetching units:", err); unitsCacheRef.current.delete(key); return [] as Unit[]; });
+      unitsCacheRef.current.set(key, pending);
     }
+    return priceUnits(product, await pending);
   }, [priceCategoryId, priceUnits]);
+
+  // البيانات الكاملة للأصناف (?ids=) — طلب واحد لكل الأصناف غير المخزّنة، ووعد لكل صنف في الذاكرة
+  const fetchFullProducts = useCallback((ids: number[]) => {
+    const cache = fullCacheRef.current;
+    const missing = ids.filter((id) => !cache.has(`${id}:${priceCategoryId}`));
+    if (missing.length) {
+      const batch = fetch(`/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=false&ids=${missing.join(",")}`, { cache: "no-store" })
+        .then(async (response) => { const rows = response.ok ? await response.json() : []; return new Map((Array.isArray(rows) ? rows : []).map((row: any) => [Number(row.id), row])); })
+        .catch((err) => { console.error("Failed to load selected products:", err); return new Map<number, any>(); });
+      for (const id of missing) {
+        const key = `${id}:${priceCategoryId}`;
+        cache.set(key, batch.then((rows) => { const row = rows.get(id) ?? null; if (!row) cache.delete(key); return row; }));
+      }
+    }
+    return Promise.all(ids.map((id) => cache.get(`${id}:${priceCategoryId}`)!));
+  }, [priceCategoryId]);
 
   // الاختيار: القائمة مخففة ⇐ تُجلب بيانات الأصناف المختارة كاملة (?ids=) وتُدمج مع حالة الاختيار
   // (الوحدة/المتغير/السعر) ثم onSelect ثم إغلاق النافذة — نفس الترتيب السابق للمستدعين.
@@ -415,17 +438,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     let merged = items;
     const ids = [...new Set(items.map((item) => Number(item.id)).filter((id) => id > 0))];
     if (ids.length) {
-      try {
-        const response = await fetch(`/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=false&ids=${ids.join(",")}`, { cache: "no-store" });
-        const full: any[] = response.ok ? await response.json() : [];
-        const byId = new Map((Array.isArray(full) ? full : []).map((row: any) => [Number(row.id), row]));
-        merged = items.map((item) => {
-          const { _code, _name, _barcodes, ...rest } = item;
-          return { ...(byId.get(Number(item.id)) || {}), ...rest } as Product;
-        });
-      } catch (err) {
-        console.error("Failed to load selected products:", err);
-      }
+      const full = await fetchFullProducts(ids);
+      const byId = new Map(ids.map((id, index) => [id, full[index]]));
+      merged = items.map((item) => {
+        const { _code, _name, _barcodes, ...rest } = item;
+        return { ...(byId.get(Number(item.id)) || {}), ...rest } as Product;
+      });
     }
     if (priceSource === "purchase") {
       merged = merged.map((item) => {
@@ -436,7 +454,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }
     onSelect(merged);
     onClose();
-  }, [priceCategoryId, priceSource, priceUnits, onSelect, onClose]);
+  }, [fetchFullProducts, priceSource, priceUnits, onSelect, onClose]);
   // المعالجات المحفوظة (useCallback) تستدعي آخر نسخة دائماً
   const emitSelectRef = useRef(emitSelect);
   emitSelectRef.current = emitSelect;
@@ -446,6 +464,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     // النقر المزدوج/Enter على صنف بلا مرور بشبكة الوحدات (selectionChanged) لا يحمل units أصلاً —
     // فتُجلَب هنا صراحة قبل onSelect، وإلا يصل المستدعي (unified-stock-voucher.tsx وغيره) بمصفوفة
     // وحدات فارغة فيظهر بعدها "لا توجد وحدات" عند فتح نافذة بحث الوحدة بالسطر.
+    // البيانات الكاملة تُطلب بالتوازي مع الوحدات (لا بعدها) — emitSelect يجدها في الذاكرة
+    void fetchFullProducts([Number(product.id)]);
     let units = product.units;
     if (!units || units.length === 0) units = await loadUnits(product);
     const selectedUnit = units?.[0];
@@ -478,7 +498,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }
 
     finishOrConfigureProduct(updatedProduct);
-  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose, selectBaseProduct]);
+  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose, selectBaseProduct, fetchFullProducts, loadUnits]);
   // -----------------------
   // Fetch units when product selected
   // -----------------------
@@ -504,12 +524,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     const key = getProductSelectionKey(product);
     activeProductKeyRef.current = key;
     setSelectedProduct((current) => (current && getProductSelectionKey(current) === key ? current : product));
-    if (product.units?.length) return;
     unitsLoadTimerRef.current = window.setTimeout(async () => {
+      // تحميل مسبق للبيانات الكاملة للسطر المحدد — يجعل الاختيار التالي فورياً
+      void fetchFullProducts([Number(product.id)]);
+      if (product.units?.length) return;
       const units = await loadUnits(product);
       if (activeProductKeyRef.current === key) setSelectedProduct({ ...product, units });
     }, 150);
-  }, [loadUnits]);
+  }, [loadUnits, fetchFullProducts]);
 
   useEffect(() => () => {
     if (unitsLoadTimerRef.current) window.clearTimeout(unitsLoadTimerRef.current);

@@ -205,15 +205,40 @@ function PromotionEditor({ draft: initial, onClose, onSaved }: { draft: Draft; o
   const setItem = (index: number, patch: Partial<ItemDraft>) => setDraft((current) => ({ ...current, items: current.items.map((item, i) => (i === index ? { ...item, ...patch } : item)) }))
   const type = draft.promo_type
 
+  // اختيار أصناف من نافذة البحث: حقل "الصنف" يقبل عدة أصناف — الأول يملأ السطر المختار، والبقية تُضاف أسطراً
+  // جديدة بعده بنفس قاعدة السطر (الخصم/الحد الأدنى/اشترِ-احصل) دون السعر الخاص، وتُتخطّى الأصناف الموجودة مسبقاً.
+  // حقل "الصنف المجاني" يبقى صنفاً واحداً.
   const pickProduct = async (products: any[]) => {
     const target = picker
     setPicker(null)
-    const product = products?.[0]
-    if (!target || !product) return
-    const units = await unitsOf(Number(product.id))
-    const unitId = Number(product.selected_unit?.unit_id) || units[0]?.unit_id || null
-    if (target.field === "product") setItem(target.index, { product_id: Number(product.id), product_code: product.product_code, product_name: product.product_name, units, unit_id: unitId })
-    else setItem(target.index, { get_product_id: Number(product.id), get_product_code: product.product_code, get_product_name: product.product_name, get_units: units, get_unit_id: unitId })
+    const picked = (products || []).filter((product) => Number(product?.id) > 0)
+    if (!target || !picked.length) return
+    const unitIdOf = (product: any, units: Unit[]) => Number(product.selected_unit?.unit_id) || units[0]?.unit_id || null
+    if (target.field === "get") {
+      const product = picked[0]
+      const units = await unitsOf(Number(product.id))
+      setItem(target.index, { get_product_id: Number(product.id), get_product_code: product.product_code, get_product_name: product.product_name, get_units: units, get_unit_id: unitIdOf(product, units) })
+      return
+    }
+    const unitsList = await Promise.all(picked.map((product) => unitsOf(Number(product.id))))
+    setDraft((current) => {
+      const items = [...current.items]
+      const base = items[target.index] ?? emptyItem()
+      const taken = new Set(items.filter((_, index) => index !== target.index).map((item) => Number(item.product_id)).filter((id) => id > 0))
+      const rows: ItemDraft[] = []
+      picked.forEach((product, index) => {
+        const id = Number(product.id)
+        if (taken.has(id)) return
+        taken.add(id)
+        const units = unitsList[index]
+        const fields = { product_id: id, product_code: product.product_code, product_name: product.product_name, units, unit_id: unitIdOf(product, units) }
+        rows.push(rows.length === 0 ? { ...base, ...fields } : { ...base, special_price: "", ...fields })
+      })
+      if (!rows.length) return current
+      items.splice(target.index, 1, ...rows)
+      return { ...current, items }
+    })
+    if (picked.length > 1) toast({ title: "أُضيفت الأصناف المختارة إلى العرض (المكرر يُتخطّى)" })
   }
 
   const save = async () => {

@@ -289,6 +289,24 @@ function normalizeProductPayload(productData: any) {
 // حقول نافذة بحث الأصناف (lite=1)
 const LITE_PRODUCT_FIELDS = ["id", "product_code", "product_name", "base_product_name", "type", "product_type", "first_unit", "unit_id", "first_barcode", "barcode", "first_price", "first_price_name", "currency_name", "last_purchase_price", "product_image", "image_url", "current_stock", "available_stock", "has_colors"] as const
 
+async function ensureProductsGetSchema() { return runSchemaOnce("app/api/inventory/products/route.ts#ensureProductsGetSchema", async () => {
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)`
+  await sql`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`
+  await sql`ALTER TABLE IF EXISTS product_attribute_values_tbl RENAME TO attribute_values_tbl`
+  await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
+  await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
+  await sql`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`
+  // قد لا يكون product_branches موجوداً بعد (يُنشَأ أصلاً ضمن POST) — الاستعلام يستخدمه دوماً
+  await sql`
+    CREATE TABLE IF NOT EXISTS product_branches (
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+      PRIMARY KEY (product_id, branch_id)
+    )
+  `
+})}
+
 export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: 'Database client not initialized' }, { status: 500 })
 
@@ -318,23 +336,9 @@ export async function GET(request: NextRequest) {
     if (scope && !scope.ok) return scope.response
     const permittedTypes = scope?.ok ? scope.types : [effectiveType ?? 1]
     const grantedBranchIds = permission.lookupOnly ? [permission.branchId] : await getGrantedBranchIds(permission.userId, permission.accessId)
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)`
-    await sql`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`
-    await sql`ALTER TABLE IF EXISTS product_attribute_values_tbl RENAME TO attribute_values_tbl`
-    await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
-    await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
-    await sql`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`
-    // قد لا يكون product_branches موجوداً بعد (يُنشَأ أصلاً ضمن POST) على قاعدة لم يُحفَظ بها أي
-    // صنف مقيَّد بفرع بعد — الاستعلام أدناه يستخدمه دوماً بمجرّد وجود هيدر x-branch-id، فيُضمَن
-    // وجوده هنا أيضاً بدل تفويت ذلك لِـPOST فقط.
-    await sql`
-      CREATE TABLE IF NOT EXISTS product_branches (
-        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
-        PRIMARY KEY (product_id, branch_id)
-      )
-    `
+    // تهيئة الجداول مرة واحدة لكل قاعدة (runSchemaOnce) — كانت 8 أوامر DDL تُنفَّذ مع كل طلب، ومنها طلب
+    // اختيار صنف من نافذة البحث (?ids=) فيتأخر الاختيار برحلات شبكة لا داعي لها
+    await ensureProductsGetSchema()
 
     // Restrict branch-specific products to branches granted by the current file permission.
     const grantedBranchIdsLiteral = grantedBranchIds.join(',')
