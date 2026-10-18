@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Package, Search, Filter, Download, AlertTriangle, CheckCircle, Clock } from "lucide-react"
+import { Package, Search, Filter, Download, AlertTriangle, CheckCircle, Clock, RefreshCw } from "lucide-react"
 import { BatchPrintDialog } from "@/components/inventory/batch-print-dialog"
 
 interface LotInventoryItem {
@@ -206,6 +206,11 @@ export function LotInventoryReport() {
     <ReportPage loading={loading}>
 <ReportHeader title="تقرير المخزون حسب الدفعات" description={<>عرض تفصيلي لجميع دفعات المنتجات في المخزون</>} actions={<>
           <BatchPrintDialog />
+          {/* data-report-apply: F5 يعيد جلب التقرير (lib/hotkeys.ts) */}
+          <Button variant="outline" data-report-apply onClick={() => void fetchReportData()} disabled={loading}>
+            <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            تحديث <span className="mr-1 text-[11px] opacity-70" dir="ltr">F5</span>
+          </Button>
           <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">
             <Download className="ml-2 h-4 w-4" />
             تصدير Excel

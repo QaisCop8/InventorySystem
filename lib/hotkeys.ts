@@ -8,6 +8,7 @@ import { focusNavigationTarget, focusTabPanelStart } from "@/lib/enter-navigatio
  *   F3 / Ctrl+S حفظ · F9 حذف · F4 نسخ · F5 جديد · Ctrl+P طباعة · F6 استعلام
  *   PageUp/PageDown السابق/التالي · Ctrl+PageUp/Ctrl+PageDown الأول/الأخير
  *   Enter = Tab داخل الشاشة.
+ *   شاشات التقارير: F5 = عرض/جلب البيانات (زر التقرير المعلَّم data-report-apply — أي تقرير جديد يجب أن يعلِّم زره).
  * المستمع يُثبَّت عند تحميل الوحدة (قبل أي مستمع تضيفه الشاشات في useEffect) فينفَّذ أولاً ويوقف
  * الحدث عن بقية المستمعين — لا ازدواج مع اختصارات قديمة في الشاشات.
  * أي نافذة منبثقة مفتوحة فوق الشاشة (بحث، تأكيد، قائمة منسدلة...) توقف اختصارات الشاشة كلياً، وتبقى
@@ -117,6 +118,19 @@ function commitPendingEdits(container: HTMLElement) {
   if (active && container.contains(active) && typeof active.blur === "function") active.blur()
 }
 
+/**
+ * زر عرض التقرير (data-report-apply) في التقرير الظاهر بالتبويب النشط ⇐ F5 = جلب البيانات في كل التقارير.
+ * لوحة الفلاتر قد تكون مطوية (الزر مخفي)، فيُحكم بظهور قسم الفلاتر نفسه (.report-filters) أو الزر خارجه.
+ * مع شاشتين مقسومتين يُفضَّل تقرير الجزء الذي فيه التركيز.
+ */
+function reportApplyButton() {
+  const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button[data-report-apply]"))
+    .filter((button) => !button.disabled && isVisible(button.closest(".report-filters") ?? button) && !isPopupOpenOver(button))
+  if (buttons.length <= 1) return buttons[0] ?? null
+  const focusedPane = (document.activeElement as HTMLElement | null)?.closest?.("[data-workspace-pane]")
+  return buttons.find((button) => focusedPane && focusedPane.contains(button)) ?? buttons[0]
+}
+
 /** زر الإضافة في صفحة القائمة الظاهرة (التبويب النشط)، ما لم تعلُه نافذة منبثقة. */
 function listAddButton() {
   const buttons = Array.from(document.querySelectorAll<HTMLElement>("[data-hotkey-new]"))
@@ -134,6 +148,19 @@ function onKeyDown(event: KeyboardEvent) {
     // نافذة منبثقة مفتوحة: لا اختصارات للشاشة، لكن يُمنع سلوك المتصفح (طباعة/تحديث الصفحة)
     // Ctrl+S خارج شاشة حركة: لا شيء (ولا نافذة "حفظ الصفحة" للمتصفح)
     if (action === "print" || action === "new" || action === "save") event.preventDefault()
+    // صفحة تقرير: F5 = عرض/جلب البيانات (زر data-report-apply)
+    if (action === "new" && !event.repeat) {
+      const report = reportApplyButton()
+      if (report) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        // إنهاء تحرير حقل الفلتر الحالي قبل التشغيل (نفس أثر النقر على الزر بالفأرة)
+        const active = document.activeElement as HTMLElement | null
+        if (active && typeof active.blur === "function" && active !== document.body) active.blur()
+        window.setTimeout(() => report.click(), 0)
+        return
+      }
+    }
     // صفحة قائمة الحركات (لا شاشة حركة مفتوحة): F5 = زر "إضافة ..." المعلَّم data-hotkey-new في الصفحة الظاهرة
     if (action === "new" && !event.repeat) {
       const button = listAddButton()
