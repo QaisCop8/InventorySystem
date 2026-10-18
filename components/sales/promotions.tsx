@@ -20,7 +20,8 @@ type PromotionRow = {
   id: number; code: string; name: string; promo_type: number; start_date: string; end_date: string | null
   status: number; priority: number; all_customers: boolean; item_count: number; customer_count: number
 }
-type Unit = { unit_id: number; unit_name: string }
+// price: سعر البيع الأصلي للوحدة (فئة السعر 1) — يُعرض للقراءة فقط بجانب السعر الخاص/الخصم
+type Unit = { unit_id: number; unit_name: string; price: number | null }
 type ItemDraft = {
   product_id: number | null; product_code?: string; product_name?: string; unit_id: number | null; units?: Unit[]
   special_price?: string; discount_percent?: string; min_quantity?: string
@@ -57,7 +58,17 @@ async function api<T = any>(url: string, init?: RequestInit): Promise<T> {
 
 const unitsOf = async (productId: number): Promise<Unit[]> => {
   const data = await fetch(`/api/products/${productId}/units?price_category_id=1`).then((response) => (response.ok ? response.json() : [])).catch(() => [])
-  return (Array.isArray(data) ? data : []).map((unit: any) => ({ unit_id: Number(unit.unit_id), unit_name: String(unit.unit_name || "") })).filter((unit: Unit) => unit.unit_id > 0)
+  return (Array.isArray(data) ? data : []).map((unit: any) => ({
+    unit_id: Number(unit.unit_id), unit_name: String(unit.unit_name || ""),
+    price: unit.price != null && unit.price !== "" && Number.isFinite(Number(unit.price)) ? Number(unit.price) : null,
+  })).filter((unit: Unit) => unit.unit_id > 0)
+}
+
+// السعر الأصلي للسطر: سعر الوحدة المختارة، أو الوحدة الأولى عند "كل الوحدات"
+const originalPriceOf = (item: { unit_id: number | null; units?: Unit[] }) => {
+  const units = item.units || []
+  const unit = (item.unit_id ? units.find((row) => row.unit_id === Number(item.unit_id)) : null) ?? units[0]
+  return unit?.price ?? null
 }
 
 const statusOf = (row: PromotionRow) => {
@@ -362,6 +373,7 @@ function PromotionEditor({ draft: initial, onClose, onSaved }: { draft: Draft; o
                   <tr className="border-b">
                     <th className="p-2 text-right">{type === 3 ? "الصنف المشترى" : "الصنف"}</th>
                     <th className="w-32 p-2 text-right">الوحدة</th>
+                    {type !== 3 && <th className="w-28 p-2" title="سعر البيع الحالي للوحدة (فئة السعر الأولى) — للقراءة فقط">السعر الأصلي</th>}
                     {type === 1 && <th className="w-32 p-2">السعر الخاص</th>}
                     {type === 2 && <th className="w-28 p-2">الخصم %</th>}
                     {type !== 3 && <th className="w-28 p-2" title="مجموع كمية الصنف في الحركة">حد أدنى للكمية</th>}
@@ -385,6 +397,12 @@ function PromotionEditor({ draft: initial, onClose, onSaved }: { draft: Draft; o
                           {(item.units || []).map((unit) => <option key={unit.unit_id} value={unit.unit_id}>{unit.unit_name}</option>)}
                         </select>
                       </td>
+                      {type !== 3 && <td className="p-2">
+                        {/* للقراءة فقط: السعر قبل العرض للمقارنة */}
+                        <div className="flex h-8 items-center justify-center rounded-md border border-dashed bg-slate-50 text-sm tabular-nums text-slate-600 dark:bg-slate-800/60 dark:text-slate-300" dir="ltr" title="السعر الأصلي (للقراءة فقط)">
+                          {item.product_id && originalPriceOf(item) != null ? Number(originalPriceOf(item)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "—"}
+                        </div>
+                      </td>}
                       {type === 1 && <td className="p-2"><Input className="h-8 text-center" inputMode="decimal" value={item.special_price} onChange={(event) => setItem(index, { special_price: event.target.value })} /></td>}
                       {type === 2 && <td className="p-2"><Input className="h-8 text-center" inputMode="decimal" value={item.discount_percent} onChange={(event) => setItem(index, { discount_percent: event.target.value })} /></td>}
                       {type !== 3 && <td className="p-2"><Input className="h-8 text-center" inputMode="decimal" value={item.min_quantity} placeholder="0" onChange={(event) => setItem(index, { min_quantity: event.target.value })} /></td>}
