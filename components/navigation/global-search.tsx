@@ -102,8 +102,10 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
     <div ref={containerRef} className={cn("relative", className)}>
       <div
         className={cn(
-          "flex h-10 items-center gap-2 rounded-xl border bg-muted/40 px-3 transition-all",
-          open ? "border-emerald-400 bg-background shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" : "border-border hover:border-emerald-300",
+          "flex h-10 items-center gap-2 rounded-full border px-4 transition-all",
+          open
+            ? "border-emerald-200 bg-white shadow-[0_0_0_4px_rgba(16,185,129,0.10)] dark:border-emerald-500/30 dark:bg-slate-900"
+            : "border-transparent bg-slate-100/70 hover:bg-slate-100 dark:bg-white/5 dark:hover:bg-white/10",
         )}
       >
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -137,7 +139,7 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
             <X className="h-3.5 w-3.5" />
           </button>
         ) : (
-          <kbd className="hidden shrink-0 rounded-md border bg-background px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted-foreground 2xl:inline" dir="ltr">Ctrl K</kbd>
+          <kbd className="hidden shrink-0 rounded-full bg-white px-2 py-0.5 font-sans text-[10px] font-semibold text-slate-400 shadow-sm 2xl:inline dark:bg-white/10" dir="ltr">Ctrl K</kbd>
         )}
       </div>
 

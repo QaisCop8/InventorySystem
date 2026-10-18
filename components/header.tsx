@@ -290,31 +290,34 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
   };
   const pageTitle = sectionTitles[activeSection] || SECTION_TITLES[activeSection] || "Noon ERP";
   const pagePath = (findPath(menuItems) || []).join(" › ");
-  const toolButtonClass = "flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-background hover:text-emerald-700 hover:shadow-sm dark:hover:text-emerald-300";
+  const toolButtonClass = "flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-emerald-300";
 
   return (
     <header
-      className="user-typography relative flex h-14 items-center gap-2 border-b border-border/70 bg-card px-3 shadow-[0_1px_12px_-6px_rgba(15,23,42,0.18)] md:h-16 md:gap-4 md:px-5"
+      className="user-typography relative flex h-14 items-center gap-2 border-b border-emerald-100/70 bg-gradient-to-b from-white to-emerald-50/40 px-3 shadow-[0_6px_20px_-16px_rgba(16,185,129,0.35)] md:h-16 md:gap-4 md:px-5 dark:border-white/5 dark:from-slate-900 dark:to-slate-900"
       dir="rtl"
     >
       {/* لا backdrop-filter ولا z-index على <header>: كلاهما يحصر نافذة التطبيقات (position:fixed بملء الشاشة)
           داخل حدود الشريط بدل الشاشة كلها. */}
-      {/* خط تمييز رفيع أسفل الشريط */}
-      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-l from-emerald-500/70 via-teal-400/50 to-transparent" />
+      {/* خط تمييز ناعم أسفل الشريط */}
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-l from-emerald-300/60 via-teal-200/40 to-transparent dark:from-emerald-500/30" />
 
       {/* البداية: التطبيقات + القائمة + عنوان الشاشة */}
       <div className="flex min-w-0 items-center gap-2 md:gap-3">
         <ApplicationMenu onNavigate={onSectionChange} />
         <RefButton
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
           onClick={onMenuClick}
           aria-label="القائمة"
         >
           <Icons.Menu />
         </RefButton>
-        <div className="min-w-0 border-r-2 border-emerald-500/70 pr-3">
-          <h1 className="truncate text-sm font-extrabold leading-tight text-card-foreground md:text-lg">{pageTitle}</h1>
-          {pagePath && <p className="hidden truncate text-[11px] leading-tight text-muted-foreground md:block">{pagePath}</p>}
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="hidden h-8 w-1 shrink-0 rounded-full bg-gradient-to-b from-emerald-300 to-teal-200 md:block dark:from-emerald-500/60 dark:to-teal-500/30" />
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-bold leading-tight text-slate-800 md:text-[17px] dark:text-slate-100">{pageTitle}</h1>
+            {pagePath && <p className="hidden truncate text-[11px] leading-tight text-slate-400 md:block">{pagePath}</p>}
+          </div>
         </div>
       </div>
 
@@ -327,9 +330,9 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       {/* النهاية: سياق العمل + الأدوات + المستخدم */}
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
         {/* الفرع والقسم والشركة — كبسولة واحدة */}
-        <div className="hidden items-center divide-x divide-x-reverse divide-border rounded-xl border border-border bg-muted/40 xl:flex">
-          <label className="flex items-center gap-1.5 px-2.5 py-1.5" title="الفرع النشط">
-            <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+        <div className="hidden items-center divide-x divide-x-reverse divide-emerald-100 rounded-full border border-emerald-100/80 bg-emerald-50/50 xl:flex dark:divide-white/10 dark:border-white/10 dark:bg-white/5">
+          <label className="flex items-center gap-1.5 px-3 py-1.5" title="الفرع النشط">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
             <select
               className="max-w-[130px] cursor-pointer bg-transparent text-right text-sm font-medium outline-none"
               value={activeBranchId?.toString() || ""}
@@ -351,15 +354,15 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
                 ))
               )}
             </select>
-            <span className="rounded-md bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] text-emerald-700/80 shadow-sm dark:bg-white/10 dark:text-emerald-200">
               {activeDepartment || user?.department || "القسم"}
             </span>
           </label>
 
           {/* الشركة الحالية — التبديل يعيد تحميل النظام على الشركة الجديدة */}
           {myCompanies.length > 0 && (
-            <label className="flex items-center gap-1.5 px-2.5 py-1.5" title="الشركة">
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <label className="flex items-center gap-1.5 px-3 py-1.5" title="الشركة">
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
               <select
                 className="max-w-[150px] cursor-pointer truncate bg-transparent text-sm font-medium text-card-foreground outline-none"
                 value={currentCompanyId ?? ""}
@@ -383,7 +386,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         </div>
 
         {/* الأدوات */}
-        <div className="flex items-center gap-0.5 rounded-xl border border-border/60 bg-muted/30 p-0.5">
+        <div className="flex items-center gap-0.5 rounded-full bg-slate-100/70 p-1 dark:bg-white/5">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -417,14 +420,14 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         {/* المستخدم */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <RefButton className="flex h-auto items-center gap-2 rounded-xl p-1 transition hover:bg-muted md:py-1 md:pl-1 md:pr-2">
+            <RefButton className="flex h-auto items-center gap-2 rounded-full p-1 transition hover:bg-emerald-50/70 md:py-1 md:pl-1 md:pr-3 dark:hover:bg-white/5">
               <div className="hidden min-w-0 max-w-36 text-right xl:block">
-                <p className="truncate text-sm font-semibold leading-tight">{user?.fullName}</p>
-                <p className="truncate text-[11px] leading-tight text-muted-foreground">{user?.email}</p>
+                <p className="truncate text-sm font-semibold leading-tight text-slate-700 dark:text-slate-200">{user?.fullName}</p>
+                <p className="truncate text-[11px] leading-tight text-slate-400">{user?.email}</p>
               </div>
-              <Avatar className="h-8 w-8 bg-emerald-600 ring-2 ring-emerald-500/30 ring-offset-1 ring-offset-card md:h-9 md:w-9">
+              <Avatar className="h-8 w-8 bg-emerald-100 ring-2 ring-emerald-100 ring-offset-1 ring-offset-white md:h-9 md:w-9 dark:ring-emerald-500/20 dark:ring-offset-slate-900">
                 <AvatarImage src={avatarUrl || undefined} alt={user?.fullName || ""} className="object-cover" />
-                <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white"><Icons.User className="h-3.5 w-3.5 md:h-4 md:w-4" /></AvatarFallback>
+                <AvatarFallback className="bg-gradient-to-br from-emerald-300 to-teal-400 text-white"><Icons.User className="h-3.5 w-3.5 md:h-4 md:w-4" /></AvatarFallback>
               </Avatar>
             </RefButton>
           </DropdownMenuTrigger>

@@ -86,8 +86,8 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" title="طريقة عرض الصفحات">
-          <Columns2 className="h-5 w-5" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-emerald-300" title="طريقة عرض الصفحات">
+          <Columns2 className="h-[18px] w-[18px]" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72" dir="rtl">

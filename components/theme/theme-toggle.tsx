@@ -91,8 +91,9 @@ export function QuickThemeToggle() {
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggle} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}>
-      {dark ? <Sun className="h-[1.2rem] w-[1.2rem]" /> : <Moon className="h-[1.2rem] w-[1.2rem]" />}
+    <Button variant="ghost" size="icon" onClick={toggle} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}
+      className="h-8 w-8 rounded-full text-slate-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-emerald-300">
+      {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
       <span className="sr-only">{dark ? "الوضع الفاتح" : "الوضع الداكن"}</span>
     </Button>
   )

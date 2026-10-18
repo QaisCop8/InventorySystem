@@ -57,7 +57,7 @@ export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
   }
 
   return <>
-    <button type="button" onClick={() => setOpen(true)} className="relative flex h-10 items-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700" aria-label="قائمة التطبيقات">
+    <button type="button" onClick={() => setOpen(true)} className="relative flex h-10 items-center gap-2 rounded-full bg-emerald-50 px-3.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200/70 transition hover:bg-emerald-100 hover:ring-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20 dark:hover:bg-emerald-500/20" aria-label="قائمة التطبيقات">
       <Grid3X3 className="h-5 w-5"/><span className="hidden sm:inline">التطبيقات</span>
     </button>
     {open && <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/45 backdrop-blur-sm" dir="rtl" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false) }}>
