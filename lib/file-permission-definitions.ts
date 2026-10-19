@@ -57,7 +57,7 @@ export function parseFilePermission(name: string): { family: FileFamily; action:
 }
 
 export function fileFamilyForSection(section: string | null | undefined): FileFamily | null {
-  if (section === "products") return "items"
+  if (section === "products" || section === "purchase-planning") return "items"
   return section && Object.prototype.hasOwnProperty.call(FILE_FAMILIES, section) ? section as FileFamily : null
 }
 

@@ -29,6 +29,7 @@ import { BatchReports } from "@/components/reports/batch-reports"
 import { BatchLogReport } from "@/components/reports/batch-log-report"
 import { InventoryAnalytics } from "@/components/inventory/inventory-analytics"
 import { AutomatedReorderSystem } from "@/components/inventory/automated-reorder-system"
+import { PurchasePlanning } from "@/components/inventory/purchase-planning"
 import { BarcodeManagement } from "@/components/barcode/barcode-management"
 import { OrderTrackingDashboard } from "@/components/workflow/order-tracking-dashboard"
 import { LotOpener } from "@/components/inventory/lot-opener"
@@ -154,6 +155,11 @@ export default function DashboardLayoutPage() {
                   component = AutomatedReorderSystem
                   title = "نظام إعادة الطلب التلقائي"
                   icon = "reorder"
+                  break
+                case "purchase-planning":
+                  component = PurchasePlanning
+                  title = "تخطيط المشتريات الذكي"
+                  icon = "analytics"
                   break
                 case "barcode-management":
                   component = BarcodeManagement

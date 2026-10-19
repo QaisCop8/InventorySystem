@@ -64,11 +64,11 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authorization = await authorizeTransaction(request, "sales_order", "view")
-    if (!authorization.ok) return authorization.response
     const { searchParams } = new URL(request.url)
-
     const type = searchParams.get("type") || "1" // 1 = sales, 2 = purchase
+    const authorization = await authorizeTransaction(request, Number(type) === 2 ? "purchase_order" : "sales_order", "view")
+    if (!authorization.ok) return authorization.response
+
     const filters = {
       search: searchParams.get("search") || undefined,
       status: searchParams.get("status") || undefined,
@@ -99,7 +99,8 @@ async function postHandler(request: NextRequest) {
     const items = it || requestData.items || [];
 
     const action = orderData?.id && Number(orderData.id) > 0 ? "update" : "create"
-    const authorization = await authorizeTransaction(request, "sales_order", action, orderData?.branch_id)
+    const orderFamily = Number(orderData?.order_type ?? type ?? 1) === 2 ? "purchase_order" : "sales_order"
+    const authorization = await authorizeTransaction(request, orderFamily, action, orderData?.branch_id)
     if (!authorization.ok) return authorization.response
     orderData.branch_id = authorization.branchId
 

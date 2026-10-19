@@ -101,6 +101,7 @@ const OutgoingChequeClearBulkPage = lazyNamed(() => import("@/components/account
 const ChequePaymentVouchers = lazyDefault(() => import("@/components/accounting/unified-cheque-payment-voucher"))
 const InventoryAnalytics = lazyNamed(() => import("@/components/inventory/inventory-analytics"), "InventoryAnalytics")
 const AutomatedReorderSystem = lazyNamed(() => import("@/components/inventory/automated-reorder-system"), "AutomatedReorderSystem")
+const PurchasePlanning = lazyNamed(() => import("@/components/inventory/purchase-planning"), "PurchasePlanning")
 const BarcodeManagement = lazyNamed(() => import("@/components/barcode/barcode-management"), "BarcodeManagement")
 const OrderTrackingDashboard = lazyNamed(() => import("@/components/workflow/order-tracking-dashboard"), "OrderTrackingDashboard")
 const LotOpener = lazyNamed(() => import("@/components/inventory/lot-opener"), "LotOpener")
@@ -206,6 +207,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
   "automated-reorder": AutomatedReorderSystem,
+  "purchase-planning": PurchasePlanning,
   "whatsapp-notifications": WhatsAppNotificationSettings,
   "barcode-management": BarcodeManagement,
   "order-tracking": OrderTrackingDashboard,

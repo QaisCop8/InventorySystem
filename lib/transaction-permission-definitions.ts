@@ -84,6 +84,7 @@ export function legacyTransactionPermissionName(family: TransactionFamily, actio
 const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "sales-orders": "sales_order",
   "purchase-orders": "purchase_order",
+  "purchase-planning": "purchase_order",
   "sale-invoices": "sales_invoice",
   "sales-invoices": "sales_invoice",
   "sales-delivery": "sales_delivery",

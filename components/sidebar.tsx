@@ -260,6 +260,7 @@ export const menuItems: MenuItem[] = [
           { title: "جرد المخازن", section: "stock-counts", icon: ClipboardCheck },
         ],
       },
+      { title: "تخطيط المشتريات الذكي", section: "purchase-planning", icon: TrendingUp },
       {
         title: "طلبات بضاعة داخلي",
         section: "internal-manufacturing-orders",
