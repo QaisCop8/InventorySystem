@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN units u ON u.id = pu.unit_id
       WHERE COALESCE(p.type, 1) = 1
         AND (p.deleted IS NULL OR p.deleted = false)
-        AND (p.status = 1 OR p.status::text IN ('1', 'نشط', 'active', 'ACTIVE'))
+        AND LOWER(COALESCE(p.status::text, '')) IN ('1', 'نشط', 'active')
         AND (
           NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
           OR EXISTS (
