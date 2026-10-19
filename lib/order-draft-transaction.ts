@@ -90,8 +90,10 @@ async function defaultReceiptBookId(client: PoolClient, userId: number): Promise
 
 // رقم سند قبض بنفس ترقيم النظام: بادئة السند + رمز الفرع + رمز الدفتر + تسلسل (لا DEP-...)
 async function nextReceiptCode(client: PoolClient, bookId: number | null, branchId: number | null): Promise<string> {
+  if (!bookId) throw new DraftValidationError("يجب تعريف دفتر سند قبض افتراضي للمستخدم قبل حفظ مبلغ العربون")
   const settings = await getVoucherNumberSettings("", RECEIPT_VCH_TYPE)
   const bookName = await resolveVoucherBookName(bookId, branchId)
+  if (!bookName) throw new DraftValidationError("تعذر تحديد رمز دفتر سند القبض — تحقق من دفتر القبض الافتراضي")
   let sequence = await nextVoucherSequence(RECEIPT_VCH_TYPE, `${settings.prefix}${bookName}`, settings.startNumber)
   for (let attempt = 0; attempt < 20; attempt += 1, sequence += 1) {
     const code = buildVoucherCode(settings.prefix, bookName, sequence)

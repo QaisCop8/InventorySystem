@@ -33,6 +33,7 @@ const Products = dynamic(() => import("@/components/products/products").then(mod
 const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
 const lazyNamed = (loader: () => Promise<any>, name: string) => dynamic(() => loader().then((mod) => mod[name]), { ssr: false })
 const lazyDefault = (loader: () => Promise<any>): React.ComponentType<any> => dynamic(loader, { ssr: false })
+const FeatureRequests = lazyDefault(() => import("@/components/tools/feature-requests"))
 const FixedAssetsPage = lazyDefault(() => import("@/app/fixed-assets/page"))
 const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
 const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
@@ -342,6 +343,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "qa-dashboard": QADashboard,
   "home-dashboard": WelcomeDashboard,
   "personal-assistant": PersonalAssistantWizard,
+  "feature-requests": FeatureRequests,
   "page-shortcuts": PageShortcutsSettings,
   "pervasive-settings": PervasiveSettings,
   "customer-portal-admin": CustomerPortalAdmin,

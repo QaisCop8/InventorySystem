@@ -507,6 +507,7 @@ export const menuItems: MenuItem[] = [
     submenu: [
       { title: "البداية السريعة", section: "personal-assistant", icon: Sparkles },
       { title: "اختصارات الصفحات", section: "page-shortcuts", icon: Keyboard },
+      { title: "بريد الرسائل والتحسينات", section: "feature-requests", icon: Lightbulb },
     ],
   },
   //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },

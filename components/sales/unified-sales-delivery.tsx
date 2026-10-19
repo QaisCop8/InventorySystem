@@ -3400,7 +3400,7 @@ export default function UnifiedSalesDelivery({
                     lockOrderOnlyFilter={hasOrderSourceItems}
                     showDeliveryOnlyFilter={hasDeliverySourceItems}
                     lockDeliveryOnlyFilter={hasDeliverySourceItems}
-                    deliveryVchTypes={isFromDelivery ? (isPurchaseDeliveryVoucher ? [18] : [13, 14]) : []}
+                    deliveryVchTypes={isFromConsignment ? [14] : isFromDelivery ? (isPurchaseDeliveryVoucher ? [18] : [13, 14]) : []}
                     orderType={isFromOrder ? (isPurchaseDeliveryVoucher ? 2 : 1) : null}
                     branchId={isFromOrder || isFromDelivery ? form.branch_id : null}
                     disabled={isLocked}
