@@ -5,6 +5,7 @@ import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemVatRateFor, useItemVatRates } from "@/lib/use-item-vat-rates"
+import { finiteItemNumber, netItemAmount, parseItemAmount } from "@/lib/item-amount"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
@@ -443,9 +444,9 @@ const ITEM_ACCOUNT_CONFIG: Partial<Record<SalesVoucherSubType, { productField: s
 // discount_type/discount_value/vat_percent في SalesDeliveryRecord وtotals أدناه، بنفس نموذج
 // unified-sales-order.tsx تماماً).
 const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, "total_price" | "line_amount"> => {
-  const quantity = Number(row.quantity || 0)
-  const price = Number(row.unit_price || 0)
-  const discountPercent = Number(row.discount_percent || 0)
+  const quantity = finiteItemNumber(row.quantity) ?? 0
+  const price = finiteItemNumber(row.unit_price) ?? 0
+  const discountPercent = finiteItemNumber(row.discount_percent) ?? 0
   const amount = Math.round(quantity * price * (1 - discountPercent / 100) * 100) / 100
   return { total_price: amount, line_amount: amount }
 }
@@ -883,6 +884,11 @@ export default function UnifiedSalesDelivery({
   const hasOrderSourceItems = !hasDeliverySourceItems && items.some((item) => Number(item.order_item_id || 0) > 0)
   const itemsRef = useRef(items)
   itemsRef.current = items
+  const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
+  const amountVatAdjustmentRef = useRef(new Map<number, { productId: number | null; action: "add" | "remove"; netAmount: number }>())
+  useEffect(() => {
+    amountVatAdjustmentRef.current.clear()
+  }, [form.id, form.vch_code, gridResetToken])
   // نفس نمط formRef في unified-stock-voucher.tsx — يقرأه معالِج Alt+C (نسخ سند للحافظة العابرة
   // لنوع السند، انظر lib/voucher-clipboard.ts) دون حاجة لإدراج كل حقل رأس يقرأه بمصفوفة تبعيات
   // useEffect أدناه (المُقتصرة على id/status اللازمين لِـF3/F4 فقط).
@@ -2029,6 +2035,50 @@ export default function UnifiedSalesDelivery({
     const row = e.row
     const colName = grid?.columns?.[e.col]?.binding
     const value = grid.getCellData(row, e.col, false)
+    if (colName === "total_price") {
+      const snapshot = amountEditSnapshotRef.current
+      const currentRow = itemsRef.current[row]
+      const oldAmount = snapshot && snapshot.grid === grid && snapshot.row === row
+        ? snapshot.value
+        : currentRow?.total_price
+      const safeOldAmount = oldAmount == null ? oldAmount : finiteItemNumber(oldAmount) ?? 0
+      const parsedAmount = parseItemAmount(value)
+      const quantity = finiteItemNumber(currentRow?.quantity)
+      const discountPercent = finiteItemNumber(currentRow?.discount_percent) ?? 0
+      const discountFactor = 1 - Math.min(Math.max(discountPercent, 0), 100) / 100
+      if (!parsedAmount || quantity === null || quantity <= 0 || discountFactor <= 0) {
+        patchItemRow(row, { total_price: safeOldAmount, line_amount: safeOldAmount })
+        return
+      }
+
+      const currentForm = formRef.current
+      const vatDisabled = Number(currentForm.vat_classification_id) === 2 || Number(currentForm.vat_classification_id) === 3
+      const vatRate = vatDisabled
+        ? 0
+        : itemVatRef.current.enabled
+          ? (itemVatRef.current.rateOf(currentRow?.product_id) ?? 0)
+          : (finiteItemNumber(currentForm.vat_percent) ?? 0)
+      // + keeps the entered amount net for the voucher's single VAT calculation; - removes included VAT.
+      const productId = Number(currentRow?.product_id) || null
+      const previousAdjustment = amountVatAdjustmentRef.current.get(row)
+      const alreadyAdjusted = parsedAmount.vatAction !== null &&
+        previousAdjustment?.productId === productId &&
+        previousAdjustment.action === parsedAmount.vatAction &&
+        Math.abs(previousAdjustment.netAmount - parsedAmount.amount) < 0.000001
+      const netAmount = netItemAmount(parsedAmount.amount, parsedAmount.vatAction, vatRate, alreadyAdjusted)
+      if (parsedAmount.vatAction) {
+        amountVatAdjustmentRef.current.set(row, { productId, action: parsedAmount.vatAction, netAmount })
+      } else {
+        amountVatAdjustmentRef.current.delete(row)
+      }
+      const unitPrice = netAmount / (quantity * discountFactor)
+      if (!Number.isFinite(unitPrice)) {
+        patchItemRow(row, { total_price: safeOldAmount, line_amount: safeOldAmount })
+        return
+      }
+      patchItemRow(row, { unit_price: unitPrice, total_price: netAmount, line_amount: netAmount })
+      return
+    }
     if (colName === "product_code") {
       const previousRow = itemsRef.current[row]
       const rawValue = String(value ?? "").trim()
@@ -2120,6 +2170,9 @@ export default function UnifiedSalesDelivery({
   const handleBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const row = itemsRef.current[e.row]
+    if (colName === "total_price") {
+      amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+    }
     if (isFromDelivery && colName !== "unit_price") {
       e.cancel = true
       return
@@ -2881,7 +2934,7 @@ export default function UnifiedSalesDelivery({
           isReadOnly: true,
           visible: Util.getVoucherSettingScreenData(voucherType, "price_excl_tax"),
         },
-        { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: isLocked || isFromDelivery },
+        { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.String, isReadOnly: isLocked || isFromDelivery },
         {
           header: "الرقم التشغيلي",
           name: "batch_number",
@@ -3398,8 +3451,8 @@ export default function UnifiedSalesDelivery({
                     searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [2,3, 5] : [2,3, 5]}
                     showOrderOnlyFilter={hasOrderSourceItems}
                     lockOrderOnlyFilter={hasOrderSourceItems}
-                    showDeliveryOnlyFilter={hasDeliverySourceItems}
-                    lockDeliveryOnlyFilter={hasDeliverySourceItems}
+                    showDeliveryOnlyFilter={hasDeliverySourceItems && !isFromConsignment}
+                    lockDeliveryOnlyFilter={hasDeliverySourceItems && !isFromConsignment}
                     deliveryVchTypes={isFromConsignment ? [14] : isFromDelivery ? (isPurchaseDeliveryVoucher ? [18] : [13, 14]) : []}
                     orderType={isFromOrder ? (isPurchaseDeliveryVoucher ? 2 : 1) : null}
                     branchId={isFromOrder || isFromDelivery ? form.branch_id : null}

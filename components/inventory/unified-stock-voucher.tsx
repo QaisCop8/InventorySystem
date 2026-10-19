@@ -40,6 +40,7 @@ import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
+import { finiteItemNumber } from "@/lib/item-amount"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -694,6 +695,7 @@ export default function UnifiedStockVoucher({
   const items = form.items || []
   const itemsRef = useRef(items)
   itemsRef.current = items
+  const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
   // مرجع دائم التحديث لـform — تستخدمه دوال تُستدعى من مُعالِجات Wijmo المُمرَّرة كخاصية لـ
   // DataGridView (كـcellEditEnded)؛ إن أبقى المُغلِّف الخاص بـWijmo على أول دالة مُرَّرت له دون
   // إعادة ربطها عند كل تحديث، تبقى القيم المُغلَقة عليها (كـform.from_store_id) كما كانت عند أول
@@ -1166,11 +1168,11 @@ export default function UnifiedStockVoucher({
   }
 
   const chequesTotal = items.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
-  const amountTotal = items.reduce((sum, row) => sum + Number(row.total_price || 0), 0)
+  const amountTotal = items.reduce((sum, row) => sum + (finiteItemNumber(row.total_price) ?? 0), 0)
 
   const recalcAmount = (quantity: number | null, price: number | null) => {
-    const q = Number(quantity || 0)
-    const p = Number(price || 0)
+    const q = finiteItemNumber(quantity) ?? 0
+    const p = finiteItemNumber(price) ?? 0
     return Math.round(q * p * 100) / 100
   }
 
@@ -1294,6 +1296,27 @@ export default function UnifiedStockVoucher({
     const row = e.row
     const colName = grid?.columns?.[e.col]?.binding
     const value = grid.getCellData(row, e.col, false)
+    if (colName === "total_price") {
+      const snapshot = amountEditSnapshotRef.current
+      const currentRow = itemsRef.current[row]
+      const oldAmount = snapshot && snapshot.grid === grid && snapshot.row === row
+        ? snapshot.value
+        : currentRow?.total_price
+      const safeOldAmount = oldAmount == null ? oldAmount : finiteItemNumber(oldAmount) ?? 0
+      const amount = finiteItemNumber(value)
+      const quantity = finiteItemNumber(currentRow?.quantity)
+      if (amount === null || quantity === null || quantity <= 0) {
+        patchItemRow(row, { total_price: safeOldAmount })
+        return
+      }
+      const unitPrice = amount / quantity
+      if (!Number.isFinite(unitPrice)) {
+        patchItemRow(row, { total_price: safeOldAmount })
+        return
+      }
+      patchItemRow(row, { unit_price: unitPrice, total_price: amount })
+      return
+    }
     if (colName === "product_code") {
       const previousRow = itemsRef.current[row]
       const rawValue = String(value ?? "").trim()
@@ -1401,6 +1424,9 @@ export default function UnifiedStockVoucher({
   const handleBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const row = itemsRef.current[e.row]
+    if (colName === "total_price") {
+      amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+    }
     if (colName === "quantity") {
       // نوع قياس غير عادي: تُمنَع الكتابة المباشرة دوماً، وتُفتَح نافذة "بيانات القياس" بدلاً منها
       // عند أي محاولة تحرير (كتابة حرف، F2، نقر مزدوج — كلها تُطلق beginningEdit في Wijmo) بدل

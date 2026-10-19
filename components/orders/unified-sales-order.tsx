@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { useItemVatRates } from "@/lib/use-item-vat-rates"
+import { finiteItemNumber, netItemAmount, parseItemAmount } from "@/lib/item-amount"
 import { Button } from "@/components/ui/button"
 import AccountBalanceField from "@/components/common/account-balance-field"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -377,6 +378,11 @@ function UnifiedSalesOrder({
   defaultItemWarehouseIdRef.current = defaultItemWarehouseId
   const defaultVatPercentRef = useRef<number>(0)
   const doHotKeys = useRef(true)
+  const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
+  const amountVatAdjustmentRef = useRef(new Map<number, { productId: number | null; action: "add" | "remove"; netAmount: number }>())
+  useEffect(() => {
+    amountVatAdjustmentRef.current.clear()
+  }, [state.formData.id, state.formData.vch_code])
   const toast = useRef<Toast | null>(null);
   const message = useRef(Messages);
   const [loading, setLoading] = useState(false);
@@ -1280,11 +1286,11 @@ function UnifiedSalesOrder({
     const colName = grid.columns[col].binding;
     const editedValue = grid.getCellData(row, col, false);
     const oldValue = e.data;
-    const price = grid.getCellData(row, 'price', false) ?? 0;
-    const discount = grid.getCellData(row, 'discount', false) ?? 0;
-    const qnty = grid.getCellData(row, 'qnty', false) ?? 0;
-    const amount = grid.getCellData(row, 'amount', false) ?? 0;
-    const taxPercentage = parseFloat(state.formData.vat_percent ?? 0);
+    const price = finiteItemNumber(grid.getCellData(row, 'price', false)) ?? 0;
+    const discount = finiteItemNumber(grid.getCellData(row, 'discount', false)) ?? 0;
+    const qnty = finiteItemNumber(grid.getCellData(row, 'qnty', false)) ?? 0;
+    const amount = finiteItemNumber(grid.getCellData(row, 'amount', false)) ?? 0;
+    const taxPercentage = finiteItemNumber(state.formData.vat_percent) ?? 0;
     console.log(" row  row ", row)
     setSelectedIndex(row)
     if (colName === "item_status") {
@@ -1342,9 +1348,9 @@ function UnifiedSalesOrder({
         return;
       }*/
       //await recalculate_invoice(false/*, discountAmountRef.current*/);
-      const amount = parseFloat(editedValue) * parseFloat(price) - parseFloat(discount)
+      const amount = Number(editedValue) * price - discount
       const ColIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'amount');
-      grid.setCellData(row, ColIndex, amount);
+      grid.setCellData(row, ColIndex, Number.isFinite(amount) ? amount : 0);
       grid.refresh(true);
     }
     if (colName === 'price') {
@@ -1353,11 +1359,14 @@ function UnifiedSalesOrder({
         if (grid.activeEditor) grid.activeEditor.value = '';
         return;
       }
-      const amount = parseFloat(editedValue) * parseFloat(qnty) - parseFloat(discount)
-      const priceInclTax = calculateInclusivePrice(parseFloat(editedValue), taxPercentage)
+      const amount = Number(editedValue) * qnty - discount
+      const currentItem = grid.rows?.[row]?.dataItem ?? CollectionView.items[row]
+      const productId = Number(currentItem?.product_id ?? currentItem?.id) || null
+      const rowTaxPercentage = itemVat.enabled ? (itemVat.rateOf(productId) ?? 0) : taxPercentage
+      const priceInclTax = calculateInclusivePrice(Number(editedValue), rowTaxPercentage)
       const amountIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'amount');
       const priceInclIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'price_incl_tax');
-      grid.setCellData(row, amountIndex, amount);
+      grid.setCellData(row, amountIndex, Number.isFinite(amount) ? amount : 0);
       if (priceInclIndex >= 0) {
         grid.setCellData(row, priceInclIndex, priceInclTax);
       }
@@ -1369,26 +1378,80 @@ function UnifiedSalesOrder({
         if (grid.activeEditor) grid.activeEditor.value = '';
         return;
       }
-      if (parseFloat(editedValue) > parseFloat(amount)) {
+      if (Number(editedValue) > amount) {
         Util.showErrorToast(toast.current, `لا يمكن ادخال خصم اكبر من المبلغ `);
         if (grid.activeEditor) grid.activeEditor.value = '';
         const ColIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'discount');
         grid.setCellData(row, ColIndex, oldValue, false);
         return;
       }
-      const amountVal = parseFloat(price) * parseFloat(qnty) - parseFloat(editedValue)
+      const amountVal = price * qnty - Number(editedValue)
       const ColIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'amount');
-      grid.setCellData(row, ColIndex, amountVal, false);
+      grid.setCellData(row, ColIndex, Number.isFinite(amountVal) ? amountVal : amount, false);
       //grid.refresh(true);
     }
+    if (colName === 'amount') {
+      const parsedAmount = parseItemAmount(editedValue)
+      const snapshot = amountEditSnapshotRef.current
+      const oldAmount = snapshot && snapshot.grid === grid && snapshot.row === row
+        ? snapshot.value
+        : grid.rows?.[row]?.dataItem?.amount ?? grid.getCellData(row, col, false)
+      const amountIndex = grid.columns.findIndex((column: { binding: string }) => column.binding === 'amount')
+      const restoreAmount = () => {
+        const safeOldAmount = oldAmount == null ? oldAmount : finiteItemNumber(oldAmount) ?? 0
+        if (amountIndex >= 0) grid.setCellData(row, amountIndex, safeOldAmount, false)
+        grid.refresh(true)
+      }
+      const quantity = finiteItemNumber(grid.getCellData(row, 'qnty', false))
+      const lineDiscount = finiteItemNumber(grid.getCellData(row, 'discount', false)) ?? 0
+      if (!parsedAmount) {
+        Util.showErrorToast(toast.current, `ظٹط¬ط¨ ط§ط¯ط®ط§ظ„ ط§ط±ظ‚ط§ظ… ظپظ‚ط· `)
+        restoreAmount()
+        return
+      }
+      if (quantity === null || quantity <= 0) {
+        restoreAmount()
+        return
+      }
+      const item = grid.rows?.[row]?.dataItem ?? CollectionView.items[row]
+      const productId = Number(item?.product_id ?? item?.id) || null
+      const vatRate = itemVat.enabled
+        ? (itemVat.rateOf(productId) ?? 0)
+        : (finiteItemNumber(state.formData.vat_percent) ?? 0)
+      // + leaves a net amount for the voucher VAT calculation; - removes included VAT.
+      const previousAdjustment = amountVatAdjustmentRef.current.get(row)
+      const alreadyAdjusted = parsedAmount.vatAction !== null &&
+        previousAdjustment?.productId === productId &&
+        previousAdjustment.action === parsedAmount.vatAction &&
+        Math.abs(previousAdjustment.netAmount - parsedAmount.amount) < 0.000001
+      const netAmount = netItemAmount(parsedAmount.amount, parsedAmount.vatAction, vatRate, alreadyAdjusted)
+      if (parsedAmount.vatAction) {
+        amountVatAdjustmentRef.current.set(row, { productId, action: parsedAmount.vatAction, netAmount })
+      } else {
+        amountVatAdjustmentRef.current.delete(row)
+      }
+      const nextPrice = (netAmount + lineDiscount) / quantity
+      if (!Number.isFinite(nextPrice)) {
+        restoreAmount()
+        return
+      }
+      const priceIndex = grid.columns.findIndex((column: { binding: string }) => column.binding === 'price')
+      const priceInclIndex = grid.columns.findIndex((column: { binding: string }) => column.binding === 'price_incl_tax')
+      if (priceIndex >= 0) grid.setCellData(row, priceIndex, nextPrice, false)
+      if (priceInclIndex >= 0) grid.setCellData(row, priceInclIndex, calculateInclusivePrice(nextPrice, vatRate), false)
+      if (amountIndex >= 0) grid.setCellData(row, amountIndex, netAmount, false)
+      grid.refresh(true)
+      return
+    }
+
     if (colName === 'amount') {
       if (isNaN(editedValue)) {
         Util.showErrorToast(toast.current, `يجب ادخال ارقام فقط `);
         if (grid.activeEditor) grid.activeEditor.value = '';
         return;
       }
-      if (parseFloat(qnty) > 0) {
-        const price = parseFloat(editedValue) / parseFloat(qnty) - parseFloat(discount)
+      if (qnty > 0) {
+        const price = Number(editedValue) / qnty - discount
         const ColIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'price');
         grid.setCellData(row, ColIndex, price);
         grid.refresh(true);
@@ -1399,6 +1462,9 @@ function UnifiedSalesOrder({
 
   const onBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
+    if (colName === "amount") {
+      amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+    }
     const item = grid?.rows?.[e.row]?.dataItem ?? CollectionView.items[e.row]
     if (colName === "item_status" && ([3, 4].includes(Number(item?.item_status)) || [4, 6].includes(Number(state.formData.order_status)))) {
       e.cancel = true
@@ -1478,13 +1544,15 @@ function UnifiedSalesOrder({
       }
     }
     if (['qnty', 'bonus', 'amount', 'price', 'discount'].includes(colName)) {
+      if (colName === 'amount' && (e.key === '+' || e.key === '-')) {
+        const currentText = String(activeEditor?.value ?? '')
+        if (!currentText || /[+-]/.test(currentText)) e.preventDefault()
+        return
+      }
       if (e.key.length === 1 && !/[0-9.]/.test(e.key)) {
         e.preventDefault();
         return;
       }
-    }
-    if (colName === 'amount' && parseFloat(item?.qnty) === 0) {
-      e.preventDefault();
     }
     switch (e.keyCode) {
       case 121: // F10
@@ -1735,7 +1803,7 @@ function UnifiedSalesOrder({
           isReadOnly: true,
         },
         { header: "الخصم", name: "discount", width: 80, maxLength: 10, visible: Util.getVoucherSettingScreenData(vch_type, 'discount') },
-        { header: "المبلغ", name: "amount", width: 80, visible: true, maxLength: 15 },
+        { header: "المبلغ", name: "amount", width: 80, dataType: wjcCore.DataType.String, visible: true, maxLength: 15 },
         { header: "تاريخ الصلاحية", name: "expiry_date", width: 120, visible: false },
         { header: "has_batch_number", name: "has_batch_number", width: 150, visible: false },
         {

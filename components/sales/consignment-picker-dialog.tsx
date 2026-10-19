@@ -35,11 +35,12 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
   const [salesmanId, setSalesmanId] = useState<number | null>(null)
   const [selected, setSelected] = useState<Row | null>(null)
   const [preview, setPreview] = useState<{ header: ConsignmentHeader; lines: ConsignmentLine[] } | null>(null)
+  const [selectedLineIds, setSelectedLineIds] = useState<number[]>([])
   const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setSearch(""); setSelected(null); setPreview(null); setError("")
+    setSearch(""); setSelected(null); setPreview(null); setSelectedLineIds([]); setError("")
     setSalesmanId(defaultSalesmanId || null)
   }, [open, defaultSalesmanId])
 
@@ -65,7 +66,7 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
   }, [open, forType, branchId, salesmanId, search])
 
   const choose = async (row: Row) => {
-    setSelected(row); setPreview(null); setPreviewLoading(true); setError("")
+    setSelected(row); setPreview(null); setSelectedLineIds([]); setPreviewLoading(true); setError("")
     try {
       const params = new URLSearchParams({ for: String(forType), id: String(row.id) })
       if (branchId) params.set("branch_id", String(branchId))
@@ -73,9 +74,19 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data?.error || "فشل في جلب أسطر الارسالية")
       setPreview(data)
+      setSelectedLineIds((Array.isArray(data?.lines) ? data.lines : []).map((line: ConsignmentLine) => Number(line.id)))
     } catch (cause: any) {
       setError(cause?.message || "فشل في جلب أسطر الارسالية")
     } finally { setPreviewLoading(false) }
+  }
+
+  const allPreviewLinesSelected = preview !== null && preview.lines.length > 0 && preview.lines.every((line) => selectedLineIds.includes(line.id))
+  const confirmSelection = () => {
+    if (!preview) return
+    const lines = forType === 12
+      ? preview.lines.filter((line) => selectedLineIds.includes(line.id))
+      : preview.lines
+    if (lines.length > 0) onSelect(preview.header, lines)
   }
 
   return (
@@ -113,7 +124,7 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
               : <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-slate-100 text-xs text-slate-600"><tr><th className="px-3 py-2 text-right">الرقم</th><th className="px-3 py-2 text-right">التاريخ</th><th className="px-3 py-2 text-right">المندوب</th><th className="px-3 py-2 text-right">المتبقي</th></tr></thead>
                   <tbody>{rows.map((row) => (
-                    <tr key={row.id} onClick={() => void choose(row)} onDoubleClick={() => preview && preview.header.id === row.id && onSelect(preview.header, preview.lines)}
+                    <tr key={row.id} onClick={() => void choose(row)} onDoubleClick={() => preview && preview.header.id === row.id && confirmSelection()}
                       className={`cursor-pointer border-t hover:bg-violet-50 ${selected?.id === row.id ? "bg-violet-100/70" : ""}`}>
                       <td className="px-3 py-2 font-mono font-semibold">{row.vch_code}</td>
                       <td className="px-3 py-2 text-slate-600">{day(row.vch_date)}</td>
@@ -127,9 +138,12 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
             {previewLoading ? <div className="flex h-full min-h-[220px] items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
               : !preview ? <div className="flex h-full min-h-[220px] items-center justify-center p-4 text-center text-sm text-slate-400">اختر ارسالية لعرض أصنافها المتبقية</div>
               : <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-slate-800 text-white"><tr><th className="px-2 py-2 text-right">الصنف</th><th className="px-2 py-2 text-right">الوحدة</th><th className="px-2 py-2 text-right">المرسل</th><th className="px-2 py-2 text-right">المفوتر</th><th className="px-2 py-2 text-right">المتبقي</th></tr></thead>
+                  <thead className="sticky top-0 bg-slate-800 text-white"><tr>
+                    {forType === 12 && <th className="w-9 px-2 py-2 text-center"><input type="checkbox" checked={allPreviewLinesSelected} onChange={(event) => setSelectedLineIds(event.target.checked ? preview.lines.map((line) => line.id) : [])} aria-label="تحديد كل الأصناف" className="h-4 w-4 accent-violet-500" /></th>}
+                    <th className="px-2 py-2 text-right">الصنف</th><th className="px-2 py-2 text-right">الوحدة</th><th className="px-2 py-2 text-right">المرسل</th><th className="px-2 py-2 text-right">المفوتر</th><th className="px-2 py-2 text-right">المتبقي</th></tr></thead>
                   <tbody>{preview.lines.map((line) => (
                     <tr key={line.id} className="border-t">
+                      {forType === 12 && <td className="px-2 py-1.5 text-center"><input type="checkbox" checked={selectedLineIds.includes(line.id)} onChange={(event) => setSelectedLineIds((current) => event.target.checked ? [...current, line.id] : current.filter((id) => id !== line.id))} aria-label={`تحديد ${line.product_name}`} className="h-4 w-4 accent-violet-600" /></td>}
                       <td className="px-2 py-1.5"><div className="font-semibold">{line.product_name}</div><div className="font-mono text-[11px] text-slate-400">{line.product_code}</div></td>
                       <td className="px-2 py-1.5">{line.unit_name}</td>
                       <td className="px-2 py-1.5">{fmt(line.original)}</td>
@@ -142,10 +156,10 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">{preview ? `الارسالية ${preview.header.vch_code} — المندوب: ${preview.header.salesman_name || "—"}` : ""}</div>
+          <div className="text-xs text-slate-500">{preview ? <>{`الارسالية ${preview.header.vch_code} — المندوب: ${preview.header.salesman_name || "—"}`}{forType === 12 && <span className="mr-3">تم تحديد {selectedLineIds.length} من {preview.lines.length} صنف</span>}</> : ""}</div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />إلغاء</Button>
-            <Button disabled={!preview} onClick={() => preview && onSelect(preview.header, preview.lines)} className="bg-violet-600 hover:bg-violet-700">اعتماد الارسالية</Button>
+            <Button disabled={!preview || (forType === 12 && selectedLineIds.length === 0)} onClick={confirmSelection} className="bg-violet-600 hover:bg-violet-700">اعتماد الارسالية</Button>
           </div>
         </div>
       </DialogContent>
