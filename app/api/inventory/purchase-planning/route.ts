@@ -4,8 +4,27 @@ import { getGrantedBranchIds, hasNamedPermission } from "@/lib/permissions"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { authorizeProductType } from "@/app/api/inventory/products/_permissions"
 import { PURCHASE_PRICE_PERMISSION_CATEGORY, PURCHASE_PRICE_VIEW_PERMISSION } from "@/lib/transaction-permission-definitions"
+import { ensureTables as ensureSalesVoucherTables } from "@/app/api/sales-vouchers/_lib"
+import { ensureOrderReadColumns } from "@/lib/order-schema"
+import { ensureLastPurchaseColumns } from "@/lib/last-purchase"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 const intersect = (left: number[], right: number[]) => left.filter((id) => right.includes(id))
+
+async function ensurePurchasePlanningSchema() {
+  await ensureSalesVoucherTables()
+  await ensureOrderReadColumns()
+  await ensureLastPurchaseColumns()
+  await runSchemaOnce("app/api/inventory/purchase-planning/route.ts#productBranches", async () => {
+    await sql`
+      CREATE TABLE IF NOT EXISTS product_branches (
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+        PRIMARY KEY (product_id, branch_id)
+      )
+    `
+  })
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,6 +43,8 @@ export async function GET(request: NextRequest) {
       PURCHASE_PRICE_PERMISSION_CATEGORY,
       productAccess.branchId,
     )
+
+    await ensurePurchasePlanningSchema()
 
     const requestedDays = Number(new URL(request.url).searchParams.get("days") || 90)
     const periodDays = Number.isInteger(requestedDays) ? Math.min(365, Math.max(30, requestedDays)) : 90
