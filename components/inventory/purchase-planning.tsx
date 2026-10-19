@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useAuth } from "@/components/auth/auth-context"
 
 type PlanningProduct = {
   id: number
@@ -41,6 +42,7 @@ const formatNumber = (value: number, maximumFractionDigits = 2) =>
   value.toLocaleString("en-US", { maximumFractionDigits })
 
 export function PurchasePlanning() {
+  const { isAuthenticated, isLoading: authLoading, activeBranchId } = useAuth()
   const [products, setProducts] = useState<PlanningProduct[]>([])
   const [periodDays, setPeriodDays] = useState(90)
   const [coverageDays, setCoverageDays] = useState(30)
@@ -60,7 +62,9 @@ export function PurchasePlanning() {
     else setLoading(true)
     setError("")
     try {
-      const response = await fetch(`/api/inventory/purchase-planning?days=${periodDays}`, { cache: "no-store" })
+      const headers = new Headers()
+      if (activeBranchId != null) headers.set("x-branch-id", String(activeBranchId))
+      const response = await fetch(`/api/inventory/purchase-planning?days=${periodDays}`, { cache: "no-store", headers })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.error || "تعذر تحميل بيانات التخطيط")
       const nextProducts = Array.isArray(payload.products) ? payload.products : []
@@ -82,11 +86,17 @@ export function PurchasePlanning() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [coverageDays, periodDays])
+  }, [activeBranchId, coverageDays, periodDays])
 
   useEffect(() => {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      setError("يجب تسجيل الدخول")
+      setLoading(false)
+      return
+    }
     void load()
-  }, [load])
+  }, [authLoading, isAuthenticated, load])
 
   const suggestions = useMemo(() => products.map((product) => {
     const available = finite(product.available_stock)
