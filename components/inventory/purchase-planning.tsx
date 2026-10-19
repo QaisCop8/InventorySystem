@@ -52,6 +52,8 @@ export function PurchasePlanning() {
   const [supplierFilter, setSupplierFilter] = useState("all")
   const [stockFilter, setStockFilter] = useState("needs-order")
   const [salesHistoryAvailable, setSalesHistoryAvailable] = useState(true)
+  const [purchaseOrdersAvailable, setPurchaseOrdersAvailable] = useState(true)
+  const [canCreatePurchaseOrder, setCanCreatePurchaseOrder] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
@@ -71,6 +73,8 @@ export function PurchasePlanning() {
       setProducts(nextProducts)
       setPeriodDays(Number(payload.period_days) || periodDays)
       setSalesHistoryAvailable(payload.sales_history_available !== false)
+      setPurchaseOrdersAvailable(payload.purchase_orders_available !== false)
+      setCanCreatePurchaseOrder(payload.can_create_purchase_order === true)
       const initialSelected: number[] = []
       const nextQuantities: Record<number, number> = {}
       nextProducts.forEach((product: PlanningProduct) => {
@@ -169,6 +173,10 @@ export function PurchasePlanning() {
 
   const createPurchaseOrder = () => {
     setMessage("")
+    if (!canCreatePurchaseOrder) {
+      setMessage("لا تتوفر لديك صلاحية إنشاء طلبية مشتريات على الفرع الحالي.")
+      return
+    }
     if (!selectedRows.length) {
       setMessage("اختر صنفاً واحداً على الأقل وحدد كمية أكبر من صفر.")
       return
@@ -219,6 +227,7 @@ export function PurchasePlanning() {
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {message && <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{message}</div>}
       {!salesHistoryAvailable && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">لا تتوفر لديك صلاحية عرض فواتير المبيعات؛ ستُبنى التوصيات على حد إعادة الطلب والمخزون فقط.</div>}
+      {!purchaseOrdersAvailable && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">لا تتوفر لديك صلاحية استعلام طلبيات المشتريات المفتوحة؛ لن تُحتسب الكميات الواردة.</div>}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">أصناف مقترحة للشراء</CardTitle><Package className="h-4 w-4 text-emerald-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(productsToOrder, 0)}</div><p className="text-xs text-muted-foreground">بحسب مدة التغطية المختارة</p></CardContent></Card>
@@ -264,9 +273,9 @@ export function PurchasePlanning() {
                 <SelectContent><SelectItem value="needs-order">المقترح شراؤها</SelectItem><SelectItem value="all">كل الأصناف</SelectItem><SelectItem value="out">النافدة أو غير المتاحة</SelectItem></SelectContent>
               </Select>
             </div>
-            <Button onClick={createPurchaseOrder} disabled={loading || selectedRows.length === 0}>
+            {canCreatePurchaseOrder && <Button onClick={createPurchaseOrder} disabled={loading || selectedRows.length === 0}>
               <ShoppingCart className="ml-2 h-4 w-4" /> إنشاء طلبية شراء للأصناف المحددة
-            </Button>
+            </Button>}
           </div>
           <div className="overflow-x-auto rounded-lg border">
             <Table>

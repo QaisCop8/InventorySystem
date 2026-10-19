@@ -3,6 +3,8 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { FileAccessGate } from "@/components/auth/file-access-gate"
+import { TransactionAccessGate } from "@/components/auth/transaction-access-gate"
 import { ERPLayout } from "@/components/erp-layout"
 import { useWindowManager } from "@/contexts/window-manager-context"
 import { TabBar } from "@/components/window-manager/tab-bar"
@@ -157,7 +159,7 @@ export default function DashboardLayoutPage() {
                   icon = "reorder"
                   break
                 case "purchase-planning":
-                  component = PurchasePlanning
+                  component = () => <TransactionAccessGate section="purchase-planning"><FileAccessGate section="purchase-planning"><PurchasePlanning /></FileAccessGate></TransactionAccessGate>
                   title = "تخطيط المشتريات الذكي"
                   icon = "analytics"
                   break

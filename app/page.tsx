@@ -421,6 +421,9 @@ function resolveSectionNode(section: string | null, onOpenSection: (section: str
       console.error("[v0] Invalid component type detected for section", section, Component)
     }
     if (isReportSection(section)) return <ReportAccessGate section={section}><Component /></ReportAccessGate>
+    if (fileFamilyForSection(section) && transactionFamilyForSection(section)) {
+      return <TransactionAccessGate section={section}><FileAccessGate section={section}><Component /></FileAccessGate></TransactionAccessGate>
+    }
     if (fileFamilyForSection(section)) return <FileAccessGate section={section}><Component /></FileAccessGate>
     if (transactionFamilyForSection(section)) return <TransactionAccessGate section={section}><Component /></TransactionAccessGate>
     return <Component />

@@ -53,17 +53,18 @@ export async function authorizeFile(request: NextRequest, family: FileFamily, ac
 
 const SALES: TransactionFamily[] = ["sales_order", "sales_invoice", "sales_delivery", "sales_return", "consignment_delivery", "consignment_return"]
 const PURCHASES: TransactionFamily[] = ["purchase_order", "purchase_invoice", "purchase_delivery", "purchase_return"]
+const ACCOUNT_LOOKUP_TRANSACTIONS = (Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]).filter((family) => family !== "purchase_planning")
 const LOOKUP_TRANSACTIONS: Record<FileFamily, TransactionFamily[]> = {
   customers: [...SALES, "receipt", "payment", "credit_note", "debit_note"],
   suppliers: [...PURCHASES, "receipt", "payment", "cheque_payment", "credit_note", "debit_note"],
   subscribers: [...SALES, "receipt", "payment"],
   items: [...SALES, ...PURCHASES, "stock_in", "stock_out", "internal_delivery", "stock_use"],
   services: [...SALES, ...PURCHASES], cars: [...SALES, ...PURCHASES], drivers: [...SALES, ...PURCHASES],
-  accounts: Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[],
+  accounts: ACCOUNT_LOOKUP_TRANSACTIONS,
   banks: ["receipt", "payment", "cheque_payment", "journal"],
   "bank-accounts": ["receipt", "payment", "cheque_payment", "journal"],
   "credit-cards": ["receipt", "payment", "sales_invoice"],
-  employees: ["journal"], branches: Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[],
+  employees: ["journal"], branches: ACCOUNT_LOOKUP_TRANSACTIONS,
 }
 
 /** Shared pickers receive selector metadata; only primary-family query grants return full records. */

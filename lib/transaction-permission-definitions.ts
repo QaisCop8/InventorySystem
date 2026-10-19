@@ -22,6 +22,7 @@ export const TRANSACTION_FAMILIES = {
   debit_note: "إشعار مدين",
   sales_order: "طلبية مبيعات",
   purchase_order: "طلبية مشتريات",
+  purchase_planning: "تخطيط المشتريات الذكي",
   fixed_asset: "الأصول الثابتة",
   bank_reconciliation: "التسوية البنكية",
   promotion: "العروض والأسعار الخاصة",
@@ -84,7 +85,7 @@ export function legacyTransactionPermissionName(family: TransactionFamily, actio
 const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "sales-orders": "sales_order",
   "purchase-orders": "purchase_order",
-  "purchase-planning": "purchase_order",
+  "purchase-planning": "purchase_planning",
   "sale-invoices": "sales_invoice",
   "sales-invoices": "sales_invoice",
   "sales-delivery": "sales_delivery",

@@ -31,17 +31,30 @@ export async function GET(request: NextRequest) {
     const productAccess = await authorizeProductType(request, 1, "lookup")
     if (!productAccess.ok) return productAccess.response
 
-    const purchaseAccess = await authorizeTransaction(request, "purchase_order", "view")
-    if (!purchaseAccess.ok) return purchaseAccess.response
+    const planningScreenAccess = await authorizeTransaction(request, "purchase_planning", "access")
+    if (!planningScreenAccess.ok) return planningScreenAccess.response
 
-    const productBranchIds = await getGrantedBranchIds(productAccess.userId, productAccess.accessId)
+    const planningAccess = await authorizeTransaction(request, "purchase_planning", "view")
+    if (!planningAccess.ok) return planningAccess.response
+
+    const authorizedProductBranches = productAccess.lookupOnly
+      ? [productAccess.branchId]
+      : await getGrantedBranchIds(productAccess.userId, productAccess.accessId)
+    const productBranchIds = intersect(authorizedProductBranches, planningAccess.branchIds)
     const salesAccess = await authorizeTransaction(request, "sales_invoice", "view")
     const salesReturnAccess = await authorizeTransaction(request, "sales_return", "view")
+    const purchaseAccess = await authorizeTransaction(request, "purchase_order", "view")
+    const purchaseBranchIds = purchaseAccess.ok
+      ? intersect(productBranchIds, purchaseAccess.branchIds)
+      : []
+    const createPurchaseAccess = purchaseAccess.ok
+      ? await authorizeTransaction(request, "purchase_order", "create", purchaseAccess.branchId)
+      : null
     const canViewPurchasePrices = await hasNamedPermission(
       productAccess.userId,
       PURCHASE_PRICE_VIEW_PERMISSION,
       PURCHASE_PRICE_PERMISSION_CATEGORY,
-      productAccess.branchId,
+      planningAccess.branchId,
     )
 
     await ensurePurchasePlanningSchema()
@@ -95,12 +108,17 @@ export async function GET(request: NextRequest) {
 
     const productIds = products.map((product: any) => Number(product.id)).filter((id: number) => Number.isInteger(id) && id > 0)
     if (!productIds.length) {
-      return NextResponse.json({ period_days: periodDays, sales_history_available: salesAccess.ok, products: [] })
+      return NextResponse.json({
+        period_days: periodDays,
+        sales_history_available: salesAccess.ok,
+        purchase_orders_available: purchaseBranchIds.length > 0,
+        can_create_purchase_order: Boolean(createPurchaseAccess?.ok),
+        products: [],
+      })
     }
 
     const salesBranchIds = salesAccess.ok ? intersect(productBranchIds, salesAccess.branchIds) : []
     const returnBranchIds = salesReturnAccess.ok ? intersect(productBranchIds, salesReturnAccess.branchIds) : []
-    const purchaseBranchIds = intersect(productBranchIds, purchaseAccess.branchIds)
     const [salesRows, incomingRows] = await Promise.all([
       salesBranchIds.length || returnBranchIds.length
         ? sql`
@@ -165,6 +183,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       period_days: periodDays,
       sales_history_available: salesAccess.ok,
+      purchase_orders_available: purchaseBranchIds.length > 0,
+      can_create_purchase_order: Boolean(createPurchaseAccess?.ok),
       products: result,
     })
   } catch (error) {

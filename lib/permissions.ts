@@ -613,6 +613,38 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   // "الدخول لشاشة {الحركة}" (أُضيفت 2026-10-15): مرة واحدة لكل شركة تُمنح لكل مستخدم/دور (وعلى مستوى الفروع) يملك أي
   // صلاحية ممنوحة على نفس الحركة — فلا يفقد أحد شاشة يعمل عليها اليوم. لا تُعاد بعد ذلك، فتقييد المسؤول لاحقاً يبقى.
   await client.query(`CREATE TABLE IF NOT EXISTS permission_migrations (name VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`, [])
+  // The purchase planning page previously followed purchase-order permissions. Carry over access and view
+  // once so existing users keep their current reach, while the new utility permission remains independently editable.
+  const purchasePlanningScreenMigration = "purchase-planning-screen-access-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [purchasePlanningScreenMigration])).length) {
+    const targetNames = [
+      transactionPermissionName("purchase_planning", "access"),
+      transactionPermissionName("purchase_planning", "view"),
+    ]
+    const sourceNames = [
+      transactionPermissionName("purchase_order", "access"),
+      transactionPermissionName("purchase_order", "view"),
+    ]
+    for (const [table, keys] of [
+      ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+      ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+    ] as const) {
+      const columns = keys.join(",")
+      const selected = keys.map((key) => `granted.${key}`).join(",")
+      await client.query(
+        `INSERT INTO ${table} (${columns}, access_id, is_granted)
+         SELECT DISTINCT ${selected}, target.id, TRUE
+         FROM unnest($1::text[], $2::text[]) AS m(target_name, source_name)
+         JOIN access_list target ON LOWER(BTRIM(target.name)) = LOWER(BTRIM(m.target_name))
+         JOIN access_list source ON LOWER(BTRIM(source.name)) = LOWER(BTRIM(m.source_name))
+         JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+         ON CONFLICT (${columns}, access_id) DO NOTHING`,
+        [targetNames, sourceNames],
+      )
+    }
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [purchasePlanningScreenMigration])
+  }
+
   const screenAccessMigration = "transaction-screen-access-v1"
   if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [screenAccessMigration])).length) {
     const accessNames: string[] = []

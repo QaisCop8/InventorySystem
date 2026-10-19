@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import {
   ArrowLeftRight, BookOpen, Boxes, Building2, Car, Check, CheckCheck, ChevronDown, CreditCard, FileText, FolderOpen, Info, Landmark, LayoutGrid, Minus, PackageMinus, PackagePlus,
-  Receipt, RotateCcw, Search, ShieldCheck, ShoppingBag, ShoppingCart, Truck, Undo2, Users, Wallet, WalletCards, X,
+  Receipt, RotateCcw, Search, ShieldCheck, ShoppingBag, ShoppingCart, TrendingUp, Truck, Undo2, Users, Wallet, WalletCards, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -92,6 +92,7 @@ const VOUCHER_SECTIONS: { title: string; icon: any; gradient: string; vouchers: 
       { name: "سند إخراج بضاعة", icon: PackageMinus },
       { name: "إرسالية داخلية", icon: ArrowLeftRight },
       { name: "سند استعمال", icon: Boxes },
+      { name: "تخطيط المشتريات الذكي", icon: TrendingUp },
     ],
   },
   {
