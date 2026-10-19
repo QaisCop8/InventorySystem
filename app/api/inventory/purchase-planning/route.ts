@@ -14,8 +14,38 @@ const intersect = (left: number[], right: number[]) => left.filter((id) => right
 async function ensurePurchasePlanningSchema() {
   await ensureSalesVoucherTables()
   await ensureOrderReadColumns()
-  await ensureLastPurchaseColumns()
-  await runSchemaOnce("app/api/inventory/purchase-planning/route.ts#productBranches", async () => {
+  await runSchemaOnce("app/api/inventory/purchase-planning/route.ts#schema", async () => {
+    // These fields were added after the original company bootstrap. Keep older tenant
+    // databases usable without requiring a separate manual migration.
+    await sql`
+      ALTER TABLE products
+        ADD COLUMN IF NOT EXISTS supplier_id INTEGER,
+        ADD COLUMN IF NOT EXISTS default_store INTEGER,
+        ADD COLUMN IF NOT EXISTS currency_id INTEGER,
+        ADD COLUMN IF NOT EXISTS last_purchase_price NUMERIC(18,4) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS min_stock_level NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS max_stock_level NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS reorder_point NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT false
+    `
+    await sql`
+      ALTER TABLE product_stock
+        ADD COLUMN IF NOT EXISTS organization_id INTEGER DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS current_stock NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS available_stock NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS reserved_stock NUMERIC(15,2) DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS reorder_level NUMERIC(15,2),
+        ADD COLUMN IF NOT EXISTS max_stock_level NUMERIC(15,2)
+    `
+    await sql`
+      CREATE TABLE IF NOT EXISTS product_units (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        unit_id INTEGER NOT NULL,
+        to_main_qnty DOUBLE PRECISION DEFAULT 1
+      )
+    `
     await sql`
       CREATE TABLE IF NOT EXISTS product_branches (
         product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -24,6 +54,7 @@ async function ensurePurchasePlanningSchema() {
       )
     `
   })
+  await ensureLastPurchaseColumns()
 }
 
 export async function GET(request: NextRequest) {
@@ -67,8 +98,9 @@ export async function GET(request: NextRequest) {
         p.product_code,
         p.product_name,
         p.supplier_id,
-        s.supplier_name,
-        s.account_id AS supplier_account_id,
+        COALESCE(NULLIF(to_jsonb(s)->>'supplier_name', ''), to_jsonb(s)->>'name', '') AS supplier_name,
+        CASE WHEN COALESCE(to_jsonb(s)->>'account_id', '') ~ '^[0-9]+$'
+          THEN (to_jsonb(s)->>'account_id')::integer ELSE NULL END AS supplier_account_id,
         p.default_store,
         COALESCE(ps.current_stock, 0)::float AS current_stock,
         COALESCE(ps.reserved_stock, 0)::float AS reserved_stock,
@@ -189,6 +221,9 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Purchase planning data error:", error)
-    return NextResponse.json({ error: "تعذر تحميل بيانات تخطيط المشتريات" }, { status: 500 })
+    const errorMessage = process.env.NODE_ENV === "development" && error instanceof Error
+      ? `تعذر تحميل بيانات تخطيط المشتريات: ${error.message}`
+      : "تعذر تحميل بيانات تخطيط المشتريات"
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
