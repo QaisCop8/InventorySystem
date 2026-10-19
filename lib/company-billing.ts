@@ -258,30 +258,10 @@ export function licenseUnitPrice(pricing: Pricing, resource: LicenseResource) {
   return resource === "users" ? pricing.per_user : resource === "branches" ? pricing.per_branch : pricing.per_pos_point
 }
 
-export async function licensePaymentInfo(companyId?: number, tenantUserId?: string | number) {
+export async function licensePaymentInfo() {
   const pricing = await getPricing()
   const prices = { users: pricing.per_user, branches: pricing.per_branch, pos_points: pricing.per_pos_point }
-  let pendingPayment: { reference: string; resource: LicenseResource; quantity: number } | null = null
-  if (companyId && tenantUserId != null) {
-    await ensureLicenseTables()
-    const [payment] = await managementSql`
-      SELECT cp.reference, lr.resource, lr.quantity
-      FROM company_payments cp
-      JOIN company_license_requests lr ON lr.id = cp.license_request_id
-      WHERE cp.company_id = ${companyId}
-        AND cp.tenant_user_id = ${String(tenantUserId)}
-        AND cp.purpose = 'license'
-        AND cp.status IN ('initialized', 'success')
-        AND lr.status = 'awaiting_payment'
-      ORDER BY cp.id DESC
-      LIMIT 1`
-    if (payment) pendingPayment = {
-      reference: String(payment.reference),
-      resource: payment.resource as LicenseResource,
-      quantity: Number(payment.quantity) || 1,
-    }
-  }
-  return { enabled: isLahzaConfigured() && Boolean(lahzaPublicKey()), testMode: isLahzaTestMode(), currency: pricing.currency, prices, pendingPayment }
+  return { enabled: isLahzaConfigured() && Boolean(lahzaPublicKey()), testMode: isLahzaTestMode(), currency: pricing.currency, prices }
 }
 
 export async function startLicensePayment(input: {

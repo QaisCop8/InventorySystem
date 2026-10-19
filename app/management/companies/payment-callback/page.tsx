@@ -1,8 +1,8 @@
 "use client"
 
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, CheckCircle2, Loader2, RefreshCw, XCircle } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react"
 
 // رابط العودة من صفحة الدفع (لحظة): ?reference=... — التحقق الفعلي يتم بالخادم لدى لحظة ثم تُنشأ قاعدة الشركة.
 type Result =
@@ -24,7 +24,6 @@ function PaymentCallback() {
   const params = useSearchParams()
   const reference = params.get("reference") || params.get("trxref") || ""
   const [result, setResult] = useState<Result>({ kind: "checking" })
-  const attempts = useRef(0)
 
   const verify = async () => {
     setResult({ kind: "checking" })
@@ -74,7 +73,6 @@ function PaymentCallback() {
             <h1 className="mt-5 text-2xl font-black">{result.kind === "unpaid" ? "لم يكتمل الدفع" : "تعذّر التحقق"}</h1>
             <p className="mt-2 text-sm leading-7 text-slate-400">{result.message}</p>
             <div className="mt-7 grid gap-2">
-              {reference && <button type="button" onClick={() => void verify()} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/15 text-sm font-bold text-slate-200 hover:bg-white/10"><RefreshCw className="h-4 w-4" />إعادة التحقق</button>}
               <a href="/management/companies" className="pc-btn inline-flex h-12 items-center justify-center gap-2 text-sm font-black text-white">العودة إلى شركاتي<ArrowLeft className="h-4 w-4" /></a>
             </div>
           </>
