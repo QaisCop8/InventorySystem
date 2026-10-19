@@ -1,14 +1,15 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
 import { isNeonDatabaseUrl, withDatabaseName } from "./db-url"
-import { getPool } from "./db-pool"
+import { getPool, isWorkersRuntime } from "./db-pool"
 
 const MANAGEMENT_DB_NAME = "management"
 
 function buildSqlClient(connectionUrl: string) {
-  // قاعدة الإدارة تبقى على عميل neon() (HTTP) لقواعد Neon حتى على Workers — استعلاماتها قليلة لكل طلب
-  // (تسجيل الدخول/الجلسة/أسماء الشركات) فلا تقترب من حد الطلبات الفرعية، وهو المسار المُجرَّب لتسجيل الدخول.
-  if (!isNeonDatabaseUrl(connectionUrl)) {
+  // على Workers نستخدم اتصال PostgreSQL المعاد استخدامه حتى مع Neon: تهيئة قاعدة الإدارة
+  // (ensureManagementTables / ensureBillingTables) قد تنفذ عشرات الاستعلامات في أول طلب، وكل طلب
+  // HTTP منفصل عبر neon() يُحتسب subrequest؛ Pool واحد يمنع استنفاد حد Cloudflare.
+  if (!isNeonDatabaseUrl(connectionUrl) || isWorkersRuntime) {
     // Pool لكل طلب على Workers / لكل عملية على Node (lib/db-pool.ts)
     const pool = { connect: () => getPool(connectionUrl).connect() }
     const client: any = async (strings: TemplateStringsArray, ...values: any[]) => {
@@ -59,14 +60,14 @@ let managementDbEnsured: Promise<void> | null = null
 // inventory_system أو أي قاعدة شركة مسبقاً.
 async function ensureManagementDatabaseExists() {
   if (!managementUrl || !adminUrl) return
-  const pool = new Pool({ connectionString: adminUrl })
+  const pool = isWorkersRuntime ? getPool(adminUrl) : new Pool({ connectionString: adminUrl })
   try {
     const existing = await pool.query("SELECT 1 FROM pg_database WHERE datname = $1", [MANAGEMENT_DB_NAME])
     if (existing.rows.length === 0) {
       await pool.query(`CREATE DATABASE "${MANAGEMENT_DB_NAME}"`)
     }
   } finally {
-    await pool.end()
+    if (!isWorkersRuntime) await pool.end()
   }
 }
 
