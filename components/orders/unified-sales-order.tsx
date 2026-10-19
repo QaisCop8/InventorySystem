@@ -5,7 +5,14 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { useItemVatRates } from "@/lib/use-item-vat-rates"
-import { finiteItemNumber, netItemAmount, parseItemAmount } from "@/lib/item-amount"
+import {
+  applyItemAmountAction,
+  finiteItemNumber,
+  guardItemAmountInput,
+  handleItemAmountKeyDown,
+  parseItemAmount,
+  type AppliedItemAmountAction,
+} from "@/lib/item-amount"
 import { Button } from "@/components/ui/button"
 import AccountBalanceField from "@/components/common/account-balance-field"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -379,7 +386,7 @@ function UnifiedSalesOrder({
   const defaultVatPercentRef = useRef<number>(0)
   const doHotKeys = useRef(true)
   const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
-  const amountVatAdjustmentRef = useRef(new Map<number, { productId: number | null; action: "add" | "remove"; netAmount: number }>())
+  const amountVatAdjustmentRef = useRef(new Map<number, AppliedItemAmountAction>())
   useEffect(() => {
     amountVatAdjustmentRef.current.clear()
   }, [state.formData.id, state.formData.vch_code])
@@ -1418,18 +1425,11 @@ function UnifiedSalesOrder({
       const vatRate = itemVat.enabled
         ? (itemVat.rateOf(productId) ?? 0)
         : (finiteItemNumber(state.formData.vat_percent) ?? 0)
-      // + leaves a net amount for the voucher VAT calculation; - removes included VAT.
       const previousAdjustment = amountVatAdjustmentRef.current.get(row)
-      const alreadyAdjusted = parsedAmount.vatAction !== null &&
-        previousAdjustment?.productId === productId &&
-        previousAdjustment.action === parsedAmount.vatAction &&
-        Math.abs(previousAdjustment.netAmount - parsedAmount.amount) < 0.000001
-      const netAmount = netItemAmount(parsedAmount.amount, parsedAmount.vatAction, vatRate, alreadyAdjusted)
-      if (parsedAmount.vatAction) {
-        amountVatAdjustmentRef.current.set(row, { productId, action: parsedAmount.vatAction, netAmount })
-      } else {
-        amountVatAdjustmentRef.current.delete(row)
-      }
+      const amountAction = applyItemAmountAction(parsedAmount.amount, parsedAmount.vatAction, vatRate, productId, previousAdjustment)
+      const { netAmount, displayAmount } = amountAction
+      if (amountAction.adjustment) amountVatAdjustmentRef.current.set(row, amountAction.adjustment)
+      else amountVatAdjustmentRef.current.delete(row)
       const nextPrice = (netAmount + lineDiscount) / quantity
       if (!Number.isFinite(nextPrice)) {
         restoreAmount()
@@ -1439,7 +1439,7 @@ function UnifiedSalesOrder({
       const priceInclIndex = grid.columns.findIndex((column: { binding: string }) => column.binding === 'price_incl_tax')
       if (priceIndex >= 0) grid.setCellData(row, priceIndex, nextPrice, false)
       if (priceInclIndex >= 0) grid.setCellData(row, priceInclIndex, calculateInclusivePrice(nextPrice, vatRate), false)
-      if (amountIndex >= 0) grid.setCellData(row, amountIndex, netAmount, false)
+      if (amountIndex >= 0) grid.setCellData(row, amountIndex, displayAmount, false)
       grid.refresh(true)
       return
     }
@@ -1464,6 +1464,7 @@ function UnifiedSalesOrder({
     const colName = grid?.columns?.[e.col]?.binding
     if (colName === "amount") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+      guardItemAmountInput(grid, e.row, e.col, true)
     }
     const item = grid?.rows?.[e.row]?.dataItem ?? CollectionView.items[e.row]
     if (colName === "item_status" && ([3, 4].includes(Number(item?.item_status)) || [4, 6].includes(Number(state.formData.order_status)))) {
@@ -1513,6 +1514,8 @@ function UnifiedSalesOrder({
     const activeEditor = grid.activeEditor;
     const value = activeEditor ? activeEditor.value : '';
 
+    if (handleItemAmountKeyDown(grid, e, true)) return
+
     const item = grid.collectionView?.items?.[row];
     const item_id = item?.id;
 
@@ -1543,12 +1546,7 @@ function UnifiedSalesOrder({
         e.preventDefault();
       }
     }
-    if (['qnty', 'bonus', 'amount', 'price', 'discount'].includes(colName)) {
-      if (colName === 'amount' && (e.key === '+' || e.key === '-')) {
-        const currentText = String(activeEditor?.value ?? '')
-        if (!currentText || /[+-]/.test(currentText)) e.preventDefault()
-        return
-      }
+    if (['qnty', 'bonus', 'price', 'discount'].includes(colName)) {
       if (e.key.length === 1 && !/[0-9.]/.test(e.key)) {
         e.preventDefault();
         return;

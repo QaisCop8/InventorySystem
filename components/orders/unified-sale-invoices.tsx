@@ -3,7 +3,14 @@
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
-import { finiteItemNumber, netItemAmount, parseItemAmount } from "@/lib/item-amount"
+import {
+  applyItemAmountAction,
+  finiteItemNumber,
+  guardItemAmountInput,
+  handleItemAmountKeyDown,
+  parseItemAmount,
+  type AppliedItemAmountAction,
+} from "@/lib/item-amount"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -471,7 +478,7 @@ function UnifiedSaleInvoices({
   const lastVchBook = useRef<string | null>(null)
   const doHotKeys = useRef(true)
   const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
-  const amountVatAdjustmentRef = useRef(new Map<number, { productId: number | null; action: "add" | "remove"; netAmount: number }>())
+  const amountVatAdjustmentRef = useRef(new Map<number, AppliedItemAmountAction>())
   useEffect(() => {
     amountVatAdjustmentRef.current.clear()
   }, [state.formData.id, state.formData.vch_code])
@@ -1375,20 +1382,13 @@ function UnifiedSaleInvoices({
         return
       }
       const vatRate = finiteItemNumber(state.formData.vat_percent) ?? 0
-      // + leaves a net amount for the voucher VAT calculation; - removes included VAT.
       const item = grid.rows?.[row]?.dataItem ?? CollectionView.items[row]
       const productId = Number(item?.product_id ?? item?.id) || null
       const previousAdjustment = amountVatAdjustmentRef.current.get(row)
-      const alreadyAdjusted = parsedAmount.vatAction !== null &&
-        previousAdjustment?.productId === productId &&
-        previousAdjustment.action === parsedAmount.vatAction &&
-        Math.abs(previousAdjustment.netAmount - parsedAmount.amount) < 0.000001
-      const netAmount = netItemAmount(parsedAmount.amount, parsedAmount.vatAction, vatRate, alreadyAdjusted)
-      if (parsedAmount.vatAction) {
-        amountVatAdjustmentRef.current.set(row, { productId, action: parsedAmount.vatAction, netAmount })
-      } else {
-        amountVatAdjustmentRef.current.delete(row)
-      }
+      const amountAction = applyItemAmountAction(parsedAmount.amount, parsedAmount.vatAction, vatRate, productId, previousAdjustment)
+      const { netAmount, displayAmount } = amountAction
+      if (amountAction.adjustment) amountVatAdjustmentRef.current.set(row, amountAction.adjustment)
+      else amountVatAdjustmentRef.current.delete(row)
       const nextPrice = (netAmount + lineDiscount) / quantity
       if (!Number.isFinite(nextPrice)) {
         restoreAmount()
@@ -1396,7 +1396,7 @@ function UnifiedSaleInvoices({
       }
       const priceIndex = grid.columns.findIndex((column: { binding: string }) => column.binding === 'price')
       if (priceIndex >= 0) grid.setCellData(row, priceIndex, nextPrice, false)
-      if (amountIndex >= 0) grid.setCellData(row, amountIndex, netAmount, false)
+      if (amountIndex >= 0) grid.setCellData(row, amountIndex, displayAmount, false)
       grid.refresh(true)
       return
     }
@@ -1420,6 +1420,7 @@ function UnifiedSaleInvoices({
   const onBeginningEdit = (grid: any, e: any) => {
     if (grid?.columns?.[e.col]?.binding === "amount") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+      guardItemAmountInput(grid, e.row, e.col, true)
     }
   }
 
@@ -1443,6 +1444,8 @@ function UnifiedSaleInvoices({
     const colName = grid.columns[col]?.binding;
     const activeEditor = grid.activeEditor;
     const value = activeEditor ? activeEditor.value : '';
+
+    if (handleItemAmountKeyDown(grid, e, true)) return
 
     const item = grid.collectionView?.items?.[row];
     const item_id = item?.id;
@@ -1474,12 +1477,7 @@ function UnifiedSaleInvoices({
         e.preventDefault();
       }
     }
-    if (['qnty', 'bonus', 'amount', 'price', 'discount'].includes(colName)) {
-      if (colName === 'amount' && (e.key === '+' || e.key === '-')) {
-        const currentText = String(activeEditor?.value ?? '')
-        if (!currentText || /[+-]/.test(currentText)) e.preventDefault()
-        return
-      }
+    if (['qnty', 'bonus', 'price', 'discount'].includes(colName)) {
       if (e.key.length === 1 && !/[0-9.]/.test(e.key)) {
         e.preventDefault();
         return;

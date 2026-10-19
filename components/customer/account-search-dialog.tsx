@@ -17,6 +17,7 @@ import {
 } from "@/components/common/search-dialog-kit"
 import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
 import { useToast } from "@/hooks/use-toast"
+import { getAccountList } from "@/components/customer/account-data"
 
 // كل كلمة في نص البحث يجب أن تكون موجودة في النص الهدف (بأي ترتيب) — وليس تطابق سلسلة متتالية
 // فقط، فيجد "احمد علي" نتيجة عند البحث "علي احمد" أيضاً.
@@ -178,6 +179,7 @@ export default function AccountSearchDialog({
   const resultsRef = useRef<SearchResultsTableHandle | null>(null)
   const filterContainerRef = useRef<HTMLDivElement | null>(null)
   const accountNameInputRef = useRef<HTMLInputElement | null>(null)
+  const forceRefreshRef = useRef(false)
 
   const visibleAccounts = useMemo(() => {
     if (!allowedTypeValues || allowedTypeValues.length === 0) {
@@ -248,7 +250,10 @@ export default function AccountSearchDialog({
 
   useEffect(() => {
     if (!open) return
-    const refreshAfterReturn = () => setRefreshVersion((value) => value + 1)
+    const refreshAfterReturn = () => {
+      forceRefreshRef.current = true
+      setRefreshVersion((value) => value + 1)
+    }
     window.addEventListener("focus", refreshAfterReturn)
     return () => window.removeEventListener("focus", refreshAfterReturn)
   }, [open])
@@ -271,6 +276,18 @@ export default function AccountSearchDialog({
       return
     }
 
+    let cancelled = false
+    const forceRefresh = forceRefreshRef.current
+    forceRefreshRef.current = false
+
+    // Show the autocomplete's already-loaded list immediately while a scoped refresh runs.
+    const canUseAutocompleteAccounts = deliveryVchTypes.length === 0 && orderType == null && !(Number(branchId) > 0)
+    if (canUseAutocompleteAccounts && accounts.length > 0) {
+      const seededAccounts = leafOnly ? accounts.filter((account) => !isParentAccount(account, accounts)) : accounts
+      setAllAccounts(seededAccounts)
+      applySearchFilters(searchFilters, seededAccounts)
+    }
+
     const loadFreshAccounts = async () => {
       setLoading(true)
       try {
@@ -284,11 +301,10 @@ export default function AccountSearchDialog({
         if (Number(branchId) > 0) {
           url.searchParams.set("branch_id", String(branchId))
         }
-        const response = await fetch(url.toString())
-        if (!response.ok) return
+        const data = await getAccountList(url.toString(), forceRefresh)
+        if (cancelled) return
 
-        const data = await response.json()
-        const nextAccounts = (Array.isArray(data) ? data : []).map((account: AccountItem) => ({
+        const nextAccounts = data.map((account: AccountItem) => ({
           ...account,
           id: Number(account.id),
           code: String((account as any).code || (account as any).account_code || ""),
@@ -317,12 +333,17 @@ export default function AccountSearchDialog({
         // refreshes (including window-focus refreshes) must preserve what the
         // user checked or unchecked instead of restoring the default-only flag.
         applySearchFilters(searchFilters, selectableAccounts)
+      } catch (error) {
+        if (!cancelled) console.error("Failed to load account search results:", error)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     void loadFreshAccounts()
+    return () => {
+      cancelled = true
+    }
   }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, branchId, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion, leafOnly])
 
   useEffect(() => {

@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ArrowRight, Boxes, Building2, Check, Coins, FileSpreadsheet, Package, Sparkles, Trash2, Upload, Users } from "lucide-react"
+import { ArrowLeft, ArrowRight, Boxes, Building2, Check, Coins, FileSpreadsheet, Hash, Package, Sparkles, Trash2, Upload, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,11 +13,13 @@ import { useAuth } from "@/components/auth/auth-context"
 import { AccountsImportDialog } from "@/components/import/accounts-import"
 import { ProductsImportDialog } from "@/components/import/products-import"
 import { PartyImportDialog, type PartyImportKind } from "@/components/import/customers-import"
+import { buildVoucherCode } from "@/lib/voucher-code"
 
 const steps = [
   { title: "معلومات الشركة", description: "أدخل بيانات الشركة الأساسية", icon: Building2, color: "from-teal-200 via-cyan-100 to-slate-50" },
   { title: "العملات", description: "أضف العملات وأسعار الصرف الأساسية", icon: Coins, color: "from-emerald-300 to-green-400" },
   { title: "التعريفات", description: "التعريفات الأساسية وبنود القوائم المالية", icon: Boxes, color: "from-violet-600 to-fuchsia-600" },
+  { title: "الترقيم للسندات والملفات", description: "حدد بادئات وأرقام بداية السندات والملفات كما في إعدادات النظام", icon: Hash, color: "from-amber-500 to-orange-600" },
   { title: "الحسابات", description: "أنشئ دليل الحسابات أو استورده من Excel", icon: Building2, color: "from-blue-600 to-indigo-600" },
   { title: "الحسابات الافتراضية", description: "حدد الحسابات الافتراضية للنظام", icon: Building2, color: "from-sky-600 to-blue-600" },
   { title: "حسابات الأصناف", description: "حدد الحسابات الافتراضية لحركات الأصناف", icon: Package, color: "from-teal-600 to-emerald-600" },
@@ -50,6 +52,45 @@ const PARTY_TYPES: Array<{ value: PartyImportKind; label: string; plural: string
   { value: "suppliers", label: "مورد", plural: "الموردين", type: 2 },
   { value: "subscribers", label: "مشترك", plural: "المشتركين", type: 4 },
 ]
+const voucherNumberingFields = [
+  { prefix: "order_prefix", start: "order_start", label: "طلبات المبيعات" },
+  { prefix: "purchase_prefix", start: "purchase_start", label: "طلبات الشراء" },
+  { prefix: "receipt_prefix", start: "receipt_start", label: "سندات القبض" },
+  { prefix: "payment_prefix", start: "payment_start", label: "سندات الصرف" },
+  { prefix: "credit_note_prefix", start: "credit_note_start", label: "الإشعار الدائن" },
+  { prefix: "debit_note_prefix", start: "debit_note_start", label: "الإشعار المدين" },
+  { prefix: "stock_in_prefix", start: "stock_in_start", label: "سند إدخال بضاعة" },
+  { prefix: "stock_out_prefix", start: "stock_out_start", label: "سند إخراج بضاعة" },
+  { prefix: "internal_delivery_prefix", start: "internal_delivery_start", label: "إرسالية داخلية" },
+  { prefix: "use_voucher_prefix", start: "use_voucher_start", label: "سند استعمال" },
+  { prefix: "sales_invoice_prefix", start: "sales_invoice_start", label: "فاتورة مبيعات" },
+  { prefix: "delivery_sell_prefix", start: "delivery_sell_start", label: "إرسالية مبيعات" },
+  { prefix: "delivery_consignment_sale_prefix", start: "delivery_consignment_sale_start", label: "إرسالية برسم البيع" },
+  { prefix: "return_delivery_consignment_sale_prefix", start: "return_delivery_consignment_sale_start", label: "مرتجع إرسالية برسم البيع" },
+  { prefix: "return_sell_prefix", start: "return_sell_start", label: "مرتجع مبيعات" },
+  { prefix: "purchase_invoice_prefix", start: "purchase_invoice_start", label: "فاتورة مشتريات" },
+  { prefix: "delivery_pay_prefix", start: "delivery_pay_start", label: "إرسالية مشتريات" },
+  { prefix: "return_purchase_prefix", start: "return_purchase_start", label: "مرتجع مشتريات" },
+  { prefix: "journal_prefix", start: "journal_start", label: "سندات القيد" },
+] as const
+const fileNumberingFields = [
+  { prefix: "account_prefix", start: "account_start", label: "الحسابات المحاسبية" },
+  { prefix: "customer_prefix", start: "customer_start", label: "العملاء" },
+  { prefix: "salesman_prefix", start: "salesman_start", label: "المندوبين" },
+  { prefix: "employee_prefix", start: "employee_start", label: "الموظفين" },
+  { prefix: "supplier_prefix", start: "supplier_start", label: "الموردين" },
+  { prefix: "item_group_prefix", start: "item_group_start", label: "مجموعات الأصناف" },
+  { prefix: null, start: "item_start", label: "الأصناف" },
+] as const
+const numberingKeys = [...voucherNumberingFields.flatMap(({ prefix, start }) => [prefix, start]), ...fileNumberingFields.flatMap(({ prefix, start }) => prefix ? [prefix, start] : [start])]
+const numberingPrefixDefaults: Record<string, string> = {
+  order_prefix: "SO", purchase_prefix: "PO", receipt_prefix: "R", payment_prefix: "P", credit_note_prefix: "C", debit_note_prefix: "D",
+  stock_in_prefix: "I", stock_out_prefix: "O", internal_delivery_prefix: "T", use_voucher_prefix: "U", sales_invoice_prefix: "INV",
+  delivery_sell_prefix: "DSL", delivery_consignment_sale_prefix: "INV", return_delivery_consignment_sale_prefix: "INV", return_sell_prefix: "INV",
+  purchase_invoice_prefix: "INV", delivery_pay_prefix: "DPY", return_purchase_prefix: "RPU", journal_prefix: "J", account_prefix: "A",
+  customer_prefix: "C", salesman_prefix: "M", employee_prefix: "E", supplier_prefix: "S", item_group_prefix: "G",
+}
+const emptyNumberingSettings = Object.fromEntries(numberingKeys.map((key) => [key, key.endsWith("_start") ? "1" : numberingPrefixDefaults[key] || ""])) as Record<string, string>
 type CurrencyDefaultAccountRow = {
   currency_id: number
   currency_code: string
@@ -121,15 +162,29 @@ export default function PersonalAssistantWizard() {
   const [productDefinitions, setProductDefinitions] = useState<{ units: any[]; priceCategories: any[] }>({ units: [], priceCategories: [] })
   const [savedProducts, setSavedProducts] = useState<any[]>([])
   const [customer, setCustomer] = useState({ code: "", name: "", phone: "" })
+  const [savedParties, setSavedParties] = useState<Record<PartyImportKind, any[]>>({ customers: [], suppliers: [], subscribers: [] })
   const [partyKind, setPartyKind] = useState<PartyImportKind>("customers")
   const partyType = PARTY_TYPES.find((item) => item.value === partyKind) || PARTY_TYPES[0]
+  const [numberingSettings, setNumberingSettings] = useState<Record<string, string>>(emptyNumberingSettings)
+  const [autoNumbering, setAutoNumbering] = useState(true)
+
+  const refreshSavedParties = useCallback(async () => {
+    const entries = await Promise.all(PARTY_TYPES.map(async (party) => {
+      const response = await fetch(`/api/customers?type=${party.type}`)
+      if (!response.ok) return [party.value, []] as const
+      const data = await response.json().catch(() => ({}))
+      const rows = Array.isArray(data) ? data : Array.isArray(data?.customers) ? data.customers : []
+      return [party.value, rows] as const
+    }))
+    setSavedParties(Object.fromEntries(entries) as Record<PartyImportKind, any[]>)
+  }, [])
 
   useEffect(() => {
     fetch("/api/onboarding-assistant")
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.shouldShow) return
-        setStep(Math.max(-1, Math.min(7, (Number(data.current_step) || 0) - 1)))
+        setStep(Math.max(-1, Math.min(8, (Number(data.current_step) || 0) - 1)))
       })
       .catch(() => undefined)
   }, [])
@@ -177,7 +232,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 2) return
+    if (!open || step !== 3) return
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
       fetch("/api/balance-sheet-assets-items").then((response) => response.ok ? response.json() : []),
@@ -192,7 +247,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || (step !== 3 && step !== 4)) return
+    if (!open || (step !== 4 && step !== 5)) return
     fetch("/api/settings/system")
       .then((response) => response.ok ? response.json() : {})
       .then((data: any) => setSystemAccountSettings(Object.fromEntries([...defaultAccountFields, ...productAccountFields].map(([key]) => [key, data?.[key] ? String(data[key]) : ""]))))
@@ -200,9 +255,8 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 5 || !user?.id) return
+    if (!open || step !== 6 || !user?.id) return
     let cancelled = false
-    fetch("/api/branches").then(response => response.json()).then(data => { if (!cancelled) setDefaultAccountsBranches(Array.isArray(data) ? data : []) }).catch(() => undefined)
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
       defaultAccountsBranchId ? fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}&branch_id=${defaultAccountsBranchId}`).then((response) => response.ok ? response.json() : { rows: [] }) : Promise.resolve({ rows: [] }),
@@ -229,7 +283,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step, user?.id, defaultAccountsBranchId])
 
   useEffect(() => {
-    if (!open || step !== 6) return
+    if (!open || step !== 7) return
     Promise.all([
       fetch("/api/units").then((response) => response.ok ? response.json() : []),
       fetch("/api/pricecategory").then((response) => response.ok ? response.json() : []),
@@ -294,6 +348,45 @@ export default function PersonalAssistantWizard() {
     }
   }
 
+  const saveNumberingSettings = async () => {
+    const prefixFields = [...voucherNumberingFields.map((field) => field.prefix), ...fileNumberingFields.flatMap((field) => field.prefix ? [field.prefix] : [])]
+    for (const key of prefixFields) {
+      if (!/^[A-Z]{1,3}$/.test(String(numberingSettings[key] || "").trim())) {
+        showResult("error", "يجب أن تكون بادئات الترقيم من حرف إلى 3 أحرف إنجليزية كبيرة")
+        return false
+      }
+    }
+    const startFields = [...voucherNumberingFields.map((field) => field.start), ...fileNumberingFields.map((field) => field.start)]
+    for (const key of startFields) {
+      const value = Number(numberingSettings[key])
+      const max = voucherNumberingFields.some((field) => field.start === key) ? 10000 : Number.MAX_SAFE_INTEGER
+      if (!Number.isInteger(value) || value < 1 || value > max) {
+        showResult("error", "يجب أن يكون رقم بداية الترقيم عدداً صحيحاً أكبر من صفر")
+        return false
+      }
+    }
+
+    setBusy(true)
+    try {
+      const payload: Record<string, string | number | boolean> = {
+        numbering_system: autoNumbering ? "auto" : "manual",
+        auto_numbering: autoNumbering,
+      }
+      for (const key of prefixFields) payload[key] = numberingSettings[key].trim().toUpperCase()
+      for (const key of startFields) payload[key] = Number(numberingSettings[key])
+      const response = await fetch("/api/settings/system", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data?.error || "تعذر حفظ إعدادات الترقيم")
+      showResult("success", "تم حفظ إعدادات الترقيم بنجاح")
+      return true
+    } catch (error) {
+      showResult("error", error instanceof Error ? error.message : "تعذر حفظ إعدادات الترقيم")
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const refreshSavedProducts = async () => {
     const response = await fetch("/api/inventory/products")
     if (!response.ok) return
@@ -319,7 +412,7 @@ export default function PersonalAssistantWizard() {
   }
 
   useEffect(() => {
-    if (!open || (step !== 2 && step !== 6 && step !== 7)) return
+    if (!open || (step !== 3 && step !== 7 && step !== 8)) return
     const handleEnterNavigation = (event: KeyboardEvent) => {
       if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
       const target = event.target as HTMLElement | null
@@ -367,6 +460,38 @@ export default function PersonalAssistantWizard() {
     // قائمة الفروع لاختيار فرع القسم
     if (definition.key === "department") void loadLookupRecords(lookupDefinitions.find((item) => item.key === "branch")!)
   }, [open, step, activeLookupKey])
+
+  useEffect(() => {
+    if (!open || step !== 2) return
+    fetch("/api/settings/system")
+      .then((response) => response.ok ? response.json() : {})
+      .then((data: any) => {
+        const settings = data?.settings ?? data
+        setNumberingSettings(Object.fromEntries(numberingKeys.map((key) => [key, settings?.[key] == null ? emptyNumberingSettings[key] : String(settings[key])])) as Record<string, string>)
+        setAutoNumbering(settings?.auto_numbering !== false && settings?.numbering_system !== "manual")
+      })
+      .catch(() => showResult("error", "تعذر تحميل إعدادات الترقيم"))
+  }, [open, step])
+
+  useEffect(() => {
+    if (!open || step !== 6) return
+    let cancelled = false
+    fetch("/api/branches")
+      .then((response) => response.ok ? response.json() : [])
+      .then((data) => {
+        if (cancelled) return
+        const branches = Array.isArray(data) ? data : []
+        setDefaultAccountsBranches(branches)
+        setDefaultAccountsBranchId((current) => current || String(branches[0]?.id ?? ""))
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [open, step])
+
+  useEffect(() => {
+    if (!open || step !== 8) return
+    void refreshSavedParties()
+  }, [open, step, refreshSavedParties])
 
   const saveProgress = async (nextStep: number, dismissed = false, completed = false) => {
     await fetch("/api/onboarding-assistant", {
@@ -423,7 +548,7 @@ export default function PersonalAssistantWizard() {
         setIsFirstCurrency(false)
         const refreshed = await fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : { rates: [] })
         setSavedCurrencies(Array.isArray(refreshed?.rates) ? refreshed.rates : [])
-      } else if (step === 2) {
+      } else if (step === 3) {
         if (!account.code.trim() || !account.name.trim()) throw new Error("أدخل رقم الحساب واسمه")
         if (account.name.trim().length > 100) throw new Error("اسم الحساب يجب ألا يتجاوز 100 حرف")
         if (!["1", "2", "3"].includes(account.financialListId)) throw new Error("اختر القائمة المالية")
@@ -434,7 +559,7 @@ export default function PersonalAssistantWizard() {
         await post("/api/accounts", { account_code: accountCode, account_name: account.name.trim(), company_id: 1, finanical_list_id: Number(account.financialListId), finanical_list_assests_id: account.assetsId ? Number(account.assetsId) : null, finanical_list_liabilities_id: account.liabilitiesId ? Number(account.liabilitiesId) : null, finanical_list_income_id: account.incomeId ? Number(account.incomeId) : null, currency_id: Number(account.currencyId), status: "نشط" })
         setAccount({ code: "", name: "", financialListId: "", assetsId: "", liabilitiesId: "", incomeId: "", currencyId: "" })
         await refreshSavedAccounts()
-      } else if (step === 6) {
+      } else if (step === 7) {
         if (!product.code.trim() || !product.name.trim()) throw new Error("أدخل رقم الصنف واسمه")
         if (!/^[A-Z0-9]{10}$/.test(product.code)) throw new Error("رقم الصنف يجب أن يتكون من 10 أحرف إنجليزية كبيرة أو أرقام")
         if (product.name.trim().length > 100) throw new Error("اسم الصنف يجب ألا يتجاوز 100 حرف")
@@ -450,12 +575,13 @@ export default function PersonalAssistantWizard() {
         if (Number(productResult?.failed || 0) > 0 || Number(productResult?.duplicates || 0) > 0) throw new Error(productResult?.errors?.[0] || "تعذر إضافة الصنف")
         setProduct({ code: "", name: "", unitId: "", sellingPrice: "", barcode: "" })
         await refreshSavedProducts()
-      } else if (step === 7) {
+      } else if (step === 8) {
         if (!customer.name.trim()) throw new Error(`أدخل اسم ال${partyType.label}`)
         const partyResult = await post("/api/import/customers", { data: [{ rowIndex: 1, isValid: true, customer_code: customer.code, customer_name: customer.name, mobile1: customer.phone, type: partyType.type }] })
         const partyRow = Array.isArray(partyResult?.results) ? partyResult.results[0] : null
         if (partyRow && partyRow.status !== "success") throw new Error(partyRow.error || `تعذر إضافة ال${partyType.label}`)
         setCustomer({ code: "", name: "", phone: "" })
+        await refreshSavedParties()
       }
       showResult("success", "تمت الإضافة بنجاح ويمكنك إضافة سجل آخر")
     } catch (error) {
@@ -554,11 +680,12 @@ export default function PersonalAssistantWizard() {
   }
 
   const move = async (next: number) => {
-    const bounded = Math.max(-1, Math.min(7, next))
+    const bounded = Math.max(-1, Math.min(8, next))
     if (bounded > step && step === -1 && !(await saveCompany())) return
-    if (bounded > step && step === 3 && !(await saveAccountSettings(defaultAccountFields))) return
-    if (bounded > step && step === 4 && !(await saveAccountSettings(productAccountFields))) return
-    if (bounded > step && step === 5 && !(await saveCurrencyDefaultAccounts())) return
+    if (bounded > step && step === 2 && !(await saveNumberingSettings())) return
+    if (bounded > step && step === 4 && !(await saveAccountSettings(defaultAccountFields))) return
+    if (bounded > step && step === 5 && !(await saveAccountSettings(productAccountFields))) return
+    if (bounded > step && step === 6 && !(await saveCurrencyDefaultAccounts())) return
     setStep(bounded)
     await saveProgress(bounded)
   }
@@ -608,23 +735,24 @@ export default function PersonalAssistantWizard() {
 
             {step === 0 && <div className="space-y-5"><section className="grid gap-4 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:grid-cols-3"><Field label="رمز العملة" value={currency.code} onChange={(value) => setCurrency({ ...currency, code: value.toUpperCase() })} placeholder="USD" maxLength={3} /><Field label="اسم العملة" value={currency.name} onChange={(value) => setCurrency({ ...currency, name: value })} placeholder="دولار أمريكي" maxLength={30} /><Field label={isFirstCurrency ? "سعر الصرف (العملة الأساسية)" : "سعر الصرف"} value={currency.rate} onChange={(value) => setCurrency({ ...currency, rate: value })} placeholder="3.40" type="number" min={0.001} max={100000} step="0.001" disabled={isFirstCurrency} /><AddButton busy={busy} onClick={addCurrent} label="إضافة العملة" /></section><section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50/70 px-5 py-3"><h4 className="font-black text-emerald-950">العملات المحفوظة</h4><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{savedCurrencies.length} عملة</span></div>{savedCurrencies.length === 0 ? <div className="px-5 py-8 text-center text-sm text-slate-400">لم تتم إضافة عملات بعد</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-900 text-white"><tr><th className="px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">رمز العملة</th><th className="px-4 py-3 text-right">اسم العملة</th><th className="px-4 py-3 text-right">سعر الصرف</th></tr></thead><tbody>{savedCurrencies.map((item, index) => <tr key={item.currency_id ?? item.id ?? index} className="border-b border-slate-100 last:border-0 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-800">{item.currency_code}</td><td className="px-4 py-3 text-slate-700">{item.currency_name}</td><td className="px-4 py-3 font-semibold text-emerald-700">{Number(item.exchange_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>}</section></div>}
             {step === 1 && licenseRequest.element}{step === 1 && <LookupTabs extraFor={{ branch: <LicenseUsageStrip resource="branches" license={license} onRequest={() => licenseRequest.open("branches")} /> }} inlineFor={{ department: <select aria-label="الفرع" title="الفرع" value={departmentBranchId || String(savedLookups.branch?.[0]?.id ?? "")} onChange={(event) => setDepartmentBranchId(event.target.value)} className="h-11 w-56 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"><option value="">{savedLookups.branch?.length ? "اختر الفرع *" : "لا توجد فروع — أضف فرعاً أولاً"}</option>{(savedLookups.branch || []).map((branch: any) => <option key={branch.id} value={String(branch.id)}>{String(branch.branch_name ?? branch.name ?? branch.id)}</option>)}</select> }} activeKey={activeLookupKey} onTabChange={setActiveLookupKey} values={lookupValues} onValueChange={(key, value) => setLookupValues((current) => ({ ...current, [key]: value }))} records={savedLookups} busy={busy} onAdd={addLookup} />}
-            {step === 2 && <DataStep title="إضافة حساب سريع" busy={busy} onAdd={addCurrent} onImport={() => openImport("accounts")} fields={<><Field label="رقم الحساب" value={account.code} onChange={(value) => setAccount({ ...account, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setAccount((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الحساب" value={account.name} onChange={(value) => setAccount({ ...account, name: value })} maxLength={100} /><NativeSelect label="القائمة المالية" value={account.financialListId} onChange={(value) => setAccount({ ...account, financialListId: value, assetsId: "", liabilitiesId: "", incomeId: "" })} options={[{ value: "1", label: "الميزانية العمومية" }, { value: "2", label: "قائمة الدخل" }, { value: "3", label: "تقييم بضاعة" }]} />{account.financialListId === "1" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="خصوم الميزانية" value={account.liabilitiesId} onChange={(value) => setAccount({ ...account, liabilitiesId: value })} emptyLabel="عدم الإظهار" options={financialItems.liabilities.map((item) => ({ value: String(item.id), label: item.name }))} /></>}{account.financialListId === "2" && <NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} />}{account.financialListId === "3" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} /></>}<NativeSelect label="العملة" value={account.currencyId} onChange={(value) => setAccount({ ...account, currencyId: value })} options={savedCurrencies.map((item) => ({ value: String(item.currency_id ?? item.id), label: `${item.currency_code} - ${item.currency_name}` }))} /><NativeSelect label="نوع هيكل الحسابات الافتراضي" value={defaultAccountStructure} onChange={setDefaultAccountStructure} options={[{ value: "commercial", label: "مؤسسة تجارية" }, { value: "commercial_continuous_inventory", label: "مؤسسة تجارية - جرد مستمر" }, { value: "services", label: "خدمات" }]} /><div className="flex items-end"><Button type="button" disabled={busy} onClick={importDefaultAccounts} className="h-11 w-full rounded-xl bg-emerald-600 px-6 hover:bg-emerald-700"><Building2 className="ml-2 h-4 w-4" />استيراد هيكل الحسابات الافتراضي</Button></div></>} savedContent={<><SavedAccountsTable accounts={savedAccounts} currencies={savedCurrencies} /></>} />}
-            {step === 3 && <AccountSettingsStep title="الحسابات الافتراضية" fields={defaultAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(defaultAccountFields)} />}
-            {step === 4 && <AccountSettingsStep title="حسابات الأصناف" fields={productAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(productAccountFields)} />}
-            {step === 5 && <><NativeSelect label="الفرع *" value={defaultAccountsBranchId} onChange={setDefaultAccountsBranchId} options={defaultAccountsBranches.map(branch => ({ value: String(branch.id), label: branch.branch_name }))} /><CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} /></>}
-            {step === 6 && <DataStep title="إضافة صنف سريع" busy={busy} onAdd={addCurrent} onImport={() => openImport("products")} fields={<><Field label="رقم الصنف" value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الصنف" value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label="الوحدة" value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel="اختر الوحدة" options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">فئة السعر</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || "يجب تعريف فئة سعر أولاً"}</div></div><Field label="سعر البيع" value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label="الباركود" value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
-            {step === 7 && <DataStep title="إضافة عميل سريع" busy={busy} onAdd={addCurrent} onImport={() => { showResult("info", `يتم ادخال السجلات حسب نوع الذمة المختار: ${partyType.plural}`); openImport("customers") }} fields={<><NativeSelect label="نوع الذمة" value={partyKind} onChange={(value) => setPartyKind((value || "customers") as PartyImportKind)} options={PARTY_TYPES.map((item) => ({ value: item.value, label: item.label }))} /><Field label={`رقم ال${partyType.label} (اختياري)`} value={customer.code} onChange={(value) => setCustomer({ ...customer, code: value })} /><Field label={`اسم ال${partyType.label}`} value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} /><Field label="الجوال" value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} /></>} />}
+            {step === 2 && <NumberingSettingsStep values={numberingSettings} autoNumbering={autoNumbering} onChange={(key, value) => setNumberingSettings((current) => ({ ...current, [key]: value }))} onAutoNumberingChange={setAutoNumbering} />}
+            {step === 3 && <DataStep title="إضافة حساب سريع" busy={busy} onAdd={addCurrent} onImport={() => openImport("accounts")} fields={<><Field label="رقم الحساب" value={account.code} onChange={(value) => setAccount({ ...account, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setAccount((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الحساب" value={account.name} onChange={(value) => setAccount({ ...account, name: value })} maxLength={100} /><NativeSelect label="القائمة المالية" value={account.financialListId} onChange={(value) => setAccount({ ...account, financialListId: value, assetsId: "", liabilitiesId: "", incomeId: "" })} options={[{ value: "1", label: "الميزانية العمومية" }, { value: "2", label: "قائمة الدخل" }, { value: "3", label: "تقييم بضاعة" }]} />{account.financialListId === "1" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="خصوم الميزانية" value={account.liabilitiesId} onChange={(value) => setAccount({ ...account, liabilitiesId: value })} emptyLabel="عدم الإظهار" options={financialItems.liabilities.map((item) => ({ value: String(item.id), label: item.name }))} /></>}{account.financialListId === "2" && <NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} />}{account.financialListId === "3" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} /></>}<NativeSelect label="العملة" value={account.currencyId} onChange={(value) => setAccount({ ...account, currencyId: value })} options={savedCurrencies.map((item) => ({ value: String(item.currency_id ?? item.id), label: `${item.currency_code} - ${item.currency_name}` }))} /><NativeSelect label="نوع هيكل الحسابات الافتراضي" value={defaultAccountStructure} onChange={setDefaultAccountStructure} options={[{ value: "commercial", label: "مؤسسة تجارية" }, { value: "commercial_continuous_inventory", label: "مؤسسة تجارية - جرد مستمر" }, { value: "services", label: "خدمات" }]} /><div className="flex items-end"><Button type="button" disabled={busy} onClick={importDefaultAccounts} className="h-11 w-full rounded-xl bg-emerald-600 px-6 hover:bg-emerald-700"><Building2 className="ml-2 h-4 w-4" />استيراد هيكل الحسابات الافتراضي</Button></div></>} savedContent={<><SavedAccountsTable accounts={savedAccounts} currencies={savedCurrencies} /></>} />}
+            {step === 4 && <AccountSettingsStep title="الحسابات الافتراضية" fields={defaultAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(defaultAccountFields)} />}
+            {step === 5 && <AccountSettingsStep title="حسابات الأصناف" fields={productAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(productAccountFields)} />}
+            {step === 6 && <><NativeSelect label="الفرع *" value={defaultAccountsBranchId} onChange={setDefaultAccountsBranchId} options={defaultAccountsBranches.map(branch => ({ value: String(branch.id), label: branch.branch_name }))} /><CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} /></>}
+            {step === 7 && <DataStep title="إضافة صنف سريع" busy={busy} onAdd={addCurrent} onImport={() => openImport("products")} fields={<><Field label="رقم الصنف" value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الصنف" value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label="الوحدة" value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel="اختر الوحدة" options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">فئة السعر</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || "يجب تعريف فئة سعر أولاً"}</div></div><Field label="سعر البيع" value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label="الباركود" value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
+            {step === 8 && <PartyRecordsStep kind={partyKind} parties={savedParties} customer={customer} busy={busy} onKindChange={setPartyKind} onCustomerChange={setCustomer} onAdd={addCurrent} onImport={() => { showResult("info", `يتم ادخال السجلات حسب نوع الذمة المختار: ${partyType.plural}`); openImport("customers") }} />}
           </div>
         </main>
 
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:gap-3 sm:px-5 sm:py-4">
           <Button variant="ghost" onClick={() => setConfirmDismiss(true)} className="text-slate-500 hover:bg-red-50 hover:text-red-700">عدم الإظهار مجدداً</Button>
-          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > -1 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className="rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-6 font-bold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700">{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
+          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > -1 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 8 ? void finish() : void move(step + 1)} className="rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-6 font-bold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700">{step === 8 ? "إنهاء" : "التالي"}{step < 8 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
         </footer>
     </div>
     <AccountsImportDialog open={importDialog === "accounts"} templateType={accountTemplate} onOpenChange={(value) => { if (!value) setImportDialog(null) }} onImported={() => { void refreshSavedAccounts() }} />
     <ProductsImportDialog open={importDialog === "products"} onOpenChange={(value) => { if (!value) setImportDialog(null) }} onImported={() => { void refreshSavedProducts() }} />
-    <PartyImportDialog kind={partyKind} showKindNotice open={importDialog === "customers"} onOpenChange={(value) => { if (!value) setImportDialog(null) }} />
+    <PartyImportDialog kind={partyKind} showKindNotice open={importDialog === "customers"} onOpenChange={(value) => { if (!value) setImportDialog(null) }} onImported={() => { void refreshSavedParties() }} />
     <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى البداية السريعة في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => router.push("/")) }} />
     <style jsx global>{`
       .rounded-2xl.border.border-slate-200 > .bg-slate-900 {

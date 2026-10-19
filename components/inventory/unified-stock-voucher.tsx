@@ -40,7 +40,7 @@ import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
-import { finiteItemNumber } from "@/lib/item-amount"
+import { finiteItemNumber, guardItemAmountInput, handleItemAmountKeyDown } from "@/lib/item-amount"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -1426,6 +1426,7 @@ export default function UnifiedStockVoucher({
     const row = itemsRef.current[e.row]
     if (colName === "total_price") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+      guardItemAmountInput(grid, e.row, e.col, false)
     }
     if (colName === "quantity") {
       // نوع قياس غير عادي: تُمنَع الكتابة المباشرة دوماً، وتُفتَح نافذة "بيانات القياس" بدلاً منها
@@ -1497,6 +1498,8 @@ export default function UnifiedStockVoucher({
     const col = keySnapshot ? keySnapshot.col : selection.col
     if (row < 0 || col < 0) return
     const colName = control.columns[col]?.binding
+
+    if (handleItemAmountKeyDown(control, e, false)) return
 
     if (e.keyCode === Util.keyboardKeys.F7) {
       e.preventDefault()

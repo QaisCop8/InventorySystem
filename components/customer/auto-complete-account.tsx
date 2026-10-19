@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { AccountItem, isParentAccount, PARENT_ACCOUNT_MESSAGE } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
+import { getAccountList } from "@/components/customer/account-data"
 import { useToast } from "@/hooks/use-toast"
 
 const accountApiUrl = "/api/accounts"
@@ -198,16 +199,11 @@ export default function AutoCompleteAccount({
     onValueChangeRef.current = onValueChange
   }, [onValueChange])
 
-  const loadAccounts = useCallback(async () => {
+  const loadAccounts = useCallback(async (forceRefresh = false) => {
     setLoadingAccounts(true)
     try {
-      const response = await fetch(accountApiUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to load accounts: ${response.status}`)
-      }
-
-      const data = await response.json()
-      const mappedAccounts = (Array.isArray(data) ? data : [])
+      const data = await getAccountList(accountApiUrl, forceRefresh)
+      const mappedAccounts = data
         .map(mapAccount)
         .filter((account: AccountItem) => Number(account.status ?? 1) !== 3)
 
@@ -302,7 +298,7 @@ export default function AutoCompleteAccount({
   }, [resolvedDisplayValue])
 
   useEffect(() => {
-    void loadAccounts()
+    void loadAccounts().catch((error) => console.error("Failed to load accounts:", error))
   }, [])
 
   // النص المكتوب منذ آخر تركيز (null = لم يُكتب شيء). لا يُعتمد على value القادم من الصفحة: صفحات كثيرة
@@ -321,9 +317,8 @@ export default function AutoCompleteAccount({
     notifySelection(null)
   }
 
-  const handleOpenSearch = async () => {
+  const handleOpenSearch = () => {
     searchOpeningRef.current = true
-    await loadAccounts()
     setSearchDialogOpen(true)
   }
 

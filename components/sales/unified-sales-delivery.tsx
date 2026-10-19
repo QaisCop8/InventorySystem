@@ -5,7 +5,14 @@ import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemVatRateFor, useItemVatRates } from "@/lib/use-item-vat-rates"
-import { finiteItemNumber, netItemAmount, parseItemAmount } from "@/lib/item-amount"
+import {
+  applyItemAmountAction,
+  finiteItemNumber,
+  guardItemAmountInput,
+  handleItemAmountKeyDown,
+  parseItemAmount,
+  type AppliedItemAmountAction,
+} from "@/lib/item-amount"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
@@ -885,7 +892,7 @@ export default function UnifiedSalesDelivery({
   const itemsRef = useRef(items)
   itemsRef.current = items
   const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
-  const amountVatAdjustmentRef = useRef(new Map<number, { productId: number | null; action: "add" | "remove"; netAmount: number }>())
+  const amountVatAdjustmentRef = useRef(new Map<number, AppliedItemAmountAction>())
   useEffect(() => {
     amountVatAdjustmentRef.current.clear()
   }, [form.id, form.vch_code, gridResetToken])
@@ -2058,25 +2065,18 @@ export default function UnifiedSalesDelivery({
         : itemVatRef.current.enabled
           ? (itemVatRef.current.rateOf(currentRow?.product_id) ?? 0)
           : (finiteItemNumber(currentForm.vat_percent) ?? 0)
-      // + keeps the entered amount net for the voucher's single VAT calculation; - removes included VAT.
       const productId = Number(currentRow?.product_id) || null
       const previousAdjustment = amountVatAdjustmentRef.current.get(row)
-      const alreadyAdjusted = parsedAmount.vatAction !== null &&
-        previousAdjustment?.productId === productId &&
-        previousAdjustment.action === parsedAmount.vatAction &&
-        Math.abs(previousAdjustment.netAmount - parsedAmount.amount) < 0.000001
-      const netAmount = netItemAmount(parsedAmount.amount, parsedAmount.vatAction, vatRate, alreadyAdjusted)
-      if (parsedAmount.vatAction) {
-        amountVatAdjustmentRef.current.set(row, { productId, action: parsedAmount.vatAction, netAmount })
-      } else {
-        amountVatAdjustmentRef.current.delete(row)
-      }
+      const amountAction = applyItemAmountAction(parsedAmount.amount, parsedAmount.vatAction, vatRate, productId, previousAdjustment)
+      const { netAmount, displayAmount } = amountAction
+      if (amountAction.adjustment) amountVatAdjustmentRef.current.set(row, amountAction.adjustment)
+      else amountVatAdjustmentRef.current.delete(row)
       const unitPrice = netAmount / (quantity * discountFactor)
       if (!Number.isFinite(unitPrice)) {
         patchItemRow(row, { total_price: safeOldAmount, line_amount: safeOldAmount })
         return
       }
-      patchItemRow(row, { unit_price: unitPrice, total_price: netAmount, line_amount: netAmount })
+      patchItemRow(row, { unit_price: unitPrice, total_price: displayAmount, line_amount: displayAmount })
       return
     }
     if (colName === "product_code") {
@@ -2172,6 +2172,7 @@ export default function UnifiedSalesDelivery({
     const row = itemsRef.current[e.row]
     if (colName === "total_price") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
+      guardItemAmountInput(grid, e.row, e.col, true)
     }
     if (isFromDelivery && colName !== "unit_price") {
       e.cancel = true
@@ -2673,6 +2674,8 @@ export default function UnifiedSalesDelivery({
         return
       }
     }
+
+    if (handleItemAmountKeyDown(grid, e, true)) return
 
     // Restrict non-numeric chars in numeric columns (quantity/unit_price/discount)
     if (['quantity', 'bonus_quantity', 'unit_price', 'discount_percent'].includes(colName)) {
