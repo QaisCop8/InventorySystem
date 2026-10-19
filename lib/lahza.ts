@@ -17,18 +17,44 @@ export const lahzaPublicKey = () => String(process.env.LAHZA_PUBLIC_KEY || "").t
 export const isLahzaTestMode = () => secretKey().startsWith("sk_test")
 export const toMinorUnits = (amount: number) => Math.round(Number(amount) * 100)
 
-async function lahzaRequest(path: string, init: RequestInit = {}) {
-  if (!isLahzaConfigured()) throw new Error("بوابة الدفع لحظة غير مفعّلة على الخادم (LAHZA_SECRET_KEY)")
-  const response = await fetch(`${apiUrl()}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${secretKey()}`, "Content-Type": "application/json", Accept: "application/json", ...(init.headers || {}) },
-    cache: "no-store",
-  })
-  const body = await response.json().catch(() => null)
-  if (!response.ok || !body || body.status === false) {
-    throw new Error(`Lahza ${response.status}: ${String(body?.message || "طلب غير ناجح")}`)
+const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+function retryDelay(response: Response, attempt: number) {
+  const retryAfter = response.headers.get("retry-after")
+  if (retryAfter) {
+    const seconds = Number(retryAfter)
+    const fromHeader = Number.isFinite(seconds)
+      ? seconds * 1000
+      : Date.parse(retryAfter) - Date.now()
+    if (Number.isFinite(fromHeader) && fromHeader > 0) return Math.min(fromHeader, 10_000)
   }
-  return body
+  return Math.min(1000 * 2 ** attempt, 5000)
+}
+
+async function lahzaRequest(path: string, init: RequestInit = {}, options: { retry429?: number } = {}) {
+  if (!isLahzaConfigured()) throw new Error("بوابة الدفع لحظة غير مفعّلة على الخادم (LAHZA_SECRET_KEY)")
+  const max429Retries = Math.max(0, Math.floor(options.retry429 || 0))
+  let totalRetryDelay = 0
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(`${apiUrl()}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${secretKey()}`, "Content-Type": "application/json", Accept: "application/json", ...(init.headers || {}) },
+      cache: "no-store",
+    })
+    const body = await response.json().catch(() => null)
+    if (response.status === 429 && attempt < max429Retries) {
+      const delay = retryDelay(response, attempt)
+      if (totalRetryDelay + delay <= 10_000) {
+        totalRetryDelay += delay
+        await pause(delay)
+        continue
+      }
+    }
+    if (!response.ok || !body || body.status === false) {
+      throw Object.assign(new Error(`Lahza ${response.status}: ${String(body?.message || "طلب غير ناجح")}`), { status: response.status })
+    }
+    return body
+  }
 }
 
 export async function initializeLahzaTransaction(input: {
@@ -60,7 +86,9 @@ export async function initializeLahzaTransaction(input: {
 export type LahzaVerification = { status: string; amountMinor: number; currency: string; reference: string; gatewayResponse: string; paidAt: string | null }
 
 export async function verifyLahzaTransaction(reference: string): Promise<LahzaVerification> {
-  const body = await lahzaRequest(`/transaction/verify/${encodeURIComponent(reference)}`, { method: "GET" })
+  // Lahza can briefly rate-limit verification immediately after its popup reports success.
+  // Verification is a safe GET, so retry 429 responses with backoff before surfacing an error.
+  const body = await lahzaRequest(`/transaction/verify/${encodeURIComponent(reference)}`, { method: "GET" }, { retry429: 3 })
   const data = body?.data || {}
   return {
     status: String(data.status || ""),

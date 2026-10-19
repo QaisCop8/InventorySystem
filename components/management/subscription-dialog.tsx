@@ -35,6 +35,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
   const [busy, setBusy] = useState(false)
   const [popupOpen, setPopupOpen] = useState(false)
   const [error, setError] = useState("")
+  const [verificationReference, setVerificationReference] = useState("")
 
   const counts = { users: Number(users) || 1, branches: Number(branches) || 1, posPoints: Number(posPoints) || 0 }
   const quote = priceFor(pricing, counts)
@@ -49,11 +50,13 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
 
   const verify = async (reference: string) => {
     setBusy(true)
+    setError("")
+    setVerificationReference(reference)
     try {
       const response = await fetch("/api/management/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference }) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذّر التحقق من الدفع")
-      if (data.status === "approved") onDone(data.expiryDate || null)
+      if (data.status === "approved") { setVerificationReference(""); onDone(data.expiryDate || null) }
       else setError(data.message || "لم تكتمل عملية الدفع")
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذّر التحقق من الدفع")
@@ -134,9 +137,10 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
 
         <DialogFooter className="gap-2 sm:gap-2">
           <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-white/15 px-5 text-sm font-bold text-slate-200 transition hover:bg-white/10">إلغاء</button>
-          <button type="button" disabled={busy || !(quote.total > 0)} onClick={() => void pay()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
+          {verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-white/15 px-4 text-sm font-bold text-slate-200 transition hover:bg-white/10">إعادة التحقق دون إعادة الدفع</button>}
+          {!verificationReference && <button type="button" disabled={busy || !(quote.total > 0)} onClick={() => void pay()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت
-          </button>
+          </button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

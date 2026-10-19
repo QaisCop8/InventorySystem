@@ -34,6 +34,7 @@ export async function openLahzaPopup(options: {
 }) {
   await loadScript()
   if (!window.LahzaPopup) throw new Error("تعذّر فتح نافذة الدفع")
+  let completed = false
   new window.LahzaPopup().newTransaction({
     key: options.publicKey,
     email: options.email,
@@ -42,7 +43,15 @@ export async function openLahzaPopup(options: {
     currency: options.currency,
     ref: options.reference,
     metadata: options.metadata,
-    onSuccess: options.onSuccess,
-    onCancel: options.onCancel,
+    onSuccess: () => {
+      if (completed) return
+      completed = true
+      options.onSuccess()
+    },
+    onCancel: () => {
+      if (completed) return
+      completed = true
+      options.onCancel()
+    },
   })
 }

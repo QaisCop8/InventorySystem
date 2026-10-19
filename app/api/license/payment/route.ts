@@ -9,8 +9,10 @@ import { licensePaymentInfo, startLicensePayment } from "@/lib/company-billing"
 //   POST { resource, quantity, reason? } ⇒ بيانات نافذة الدفع المنبثقة (المرجع والمبلغ مسجّلان بالخادم)
 export async function GET(request: NextRequest) {
   try {
-    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
-    return NextResponse.json(await licensePaymentInfo())
+    const user = await getSessionUser(request)
+    if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const license = await getCurrentCompanyLicense()
+    return NextResponse.json(await licensePaymentInfo(license?.companyId, user.user_id))
   } catch (error) {
     console.error("[license/payment GET] error:", error)
     return NextResponse.json({ enabled: false })

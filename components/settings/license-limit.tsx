@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Loader2, Monitor, Send, Users } from "lucide-react"
 import { openLahzaPopup } from "@/lib/lahza-popup"
 import { Button } from "@/components/ui/button"
@@ -61,10 +61,26 @@ export function useLicenseRequestDialog(onSent?: () => void) {
   const [payInfo, setPayInfo] = useState<{ enabled: boolean; testMode?: boolean; currency?: string; prices?: Record<LicenseResource, number> } | null>(null)
   const [popupOpen, setPopupOpen] = useState(false)
   const [paid, setPaid] = useState(false)
+  const [verificationReference, setVerificationReference] = useState("")
+  const verificationInProgress = useRef(false)
 
   const open = (resource: LicenseResource, message?: string, pending = false) => {
-    setState({ resource, message, pending }); setQuantity("1"); setReason(""); setError(""); setSent(false); setPaid(false)
-    fetch("/api/license/payment", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => setPayInfo(data)).catch(() => setPayInfo(null))
+    setState({ resource, message, pending }); setQuantity("1"); setReason(""); setError(""); setSent(false); setPaid(false); setVerificationReference("")
+    fetch("/api/license/payment", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => {
+      setPayInfo(data)
+      const previous = data?.pendingPayment
+      const previousResourceValue = String(previous?.resource || "")
+      if (!previous?.reference || !Object.prototype.hasOwnProperty.call(LABELS, previousResourceValue)) return
+      const previousResource = previousResourceValue as LicenseResource
+      const previousQuantity = Math.max(1, Number(previous.quantity) || 1)
+      setState((current) => current ? {
+        ...current,
+        resource: previousResource,
+        message: `لديك دفعة سابقة لزيادة ${LABELS[previousResource].plural} بمقدار ${previousQuantity} لم يكتمل تأكيدها. أعد التحقق منها قبل بدء دفعة جديدة.`,
+      } : current)
+      setQuantity(String(previousQuantity))
+      setVerificationReference(String(previous.reference))
+    }).catch(() => setPayInfo(null))
   }
   const unitPrice = state && payInfo?.enabled ? Number(payInfo.prices?.[state.resource] || 0) : 0
   const total = Math.round(unitPrice * (Number(quantity) || 0) * 100) / 100
@@ -91,16 +107,21 @@ export function useLicenseRequestDialog(onSent?: () => void) {
     }
   }
   const verifyPayment = async (reference: string) => {
+    if (verificationInProgress.current) return
+    verificationInProgress.current = true
     setBusy(true)
+    setError("")
+    setVerificationReference(reference)
     try {
       const response = await fetch("/api/license/payment/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference }) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذّر التحقق من الدفع")
-      if (data.status === "approved") { setPaid(true); onSent?.() }
+      if (data.status === "approved") { setPaid(true); setVerificationReference(""); onSent?.() }
       else setError(data.message || "لم تكتمل عملية الدفع")
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذّر التحقق من الدفع")
     } finally {
+      verificationInProgress.current = false
       setBusy(false)
     }
   }
@@ -163,8 +184,9 @@ export function useLicenseRequestDialog(onSent?: () => void) {
           </div>
           <div className="flex min-w-0 flex-wrap justify-end gap-2 border-t bg-slate-50 px-5 py-3">
             <Button variant="outline" disabled={busy} onClick={() => setState(null)}>إغلاق</Button>
-            {!sent && !paid && !state?.pending && <Button variant={canPay ? "outline" : "default"} disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className={canPay ? "gap-1" : "gap-1 bg-amber-600 hover:bg-amber-700"}>{busy && !canPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{canPay ? "إرسال طلب للاعتماد" : "إرسال الطلب"}</Button>}
-            {!sent && !paid && canPay && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void payOnline()} className="gap-1 bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت</Button>}
+            {verificationReference && !paid && <Button variant="outline" disabled={busy} onClick={() => void verifyPayment(verificationReference)}>إعادة التحقق دون إعادة الدفع</Button>}
+            {!sent && !paid && !state?.pending && !verificationReference && <Button variant={canPay ? "outline" : "default"} disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className={canPay ? "gap-1" : "gap-1 bg-amber-600 hover:bg-amber-700"}>{busy && !canPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{canPay ? "إرسال طلب للاعتماد" : "إرسال الطلب"}</Button>}
+            {!sent && !paid && canPay && !verificationReference && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void payOnline()} className="gap-1 bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت</Button>}
           </div>
         </DialogContent>
       </Dialog>
