@@ -124,7 +124,7 @@ export default function PersonalAssistantWizard() {
   const { license, reload: reloadLicense } = useCompanyLicense()
   const licenseRequest = useLicenseRequestDialog(() => void reloadLicense())
   const open = true
-  // -1 is the new company step; 0..7 retain the existing content-step indexes.
+  // -1 is the company step; later indexes match the step list above minus one.
   const [step, setStep] = useState(-1)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice>(null)
@@ -184,7 +184,9 @@ export default function PersonalAssistantWizard() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.shouldShow) return
-        setStep(Math.max(-1, Math.min(8, (Number(data.current_step) || 0) - 1)))
+        const savedStep = Number(data.current_step) || 0
+        const migratedStep = Number(data.wizard_version) < 2 && savedStep >= 3 ? savedStep + 1 : savedStep
+        setStep(Math.max(-1, Math.min(8, migratedStep - 1)))
       })
       .catch(() => undefined)
   }, [])
@@ -497,7 +499,7 @@ export default function PersonalAssistantWizard() {
     await fetch("/api/onboarding-assistant", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ current_step: completed ? steps.length - 1 : Math.max(0, nextStep + 1), dismissed, completed }),
+      body: JSON.stringify({ current_step: completed ? steps.length - 1 : Math.max(0, nextStep + 1), wizard_version: 2, dismissed, completed }),
     })
   }
 
@@ -696,7 +698,7 @@ export default function PersonalAssistantWizard() {
   }
 
   const finish = async () => {
-    await saveProgress(7, false, true)
+    await saveProgress(8, false, true)
     router.push("/")
   }
 
@@ -765,6 +767,81 @@ export default function PersonalAssistantWizard() {
       }
     `}</style>
   </>
+}
+
+function NumberingSettingsStep({ values, autoNumbering, onChange, onAutoNumberingChange }: { values: Record<string, string>; autoNumbering: boolean; onChange: (key: string, value: string) => void; onAutoNumberingChange: (value: boolean) => void }) {
+  const renderNumberingField = (field: { prefix: string | null; start: string; label: string }, isVoucher: boolean) => {
+    const prefix = field.prefix ? String(values[field.prefix] || "") : ""
+    const start = String(values[field.start] || "1")
+    const numericStart = Number(start) || 1
+    const preview = isVoucher
+      ? buildVoucherCode(prefix, "A", numericStart)
+      : field.prefix
+        ? `${prefix}${String(numericStart).padStart(field.prefix === "salesman_prefix" || field.prefix === "employee_prefix" ? Math.max(1, 10 - prefix.length) : 4, "0")}`
+        : String(numericStart)
+
+    return <div key={field.start} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h5 className="mb-3 font-black text-slate-800">{field.label}</h5>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {field.prefix && <div>
+          <Label className="mb-2 block text-sm font-bold text-slate-700">بادئة {field.label}</Label>
+          <Input value={prefix} onChange={(event) => onChange(field.prefix!, event.target.value.replace(/[^a-z]/gi, "").toUpperCase().slice(0, 3))} maxLength={3} className="text-right" dir="rtl" />
+        </div>}
+        <div>
+          <Label className="mb-2 block text-sm font-bold text-slate-700">الترقيم يبدأ من</Label>
+          <Input type="number" min={1} max={isVoucher ? 10000 : undefined} value={start} onChange={(event) => onChange(field.start, event.target.value)} className="text-right" dir="rtl" />
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">مثال على الرقم التالي: <span className="font-mono font-bold text-slate-700">{preview}</span>{isVoucher && " (A = دفتر السندات)"}</p>
+    </div>
+  }
+
+  return <section className="space-y-5 rounded-3xl border border-amber-100 bg-slate-50/60 p-4 sm:p-6">
+    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 font-bold text-amber-950">
+      <input type="checkbox" checked={autoNumbering} onChange={(event) => onAutoNumberingChange(event.target.checked)} className="h-4 w-4 accent-amber-600" />
+      الترقيم التلقائي للسندات والملفات
+    </label>
+    <div className="rounded-2xl border border-amber-100 bg-white p-4">
+      <h4 className="mb-4 text-lg font-black text-slate-900">ترقيم السندات</h4>
+      <div className="grid gap-3 lg:grid-cols-2">{voucherNumberingFields.map((field) => renderNumberingField(field, true))}</div>
+    </div>
+    <div className="rounded-2xl border border-amber-100 bg-white p-4">
+      <h4 className="mb-4 text-lg font-black text-slate-900">ترقيم الملفات</h4>
+      <div className="grid gap-3 lg:grid-cols-2">{fileNumberingFields.map((field) => renderNumberingField(field, false))}</div>
+    </div>
+  </section>
+}
+
+function PartyRecordsStep({ kind, parties, customer, busy, onKindChange, onCustomerChange, onAdd, onImport }: { kind: PartyImportKind; parties: Record<PartyImportKind, any[]>; customer: { code: string; name: string; phone: string }; busy: boolean; onKindChange: (kind: PartyImportKind) => void; onCustomerChange: (value: { code: string; name: string; phone: string }) => void; onAdd: () => void; onImport: () => void }) {
+  const activeParty = PARTY_TYPES.find((party) => party.value === kind) || PARTY_TYPES[0]
+  const rows = parties[kind] || []
+
+  return <section className="overflow-hidden rounded-3xl border border-cyan-100 bg-white shadow-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-100 bg-gradient-to-l from-cyan-700 to-blue-700 px-5 py-4 text-white">
+      <div><h4 className="text-lg font-black">العملاء والموردون والمشتركون</h4><p className="mt-1 text-xs text-cyan-100">اختر نوع السجل لعرض المحفوظ وإضافة سجل جديد</p></div>
+      <Button type="button" variant="outline" disabled={busy} onClick={onImport} className="gap-2 rounded-xl border-white/50 bg-white text-cyan-800 hover:bg-cyan-50"><FileSpreadsheet className="h-4 w-4" /><Upload className="h-4 w-4" />استيراد {activeParty.plural} من Excel</Button>
+    </div>
+    <div className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-slate-50 p-3" role="tablist" aria-label="نوع السجل">
+      {PARTY_TYPES.map((party) => <button key={party.value} type="button" role="tab" aria-selected={kind === party.value} onClick={() => onKindChange(party.value)} className={`shrink-0 rounded-xl px-5 py-2.5 text-sm font-black transition ${kind === party.value ? "bg-cyan-700 text-white shadow" : "bg-white text-slate-600 hover:bg-cyan-50"}`}>
+        {party.plural}<span className={`mr-2 rounded-full px-2 py-0.5 text-xs ${kind === party.value ? "bg-white/20" : "bg-slate-100"}`}>{parties[party.value]?.length || 0}</span>
+      </button>)}
+    </div>
+    <div className="space-y-5 p-4 sm:p-5">
+      <div className="rounded-2xl border border-cyan-100 bg-cyan-50/40 p-4">
+        <h5 className="mb-3 font-black text-slate-800">إضافة {activeParty.label} سريع</h5>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label={`رقم ${activeParty.label} (اختياري)`} value={customer.code} onChange={(value) => onCustomerChange({ ...customer, code: value })} />
+          <Field label={`اسم ${activeParty.label}`} value={customer.name} onChange={(value) => onCustomerChange({ ...customer, name: value })} />
+          <Field label="الجوال" value={customer.phone} onChange={(value) => onCustomerChange({ ...customer, phone: value })} />
+          <AddButton busy={busy} onClick={onAdd} label="إضافة" />
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200">
+        <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white"><h5 className="font-bold">{activeParty.plural} المحفوظون</h5><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length} سجل</span></div>
+        {rows.length === 0 ? <div className="py-9 text-center text-sm text-slate-400">لا توجد سجلات محفوظة</div> : <div className="max-h-72 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-16 px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">الرقم</th><th className="px-4 py-3 text-right">الاسم</th><th className="px-4 py-3 text-right">الجوال</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row.id ?? index} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-mono font-bold text-slate-700">{row.customer_code ?? row.code ?? "-"}</td><td className="px-4 py-3 font-semibold text-slate-800">{row.name ?? row.customer_name ?? "-"}</td><td className="px-4 py-3 text-slate-600">{row.mobile1 ?? row.phone ?? "-"}</td></tr>)}</tbody></table></div>}
+      </div>
+    </div>
+  </section>
 }
 
 function CompanyInfoStep({ company, onChange }: { company: { companyName: string; companyNameEn: string; licensedWorkerNumber: string; taxNumber: string; commercialRegister: string; address: string; phone: string; email: string; website: string }; onChange: (value: typeof company) => void }) {
