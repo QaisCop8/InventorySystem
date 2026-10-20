@@ -17,7 +17,7 @@
   --pos-glass: rgb(255 255 255 / 72%);
   --pos-glass-edge: rgb(255 255 255 / 85%);
   --pos-shadow: 0 24px 48px -28px rgb(16 92 72 / 45%);
-  --pos-dock-width: 430px;
+  --pos-dock-width: 520px;
   container: cashier / inline-size;
   box-sizing: border-box;
   position: relative;
@@ -106,6 +106,18 @@
   background: rgb(255 255 255 / 78%); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%);
   box-shadow: 0 30px 60px -34px rgb(16 92 72 / 55%), inset 0 1px 0 #fff;
 }
+
+/* إخفاء الأصناف (زر "إخفاء الأصناف" — يُحفظ على الجهاز): الفاتورة الحالية بعرض المساحة كاملة.
+   الجوال يبقى على مبدّل الأصناف/السلة السفلي. */
+@container cashier (min-width: 641px) {
+  .pos-layout[data-catalog=hidden] { grid-template-columns: minmax(0, 1fr); }
+  .pos-layout[data-catalog=hidden] .pos-catalog { display: none; }
+  .pos-layout[data-catalog=hidden] .pos-sale { width: min(100%, 1100px); justify-self: center; }
+}
+.pos-toolbar-actions > .pos-view-toggle[aria-pressed=false] { color: var(--pos-accent-strong); background: var(--pos-accent-soft); }
+.pos-categories-toggle { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--pos-glass-edge); border-radius: 999px; color: var(--pos-accent-strong); background: var(--pos-glass); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.pos-categories-toggle[aria-pressed=false] { background: var(--pos-accent-soft); }
+@container cashier (max-width: 900px) { .pos-categories-toggle span { display: none; } .pos-categories-toggle { padding: 0 11px; } }
 
 /* ── Catalog canvas ───────────────────────────────────────────────────────── */
 .pos-catalog-head { display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding: 2px 2px 10px; }
@@ -265,10 +277,10 @@
 @media (hover: none) { .pos-product-add { opacity: 1; transform: none; } }
 
 /* ── Responsive (container = workspace width) ───────────────────────────── */
-@container cashier (min-width: 1500px) { .pos-workspace { --pos-dock-width: 470px; } .pos-products { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
+@container cashier (min-width: 1500px) { .pos-layout { --pos-dock-width: 600px; } .pos-products { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
 @container cashier (max-width: 1250px) {
   .pos-toolbar-actions { order: 7; flex-basis: 100%; justify-content: flex-start; }
-  .pos-workspace { --pos-dock-width: 390px; }
+  .pos-layout { --pos-dock-width: 460px; }
   .pos-products { grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); }
 }
 @container cashier (max-width: 860px) {

@@ -196,6 +196,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // فوراً بنفس هذا التحميل، بلا أي سكربت يدوي لكل شركة. فشلها لا يمنع تسجيل الدخول (best
             // effort — انظر lib/permissions.ts).
             window.setTimeout(() => {
+              // دون اتصال (كاشير يعمل بعد إعادة تشغيل الجهاز): لا مزامنة — تُعاد عند التحميل التالي متصلاً
+              if (!navigator.onLine) return
               void fetch("/api/settings/permissions/sync", { method: "POST" })
                 .then((response) => {
                   if (response.ok) return refreshUserPermissions(userData.id, permissionBranchId)

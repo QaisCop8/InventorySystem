@@ -1,5 +1,35 @@
 const CACHE_NAME = "shamel-app-v4"
-const APP_SHELL = ["/", "/mobile", "/manifest.json"]
+const APP_SHELL = ["/", "/mobile", "/manifest.json", "/icon-192.jpg"]
+
+// حفظ كل ملفات الواجهة المبنية مسبقاً (قائمتها من /api/offline/assets) — بدونها لا يعمل دون اتصال إلا ما فُتح
+// سابقاً متصلاً، فيفشل تحميل شاشة/نافذة لم تُفتح منذ آخر نشر ("Failed to load chunk"). يتخطّى المحفوظ، 6 طلبات معاً.
+let precaching = null
+async function precacheAppAssets() {
+  if (precaching) return precaching
+  precaching = (async () => {
+    try {
+      const response = await fetch("/api/offline/assets", { cache: "no-store" })
+      if (!response.ok) return
+      const { urls = [] } = await response.json()
+      const cache = await caches.open(CACHE_NAME)
+      const queue = urls.filter((url) => typeof url === "string" && url.startsWith("/_next/static/"))
+      const worker = async () => {
+        while (queue.length) {
+          const url = queue.shift()
+          if (await cache.match(url)) continue
+          try {
+            const asset = await fetch(url)
+            if (asset.ok) await cache.put(url, asset)
+          } catch { /* دون اتصال أثناء الحفظ: يُكمَل في المرة القادمة */ }
+        }
+      }
+      await Promise.all(Array.from({ length: 6 }, worker))
+    } catch { /* دون اتصال */ } finally {
+      precaching = null
+    }
+  })()
+  return precaching
+}
 
 // API responses depend on the signed-in user and must never be pre-cached.
 // Cache shell resources independently so one unavailable URL cannot reject
@@ -27,6 +57,8 @@ self.addEventListener("activate", (event) => {
       const cacheNames = await caches.keys()
       await Promise.all(cacheNames.filter((name) => name.startsWith("shamel-app-") && name !== CACHE_NAME).map((name) => caches.delete(name)))
       await self.clients.claim()
+      // في الخلفية — لا يؤخر تفعيل العامل
+      void precacheAppAssets()
     })(),
   )
 })
@@ -56,20 +88,28 @@ self.addEventListener("fetch", (event) => {
 
   // Persist lazy-loaded cashier chunks as well as the initial application assets.
   if (!["script", "style", "font", "image", "audio"].includes(request.destination)) return
-  event.respondWith(caches.match(request).then(async (cached) => {
+  event.respondWith((async () => {
+    const cached = (await caches.match(request)) || (await caches.match(request, { ignoreSearch: true }))
     if (cached) return cached
-    const response = await fetch(request)
-    if (response.ok) {
-      const cache = await caches.open(CACHE_NAME)
-      await cache.put(request, response.clone())
+    try {
+      const response = await fetch(request)
+      if (response.ok) {
+        const cache = await caches.open(CACHE_NAME)
+        await cache.put(request, response.clone())
+      }
+      return response
+    } catch {
+      // دون اتصال وغير محفوظ: فشل هادئ بدل خطأ "Uncaught (in promise) Failed to fetch" في sw.js
+      return new Response("", { status: 504, statusText: "Offline" })
     }
-    return response
-  }))
+  })())
 })
 
 // The first page can load before the worker takes control. Cache its already
 // downloaded bundles too, so its first offline reload can boot.
 self.addEventListener("message", (event) => {
+  // الكاشير (نقطة تعمل دون اتصال) يطلب حفظ كل ملفات الواجهة — يلتقط ملفات أي نشر جديد
+  if (event.data?.type === "PRECACHE_APP") { event.waitUntil(precacheAppAssets()); return }
   if (event.data?.type !== "CACHE_ASSETS") return
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME)

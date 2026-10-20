@@ -23,7 +23,7 @@ import { playPosBeep } from "@/lib/pos-beeps"
 import {PosReturnFromInvoiceDialog,type ReturnSourceInvoice,type SelectedReturnItem} from "./pos-return-from-invoice-dialog"
 
 import {useCallback,useEffect,useMemo,useRef,useState} from "react"
-import {ArrowDownToLine,ArrowUpFromLine,ArrowLeft,Banknote,Barcode,Bookmark,ChevronLeft,ChevronRight,ChevronsLeft,ChevronsRight,Clock3,CreditCard,FolderOpen,Gift,HandCoins,History,Minus,PackageOpen,Pencil,Percent,BadgePercent,Plus,Printer,RefreshCw,RotateCcw,Save,Search,ShoppingBag,ShoppingCart,StickyNote,Trash2,UserRound,WalletCards,Warehouse,Wifi,WifiOff,X} from "lucide-react"
+import {ArrowDownToLine,ArrowUpFromLine,ArrowLeft,Banknote,Barcode,Bookmark,ChevronLeft,ChevronRight,ChevronsLeft,ChevronsRight,Clock3,CreditCard,FolderOpen,Gift,HandCoins,History,Minus,PackageOpen,Pencil,Percent,BadgePercent,Plus,Printer,RefreshCw,RotateCcw,Save,Search,ShoppingBag,ShoppingCart,StickyNote,Trash2,UserRound,WalletCards,Warehouse,Wifi,WifiOff,X,PanelRightClose,PanelRightOpen,Tags} from "lucide-react"
 import {useAuth} from "@/components/auth/auth-context"
 import {Button} from "@/components/ui/button"
 import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle} from "@/components/ui/dialog"
@@ -44,6 +44,8 @@ type Customer={pricecategory?:number;id:number;name:string;code?:string;mobile1?
 type Point=Record<string,any>&{id:number;name:string;code:string;warehouse_name:string;currency_name:string;currency_code:string}
 type Session=Record<string,any>&{id:number;expected_cash:number;opening_cash:number;payments?:any[];movements?:any[]}
 type Currency={currency_id:number;currency_code:string;currency_name:string;rate_to_point:number;exchange_rate:number}
+// تفضيل عرض الكاشير على الجهاز: إخفاء الأصناف كاملة / شريط التصنيفات
+const POS_CATALOG_HIDDEN_KEY="pos:catalog-hidden",POS_CATEGORIES_HIDDEN_KEY="pos:categories-hidden"
 type Catalog={point:Point|null;taxRate:number;allowNegativeStock?:boolean;receiptSettings:Record<string,string>;products:Product[];customers:Customer[];salesmen?:PosParty[];currencies:Currency[];banks:PosParty[];bankBranches:(PosParty&{bank_id?:number})[];cardTypes:(PosParty&{currency_id:number})[];campaigns?:PosCampaign[];campaignUsage?:PosCampaignUsage;session:Session|null}
 type PaymentKey="cash"|"card"|"cheque"|"account"|"gift_card"
 type Payment=PaymentDetail
@@ -77,6 +79,11 @@ export default function PosCashier(){
  // معاينة طباعة الفاتورة على الجوال (نفس التبويب) + لوحة الجوال المعروضة (الأصناف/السلة)
  const [printPreview,setPrintPreview]=useState<{title:string;html:string}|null>(null)
  const [mobilePane,setMobilePane]=useState<"catalog"|"cart">("cart")
+ // إخفاء/إظهار الأصناف وتصنيفاتها — يُحفظ على الجهاز ويُستعاد عند فتح الكاشير مجدداً (تتسع الفاتورة الحالية عند الإخفاء)
+ const [catalogHidden,setCatalogHidden]=useState(false),[categoriesHidden,setCategoriesHidden]=useState(false)
+ useEffect(()=>{try{setCatalogHidden(localStorage.getItem(POS_CATALOG_HIDDEN_KEY)==="1");setCategoriesHidden(localStorage.getItem(POS_CATEGORIES_HIDDEN_KEY)==="1")}catch{}},[])
+ const toggleCatalog=()=>setCatalogHidden(value=>{const next=!value;try{localStorage.setItem(POS_CATALOG_HIDDEN_KEY,next?"1":"0")}catch{};return next})
+ const toggleCategories=()=>setCategoriesHidden(value=>{const next=!value;try{localStorage.setItem(POS_CATEGORIES_HIDDEN_KEY,next?"1":"0")}catch{};return next})
  const selectedPointRef=useRef<number|null>(null),initialPointResolutionRef=useRef(false)
  const [points,setPoints]=useState<Point[]>([]),[pointId,setPointId]=useState<number|null>(null),[catalog,setCatalog]=useState<Catalog>(EMPTY),[cart,setCart]=useState<CartLine[]>([]),[query,setQuery]=useState(""),[barcodeQuery,setBarcodeQuery]=useState(""),[category,setCategory]=useState("all"),[customerId,setCustomerId]=useState<number|null>(null),[mode,setMode]=useState<"sale"|"return"|"gift">("sale"),[note,setNote]=useState("")
  const [online,setOnline]=useState(true),[loading,setLoading]=useState(true),[syncing,setSyncing]=useState(false),[pendingCount,setPendingCount]=useState(0),[message,setMessage]=useState<{type:"success"|"error"|"info";text:string}|null>(null),[receipt,setReceipt]=useState<Receipt>(null)
@@ -130,6 +137,8 @@ export default function PosCashier(){
   if(navigator.storage?.persist)void navigator.storage.persist().catch(()=>false)
   if(point?.allow_offline&&"serviceWorker" in navigator)void navigator.serviceWorker.ready.then(registration=>{
    registration.active?.postMessage({type:"CACHE_ASSETS",urls:performance.getEntriesByType("resource").map(entry=>entry.name)})
+   // كل ملفات الواجهة (لا فقط المحمَّلة الآن) — حتى لا يفشل فتح نافذة/شاشة دون اتصال بعد إعادة التشغيل
+   if(navigator.onLine)registration.active?.postMessage({type:"PRECACHE_APP"})
   })
   return()=>window.clearInterval(timer)
  },[point?.allow_offline,session?.id])
@@ -695,6 +704,7 @@ export default function PosCashier(){
     <button type="button" onClick={()=>void saveDraft()} disabled={!cart.length||saving||draftSaving}><Bookmark size={16}/>حفظ كمسودة</button>
     <button type="button" onClick={()=>requestTransactionAction(()=>void loadDrafts())} disabled={draftLoading}><FolderOpen size={16}/>بحث المسودات</button>
     <button type="button" onClick={()=>requestTransactionAction(()=>setCustodyOpen(true))}><HandCoins size={16}/>العهدة <kbd>F2</kbd></button>
+    <button type="button" className="pos-view-toggle" aria-pressed={!catalogHidden} onClick={toggleCatalog} title={catalogHidden?"إظهار الأصناف":"إخفاء الأصناف (توسيع الفاتورة)"}>{catalogHidden?<PanelRightOpen size={16}/>:<PanelRightClose size={16}/>}{catalogHidden?"إظهار الأصناف":"إخفاء الأصناف"}</button>
     <button type="button" onClick={()=>void syncPending()} disabled={syncing||!online}><RefreshCw size={16} className={cn(syncing&&"animate-spin")}/>مزامنة{pendingCount>0&&<span className="pos-badge">{pendingCount}</span>}</button>
    </nav>
    <span className={cn("pos-connection",!online&&"is-offline")} role="status" title={online?"متصل":"غير متصل"} aria-label={online?"متصل":"غير متصل"}>{online?<Wifi size={15}/>:<WifiOff size={15}/>} {online?"متصل":"غير متصل"}</span>
@@ -709,13 +719,14 @@ export default function PosCashier(){
   </section>
   </div>
   {message&&<div role="status" className={cn("pos-message",message.type==="error"&&"is-error")}><span>{message.text}</span><button aria-label="إغلاق الرسالة" onClick={()=>setMessage(null)}><X size={16}/></button></div>}
-  <main className="pos-layout" data-mobile-pane={mobilePane}>
+  <main className="pos-layout" data-mobile-pane={mobilePane} data-catalog={catalogHidden?"hidden":"shown"}>
    <section className="pos-catalog">
     <div className="pos-catalog-head">
      <div className="pos-search-field"><Search size={19}/><Input aria-label="البحث باسم الصنف" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="F10"){e.preventDefault();e.stopPropagation();openItemSearch(e.currentTarget.value)}}} placeholder="ابحث باسم الصنف… (F10 بحث)"/>{query&&<button type="button" aria-label="مسح البحث" onClick={()=>setQuery("")}><X size={16}/></button>}<button type="button" className="pos-item-search-btn" aria-label="بحث الأصناف (F10)" title="بحث الأصناف (F10)" onClick={()=>openItemSearch(query)} disabled={pricingBusy||Boolean(historySelected)}><Search size={16}/><span>بحث</span></button></div>
      <span className="pos-count">{shown.length} صنف</span>
+     <button type="button" className="pos-categories-toggle" aria-pressed={!categoriesHidden} onClick={toggleCategories} title={categoriesHidden?"إظهار التصنيفات":"إخفاء التصنيفات"}><Tags size={16}/><span>{categoriesHidden?"إظهار التصنيفات":"إخفاء التصنيفات"}</span></button>
     </div>
-    <div className="pos-categories-bar"><button type="button" className="pos-categories-arrow" aria-label="التصنيفات السابقة" onClick={()=>categoriesRef.current?.scrollBy({left:260,behavior:"smooth"})}><ChevronRight size={18}/></button><div ref={categoriesRef} className="pos-categories" aria-label="تصنيفات الأصناف" onWheel={event=>{if(Math.abs(event.deltaY)>Math.abs(event.deltaX))event.currentTarget.scrollLeft-=event.deltaY}}><button type="button" aria-pressed={category==="all"} onClick={()=>setCategory("all")} title="كل الأصناف"><ShoppingBag size={16} aria-hidden="true"/><span>الكل</span><small>{productsForSale.length}</small></button>{categories.map(group=><button type="button" key={group.name} aria-pressed={category===group.name} onClick={()=>setCategory(group.name)} title={group.name}><span>{group.name}</span><small>{group.count}</small></button>)}</div><button type="button" className="pos-categories-arrow" aria-label="التصنيفات التالية" onClick={()=>categoriesRef.current?.scrollBy({left:-260,behavior:"smooth"})}><ChevronLeft size={18}/></button></div>
+    {!categoriesHidden&&<div className="pos-categories-bar"><button type="button" className="pos-categories-arrow" aria-label="التصنيفات السابقة" onClick={()=>categoriesRef.current?.scrollBy({left:260,behavior:"smooth"})}><ChevronRight size={18}/></button><div ref={categoriesRef} className="pos-categories" aria-label="تصنيفات الأصناف" onWheel={event=>{if(Math.abs(event.deltaY)>Math.abs(event.deltaX))event.currentTarget.scrollLeft-=event.deltaY}}><button type="button" aria-pressed={category==="all"} onClick={()=>setCategory("all")} title="كل الأصناف"><ShoppingBag size={16} aria-hidden="true"/><span>الكل</span><small>{productsForSale.length}</small></button>{categories.map(group=><button type="button" key={group.name} aria-pressed={category===group.name} onClick={()=>setCategory(group.name)} title={group.name}><span>{group.name}</span><small>{group.count}</small></button>)}</div><button type="button" className="pos-categories-arrow" aria-label="التصنيفات التالية" onClick={()=>categoriesRef.current?.scrollBy({left:-260,behavior:"smooth"})}><ChevronLeft size={18}/></button></div>}
     <div className="pos-products" aria-busy={loading}>{loading?<div className="pos-empty"><RefreshCw className="animate-spin"/>جاري تحميل الأصناف…</div>:shown.length?shown.slice(0,visibleLimit).map(p=><button key={p.id} onClick={()=>add(p)} className="pos-product" aria-label={`إضافة ${p.name}`} disabled={pricingBusy}>
      <div className="pos-product-visual"><span className={cn("pos-product-icon",p.image&&"has-image")}>{p.image?<img src={p.image} alt="" loading="lazy"/>:<PackageOpen size={30}/>}</span><small className={cn("pos-stock",p.available<=0&&"is-unavailable")}><span/>{p.available<=0?"نفد":`${p.available} ${p.unitName||""}`}</small><span className="pos-product-add" aria-hidden="true"><Plus size={16}/></span></div>
      <div className="pos-product-details"><b>{p.name}</b><small className="pos-product-code" dir="ltr">{p.code}</small><strong><bdi>{p.price.toFixed(2)}</bdi><small>{point?.currency_code}</small></strong></div>
