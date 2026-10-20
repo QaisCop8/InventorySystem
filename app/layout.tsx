@@ -56,14 +56,14 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "NOON ERP",
+  title: "NoonERP System",
   description: "نون ERP — نظام عربي متكامل لإدارة الأعمال",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "NOON ERP",
+    title: "NoonERP System",
   },
   icons: {
     icon: "/icon-192.jpg",
