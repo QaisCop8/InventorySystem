@@ -41,6 +41,8 @@ async function lahzaRequest(path: string, init: RequestInit = {}, options: { ret
       headers: { Authorization: `Bearer ${secretKey()}`, "Content-Type": "application/json", Accept: "application/json", ...(init.headers || {}) },
       cache: "no-store",
     })
+    console.debug(`Lahza ${response.status} ${init.method || "GET"} ${path} (attempt ${attempt + 1})`)
+    console.debug("Lahza response headers:", Object.fromEntries(response.headers.entries()))
     const body = await response.json().catch(() => null)
     if (response.status === 429 && attempt < max429Retries) {
       const delay = retryDelay(response, attempt)
