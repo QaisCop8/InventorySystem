@@ -27,7 +27,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # صورة 24.04 تحوي Android SDK مثبتاً (ubuntu-latest ينتقل إلى 26 وقد لا يحويه)
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: android-app
@@ -37,21 +38,28 @@ jobs:
       APP_VERSION_NAME: 1.0.${{ github.run_number }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # SDK المثبت مسبقاً على الصورة؛ قبول التراخيص وتنزيل منصة 34 وأدوات البناء التي يحتاجها Capacitor 6
+      - name: Prepare Android SDK
+        run: |
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          manager="$(ls "$sdk"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          yes | "$manager" --licenses > /dev/null || true
+          "$manager" "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null
 
       - name: Install Capacitor
         run: npm install --no-audit --no-fund
