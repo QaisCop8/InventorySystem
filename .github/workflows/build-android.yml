@@ -1,0 +1,107 @@
+name: Build Android APK
+
+# تطبيق أندرويد لـ NoonERP System (android-app/): غلاف Capacitor يفتح النظام من الخادم.
+# الناتج: NoonERP-System-debug.apk (يُثبَّت مباشرة على الجوال)، و NoonERP-System-release.apk
+# الموقَّع إن وُجدت أسرار التوقيع (ANDROID_KEYSTORE_BASE64 ...). يُنزَّل من صفحة التشغيل ← Artifacts.
+# عنوان الخادم: متغير المستودع ANDROID_SERVER_URL أو قيمة الإدخال اليدوي، وإلا capacitor.config.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "عنوان الخادم (https) — اتركه فارغاً لاستخدام الافتراضي"
+        required: false
+        default: ""
+  push:
+    paths:
+      - "android-app/**"
+      - "public/icon-512.jpg"
+      - ".github/workflows/build-android.yml"
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-app
+    env:
+      SERVER_URL: ${{ github.event.inputs.server_url || vars.ANDROID_SERVER_URL }}
+      APP_VERSION_CODE: ${{ github.run_number }}
+      APP_VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Android project
+        run: |
+          npm run configure
+          npx cap add android
+          node scripts/patch-android.mjs
+          npx cap sync android
+
+      - name: App icons from public/icon-512.jpg
+        run: |
+          sudo apt-get install -y -qq imagemagick > /dev/null
+          res=android/app/src/main/res
+          # أيقونات PNG تقليدية بدل الأيقونة التكيّفية الافتراضية لـ Capacitor
+          rm -rf "$res/mipmap-anydpi-v26"
+          for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            density=${pair%%:*}; size=${pair##*:}
+            mkdir -p "$res/mipmap-$density"
+            convert ../public/icon-512.jpg -resize ${size}x${size}! "$res/mipmap-$density/ic_launcher.png"
+            cp "$res/mipmap-$density/ic_launcher.png" "$res/mipmap-$density/ic_launcher_round.png"
+          done
+
+      - name: Build debug APK
+        working-directory: android-app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/NoonERP-System-debug.apk"
+
+      - name: Build signed release APK (when signing secrets exist)
+        working-directory: android-app/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "No signing secrets — skipping release APK"; exit 0; fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          ./gradlew assembleRelease --no-daemon
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          "$apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KEYSTORE_PASSWORD \
+            --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD \
+            --out "$GITHUB_WORKSPACE/NoonERP-System-release.apk" app/build/outputs/apk/release/app-release-unsigned.apk
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoonERP-System-android-${{ github.run_number }}
+          path: |
+            NoonERP-System-debug.apk
+            NoonERP-System-release.apk
+          if-no-files-found: error

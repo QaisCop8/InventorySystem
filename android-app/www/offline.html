@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NoonERP System — لا يوجد اتصال</title>
+  <!-- config.js يكتبه scripts/configure.mjs: window.NOON_SERVER_URL -->
+  <script src="config.js"></script>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; font-family: system-ui, sans-serif; background: #f1faf6; color: #12352b; text-align: center; }
+    .card { max-width: 360px; padding: 28px 22px; border-radius: 24px; background: #fff; box-shadow: 0 18px 40px -24px rgb(16 92 72 / 45%); }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 0 0 20px; color: #5b7069; font-size: 14px; line-height: 1.7; }
+    button { width: 100%; height: 48px; border: 0; border-radius: 999px; color: #fff; background: #0b7f63; font-size: 15px; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>تعذر الوصول إلى الخادم</h1>
+    <p>تحقق من اتصال الإنترنت ثم أعد المحاولة. كاشير نقطة البيع يعمل بدون اتصال بعد فتحه مرة واحدة على الأقل.</p>
+    <button type="button" onclick="location.href = window.NOON_SERVER_URL || '/'">إعادة المحاولة</button>
+  </div>
+</body>
+</html>

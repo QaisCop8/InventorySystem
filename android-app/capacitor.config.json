@@ -1,0 +1,19 @@
+{
+  "appId": "com.noonerp.system",
+  "appName": "NoonERP System",
+  "webDir": "www",
+  "server": {
+    "url": "https://inventorysystem-m5oh.onrender.com",
+    "androidScheme": "https",
+    "cleartext": false,
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "inventorysystem-m5oh.onrender.com"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

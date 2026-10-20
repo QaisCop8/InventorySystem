@@ -1,0 +1,4 @@
+# يُولَّد في كل بناء (npx cap add android) — لا يُحفظ في git
+node_modules/
+android/
+www/config.js
