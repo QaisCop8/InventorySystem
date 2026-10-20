@@ -26,6 +26,8 @@ export const INTERNAL_VOUCHER = {
   CURRENCY_DIFFERENCE: 10, // قيود فرق العملة
   BANK_RECONCILIATION: 31, // قيود التسوية البنكية (عمولات/فوائد البنك من كشف البنك)
   OPENING_BALANCE: 32, // قيود الأرصدة الافتتاحية (استيراد العملاء/الموردين من Excel)
+  LANDED_COST: 33, // قيود تحميل تكاليف الشحن والجمارك على الأصناف (lib/landed-costs.ts)
+  YEAR_CLOSING: 34, // قيود إقفال السنة المالية (lib/year-end-closing.ts) — لا تظهر في قائمة الدخل
 } as const
 
 // The journal voucher screen (receipts/_lib.ts fetchDetails) only loads lines of this type, and every
@@ -35,7 +37,7 @@ export const JOURNAL_LINE_TYPE = 5
 // Types previously written by auto journals; repaired to JOURNAL_LINE_TYPE in ensureAutoJournalTables.
 const LEGACY_AUTO_LINE_TYPES = [1, 13]
 // internal_voucher_id 30 = fixed assets (lib/fixed-assets/schema.ts), which also posts through here.
-const AUTO_INTERNAL_VOUCHERS = [2, 4, 5, 10, 30, 31, 32]
+const AUTO_INTERNAL_VOUCHERS = [2, 4, 5, 10, 30, 31, 32, 33, 34]
 
 const round = (value: number, digits = 2) => {
   const factor = 10 ** digits
@@ -225,6 +227,15 @@ export async function releaseAutoJournal(voucherId: number) {
   await sql`UPDATE voucher_cards_detail_tbl SET fees_voucher_id = NULL WHERE fees_voucher_id = ${voucherId}`
   const header = (await sql`SELECT internal_voucher_id FROM voucher_header_tbl WHERE id = ${voucherId}`)[0]
   const internal = Number(header?.internal_voucher_id || 0)
+  // إلغاء قيد التكاليف المحمّلة من شاشة سند القيد يلغي مستند التحميل نفسه (فلا تبقى الكلفة على الأصناف بلا قيد).
+  if (internal === INTERNAL_VOUCHER.LANDED_COST) {
+    await sql`UPDATE landed_costs_tbl SET status = 3, updated_at = NOW() WHERE journal_voucher_id = ${voucherId} AND status <> 3`
+    return
+  }
+  if (internal === INTERNAL_VOUCHER.YEAR_CLOSING) {
+    await sql`UPDATE fiscal_year_closings_tbl SET status = 3, reversed_at = NOW() WHERE ${voucherId} = ANY(journal_voucher_ids) AND status <> 3`
+    return
+  }
   if (internal !== INTERNAL_VOUCHER.CURRENCY_CONVERT && internal !== INTERNAL_VOUCHER.ACCOUNT_CURRENCY_CONVERT) return
   await sql`
     UPDATE voucher_header_tbl SET status = 3, vch_status = 1, last_update_date = CURRENT_TIMESTAMP

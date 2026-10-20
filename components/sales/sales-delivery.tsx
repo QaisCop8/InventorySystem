@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Edit, Plus, Search } from "lucide-react"
+import { Edit, Plus, Printer, Search, Truck } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { VoucherDocumentPrinter } from "@/components/common/voucher-print-layout"
 import type { PrintDocument } from "@/lib/voucher-print/document"
-import { salesVoucherDocument } from "@/lib/voucher-print/sales"
+import { salesVoucherDocument, shippingDetailsDocument } from "@/lib/voucher-print/sales"
+import { hasShippingInfo, resolveShippingNames, type ShippingInfo } from "@/components/sales/shipping-address-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import UnifiedSalesDelivery, {
   type SalesDeliveryRecord,
   type SalesVoucherItemRow,
@@ -868,7 +870,31 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     }
   }
 
+  // الطباعة في فاتورة/إرسالية المبيعات: اختيار "طباعة السند" أو "طباعة تفاصيل الشحن"
+  const [printChoiceOpen, setPrintChoiceOpen] = useState(false)
+  const supportsShippingPrint = voucherType === SALES_INVOICE_VCH_TYPE || voucherType === DELIVERY_SELL_VCH_TYPE
   const handlePrint = async () => {
+    const form = formRef.current
+    if (!(form.id > 0) || form.status === 3) return
+    if (supportsShippingPrint) { setPrintChoiceOpen(true); return }
+    await printVoucher()
+  }
+
+  const printShippingDetails = async () => {
+    setPrintChoiceOpen(false)
+    const form = formRef.current
+    const info = (form as any).shipping_info as ShippingInfo | null | undefined
+    const names = await resolveShippingNames(info)
+    setPrintData(shippingDetailsDocument(form, {
+      voucherTypeId: voucherType,
+      voucherTitle: SALES_VOUCHER_TYPE_LABELS[voucherType].title,
+      partyLabel: "العميل",
+      shipping: { destination_name: info?.destination_name, phone: info?.phone, address: info?.address, po_box: info?.po_box, ...names },
+    }))
+  }
+
+  const printVoucher = async () => {
+    setPrintChoiceOpen(false)
     const form = formRef.current
     if (!(form.id > 0) || form.status === 3) return
     const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : form.is_printed === 1 ? "نسخة" : "نسخة اصلية"
@@ -1082,6 +1108,24 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         errorMessages={errorMessages}
       />
       <VoucherDocumentPrinter document={printData} />
+      {/* اختيار نوع الطباعة لفاتورة/إرسالية المبيعات */}
+      <Dialog open={printChoiceOpen} onOpenChange={setPrintChoiceOpen}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>الطباعة</DialogTitle>
+            <DialogDescription>اختر ما تريد طباعته</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" autoFocus onClick={() => void printVoucher()} className="flex flex-col items-center gap-2 rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-4 text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+              <Printer className="h-7 w-7" /><span className="font-bold">طباعة السند</span><small className="text-xs text-slate-500">السند بالأسعار والإجماليات</small>
+            </button>
+            <button type="button" disabled={!hasShippingInfo((form as any).shipping_info)} onClick={() => void printShippingDetails()} className="flex flex-col items-center gap-2 rounded-2xl border-2 border-sky-200 bg-sky-50/60 p-4 text-sky-800 transition hover:border-sky-400 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+              <Truck className="h-7 w-7" /><span className="font-bold">طباعة تفاصيل الشحن</span>
+              <small className="text-xs text-slate-500">{hasShippingInfo((form as any).shipping_info) ? "المرسل إليه والسائق والأصناف بلا أسعار" : "أدخل عنوان الشحن أولاً"}</small>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

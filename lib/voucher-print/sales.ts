@@ -35,6 +35,58 @@ type SalesRecord = {
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 
+/**
+ * "تفاصيل الشحن" لإرسالية/فاتورة المبيعات: بيانات المرسل إليه والسيارة والسائق + الأصناف وكمياتها بلا أسعار
+ * (ترافق البضاعة مع السائق). لا تُعلِّم السند كمطبوع ولا تُسجَّل كطباعة أصلية.
+ */
+export function shippingDetailsDocument(record: SalesRecord, options: {
+  voucherTypeId: number
+  voucherTitle: string
+  shipping: { destination_name?: string; phone?: string; address?: string; po_box?: string; city?: string; car?: string; driver?: string }
+  partyLabel?: string
+}): PrintDocument {
+  const items = record.items.filter(item => item.product_id)
+  const { shipping } = options
+  return {
+    voucherTypeId: options.voucherTypeId,
+    title: `تفاصيل الشحن — ${options.voucherTitle}`,
+    code: record.vch_code,
+    date: record.vch_date,
+    noAudit: true,
+    fields: [
+      { label: "المرسل إليه", value: shipping.destination_name || record.customer_name },
+      { label: "الهاتف", value: shipping.phone || record.phone },
+      { label: "المنطقة", value: shipping.city },
+      { label: "العنوان", value: shipping.address || record.shipping_address },
+      { label: "ص.ب", value: shipping.po_box },
+      { label: "السيارة", value: shipping.car },
+      { label: "السائق", value: shipping.driver },
+      { label: options.partyLabel ?? "العميل", value: record.customer_name },
+    ],
+    columns: [
+      { key: "item_code", label: "رقم الصنف", weight: 0.9 },
+      { key: "item_name", label: "اسم الصنف", weight: 2.6 },
+      { key: "unit", label: "الوحدة", weight: 0.8, align: "center" },
+      { key: "quantity", label: "الكمية", numeric: true, weight: 0.8 },
+      { key: "bonus", label: "البونص", numeric: true, weight: 0.7 },
+      { key: "notes", label: "ملاحظات", weight: 1.2 },
+    ],
+    rows: items.map(item => ({
+      item_code: item.product_code,
+      item_name: item.attribute_summary ? `${item.product_name} (${item.attribute_summary})` : item.product_name,
+      unit: item.unit_name || item.unit,
+      quantity: Number(item.quantity || 0),
+      bonus: Number(item.bonus_quantity || 0) || "",
+      notes: item.note,
+    })),
+    totals: [
+      { label: "عدد الأصناف", value: items.length },
+      { label: "إجمالي الكميات", value: round2(items.reduce((sum, item) => sum + Number(item.quantity || 0) + Number(item.bonus_quantity || 0), 0)), strong: true },
+    ],
+    notes: record.note,
+  }
+}
+
 export function salesVoucherDocument(record: SalesRecord, options: {
   voucherTypeId: number
   title: string

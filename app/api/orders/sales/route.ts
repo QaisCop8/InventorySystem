@@ -13,8 +13,10 @@ import { validateAccountStops } from "@/lib/account-stops"
 //  • سطر مرتبط بفاتورة: حالته من الفواتير (3/4)، ويُسمح فقط بإغلاق سطر مرسل جزئياً (6).
 //  • سطر غير مرتبط: يدوي بين غير جاهز/جاهز/ملغي/مغلق.
 //  • طلبية لها سطر مرتبط بفاتورة: لا تُغيَّر حالتها يدوياً (CheckOrderReadyStatus في شامل) إلا للإغلاق.
-const MANUAL_STATUSES = [1, 2, 5, 6]
+// "ملغي" (5) لم يعد حالة متاحة: لا يُختار جديداً، ويبقى فقط لطلبية/سطر محفوظ سابقاً به دون تغيير
+const MANUAL_STATUSES = [1, 2, 6]
 const SENT_STATUS_ERROR = "حالة \"مرسلة جزئياً/كلياً\" تتحدد تلقائياً من فواتير المبيعات فقط"
+const CANCELLED_STATUS_ERROR = "حالة \"ملغي\" لم تعد مستخدمة — استخدم \"مغلق\""
 
 async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
   if (Number(orderData?.order_type || 1) !== 1) return
@@ -24,6 +26,7 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
   // طلبية جديدة: لا فواتير مرتبطة بعد ⇐ لا حالات إرسال
   if (!orderId) {
     if ([3, 4].includes(Number(orderData.order_status))) throw new Error(SENT_STATUS_ERROR)
+    if (Number(orderData.order_status) === 5) throw new Error(CANCELLED_STATUS_ERROR)
     for (const item of items) item.item_status = manualOr(item.item_status ?? 1, 1)
     return
   }
@@ -37,6 +40,7 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
 
   const currentStatus = Number(currentResult.rows[0].order_status || 1)
   const requestedStatus = Number(orderData.order_status || 1)
+  if (requestedStatus === 5 && currentStatus !== 5) throw new Error(CANCELLED_STATUS_ERROR)
 
   const statusRows = await pool.query(
     `SELECT oi.id, oi.product_id, oi.quantity, COALESCE(oi.bonus, 0) AS bonus, oi.item_status,
@@ -70,6 +74,7 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
     if (index < 0) {
       // سطر جديد: غير مرتبط بأي فاتورة ⇐ يدوي فقط
       if ([3, 4].includes(requested)) throw new Error(SENT_STATUS_ERROR)
+      if (requested === 5) throw new Error(CANCELLED_STATUS_ERROR)
       item.item_status = requestedStatus === 6 ? 6 : manualOr(requested, 1)
       continue
     }
@@ -83,8 +88,13 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
       item.item_status = requested === 6 || requestedStatus === 6 ? 6 : 3
       continue
     }
-    // غير مرتبط بفاتورة: لا يمكن اختيار مرسل جزئياً/كلياً يدوياً
+    // غير مرتبط بفاتورة: لا يمكن اختيار مرسل جزئياً/كلياً يدوياً، ولا "ملغي" (يبقى فقط للسطر الملغي سابقاً)
     if ([3, 4].includes(requested) && requested !== Number(oldItem.item_status)) throw new Error(SENT_STATUS_ERROR)
+    if (requested === 5) {
+      if (Number(oldItem.item_status) !== 5) throw new Error(CANCELLED_STATUS_ERROR)
+      item.item_status = requestedStatus === 6 ? 6 : 5
+      continue
+    }
     // (سطر كان مرسلاً ثم أُلغيت فاتورته يعود "جاهز")
     item.item_status = requestedStatus === 6 ? 6 : manualOr(requested, [3, 4].includes(Number(oldItem.item_status)) ? 2 : manualOr(oldItem.item_status, 1))
   }

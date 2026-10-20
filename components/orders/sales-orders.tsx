@@ -695,7 +695,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   <SelectItem value="2">جاهزة</SelectItem>
                   <SelectItem value="3">مرسلة جزئيا</SelectItem>
                   <SelectItem value="4">مرسلة كليا</SelectItem>
-                  <SelectItem value="5">ملغاة</SelectItem>
+
                 </SelectContent>
               </Select>
             </div>

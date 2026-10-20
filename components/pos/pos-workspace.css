@@ -17,7 +17,8 @@
   --pos-glass: rgb(255 255 255 / 72%);
   --pos-glass-edge: rgb(255 255 255 / 85%);
   --pos-shadow: 0 24px 48px -28px rgb(16 92 72 / 45%);
-  --pos-dock-width: 520px;
+  /* عرض الفاتورة الحالية: نصف مساحة العمل تقريباً (نسبة من شبكة .pos-layout) بحد أدنى وأقصى */
+  --pos-dock-width: clamp(560px, 50%, 1000px);
   container: cashier / inline-size;
   box-sizing: border-box;
   position: relative;
@@ -82,13 +83,14 @@
 .pos-toolbar-actions > .pos-primary-tool { border-color: transparent; color: #fff; background: linear-gradient(135deg, #2cc79a, var(--pos-accent-strong)); box-shadow: 0 10px 20px -12px var(--pos-accent); }
 .pos-toolbar-actions > .pos-primary-tool svg { color: #fff; }
 .pos-badge { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; color: #fff; background: #f08b3e; font-size: 10px; font-weight: 800; }
-.pos-net { order: 5; display: flex; flex-shrink: 0; align-items: center; gap: 10px; height: 44px; padding: 0 16px 0 6px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, var(--pos-accent), var(--pos-accent-strong)); box-shadow: 0 12px 22px -14px var(--pos-accent); }
-.pos-net-icon { display: grid; flex-shrink: 0; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--pos-accent-strong); background: #fff; }
-.pos-net-icon svg { width: 17px; height: 17px; }
-.pos-net > div { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.pos-net > div > span { color: rgb(255 255 255 / 82%); font-size: 11px; white-space: nowrap; }
-.pos-net strong { color: #fff; font-size: 21px; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pos-net small { color: rgb(255 255 255 / 80%); font-size: 10.5px; font-weight: 600; }
+/* الصافي للدفع: كبسولة أعلى وأوضح (المبلغ أهم رقم في الشاشة) */
+.pos-net { order: 5; display: flex; flex-shrink: 0; align-items: center; gap: 12px; height: 60px; padding: 0 22px 0 8px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, var(--pos-accent), var(--pos-accent-strong)); box-shadow: 0 16px 28px -16px var(--pos-accent); }
+.pos-net-icon { display: grid; flex-shrink: 0; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--pos-accent-strong); background: #fff; }
+.pos-net-icon svg { width: 22px; height: 22px; }
+.pos-net > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.pos-net > div > span { color: rgb(255 255 255 / 85%); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.pos-net strong { color: #fff; font-size: 30px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos-net small { color: rgb(255 255 255 / 82%); font-size: 12px; font-weight: 700; }
 .pos-connection { order: 1; display: inline-grid; flex-shrink: 0; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; color: #0b7f63; background: #d8f5ea; font-size: 0; }
 .pos-connection svg { width: 14px; height: 14px; }
 .pos-connection.is-offline { color: #b7791f; background: #fdf1d8; animation: pos-pulse 1.8s ease-in-out infinite; }
@@ -277,10 +279,10 @@
 @media (hover: none) { .pos-product-add { opacity: 1; transform: none; } }
 
 /* ── Responsive (container = workspace width) ───────────────────────────── */
-@container cashier (min-width: 1500px) { .pos-layout { --pos-dock-width: 600px; } .pos-products { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
+@container cashier (min-width: 1500px) { .pos-layout { --pos-dock-width: clamp(640px, 52%, 1100px); } .pos-products { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
 @container cashier (max-width: 1250px) {
   .pos-toolbar-actions { order: 7; flex-basis: 100%; justify-content: flex-start; }
-  .pos-layout { --pos-dock-width: 460px; }
+  .pos-layout { --pos-dock-width: clamp(460px, 46%, 720px); }
   .pos-products { grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); }
 }
 @container cashier (max-width: 860px) {
@@ -296,7 +298,8 @@
   .pos-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .pos-keypad-keys { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .pos-context { flex-basis: 100%; order: 6; }
-  .pos-net strong { font-size: 18px; }
+  .pos-net { height: 52px; }
+  .pos-net strong { font-size: 24px; }
   .pos-pay-button strong { font-size: 22px; }
 }
 @media (max-width: 900px) { .pos-workspace { height: auto; min-height: 100%; } }

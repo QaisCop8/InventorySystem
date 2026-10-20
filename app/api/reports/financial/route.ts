@@ -9,6 +9,7 @@ import { getProductBalances } from "@/lib/item-inventory-reports"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
 import { ensurePosTables } from "@/app/api/pos/_lib"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { INTERNAL_VOUCHER } from "@/lib/auto-journals"
 
 const TYPES = ["vouchers", "transactions", "trial-balance", "balance-sheet", "income-statement"] as const
 type ReportType = (typeof TYPES)[number]
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
       AND ${voucherTypes.length ? `vh.vch_type=ANY(ARRAY[${list(voucherTypes)}]::int[])` : "TRUE"}
       AND ${shiftGuid && (reportType === "vouchers" || reportType === "transactions") ? `vh.shift_guid='${shiftGuid}'::uuid` : "TRUE"}
       AND ${accountIds.length && (reportType === "transactions" || reportType === "vouchers") ? `vjd.account_id=ANY(ARRAY[${list(accountIds)}]::int[])` : "TRUE"}
+      AND ${reportType === "income-statement" ? `COALESCE(vh.internal_voucher_id,0)<>${INTERNAL_VOUCHER.YEAR_CLOSING}` : "TRUE"}
     `)
 
     let rows: any[] = []

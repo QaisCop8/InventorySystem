@@ -27,6 +27,8 @@ export const TRANSACTION_FAMILIES = {
   bank_reconciliation: "التسوية البنكية",
   promotion: "العروض والأسعار الخاصة",
   period_lock: "إقفال الفترات",
+  landed_cost: "تحميل تكاليف الشحن والجمارك",
+  year_end_closing: "إقفال السنة المالية",
 } as const
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
@@ -109,6 +111,8 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "bank-reconciliation": "bank_reconciliation",
   promotions: "promotion",
   "period-locks": "period_lock",
+  "landed-costs": "landed_cost",
+  "year-end-closing": "year_end_closing",
   "salesman-commissions": "salesman_commission",
 }
 

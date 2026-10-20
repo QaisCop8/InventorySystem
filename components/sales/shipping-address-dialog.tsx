@@ -29,6 +29,26 @@ export function shippingSummary(info: ShippingInfo | null | undefined) {
   return [info.destination_name, info.address, info.phone].filter((part) => String(part || "").trim()).join(" — ")
 }
 
+/** هل أُدخلت أي بيانات شحن للسند؟ */
+export function hasShippingInfo(info: ShippingInfo | null | undefined) {
+  return Boolean(info && Object.values(info).some((part) => part !== null && part !== undefined && String(part).trim() !== ""))
+}
+
+/** أسماء السيارة والسائق والمنطقة لطباعة "تفاصيل الشحن" (نفس صيغة عرضها في النافذة أدناه) */
+export async function resolveShippingNames(info: ShippingInfo | null | undefined): Promise<{ car: string; driver: string; city: string }> {
+  if (!info) return { car: "", driver: "", city: "" }
+  const load = (url: string, wanted: unknown) => (Number(wanted) > 0 ? fetch(url).then((response) => response.json()).catch(() => []) : Promise.resolve([]))
+  const [carRows, driverRows, cityRows] = await Promise.all([load("/api/cars", info.car_id), load("/api/drivers", info.driver_id), load("/api/cities", info.city_id)])
+  const car = asList(carRows).find((row: any) => Number(row.id) === Number(info.car_id))
+  const driver = asList(driverRows).find((row: any) => Number(row.id) === Number(info.driver_id))
+  const city = asList(cityRows).find((row: any) => Number(row.id) === Number(info.city_id))
+  return {
+    car: car ? [car.car_code, car.name, car.plate_number].filter(Boolean).join(" - ") : "",
+    driver: driver ? [driver.name, driver.phone].filter(Boolean).join(" - ") : "",
+    city: city?.name || "",
+  }
+}
+
 /** نافذة عنوان الشحن لفواتير وإرساليات المبيعات: المرسل إليه، السيارة، السائق، المنطقة، ص.ب، الهاتف، العنوان. */
 export function ShippingAddressDialog({ open, onOpenChange, value, onSave, readOnly = false, defaults }: {
   open: boolean

@@ -1,6 +1,7 @@
 import sql from "@/lib/database"
 import { summarizeVoucherInventory, type LineCost } from "@/lib/voucher-inventory-valuation"
 import { getSystemSettingValue } from "@/lib/system-settings"
+import { ensureLandedCostSchema } from "@/lib/landed-costs"
 
 export const reportDate = (value: string | null, fallback = new Date().toISOString().slice(0, 10)) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback
@@ -34,6 +35,7 @@ export async function getInventoryReportProducts(organizationId: number, product
 
 export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
   const { productIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
+  await ensureLandedCostSchema()
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
   const [products, lines, includePurchaseReturns] = await Promise.all([
@@ -49,6 +51,11 @@ export async function getProductBalances(_organizationId: number, toDate: string
           AND (${search}='' OR p.product_code ILIKE ${`%${search}%`} OR p.product_name ILIKE ${`%${search}%`})
         ORDER BY p.product_code,p.product_name`,
     sql`
+      -- تكاليف الشحن والجمارك المحمّلة على سطر الشراء حتى تاريخ التقرير (lib/landed-costs.ts)، بعملة الفاتورة
+      WITH landed AS MATERIALIZED (
+        SELECT voucher_item_id, SUM(amount) AS amount FROM landed_cost_lines_v
+        WHERE doc_date<=${toDate}::date GROUP BY voucher_item_id
+      )
       SELECT vi.id,vh.id AS voucher_id,vi.item_id AS product_id,vh.vch_type,vh.vch_date::date::text AS movement_date,
              vh.from_store_id,vh.to_store_id,vi.store_id,
              vi.qnty,vi.bonus,vi.delivery_item_id,COALESCE(NULLIF(pu.to_main_qnty,0),1) AS unit_factor,
@@ -59,7 +66,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
              COALESCE((to_jsonb(cost_header)->>'discount_value')::numeric,0) AS cost_discount_value,
              COALESCE((to_jsonb(cost_header)->>'discount')::numeric,0) AS cost_header_discount,
              COALESCE(NULLIF(cost_unit.to_main_qnty,0),1) AS cost_unit_factor,
-             cost_totals.subtotal AS cost_subtotal,
+             cost_totals.subtotal AS cost_subtotal,COALESCE(landed.amount,0) AS cost_landed,
              CASE WHEN cost_header.currency_id=p.currency_id THEN 1
                   ELSE COALESCE(NULLIF(cost_header.rate,0),1)/COALESCE(NULLIF(product_rate.exchange_rate,0),1)
              END AS currency_conversion
@@ -87,6 +94,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
         SELECT to_main_qnty FROM product_units
         WHERE product_id=cost_item.item_id AND unit_id=cost_item.unit_id ORDER BY id LIMIT 1
       ) cost_unit ON TRUE
+      LEFT JOIN landed ON landed.voucher_item_id=cost_item.id
       LEFT JOIN LATERAL (
         SELECT SUM(COALESCE(line.qnty,0)*COALESCE(line.price,0)
           / CASE WHEN COALESCE((to_jsonb(cost_header)->>'vat_included')::boolean,false)

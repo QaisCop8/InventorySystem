@@ -84,9 +84,11 @@ const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 2, label: "جاهز" },
   { value: 3, label: "أرسلت جزئياً", disabled: true },
   { value: 4, label: "أرسلت كلياً", disabled: true },
-  { value: 5, label: "ملغي" },
   { value: 6, label: "مغلق" },
 ]
+// "ملغي" (5) أُزيل من الحالات — يُعرض فقط لطلبية/سطر محفوظ سابقاً بهذه الحالة، ولا يمكن اختياره
+const LEGACY_CANCELLED_STATUS = { value: 5, label: "ملغي", disabled: true }
+const ORDER_ITEM_STATUS_DISPLAY = [...ORDER_ITEM_STATUS_OPTIONS, LEGACY_CANCELLED_STATUS]
 const InlineProductSearch = ({ onSelect, onClose, products }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -676,7 +678,6 @@ function UnifiedSalesOrder({
           { id: 2, name: 'جاهز' },
           { id: 3, name: 'مرسلة جزئيا' },
           { id: 4, name: 'مرسلة كليا' },
-          { id: 5, name: 'ملغي' },
           { id: 6, name: 'مغلق' }
         ]);
 
@@ -1300,10 +1301,12 @@ function UnifiedSalesOrder({
       return
     }
     // "أرسلت جزئياً/كلياً" تتحدد من فواتير المبيعات فقط (قائمة الشبكة لا تحترم disabled في الخيارات)
-    if (colName === "item_status" && [3, 4].includes(Number(editedValue)) && Number(editedValue) !== Number(oldValue)) {
+    if (colName === "item_status" && [3, 4, 5].includes(Number(editedValue)) && Number(editedValue) !== Number(oldValue)) {
       grid.setCellData(row, col, Number(oldValue) || 1, false)
       grid.refresh(true)
-      Util.showErrorMessage(message, "حالة \"أرسلت جزئياً/كلياً\" تتحدد تلقائياً من فواتير المبيعات فقط")
+      Util.showErrorMessage(message, Number(editedValue) === 5
+        ? "حالة \"ملغي\" لم تعد مستخدمة — استخدم \"مغلق\""
+        : "حالة \"أرسلت جزئياً/كلياً\" تتحدد تلقائياً من فواتير المبيعات فقط")
       return
     }
     const price = finiteItemNumber(grid.getCellData(row, 'price', false)) ?? 0;
@@ -1715,7 +1718,7 @@ function UnifiedSalesOrder({
           width: 145,
           visible: true,
           dataType: wjcCore.DataType.Number,
-          dataMap: new wjGrid.DataMap(ORDER_ITEM_STATUS_OPTIONS, "value", "label"),
+          dataMap: new wjGrid.DataMap(ORDER_ITEM_STATUS_DISPLAY, "value", "label"),
         },
         {
           header: "الباركود", name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
@@ -3872,7 +3875,7 @@ function UnifiedSalesOrder({
                       <Label>حالة الطلبية</Label>
                       <Dropdown
                         value={state.formData.order_status ?? 1}
-                        options={ORDER_ITEM_STATUS_OPTIONS}
+                        options={Number(state.formData.order_status) === 5 ? ORDER_ITEM_STATUS_DISPLAY : ORDER_ITEM_STATUS_OPTIONS}
                         optionLabel="label"
                         optionValue="value"
                         optionDisabled="disabled"

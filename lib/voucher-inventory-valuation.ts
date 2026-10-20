@@ -56,8 +56,10 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     const headerDiscount = line.cost_discount_type === "percentage" ? number(line.cost_discount_value) / 100
       : number(line.cost_subtotal) > 0
         ? number(line.cost_discount_type === "amount" ? line.cost_discount_value : line.cost_header_discount) / number(line.cost_subtotal) : 0
-    const unitCost = netUnitPrice * (1 - headerDiscount)
-      * (costQuantity > 0 ? paidQuantity / costQuantity : 0) / factor(line.cost_unit_factor)
+    // تكاليف الشحن والجمارك المحمّلة على سطر الشراء (إجمالي السطر بعملة الفاتورة) تُوزَّع على كل الكمية بما فيها البونص.
+    const landedUnitCost = costQuantity > 0 ? number(line.cost_landed) / costQuantity / factor(line.cost_unit_factor) : 0
+    const unitCost = (netUnitPrice * (1 - headerDiscount)
+      * (costQuantity > 0 ? paidQuantity / costQuantity : 0) / factor(line.cost_unit_factor) + landedUnitCost)
       * factor(line.currency_conversion)
     if (purchaseTypes.has(type) && quantity > 0) {
       result.received_value += unitCost * quantity

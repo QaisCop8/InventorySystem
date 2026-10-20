@@ -58,7 +58,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2 } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -170,6 +170,7 @@ export const menuItems: MenuItem[] = [
           { title: "قيود فرق عملة", section: "currency-difference-journals", icon: DollarSign },
           { title: "التسوية البنكية", section: "bank-reconciliation", icon: Landmark },
           { title: "إقفال الفترات", section: "period-locks", icon: Lock },
+          { title: "إقفال السنة المالية", section: "year-end-closing", icon: CalendarCheck2 },
           { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
           { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
         ],
@@ -301,14 +302,16 @@ export const menuItems: MenuItem[] = [
         section: "sales-purchase-vouchers-transactions",
         icon: Truck,
         submenu: [
-          { title: "فاتورة مبيعات", section: "sales-invoices", icon: FileText },
+          // الترتيب: المشتريات (إرسالية ← فاتورة ← مرتجع) ثم المبيعات (إرسالية ← فاتورة ← مرتجع) ثم برسم البيع
+          { title: "إرسالية مشتريات", section: "delivery-pay", icon: ArrowDownCircle },
+          { title: "فاتورة مشتريات", section: "purchase-invoices", icon: ShoppingCart },
+          { title: "مرتجع مشتريات", section: "return-purchase", icon: FileMinus2 },
+          { title: "تحميل تكاليف الشحن والجمارك", section: "landed-costs", icon: Ship },
           { title: "إرسالية مبيعات", section: "sales-delivery", icon: Truck },
+          { title: "فاتورة مبيعات", section: "sales-invoices", icon: FileText },
+          { title: "مرتجع مبيعات", section: "return-sell", icon: FileMinus2 },
           { title: "إرسالية برسم البيع", section: "delivery-consignment-sale", icon: ArrowUpCircle },
           { title: "مرتجع إرسالية برسم البيع", section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
-          { title: "مرتجع مبيعات", section: "return-sell", icon: FileMinus2 },
-          { title: "فاتورة مشتريات", section: "purchase-invoices", icon: ShoppingCart },
-          { title: "إرسالية مشتريات", section: "delivery-pay", icon: ArrowDownCircle },
-          { title: "مرتجع مشتريات", section: "return-purchase", icon: FileMinus2 },
         ],
       },
     ],
