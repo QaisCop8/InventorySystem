@@ -80,10 +80,12 @@ function ChequeSearch({ open, onOpenChange, currencyId, excluded, onSelect }: { 
     useEffect(() => { if (open) void load(); return () => requestRef.current?.abort() }, [open, currencyId, excluded.join(",")])
     const allSelected = rows.length > 0 && rows.every(row => selected.has(idOf(row)))
     const toggle = (row: Cheque) => setSelected(current => { const next = new Set(current); const id = idOf(row); if (next.has(id)) next.delete(id); else next.add(id); return next })
+    // التوسيط بـ left/right:0 + mx-auto بدل left-1/2 + translate: الإزاحة لم تكن تُطبَّق فتبدأ النافذة من منتصف التبويب
+    // وتخرج يميناً فتنزاح صفحة السند كلها جانبياً.
     // بلا modal صريح: داخل مساحة العمل تكون النوافذ غير modal (components/ui/dialog.tsx)؛ فرض modal هنا كان يقفل
     // تمرير/نقر الصفحة كلها (body) ويُبقيها عالقة — الإغلاق بالنقر خارجها ممنوع أصلاً عبر onInteractOutside.
     return <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent dir="rtl" onPointerDownOutside={event => event.preventDefault()} onInteractOutside={event => event.preventDefault()} className="flex max-h-[min(88vh,calc(100%-1.5rem))] w-[calc(100%-1.5rem)] max-w-5xl flex-col overflow-hidden p-0">
+        <DialogContent dir="rtl" onPointerDownOutside={event => event.preventDefault()} onInteractOutside={event => event.preventDefault()} className="!left-0 !right-0 mx-auto flex max-h-[min(88vh,calc(100%-1.5rem))] w-[calc(100%-1.5rem)] max-w-5xl !translate-x-0 flex-col overflow-hidden p-0">
             <DialogHeader className="cheque-page-header bg-gradient-to-l from-emerald-700 to-teal-600 p-5 text-white"><DialogTitle>بحث الشيكات الواردة</DialogTitle><DialogDescription className="text-emerald-50">اختر شيكًا واحدًا أو عدة شيكات من نفس العملة.</DialogDescription></DialogHeader>
             <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
                 {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
