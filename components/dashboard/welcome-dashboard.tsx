@@ -7,6 +7,7 @@ import {
 import {
   AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, Building2, CalendarDays, CheckCircle2, ClipboardList, Clock3, CreditCard,
   FilePlus, Flame, Layers3, Minus, Package, Receipt, RefreshCw, ShoppingBag, ShoppingCart, Sparkles, TrendingUp, Trophy, UserPlus, Users2, Wallet2,
+  Smartphone, Download,
 } from "lucide-react"
 import { QuickSalesOrder } from "@/components/quick-sales-order"
 import { useAuth } from "@/components/auth/auth-context"
@@ -210,6 +211,16 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
   ]
   const open = (section?: string, onClick?: () => void) => (onClick ? onClick() : section && onOpenSection?.(section))
 
+  // زر "تطبيق أندرويد" يظهر فقط إن كان ملف APK متوفراً (lib/mobile-app.ts)
+  const [androidApk, setAndroidApk] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    fetch("/api/mobile-app", { cache: "no-store" }).then(response => response.json())
+      .then(result => { if (active) setAndroidApk(result?.android?.download || null) })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [])
+
   const today = new Date()
   const dateText = today.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
   const scopeLabel = data ? (data.scope.all ? "كل الفروع" : data.scope.branches[0]?.name ?? "") : ""
@@ -231,6 +242,9 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
             <button type="button" onClick={() => setScopeAll(false)} className={cn("rounded-lg px-3 py-1.5 transition", !scopeAll ? "bg-white text-emerald-700 shadow-sm" : "text-white/90 hover:bg-white/15")}>الفرع الحالي</button>
             <button type="button" onClick={() => setScopeAll(true)} className={cn("rounded-lg px-3 py-1.5 transition", scopeAll ? "bg-white text-emerald-700 shadow-sm" : "text-white/90 hover:bg-white/15")}>كل الفروع</button>
           </div>}
+          {androidApk && <a href={androidApk} download className="flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-bold text-emerald-700 shadow-sm transition hover:-translate-y-0.5" title="تنزيل تطبيق NoonERP System لأجهزة أندرويد (APK)">
+            <Smartphone className="h-4 w-4" />تطبيق أندرويد<Download className="h-3.5 w-3.5 opacity-70" />
+          </a>}
           <button type="button" onClick={() => void load()} disabled={loading} className="flex h-9 items-center gap-1.5 rounded-xl bg-white/15 px-3 text-xs font-bold ring-1 ring-white/20 backdrop-blur transition hover:bg-white/25 disabled:opacity-60" title="تحديث">
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />{data ? new Date(data.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "تحديث"}
           </button>

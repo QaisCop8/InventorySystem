@@ -22,6 +22,9 @@ concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -105,3 +108,20 @@ jobs:
             NoonERP-System-debug.apk
             NoonERP-System-release.apk
           if-no-files-found: error
+
+      # رابط ثابت لآخر نسخة: releases/download/android-latest/NoonERP-System.apk
+      # (ضعه في ANDROID_APK_URL على الخادم ليظهر زر "تطبيق أندرويد" في الشاشة الرئيسية — المستودع يجب أن يكون عاماً،
+      # وإلا انسخ الملف إلى public/downloads/NoonERP-System.apk على الخادم)
+      - name: Publish to release "android-latest"
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=NoonERP-System-release.apk
+          [ -f "$apk" ] || apk=NoonERP-System-debug.apk
+          cp "$apk" NoonERP-System.apk
+          if ! gh release view android-latest > /dev/null 2>&1; then
+            gh release create android-latest --title "NoonERP System — Android" --notes "آخر نسخة من تطبيق أندرويد (تُحدَّث تلقائياً مع كل بناء)" --prerelease --target "$GITHUB_SHA"
+          fi
+          gh release upload android-latest NoonERP-System.apk --clobber
+          gh release edit android-latest --notes "آخر نسخة من تطبيق أندرويد — الإصدار 1.0.${{ github.run_number }} ($(date -u +%Y-%m-%d))"

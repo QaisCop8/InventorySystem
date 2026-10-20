@@ -36,6 +36,8 @@ const SALES_INVOICE_TYPE = 12
 const PURCHASE_INVOICE_TYPE = 17
 const ORDER_SOURCE_VOUCHER_TYPE = 3
 const standardGridShell = "invoice-source-grid min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white"
+// ارتفاع الجدولين يتبع ارتفاع الشاشة (لا يتجاوز النافذة على الشاشات الصغيرة/التكبير)، بين 150 و260px
+const SOURCE_GRID_HEIGHT = "clamp(150px, calc((92dvh - 440px) / 2), 260px)"
 
 const itemKey = (item: SalesVoucherItemRow) =>
   `${item.source_voucher_id ?? "order"}:${item.order_item_id ?? `${item.product_id ?? "item"}:${item.unit ?? ""}`}`
@@ -384,7 +386,7 @@ export default function InvoiceFromOrderPopup({
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         hideCloseButton
-        className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-[calc(100vw-0.5rem)] max-w-[1400px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-0 shadow-2xl sm:h-auto sm:max-h-[92vh] sm:w-[96vw] sm:rounded-2xl"
+        className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-[calc(100vw-0.5rem)] max-w-[1400px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-0 shadow-2xl sm:h-[92dvh] sm:max-h-[92dvh] sm:w-[96vw] sm:rounded-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}
@@ -456,7 +458,7 @@ export default function InvoiceFromOrderPopup({
                       headersVisibility="Column"
                       isReport={false}
                       defaultRowHeight={38}
-                      containerStyle={{ height: 240 }}
+                      containerStyle={{ height: SOURCE_GRID_HEIGHT }}
                       onRowDoubleClick={(row: OrderHeader) => {
                         if (!row) return
                         if (selectedOrderIds.has(row.id)) {
@@ -491,7 +493,7 @@ export default function InvoiceFromOrderPopup({
                       headersVisibility="Column"
                       isReport={false}
                       defaultRowHeight={38}
-                      containerStyle={{ height: 260 }}
+                      containerStyle={{ height: SOURCE_GRID_HEIGHT }}
                       onRowDoubleClick={(row: SalesVoucherItemRow) => {
                         if (!row) return
                         toggleSelectedOrderItem(row)

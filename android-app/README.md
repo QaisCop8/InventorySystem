@@ -28,6 +28,15 @@ Then add these secrets under Settings → Secrets and variables → Actions:
 
 The run will then also produce `NoonERP-System-release.apk`. Keep the keystore safe: every update must be signed with the same key.
 
+## Download button on the home screen
+The welcome dashboard shows a "تطبيق أندرويد" button when an APK is available. The button uses the fixed link `/api/mobile-app/download`, which points to one of:
+1. `ANDROID_APK_URL` on the server. Every build is also published to the GitHub release `android-latest`, so you can use
+   `https://github.com/QaisCop8/InventorySystem/releases/download/android-latest/NoonERP-System.apk`.
+   This only works if the repository is public.
+2. Otherwise, the file `public/downloads/NoonERP-System.apk` on the server. Copy the APK there yourself.
+
+If neither exists, the button does not appear.
+
 ## Building locally (needs JDK 17 + Android SDK)
 ```
 cd android-app
