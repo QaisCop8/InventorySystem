@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Dropdown from "@/components/common/Dropdown"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from "@/components/auth/auth-context"
 
@@ -241,26 +241,17 @@ export function PurchasePlanning() {
           <div><CardTitle>اقتراحات التوريد</CardTitle><p className="mt-1 text-sm text-muted-foreground">متوسط الاستهلاك محسوب من فواتير البيع النشطة خلال آخر {periodDays} يومًا.</p></div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs text-muted-foreground">فترة المبيعات
-              <Select value={String(periodDays)} onValueChange={(value) => setPeriodDays(Number(value))}>
-                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="90">آخر 90 يومًا</SelectItem><SelectItem value="180">آخر 180 يومًا</SelectItem><SelectItem value="365">آخر سنة</SelectItem></SelectContent>
-              </Select>
+              <div className="mt-1"><Dropdown id="purchase-planning-period" value={periodDays} options={[{ value: 90, label: "آخر 90 يومًا" }, { value: 180, label: "آخر 180 يومًا" }, { value: 365, label: "آخر سنة" }]} optionLabel="label" optionValue="value" onChange={(event) => setPeriodDays(Number(event.value))} /></div>
             </label>
             <label className="text-xs text-muted-foreground">التغطية المطلوبة
-              <Select value={String(coverageDays)} onValueChange={(value) => setCoverageDays(Number(value))}>
-                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="30">30 يومًا</SelectItem><SelectItem value="60">60 يومًا</SelectItem><SelectItem value="90">90 يومًا</SelectItem></SelectContent>
-              </Select>
+              <div className="mt-1"><Dropdown id="purchase-planning-coverage" value={coverageDays} options={[{ value: 30, label: "30 يومًا" }, { value: 60, label: "60 يومًا" }, { value: 90, label: "90 يومًا" }]} optionLabel="label" optionValue="value" onChange={(event) => setCoverageDays(Number(event.value))} /></div>
             </label>
             <label className="relative text-xs text-muted-foreground">بحث
               <Search className="absolute right-3 top-8 h-4 w-4 text-muted-foreground" />
               <Input className="mt-1 h-9 pr-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="اسم الصنف أو رقمه" />
             </label>
             <label className="text-xs text-muted-foreground">المورد
-              <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-                <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">كل الموردين</SelectItem>{suppliers.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent>
-              </Select>
+              <div className="mt-1"><Dropdown id="purchase-planning-supplier" value={supplierFilter} options={[{ value: "all", label: "كل الموردين" }, ...suppliers.map(([id, name]) => ({ value: id, label: name }))]} optionLabel="label" optionValue="value" filter onChange={(event) => setSupplierFilter(String(event.value))} /></div>
             </label>
           </div>
         </CardHeader>
@@ -268,39 +259,34 @@ export function PurchasePlanning() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">عرض:</span>
-              <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="h-9 w-48"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="needs-order">المقترح شراؤها</SelectItem><SelectItem value="all">كل الأصناف</SelectItem><SelectItem value="out">النافدة أو غير المتاحة</SelectItem></SelectContent>
-              </Select>
+              <div className="w-48 shrink-0"><Dropdown id="purchase-planning-stock-filter" value={stockFilter} options={[{ value: "needs-order", label: "المقترح شراؤها" }, { value: "all", label: "كل الأصناف" }, { value: "out", label: "النافدة أو غير المتاحة" }]} optionLabel="label" optionValue="value" onChange={(event) => setStockFilter(String(event.value))} /></div>
             </div>
             {canCreatePurchaseOrder && <Button onClick={createPurchaseOrder} disabled={loading || selectedRows.length === 0}>
               <ShoppingCart className="ml-2 h-4 w-4" /> إنشاء طلبية شراء للأصناف المحددة
             </Button>}
           </div>
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label="تحديد الأصناف الظاهرة" /></TableHead>
-                <TableHead>الصنف</TableHead><TableHead>المورد</TableHead><TableHead>المتاح</TableHead><TableHead>الوارد بطلبات مفتوحة</TableHead><TableHead>مبيعات الفترة</TableHead><TableHead>متوسط يومي</TableHead><TableHead>تغطية المخزون</TableHead><TableHead>آخر سعر شراء</TableHead><TableHead className="min-w-28">الكمية المقترحة</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {loading ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">جارٍ إعداد خطة الشراء...</TableCell></TableRow>
-                  : filtered.length === 0 ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">لا توجد أصناف مطابقة للبحث والمرشحات.</TableCell></TableRow>
-                    : filtered.map((product) => <TableRow key={product.id}>
-                      <TableCell><Checkbox checked={selected.includes(product.id)} onCheckedChange={(checked) => toggleProduct(product.id, checked === true)} aria-label={`تحديد ${product.product_name}`} /></TableCell>
-                      <TableCell><div className="font-medium">{product.product_name}</div><div className="text-xs text-muted-foreground">{product.product_code} · {product.unit_name || "—"}</div></TableCell>
-                      <TableCell>{product.supplier_name || <span className="text-muted-foreground">غير محدد</span>}</TableCell>
-                      <TableCell><div className="font-medium">{formatNumber(finite(product.available_stock))}</div><div className="text-xs text-muted-foreground">الرصيد {formatNumber(finite(product.current_stock))} · محجوز {formatNumber(finite(product.reserved_stock))}</div></TableCell>
-                      <TableCell>{formatNumber(finite(product.incoming_quantity))}</TableCell>
-                      <TableCell>{formatNumber(finite(product.sold_quantity))}</TableCell>
-                      <TableCell>{formatNumber(product.average_daily, 3)}</TableCell>
-                      <TableCell>{product.days_of_cover == null ? <Badge variant="outline">لا توجد مبيعات</Badge> : <span className={product.days_of_cover <= coverageDays ? "font-semibold text-amber-700" : ""}><CalendarClock className="ml-1 inline h-3.5 w-3.5" />{formatNumber(product.days_of_cover)} يوم</span>}</TableCell>
-                      <TableCell>{product.can_view_purchase_price ? `${formatNumber(finite(product.last_purchase_price))} ${product.purchase_currency_name || ""}` : <span className="text-muted-foreground">غير متاح</span>}</TableCell>
-                      <TableCell><Input aria-label={`كمية الشراء المقترحة لـ ${product.product_name}`} type="number" min="0" step="any" className="h-8 min-w-24 text-left" dir="ltr" value={quantities[product.id] ?? product.calculated_quantity} onChange={(event) => setQuantity(product.id, event.target.value)} /></TableCell>
-                    </TableRow>)}
-              </TableBody>
-            </Table>
-          </div>
+          <Table className="[&_th]:text-right" containerClassName="max-h-[calc(100dvh-16rem)] min-h-64 overflow-y-auto rounded-lg border">
+            <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background"><TableRow>
+              <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label="تحديد الأصناف الظاهرة" /></TableHead>
+              <TableHead>الصنف</TableHead><TableHead>المورد</TableHead><TableHead>المتاح</TableHead><TableHead>الوارد بطلبات مفتوحة</TableHead><TableHead>مبيعات الفترة</TableHead><TableHead>متوسط يومي</TableHead><TableHead>تغطية المخزون</TableHead><TableHead>آخر سعر شراء</TableHead><TableHead className="min-w-28">الكمية المقترحة</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {loading ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">جارٍ إعداد خطة الشراء...</TableCell></TableRow>
+                : filtered.length === 0 ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">لا توجد أصناف مطابقة للبحث والمرشحات.</TableCell></TableRow>
+                  : filtered.map((product) => <TableRow key={product.id}>
+                    <TableCell><Checkbox checked={selected.includes(product.id)} onCheckedChange={(checked) => toggleProduct(product.id, checked === true)} aria-label={`تحديد ${product.product_name}`} /></TableCell>
+                    <TableCell><div className="font-medium">{product.product_name}</div><div className="text-xs text-muted-foreground">{product.product_code} · {product.unit_name || "—"}</div></TableCell>
+                    <TableCell>{product.supplier_name || <span className="text-muted-foreground">غير محدد</span>}</TableCell>
+                    <TableCell><div className="font-medium">{formatNumber(finite(product.available_stock))}</div><div className="text-xs text-muted-foreground">الرصيد {formatNumber(finite(product.current_stock))} · محجوز {formatNumber(finite(product.reserved_stock))}</div></TableCell>
+                    <TableCell>{formatNumber(finite(product.incoming_quantity))}</TableCell>
+                    <TableCell>{formatNumber(finite(product.sold_quantity))}</TableCell>
+                    <TableCell>{formatNumber(product.average_daily, 3)}</TableCell>
+                    <TableCell>{product.days_of_cover == null ? <Badge variant="outline">لا توجد مبيعات</Badge> : <span className={product.days_of_cover <= coverageDays ? "font-semibold text-amber-700" : ""}><CalendarClock className="ml-1 inline h-3.5 w-3.5" />{formatNumber(product.days_of_cover)} يوم</span>}</TableCell>
+                    <TableCell>{product.can_view_purchase_price ? `${formatNumber(finite(product.last_purchase_price))} ${product.purchase_currency_name || ""}` : <span className="text-muted-foreground">غير متاح</span>}</TableCell>
+                    <TableCell><Input aria-label={`كمية الشراء المقترحة لـ ${product.product_name}`} type="number" min="0" step="any" className="h-8 min-w-24 text-left" dir="ltr" value={quantities[product.id] ?? product.calculated_quantity} onChange={(event) => setQuantity(product.id, event.target.value)} /></TableCell>
+                  </TableRow>)}
+            </TableBody>
+          </Table>
           <p className="mt-3 text-xs text-muted-foreground">الكمية المقترحة تغطي الاستهلاك المتوقع للفترة المحددة، وتراعي نقطة إعادة الطلب والمخزون الوارد. راجع الكميات والمورد قبل حفظ الطلبية.</p>
         </CardContent>
       </Card>
