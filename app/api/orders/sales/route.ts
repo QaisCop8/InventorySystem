@@ -44,6 +44,13 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
     const fullySent = Number(oldItem.sent_quantity) >= Number(oldItem.quantity) && Number(oldItem.sent_bonus) >= Number(oldItem.bonus)
     const partiallySent = Number(oldItem.sent_quantity) > 0 || Number(oldItem.sent_bonus) > 0
 
+    // A sent line keeps its previous status even when a parent order status change
+    // would otherwise overwrite every line's status.
+    if ([3, 4].includes(Number(oldItem.item_status))) {
+      item.item_status = Number(oldItem.item_status)
+      continue
+    }
+
     if (currentStatus === 4 && Number(item.item_status) !== Number(oldItem.item_status)) {
       throw new Error("لا يمكن تغيير حالة الصنف عندما تكون الطلبية مرسلة كلياً")
     }

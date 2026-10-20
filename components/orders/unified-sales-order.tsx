@@ -1293,6 +1293,12 @@ function UnifiedSalesOrder({
     const colName = grid.columns[col].binding;
     const editedValue = grid.getCellData(row, col, false);
     const oldValue = e.data;
+    if (colName === "item_status" && [3, 4].includes(Number(oldValue))) {
+      grid.setCellData(row, col, Number(oldValue), false)
+      grid.refresh(true)
+      Util.showErrorMessage(message, "لا يمكن تغيير حالة صنف مرسل جزئياً أو مرسل كلياً")
+      return
+    }
     const price = finiteItemNumber(grid.getCellData(row, 'price', false)) ?? 0;
     const discount = finiteItemNumber(grid.getCellData(row, 'discount', false)) ?? 0;
     const qnty = finiteItemNumber(grid.getCellData(row, 'qnty', false)) ?? 0;
@@ -3874,9 +3880,11 @@ function UnifiedSalesOrder({
                           CollectionView.sourceCollection.forEach((item: any) => {
                             if (!item?.id && !item?.product_id) return
                             const currentStatus = Number(item.item_status || 1)
+                            // Keep sent item statuses unchanged when changing the order status.
+                            if ([3, 4].includes(currentStatus)) return
                             if (nextStatus === 6) {
-                              if ([1, 2, 3].includes(currentStatus)) item.item_status = 6
-                            } else if ([1, 2].includes(nextStatus) && currentStatus !== 4) {
+                              if ([1, 2].includes(currentStatus)) item.item_status = 6
+                            } else if ([1, 2].includes(nextStatus)) {
                               item.item_status = nextStatus
                             }
                           })
