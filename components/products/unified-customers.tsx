@@ -19,7 +19,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, AlertCircle, Search } from "lucide-react"
+import { Plus, AlertCircle, Search, UserRound } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
@@ -1154,7 +1154,9 @@ export default function UnifiedCustomers({
             onLast={onLast}
             onNew={handleNew}
             onSave={onSave}
-            onDelete={onDelete}
+            // زر "حذف" (أيقونة + نص) يظهر فقط لسجل محفوظ — مخفي تماماً للسجل الجديد (المعرّف 0)
+            onDelete={!isNewRecord && currentCustomerId > 0 ? onDelete : undefined}
+            showUtilityLabels
             // زر "نسخ" مخفي في شاشة العملاء/الموردين (onClone غير مُمرَّر للشريط)
             onPrint={onPrint}
             onReport={onReport}
@@ -1174,7 +1176,7 @@ export default function UnifiedCustomers({
         </div>
       </div>
 
-      <div ref={formRootRef} className="customer-definition-form flex-1 space-y-2 overflow-y-auto px-3 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:pb-4 lg:px-5 [&_input]:h-9 [&_input]:rounded-lg [&_input]:border-slate-200 [&_input]:bg-slate-50/60 [&_input]:shadow-none [&_textarea]:rounded-lg [&_textarea]:border-slate-200 [&_textarea]:bg-slate-50/60 [&_textarea]:shadow-none">
+      <div ref={formRootRef} className="customer-definition-form flex-1 space-y-4 overflow-y-auto px-3 pb-5 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4 lg:px-5">
       <Messages innerRef={messagesRef} />
       {isSalesman && (
         <Card className="border-emerald-200 shadow-sm">
@@ -1199,11 +1201,14 @@ export default function UnifiedCustomers({
         </Card>
       )}
       <div className={isSalesman ? "hidden" : ""}>
-      <Card>
-        <CardHeader className="pb-2 pt-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Plus className="h-5 w-5 text-primary" />
-            المعلومات الأساسية والتعريف
+      <Card className="customer-hero-card">
+        <CardHeader>
+          <CardTitle>
+            <span className="customer-hero-icon"><UserRound className="h-[18px] w-[18px]" /></span>
+            <span className="flex flex-col gap-0.5">
+              <span>المعلومات الأساسية والتعريف</span>
+              <span className="text-xs font-semibold text-[color:var(--cf-muted)]">{`بيانات ${entityLabel} الأساسية — الحقول المعلَّمة * إلزامية`}</span>
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 pb-3">
@@ -1357,13 +1362,13 @@ export default function UnifiedCustomers({
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4" dir="rtl">
-        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm">
-          <TabsTrigger value="address-location" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العنوان والموقع</TabsTrigger>
-          <TabsTrigger value="financial-tax" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المعلومات المالية والضريبية</TabsTrigger>
-          <TabsTrigger value="default-voucher-books" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">دفاتر السندات الافتراضية</TabsTrigger>
-          <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
-          <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
-          <TabsTrigger value="attachments" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المرفقات</TabsTrigger>
+        <TabsList className="customer-tabs">
+          <TabsTrigger value="address-location" className="customer-tab">العنوان والموقع</TabsTrigger>
+          <TabsTrigger value="financial-tax" className="customer-tab">المعلومات المالية والضريبية</TabsTrigger>
+          <TabsTrigger value="default-voucher-books" className="customer-tab">دفاتر السندات الافتراضية</TabsTrigger>
+          <TabsTrigger value="cost-centers" className="customer-tab">مراكز التكلفة</TabsTrigger>
+          <TabsTrigger value="stop-transactions" className="customer-tab">إيقاف الحركات</TabsTrigger>
+          <TabsTrigger value="attachments" className="customer-tab">المرفقات</TabsTrigger>
         </TabsList>
 
         <TabsContent value="address-location" className="space-y-4" dir="rtl">

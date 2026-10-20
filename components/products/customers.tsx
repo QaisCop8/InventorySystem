@@ -46,6 +46,7 @@ import Util from "../common/Util"
 import UnifiedCustomers from "./unified-customers"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { openReceivablesStatement } from "@/lib/statement-prefill"
 interface CustomersProps {
   isSupplier?: boolean;
   isSubscriber?: boolean;
@@ -1699,22 +1700,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             <Upload className="h-4 w-4" />
             استيراد من Excel
           </Button>
-          <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-                <FileText className="h-4 w-4" />
-                التقارير
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>تقارير العملاء</DialogTitle>
-              </DialogHeader>
-              <div className="p-4">
-                <p>سيتم إضافة التقارير هنا</p>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -1904,19 +1889,19 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                     </td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
                       <div className="flex justify-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEditCustomer(customer)} title="تعديل">
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleManagePortal(customer)}
-                          title="إدارة بوابة العميل"
+                          className="gap-1.5 text-teal-700"
+                          disabled={!(customer as any).account_id}
+                          onClick={() => openReceivablesStatement(Number((customer as any).account_id))}
+                          title="بيان حساب الذمة"
                         >
-                          <Globe className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleEditCustomer(customer)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => confirmDelete}>
-                          <Trash2 className="h-4 w-4" />
+                          <FileText className="h-4 w-4" />
+                          <span className="hidden text-xs xl:inline">بيان حساب الذمة</span>
                         </Button>
                       </div>
                     </td>

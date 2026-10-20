@@ -8,6 +8,7 @@ import { ReportFilters } from "@/components/reports/report-filters"
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react"
 import { ReportCurrencyFilter, OtherCurrenciesFilter } from "@/components/reports/report-currency-filter"
 import { VoucherLink } from "@/components/reports/voucher-link"
+import { STATEMENT_PREFILL_EVENT, clearReceivablesStatementPrefill, takeReceivablesStatementPrefill } from "@/lib/statement-prefill"
 import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -115,6 +116,31 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
       .finally(() => active && setLoadingMeta(false))
     return () => { active = false }
   }, [kind])
+
+  // فتح البيان لذمة محددة من شاشة العملاء/الموردين/المشتركين (lib/statement-prefill.ts): تُختار الذمة ثم يُعرض البيان
+  const [prefillAccountId, setPrefillAccountId] = useState<number | null>(null)
+  useEffect(() => {
+    if (kind !== "receivables") return
+    const pending = takeReceivablesStatementPrefill()
+    if (pending) setPrefillAccountId(pending)
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind: string; accountId: number }>).detail
+      if (detail?.kind === "receivables" && detail.accountId > 0) { clearReceivablesStatementPrefill(); setPrefillAccountId(detail.accountId) }
+    }
+    window.addEventListener(STATEMENT_PREFILL_EVENT, handler)
+    return () => window.removeEventListener(STATEMENT_PREFILL_EVENT, handler)
+  }, [kind])
+  useEffect(() => {
+    if (!prefillAccountId || loadingMeta) return
+    if (filters.accountIds.length !== 1 || filters.accountIds[0] !== prefillAccountId) {
+      reportRequestRef.current += 1
+      setActiveAccountId(null); setRows([]); setSummary(emptySummary)
+      setFilters(current => ({ ...current, accountIds: [prefillAccountId] }))
+      return
+    }
+    setPrefillAccountId(null)
+    void runReport(prefillAccountId)
+  }, [prefillAccountId, loadingMeta, filters.accountIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const runReport = async (requestedAccountId?: number) => {
     if (!filters.accountIds.length) { setError("اختر حسابًا واحدًا على الأقل"); return }

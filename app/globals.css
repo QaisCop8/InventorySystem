@@ -2767,35 +2767,124 @@ td {
   }
 }
 
-/* نموذج العملاء/الموردين/المشتركين (unified-customers): حقول أقل ارتفاعاً (34px) من الافتراضي
-   (Input = 40px، PrimeDropdown = 42-46px عبر .p-dropdown/.invoice-currency-dropdown أعلاه). محصور
-   بهذا النموذج فقط عبر .unified-customers-compact، ولا يمس الجداول أو الحقول متعددة الأسطر. */
-.unified-customers-compact input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.wj-flexgrid *):not(.p-dropdown-panel *):not(.p-multiselect-panel *),
-.unified-customers-compact button[role="combobox"] {
-  height: 34px !important;
-  min-height: 34px !important;
-  padding-top: 4px !important;
-  padding-bottom: 4px !important;
+/* داخل @layer base مع !important: في هذا المشروع طبقة components تفرض الأبيض بـ !important (.invoice-currency-dropdown…)،
+   ولـ !important تفوز الطبقة الأسبق — فقط @layer base يتقدّم عليها (انظر ذاكرة الوضع الداكن). */
+@layer base {
+/* ── نموذج العملاء/الموردين/المشتركين/المندوبين (unified-customers): تصميم ناعم حديث ──
+   بطاقات بيضاء بحواف دائرية وظل خفيف على خلفية نعناعية فاتحة، عناوين أقسام بشريط لوني، حقول ناعمة
+   (خلفية فاتحة بلا ظل، حدود رقيقة، تركيز بهالة نعناعية)، وتبويبات بشكل حبوب. محصور بـ .unified-customers-compact
+   ولا يمس الجداول (wj-flexgrid) ولا قوائم الاختيار المنبثقة. */
+.unified-customers-compact {
+  --cf-accent: #0f9b77;
+  --cf-accent-strong: #0b7a5e;
+  --cf-accent-soft: #e3f5ee;
+  --cf-bg: #f3f8f6;
+  --cf-card: #ffffff;
+  --cf-field: #f7faf9;
+  --cf-border: #e1ebe7;
+  --cf-border-hover: #c9dbd4;
+  --cf-ink: #12352b;
+  --cf-muted: #5f746d;
+  background: linear-gradient(180deg, var(--cf-bg), #f8fbfa 240px) !important;
+}
+.dark .unified-customers-compact {
+  --cf-accent: #34d3a6; --cf-accent-strong: #5fe0bb; --cf-accent-soft: rgb(52 211 166 / 14%);
+  --cf-bg: #0c1714; --cf-card: #11201c; --cf-field: #0f1b18; --cf-border: #22382f; --cf-border-hover: #2f4b40;
+  --cf-ink: #e3f3ed; --cf-muted: #93b3aa;
 }
 
+/* البطاقات والأقسام */
+.unified-customers-compact .customer-definition-form [data-slot="card"] {
+  gap: 0 !important; padding-block: 0 !important; overflow: visible !important;
+  border: 1px solid var(--cf-border) !important; border-radius: 20px !important; background: var(--cf-card) !important;
+  box-shadow: 0 1px 2px rgb(16 60 45 / 4%), 0 14px 32px -26px rgb(16 60 45 / 40%) !important;
+}
+.unified-customers-compact .customer-definition-form [data-slot="card-header"] {
+  padding: 14px 18px 4px !important; border: 0 !important; background: none !important;
+}
+.unified-customers-compact .customer-definition-form [data-slot="card-title"] {
+  display: flex !important; align-items: center !important; gap: 9px !important; color: var(--cf-ink) !important; font-size: 15px !important; font-weight: 800 !important;
+}
+.unified-customers-compact .customer-definition-form [data-slot="card-title"]::before {
+  content: "" !important; flex-shrink: 0 !important; width: 4px !important; height: 18px !important; border-radius: 99px !important;
+  background: linear-gradient(180deg, #4fdcb4, var(--cf-accent-strong)) !important;
+}
+.unified-customers-compact .customer-definition-form [data-slot="card-content"] { padding: 12px 18px 18px !important; }
+/* بطاقة التعريف الأولى: رأس بتدرج نعناعي ناعم */
+.unified-customers-compact .customer-definition-form .customer-hero-card { overflow: hidden !important; }
+.unified-customers-compact .customer-definition-form .customer-hero-card > [data-slot="card-header"] {
+  padding: 14px 18px 12px !important; border-bottom: 1px solid var(--cf-border) !important;
+  background: linear-gradient(110deg, var(--cf-accent-soft), transparent 75%) !important;
+}
+.unified-customers-compact .customer-definition-form .customer-hero-card > [data-slot="card-header"] [data-slot="card-title"]::before { display: none !important; }
+.customer-hero-icon {
+  display: grid !important; place-items: center !important; width: 36px !important; height: 36px !important; border-radius: 12px !important; color: #fff !important;
+  background: linear-gradient(140deg, #3fd8ab, var(--cf-accent-strong, #0b7a5e)) !important; box-shadow: 0 8px 18px -10px var(--cf-accent, #0f9b77) !important;
+}
+
+/* العناوين */
+.unified-customers-compact .customer-definition-form label,
+.unified-customers-compact .customer-definition-form [data-slot="label"] {
+  margin-bottom: 6px !important; color: var(--cf-muted) !important; font-size: 12px !important; font-weight: 700 !important;
+}
+
+/* الحقول الناعمة */
+.unified-customers-compact input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.wj-flexgrid *):not(.p-dropdown-panel *):not(.p-multiselect-panel *),
+.unified-customers-compact button[role="combobox"],
 .unified-customers-compact .p-dropdown,
 .unified-customers-compact .invoice-currency-dropdown,
 .unified-customers-compact .p-multiselect {
-  height: 34px !important;
-  min-height: 34px !important;
-  border-radius: 10px !important;
+  height: 40px !important; min-height: 40px !important;
+  border: 1px solid var(--cf-border) !important; border-radius: 12px !important;
+  background: var(--cf-field) !important; color: var(--cf-ink) !important; box-shadow: none !important;
+  transition: border-color .15s, background-color .15s, box-shadow .15s !important;
 }
-
+.unified-customers-compact input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.wj-flexgrid *):not(.p-dropdown-panel *):not(.p-multiselect-panel *),
+.unified-customers-compact button[role="combobox"] { padding-top: 6px !important; padding-bottom: 6px !important; font-size: 13.5px !important; }
+/* حقل داخل مكوّن PrimeReact له حدوده الخاصة: لا حدود مزدوجة */
+.unified-customers-compact .p-dropdown input, .unified-customers-compact .p-multiselect input { border: 0 !important; background: transparent !important; }
+.unified-customers-compact textarea:not(.wj-flexgrid *) {
+  border: 1px solid var(--cf-border) !important; border-radius: 12px !important; background: var(--cf-field) !important;
+  color: var(--cf-ink) !important; box-shadow: none !important; transition: border-color .15s, background-color .15s, box-shadow .15s !important;
+}
+.unified-customers-compact :is(input, textarea, button[role="combobox"]):not(.wj-flexgrid *):hover:not(:disabled):not(:focus),
+.unified-customers-compact :is(.p-dropdown, .p-multiselect):not(.p-disabled):not(.p-focus):hover { border-color: var(--cf-border-hover) !important; }
+.unified-customers-compact :is(input, textarea, button[role="combobox"]):not([type="checkbox"]):not([type="radio"]):not(.wj-flexgrid *):not(.p-dropdown input):not(.p-multiselect input):focus,
+.unified-customers-compact :is(input, textarea):not(.wj-flexgrid *):not(.p-dropdown input):not(.p-multiselect input):focus-visible,
+.unified-customers-compact :is(.p-dropdown, .p-multiselect).p-focus {
+  border-color: color-mix(in srgb, var(--cf-accent) 60%, white) !important; background: var(--cf-card) !important;
+  outline: none !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--cf-accent) 14%, transparent) !important;
+}
+.unified-customers-compact input[readonly]:not(.wj-flexgrid *):not(.p-dropdown input),
+.unified-customers-compact input:disabled:not(.wj-flexgrid *) { background: color-mix(in srgb, var(--cf-border) 45%, var(--cf-field)) !important; color: var(--cf-muted) !important; }
+.unified-customers-compact input.border-red-500 { border-color: #f08a9b !important; box-shadow: 0 0 0 4px rgb(240 138 155 / 16%) !important; }
 .unified-customers-compact .p-dropdown .p-dropdown-label,
 .unified-customers-compact .p-multiselect .p-multiselect-label {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  line-height: 32px !important;
+  padding-top: 0 !important; padding-bottom: 0 !important; line-height: 38px !important; color: var(--cf-ink) !important; font-size: 13.5px !important;
 }
-
+.unified-customers-compact .p-dropdown .p-dropdown-label.p-placeholder,
+.unified-customers-compact .p-multiselect .p-multiselect-label.p-placeholder,
+.unified-customers-compact input::placeholder { color: color-mix(in srgb, var(--cf-muted) 70%, transparent) !important; }
 .unified-customers-compact .p-dropdown .p-dropdown-trigger,
-.unified-customers-compact .p-multiselect .p-multiselect-trigger {
-  height: 32px !important;
+.unified-customers-compact .p-multiselect .p-multiselect-trigger { height: 38px !important; color: var(--cf-muted) !important; }
+/* أزرار مجاورة للحقول (بحث، اختيار) بنفس الارتفاع والاستدارة */
+.unified-customers-compact .customer-definition-form [data-slot="card-content"] button[data-variant="outline"],
+.unified-customers-compact .customer-definition-form [data-slot="card-content"] .h-9.w-10 { height: 40px !important; border-radius: 12px !important; }
+
+/* التبويبات: حبوب ناعمة */
+.unified-customers-compact .customer-tabs {
+  display: flex !important; gap: 4px !important; height: auto !important; width: 100% !important; justify-content: flex-start !important; overflow-x: auto !important; scrollbar-width: none !important;
+  padding: 5px !important; border: 1px solid var(--cf-border) !important; border-radius: 16px !important; background: color-mix(in srgb, var(--cf-accent-soft) 55%, var(--cf-card)) !important;
+}
+.unified-customers-compact .customer-tabs::-webkit-scrollbar { display: none !important; }
+.unified-customers-compact .customer-tab {
+  flex: 0 0 auto !important; height: 36px !important; padding: 0 16px !important; border: 0 !important; border-radius: 12px !important;
+  color: var(--cf-muted) !important; font-size: 13px !important; font-weight: 700 !important; white-space: nowrap !important; transition: color .15s, background-color .15s, box-shadow .15s !important;
+}
+.unified-customers-compact .customer-tab:hover { color: var(--cf-ink) !important; background: color-mix(in srgb, var(--cf-card) 60%, transparent) !important; }
+.unified-customers-compact .customer-tab[data-state="active"] {
+  color: var(--cf-accent-strong) !important; background: var(--cf-card) !important; box-shadow: 0 6px 16px -10px rgb(16 60 45 / 45%), 0 0 0 1px var(--cf-border) !important;
+}
 }
 
 /* ── الوضع الداكن لكامل النظام: احتياط للشاشات المكتوبة بألوان فاتحة ثابتة (bg-white…) بلا dark: ──
