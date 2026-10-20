@@ -14,10 +14,28 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # النشر عبر SSH إلى خادم خاص (VPS: /opt/asas/app + Docker) — يتطلب أسرار SERVER_HOST / SERVER_USER /
+      # SERVER_SSH_KEY / SERVER_KNOWN_HOSTS. بدونها تُتخطّى الخطوات بدل الفشل (الموقع الحالي على Render ينشر نفسه من GitHub).
+      - name: Check server secrets
+        id: server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          if [ -n "$SERVER_HOST" ] && [ -n "$SERVER_USER" ] && [ -n "$SERVER_SSH_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VPS deploy skipped - SERVER_HOST / SERVER_USER / SERVER_SSH_KEY secrets are not set (Render deploys the site on its own)."
+          fi
+
       - name: Check out source
-        uses: actions/checkout@v4
+        if: steps.server.outputs.configured == 'true'
+        uses: actions/checkout@v5
 
       - name: Configure SSH
+        if: steps.server.outputs.configured == 'true'
         env:
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
           SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
@@ -29,6 +47,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Upload release files
+        if: steps.server.outputs.configured == 'true'
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -45,6 +64,7 @@ jobs:
             ./ "$SERVER_USER@$SERVER_HOST:/opt/asas/app/"
 
       - name: Build and restart production
+        if: steps.server.outputs.configured == 'true'
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
