@@ -113,8 +113,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           # السر قد يُلصق بأسطر/مسافات زائدة — تُزال قبل فك base64
-          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
+          cleaned="$(printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]')"
+          echo "ANDROID_KEYSTORE_BASE64 length: ${#cleaned} (expected about 3568 for noonerp-release.p12)"
+          if ! printf '%s' "$cleaned" | base64 -d > "$RUNNER_TEMP/release.keystore" 2> "$RUNNER_TEMP/b64.err"; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not valid base64 (length ${#cleaned}) - paste the ENTIRE contents of noonerp-release.p12.base64.txt"; cat "$RUNNER_TEMP/b64.err"; exit 1
+          fi
           echo "keystore bytes: $(wc -c < "$RUNNER_TEMP/release.keystore")"
+          if [ -z "$KEY_ALIAS" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::One of ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD is empty"; exit 1
+          fi
           # المفتاح PKCS12 (.p12) أو JKS — يُكتشف النوع من أول 4 بايت
           ks_type=PKCS12
           magic="$(head -c 4 "$RUNNER_TEMP/release.keystore" | od -An -tx1 | tr -d '[:space:]')"
