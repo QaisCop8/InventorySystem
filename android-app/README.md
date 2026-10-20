@@ -28,6 +28,8 @@ Then add these secrets under Settings → Secrets and variables → Actions:
 
 The run will then also produce `NoonERP-System-release.apk`. Keep the keystore safe: every update must be signed with the same key.
 
+**Note:** the debug APK is signed with a new random key on every build. Phones refuse to install it as an update over an earlier build ("التطبيق ليس مثبتا"), and Play Protect often blocks debug builds too. Distribute only the signed release APK. The `android-latest` link automatically uses the release APK when the secrets are set. Both the `.p12` and `.jks` formats work.
+
 ## Download button on the home screen
 The welcome dashboard shows a "تطبيق أندرويد" button when an APK is available. The button uses the fixed link `/api/mobile-app/download`, which points to one of:
 1. `ANDROID_APK_URL` on the server. Every build is also published to the GitHub release `android-latest`, so you can use

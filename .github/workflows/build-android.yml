@@ -100,13 +100,16 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then echo "No signing secrets — skipping release APK"; exit 0; fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # المفتاح PKCS12 (.p12) أو JKS — يُكتشف النوع من محتوى الملف
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          ks_type=PKCS12; if head -c 4 "$RUNNER_TEMP/release.keystore" | od -An -tx1 | grep -q "fe ed fe ed"; then ks_type=JKS; fi
           ./gradlew assembleRelease --no-daemon
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
-          "$apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KEYSTORE_PASSWORD \
+          "$apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-type "$ks_type" --ks-pass env:KEYSTORE_PASSWORD \
             --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD \
             --out "$GITHUB_WORKSPACE/NoonERP-System-release.apk" app/build/outputs/apk/release/app-release-unsigned.apk
-          rm -f "$RUNNER_TEMP/release.jks"
+          "$apksigner" verify --print-certs "$GITHUB_WORKSPACE/NoonERP-System-release.apk" | head -3
+          rm -f "$RUNNER_TEMP/release.keystore"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
