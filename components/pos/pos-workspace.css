@@ -186,29 +186,30 @@
 
 /* ── Dock: cart lines ─────────────────────────────────────────────────────── */
 .pos-cart { flex: 1; min-height: 120px; padding: 2px 18px 10px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b9e6d6 transparent; }
-.pos-cart-line { margin-bottom: 8px; overflow: hidden; border: 1px solid var(--pos-edge); border-radius: 20px; background: #fff; transition: border-color .15s, box-shadow .15s, transform .15s; animation: pos-line-in .22s ease-out; }
+/* سطر الفاتورة في صف واحد (الاسم + الكمية + الخصم + الإجمالي + الحذف) ليظهر أكبر عدد من الأصناف */
+.pos-cart-line { display: flex; align-items: center; margin-bottom: 6px; overflow: hidden; border: 1px solid var(--pos-edge); border-radius: 16px; scroll-margin: 6px; background: #fff; transition: border-color .15s, box-shadow .15s, transform .15s; animation: pos-line-in .22s ease-out; }
 @keyframes pos-line-in { from { opacity: 0; transform: translateY(6px); } }
 .pos-cart-line.is-selected { border-color: color-mix(in srgb, var(--pos-accent) 55%, white); box-shadow: 0 0 0 4px var(--pos-accent-soft); }
 .pos-cart-line.is-gift { border-style: dashed; border-color: #c5a3f2; }
-.pos-line-name { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 13px 6px; text-align: start; }
-.pos-line-index { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 11.5px; font-weight: 900; }
+.pos-line-name { display: flex; flex: 1; align-items: center; gap: 9px; min-width: 0; padding: 7px 11px; text-align: start; }
+.pos-line-index { display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 11.5px; font-weight: 900; }
 .pos-cart-line.is-selected .pos-line-index { color: #fff; background: var(--pos-accent); }
-.pos-line-info { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
-.pos-line-info b { overflow: hidden; font-size: 13.5px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.pos-line-info { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
+.pos-line-info b { overflow: hidden; font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .pos-line-info small { overflow: hidden; color: var(--pos-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.pos-line-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.pos-line-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 1px; }
 .pos-line-tags i { padding: 1px 8px; border-radius: 999px; color: #b7651f; background: #fdf0de; font-size: 10px; font-style: normal; font-weight: 800; }
 .pos-line-tags i.is-gift { color: #7a44c2; background: #efe4fd; }
 .pos-line-tags i.is-campaign { color: #0b7f63; background: #d8f5ea; }
-.pos-line-total { flex-shrink: 0; font-size: 16px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.pos-cart-line.is-history .pos-line-name { padding-bottom: 11px; }
-.pos-line-controls { display: flex; align-items: center; gap: 6px; padding: 0 13px 10px; padding-inline-start: 52px; }
-.pos-quantity { display: inline-flex; align-items: center; height: 34px; overflow: hidden; border-radius: 999px; background: var(--pos-soft); }
-.pos-quantity button { display: grid; place-items: center; width: 34px; height: 100%; color: var(--pos-accent-strong); }
+.pos-line-total { flex-shrink: 0; min-width: 64px; text-align: end; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.pos-cart-line.is-history .pos-line-name { padding-block: 8px; }
+.pos-line-controls { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding-inline-end: 8px; }
+.pos-quantity { display: inline-flex; align-items: center; height: 32px; overflow: hidden; border-radius: 999px; background: var(--pos-soft); }
+.pos-quantity button { display: grid; place-items: center; width: 30px; height: 100%; color: var(--pos-accent-strong); }
 .pos-quantity button:hover { background: var(--pos-accent-soft); }
 .pos-quantity strong { min-width: 34px; text-align: center; font-size: 13.5px; font-variant-numeric: tabular-nums; }
-.pos-item-discount { display: inline-flex; align-items: center; gap: 4px; height: 34px; padding: 0 12px; border-radius: 999px; color: #b7651f; background: #fdf0de; font-size: 12px; font-weight: 800; }
-.pos-remove { display: grid; place-items: center; width: 34px; height: 34px; margin-inline-start: auto; border-radius: 50%; color: #c2334d; }
+.pos-item-discount { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 10px; border-radius: 999px; color: #b7651f; background: #fdf0de; font-size: 12px; font-weight: 800; }
+.pos-remove { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #c2334d; }
 .pos-remove:hover { background: #ffe8ec; }
 
 .pos-history-view { display: flex; flex-direction: column; gap: 8px; }
@@ -228,26 +229,27 @@
 .pos-tool { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border: 1px solid var(--pos-edge); border-radius: 999px; color: var(--pos-ink); background: #fff; font-size: 12px; font-weight: 700; }
 
 /* ── Dock footer: totals · tools strip · keypad (on selection) · pay pill ─── */
-.pos-ticket-footer { display: flex; flex-shrink: 0; flex-direction: column; gap: 10px; padding: 14px 18px 18px; border-top: 1px solid var(--pos-edge); background: linear-gradient(180deg, rgb(241 250 246 / 60%), rgb(255 255 255 / 90%)); }
+.pos-ticket-footer { display: flex; flex-shrink: 0; flex-direction: column; gap: 7px; padding: 9px 18px 12px; border-top: 1px solid var(--pos-edge); background: linear-gradient(180deg, rgb(241 250 246 / 60%), rgb(255 255 255 / 90%)); }
 .pos-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 18px; font-size: 13px; }
 .pos-totals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--pos-muted); font-weight: 700; }
 .pos-totals b { color: var(--pos-ink); font-size: 14.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .pos-totals > .pos-totals-due { display: none; }
-.pos-control-row { display: flex; flex-direction: column; gap: 10px; }
-.pos-keypad { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 22px; background: var(--pos-soft); animation: pos-line-in .2s ease-out; }
-.pos-keypad-entry { display: flex; gap: 6px; }
-.pos-keypad-entry input { height: 38px; min-width: 0; padding: 0 10px; border-radius: 999px; text-align: center; font-size: 15px; font-weight: 800; }
-.pos-keypad-entry button { height: 38px; padding: 0 14px; border-radius: 999px; font-size: 12px; }
-.pos-keypad-keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
-.pos-keypad-keys button { height: 38px; border-radius: 14px; color: var(--pos-ink); background: #fff; font-size: 15px; font-weight: 800; transition: background-color .12s, transform .12s; }
+.pos-control-row { display: flex; flex-direction: column; gap: 7px; }
+/* لوحة الأرقام في صف واحد: خانة الكمية + تطبيق + 12 مفتاحاً */
+.pos-keypad { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-radius: 18px; background: var(--pos-soft); animation: pos-line-in .2s ease-out; }
+.pos-keypad-entry { display: flex; flex: 0 0 190px; gap: 5px; }
+.pos-keypad-entry input { height: 34px; min-width: 0; padding: 0 10px; border-radius: 999px; text-align: center; font-size: 15px; font-weight: 800; }
+.pos-keypad-entry button { height: 34px; padding: 0 12px; border-radius: 999px; font-size: 12px; }
+.pos-keypad-keys { display: grid; flex: 1 1 300px; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+.pos-keypad-keys button { height: 34px; border-radius: 11px; color: var(--pos-ink); background: #fff; font-size: 15px; font-weight: 800; transition: background-color .12s, transform .12s; }
 .pos-keypad-keys button:hover:not(:disabled) { background: var(--pos-accent-soft); }
 .pos-keypad-keys button:active:not(:disabled) { transform: scale(.94); }
 .pos-keypad-keys button:nth-child(10) { color: #c2334d; }
 .pos-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .pos-actions::-webkit-scrollbar { display: none; }
-.pos-actions > button { position: relative; display: inline-flex; flex: 1 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 62px; height: 58px; padding: 6px 8px; border-radius: 18px; color: var(--pos-ink); background: #fff; font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; box-shadow: 0 8px 18px -16px rgb(16 92 72 / 50%); transition: background-color .15s, transform .15s; }
+.pos-actions > button { position: relative; display: inline-flex; flex: 1 0 auto; flex-direction: row; align-items: center; justify-content: center; gap: 5px; min-width: 62px; height: 40px; padding: 0 10px; border-radius: 14px; color: var(--pos-ink); background: #fff; font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; box-shadow: 0 8px 18px -16px rgb(16 92 72 / 50%); transition: background-color .15s, transform .15s; }
 .pos-actions > button svg { color: var(--pos-accent); }
-.pos-actions > button kbd { position: absolute; top: 3px; inset-inline-end: 6px; padding: 0 3px; border: 0; font-size: 8.5px; }
+.pos-actions > button kbd { position: absolute; top: 1px; inset-inline-end: 5px; padding: 0 3px; border: 0; font-size: 8.5px; }
 .pos-actions > button:hover:not(:disabled) { background: var(--pos-accent-soft); transform: translateY(-1px); }
 .pos-actions > button:nth-child(1) svg { color: #d98a2b; }
 .pos-actions > button:nth-child(2) svg { color: #d4485f; }
@@ -256,7 +258,7 @@
 .pos-actions > button:nth-child(5) svg { color: #5b6ee0; }
 .pos-actions > button:nth-child(6) svg { color: var(--pos-accent); }
 
-.pos-pay-button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 68px; padding: 0 10px 0 22px; overflow: hidden; border-radius: 999px; color: #fff; background: linear-gradient(120deg, color-mix(in srgb, var(--pos-accent) 80%, #5ee6b8), var(--pos-accent-strong)); box-shadow: 0 18px 30px -18px var(--pos-accent); transition: transform .14s, box-shadow .14s, filter .14s; }
+.pos-pay-button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px; padding: 0 8px 0 22px; overflow: hidden; border-radius: 999px; color: #fff; background: linear-gradient(120deg, color-mix(in srgb, var(--pos-accent) 80%, #5ee6b8), var(--pos-accent-strong)); box-shadow: 0 18px 30px -18px var(--pos-accent); transition: transform .14s, box-shadow .14s, filter .14s; }
 .pos-pay-button::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 22%) 50%, transparent 70%); transform: translateX(-120%); transition: transform .6s; pointer-events: none; }
 .pos-pay-button:hover:not(:disabled)::after { transform: translateX(120%); }
 .pos-pay-button:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }
@@ -297,6 +299,9 @@
   .pos-parties { grid-template-columns: 1fr; }
   .pos-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .pos-keypad-keys { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pos-cart-line { flex-wrap: wrap; }
+  .pos-line-controls { width: 100%; padding: 0 11px 7px; padding-inline-start: 44px; }
+  .pos-keypad-entry { flex-basis: 100%; }
   .pos-context { flex-basis: 100%; order: 6; }
   .pos-net { height: 52px; }
   .pos-net strong { font-size: 24px; }
