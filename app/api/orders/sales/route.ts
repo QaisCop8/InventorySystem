@@ -6,9 +6,27 @@ import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getTenantPool } from "@/lib/database"
 import { validateAccountStops } from "@/lib/account-stops"
 
+// حالات الطلبية/الأصناف (نفس منطق شامل ShamelAPI OrderItemsM): 1 غير جاهز، 2 جاهز، 3 مرسلة جزئياً، 4 مرسلة كلياً،
+// 5 ملغي، 6 مغلق.
+//  • "مرسلة جزئياً/كلياً" لا يختارها المستخدم أبداً — تُحسب فقط من فواتير المبيعات المرتبطة بالسطر
+//    (refreshSalesOrderFulfillment بـapp/api/sales-vouchers/route.ts عند حفظ/إلغاء الفاتورة، وهنا عند حفظ الطلبية).
+//  • سطر مرتبط بفاتورة: حالته من الفواتير (3/4)، ويُسمح فقط بإغلاق سطر مرسل جزئياً (6).
+//  • سطر غير مرتبط: يدوي بين غير جاهز/جاهز/ملغي/مغلق.
+//  • طلبية لها سطر مرتبط بفاتورة: لا تُغيَّر حالتها يدوياً (CheckOrderReadyStatus في شامل) إلا للإغلاق.
+const MANUAL_STATUSES = [1, 2, 5, 6]
+const SENT_STATUS_ERROR = "حالة \"مرسلة جزئياً/كلياً\" تتحدد تلقائياً من فواتير المبيعات فقط"
+
 async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
+  if (Number(orderData?.order_type || 1) !== 1) return
   const orderId = Number(orderData?.id || 0)
-  if (!orderId || Number(orderData?.order_type || 1) !== 1) return
+  const manualOr = (value: unknown, fallback: number) => (MANUAL_STATUSES.includes(Number(value)) ? Number(value) : fallback)
+
+  // طلبية جديدة: لا فواتير مرتبطة بعد ⇐ لا حالات إرسال
+  if (!orderId) {
+    if ([3, 4].includes(Number(orderData.order_status))) throw new Error(SENT_STATUS_ERROR)
+    for (const item of items) item.item_status = manualOr(item.item_status ?? 1, 1)
+    return
+  }
 
   const pool = await getTenantPool()
   const currentResult = await pool.query(
@@ -19,53 +37,62 @@ async function normalizeSalesOrderStatuses(orderData: any, items: any[]) {
 
   const currentStatus = Number(currentResult.rows[0].order_status || 1)
   const requestedStatus = Number(orderData.order_status || 1)
-  if ([3, 4].includes(currentStatus) && requestedStatus !== currentStatus) {
-    throw new Error("لا يمكن تغيير حالة طلبية مرسلة جزئياً أو مرسلة كلياً")
-  }
 
   const statusRows = await pool.query(
     `SELECT oi.id, oi.product_id, oi.quantity, COALESCE(oi.bonus, 0) AS bonus, oi.item_status,
-            COALESCE(SUM(vi.qnty) FILTER (WHERE vh.id IS NOT NULL), 0) AS sent_quantity,
-            COALESCE(SUM(vi.bonus) FILTER (WHERE vh.id IS NOT NULL), 0) AS sent_bonus
+            COALESCE(SUM(vi.qnty) FILTER (WHERE vh.id IS NOT NULL AND vi.delivery_item_id IS NULL), 0) AS sent_quantity,
+            COALESCE(SUM(vi.bonus) FILTER (WHERE vh.id IS NOT NULL AND vi.delivery_item_id IS NULL), 0) AS sent_bonus
      FROM order_items oi
      LEFT JOIN voucher_items_tbl vi ON vi.order_item_id = oi.id
-     LEFT JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id AND vh.vch_type = 12 AND COALESCE(vh.status, 1) <> 3
+     LEFT JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id AND vh.vch_type IN (12, 13) AND COALESCE(vh.status, 1) <> 3
      WHERE oi.order_id = $1
      GROUP BY oi.id, oi.product_id, oi.quantity, oi.bonus, oi.item_status
      ORDER BY oi.id`,
     [orderId],
   )
   const available = [...statusRows.rows]
+  const anyInvoiced = statusRows.rows.some((row: any) => Number(row.sent_quantity) > 0 || Number(row.sent_bonus) > 0)
+
+  // الطلبية المرتبطة بفاتورة: تُغلق فقط (أو تبقى كما هي) — أي حالة يدوية أخرى مرفوضة كما في شامل
+  if (anyInvoiced && requestedStatus !== currentStatus && requestedStatus !== 6) {
+    throw new Error("لا يمكن تغيير حالة الطلبية بعد ارتباطها بفاتورة مبيعات — تتغير تلقائياً من الفواتير (يمكن إغلاقها فقط)")
+  }
+  if (!anyInvoiced && [3, 4].includes(requestedStatus)) {
+    // أُلغيت فواتيرها بعد أن كانت مرسلة ⇐ تعود "جاهز" (نفس UndoLinkWithVoucher في شامل)؛ اختيارها يدوياً مرفوض
+    if (requestedStatus !== currentStatus) throw new Error(SENT_STATUS_ERROR)
+    orderData.order_status = 2
+  }
+
   for (const item of items) {
     let index = available.findIndex((row: any) => Number(row.id) === Number(item.order_item_id || 0))
     if (index < 0) index = available.findIndex((row: any) => Number(row.product_id) === Number(item.product_id))
-    if (index < 0) continue
-    const oldItem = available.splice(index, 1)[0]
-    const fullySent = Number(oldItem.sent_quantity) >= Number(oldItem.quantity) && Number(oldItem.sent_bonus) >= Number(oldItem.bonus)
-    const partiallySent = Number(oldItem.sent_quantity) > 0 || Number(oldItem.sent_bonus) > 0
-
-    // A sent line keeps its previous status even when a parent order status change
-    // would otherwise overwrite every line's status.
-    if ([3, 4].includes(Number(oldItem.item_status))) {
-      item.item_status = Number(oldItem.item_status)
+    const requested = Number(item.item_status || 1)
+    if (index < 0) {
+      // سطر جديد: غير مرتبط بأي فاتورة ⇐ يدوي فقط
+      if ([3, 4].includes(requested)) throw new Error(SENT_STATUS_ERROR)
+      item.item_status = requestedStatus === 6 ? 6 : manualOr(requested, 1)
       continue
     }
+    const oldItem = available.splice(index, 1)[0]
+    const fullySent = Number(oldItem.sent_quantity) >= Number(oldItem.quantity) && Number(oldItem.sent_bonus) >= Number(oldItem.bonus)
+    const partiallySent = !fullySent && (Number(oldItem.sent_quantity) > 0 || Number(oldItem.sent_bonus) > 0)
 
-    if (currentStatus === 4 && Number(item.item_status) !== Number(oldItem.item_status)) {
-      throw new Error("لا يمكن تغيير حالة الصنف عندما تكون الطلبية مرسلة كلياً")
+    if (fullySent) { item.item_status = 4; continue }
+    if (partiallySent) {
+      // مرسل جزئياً: من الفواتير، أو مغلق (إغلاق المتبقي) — يدوياً أو بإغلاق الطلبية كاملة
+      item.item_status = requested === 6 || requestedStatus === 6 ? 6 : 3
+      continue
     }
-    if (requestedStatus === 6) {
-      item.item_status = fullySent ? 4 : 6
-    } else if (currentStatus === 6 && [1, 2].includes(requestedStatus)) {
-      item.item_status = fullySent ? 4 : partiallySent ? 3 : requestedStatus
-    }
+    // غير مرتبط بفاتورة: لا يمكن اختيار مرسل جزئياً/كلياً يدوياً
+    if ([3, 4].includes(requested) && requested !== Number(oldItem.item_status)) throw new Error(SENT_STATUS_ERROR)
+    // (سطر كان مرسلاً ثم أُلغيت فاتورته يعود "جاهز")
+    item.item_status = requestedStatus === 6 ? 6 : manualOr(requested, [3, 4].includes(Number(oldItem.item_status)) ? 2 : manualOr(oldItem.item_status, 1))
   }
 
-  if (currentStatus === 6 && [1, 2].includes(requestedStatus)) {
-    const statuses = items.map((item) => Number(item.item_status || 1))
-    orderData.order_status = statuses.length > 0 && statuses.every((status) => status === 4)
-      ? 4
-      : statuses.some((status) => status === 3 || status === 4) ? 3 : requestedStatus
+  // حالة الطلبية المرتبطة بفواتير تُشتق من أسطرها (ما لم تُغلق)
+  if (anyInvoiced && requestedStatus !== 6) {
+    const statuses = items.map((item) => Number(item.item_status || 1)).filter((status) => status !== 5)
+    orderData.order_status = statuses.length > 0 && statuses.every((status) => status === 4 || status === 6) && statuses.some((status) => status === 4) ? 4 : 3
   }
 }
 

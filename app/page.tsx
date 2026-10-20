@@ -16,6 +16,7 @@ import { activateCompany } from "@/lib/tenant-client"
 import { SECTION_TITLES } from "@/components/sidebar"
 // تبويب فُتح من المساعد الذكي (?handoff=): ينقل بياناته إلى sessionStorage قبل تركيب أي شاشة
 import "@/lib/new-tab-handoff"
+import { POS_RESUME_KEY } from "@/lib/pos-offline"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { WorkspacePane } from "@/components/workspace/workspace-pane"
 import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"
@@ -469,7 +470,10 @@ function HomePageContent() {
   // يُعمِّر تبويب البداية بالجزء "a" حسب رابط العنوان — استبدال لما كان سابقاً initializer لـ
   // useState (نفّذ مرة واحدة عند أول عرض فقط)، الآن عبر workspace بدل حالة activeSection مباشرة.
   useEffect(() => {
-    const fromUrl = searchParams.get("section")
+    // الكاشير كان مفتوحاً عند إغلاق المتصفح/الجهاز (lib/pos-offline.ts POS_RESUME_KEY) ⇐ يُفتح مباشرة عند البدء بلا قسم في الرابط
+    let resumeCashier = false
+    try { resumeCashier = !searchParams.get("section") && localStorage.getItem(POS_RESUME_KEY) === "1" } catch { /* ignore */ }
+    const fromUrl = resumeCashier ? "pos-cashier" : searchParams.get("section")
     const resolved =
       !fromUrl || fromUrl === "home-dashboard" || fromUrl === "dashboard"
         ? "home-dashboard"

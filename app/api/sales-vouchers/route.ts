@@ -31,6 +31,10 @@ import {
   validateJournalAccountCurrencies,
   fetchSalesVoucherJournalAccounts,
   resolveSalesVoucherJournalTypes,
+  ORDER_FULFILLING_VCH_TYPES,
+  isPurchaseSideVoucher,
+  orderFulfillingTypesFor,
+  refreshSalesOrderFulfillment,
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
@@ -124,73 +128,6 @@ const getSalesOrderIdsForVoucher = async (voucherId: number): Promise<number[]> 
   return rows.map((row: any) => Number(row.order_id)).filter((id: number) => id > 0)
 }
 
-const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
-  if (orderIds.length === 0) return
-
-  await sql`
-    WITH invoiced AS (
-      SELECT vi.order_item_id,
-             COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
-             COALESCE(SUM(vi.bonus), 0) AS sent_bonus
-      FROM voucher_items_tbl vi
-      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      WHERE vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-        AND vh.status <> 3
-        AND vi.order_item_id IS NOT NULL
-        AND vi.delivery_item_id IS NULL
-      GROUP BY vi.order_item_id
-    )
-    UPDATE order_items oi
-    SET item_status = CASE
-      WHEN COALESCE(inv.sent_quantity, 0) >= COALESCE(oi.quantity, 0)
-       AND COALESCE(inv.sent_bonus, 0) >= COALESCE(oi.bonus, 0) THEN 4
-      WHEN COALESCE(inv.sent_quantity, 0) > 0 OR COALESCE(inv.sent_bonus, 0) > 0 THEN 3
-      ELSE 2
-    END,
-    updated_at = CURRENT_TIMESTAMP
-    FROM invoiced inv
-    WHERE oi.order_id = ANY(${orderIds}::int[])
-      AND oi.item_status IN (2, 3, 4)
-      AND inv.order_item_id = oi.id
-  `
-
-  await sql`
-    UPDATE order_items oi
-    SET item_status = 2, updated_at = CURRENT_TIMESTAMP
-    WHERE oi.order_id = ANY(${orderIds}::int[])
-      AND oi.item_status IN (3, 4)
-      AND NOT EXISTS (
-        SELECT 1
-        FROM voucher_items_tbl vi
-        JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-        WHERE vi.order_item_id = oi.id
-          AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-          AND vh.status <> 3
-          AND vi.delivery_item_id IS NULL
-      )
-  `
-
-  await sql`
-    WITH item_state AS (
-      SELECT order_id,
-             BOOL_AND(item_status = 4) AS all_sent,
-             BOOL_OR(item_status IN (3, 4)) AS any_sent
-      FROM order_items
-      WHERE order_id = ANY(${orderIds}::int[])
-        AND item_status IN (2, 3, 4)
-      GROUP BY order_id
-    )
-    UPDATE orders o
-    SET order_status = CASE
-      WHEN item_state.all_sent THEN 4
-      WHEN item_state.any_sent THEN 3
-      ELSE 2
-    END,
-    updated_at = CURRENT_TIMESTAMP
-    FROM item_state
-    WHERE o.id = item_state.order_id
-  `
-}
 
 // أسطر تحتفظ بربطها بالسند المصدر (delivery_item_id/order_item_id): فاتورة من ارسالية/طلبية/ارسالية برسم
 // البيع، ومرتجع ارسالية برسم البيع (مصدره الارسالية دائماً).
@@ -368,7 +305,8 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
            COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
     FROM voucher_items_tbl vi
     JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-    WHERE vh.vch_type = ${vchType}
+    -- المُرسَل من الطلبية: فواتير وإرساليات "من طلبية" بنفس الاتجاه (مبيعات/مشتريات)
+    WHERE vh.vch_type = ANY(${orderFulfillingTypesFor(vchType)}::int[])
       AND vh.status <> 3
       AND vh.id != ${excludeVoucherId}
       AND vi.order_item_id = ANY(${orderItemIds}::int[])
@@ -384,7 +322,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     })
   }
 
-  const orderType=vchType===PURCHASE_INVOICE_VCH_TYPE?2:1
+  const orderType=isPurchaseSideVoucher(vchType)?2:1
   const orderItems = await sql`SELECT oi.id,oi.quantity,COALESCE(oi.bonus,0) bonus,oi.order_id
     FROM order_items oi JOIN orders o ON o.id=oi.order_id
     WHERE oi.id=ANY(${orderItemIds}::int[]) AND o.order_type=${orderType}
@@ -643,7 +581,7 @@ async function postHandler(request: NextRequest) {
     if (status === 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
-    if ([SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(vchType)) {
+    if (ORDER_FULFILLING_VCH_TYPES.includes(vchType)) {
       const linkedOrderIds = await getSalesOrderIdsForVoucher(voucher.id)
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
@@ -719,7 +657,7 @@ async function putHandler(request: NextRequest) {
         if (negativeStockError) return NextResponse.json({ error: negativeStockError }, { status: 400 })
         await deletePosRelatedVouchers(request, Number(voucher.id))
         await reversePosSessionPayments(voucher)
-        const affectedOrderIds = [SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(Number(voucher.vch_type))
+        const affectedOrderIds = ORDER_FULFILLING_VCH_TYPES.includes(Number(voucher.vch_type))
           ? await getSalesOrderIdsForVoucher(voucher.id) : []
         await reverseSalesVoucherStockMovement(voucher.id)
         await sql`UPDATE voucher_header_tbl SET status=3,vch_status=1,last_update_date=CURRENT_TIMESTAMP WHERE id=${voucher.id}`
@@ -880,7 +818,7 @@ async function putHandler(request: NextRequest) {
     if (status === 2 && previousStatus !== 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
-    if ([SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(vchType)) {
+    if (ORDER_FULFILLING_VCH_TYPES.includes(vchType)) {
       const linkedOrderIds = await getSalesOrderIdsForVoucher(voucher.id)
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }

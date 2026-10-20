@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     await ensureOrderReadColumns()
     const access=await authorizeTransaction(request,orderType===2?"purchase_invoice":"sales_invoice","view",branchId||undefined)
     if(!access.ok)return access.response
-    const accountId=orderType===2?supplierId:customerId,invoiceType=orderType===2?PURCHASE_INVOICE_TYPE:SALES_INVOICE_TYPE
+    const accountId=orderType===2?supplierId:customerId,invoiceType=orderType===2?PURCHASE_INVOICE_TYPE:SALES_INVOICE_TYPE,sentTypes=orderType===2?[PURCHASE_INVOICE_TYPE,18]:[SALES_INVOICE_TYPE,13]
     const rows = await sql`
           SELECT o.id, o.order_number, o.order_date, o.total_amount AS amount, o.order_status,
                  o.discount_type, o.discount_amount, o.vat_percent, o.currency_id, o.exchange_rate,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
                   COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
                 FROM voucher_items_tbl vi
                 JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-                WHERE vh.vch_type = ${invoiceType}
+                WHERE vh.vch_type = ANY(${sentTypes}::int[])
                   AND vh.status <> 3
                   AND vi.order_item_id = oi.id
                   AND vi.delivery_item_id IS NULL

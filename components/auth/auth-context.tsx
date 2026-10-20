@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from "react"
 import { ThemeLoader } from "@/components/theme-loader"
 import { beginSaving, isVoucherSaveRequest } from "@/lib/saving-lock"
+import { POS_RESUME_KEY } from "@/lib/pos-offline"
 interface ModulePermissions {
   add?: boolean
   edit?: boolean
@@ -162,8 +163,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const sessionData = JSON.parse(savedSession)
           const now = new Date().getTime()
 
-          // Check if session is still valid (24 hours)
-          if (now - sessionData.timestamp < 24 * 60 * 60 * 1000) {
+          // Check if session is still valid (24 hours) — الكاشير المتروك مفتوحاً (أُغلق المتصفح/الجهاز أثناءه، POS_RESUME_KEY)
+          // يُقبل حتى 7 أيام = مدة جلسة الخادم، فيعود للعمل بعد إعادة التشغيل حتى دون اتصال
+          const maxAgeMs = localStorage.getItem(POS_RESUME_KEY) ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000
+          if (now - sessionData.timestamp < maxAgeMs) {
             const userData = JSON.parse(savedUser)
             sessionStorage.setItem("erp_user", savedUser)
             sessionStorage.setItem("erp_token", savedToken)
@@ -242,6 +245,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem("erp_user")
       localStorage.removeItem("erp_token")
       localStorage.removeItem("erp_session")
+      // تسجيل الخروج ينهي استئناف الكاشير التلقائي أيضاً
+      localStorage.removeItem(POS_RESUME_KEY)
     }
     sessionStorage.removeItem("erp_user")
     sessionStorage.removeItem("erp_token")

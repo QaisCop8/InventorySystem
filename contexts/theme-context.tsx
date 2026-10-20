@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { reapplyUserFont } from "@/lib/user-font"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/components/auth/auth-context"
 
@@ -313,6 +314,8 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
     document.body.style.fontFamily = settings.font_family
     document.body.style.lineHeight = settings.line_height.toString()
     document.body.style.letterSpacing = `${settings.letter_spacing}em`
+    // خط المستخدم (اعدادات الخطوط) يفوز دائماً على خط الثيم — وإلا يفوز آخر ما يُحمَّل فيظهر الخط "أحياناً" خطأ
+    reapplyUserFont()
   }
 
   // Helper function to convert hex to RGB

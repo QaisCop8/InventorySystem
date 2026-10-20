@@ -61,7 +61,8 @@ export default function InvoiceFromOrderPopup({
   const [itemsError, setItemsError] = useState<string | null>(null)
   const confirmedRef = useRef(false)
 
-  const isSalesInvoice = voucherType === SALES_INVOICE_TYPE
+  // جهة المبيعات: فاتورة المبيعات وإرسالية المبيعات (13) "من طلبية" ⇐ طلبيات مبيعات وعملاء
+  const isSalesInvoice = voucherType === SALES_INVOICE_TYPE || voucherType === 13
   const orderType = isSalesInvoice ? 1 : 2
   const allowedAccountTypes = isSalesInvoice ? [2, 5] : [3, 5]
   const title = isSalesInvoice ? "تحميل عناصر من طلبية مبيعات" : "تحميل عناصر من طلبية مشتريات"

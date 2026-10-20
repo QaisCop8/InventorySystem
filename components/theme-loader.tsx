@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useTheme } from "next-themes"
+import { reapplyUserFont } from "@/lib/user-font"
 
 interface ThemeLoaderProps {
   userId?: string
@@ -13,6 +14,8 @@ export function ThemeLoader({ userId }: ThemeLoaderProps) {
   useEffect(() => {
     const loadUserTheme = async () => {
       if (!userId) return
+      // الخط المحفوظ فوراً — لا ينتظر الشبكة (وإن فشل الطلب يبقى الخط الصحيح)
+      reapplyUserFont()
 
       try {
         let userData: any = null
@@ -62,9 +65,7 @@ export function ThemeLoader({ userId }: ThemeLoaderProps) {
             root.style.setProperty("--primary", themeData.primary_color || "#059669")
             root.style.setProperty("--accent", themeData.accent_color || "#10b981")
             root.style.setProperty("--radius", `${themeData.border_radius || 8}px`)
-            root.style.setProperty("--font-sans", themeData.font_family || "var(--font-geist-sans)")
-
-            document.body.style.fontSize = `${themeData.font_size || 14}px`
+            // خط الثيم لم يعد يتجاوز خط المستخدم (--font-sans وحجم body كانا يُكتبان هنا بعد خط المستخدم فيلغيانه)
 
             // Apply dark mode if enabled
             if (themeData.dark_mode && userData?.theme_preference !== "light") {
@@ -74,6 +75,9 @@ export function ThemeLoader({ userId }: ThemeLoaderProps) {
         }
       } catch (error) {
         console.error("[v0] Error loading theme settings:", error)
+      } finally {
+        // خط المستخدم آخر ما يُطبَّق دائماً
+        reapplyUserFont()
       }
     }
 

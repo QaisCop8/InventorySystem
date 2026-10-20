@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, useRef } from "react"
+import { applyUserFont, readUserFont, USER_FONT_STORAGE_KEY } from "@/lib/user-font"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,42 +60,27 @@ const toolbarTemplates = [
 const FontContext = createContext<FontContextType | undefined>(undefined)
 
 export const FontProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // البداية من الإعدادات المحفوظة مباشرة — كانت تبدأ بالافتراضية فيُطبَّق الخط الافتراضي ويُحفظ فوق المحفوظ
+  // لحظة التحميل قبل قراءة المحفوظ (سبب آخر لظهور الخط/الحجم خطأ أحياناً)
+  // (لا قراءة localStorage أثناء العرض الأول — المزوّد يُعرض على الخادم أيضاً؛ التطبيق ينتظر القراءة بدل ذلك)
   const [settings, setSettings] = useState<FontSettings>(defaultSettings)
-
-  // Load settings from localStorage on mount
+  // حالة (لا ref): الإعدادات المحفوظة وعلَم التحميل يُحدَّثان في نفس العرض، فلا يُطبَّق الافتراضي ولو لحظة
+  const [loaded, setLoaded] = useState(false)
   useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const savedSettings = localStorage.getItem("erp-font-settings")
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings)
-        setSettings({ ...defaultSettings, ...parsed })
-      } catch (error) {
-        console.error("Error loading font settings:", error)
-      }
-    }
+    const saved = readUserFont()
+    if (saved) setSettings({ ...defaultSettings, ...(saved as Partial<FontSettings>) })
+    setLoaded(true)
   }, [])
 
-  // Apply settings to CSS variables
+  // Apply settings to CSS variables (lib/user-font.ts — نفس التطبيق في كل مكان)
   const applySettings = () => {
-    if (typeof document === "undefined") return
-
-    const root = document.documentElement
-    root.style.setProperty("--font-family-custom", settings.fontFamily)
-    root.style.setProperty("--font-size-custom", `${settings.fontSize}px`)
-    root.style.setProperty("--font-weight-custom", settings.fontWeight)
-    root.style.setProperty("--line-height-custom", settings.lineHeight.toString())
-    root.style.setProperty("--letter-spacing-custom", `${settings.letterSpacing}px`)
-    root.style.setProperty("--datagrid-header-height", `${settings.gridHeaderHeight}px`)
-    root.style.setProperty("--datagrid-header-color", settings.gridHeaderColor)
-    root.style.setProperty("--datagrid-header-font-family", settings.gridHeaderFontFamily)
-    root.style.setProperty("--datagrid-row-height", `${settings.gridRowHeight}px`)
-    root.style.setProperty("--datagrid-selected-row-color", settings.gridSelectedRowColor)
+    // قبل قراءة المحفوظ: لا تطبيق ولا حفظ للافتراضي فوقه
+    if (typeof document === "undefined" || !loaded) return
+    applyUserFont(settings)
 
     // Save to localStorage
     if (typeof window !== "undefined") {
-      localStorage.setItem("erp-font-settings", JSON.stringify(settings))
+      localStorage.setItem(USER_FONT_STORAGE_KEY, JSON.stringify(settings))
       window.dispatchEvent(new CustomEvent("datagrid-settings-updated", { detail: settings }))
     }
   }
@@ -106,14 +92,14 @@ export const FontProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetSettings = () => {
     setSettings(defaultSettings)
     if (typeof window !== "undefined") {
-      localStorage.removeItem("erp-font-settings")
+      localStorage.removeItem(USER_FONT_STORAGE_KEY)
     }
   }
 
   // Apply settings whenever they change
   useEffect(() => {
     applySettings()
-  }, [settings])
+  }, [settings, loaded])
 
   return (
     <FontContext.Provider value={{ settings, updateSettings, resetSettings, applySettings }}>

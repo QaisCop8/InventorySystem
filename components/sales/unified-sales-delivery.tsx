@@ -527,7 +527,12 @@ export default function UnifiedSalesDelivery({
   const isSalesmanVoucher = isConsignment || isConsignmentReturn
   const consignmentLinked = isFromConsignment || isConsignmentReturn
   const consignmentCode = String((form as any).consignment_code || ((form.items || []) as any[]).find((row: any) => Number(row.delivery_item_id) > 0 && row.source_voucher_code)?.source_voucher_code || "")
-  const invoiceSourceOptions = voucherType === SALES_INVOICE_VCH_TYPE ? INVOICE_SOURCE_TYPE_OPTIONS : INVOICE_SOURCE_TYPE_OPTIONS.filter((option) => option.value !== 4)
+  // إرسالية مبيعات: "عادية" أو "من طلبية" فقط (من طلبية = نفس إجراء الفاتورة: اختيار الطلبية والمتبقي وربط الأسطر)
+  const invoiceSourceOptions = voucherType === SALES_INVOICE_VCH_TYPE
+    ? INVOICE_SOURCE_TYPE_OPTIONS
+    : voucherType === DELIVERY_SELL_VCH_TYPE
+      ? INVOICE_SOURCE_TYPE_OPTIONS.filter((option) => option.value === 1 || option.value === 3)
+      : INVOICE_SOURCE_TYPE_OPTIONS.filter((option) => option.value !== 4)
   const statusBadge = form.has_linked_invoice
     ? "مرحل - تم إصدار فاتورة"
     : form.status === 3
@@ -3379,7 +3384,7 @@ export default function UnifiedSalesDelivery({
                 />
               )}
               {supportsBillsPayment && <BillsPaymentDialog open={billsPaymentOpen} onOpenChange={setBillsPaymentOpen} voucherId={form.id > 0 ? form.id : null} />}
-              {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE) && (
+              {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE || voucherType === DELIVERY_SELL_VCH_TYPE) && (
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap sm:max-w-[50%]">
                   <Label>نوع الفاتورة</Label>
                   <PrimeDropdown

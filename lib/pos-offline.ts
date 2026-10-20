@@ -7,6 +7,12 @@ export interface PosQueuedSale {
   lastError?: string
 }
 
+/**
+ * localStorage: الكاشير كان مفتوحاً بوردية عند إغلاق المتصفح/الجهاز ⇐ يُفتح تلقائياً عند بدء النظام، وتُقبل جلسة الواجهة
+ * حتى 7 أيام (نفس جلسة الخادم) بدل 24 ساعة. يُمسح عند مغادرة الكاشير داخل النظام وعند تسجيل الخروج.
+ */
+export const POS_RESUME_KEY = "pos:resume"
+
 const DB_NAME = "shamel-pos-offline"
 const DB_VERSION = 1
 const CATALOG_STORE = "catalog"

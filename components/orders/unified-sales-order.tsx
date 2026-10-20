@@ -1299,6 +1299,13 @@ function UnifiedSalesOrder({
       Util.showErrorMessage(message, "لا يمكن تغيير حالة صنف مرسل جزئياً أو مرسل كلياً")
       return
     }
+    // "أرسلت جزئياً/كلياً" تتحدد من فواتير المبيعات فقط (قائمة الشبكة لا تحترم disabled في الخيارات)
+    if (colName === "item_status" && [3, 4].includes(Number(editedValue)) && Number(editedValue) !== Number(oldValue)) {
+      grid.setCellData(row, col, Number(oldValue) || 1, false)
+      grid.refresh(true)
+      Util.showErrorMessage(message, "حالة \"أرسلت جزئياً/كلياً\" تتحدد تلقائياً من فواتير المبيعات فقط")
+      return
+    }
     const price = finiteItemNumber(grid.getCellData(row, 'price', false)) ?? 0;
     const discount = finiteItemNumber(grid.getCellData(row, 'discount', false)) ?? 0;
     const qnty = finiteItemNumber(grid.getCellData(row, 'qnty', false)) ?? 0;

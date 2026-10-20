@@ -46,6 +46,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeSettingsProvider } from "@/contexts/theme-context"
 import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
+import { USER_FONT_BOOT_SCRIPT } from "@/lib/user-font"
 import "./globals.css"
 
 const inter = Inter({
@@ -91,6 +92,8 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`font-sans ${inter.variable} antialiased`} suppressHydrationWarning>
+        {/* خط المستخدم المحفوظ قبل أول رسم (lib/user-font.ts) — لا وميض للحجم الافتراضي ولا انتظار للشبكة */}
+        <script dangerouslySetInnerHTML={{ __html: USER_FONT_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

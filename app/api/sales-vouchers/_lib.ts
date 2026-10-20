@@ -737,6 +737,86 @@ export const reverseSalesVoucherStockMovement = async (voucherId: number) => {
   await reverseStockMovement(voucherId, 1, SALES_VOUCHER_REFERENCE_TYPE)
 }
 
+// أنواع السندات التي "ترسل" عناصر الطلبية: الفاتورة، والإرسالية "من طلبية" (نفس إجراء الفاتورة). أسطر الفاتورة القادمة من
+// إرسالية (delivery_item_id) تُستبعد دائماً حتى لا يُحسب نفس الإرسال مرتين.
+export const ORDER_FULFILLING_VCH_TYPES = [SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE, DELIVERY_SELL_VCH_TYPE, DELIVERY_PAY_VCH_TYPE]
+export const isPurchaseSideVoucher = (vchType: number) => vchType === PURCHASE_INVOICE_VCH_TYPE || vchType === DELIVERY_PAY_VCH_TYPE
+export const orderFulfillingTypesFor = (vchType: number) =>
+  isPurchaseSideVoucher(vchType) ? [PURCHASE_INVOICE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE] : [SALES_INVOICE_VCH_TYPE, DELIVERY_SELL_VCH_TYPE]
+
+export const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
+  if (orderIds.length === 0) return
+
+  await sql`
+    WITH invoiced AS (
+      SELECT vi.order_item_id,
+             COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
+             COALESCE(SUM(vi.bonus), 0) AS sent_bonus
+      FROM voucher_items_tbl vi
+      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+      WHERE vh.vch_type = ANY(${ORDER_FULFILLING_VCH_TYPES}::int[])
+        AND vh.status <> 3
+        AND vi.order_item_id IS NOT NULL
+        AND vi.delivery_item_id IS NULL
+      GROUP BY vi.order_item_id
+    )
+    UPDATE order_items oi
+    SET item_status = CASE
+      WHEN COALESCE(inv.sent_quantity, 0) >= COALESCE(oi.quantity, 0)
+       AND COALESCE(inv.sent_bonus, 0) >= COALESCE(oi.bonus, 0) THEN 4
+      WHEN COALESCE(inv.sent_quantity, 0) > 0 OR COALESCE(inv.sent_bonus, 0) > 0 THEN 3
+      ELSE 2
+    END,
+    updated_at = CURRENT_TIMESTAMP
+    FROM invoiced inv
+    WHERE oi.order_id = ANY(${orderIds}::int[])
+      -- كل سطر غير مغلق/ملغي (ومنه "غير جاهز") — المغلق والملغي لا يُعاد حسابهما (نفس شامل)
+      AND oi.item_status IN (1, 2, 3, 4)
+      AND inv.order_item_id = oi.id
+  `
+
+  await sql`
+    UPDATE order_items oi
+    SET item_status = 2, updated_at = CURRENT_TIMESTAMP
+    WHERE oi.order_id = ANY(${orderIds}::int[])
+      AND oi.item_status IN (3, 4)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM voucher_items_tbl vi
+        JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+        WHERE vi.order_item_id = oi.id
+          AND vh.vch_type = ANY(${ORDER_FULFILLING_VCH_TYPES}::int[])
+          AND vh.status <> 3
+          AND vi.delivery_item_id IS NULL
+      )
+  `
+
+  await sql`
+    WITH item_state AS (
+      SELECT order_id,
+             BOOL_AND(item_status = 4) AS all_sent,
+             BOOL_OR(item_status IN (3, 4)) AS any_sent
+      FROM order_items
+      WHERE order_id = ANY(${orderIds}::int[])
+        AND item_status IN (1, 2, 3, 4)
+      GROUP BY order_id
+    )
+    UPDATE orders o
+    SET order_status = CASE
+      WHEN item_state.all_sent THEN 4
+      WHEN item_state.any_sent THEN 3
+      -- لا شيء مرسل: كانت مرسلة ⇐ "جاهز"، وإلا تبقى حالتها اليدوية (غير جاهز/جاهز)
+      WHEN o.order_status IN (3, 4) THEN 2
+      ELSE o.order_status
+    END,
+    updated_at = CURRENT_TIMESTAMP
+    FROM item_state
+    WHERE o.id = item_state.order_id
+      -- الطلبية الملغاة أو المغلقة لا تُعاد حالتها من الفواتير
+      AND COALESCE(o.order_status, 1) NOT IN (5, 6)
+  `
+}
+
 export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{ error?: string }> => {
   const headerRows = await sql`SELECT * FROM voucher_header_tbl WHERE id = ${voucherId}`
   if (headerRows.length === 0) return { error: "السند غير موجود" }
@@ -773,7 +853,7 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
 
   // Preserve originating sales orders before their voucher-item links are
   // removed, then reopen any quantity released by this invoice deletion.
-  const affectedOrderRows = Number(voucher.vch_type) === SALES_INVOICE_VCH_TYPE
+  const affectedOrderRows = ORDER_FULFILLING_VCH_TYPES.includes(Number(voucher.vch_type))
     ? await sql`
         SELECT DISTINCT oi.order_id
         FROM voucher_items_tbl vi
@@ -791,70 +871,8 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
   await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
   await sql`DELETE FROM voucher_header_tbl WHERE id = ${voucherId}`
 
-  if (affectedOrderIds.length > 0) {
-    await sql`
-      WITH invoiced AS (
-        SELECT vi.order_item_id,
-               COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
-               COALESCE(SUM(vi.bonus), 0) AS sent_bonus
-        FROM voucher_items_tbl vi
-        JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-        WHERE vi.delivery_item_id IS NULL
-          AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
-          AND vh.status <> 3
-        GROUP BY vi.order_item_id
-      )
-      UPDATE order_items oi
-      SET item_status = CASE
-        WHEN COALESCE(inv.sent_quantity, 0) >= COALESCE(oi.quantity, 0)
-         AND COALESCE(inv.sent_bonus, 0) >= COALESCE(oi.bonus, 0) THEN 4
-        WHEN COALESCE(inv.sent_quantity, 0) > 0 OR COALESCE(inv.sent_bonus, 0) > 0 THEN 3
-        ELSE 2
-      END,
-      updated_at = CURRENT_TIMESTAMP
-      FROM invoiced inv
-      WHERE oi.order_id = ANY(${affectedOrderIds}::int[])
-        AND oi.item_status IN (2, 3, 4)
-        AND inv.order_item_id = oi.id
-    `
-
-    await sql`
-      UPDATE order_items oi
-      SET item_status = 2, updated_at = CURRENT_TIMESTAMP
-      WHERE oi.order_id = ANY(${affectedOrderIds}::int[])
-        AND oi.item_status IN (3, 4)
-        AND NOT EXISTS (
-          SELECT 1
-          FROM voucher_items_tbl vi
-          JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-          WHERE vi.order_item_id = oi.id
-            AND vi.delivery_item_id IS NULL
-            AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
-            AND vh.status <> 3
-        )
-    `
-
-    await sql`
-      WITH item_state AS (
-        SELECT order_id,
-               BOOL_AND(item_status = 4) AS all_sent,
-               BOOL_OR(item_status IN (3, 4)) AS any_sent
-        FROM order_items
-        WHERE order_id = ANY(${affectedOrderIds}::int[])
-          AND item_status IN (2, 3, 4)
-        GROUP BY order_id
-      )
-      UPDATE orders o
-      SET order_status = CASE
-        WHEN item_state.all_sent THEN 4
-        WHEN item_state.any_sent THEN 3
-        ELSE 2
-      END,
-      updated_at = CURRENT_TIMESTAMP
-      FROM item_state
-      WHERE o.id = item_state.order_id
-    `
-  }
+  // نفس إعادة حساب حالة الطلبية بعد حفظ/إلغاء الفاتورة أو الإرسالية (refreshSalesOrderFulfillment) — بلا نسخة مكررة
+  await refreshSalesOrderFulfillment(affectedOrderIds)
 
   return {}
 }
