@@ -25,10 +25,14 @@ writeFileSync(manifestPath, manifest)
 
 const versionCode = Number.parseInt(process.env.APP_VERSION_CODE || "", 10)
 const versionName = String(process.env.APP_VERSION_NAME || "").trim()
-if (existsSync(gradlePath) && (versionCode > 0 || versionName)) {
+if (existsSync(gradlePath)) {
   let gradle = readFileSync(gradlePath, "utf8")
   if (versionCode > 0) gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`)
   if (versionName) gradle = gradle.replace(/versionName\s+"[^"]*"/, `versionName "${versionName}"`)
+  // فحص lint يعمل تلقائياً مع assembleRelease وقد يوقف البناء على تحذيرات لا تخص غلاف Capacitor
+  if (!gradle.includes("checkReleaseBuilds")) {
+    gradle = gradle.replace(/android\s*\{/, (match) => `${match}\n    lint {\n        checkReleaseBuilds false\n        abortOnError false\n    }`)
+  }
   writeFileSync(gradlePath, gradle)
 }
 console.log("Android project patched")

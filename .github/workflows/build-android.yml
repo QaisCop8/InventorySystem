@@ -91,7 +91,20 @@ jobs:
           ./gradlew assembleDebug --no-daemon
           cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/NoonERP-System-debug.apk"
 
-      - name: Build signed release APK (when signing secrets exist)
+      # خطوتان منفصلتان ليظهر موضع أي فشل من اسم الخطوة نفسها
+      - name: Build release APK (when signing secrets exist)
+        id: release
+        working-directory: android-app/android
+        env:
+          HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ]; then echo "No signing secrets — skipping release APK"; echo "build=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          ./gradlew assembleRelease --no-daemon
+          ls -l app/build/outputs/apk/release/
+          echo "build=true" >> "$GITHUB_OUTPUT"
+
+      - name: Sign release APK
+        if: steps.release.outputs.build == 'true'
         working-directory: android-app/android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -99,16 +112,24 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then echo "No signing secrets — skipping release APK"; exit 0; fi
-          # المفتاح PKCS12 (.p12) أو JKS — يُكتشف النوع من محتوى الملف
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-          ks_type=PKCS12; if head -c 4 "$RUNNER_TEMP/release.keystore" | od -An -tx1 | grep -q "fe ed fe ed"; then ks_type=JKS; fi
-          ./gradlew assembleRelease --no-daemon
-          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
-          "$apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-type "$ks_type" --ks-pass env:KEYSTORE_PASSWORD \
-            --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD \
-            --out "$GITHUB_WORKSPACE/NoonERP-System-release.apk" app/build/outputs/apk/release/app-release-unsigned.apk
-          "$apksigner" verify --print-certs "$GITHUB_WORKSPACE/NoonERP-System-release.apk" | head -3
+          # السر قد يُلصق بأسطر/مسافات زائدة — تُزال قبل فك base64
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "keystore bytes: $(wc -c < "$RUNNER_TEMP/release.keystore")"
+          # المفتاح PKCS12 (.p12) أو JKS — يُكتشف النوع من أول 4 بايت
+          ks_type=PKCS12
+          magic="$(head -c 4 "$RUNNER_TEMP/release.keystore" | od -An -tx1 | tr -d '[:space:]')"
+          if [ "$magic" = "feedfeed" ]; then ks_type=JKS; fi
+          echo "keystore type: $ks_type"
+          if ! keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storetype "$ks_type" -storepass "$KEYSTORE_PASSWORD" > /dev/null; then
+            echo "::error::Cannot open signing keystore - check ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD"; exit 1
+          fi
+          unsigned="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          if ! "$apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-type "$ks_type" --ks-pass env:KEYSTORE_PASSWORD --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD --out "$GITHUB_WORKSPACE/NoonERP-System-release.apk" "$unsigned"; then
+            echo "::error::APK signing failed - check ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD"; exit 1
+          fi
+          "$apksigner" verify --print-certs "$GITHUB_WORKSPACE/NoonERP-System-release.apk" > "$RUNNER_TEMP/verify.txt"
+          cat "$RUNNER_TEMP/verify.txt"
           rm -f "$RUNNER_TEMP/release.keystore"
 
       - name: Upload APK
