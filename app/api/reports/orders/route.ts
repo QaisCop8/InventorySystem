@@ -14,6 +14,7 @@ const VIEWS = {
   "by-party": "orders-by-party-report",
   backlog: "orders-backlog-report",
   "by-salesman": "orders-by-salesman-report",
+  summary: "order-reports",
 } as const
 type View = keyof typeof VIEWS
 
@@ -22,6 +23,46 @@ const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d
 
 const LINE_VALUE = "(COALESCE(oi.quantity, 0) * COALESCE(oi.price, 0) * (1 - COALESCE(oi.discount, 0) / 100.0))"
 const REMAINING = "GREATEST(COALESCE(oi.quantity, 0) - COALESCE(oi.delivered_quantity, 0), 0)"
+
+// ملخص الطلبيات (components/reports/order-reports.tsx): مؤشرات + شهري + حسب الحالة + أعلى العملاء والأصناف + المتأخرة.
+// قيمة الطلبية = total_amount وإلا مجموع أسطرها. "مفتوحة" = الحالات 1-3، "متأخرة" = مفتوحة وتاريخ تسليمها مضى.
+async function orderSummary(where: string, values: unknown[]) {
+  const base = `
+    WITH base AS (
+      SELECT o.id, o.order_date, o.delivery_date, o.customer_id, COALESCE(NULLIF(o.customer_name, ''), a.name, '') AS party_name,
+        COALESCE(o.order_status, 1) AS order_status, o.order_number,
+        COALESCE(NULLIF(o.total_amount, 0), (SELECT SUM(${LINE_VALUE}) FROM order_items oi WHERE oi.order_id = o.id), 0) AS value
+      FROM orders o LEFT JOIN account_tbl a ON a.id = o.customer_id
+      WHERE ${where}
+    )`
+  const [kpis, monthly, byStatus, topParties, topItems, late] = await Promise.all([
+    sql.unsafe(`${base}
+      SELECT COUNT(*)::int AS orders, COALESCE(SUM(value), 0) AS total_value, COALESCE(AVG(value), 0) AS avg_value,
+        COUNT(*) FILTER (WHERE order_status IN (1, 2, 3))::int AS open_orders,
+        COUNT(*) FILTER (WHERE order_status IN (1, 2, 3) AND delivery_date IS NOT NULL AND delivery_date::date < CURRENT_DATE)::int AS late_orders,
+        COUNT(*) FILTER (WHERE order_status IN (4, 6))::int AS completed_orders,
+        COUNT(*) FILTER (WHERE order_status = 5)::int AS cancelled_orders,
+        COUNT(DISTINCT customer_id)::int AS parties
+      FROM base`, values),
+    sql.unsafe(`${base}
+      SELECT to_char(date_trunc('month', order_date), 'YYYY-MM') AS month, COUNT(*)::int AS orders, COALESCE(SUM(value), 0) AS value
+      FROM base GROUP BY 1 ORDER BY 1`, values),
+    sql.unsafe(`${base}
+      SELECT order_status, COUNT(*)::int AS orders, COALESCE(SUM(value), 0) AS value FROM base GROUP BY 1 ORDER BY 1`, values),
+    sql.unsafe(`${base}
+      SELECT party_name, COUNT(*)::int AS orders, COALESCE(SUM(value), 0) AS value FROM base GROUP BY customer_id, party_name ORDER BY 3 DESC LIMIT 10`, values),
+    sql.unsafe(`${base}
+      SELECT COALESCE(MAX(NULLIF(oi.product_name, '')), MAX(p.product_name)) AS product_name, MAX(p.product_code) AS product_code,
+        COALESCE(SUM(oi.quantity), 0) AS quantity, COALESCE(SUM(${LINE_VALUE}), 0) AS value
+      FROM base b JOIN order_items oi ON oi.order_id = b.id LEFT JOIN products p ON p.id = oi.product_id
+      GROUP BY oi.product_id ORDER BY 3 DESC LIMIT 10`, values),
+    sql.unsafe(`${base}
+      SELECT id, order_number, order_date, delivery_date, party_name, order_status, value, (CURRENT_DATE - delivery_date::date) AS days_late
+      FROM base WHERE order_status IN (1, 2, 3) AND delivery_date IS NOT NULL AND delivery_date::date < CURRENT_DATE
+      ORDER BY delivery_date LIMIT 20`, values),
+  ])
+  return { kpis: kpis[0] || {}, monthly, byStatus, topParties, topItems, late }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,7 +85,9 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().slice(0, 10)
     const from = isoDate(params.get("from_date"), `${today.slice(0, 7)}-01`)
     const to = isoDate(params.get("to_date"), today)
-    const orderType = [1, 2].includes(Number(params.get("order_type"))) ? Number(params.get("order_type")) : 0
+    // نوع الطلبيات اختيار متعدد (1 مبيعات، 2 مشتريات)؛ الطلبيات غير المسلّمة للمبيعات فقط
+    let orderTypes = ids(params.get("order_types") ?? params.get("order_type")).filter((type) => type === 1 || type === 2)
+    if (view === "backlog") orderTypes = [1]
     const statuses = ids(params.get("statuses"))
     const partyIds = ids(params.get("party_ids"))
     const salesmanIds = ids(params.get("salesman_ids"))
@@ -58,11 +101,12 @@ export async function GET(request: NextRequest) {
       "COALESCE(o.deleted, false) = false",
       `o.order_date::date BETWEEN ${bind(from)}::date AND ${bind(to)}::date`,
     ]
-    if (orderType) where.push(`o.order_type = ${bind(orderType)}`)
+    if (orderTypes.length) where.push(`o.order_type = ANY(${bind(orderTypes)}::int[])`)
     if (statuses.length) where.push(`COALESCE(o.order_status, 1) = ANY(${bind(statuses)}::int[])`)
     if (partyIds.length) where.push(`o.customer_id = ANY(${bind(partyIds)}::int[])`)
     if (salesmanIds.length) where.push(`o.salesman_id = ANY(${bind(salesmanIds)}::int[])`)
     if (branchIds.length) where.push(`o.branch_id = ANY(${bind(branchIds)}::int[])`)
+    if (view === "summary") return NextResponse.json({ ...(await orderSummary(where.join(" AND "), values)), from, to })
     const like = search ? bind(`%${search}%`) : ""
     const itemSearch = search ? `(p.product_code ILIKE ${like} OR COALESCE(NULLIF(oi.product_name, ''), p.product_name) ILIKE ${like} OR oi.barcode ILIKE ${like})` : ""
 

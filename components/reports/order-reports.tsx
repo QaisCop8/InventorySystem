@@ -1,528 +1,186 @@
 ﻿"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, DollarSign, Printer, Search, Timer, Users } from "lucide-react"
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
-
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
-
 import { ReportFilters } from "@/components/reports/report-filters"
-
-import { useState, useEffect, useMemo, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  BarChart as BarChart3,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-} from "recharts"
-import {
-  Download,
-  FileText,
-  Printer,
-  Search,
-  RotateCcw,
-  TrendingUp,
-  CheckCircle,
-  AlertTriangle,
-  ShoppingCart,
-  DollarSign,
-  Target,
-  Clock,
-} from "lucide-react"
-import { UniversalToolbar } from "@/components/ui/universal-toolbar"
+import { Label } from "@/components/ui/label"
 
-export function OrderReports() {
-  const [state, setState] = useState({
-    activeTab: "pending",
-    summaryData: [],
-    pendingOrders: [],
-    salesBySalesman: [],
-    chartData: [],
-    loading: true,
-    error: null,
-    filters: {
-      fromDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-      toDate: new Date().toISOString().split("T")[0],
-      customer: "all",
-      salesman: "all",
-      status: "all",
-    },
-  })
+// ملخص الطلبيات (app/api/reports/orders?view=summary): مؤشرات الطلبيات الفعلية من جدول orders — كانت الشاشة تقرأ
+// جدولاً غير موجود (sales_orders) وتعرض قيماً ثابتة/عشوائية.
+type Summary = {
+  kpis: { orders?: number; total_value?: number; avg_value?: number; open_orders?: number; late_orders?: number; completed_orders?: number; cancelled_orders?: number; parties?: number }
+  monthly: { month: string; orders: number; value: number }[]
+  byStatus: { order_status: number; orders: number; value: number }[]
+  topParties: { party_name: string; orders: number; value: number }[]
+  topItems: { product_name: string; product_code: string; quantity: number; value: number }[]
+  late: { id: number; order_number: string; order_date: string; delivery_date: string; party_name: string; order_status: number; value: number; days_late: number }[]
+}
 
-  const handleFilterChange = useCallback((key: string, value: string) => {
-    setState((prev) => ({
-      ...prev,
-      filters: { ...prev.filters, [key]: value },
-    }))
-  }, [])
+export const ORDER_TYPE_OPTIONS = [{ id: 1, name: "طلبيات المبيعات" }, { id: 2, name: "طلبيات المشتريات" }] as ReportOption[]
+const STATUS_LABEL: Record<number, string> = { 1: "غير جاهزة", 2: "جاهزة", 3: "مرسلة جزئياً", 4: "مرسلة كلياً", 5: "ملغاة", 6: "مغلقة" }
+const STATUS_TONE: Record<number, string> = { 1: "bg-amber-500", 2: "bg-emerald-500", 3: "bg-sky-500", 4: "bg-indigo-500", 5: "bg-rose-500", 6: "bg-slate-500" }
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
+const day = (value: unknown) => (value ? new Date(String(value)).toLocaleDateString("en-GB") : "—")
+const yearStart = () => `${new Date().getFullYear()}-01-01`
+const today = () => new Date().toISOString().slice(0, 10)
 
-  const applyFilters = useCallback(() => {
-    console.log("تطبيق الفلاتر:", state.filters)
-  }, [state.filters])
-
-  const resetFilters = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      filters: {
-        fromDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-        toDate: new Date().toISOString().split("T")[0],
-        customer: "all",
-        salesman: "all",
-        status: "all",
-      },
-    }))
-  }, [])
-
-  const exportReport = useCallback((format: string) => {
-    console.log(`تصدير التقرير بصيغة ${format}`)
-  }, [])
-
-  const fetchReportsData = useCallback(async () => {
-    try {
-      setState((prev) => ({ ...prev, loading: true, error: null }))
-      const response = await fetch("/api/reports/sales")
-      if (!response.ok) throw new Error("Failed to fetch reports data")
-
-      const data = await response.json()
-
-      const summaryData = [
-        {
-          title: "إجمالي الطلبات",
-          value: data.summary?.totalOrders?.toString() || "0",
-          change: "+8%",
-          icon: ShoppingCart,
-          color: "text-blue-600",
-          bgColor: "bg-blue-50",
-        },
-        {
-          title: "القيمة الإجمالية",
-          value: `${(data.summary?.totalRevenue || 0).toLocaleString()} شيكل`,
-          change: "+12%",
-          icon: DollarSign,
-          color: "text-green-600",
-          bgColor: "bg-green-50",
-        },
-        {
-          title: "متوسط قيمة الطلبية",
-          value: `${Math.round(data.summary?.avgOrderValue || 0).toLocaleString()} شيكل`,
-          change: "+5%",
-          icon: Target,
-          color: "text-purple-600",
-          bgColor: "bg-purple-50",
-        },
-        {
-          title: "الطلبات المتأخرة",
-          value: "12",
-          change: "-3%",
-          icon: Clock,
-          color: "text-red-600",
-          bgColor: "bg-red-50",
-        },
-      ]
-
-      const transformedChartData = (data.salesData || []).map((item) => ({
-        month: new Date(item.month).toLocaleDateString("ar-SA", { month: "long" }),
-        sales: Number(item.total_sales),
-        orders: Number(item.total_orders),
-      }))
-
-      const transformedSalesData = (data.topCustomers || []).slice(0, 3).map((customer) => ({
-        name: customer.customer_name,
-        orders: Number(customer.order_count),
-        customers: Math.floor(Math.random() * 25) + 10,
-        sales: Number(customer.total_spent),
-        target: Number(customer.total_spent) * 1.2,
-        achievement: Math.round((Number(customer.total_spent) / (Number(customer.total_spent) * 1.2)) * 100),
-      }))
-
-      setState((prev) => ({
-        ...prev,
-        summaryData,
-        chartData: transformedChartData,
-        salesBySalesman: transformedSalesData,
-        loading: false,
-      }))
-    } catch (error) {
-      console.error("Error fetching reports data:", error)
-      setState((prev) => ({
-        ...prev,
-        error: "فشل في تحميل بيانات التقارير",
-        loading: false,
-      }))
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchReportsData()
-  }, [fetchReportsData])
-
-  const filteredSummaryCards = useMemo(() => {
-    return state.summaryData.map((item, index) => (
-      <Card
-        key={index}
-        className="erp-card hover:shadow-lg transition-all duration-200 border-l-4"
-        style={{ borderLeftColor: item.color.replace("text-", "#") }}
-      >
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{item.title}</CardTitle>
-            <div className={`p-2 rounded-lg ${item.bgColor}`}>
-              <item.icon className={`h-5 w-5 ${item.color}`} />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold mb-1">{item.value}</div>
-          <p className={`text-xs flex items-center ${item.change.startsWith("+") ? "text-green-600" : "text-red-600"}`}>
-            <TrendingUp className="h-3 w-3 ml-1" />
-            {item.change} من الشهر الماضي
-          </p>
-        </CardContent>
-      </Card>
-    ))
-  }, [state.summaryData])
-
-  if (state.error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center text-destructive">
-          <AlertTriangle className="h-8 w-8 mx-auto mb-4" />
-          <p>{state.error}</p>
-          <Button onClick={fetchReportsData} className="mt-4">
-            إعادة المحاولة
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
+function Kpi({ label, value, hint, icon: Icon, tone }: { label: string; value: string; hint?: string; icon: typeof BarChart3; tone: string }) {
   return (
-    <ReportPage loading={state.loading}>
-<ReportHeader title="تقارير الطلبيات" />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">{filteredSummaryCards}</div>
-
-      <ReportFilters>
-
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block text-gray-700">من تاريخ:</label>
-              <Input
-                type="date"
-                value={state.filters.fromDate}
-                onChange={(e) => handleFilterChange("fromDate", e.target.value)}
-                className="focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block text-gray-700">إلى تاريخ:</label>
-              <Input
-                type="date"
-                value={state.filters.toDate}
-                onChange={(e) => handleFilterChange("toDate", e.target.value)}
-                className="focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block text-gray-700">العميل:</label>
-              <Select value={state.filters.customer} onValueChange={(value) => handleFilterChange("customer", value)}>
-                <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
-                  <SelectValue placeholder="جميع العملاء" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع العملاء</SelectItem>
-                  <SelectItem value="ahmed">أحمد محمد علي</SelectItem>
-                  <SelectItem value="success">شركة النجاح التجارية</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block text-gray-700">المندوب:</label>
-              <Select value={state.filters.salesman} onValueChange={(value) => handleFilterChange("salesman", value)}>
-                <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
-                  <SelectValue placeholder="جميع المندوبين" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع المندوبين</SelectItem>
-                  <SelectItem value="mohamed">محمد أحمد</SelectItem>
-                  <SelectItem value="ali">علي حسن</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block text-gray-700">حالة الطلبية:</label>
-              <Select value={state.filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
-                <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
-                  <SelectValue placeholder="جميع الحالات" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="pending">قيد التنفيذ</SelectItem>
-                  <SelectItem value="completed">مكتملة</SelectItem>
-                  <SelectItem value="cancelled">ملغاة</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button data-report-apply onClick={applyFilters} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Search className="h-4 w-4 ml-2" />
-              تطبيق الفلتر
-            </Button>
-            <Button
-              variant="outline"
-              onClick={resetFilters}
-              className="border-gray-300 hover:bg-gray-50 bg-transparent"
-            >
-              <RotateCcw className="h-4 w-4 ml-2" />
-              إعادة تعيين
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => exportReport("excel")}
-              className="border-green-300 text-green-700 hover:bg-green-50"
-            >
-              <Download className="h-4 w-4 ml-2" />
-              تصدير Excel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => exportReport("pdf")}
-              className="border-red-300 text-red-700 hover:bg-red-50"
-            >
-              <FileText className="h-4 w-4 ml-2" />
-              تصدير PDF
-            </Button>
-            <Button
-              variant="outline"
-              onClick={event => void printReportFrom(event.currentTarget)}
-              className="border-purple-300 text-purple-700 hover:bg-purple-50"
-            >
-              <Printer className="h-4 w-4 ml-2" />
-              طباعة
-            </Button>
-          </div>
-        </CardContent>
-      </ReportFilters>
-
-      {/* Reports Tabs */}
-      <Tabs value={state.activeTab} onValueChange={(value) => setState((prev) => ({ ...prev, activeTab: value }))}>
-        <TabsList className="grid w-full grid-cols-4 bg-gray-100">
-          <TabsTrigger value="pending" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            طلبات قيد التنفيذ
-          </TabsTrigger>
-          <TabsTrigger value="delayed" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
-            طلبات متأخرة
-          </TabsTrigger>
-          <TabsTrigger value="delivered" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
-            طلبات تم تسليمها
-          </TabsTrigger>
-          <TabsTrigger value="summary" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-            إجمالي المبيعات
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader className="bg-blue-50 rounded-t-lg">
-              <CardTitle className="text-blue-800 flex items-center">
-                <Clock className="h-5 w-5 ml-2" />
-                طلبات قيد التنفيذ
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="erp-table">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-right p-3 font-semibold text-gray-700">رقم الطلبية</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">التاريخ</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">العميل</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">المندوب</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">المبلغ</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">تاريخ التسليم</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">المستودع</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الملاحظات</th>
-                      <th className="text-center p-3 font-semibold text-gray-700">الإجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.pendingOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="text-center py-8 text-gray-500">
-                          <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p>لا توجد طلبات قيد التنفيذ حالياً</p>
-                        </td>
-                      </tr>
-                    ) : (
-                      state.pendingOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="font-medium p-3">{order.id}</td>
-                          <td className="p-3">{order.date}</td>
-                          <td className="p-3">{order.customer}</td>
-                          <td className="p-3">{order.salesman}</td>
-                          <td className="p-3 font-semibold text-green-600">{order.amount} شيكل</td>
-                          <td className="p-3">{order.deliveryDate}</td>
-                          <td className="p-3">{order.warehouse}</td>
-                          <td className="p-3">{order.notes}</td>
-                          <td className="p-3 text-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="hover:bg-blue-50 hover:text-blue-700 bg-transparent"
-                            >
-                              عرض
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <UniversalToolbar
-            currentPage={1}
-            totalPages={1}
-            totalItems={state.pendingOrders.length}
-            onPageChange={() => {}}
-            onFirst={() => {}}
-            onPrevious={() => {}}
-            onNext={() => {}}
-            onLast={() => {}}
-          />
-        </TabsContent>
-
-        <TabsContent value="delayed" className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader className="bg-red-50 rounded-t-lg">
-              <CardTitle className="text-red-800 flex items-center">
-                <AlertTriangle className="h-5 w-5 ml-2" />
-                الطلبات المتأخرة
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-300" />
-                <p className="text-lg font-medium">لا توجد طلبات متأخرة حالياً</p>
-                <p className="text-sm text-gray-500 mt-2">جميع الطلبات في الموعد المحدد</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="delivered" className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader className="bg-green-50 rounded-t-lg">
-              <CardTitle className="text-green-800 flex items-center">
-                <CheckCircle className="h-5 w-5 ml-2" />
-                الطلبات المسلمة
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                <p className="text-lg font-semibold text-green-700">234 طلبية تم تسليمها بنجاح</p>
-                <p className="text-sm text-gray-600 mt-2">
-                  نسبة التسليم في الوقت: <span className="font-semibold text-green-600">87%</span>
-                </p>
-                <div className="mt-4 w-full bg-gray-200 rounded-full h-2 max-w-xs mx-auto">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: "87%" }}></div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="summary" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="erp-card">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-t-lg">
-                <CardTitle className="text-purple-800 flex items-center">
-                  <BarChart3 className="h-5 w-5 ml-2" />
-                  المبيعات الشهرية
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={state.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} />
-                    <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                      }}
-                      labelStyle={{ color: "#1e293b", fontWeight: "bold" }}
-                    />
-                    <Bar dataKey="sales" fill="url(#salesReportGradient)" radius={[4, 4, 0, 0]} />
-                    <defs>
-                      <linearGradient id="salesReportGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#8b5cf6" />
-                        <stop offset="100%" stopColor="#6d28d9" />
-                      </linearGradient>
-                    </defs>
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="erp-card">
-              <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-t-lg">
-                <CardTitle className="text-indigo-800 flex items-center">
-                  <Target className="h-5 w-5 ml-2" />
-                  أداء المندوبين
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="space-y-6">
-                  {state.salesBySalesman.map((salesman, index) => (
-                    <div
-                      key={index}
-                      className="space-y-3 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-blue-100"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-800">{salesman.name}</span>
-                        <span className="text-sm font-semibold text-indigo-600">{salesman.achievement}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${salesman.achievement}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-600">
-                        <span className="flex items-center">
-                          <ShoppingCart className="h-3 w-3 ml-1" />
-                          {salesman.orders} طلبية
-                        </span>
-                        <span className="flex items-center font-semibold">
-                          <DollarSign className="h-3 w-3 ml-1" />
-                          {salesman.sales.toLocaleString()} شيكل
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </ReportPage>
+    <div className="flex items-start justify-between gap-3 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-slate-500">{label}</p>
+        <p className="mt-1 truncate text-2xl font-bold text-slate-900" dir="ltr">{value}</p>
+        {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+      </div>
+      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></span>
+    </div>
   )
 }
 
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border bg-white p-4 shadow-sm">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-800"><span className="h-4 w-1 rounded-full bg-emerald-500" />{title}</h3>
+      {children}
+    </section>
+  )
+}
 
+export function OrderReports() {
+  const [meta, setMeta] = useState<{ salesmen: ReportOption[]; branches: ReportOption[] }>({ salesmen: [], branches: [] })
+  const [filters, setFilters] = useState({ from: yearStart(), to: today(), orderTypes: [1] as number[], salesmanIds: [] as number[], branchIds: [] as number[] })
+  const [data, setData] = useState<Summary | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
+  useEffect(() => {
+    fetch("/api/reports/orders?view=summary&meta=1", { cache: "no-store" }).then((response) => response.json())
+      .then((result) => setMeta({ salesmen: result.salesmen || [], branches: result.branches || [] })).catch(() => undefined)
+  }, [])
+
+  const run = useCallback(async () => {
+    setLoading(true); setError("")
+    try {
+      const query = new URLSearchParams({ view: "summary", from_date: filters.from, to_date: filters.to, order_types: filters.orderTypes.join(","), salesman_ids: filters.salesmanIds.join(","), branch_ids: filters.branchIds.join(",") })
+      const response = await fetch(`/api/reports/orders?${query}`, { cache: "no-store" })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || "فشل في تحميل بيانات التقارير")
+      setData(result)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "فشل في تحميل بيانات التقارير")
+    } finally { setLoading(false) }
+  }, [filters])
+
+  // تحميل أولي بالفلاتر الافتراضية
+  useEffect(() => { void run() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const kpis = data?.kpis || {}
+  const totalStatus = (data?.byStatus || []).reduce((sum, row) => sum + Number(row.orders || 0), 0)
+
+  return (
+    <ReportPage loading={loading}>
+      <ReportHeader
+        icon={BarChart3}
+        category="تقارير الطلبيات"
+        title="ملخص الطلبيات"
+        description="مؤشرات الطلبيات في الفترة: العدد والقيمة والمفتوح والمتأخر، الحركة الشهرية، أعلى العملاء والأصناف"
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!data}><Printer className="ml-2 h-4 w-4" />طباعة</Button>}
+      />
+
+      <ReportFilters>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="space-y-2"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
+          <ReportMultiChoice label="نوع الطلبيات" options={ORDER_TYPE_OPTIONS} selected={filters.orderTypes} onChange={(orderTypes) => setFilters({ ...filters, orderTypes })} placeholder="الكل" />
+          <ReportMultiChoice label="المندوب" options={meta.salesmen} selected={filters.salesmanIds} onChange={(salesmanIds) => setFilters({ ...filters, salesmanIds })} placeholder="كل المندوبين" />
+          <ReportMultiChoice label="الفرع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder="كل الفروع" />
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />عرض النتائج</Button>
+        </div>
+      </ReportFilters>
+
+      {error && <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>}
+
+      {data && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Kpi label="عدد الطلبيات" value={String(kpis.orders || 0)} hint={`${kpis.parties || 0} عميل/مورد`} icon={ClipboardList} tone="bg-sky-100 text-sky-700" />
+            <Kpi label="القيمة الإجمالية" value={money(kpis.total_value)} hint={`متوسط الطلبية ${money(kpis.avg_value)}`} icon={DollarSign} tone="bg-emerald-100 text-emerald-700" />
+            <Kpi label="طلبيات مفتوحة" value={String(kpis.open_orders || 0)} hint={`مرسلة/مغلقة ${kpis.completed_orders || 0} · ملغاة ${kpis.cancelled_orders || 0}`} icon={CheckCircle2} tone="bg-indigo-100 text-indigo-700" />
+            <Kpi label="طلبيات متأخرة" value={String(kpis.late_orders || 0)} hint="مفتوحة وتجاوزت تاريخ التسليم" icon={AlertTriangle} tone="bg-rose-100 text-rose-700" />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
+            <Panel title="الطلبيات شهرياً">
+              {data.monthly.length ? (
+                <div className="h-64" dir="ltr">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.monthly.map((row) => ({ ...row, value: Number(row.value) }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" fontSize={11} />
+                      <YAxis fontSize={11} />
+                      <Tooltip formatter={(value: any) => [money(value), "القيمة"]} />
+                      <Bar dataKey="value" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <p className="py-10 text-center text-sm text-muted-foreground">لا توجد طلبيات في الفترة</p>}
+            </Panel>
+            <Panel title="حسب الحالة">
+              <div className="space-y-3">
+                {data.byStatus.length ? data.byStatus.map((row) => (
+                  <div key={row.order_status}>
+                    <div className="mb-1 flex justify-between text-xs"><span className="font-semibold">{STATUS_LABEL[row.order_status] || row.order_status}</span><span className="text-slate-500">{row.orders} · <span dir="ltr">{money(row.value)}</span></span></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${STATUS_TONE[row.order_status] || "bg-slate-400"}`} style={{ width: `${totalStatus ? (row.orders / totalStatus) * 100 : 0}%` }} /></div>
+                  </div>
+                )) : <p className="text-sm text-muted-foreground">لا توجد بيانات</p>}
+              </div>
+            </Panel>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Panel title="أعلى العملاء/الموردين قيمةً">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-right">الاسم</th><th className="p-1.5 text-center">الطلبيات</th><th className="p-1.5 text-left">القيمة</th></tr></thead>
+                <tbody>{data.topParties.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5"><Users className="ml-1 inline h-3.5 w-3.5 text-slate-400" />{row.party_name || "—"}</td><td className="p-1.5 text-center">{row.orders}</td><td className="p-1.5 text-left font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
+              </table>
+            </Panel>
+            <Panel title="أكثر الأصناف طلباً">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-right">الصنف</th><th className="p-1.5 text-left">الكمية</th><th className="p-1.5 text-left">القيمة</th></tr></thead>
+                <tbody>{data.topItems.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5">{row.product_name}<small className="mr-1 font-mono text-slate-400">{row.product_code}</small></td><td className="p-1.5 text-left font-mono" dir="ltr">{qty(row.quantity)}</td><td className="p-1.5 text-left font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
+              </table>
+            </Panel>
+          </div>
+
+          <Panel title="الطلبيات المتأخرة (أقدم 20)">
+            {data.late.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-right">رقم الطلبية</th><th className="p-1.5 text-right">العميل/المورد</th><th className="p-1.5 text-right">التاريخ</th><th className="p-1.5 text-right">تاريخ التسليم</th><th className="p-1.5 text-center">الحالة</th><th className="p-1.5 text-left">القيمة</th><th className="p-1.5 text-center">التأخير</th></tr></thead>
+                  <tbody>{data.late.map((row) => (
+                    <tr key={row.id} className="border-t">
+                      <td className="p-1.5 font-mono">{row.order_number}</td><td className="p-1.5">{row.party_name || "—"}</td>
+                      <td className="p-1.5 font-mono text-xs" dir="ltr">{day(row.order_date)}</td><td className="p-1.5 font-mono text-xs" dir="ltr">{day(row.delivery_date)}</td>
+                      <td className="p-1.5 text-center text-xs">{STATUS_LABEL[row.order_status] || row.order_status}</td>
+                      <td className="p-1.5 text-left font-mono" dir="ltr">{money(row.value)}</td>
+                      <td className="p-1.5 text-center"><span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700"><Timer className="h-3 w-3" />{row.days_late} يوم</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            ) : <p className="py-6 text-center text-sm text-emerald-700">لا توجد طلبيات متأخرة 👍</p>}
+          </Panel>
+        </>
+      )}
+    </ReportPage>
+  )
+}

@@ -10,6 +10,7 @@ import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ORDER_TYPE_OPTIONS } from "@/components/reports/order-reports"
 
 // تقارير الطلبيات (app/api/reports/orders): مكوّن واحد بعدة أنواع (view) — كل نوع شاشة مستقلة في القائمة وصلاحية مستقلة.
 type View = "detailed" | "total" | "by-item" | "by-party" | "backlog" | "by-salesman"
@@ -118,7 +119,7 @@ export function OrdersReport({ view }: { view: View }) {
   const config = CONFIG[view]
   const [meta, setMeta] = useState<{ parties: ReportOption[]; salesmen: ReportOption[]; branches: ReportOption[] }>({ parties: [], salesmen: [], branches: [] })
   const [filters, setFilters] = useState({
-    from: view === "backlog" ? `${new Date().getFullYear()}-01-01` : monthStart(), to: today(), orderType: "1", search: "",
+    from: view === "backlog" ? `${new Date().getFullYear()}-01-01` : monthStart(), to: today(), orderTypes: [1] as number[], search: "",
     statuses: [] as number[], partyIds: [] as number[], salesmanIds: [] as number[], branchIds: [] as number[],
   })
   const [rows, setRows] = useState<Record<string, any>[] | null>(null)
@@ -134,7 +135,7 @@ export function OrdersReport({ view }: { view: View }) {
     setLoading(true); setError("")
     try {
       const query = new URLSearchParams({
-        view, from_date: filters.from, to_date: filters.to, order_type: filters.orderType, search: filters.search,
+        view, from_date: filters.from, to_date: filters.to, order_types: filters.orderTypes.join(","), search: filters.search,
         statuses: filters.statuses.join(","), party_ids: filters.partyIds.join(","), salesman_ids: filters.salesmanIds.join(","), branch_ids: filters.branchIds.join(","),
       })
       const response = await fetch(`/api/reports/orders?${query}`, { cache: "no-store" })
@@ -154,7 +155,7 @@ export function OrdersReport({ view }: { view: View }) {
 
   const orderCount = useMemo(() => new Set((rows || []).map((row) => row.order_id ?? row.party_id ?? row.product_id ?? row.salesman_id)).size, [rows])
   const valueKey = view === "total" ? "total_amount" : "line_value"
-  const partyLabel = filters.orderType === "2" ? "الموردون" : filters.orderType === "1" ? "العملاء" : "العملاء/الموردون"
+  const partyLabel = view === "backlog" || (filters.orderTypes.length === 1 && filters.orderTypes[0] === 1) ? "العملاء" : filters.orderTypes.length === 1 && filters.orderTypes[0] === 2 ? "الموردون" : "العملاء/الموردون"
   const Icon = config.icon
   const hasData = Boolean(rows?.length)
 
@@ -172,12 +173,8 @@ export function OrdersReport({ view }: { view: View }) {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="space-y-2"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
           <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
-          <div className="space-y-2">
-            <Label>نوع الطلبيات</Label>
-            <select value={filters.orderType} onChange={(event) => setFilters({ ...filters, orderType: event.target.value, partyIds: [] })} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm">
-              <option value="1">طلبيات المبيعات</option><option value="2">طلبيات المشتريات</option><option value="0">الكل</option>
-            </select>
-          </div>
+          {/* الطلبيات غير المسلّمة: طلبيات المبيعات فقط */}
+          {view !== "backlog" && <ReportMultiChoice label="نوع الطلبيات" options={ORDER_TYPE_OPTIONS} selected={filters.orderTypes} onChange={(orderTypes) => setFilters({ ...filters, orderTypes, partyIds: [] })} placeholder="الكل" />}
           <div className="space-y-2"><Label>بحث</Label><Input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") void run() }} placeholder={view === "by-item" || view === "detailed" || view === "backlog" ? "رمز أو اسم الصنف أو الباركود" : view === "by-salesman" ? "اسم المندوب" : "رقم الطلبية أو الاسم"} className="rounded-xl" /></div>
           <ReportMultiChoice label={partyLabel} options={meta.parties} selected={filters.partyIds} onChange={(partyIds) => setFilters({ ...filters, partyIds })} placeholder="الكل" />
           <ReportMultiChoice label="المندوب" options={meta.salesmen} selected={filters.salesmanIds} onChange={(salesmanIds) => setFilters({ ...filters, salesmanIds })} placeholder="كل المندوبين" />
