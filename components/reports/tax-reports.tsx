@@ -13,8 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, FileBarChart, Loader2, Printer, Receipt, RefreshCcw, Search } from "lucide-react"
+
+// حالات السندات في فلتر "حالة السندات" (الملغاة مستثناة دائماً)
+const VOUCHER_STATUS_OPTIONS: ReportOption[] = [{ id: 2, name: "معتمد" }, { id: 1, name: "غير معتمد" }]
 
 // التقارير الضريبية الستة بواجهة واحدة — الحساب في app/api/reports/tax/route.ts.
 
@@ -43,7 +45,7 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
   const [error, setError] = useState("")
   const [result, setResult] = useState<Result | null>(null)
   const [search, setSearch] = useState("")
-  const [filters, setFilters] = useState({ fromDate: monthStart(), toDate: today(), currencyId: 0, branchIds: [] as number[], status: "posted", classifications: [] as number[], showNotes: false })
+  const [filters, setFilters] = useState({ fromDate: monthStart(), toDate: today(), currencyId: 0, branchIds: [] as number[], statuses: [2] as number[], classifications: [] as number[], showNotes: false })
   const set = (patch: Partial<typeof filters>) => setFilters((current) => ({ ...current, ...patch }))
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
     setRunning(true)
     setError("")
     try {
-      const params = new URLSearchParams({ kind, from_date: filters.fromDate, to_date: filters.toDate, report_currency_id: String(filters.currencyId), status: filters.status })
+      const params = new URLSearchParams({ kind, from_date: filters.fromDate, to_date: filters.toDate, report_currency_id: String(filters.currencyId), statuses: filters.statuses.join(",") })
       if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
       if (filters.classifications.length) params.set("classifications", filters.classifications.join(","))
       if (filters.showNotes) params.set("show_notes", "1")
@@ -79,7 +81,7 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
     }
   }
 
-  const reset = () => { set({ fromDate: monthStart(), toDate: today(), branchIds: [], status: "posted", classifications: [], showNotes: false }); setResult(null); setSearch(""); setError("") }
+  const reset = () => { set({ fromDate: monthStart(), toDate: today(), branchIds: [], statuses: [2], classifications: [], showNotes: false }); setResult(null); setSearch(""); setError("") }
   const term = search.trim().toLowerCase()
   const visibleRows = useMemo(() => {
     if (!result || result.shape === "calculation") return []
@@ -252,13 +254,8 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
           <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.toDate} onChange={(event) => set({ toDate: event.target.value })} className="rounded-xl" /></div>
           <ReportCurrencyFilter currencies={meta.currencies} value={filters.currencyId} onChange={(currencyId) => set({ currencyId })} />
           <ReportMultiChoice label="الفروع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => set({ branchIds })} placeholder="جميع الفروع المتاحة" />
-          <div className="space-y-2">
-            <Label>حالة السندات</Label>
-            <Select value={filters.status} onValueChange={(status) => set({ status })}>
-              <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="posted">المعتمد فقط</SelectItem><SelectItem value="all">المحفوظ والمرحل</SelectItem></SelectContent>
-            </Select>
-          </div>
+          {/* بلا اختيار = كل السندات (المعتمدة وغير المعتمدة) */}
+          <ReportMultiChoice label="حالة السندات" options={VOUCHER_STATUS_OPTIONS} selected={filters.statuses} onChange={(statuses) => set({ statuses })} placeholder="جميع السندات" />
           {(kind === "sales" || kind === "purchases" || kind === "sales-purchases") && (
             <ReportMultiChoice label="التصنيف الضريبي" options={classificationOptions} selected={filters.classifications} onChange={(classifications) => set({ classifications })} placeholder="جميع التصنيفات" />
           )}

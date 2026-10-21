@@ -57,7 +57,12 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().slice(0, 10)
     const fromDate = isoDate(p.get("from_date"), `${today.slice(0, 7)}-01`)
     const toDate = isoDate(p.get("to_date"), today)
-    const status = p.get("status") === "all" ? "all" : "posted"
+    // حالة السندات (اختيار متعدد): 1 غير معتمد، 2 معتمد — بلا اختيار = كل السندات غير الملغاة.
+    // يبقى دعم المعامل القديم status=posted|all للتوافق.
+    const statuses = p.has("statuses")
+      ? ids(p.get("statuses")).filter((value) => value === 1 || value === 2)
+      : p.get("status") === "all" ? [] : [2]
+    const statusSql = statuses.length ? `vh.status = ANY(ARRAY[${statuses.join(",")}]::int[])` : "vh.status <> 3"
     const showNotes = p.get("show_notes") === "1"
     const classifications = ids(p.get("classifications"))
     const baseId = Number(currencies[0]?.id)
@@ -87,7 +92,7 @@ export async function GET(request: NextRequest) {
       FROM voucher_header_tbl vh
       LEFT JOIN account_tbl a ON a.id = vh.account_id
       WHERE vh.vch_type = ANY(${types}::int[])
-        AND ${sql.unsafe(status === "posted" ? "vh.status = 2" : "vh.status <> 3")}
+        AND ${sql.unsafe(statusSql)}
         AND ${sql.unsafe(effectiveBranches.length ? `vh.branch_id = ANY(ARRAY[${effectiveBranches.join(",")}]::int[])` : "TRUE")}
         AND ${sql.unsafe(maqasaOnly ? "COALESCE(vh.is_maqasa, false) = true" : "TRUE")}
         AND vh.vch_date::date BETWEEN ${fromDate}::date AND ${toDate}::date
