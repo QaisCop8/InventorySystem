@@ -781,11 +781,9 @@ export function CompactProductForm({
         life: 3000
       });
       onSuccess?.()
-      // يبقى الصنف المحفوظ معروضاً (برقم سجله وأزرار التنقل فعّالة) بدل تفريغ النموذج
-      if (canCreate) {
-        if (savedProductId > 0 && canView) await loadData("Byid", savedProductId, false)
-        else await reset_fields()
-      } else onHideDialog(true)
+      // بعد الحفظ (إضافة أو تعديل): تفريغ الحقول وفتح سجل جديد برقم صنف جديد — مثل زر "جديد"
+      if (canCreate) await reset_fields()
+      else onHideDialog(true)
       return true
 
     } catch (err) {

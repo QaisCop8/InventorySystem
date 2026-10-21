@@ -7,11 +7,12 @@ import { getTenantPool } from "@/lib/database"
 // ضمن سند لم يُلغَ منطقياً (status != 3) — تُستخدَم من compact-product-form.tsx لتعطيل خانات
 // "له تاريخ صلاحية"/"له رقم تشغيلي"/"له رقم متسلسل" على صنف استُخدِم فعلياً في حركة مخزون، إذ
 // تغيير هذه الخصائص بأثر رجعي على صنف له سطور فعلية يُناقض بيانات تلك السطور القائمة أصلاً.
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, ctx: { params: Promise<{ id: string }> | { id: string } }) {
   try {
-    const permission = await authorizeStoredProduct(request, params.id, "lookup")
+    const { id } = await ctx.params
+    const permission = await authorizeStoredProduct(request, id, "lookup")
     if (!permission.ok) return permission.response
-    const productId = Number(params.id)
+    const productId = Number(id)
     if (!productId) {
       return NextResponse.json({ error: "Invalid product id" }, { status: 400 })
     }
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
            SELECT 1
            FROM voucher_items_tbl vi
            JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-           WHERE vi.product_id = $1 AND vh.status != 3
+           WHERE vi.item_id = $1 AND vh.status != 3
          ) AS used`,
         [productId],
       )

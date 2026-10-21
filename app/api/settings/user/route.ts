@@ -8,71 +8,56 @@ import sql, { resolveCurrentDbName } from "@/lib/database"
 import { ensurePermissionTables } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import managementSql from "@/lib/management-db"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-let branchColumnEnsured: Promise<void> | null = null
-let fontColumnsEnsured: Promise<void> | null = null
-// شركات زُوِّدت قبل توحيد بنية user_settings (عبر النسخة القديمة من lib/provisioning.ts) قد
-// تفتقد أعمدة مثل phone/avatar_url رغم استخدامها في استعلام GET أدناه — بلا هذا الإصلاح الذاتي
-// تفشل الصفحة بكاملها (relation/column does not exist) على أي شركة أُنشئت بتلك النسخة القديمة.
-function ensureBranchColumn() {
-  if (!branchColumnEnsured) {
-    branchColumnEnsured = (async () => {
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS avatar_url TEXT`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
-      // Some older tenant databases already have these columns with legacy
-      // text types, so ADD COLUMN IF NOT EXISTS alone does not repair them.
-      await sql`
-        DO $$
-        BEGIN
-          IF EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = current_schema() AND table_name = 'user_settings'
-              AND column_name = 'font_size' AND data_type <> 'integer'
-          ) THEN
-            ALTER TABLE user_settings ALTER COLUMN font_size TYPE INTEGER
-            USING CASE WHEN TRIM(font_size::text) ~ '^[0-9]+$' THEN font_size::integer ELSE 14 END;
-          END IF;
-
-          IF EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = current_schema() AND table_name = 'user_settings'
-              AND column_name = 'datagrid_settings' AND data_type NOT IN ('json', 'jsonb')
-          ) THEN
-            ALTER TABLE user_settings ALTER COLUMN datagrid_settings TYPE JSONB
-            USING CASE
-              WHEN datagrid_settings IS NULL OR TRIM(datagrid_settings::text) = '' THEN '{}'::jsonb
-              WHEN pg_input_is_valid(datagrid_settings::text, 'jsonb') THEN datagrid_settings::jsonb
-              ELSE '{}'::jsonb
-            END;
-          END IF;
-        END $$
-      `
-    })().catch((error: unknown) => {
-      branchColumnEnsured = null
-      throw error
-    })
+// أعمدة user_settings — مرة لكل قاعدة شركة (runSchemaOnce) لا مرة لكل الخادم: متغير وحيد على مستوى الوحدة كان
+// يُعلِّم أول شركة فقط فتبقى قواعد بقية الشركات بلا branch_id… فيفشل الاستعلام بـ500.
+function ensureBranchColumn() { return runSchemaOnce("app/api/settings/user/route.ts#ensureBranchColumn", async () => {
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS avatar_url TEXT`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+  // إصلاح أنواع أعمدة قديمة: اختياري — pg_input_is_valid متوفرة في PostgreSQL 16+ فقط، فلا يُعطِّل فشلها بقية الإعداد
+  try {
+        await sql`
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema = current_schema() AND table_name = 'user_settings'
+                AND column_name = 'font_size' AND data_type <> 'integer'
+            ) THEN
+              ALTER TABLE user_settings ALTER COLUMN font_size TYPE INTEGER
+              USING CASE WHEN TRIM(font_size::text) ~ '^[0-9]+$' THEN font_size::integer ELSE 14 END;
+            END IF;
+  
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema = current_schema() AND table_name = 'user_settings'
+                AND column_name = 'datagrid_settings' AND data_type NOT IN ('json', 'jsonb')
+            ) THEN
+              ALTER TABLE user_settings ALTER COLUMN datagrid_settings TYPE JSONB
+              USING CASE
+                WHEN datagrid_settings IS NULL OR TRIM(datagrid_settings::text) = '' THEN '{}'::jsonb
+                WHEN pg_input_is_valid(datagrid_settings::text, 'jsonb') THEN datagrid_settings::jsonb
+                ELSE '{}'::jsonb
+              END;
+            END IF;
+          END $$
+        `
+    } catch (error) {
+    console.warn("[settings/user] column type repair skipped", error)
   }
-  return branchColumnEnsured
-}
+}) }
 
-function ensureFontColumns(): Promise<void> {
-  if (!fontColumnsEnsured) {
-    fontColumnsEnsured = (async () => {
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
-      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
-    })().catch((error: unknown) => {
-      fontColumnsEnsured = null
-      throw error
-    })
-  }
-  return fontColumnsEnsured
-}
+function ensureFontColumns(): Promise<void> { return runSchemaOnce("app/api/settings/user/route.ts#ensureFontColumns", async () => {
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
+}) }
 
 export async function GET(request: NextRequest) {
   try {
