@@ -1579,7 +1579,8 @@ td {
     text-align: right !important;
   }
 
-  @media (min-width: 768px) {
+  /* كان @media (min-width: 768px) — صار على عرض البطاقة نفسها (انظر بطاقات رأس السند أدناه) */
+  @container (min-width: 460px) {
     .sales-delivery-form .voucher-header-grid {
       grid-template-columns: repeat(12, minmax(0, 1fr));
     }
@@ -1647,6 +1648,33 @@ td {
   @container (min-width: 1180px) {
     .sales-delivery-form .sales-delivery-details-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  /* بطاقات رأس السند (تفاصيل السند / تفاصيل العميل) تتكيّف مع عرضها هي لا عرض الشاشة: على الأجهزة اللوحية وتطبيق
+     الجوال قد تكون الشاشة "عريضة" (md/lg) بينما البطاقة نصفها فقط، فكانت الحقول تتداخل (التاريخ تحت الفرع، رقم السند
+     مقصوص). بطاقة أضيق من 460px ⇐ حقل واحد في كل سطر؛ والحقول نفسها تنكمش ولا تتجاوز خانتها. */
+  .sales-delivery-form .sales-delivery-details-grid > *,
+  .sales-order-form .sales-delivery-details-grid > * {
+    container-type: inline-size;
+    min-width: 0;
+  }
+
+  .sales-delivery-form .sales-delivery-details-grid :is(input, .date-time-control, .date-time-control-input, .p-dropdown, .invoice-currency-dropdown),
+  .sales-order-form .sales-delivery-details-grid :is(input, .date-time-control, .date-time-control-input, .p-dropdown, .invoice-currency-dropdown) {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  @container (max-width: 459px) {
+    .sales-delivery-form .sales-delivery-details-grid .grid,
+    .sales-order-form .sales-delivery-details-grid .grid {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .sales-delivery-form .sales-delivery-details-grid .grid > *,
+    .sales-order-form .sales-delivery-details-grid .grid > * {
+      grid-column: auto !important;
     }
   }
 
