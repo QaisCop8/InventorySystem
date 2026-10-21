@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
     const activeBranchId = Number.isInteger(requestedBranchId) && requestedBranchId > 0
       ? requestedBranchId
       : Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
-    const branchFilterSql = activeBranchId !== null
-      ? `AND (NOT EXISTS (SELECT 1 FROM account_branches ab WHERE ab.account_id = a.id)
-          OR EXISTS (SELECT 1 FROM account_branches ab WHERE ab.account_id = a.id AND ab.branch_id = ${activeBranchId}))`
-      : ""
+    // الفروع لا تُستخدم في التعريفات (الحسابات/العملاء/الأصناف) — في الحركات فقط: لا تصفية حسب الفرع هنا.
+    // صفوف *_branches القديمة تبقى في القاعدة دون أثر.
+    void activeBranchId
+    const branchFilterSql = ""
 
     // Get query parameters
     const { searchParams } = new URL(request.url)

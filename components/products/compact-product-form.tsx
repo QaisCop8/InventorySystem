@@ -2820,24 +2820,6 @@ export function CompactProductForm({
                         </div>
                       </div>
 
-                      <div>
-                        {/* تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى
-                            الصنف ظاهراً لكل الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع
-                            أو أكثر لا يظهر الصنف بنتائج البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
-                        <MultiSelect
-                          caption="الفروع (اختياري — بلا تحديد = كل الفروع)"
-                          inputId="branch_ids"
-                          value={formData.branch_ids || []}
-                          options={definitions.branches}
-                          optionLabel="branch_name"
-                          optionValue="id"
-                          placeholder="كل الفروع"
-                          showFilter={true}
-                          showCheck={true}
-                          showMultiSelect={true}
-                          onChange={(e: any) => updateFormData("branch_ids", Array.isArray(e.value) ? e.value.map(Number) : [])}
-                        />
-                      </div>
                     </>
                   )}
 

@@ -2395,26 +2395,6 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    {/* تقييد ظهور الحساب بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى ظاهراً
-                        لكل الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع أو أكثر لا يظهر
-                        بنتائج البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
-                    <Label className="mb-2 block text-sm font-medium">الفروع (اختياري)</Label>
-                    <MultiSelect
-                      inputId="branch_ids"
-                      value={formData.branch_ids || []}
-                      options={branches}
-                      optionLabel="branch_name"
-                      optionValue="id"
-                      placeholder="كل الفروع"
-                      showFilter={true}
-                      showCheck={true}
-                      showMultiSelect={true}
-                      onChange={(e: any) =>
-                        setFormData({ ...formData, branch_ids: Array.isArray(e.value) ? e.value.map(Number) : [] })
-                      }
-                    />
-                  </div>
-                  <div>
                     <Label className="mb-2 block text-sm font-medium">القائمة المالية *</Label>
                     <PrimeDropdown
                       inputId="financial_list_id"

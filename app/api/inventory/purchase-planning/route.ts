@@ -128,13 +128,7 @@ export async function GET(request: NextRequest) {
       WHERE COALESCE(p.type, 1) = 1
         AND (p.deleted IS NULL OR p.deleted = false)
         AND LOWER(COALESCE(p.status::text, '')) IN ('1', 'نشط', 'active')
-        AND (
-          NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
-          OR EXISTS (
-            SELECT 1 FROM product_branches pb
-            WHERE pb.product_id = p.id AND pb.branch_id = ANY(${productBranchIds}::int[])
-          )
-        )
+        -- الفروع لا تُستخدم في تعريف الأصناف (لا تصفية حسب product_branches)
       ORDER BY p.product_name ASC
     `
 

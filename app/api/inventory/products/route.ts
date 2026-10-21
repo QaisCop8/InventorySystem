@@ -350,9 +350,10 @@ export async function GET(request: NextRequest) {
       // ids=1,2,3: أصناف محددة (إضافة أصناف نموذج العميل تلقائياً للحركة) — أعداد صحيحة فقط تُضمَّن حرفياً
       ...(requestedProductIds.length ? [`p.id = ANY(ARRAY[${requestedProductIds.join(",")}]::int[])`] : []),
       ...(activeOnly ? [`(p.status = 1 OR p.status::text = 'نشط' OR p.status::text = 'active' OR p.status::text = 'ACTIVE')`] : []),
-      `(NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
-        OR EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id AND pb.branch_id = ANY(ARRAY[${grantedBranchIdsLiteral}]::int[])))`,
+      // الفروع لا تُستخدم في التعريفات (الحسابات/العملاء/الأصناف) — في الحركات فقط: لا تصفية حسب الفرع هنا.
+    // صفوف *_branches القديمة تبقى في القاعدة دون أثر.
     ]
+    void grantedBranchIdsLiteral
     const filterExpression = filterClauses.join('\n        AND ')
 
     const productsQuery =

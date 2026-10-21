@@ -98,10 +98,10 @@ export async function GET(request: NextRequest) {
     // لمعاملات الاستعلام الخارجي المحيط به — انظر buildTaggedQuery بـlib/database.ts).
     const activeBranchIdHeader = Number(request.headers.get("x-branch-id"))
     const activeBranchId = Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
-    const branchFilterSql = activeBranchId !== null
-      ? `AND (NOT EXISTS (SELECT 1 FROM customer_branches cb WHERE cb.customer_id = c.id)
-          OR EXISTS (SELECT 1 FROM customer_branches cb WHERE cb.customer_id = c.id AND cb.branch_id = ${activeBranchId}))`
-      : ""
+    // الفروع لا تُستخدم في التعريفات (الحسابات/العملاء/الأصناف) — في الحركات فقط: لا تصفية حسب الفرع هنا.
+    // صفوف *_branches القديمة تبقى في القاعدة دون أثر.
+    void activeBranchId
+    const branchFilterSql = ""
 
     const typeParam = request.nextUrl.searchParams.get("type");
     const typeFilter = typeParam === "1" || typeParam === "2" || typeParam === "3" || typeParam === "4" ? Number(typeParam) : 1;

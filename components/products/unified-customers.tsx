@@ -1343,19 +1343,6 @@ export default function UnifiedCustomers({
                   />
                 </div>
 
-            <div>
-              {/* تقييد ظهور العميل بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى ظاهراً لكل
-                  الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع أو أكثر لا يظهر بنتائج
-                  البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
-              <ReportMultiChoice
-                label="الفروع (اختياري — بلا تحديد = كل الفروع)"
-                options={branches.map((branch) => ({ id: branch.id, name: branch.branch_name }) as ReportOption)}
-                selected={formData.branch_ids || []}
-                placeholder="كل الفروع"
-                portalContainer={popupRoot}
-                onChange={(ids) => updateField("branch_ids", ids as any)}
-              />
-            </div>
 
           </div>
         </CardContent>
