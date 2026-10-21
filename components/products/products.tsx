@@ -668,7 +668,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }
 
   return (
-    <div className="space-y-6 p-4 lg:p-6 bg-background min-h-screen" dir="rtl">
+    // min-w-0 + overflow-x-hidden: لا يتسع عرض الصفحة عن الشاشة على الجوال (كان أي عنصر عريض يمدّ الصفحة فتنزاح
+    // وتنقص من الحواف)؛ الجدول يتمرّر أفقياً داخل حاويته فقط.
+    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden bg-background p-3 sm:p-4 lg:p-6 min-h-screen" dir="rtl">
       {state.error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -702,11 +704,11 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">إدارة الأصناف</h1>
           <p className="text-muted-foreground mt-1">إدارة وتتبع جميع الأصناف والمخزون</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button
             variant="outline"
             disabled={!canCreate}
@@ -736,7 +738,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
               }))
             }
             }
-            className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground flex-1 sm:flex-none"
           >
             <Plus className="ml-2 h-4 w-4" />
             صنف جديد

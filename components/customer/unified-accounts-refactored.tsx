@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Plus, AlertCircle, Search, X } from "lucide-react"
+import { Plus, AlertCircle, Search, X, BookOpen } from "lucide-react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
@@ -969,6 +969,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       costCenterTypes: nextCostCenterTypes,
       accountClassifications: nextAccountClassifications,
     })
+    // عرض حساب (فتح/تنقل): التركيز على اسم الحساب كما في الحساب الجديد
+    setTimeout(() => { accountNameInputRef.current?.focus(); accountNameInputRef.current?.select() }, 120)
   }, [activeAccounts, resolveFatherAccountLabel, voucherTypes, buildStopTransactionRows, costCenters])
 
   const handleNew = async () => {
@@ -1759,7 +1761,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     try {
       const response = await fetch(`/api/accounts/${currentAccount.id}`, { method: "DELETE" })
       if (!response.ok) {
-        setError("فشل حذف الحساب")
+        // سبب الرفض الواضح من الخادم (أب لحسابات، عليه سندات/طلبيات، مرتبط بعميل/مورد أو بسجلات أخرى…)
+        const body = await response.json().catch(() => ({}))
+        const reason = body?.error || "تعذر حذف الحساب"
+        messagesRef.current?.clear?.()
+        messagesRef.current?.show?.({ severity: "error", summary: "", detail: reason, sticky: true })
         return
       }
       setMessage("الحساب تم حذفه بنجاح")
@@ -2188,7 +2194,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   if (inWindowManager) {
     return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background text-lg compact-product-form-root" dir="rtl">
+      <div className="unified-customers-compact flex h-full min-h-0 min-w-0 flex-col overflow-hidden text-lg compact-product-form-root" dir="rtl">
       {/* Universal Toolbar - Fixed at top */}
       <div className="flex-shrink-0">
           <UniversalToolbar
@@ -2203,6 +2209,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             onLast={() => guardUnsaved(handleLast)}
             canDelete={formData.id !== 0}
             isSaving={saving}
+            showUtilityLabels
             labels={{
               new: "جديد",
               save: saving ? "جاري الحفظ" : "حفظ",
@@ -2220,11 +2227,17 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <Messages innerRef={messagesRef} />
         </div>
 
-        <div className="border-b bg-slate-50 px-6 py-3">
-          <h2 className="text-2xl font-bold">{formData.id === 0 ? "إضافة حساب جديد" : "تعديل حساب"}</h2>
+        <div className="shrink-0 px-3 pt-3 sm:px-5">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-white shadow-lg">
+            <BookOpen className="h-5 w-5" />
+            <h2 className="text-lg font-extrabold tracking-tight sm:text-xl">{formData.id === 0 ? "حساب جديد" : "تعديل حساب"}</h2>
+            <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-xs font-semibold ring-1 ring-white/30">{formData.code || "—"}</span>
+            {formData.id !== 0 && formData.name && <span className="truncate text-sm font-semibold text-emerald-50">{formData.name}</span>}
+          </div>
         </div>
 
-        <div ref={formRootRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {/* نفس التصميم الناعم لنموذج العملاء (globals.css: .unified-customers-compact / .customer-definition-form) */}
+        <div ref={formRootRef} className="customer-definition-form min-h-0 flex-1 overflow-y-auto px-3 py-4 space-y-4 sm:px-5">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -2277,6 +2290,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   value={formData.name}
                   maxLength={100}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  // الاسم الإنجليزي فارغ ⇐ يُعبّأ بالاسم العربي عند مغادرة الحقل
+                  onBlur={() => setFormData((prev) => (!prev.name_lang2.trim() && prev.name.trim() ? { ...prev, name_lang2: prev.name.trim() } : prev))}
                   placeholder="اسم الحساب"
                   className="text-right text-lg"
                 />
@@ -2294,12 +2309,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList dir="rtl" className="h-auto w-full justify-start overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm">
-              <TabsTrigger value="main" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الرئيسية</TabsTrigger>
-              <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
-              <TabsTrigger value="classification" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تصنيفات الحساب</TabsTrigger>
-              <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
-              <TabsTrigger value="constraints" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">محددات الحساب</TabsTrigger>
+            <TabsList dir="rtl" className="customer-tabs">
+              <TabsTrigger value="main" className="customer-tab">الرئيسية</TabsTrigger>
+              <TabsTrigger value="cost-centers" className="customer-tab">مراكز التكلفة</TabsTrigger>
+              <TabsTrigger value="classification" className="customer-tab">تصنيفات الحساب</TabsTrigger>
+              <TabsTrigger value="stop-transactions" className="customer-tab">إيقاف الحركات</TabsTrigger>
+              <TabsTrigger value="constraints" className="customer-tab">محددات الحساب</TabsTrigger>
             </TabsList>
 
             <TabsContent value="main" className="space-y-6">

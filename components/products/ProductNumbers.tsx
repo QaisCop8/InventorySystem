@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { Hash, Loader2, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import DataGrid from "@/components/common/DataGrid";
-import * as wjGrid from "@grapecity/wijmo.grid";
+import { Input } from "@/components/ui/input";
 
 interface ProductNumbersProps {
     open: boolean;
@@ -19,8 +19,8 @@ interface ProductNumbersProps {
     onDuplicateError: (message: string) => void;
 }
 
-// نافذة إضافة متعددة لأرقام الصنف (الرقم الأصلي/رقم المصنع) — بنفس أسلوب ProductBarcodes تماماً،
-// إذ يحتاج كل صنف لأكثر من رقم أصلي/تصنيعي أحياناً (موردون متعددون لنفس القطعة مثلاً).
+// نافذة أرقام الصنف (الرقم الأصلي/رقم المصنع): سطر إضافة سريع بالأعلى (Enter) + قائمة أرقام قابلة للتعديل والحذف.
+// كل رقم يُفحص للتكرار داخل الصنف ومع الأصناف الأخرى (/api/inventory/products/check-number) قبل قبوله.
 export default function ProductNumbers({
     open,
     onOpenChange,
@@ -32,134 +32,132 @@ export default function ProductNumbers({
     currentProductName,
     onDuplicateError,
 }: ProductNumbersProps) {
-    const [dialogData, setDialogData] = React.useState<{ ser: number; number: string }[]>([]);
+    const [rows, setRows] = React.useState<string[]>([]);
+    const [draft, setDraft] = React.useState("");
+    const [checking, setChecking] = React.useState(false);
+    const [error, setError] = React.useState("");
+    const draftRef = React.useRef<HTMLInputElement>(null);
 
+    React.useEffect(() => { setRows(numbers.filter((value) => value !== undefined)); }, [numbers]);
     React.useEffect(() => {
-        setDialogData(numbers.map((n, i) => ({ ser: i + 1, number: n })));
-    }, [numbers]);
+        if (!open) return;
+        setDraft(""); setError("");
+        requestAnimationFrame(() => draftRef.current?.focus());
+        const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onOpenChange(false); };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [open, onOpenChange]);
 
-    // يتحقق من عدم تكرار الرقم مع سطر آخر لنفس الصنف (rows أخرى بهذه النافذة) أو مع صنف آخر
-    // (عبر /api/inventory/products/check-number) — يُستدعى بعد كل تعديل خانة، ويُفرغ الخانة
-    // المكرَّرة فوراً إن وُجد تكرار بدل تركها كما هي.
-    const validateNumber = async (rowIndex: number, value: string, rows: { ser: number; number: string }[]) => {
-        const trimmed = value.trim()
-        if (!trimmed) return true
+    const commit = (next: string[]) => { setRows(next); onUpdateNumbers(next); };
 
-        const duplicateInSameProduct = rows.some(
-            (row, i) => i !== rowIndex && row.number.trim().toLowerCase() === trimmed.toLowerCase(),
-        )
-        if (duplicateInSameProduct) {
-            onDuplicateError(`${title} مكرر مع صنف - ${currentProductName || "هذا الصنف"}`)
-            return false
+    // يتحقق من عدم تكرار الرقم مع سطر آخر لنفس الصنف أو مع صنف آخر — يعيد رسالة الخطأ أو "" إن كان صالحاً
+    const duplicateMessage = async (value: string, ignoreIndex: number, list: string[]) => {
+        const trimmed = value.trim();
+        if (!trimmed) return "";
+        if (list.some((row, index) => index !== ignoreIndex && row.trim().toLowerCase() === trimmed.toLowerCase())) {
+            return `${title} مكرر مع صنف - ${currentProductName || "هذا الصنف"}`;
         }
-
         try {
-            const response = await fetch(
-                `/api/inventory/products/check-number?type=${numberType}&number=${encodeURIComponent(trimmed)}&exclude_id=${excludeProductId || 0}`,
-            )
+            const response = await fetch(`/api/inventory/products/check-number?type=${numberType}&number=${encodeURIComponent(trimmed)}&exclude_id=${excludeProductId || 0}`);
             if (response.ok) {
-                const data = await response.json()
-                if (data?.duplicate) {
-                    onDuplicateError(`${title} مكرر مع صنف - ${data.product_name}`)
-                    return false
-                }
+                const data = await response.json();
+                if (data?.duplicate) return `${title} مكرر مع صنف - ${data.product_name}`;
             }
-        } catch (error) {
-            console.error("Failed to check product number duplicate", error)
+        } catch (reason) {
+            console.error("Failed to check product number duplicate", reason);
         }
-        return true
-    }
-
-    const handleDelete = (index: number) => {
-        const newData = dialogData.filter((_, i) => i !== index)
-            .map((d, i) => ({ ...d, ser: i + 1 }));
-        setDialogData(newData);
-        onUpdateNumbers(newData.map(d => d.number));
+        return "";
     };
 
-    const flexRef = React.useRef<wjGrid.FlexGrid>(null);
-    const handleAdd = () => {
-        const newData = [...dialogData, { ser: dialogData.length + 1, number: "" }];
-        setDialogData(newData);
-        onUpdateNumbers(newData.map(d => d.number));
-
-        setTimeout(() => {
-            const flex = flexRef.current;
-            if (flex) {
-                const lastRow = newData.length - 1;
-                const numberCol = flex.columns.getColumn("number");
-                if (numberCol) {
-                    flex.select(new wjGrid.CellRange(lastRow, numberCol.index));
-                    flex.startEditing(true);
-                }
-            }
-        }, 50);
+    const add = async () => {
+        const value = draft.trim();
+        if (!value || checking) return;
+        setChecking(true); setError("");
+        const message = await duplicateMessage(value, -1, rows);
+        setChecking(false);
+        if (message) { setError(message); onDuplicateError(message); return; }
+        commit([...rows, value]);
+        setDraft("");
+        requestAnimationFrame(() => draftRef.current?.focus());
     };
 
-    const cellEditEnded = (s: any, e: any) => {
-        const editedItem = s.rows[e.row].dataItem;
-        const rowIndex = e.row;
-
-        setDialogData(prev => {
-            const newData = [...prev];
-            newData[rowIndex] = { ...editedItem };
-            onUpdateNumbers(newData.map(d => d.number));
-
-            void validateNumber(rowIndex, editedItem.number, newData).then((isValid) => {
-                if (isValid) return
-                // يُفرَّغ السطر المكرَّر بدل ترك القيمة غير الصالحة معروضة أو محفوظة لاحقاً.
-                setDialogData((current) => {
-                    if (!current[rowIndex]) return current
-                    const reverted = [...current]
-                    reverted[rowIndex] = { ...reverted[rowIndex], number: "" }
-                    onUpdateNumbers(reverted.map(d => d.number))
-                    return reverted
-                })
-            })
-
-            return newData;
-        });
+    const editRow = (index: number, value: string) => setRows((current) => current.map((row, i) => (i === index ? value : row)));
+    const validateRow = async (index: number) => {
+        const message = await duplicateMessage(rows[index] || "", index, rows);
+        if (message) {
+            setError(message); onDuplicateError(message);
+            // يُفرَّغ الرقم المكرر بدل حفظ قيمة غير صالحة
+            commit(rows.map((row, i) => (i === index ? "" : row)));
+            return;
+        }
+        setError("");
+        commit(rows);
     };
-
-    const getScheme = () => ({
-        name: 'productNumbersScheme_Table',
-        filter: false,
-        showFooter: false,
-        sortable: false,
-        allowGrouping: false,
-        responsiveColumnIndex: 1,
-        columns: [
-            { header: "##", name: "ser", width: 50 },
-            { header: title, name: "number", width: "*" },
-            {
-                header: " ",
-                name: "delete",
-                width: 80,
-                buttonBody: "button",
-                iconType: "trash",
-                onClick: (item: { ser: number }) => handleDelete(item.ser - 1)
-            }
-        ]
-    });
+    const remove = (index: number) => commit(rows.filter((_, i) => i !== index));
 
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white w-[600px] max-w-full rounded shadow-lg p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-bold">{title}</h2>
-                    <Button type="button" onClick={() => onOpenChange(false)}>اغلاق</Button>
+        <div className="fixed inset-0 z-[3001] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-[2px]" dir="rtl" onMouseDown={(event) => { if (event.target === event.currentTarget) onOpenChange(false); }}>
+            <div role="dialog" aria-modal="true" aria-label={title} className="flex max-h-[85dvh] w-[min(560px,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div className="flex items-center justify-between gap-3 bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-3 text-white">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Hash className="h-5 w-5" /></span>
+                        <div>
+                            <h2 className="text-base font-bold">{title}</h2>
+                            <p className="text-xs text-emerald-50">{currentProductName || "صنف جديد"} · يمكن إضافة أكثر من رقم</p>
+                        </div>
+                    </div>
+                    <button type="button" aria-label="إغلاق" onClick={() => onOpenChange(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/15 hover:bg-white/25"><X className="h-4 w-4" /></button>
                 </div>
 
-                <Button className="mb-2" type="button" onClick={handleAdd}>+ اضافة {title}</Button>
+                <div className="space-y-2 border-b bg-slate-50 p-4">
+                    <div className="flex gap-2">
+                        <Input
+                            ref={draftRef}
+                            dir="ltr"
+                            value={draft}
+                            onChange={(event) => { setDraft(event.target.value); if (error) setError(""); }}
+                            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void add(); } }}
+                            placeholder={`أدخل ${title} ثم Enter`}
+                            className="h-10 rounded-xl bg-white text-right"
+                        />
+                        <Button type="button" onClick={() => void add()} disabled={!draft.trim() || checking} className="h-10 shrink-0 rounded-xl bg-emerald-600 px-4 hover:bg-emerald-700">
+                            {checking ? <Loader2 className="ml-1.5 h-4 w-4 animate-spin" /> : <Plus className="ml-1.5 h-4 w-4" />}إضافة
+                        </Button>
+                    </div>
+                    {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">{error}</p>}
+                </div>
 
-                <DataGrid
-                    ref={flexRef}
-                    dataSource={dialogData}
-                    scheme={getScheme()}
-                    cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
-                />
+                <div className="min-h-[160px] flex-1 overflow-y-auto p-4">
+                    {rows.length === 0 ? (
+                        <div className="flex h-full min-h-[140px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-400">
+                            <Hash className="h-8 w-8 text-slate-300" />لا توجد أرقام بعد — أضف الرقم من الحقل أعلاه
+                        </div>
+                    ) : (
+                        <ul className="space-y-2">
+                            {rows.map((value, index) => (
+                                <li key={index} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pe-2 shadow-sm">
+                                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-700">{index + 1}</span>
+                                    <Input
+                                        dir="ltr"
+                                        value={value}
+                                        onChange={(event) => editRow(index, event.target.value)}
+                                        onBlur={() => void validateRow(index)}
+                                        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); (event.target as HTMLInputElement).blur(); } }}
+                                        className="h-9 flex-1 rounded-lg border-transparent bg-transparent text-right font-mono shadow-none focus-visible:border-emerald-300 focus-visible:bg-white"
+                                    />
+                                    <button type="button" aria-label={`حذف ${value}`} onClick={() => remove(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700"><Trash2 className="h-4 w-4" /></button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t bg-slate-50 px-5 py-3">
+                    <span className="text-xs text-slate-500">{rows.filter((row) => row.trim()).length} رقم · تُحفظ مع الصنف عند حفظه</span>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">إغلاق</Button>
+                </div>
             </div>
         </div>
     );

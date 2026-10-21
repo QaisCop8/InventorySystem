@@ -18,9 +18,18 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   const { isAuthenticated, hasPermission, isLoading } = useAuth()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      window.location.replace("/management/companies")
-    }
+    if (isLoading || isAuthenticated) return
+    // جهاز/متصفح جديد بلا جلسة: نسأل الخادم عن جلسة الإدارة أولاً — بدونها نذهب لتسجيل الدخول مباشرة بدل فتح
+    // "شركاتي" ثم التحويل منها (كان يظهر شاشة الإدارة لحظة ثم صفحة الدخول).
+    let cancelled = false
+    fetch("/api/management/me", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null)
+      .then((session) => {
+        if (cancelled) return
+        window.location.replace(session ? (session.isPlatformAdmin ? "/management/admin" : "/management/companies") : "/management/login")
+      })
+    return () => { cancelled = true }
   }, [isLoading, isAuthenticated])
 
   if (isLoading) {

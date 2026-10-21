@@ -433,3 +433,108 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
+
+// حذف حساب: لم يكن موجوداً أصلاً (كان الطلب يعود 405 فتظهر "فشل حذف الحساب"). يرفض برسالة واضحة إن كان الحساب:
+// أباً لحسابات أخرى، أو عليه حركات في السندات، أو مرتبطاً بعميل/مورد/مشترك، أو مستخدماً في سجل آخر (قيد مفتاح أجنبي).
+export async function DELETE(request: NextRequest, ctx: { params: Promise<{ id: string }> | { id: string } }) {
+  try {
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const id = Number((await ctx.params).id)
+    if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "معرف الحساب غير صالح" }, { status: 400 })
+    const account = (await sql`SELECT id, code, name, type FROM account_tbl WHERE id = ${id} LIMIT 1`)[0] as any
+    if (!account) return NextResponse.json({ error: "الحساب غير موجود" }, { status: 404 })
+    const authorization = await authorizeFile(request, accountFileFamilyForType(account.type), "delete")
+    if (!authorization.ok) return authorization.response
+    const label = `${account.code} - ${account.name}`
+
+    const children = (await sql`SELECT COUNT(*)::int AS count FROM account_tbl WHERE father_id = ${id}`)[0] as any
+    if (Number(children?.count) > 0) {
+      return NextResponse.json({ error: `لا يمكن حذف الحساب ${label} لأنه حساب أب لـ ${children.count} حساب فرعي — احذف الحسابات الفرعية أو انقلها أولاً` }, { status: 400 })
+    }
+
+    const usage = (await sql`
+      SELECT COUNT(DISTINCT vh.id)::int AS count,
+        (ARRAY_AGG(vh.vch_code ORDER BY vh.vch_date DESC, vh.id DESC))[1] AS last_code
+      FROM voucher_header_tbl vh
+      WHERE vh.id IN (
+        SELECT voucher_id FROM voucher_journal_detail_tbl WHERE account_id = ${id}
+        UNION SELECT id FROM voucher_header_tbl WHERE account_id = ${id}
+      )
+    `)[0] as any
+    if (Number(usage?.count) > 0) {
+      return NextResponse.json({ error: `لا يمكن حذف الحساب ${label} لوجود ${usage.count} سند عليه (آخرها ${usage.last_code || "—"}) — يمكنك إيقافه بدلاً من حذفه` }, { status: 400 })
+    }
+
+    let party: any = null
+    try {
+      party = (await sql`SELECT name, type FROM customers WHERE account_id = ${id} AND COALESCE(isdeleted, false) = false LIMIT 1`)[0]
+    } catch { /* جدول العملاء غير موجود في هذه القاعدة */ }
+    if (party) {
+      const kind = Number(party.type) === 2 ? "المورد" : Number(party.type) === 3 ? "المشترك" : "العميل"
+      return NextResponse.json({ error: `لا يمكن حذف الحساب ${label} لأنه مرتبط بـ${kind} "${party.name}" — احذفه من شاشة ${kind === "المورد" ? "الموردين" : kind === "المشترك" ? "المشتركين" : "العملاء"}` }, { status: 400 })
+    }
+
+    // الطلبيات تحفظ حساب العميل/المورد في customer_id
+    try {
+      const orders = (await sql`SELECT COUNT(*)::int AS count, (ARRAY_AGG(order_number ORDER BY id DESC))[1] AS last_code FROM orders WHERE customer_id = ${id} AND COALESCE(deleted, false) = false`)[0] as any
+      if (Number(orders?.count) > 0) {
+        return NextResponse.json({ error: `لا يمكن حذف الحساب ${label} لوجود ${orders.count} طلبية عليه (آخرها ${orders.last_code || "—"})` }, { status: 400 })
+      }
+    } catch { /* لا يوجد جدول طلبيات */ }
+
+    // أي ارتباط آخر: كل عمود يشير لحساب في أي جدول (…account_id، حسابات الأصناف/البنوك/نقاط البيع/الإعدادات…)
+    const related = await findAccountReferences(id)
+    if (related.length) {
+      return NextResponse.json({ error: `لا يمكن حذف الحساب ${label} لارتباطه بـ: ${related.slice(0, 6).join("، ")}${related.length > 6 ? "…" : ""} — يمكنك إيقافه بدلاً من حذفه` }, { status: 400 })
+    }
+
+    await sql`DELETE FROM account_stop_transactions_tbl WHERE account_id = ${id}`
+    await sql`DELETE FROM account_costcenters_tbl WHERE account_id = ${id}`
+    await sql`DELETE FROM account_classifications_tbl WHERE account_id = ${id}`
+    try { await sql`DELETE FROM account_branches WHERE account_id = ${id}` } catch { /* لا يوجد جدول فروع الحساب */ }
+    await sql`DELETE FROM account_tbl WHERE id = ${id}`
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    // استخدام في جدول آخر لم يُفحص أعلاه (حساب بنكي، بطاقة، إعدادات افتراضية…)
+    if (error?.code === "23503") {
+      const table = String(error?.table || error?.detail || "").replace(/_tbl$/, "")
+      return NextResponse.json({ error: `لا يمكن حذف الحساب لأنه مستخدم في سجلات أخرى${table ? ` (${table})` : ""} — يمكنك إيقافه بدلاً من حذفه` }, { status: 400 })
+    }
+    console.error("Error deleting account:", error)
+    return NextResponse.json({ error: "تعذر حذف الحساب" }, { status: 500 })
+  }
+}
+
+// أسماء عربية للجداول الشائعة في رسالة الرفض
+const REFERENCE_LABELS: Record<string, string> = {
+  orders: "طلبيات", customers: "بطاقة عميل/مورد", products: "بطاقات أصناف", bank_accounts: "حسابات بنكية", bank_accounts_tbl: "حسابات بنكية",
+  credit_cards: "بطاقات ائتمان", credit_cards_tbl: "بطاقات ائتمان", cheques_tbl: "شيكات", voucher_cheques_tbl: "شيكات",
+  pos_points_tbl: "نقاط البيع", pos_sessions_tbl: "ورديات نقاط البيع", voucher_items_tbl: "أسطر سندات", voucher_cards_detail_tbl: "دفعات بطاقات",
+  voucher_journal_detail_tbl: "قيود السندات", voucher_header_tbl: "سندات", salesmen: "مندوبين", warehouses: "مستودعات", branches: "فروع",
+  fa_assets: "أصول ثابتة", fa_categories: "فئات الأصول الثابتة", landed_costs_tbl: "تكاليف الشحن والجمارك", landed_cost_charges_tbl: "تكاليف الشحن والجمارك",
+  bank_reconciliations_tbl: "التسوية البنكية", fiscal_year_closings_tbl: "إقفال السنة المالية", employees: "موظفين",
+}
+
+/** الجداول التي فيها صف يشير لهذا الحساب (عدا جداول إعداد الحساب نفسه التي تُحذف معه). */
+async function findAccountReferences(accountId: number): Promise<string[]> {
+  const own = new Set(["account_tbl", "account_stop_transactions_tbl", "account_costcenters_tbl", "account_classifications_tbl", "account_branches", "sms_log_tbl"])
+  const columns = await sql`
+    SELECT c.table_name, c.column_name
+    FROM information_schema.columns c
+    JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+    WHERE c.table_schema = current_schema()
+      AND c.data_type IN ('integer', 'bigint', 'smallint')
+      AND (c.column_name ~ '(^|_)account_id$' OR c.column_name ~ '_account$' OR c.column_name IN ('account', 'acc_id'))
+  ` as { table_name: string; column_name: string }[]
+  const found = new Set<string>()
+  for (const { table_name, column_name } of columns) {
+    if (own.has(table_name) || found.has(table_name)) continue
+    // أسماء الجداول والأعمدة من information_schema (معرّفات صالحة) + المعرّف رقم صحيح ⇐ استعلام آمن
+    if (!/^[a-z_][a-z0-9_]*$/i.test(table_name) || !/^[a-z_][a-z0-9_]*$/i.test(column_name)) continue
+    try {
+      const row = (await sql.unsafe(`SELECT 1 FROM "${table_name}" WHERE "${column_name}" = ${Number(accountId)} LIMIT 1`))[0]
+      if (row) found.add(table_name)
+    } catch { /* جدول/عمود غير متوافق — يُتجاهل */ }
+  }
+  return [...found].map((table) => REFERENCE_LABELS[table] || table)
+}
