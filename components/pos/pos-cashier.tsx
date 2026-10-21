@@ -437,7 +437,7 @@ export default function PosCashier(){
   if(invoicePrintMode===0)return
   if(!receiptData.pending)logVoucherAudit({action:"print_original",vch_type:receiptData.mode==="return"?16:receiptData.mode==="gift"?9:12,vch_code:receiptData.code,channel:"pos"})
   const qrOnly=invoicePrintMode===2
-  const qrInvoice:QrInvoice|null=qrOnly?{title:receiptData.mode==="return"?"إشعار مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة مبيعات",code:receiptData.code,date:receiptData.date,companyName:catalog.receiptSettings.company_name||receiptData.pointName,taxNumber:catalog.receiptSettings.tax_number,customerName:receiptData.customerName,customerPhone:receiptData.customerPhone,cashierName:user?.fullName||user?.username||"",currencyCode:receiptData.currencyCode,lines:receiptData.lines.map(line=>({name:line.name,quantity:line.quantity,price:line.price,discount:line.discount,campaign_discount:line.campaign_discount,gift:line.gift})),subtotal:receiptData.subtotal,itemDiscount:receiptData.itemDiscount,invoiceDiscount:receiptData.invoiceDiscount,tax:receiptData.tax,total:receiptData.total,payments:receiptData.payments.filter(payment=>payment.amount>0).map(payment=>({label:paymentLabels[payment.method]||payment.method,amount:payment.amount,reference:payment.reference})),change:receiptData.refundAmount,note:receiptData.note}:null
+  const qrInvoice:QrInvoice|null=qrOnly?{title:receiptData.mode==="return"?"إشعار مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة مبيعات",code:receiptData.code,date:receiptData.date,companyName:catalog.receiptSettings.company_name||receiptData.pointName,companyLogo:catalog.receiptSettings.company_logo||"",companyInfo:[catalog.receiptSettings.company_address,catalog.receiptSettings.company_phone].filter(Boolean).join(" | "),taxNumber:catalog.receiptSettings.tax_number,customerName:receiptData.customerName,customerPhone:receiptData.customerPhone,cashierName:user?.fullName||user?.username||"",currencyCode:receiptData.currencyCode,lines:receiptData.lines.map(line=>({name:line.name,quantity:line.quantity,price:line.price,discount:line.discount,campaign_discount:line.campaign_discount,gift:line.gift})),subtotal:receiptData.subtotal,itemDiscount:receiptData.itemDiscount,invoiceDiscount:receiptData.invoiceDiscount,tax:receiptData.tax,total:receiptData.total,payments:receiptData.payments.filter(payment=>payment.amount>0).map(payment=>({label:paymentLabels[payment.method]||payment.method,amount:payment.amount,reference:payment.reference})),change:receiptData.refundAmount,note:receiptData.note}:null
   const qr=qrInvoice?await invoiceQrDataUrl(qrInvoice).catch(()=>null):null
   if(qrOnly&&!qr){setMessage({type:"error",text:"تعذر إنشاء رمز QR للفاتورة"});return}
   // الجوال: معاينة الفاتورة داخل نفس الصفحة (طباعة / إغلاق) بدل فتح تبويب جديد
@@ -505,6 +505,9 @@ export default function PosCashier(){
   if(catalog.receiptSettings.company_email){text(catalog.receiptSettings.company_email,left,y,fullWidth,13,7,1);y+=15}
   y=Math.max(y,logo?99:25)
   line(left,y,right,y,3);y+=5
+  // فاتورة QR: الشعار وترويسة الشركة فقط ثم الرمز — نوع الفاتورة ورقمها والتاريخ والعميل والإجمالي كلها داخل الرمز
+  const qrMode=Boolean(qrOnly&&qr)
+  if(!qrMode){
   fill(left,y,fullWidth,25)
   text(title,left+5,y+3,fullWidth-10,19,12,1,1);y+=30
 
@@ -526,10 +529,11 @@ export default function PosCashier(){
    if(catalog.receiptSettings.tax_number){box(left,y,cardWidth,28,3);text("الرقم الضريبي",left+3,y+2,cardWidth-6,9,6,1,0,3);text(catalog.receiptSettings.tax_number,left+3,y+12,cardWidth-6,13,7,1,1)}
    y+=32
   }
+  }
 
-  if(qrOnly&&qr){
-   fill(left,y,fullWidth,26);text(`الإجمالي: ${money(receiptData.total)} ${receiptData.currencyCode||""}`,left+4,y+3,fullWidth-8,20,12,1,1);y+=32
-   const qrSize=210;commands.push({type:1,image:qr.dataUrl,x:left+Math.round((fullWidth-qrSize)/2),y,width:qrSize,height:qrSize});y+=qrSize+4
+  if(qrMode&&qr){
+   y+=4
+   const qrSize=230;commands.push({type:1,image:qr.dataUrl,x:left+Math.round((fullWidth-qrSize)/2),y,width:qrSize,height:qrSize});y+=qrSize+4
    text("امسح الرمز لعرض تفاصيل الفاتورة كاملة",left,y,fullWidth,14,7,1,0,3);y+=18
    text("شكراً لتسوقكم معنا",left,y,fullWidth,16,8,1,1);y+=19
   }else{

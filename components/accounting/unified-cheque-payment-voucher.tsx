@@ -215,13 +215,16 @@ export default function UnifiedChequePaymentVoucher() {
 
             <Dialog open={dialogOpen} onOpenChange={open => { if (open) { if (!saving) setDialogOpen(true) } else requestClose() }}>
                 <DialogContent
+                    // ملء الشاشة بنفس آلية بقية الحركات (inline: يملأ التبويب مكانه بلا توسيط/إزاحة) بدل صنف CSS خاص
+                    // كان يُبقي إزاحة translate الخاصة بالتوسيط فتظهر النافذة نصفها خارج الشاشة يساراً.
+                    inline={fullscreenEnabled && dialogOpen}
                     hideCloseButton
                     onOpenAutoFocus={event => { event.preventDefault(); focusDate() }}
                     onPointerDownOutside={event => event.preventDefault()}
                     onInteractOutside={event => event.preventDefault()}
                     onEscapeKeyDown={event => { keepDialogOpenOnEscape(event, [closeConfirm, deleteConfirm, postDialogOpen, searchOpen, voucherSearchOpen, saving]) }}
                     dir="rtl"
-                    className={`cheque-payment-editor flex h-[94dvh] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[1360px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-slate-50 p-0 ${fullscreenEnabled ? "cheque-payment-fullscreen" : ""}`}
+                    className={`cheque-payment-editor flex h-[94dvh] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[1360px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-slate-50 p-0 ${fullscreenEnabled ? "rounded-none" : ""}`}
                 >
                     {/* شريط الأدوات أعلى النافذة كبقية شاشات الحركات، وزر الإغلاق عائم أعلى اليسار */}
                     <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] h-10 w-10 rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 hover:opacity-80"><X className="h-5 w-5" /></Button>

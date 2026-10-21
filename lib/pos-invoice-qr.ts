@@ -11,6 +11,9 @@ export type QrInvoice = {
   code: string
   date: string
   companyName?: string
+  // ترويسة الطباعة فقط (لا تدخل في نص الرمز): الشعار وسطر العنوان/الهاتف
+  companyLogo?: string
+  companyInfo?: string
   taxNumber?: string
   customerName?: string
   customerPhone?: string
@@ -82,22 +85,33 @@ export async function invoiceQrDataUrl(invoice: QrInvoice, size = 360): Promise<
 
 const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] as string)
 
-/** صفحة طباعة 80mm: اسم الشركة + نوع ورقم الفاتورة + الإجمالي + رمز QR فقط. */
+const logoSrc = (raw?: string) => {
+  const value = String(raw || "").trim()
+  if (!value) return ""
+  const src = /^(data:|https?:|\/)/i.test(value) ? value : `data:image/png;base64,${value}`
+  return /^(data:image\/[a-z+]+;base64,[a-z0-9+/=\s]+|https?:\/\/[^"'\s]+|\/[^"'\s]*)$/i.test(src) ? src : ""
+}
+
+/** صفحة طباعة 80mm لفاتورة QR: الشعار وترويسة الشركة فقط ثم رمز QR — رقم الفاتورة وتاريخها والعميل والإجمالي داخل الرمز. */
 export function qrReceiptHtml(invoice: QrInvoice, dataUrl: string) {
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title></title><style>
 @page{size:80mm auto;margin:0}
 *{box-sizing:border-box;margin:0;padding:0}
 body{width:80mm;padding:4mm 3mm;font-family:Tahoma,Arial,sans-serif;color:#000;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-h1{font-size:14px;font-weight:800;margin-bottom:1mm}
-.meta{font-size:11px;line-height:1.6}
-.total{margin:2mm 0;font-size:15px;font-weight:800}
-img{display:block;width:62mm;height:62mm;margin:2mm auto;image-rendering:pixelated}
+.logo{display:block;width:22mm;height:22mm;margin:0 auto 1.5mm;object-fit:contain}
+h1{font-size:15px;font-weight:800;margin-bottom:0.5mm}
+.info{font-size:10px;color:#333;line-height:1.5}
+hr{margin:2mm 0;border:0;border-top:1px solid #999}
+.qr{display:block;width:66mm;height:66mm;margin:2mm auto;image-rendering:pixelated}
+.thanks{margin-top:1.5mm;font-size:11px;font-weight:700}
 .hint{font-size:9px;color:#333}
 </style></head><body>
+${logoSrc(invoice.companyLogo) ? `<img class="logo" src="${escapeHtml(logoSrc(invoice.companyLogo))}" alt="">` : ""}
 ${invoice.companyName ? `<h1>${escapeHtml(invoice.companyName)}</h1>` : ""}
-<div class="meta">${escapeHtml(invoice.title)} رقم <b>${escapeHtml(invoice.code)}</b><br>${escapeHtml(invoice.date)}</div>
-<div class="total">الإجمالي: ${money(invoice.total)} ${escapeHtml(invoice.currencyCode || "")}</div>
-<img src="${dataUrl}" alt="QR">
+${invoice.companyInfo ? `<div class="info">${escapeHtml(invoice.companyInfo)}</div>` : ""}
+<hr>
+<img class="qr" src="${dataUrl}" alt="QR">
 <div class="hint">امسح الرمز لعرض تفاصيل الفاتورة كاملة</div>
+<div class="thanks">شكراً لتسوقكم معنا</div>
 </body></html>`
 }
