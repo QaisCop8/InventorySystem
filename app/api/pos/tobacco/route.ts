@@ -24,10 +24,11 @@ export async function GET(request: NextRequest) {
     const pointId = Number(request.nextUrl.searchParams.get("point_id") || 0)
     const ctx = await context(request, pointId, "access")
     if ("error" in ctx) return ctx.error
-    const enabled = Boolean(ctx.point.tobacco_custody)
     const session = await getOpenPosSession(pointId, ctx.userId)
-    if (!enabled || !session) return NextResponse.json({ enabled, session_id: session ? Number(session.id) : null, opened: false, handed_over: false, lines: [] })
+    if (!ctx.point.tobacco_custody || !session) return NextResponse.json({ enabled: false, session_id: session ? Number(session.id) : null, opened: false, handed_over: false, lines: [] })
     const lines = await tobaccoLines(Number(session.id), session.tobacco_opened ? undefined : await suggestedOpeningFor(session))
+    // لا أصناف دخان معرّفة ولا أسطر لهذه الوردية ← العهدة غير فعّالة عملياً: لا نافذة استلام ولا تسليم
+    const enabled = lines.length > 0
     return NextResponse.json({ enabled, session_id: Number(session.id), opened: Boolean(session.tobacco_opened), handed_over: Boolean(session.tobacco_handed_over), received: Boolean(session.received_from_session_id), lines })
   } catch (error) {
     console.error("[pos/tobacco] GET failed", error)
