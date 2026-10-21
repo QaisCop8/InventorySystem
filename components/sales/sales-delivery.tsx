@@ -36,6 +36,7 @@ import { useWorkspace } from "@/contexts/workspace-context"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSearch } from "@/components/common/voucher-list-table"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { useAnnounceTransactionSaved } from "@/lib/transaction-success"
 
 interface LookupOption {
   id: number
@@ -259,6 +260,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<PrintDocument | null>(null)
+  // "تمت العملية بنجاح" في نافذة السند بعد نجاح الحفظ (lib/transaction-success.ts)
+  const announceSaved = useAnnounceTransactionSaved()
   const printCurrencyName = (currencyId: number | null) => {
     const currency = currencies.find((item) => Number(item.currency_id ?? item.id) === Number(currencyId))
     return currency?.currency_name || currency?.currency_code || ""
@@ -761,6 +764,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       }
 
       const savedVoucher = normalizeVoucher(await response.json())
+      announceSaved()
       if (action === "save_print" || action === "post_print") {
         const shippingFields = await shippingPrintFields(savedVoucher)
         setPrintData(salesVoucherDocument(savedVoucher, {
@@ -1029,7 +1033,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "معتمد" : "مسودة", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },

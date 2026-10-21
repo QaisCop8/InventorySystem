@@ -253,7 +253,7 @@ export function ChequeOperationsPage() {
             </section>
 
             {operation && <section className="space-y-3 rounded-2xl border border-violet-100 bg-violet-50/40 p-4 dark:border-violet-900 dark:bg-violet-950/20">
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-violet-100 p-3 text-sm font-black text-violet-900 dark:bg-violet-900 dark:text-violet-100"><span>{operation.name}</span>{operation.createsJournal&&<span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] text-white">سيُنشأ سند قيد مرحّل</span>}</div>
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-violet-100 p-3 text-sm font-black text-violet-900 dark:bg-violet-900 dark:text-violet-100"><span>{operation.name}</span>{operation.createsJournal&&<span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] text-white">سيُنشأ سند قيد معتمد</span>}</div>
               <Field label="تاريخ العملية" type="date" value={operationDate} onChange={setOperationDate}/>
               {operation.needsDate && <Field label="تاريخ الاستحقاق الجديد" type="date" value={newDueDate} onChange={setNewDueDate}/>}
               {operation.needsAccount && operation.accountKind === "bank" && <div>

@@ -359,7 +359,7 @@ export const ensureTables = async () => { return runSchemaOnce("app/api/receipts
     )
   `
   await sql`
-    INSERT INTO voucher_status_tbl (id, name) VALUES (1, 'فعال'), (2, 'مرحل'), (3, 'محذوف')
+    INSERT INTO voucher_status_tbl (id, name) VALUES (1, 'فعال'), (2, 'معتمد'), (3, 'محذوف')
     ON CONFLICT (id) DO NOTHING
   `
 
@@ -1201,7 +1201,7 @@ export const archiveAndDeleteVoucher = async (voucherId: number): Promise<{ erro
   if (headerRows.length === 0) return { error: "السند غير موجود" }
   const voucher = headerRows[0]
   if (Number(voucher.status) !== 1) {
-    return { error: "لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)" }
+    return { error: "لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير معتمد)" }
   }
 
   const loggedHeader = await sql`
@@ -1280,6 +1280,6 @@ export const markVoucherPrinted = async (voucherId: number): Promise<{ error?: s
     UPDATE voucher_header_tbl SET is_printed = 1 WHERE id = ${voucherId} AND status = 2
     RETURNING id
   `
-  if (result.length === 0) return { error: "السند غير موجود أو غير مرحّل" }
+  if (result.length === 0) return { error: "السند غير موجود أو غير معتمد" }
   return {}
 }

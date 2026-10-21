@@ -27,6 +27,7 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 import { Button } from "@/components/ui/button"
+import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 
 export interface VoucherRecord {
   id: number
@@ -158,6 +159,8 @@ export default function UnifiedCreditNote({
   const { fullscreenEnabled } = useWorkspace()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
+  // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
+  useTransactionSuccessMessages(messagesRef)
   const { toast } = useToast()
   const [navLoading, setNavLoading] = useState(false)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
@@ -170,7 +173,7 @@ export default function UnifiedCreditNote({
   // مندوب العميل يُعبّأ تلقائياً عند اختياره (إن كان له مندوب)
   useCustomerDefaultSalesman({ recordId: form.id, accountId: form.account_id, locked: isLocked, onSalesman: (salesmanId) => onFormChange("salesman_id", salesmanId) })
   const statusBadge =
-    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "معتمد - مطبوع" : "معتمد") : ""
 
   useEffect(() => {
     if (errorMessages.length > 0) {
@@ -887,7 +890,7 @@ export default function UnifiedCreditNote({
         visible={showDeleteConfirm}
         busy={isSaving}
         title="تأكيد حذف السند"
-        message={form.status === 2 ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
+        message={form.status === 2 ? "السند معتمد هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

@@ -28,6 +28,7 @@ import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
+import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 
 const voucherTabTriggerClass =
   "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
@@ -309,6 +310,8 @@ export default function UnifiedJournal({
   const { fullscreenEnabled } = useWorkspace()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
+  // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
+  useTransactionSuccessMessages(messagesRef)
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("journal")
   const [voucherCodeDraft, setVoucherCodeDraft] = useState(form.vch_code || "")
@@ -339,7 +342,7 @@ export default function UnifiedJournal({
   // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك
   // "مرحل" وحدها إن لم تُطبع بعد، أو "مرحل - مطبوع" إن طُبعت (is_printed=1) بعد الترحيل.
   const statusBadge =
-    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "معتمد - مطبوع" : "معتمد") : ""
 
   useEffect(() => {
     setVoucherCodeDraft(form.vch_code || "")
@@ -1399,7 +1402,7 @@ export default function UnifiedJournal({
         busy={isSaving}
         confirmLabel="نعم"
         cancelLabel="لا"
-        message={isPosted ? "السند مرحل هل تريد الغاؤه منطقياً؟" : "هل تريد حذف سند القيد هذا؟"}
+        message={isPosted ? "السند معتمد هل تريد الغاؤه منطقياً؟" : "هل تريد حذف سند القيد هذا؟"}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
       shape: "consignment",
       consignment: { ...header, amount: round(header.amount) },
       rows: invoices.map((row) => ({
-        ...row, type_name: TYPE_NAMES[Number(row.vch_type)] || "", status_name: Number(row.status) === 2 ? "مرحل" : "محفوظ",
+        ...row, type_name: TYPE_NAMES[Number(row.vch_type)] || "", status_name: Number(row.status) === 2 ? "معتمد" : "محفوظ",
         amount: round(row.amount * (Number(row.vch_type) === 15 ? -1 : 1)), account_balance: row.account_balance == null ? null : round(row.account_balance),
         details: details.filter((line) => Number(line.voucher_id) === Number(row.id)).map((line) => ({ ...line, line_amount: round(line.line_amount) })),
       })),

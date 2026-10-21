@@ -70,7 +70,7 @@ export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { op
     <DialogContent dir="rtl" className="flex max-h-[92dvh] w-[96vw] max-w-5xl flex-col overflow-hidden" onInteractOutside={event => event.preventDefault()}>
       <DialogHeader>
         <DialogTitle>رسملة من فاتورة مشتريات</DialogTitle>
-        <DialogDescription>اختر سطر فاتورة مرحّلة لتحويله إلى أصل أو عدة أصول (مثال: 5 أجهزة ← 5 أصول مستقلة).</DialogDescription>
+        <DialogDescription>اختر سطر فاتورة معتمدة لتحويله إلى أصل أو عدة أصول (مثال: 5 أجهزة ← 5 أصول مستقلة).</DialogDescription>
       </DialogHeader>
       {error && <Alert variant="destructive" className="border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto" data-enter-tab-root="true">
@@ -89,7 +89,7 @@ export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { op
             { key: "line_amount", label: "قيمة السطر", numeric: true },
             { key: "remaining_amount", label: "غير المرسمل", numeric: true },
             { key: "line_account_name", label: "حساب السطر", render: row => row.line_account_code ? `${row.line_account_code} — ${row.line_account_name}` : "—" },
-          ]} empty={loading ? "جاري التحميل…" : "لا توجد أسطر فواتير مرحّلة قابلة للرسملة"} />}
+          ]} empty={loading ? "جاري التحميل…" : "لا توجد أسطر فواتير معتمدة قابلة للرسملة"} />}
         </> : <>
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800/60">
             <span><b>{line.vch_code}</b> · {line.item_name} · {line.supplier_name ?? ""}</span>

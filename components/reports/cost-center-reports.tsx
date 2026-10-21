@@ -355,7 +355,7 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
             <Label>حالة السندات</Label>
             <Select value={filters.status} onValueChange={(status) => set({ status })}>
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">المحفوظ والمرحل</SelectItem><SelectItem value="posted">المرحل فقط</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="all">المحفوظ والمرحل</SelectItem><SelectItem value="posted">المعتمد فقط</SelectItem></SelectContent>
             </Select>
           </div>
           {showsAccountLevel && <div className="space-y-2"><Label>مستوى الحساب</Label><Input type="number" min={0} dir="ltr" value={filters.level} onChange={(event) => set({ level: event.target.value })} className="rounded-xl text-right" placeholder="0 = بدون تحديد" /></div>}

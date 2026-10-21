@@ -60,6 +60,7 @@ import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
+import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -534,14 +535,18 @@ export default function UnifiedSalesDelivery({
       ? INVOICE_SOURCE_TYPE_OPTIONS.filter((option) => option.value === 1 || option.value === 3)
       : INVOICE_SOURCE_TYPE_OPTIONS.filter((option) => option.value !== 4)
   const statusBadge = form.has_linked_invoice
-    ? "مرحل - تم إصدار فاتورة"
+    ? "معتمد - تم إصدار فاتورة"
     : form.status === 3
       ? "ملغي منطقياً"
       : form.status === 2
-        ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل")
+        ? (form.is_printed === 1 ? "معتمد - مطبوع" : "معتمد")
         : ""
 
   const messagesRef = useRef<any>(null)
+
+  // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
+
+  useTransactionSuccessMessages(messagesRef)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState("items")
@@ -2467,7 +2472,7 @@ export default function UnifiedSalesDelivery({
         }
         const saved = await onSave("save", true)
         if (saved && isMountedRef.current) {
-          messagesRef.current?.show?.([{ severity: "success", summary: "", detail: `حُفظت الفاتورة من المرفق غير مرحّلة (${ordered.length} صنف) — راجعها ثم رحّلها.`, life: 8000 }])
+          messagesRef.current?.show?.([{ severity: "success", summary: "", detail: `حُفظت الفاتورة من المرفق غير معتمدة (${ordered.length} صنف) — راجعها ثم رحّلها.`, life: 8000 }])
         }
       } catch (error) {
         console.error("Failed to apply AI invoice prefill", error)

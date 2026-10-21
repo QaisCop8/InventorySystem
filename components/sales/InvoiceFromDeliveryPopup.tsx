@@ -258,7 +258,7 @@ export default function InvoiceFromDeliveryPopup({
         throw new Error(data?.error || "فشل في جلب عناصر الإرسالية")
       }
       if (Number(data.status) !== 2) {
-        throw new Error("يجب اختيار إرسالية مرحلة")
+        throw new Error("يجب اختيار إرسالية معتمدة")
       }
       const items = Array.isArray(data.items) ? data.items.map((item: any) => ({
         product_id: Number(item.product_id || null),

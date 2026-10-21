@@ -56,7 +56,7 @@ const HEADER_LABELS: Record<string, string> = {
 }
 const HIDDEN_HEADER = new Set(["id", "company_id", "last_update_date", "updated_at", "created_at", "insert_date", "vch_status", "update_user"])
 
-const STATUS_TEXT: Record<string, string> = { "1": "فعال", "2": "مرحل", "3": "ملغي" }
+const STATUS_TEXT: Record<string, string> = { "1": "فعال", "2": "معتمد", "3": "ملغي" }
 const dateTime = (value?: string | null) => {
   if (!value) return "-"
   const date = new Date(value)

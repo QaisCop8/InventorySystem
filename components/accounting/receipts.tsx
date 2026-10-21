@@ -25,6 +25,7 @@ import { receiptVoucherDocument } from "@/lib/voucher-print/receipt"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { useAnnounceTransactionSaved } from "@/lib/transaction-success"
 
 interface CurrencyOption {
   currency_id?: number
@@ -197,6 +198,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<PrintDocument | null>(null)
+  // "تمت العملية بنجاح" في نافذة السند بعد نجاح الحفظ (lib/transaction-success.ts)
+  const announceSaved = useAnnounceTransactionSaved()
 
 
   const listSearch = useVoucherListSearch({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
@@ -767,6 +770,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         return { ok: false, error: message }
       }
       const saved = await response.json()
+      announceSaved()
 
       if (action === "post_print" || action === "save_print") {
         setPrintData(buildReceiptPrint({ ...record, ...saved, cheques: saved.cheques || record.cheques, cards: saved.cards || record.cards }, action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق"))

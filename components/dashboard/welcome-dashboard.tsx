@@ -386,7 +386,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
         <Panel title="تحتاج انتباهك" icon={<Sparkles className="h-4 w-4" />}>
           <div className="space-y-2.5">
             {data.pending.length > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900 dark:bg-amber-950/30">
-              <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-800 dark:text-amber-200"><Layers3 className="h-4 w-4" />سندات غير مرحّلة</p>
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-amber-800 dark:text-amber-200"><Layers3 className="h-4 w-4" />سندات غير معتمدة</p>
               <div className="flex flex-wrap gap-1.5">
                 {data.pending.map(row => <button key={row.vch_type} type="button" onClick={() => SECTION_BY_TYPE[row.vch_type] && onOpenSection?.(SECTION_BY_TYPE[row.vch_type])}
                   className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-amber-200 transition hover:ring-amber-400 dark:bg-slate-900 dark:text-slate-200">
@@ -410,7 +410,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
               <button type="button" onClick={() => SECTION_BY_TYPE[row.vch_type] && onOpenSection?.(SECTION_BY_TYPE[row.vch_type])} className="flex w-full items-center gap-3 py-2.5 text-right transition hover:bg-slate-50 dark:hover:bg-slate-800/50">
                 <span className={cn("h-9 w-1 shrink-0 rounded-full", TYPE_TONE[row.vch_type] ?? "bg-slate-300")} />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 text-sm"><b className="truncate">{row.type_name}</b><span className="font-mono text-[11px] text-slate-400" dir="ltr">{row.code}</span>{row.status === 1 && <span className="rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">غير مرحّل</span>}</span>
+                  <span className="flex items-center gap-2 text-sm"><b className="truncate">{row.type_name}</b><span className="font-mono text-[11px] text-slate-400" dir="ltr">{row.code}</span>{row.status === 1 && <span className="rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">غير معتمد</span>}</span>
                   <span className="block truncate text-xs text-slate-500">{row.party || "—"}</span>
                 </span>
                 <span className="shrink-0 text-left"><b className="block text-sm" dir="ltr">{fmt(row.amount, 2)}</b><span className="text-[11px] text-slate-400">{timeAgo(row.date)}</span></span>

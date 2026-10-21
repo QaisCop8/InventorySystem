@@ -638,7 +638,7 @@ async function putHandler(request: NextRequest) {
     if (currentRows.length === 0) return NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
     const previousStatus = Number(currentRows[0].status)
     if ([2, 3].includes(previousStatus) && status !== 3) {
-      return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+      return NextResponse.json({ error: "السند معتمد ولا يمكن تعديله" }, { status: 400 })
     }
 
     if (status === 3) {

@@ -83,7 +83,7 @@ export function InvoicePickerDialog({ open, onOpenChange, onSelect, initialSearc
                     <td className="px-3 py-2">{row.branch_name || "-"}</td>
                     <td className="px-3 py-2 text-center">{row.lines}</td>
                     <td className="px-3 py-2 font-semibold" dir="ltr">{fmt(row.amount)}</td>
-                    <td className="px-3 py-2 text-xs">{Number(row.status) === 2 ? "مرحّل" : "غير مرحّل"}</td>
+                    <td className="px-3 py-2 text-xs">{Number(row.status) === 2 ? "معتمد" : "غير معتمد"}</td>
                   </tr>
                 ))}
                 {!loading && !rows.length && <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">لا توجد سندات مطابقة</td></tr>}

@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       RETURNING id
     `
     if (result.length === 0) {
-      return NextResponse.json({ error: "السند غير موجود أو غير مرحّل" }, { status: 400 })
+      return NextResponse.json({ error: "السند غير موجود أو غير معتمد" }, { status: 400 })
     }
 
     return NextResponse.json({ success: true })

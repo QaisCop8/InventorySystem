@@ -272,7 +272,7 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
                 <div><p className="text-xs text-slate-500">الدفتر</p><b>{book.book_type === "ACCOUNTING" ? "الدفتر المحاسبي" : book.book_type}</b></div>
                 <div><p className="text-xs text-slate-500">الطريقة / العمر</p><b>{(DEPRECIATION_METHODS as Row)[book.depreciation_method]} · {book.useful_life_months} شهر</b></div>
                 <div><p className="text-xs text-slate-500">من — إلى</p><b dir="ltr">{day(book.depreciation_start_date)} → {day(book.depreciation_end_date)}</b></div>
-                <div><p className="text-xs text-slate-500">آخر إهلاك مرحّل</p><b dir="ltr">{day(book.last_depreciation_date) || "—"}</b></div>
+                <div><p className="text-xs text-slate-500">آخر إهلاك معتمد</p><b dir="ltr">{day(book.last_depreciation_date) || "—"}</b></div>
               </div>)}
             </TabsContent>
 

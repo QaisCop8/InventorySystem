@@ -38,7 +38,7 @@ type VoucherSearchRow = {
 
 const STATUS_OPTIONS = [
   { value: 1, label: "مسودة", className: "bg-amber-100 text-amber-800 ring-amber-200" },
-  { value: 2, label: "مرحل", className: "bg-emerald-100 text-emerald-800 ring-emerald-200" },
+  { value: 2, label: "معتمد", className: "bg-emerald-100 text-emerald-800 ring-emerald-200" },
   { value: 3, label: "ملغي", className: "bg-rose-100 text-rose-700 ring-rose-200" },
 ] as const
 const STOCK_TYPES = new Set([8, 9, 10, 11])

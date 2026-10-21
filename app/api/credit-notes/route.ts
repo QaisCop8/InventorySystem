@@ -167,7 +167,7 @@ async function putHandler(request: NextRequest) {
     // دفاع ثانٍ — الاستثناء الوحيد هو إلغاؤه منطقياً (status=3) عبر تأكيد الحذف.
     const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id}`
     if (currentRows.length > 0 && Number(currentRows[0].status) === 2 && status !== 3) {
-      return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+      return NextResponse.json({ error: "السند معتمد ولا يمكن تعديله" }, { status: 400 })
     }
 
     const amount = Number(data.amount || 0)

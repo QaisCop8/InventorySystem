@@ -2411,7 +2411,7 @@ function UnifiedSalesOrder({
     }
     message.current?.clear();
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+      Util.showErrorMessage(message, "الطلبية معتمدة الى النظام المحاسبي لن تتم عملية الحذف");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return;
@@ -2490,7 +2490,7 @@ function UnifiedSalesOrder({
     message.current?.clear();
 
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+      Util.showErrorMessage(message, "الطلبية معتمدة الى النظام المحاسبي لن تتم عملية الحفظ");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return false;
@@ -2559,7 +2559,7 @@ function UnifiedSalesOrder({
   const handleDelete = async () => {
     message.current?.clear();
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+      Util.showErrorMessage(message, "الطلبية معتمدة الى النظام المحاسبي لن تتم عملية الحذف");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return;
@@ -4175,7 +4175,7 @@ function UnifiedSalesOrder({
             )}
             {state.formData?.is_exported === 1 && (
               <div className="px-6 py-2 bg-green-100 text-blue-800 font-semibold rounded-b-lg text-center text-xl">
-                مرحلة
+                معتمدة
               </div>
 
             )}

@@ -140,7 +140,7 @@ const STATUS_TONES: Record<string, string> = {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const label = (ASSET_STATUSES as Record<string, string>)[status] ?? ({ POSTED: "مرحّل", PLANNED: "مخطط", REVERSED: "معكوس" } as Record<string, string>)[status] ?? status
+  const label = (ASSET_STATUSES as Record<string, string>)[status] ?? ({ POSTED: "معتمد", PLANNED: "مخطط", REVERSED: "معكوس" } as Record<string, string>)[status] ?? status
   return <span className={cn("inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold", STATUS_TONES[status] ?? "bg-slate-100 text-slate-600")}>{label}</span>
 }
 

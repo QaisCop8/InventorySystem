@@ -127,7 +127,7 @@ function Dashboard({ onOpenAsset, onNavigate }: { onOpenAsset: (id: number) => v
       <Stat label="إجمالي التكلفة" value={money(totals.cost)} tone="slate" hint={`${totals.active ?? 0} فعّال · ${totals.fully_depreciated ?? 0} مهلك بالكامل`} />
       <Stat label="الإهلاك المتراكم" value={money(totals.accumulated)} tone="amber" hint={n(totals.cost) ? `${((n(totals.accumulated) / n(totals.cost)) * 100).toFixed(1)}% من التكلفة` : undefined} />
       <Stat label="صافي القيمة الدفترية" value={money(totals.net_book_value)} tone="teal" />
-      <Stat label="إهلاك غير مرحّل حتى هذا الشهر" value={money(pending.amount)} tone={n(pending.amount) ? "rose" : "sky"}
+      <Stat label="إهلاك غير معتمد حتى هذا الشهر" value={money(pending.amount)} tone={n(pending.amount) ? "rose" : "sky"}
         hint={n(pending.lines) ? <button type="button" className="font-bold text-rose-700 underline" onClick={() => onNavigate("depreciation")}>{pending.assets} أصل منذ {pending.first_period} — تشغيل الإهلاك</button> : "لا يوجد إهلاك متأخر"} />
     </div>
     <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">

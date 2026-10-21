@@ -19,6 +19,7 @@ import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSea
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { useAnnounceTransactionSaved } from "@/lib/transaction-success"
 
 interface CurrencyOption {
   currency_id?: number
@@ -100,6 +101,8 @@ export default function Journal() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+  // "تمت العملية بنجاح" في نافذة السند بعد نجاح الحفظ (lib/transaction-success.ts)
+  const announceSaved = useAnnounceTransactionSaved()
 
 
   const listSearch = useVoucherListSearch({ code: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
@@ -399,6 +402,7 @@ export default function Journal() {
         return
       }
       const saved = await response.json()
+      announceSaved()
 
       if (action === "post_print" || action === "save_print") {
         const journalRows = Array.isArray(saved.journal) ? saved.journal : []

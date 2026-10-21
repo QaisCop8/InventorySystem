@@ -41,6 +41,7 @@ import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
+import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 
 export interface VoucherJournalRow {
   account_id: number | null
@@ -409,6 +410,8 @@ export default function UnifiedReceiptVoucher({
   const { user } = useAuth()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
+  // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
+  useTransactionSuccessMessages(messagesRef)
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("main")
   const [renderChequeGrid, setRenderChequeGrid] = useState(false)
@@ -497,7 +500,7 @@ export default function UnifiedReceiptVoucher({
   // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك
   // "مرحل" وحدها إن لم تُطبع بعد، أو "مرحل - مطبوع" إن طُبعت (is_printed=1) بعد الترحيل.
   const statusBadge =
-    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "معتمد - مطبوع" : "معتمد") : ""
 
   useEffect(() => {
     if (!dialogOpen || accountsList.length > 0) return
@@ -2696,7 +2699,7 @@ export default function UnifiedReceiptVoucher({
         useAppDialog
         title={`تأكيد حذف ${title}`}
         visible={showDeleteConfirm}
-        message={isPosted ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
+        message={isPosted ? "السند معتمد هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

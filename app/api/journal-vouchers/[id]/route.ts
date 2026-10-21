@@ -41,7 +41,7 @@ async function deleteHandler(request: NextRequest, { params }: { params: Promise
     return await withTenantTransaction(async () => {
     const voucher = (await sql`SELECT status FROM voucher_header_tbl WHERE id=${id} FOR UPDATE`)[0]
     if (!voucher) return NextResponse.json({error:"السند غير موجود"},{status:404})
-    if (Number(voucher.status)!==1) return NextResponse.json({error:"لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)"},{status:400})
+    if (Number(voucher.status)!==1) return NextResponse.json({error:"لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير معتمد)"},{status:400})
 
     const chequeRollback = await rollbackChequeOperationsForVoucher(id)
     if (chequeRollback.error) {

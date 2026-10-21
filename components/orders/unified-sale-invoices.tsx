@@ -2329,7 +2329,7 @@ function UnifiedSaleInvoices({
     }
     message.current?.clear();
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الفاتورة مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+      Util.showErrorMessage(message, "الفاتورة معتمدة الى النظام المحاسبي لن تتم عملية الحذف");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return;
@@ -2414,7 +2414,7 @@ function UnifiedSaleInvoices({
     message.current?.clear();
 
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الفاتورة مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+      Util.showErrorMessage(message, "الفاتورة معتمدة الى النظام المحاسبي لن تتم عملية الحفظ");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return;
@@ -2477,7 +2477,7 @@ function UnifiedSaleInvoices({
   const handleDelete = async () => {
     message.current?.clear();
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الفاتورة مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+      Util.showErrorMessage(message, "الفاتورة معتمدة الى النظام المحاسبي لن تتم عملية الحذف");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return;
@@ -3870,7 +3870,7 @@ function UnifiedSaleInvoices({
             )}
             {state.formData?.is_exported === 1 && (
               <div className="px-6 py-2 bg-green-100 text-blue-800 font-semibold rounded-b-lg text-center text-xl">
-                مرحلة
+                معتمدة
               </div>
 
             )}

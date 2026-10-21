@@ -17,7 +17,7 @@ type ReportKey = "register" | "movement" | "depreciation" | "acquisitions" | "ad
 const REPORTS: { key: ReportKey; label: string; range: boolean; hint: string }[] = [
   { key: "register", label: "سجل الأصول", range: false, hint: "التكلفة والإهلاك المتراكم والقيمة الدفترية لكل أصل في تاريخ معيّن" },
   { key: "movement", label: "حركة الأصول", range: true, hint: "رصيد افتتاحي + اقتناء + إضافات − استبعاد = رصيد ختامي لكل تصنيف" },
-  { key: "depreciation", label: "الإهلاك", range: true, hint: "الإهلاك المرحّل والمخطط لكل أصل حسب الفترة" },
+  { key: "depreciation", label: "الإهلاك", range: true, hint: "الإهلاك المعتمد والمخطط لكل أصل حسب الفترة" },
   { key: "acquisitions", label: "الاقتناءات", range: true, hint: "الأصول المقتناة والأرصدة الافتتاحية" },
   { key: "additions", label: "الإضافات الرأسمالية", range: true, hint: "التكاليف المضافة على الأصول القائمة" },
   { key: "revaluations", label: "إعادة التقييم والانخفاض", range: true, hint: "حركات إعادة التقييم وانخفاض القيمة" },

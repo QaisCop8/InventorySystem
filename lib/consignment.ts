@@ -137,7 +137,7 @@ export async function validateFromConsignment(params: { vchType: number; items: 
   if ((owners as any[]).length !== 1) return { error: "يجب أن تكون كل الأسطر من ارسالية برسم بيع واحدة" }
   const consignment = (owners as any[])[0]
   if (Number(consignment.vch_type) !== CONSIGNMENT_VCH_TYPE) return { error: "السند المصدر ليس ارسالية برسم البيع" }
-  if (Number(consignment.status) !== 2) return { error: `الارسالية ${consignment.vch_code} غير مرحّلة` }
+  if (Number(consignment.status) !== 2) return { error: `الارسالية ${consignment.vch_code} غير معتمدة` }
   if (params.branchId && Number(consignment.branch_id) && Number(consignment.branch_id) !== Number(params.branchId)) return { error: "الارسالية من فرع آخر" }
   const existingReturn = await consignmentReturn(Number(consignment.id), exclude)
   if (existingReturn) return { error: `تم عمل مرتجع (${existingReturn.vch_code}) لهذه الارسالية — لا يمكن ${params.vchType === CONSIGNMENT_RETURN_VCH_TYPE ? "عمل مرتجع آخر" : "الفوترة منها"}` }

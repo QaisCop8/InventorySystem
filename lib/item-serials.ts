@@ -146,7 +146,7 @@ export async function checkVoucherSerials(params: {
     const store = lineStore(row, params.fromStoreId)
     const label = `${pair.serial} (${lineName(row)})`
     if (last && last.status === 1) {
-      issues.push({ index: pair.index, serial: pair.serial, message: `الرقم التسلسلي ${label} عليه حركة غير مرحّلة في السند ${last.vch_code} — يجب ترحيل ذلك السند أو حذفه أولاً` })
+      issues.push({ index: pair.index, serial: pair.serial, message: `الرقم التسلسلي ${label} عليه حركة غير معتمدة في السند ${last.vch_code} — يجب ترحيل ذلك السند أو حذفه أولاً` })
       continue
     }
     if (direction === "in") {

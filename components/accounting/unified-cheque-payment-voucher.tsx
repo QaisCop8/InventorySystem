@@ -4,6 +4,8 @@ import "@/components/accounting/cheque-theme.css"
 import { useEffect, useRef, useState } from "react"
 import { BookOpen, CheckCheck, FileCheck2, Plus, Search, Wallet, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Messages from "@/components/common/Messages"
+import { useAnnounceTransactionSaved, useTransactionSuccessMessages } from "@/lib/transaction-success"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -172,13 +174,17 @@ export default function UnifiedChequePaymentVoucher() {
         setError("")
         setPostDialogOpen(true)
     }
-    const save = async (action: PostVoucherAction) => { if (savingRef.current || form.status !== 1) return; setPostDialogOpen(false); const missing = missingFields(); if (missing.length) { setError(`يجب تحديد: ${missing.join("، ")}`); return } savingRef.current = true; setSaving(true); setError(""); try { const response = await fetch(form.id ? `/api/cheque-payment-vouchers/${form.id}` : "/api/cheque-payment-vouchers", { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, action, cheque_ids: form.cheques.map(idOf) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (action === "save_print" || action === "post_print") setPrintData({title:"سند صرف شيكات",copyLabel:action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",vch_code:data.vch_code,vch_date:data.vch_date,currency_name:data.currency_name,amount:Number(data.amount),note:data.note,rows:[{account_code:data.account_code,account_name:data.account_name,debit:Number(data.amount)},...(data.cheques || []).map((row:any)=>({account_name:row.customer_name,credit:Number(row.amount),note:row.cheq_num}))]}); setPostDialogOpen(false); await load(); await newRecord() } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر حفظ السند") } finally { savingRef.current = false; setSaving(false) } }
+    const save = async (action: PostVoucherAction) => { if (savingRef.current || form.status !== 1) return; setPostDialogOpen(false); const missing = missingFields(); if (missing.length) { setError(`يجب تحديد: ${missing.join("، ")}`); return } savingRef.current = true; setSaving(true); setError(""); try { const response = await fetch(form.id ? `/api/cheque-payment-vouchers/${form.id}` : "/api/cheque-payment-vouchers", { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, action, cheque_ids: form.cheques.map(idOf) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (action === "save_print" || action === "post_print") setPrintData({title:"سند صرف شيكات",copyLabel:action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",vch_code:data.vch_code,vch_date:data.vch_date,currency_name:data.currency_name,amount:Number(data.amount),note:data.note,rows:[{account_code:data.account_code,account_name:data.account_name,debit:Number(data.amount)},...(data.cheques || []).map((row:any)=>({account_name:row.customer_name,credit:Number(row.amount),note:row.cheq_num}))]}); setPostDialogOpen(false); announceSaved(); await load(); await newRecord() } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر حفظ السند") } finally { savingRef.current = false; setSaving(false) } }
     const remove = () => { if (form.id) setDeleteConfirm(true) }
     const confirmDelete = async () => { if (savingRef.current) return; savingRef.current = true; setDeleteConfirm(false); setSaving(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${form.id}`, { method: "DELETE" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setDialogOpen(false); await load() } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر حذف السند") } finally { savingRef.current = false; setSaving(false) } }
     const gridRows = form.cheques.map((row, index) => ({ ...row, number: index + 1, amount_text: money(row.amount), due_date_text: String(row.due_date || "").slice(0, 10), due_status: row.status_name || "—" }))
     const total = form.cheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
     const currency = meta.currencies.find(row => Number(row.id) === Number(form.currency_id))
-    const statusLabel = !form.id ? "سند جديد" : Number(form.status) === 2 ? "مرحل" : Number(form.status) === 3 ? "ملغي" : "محفوظ"
+    // "تمت العملية بنجاح" بعد الحفظ (lib/transaction-success.ts) — نفس رسالة بقية الحركات
+    const messagesRef = useRef<any>(null)
+    useTransactionSuccessMessages(messagesRef)
+    const announceSaved = useAnnounceTransactionSaved()
+    const statusLabel = !form.id ? "سند جديد" : Number(form.status) === 2 ? "معتمد" : Number(form.status) === 3 ? "ملغي" : "محفوظ"
     const chequeScheme = {
         ...gridScheme,
         columns: [...gridScheme.columns, ...(!form.id ? [{
@@ -228,13 +234,20 @@ export default function UnifiedChequePaymentVoucher() {
                 >
                     {/* شريط الأدوات أعلى النافذة كبقية شاشات الحركات، وزر الإغلاق عائم أعلى اليسار */}
                     <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] h-10 w-10 rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 hover:opacity-80"><X className="h-5 w-5" /></Button>
-                    <div className="shrink-0 border-b bg-white px-2 pl-16">
-                        <UniversalToolbar currentRecord={form.id ? rows.length - Math.max(0, rows.findIndex(row => Number(row.id) === Number(form.id))) : rows.length + 1} totalRecords={rows.length} isFirstRecord={!!form.id && !rows.some(row => Number(row.id) < Number(form.id))} isLastRecord={!!form.id && !rows.some(row => Number(row.id) > Number(form.id))} onNew={newRecord} onSave={requestSave} onDelete={form.id ? remove : undefined} onFirst={() => navigate("first")} onPrevious={() => navigate("previous")} onNext={() => navigate("next")} onLast={() => navigate("last")} isLoading={loading} isSaving={saving} canSave={form.status === 1} canDelete={!!form.id} isNewRecord={!form.id} hotkeys={{ new: !form.id && !saving && !loading ? () => setSearchOpen(true) : null }} labels={{ new: "جديد", save: "حفظ", previous: "السابق", next: "التالي", first: "الأول", last: "الأخير", delete: "حذف", report: "استعلام", exportExcel: "تصدير إكسل", print: "طباعة", clone: "نسخ" }} />
+                    <div className="shrink-0">
+                        <UniversalToolbar showUtilityLabels currentRecord={form.id ? rows.length - Math.max(0, rows.findIndex(row => Number(row.id) === Number(form.id))) : rows.length + 1} totalRecords={rows.length} isFirstRecord={!!form.id && !rows.some(row => Number(row.id) < Number(form.id))} isLastRecord={!!form.id && !rows.some(row => Number(row.id) > Number(form.id))} onNew={newRecord} onSave={requestSave} onDelete={form.id ? remove : undefined} onFirst={() => navigate("first")} onPrevious={() => navigate("previous")} onNext={() => navigate("next")} onLast={() => navigate("last")} isLoading={loading} isSaving={saving} canSave={form.status === 1} canDelete={!!form.id} isNewRecord={!form.id} hotkeys={{ new: !form.id && !saving && !loading ? () => setSearchOpen(true) : null }} labels={{ new: "جديد", save: "حفظ", previous: "السابق", next: "التالي", first: "الأول", last: "الأخير", delete: "حذف", report: "استعلام", exportExcel: "تصدير إكسل", print: "طباعة", clone: "نسخ" }} />
                     </div>
-                    <div className="flex shrink-0 items-center gap-4 border-b border-emerald-100 bg-white px-4 py-3 sm:px-6">
-                        <DialogHeader className="min-w-0 text-right"><DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900"><FileCheck2 className="h-5 w-5 text-emerald-700" />سند صرف شيكات<span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-red-200" : "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"}>{Number(form.status) === 3 ? "ملغي منطقياً" : statusLabel}</span></DialogTitle></DialogHeader>
+                    <div className="shrink-0 px-2 pt-3 sm:px-6">
+                        <DialogHeader className="overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-right shadow-lg">
+                            <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
+                                <FileCheck2 className="h-5 w-5" />سند صرف شيكات
+                                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.id ? form.vch_code : "مسودة"}</span>
+                                <span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-white/70" : "rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-semibold text-amber-50 ring-1 ring-amber-200/40"}>{Number(form.status) === 3 ? "ملغي منطقياً" : statusLabel}</span>
+                            </DialogTitle>
+                        </DialogHeader>
                     </div>
                     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-5">
+                        <Messages innerRef={messagesRef} />
                         {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
                         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                             <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800"><BookOpen className="h-4 w-4 text-emerald-600" />بيانات السند</h3>

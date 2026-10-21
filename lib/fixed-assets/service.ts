@@ -477,7 +477,7 @@ export async function adjustDepreciation(id: number, input: AssetInput, userId: 
   const startDate = dateOnly(book.depreciation_start_date)!
   const lastPosted = (await sql`SELECT MAX(period) AS period FROM fa_depreciation_schedule_tbl WHERE book_id = ${Number(book.id)} AND status = 'POSTED'`)[0]?.period
   const newEnd = bookEndDate(startDate, life)
-  if (lastPosted && periodOf(newEnd) <= String(lastPosted)) fail(`العمر الجديد ينتهي قبل آخر فترة مرحّلة (${lastPosted})`)
+  if (lastPosted && periodOf(newEnd) <= String(lastPosted)) fail(`العمر الجديد ينتهي قبل آخر فترة معتمدة (${lastPosted})`)
   const old = { useful_life_months: num(book.useful_life_months), residual_value: num(book.residual_value), method: book.depreciation_method, declining_rate: book.declining_rate }
   await sql`
     UPDATE fa_books_tbl SET useful_life_months = ${life}, residual_value = ${residual}, depreciation_method = ${newMethod},
@@ -562,7 +562,7 @@ async function requireDepreciationPostedBefore(bookId: number, period: string) {
     SELECT COUNT(*)::int AS count, MIN(period) AS first FROM fa_depreciation_schedule_tbl
     WHERE book_id = ${bookId} AND status = 'PLANNED' AND period < ${period}
   `)[0]
-  if (Number(pending?.count) > 0) fail(`يوجد إهلاك غير مرحّل منذ الفترة ${pending.first} — رحّل الإهلاك حتى الشهر السابق أولاً`)
+  if (Number(pending?.count) > 0) fail(`يوجد إهلاك غير معتمد منذ الفترة ${pending.first} — رحّل الإهلاك حتى الشهر السابق أولاً`)
 }
 
 export async function disposeAsset(id: number, input: AssetInput, userId: string) {
@@ -636,7 +636,7 @@ export async function postDepreciationRun(filter: RunFilter & { postingDate: str
   if (periodOf(postingDate) < filter.period) fail("تاريخ الترحيل يجب أن يكون ضمن الفترة أو بعدها")
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`fixed-assets-depreciation:${filter.bookType ?? "ACCOUNTING"}`}))`
   const lines = await depreciationCandidates(filter)
-  if (!lines.length) fail("لا يوجد إهلاك مخطط غير مرحّل حتى هذه الفترة")
+  if (!lines.length) fail("لا يوجد إهلاك مخطط غير معتمد حتى هذه الفترة")
   const missing = lines.find((line: any) => !line.depreciation_expense_account_id || !line.accumulated_depreciation_account_id)
   if (missing) fail(`حسابات الإهلاك غير معرفة في التصنيف "${missing.category_name}"`)
   await sql`SELECT id FROM fa_depreciation_schedule_tbl WHERE id = ANY(${lines.map((line: any) => Number(line.id))}::bigint[]) FOR UPDATE`

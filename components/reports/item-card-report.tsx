@@ -240,7 +240,7 @@ export function ItemCardReport() {
           <div className="item-card-movement-heading"><h3>سجل الحركات <span className="item-card-count">{numberFormat(rows.length)}</span></h3><p>الكميات بوحدة السند · الرصيد والإجماليات بالوحدة الرئيسية</p></div>
           <div className="item-card-grid print:hidden">
             {loading ? <div className="item-card-empty" role="status"><Loader2 className="animate-spin" /><p>جاري تحميل حركات الصنف...</p></div> : !hasReport ? <div className="item-card-empty"><FileBarChart size={36} /><p>حدد الفترة والأصناف ثم اضغط عرض التقرير</p></div> : <>
-              {!rows.length && <p className="px-4 py-2 text-xs text-muted-foreground">لا توجد حركات خلال الفترة المحددة؛ يظهر الرصيد المرحّل أدناه.</p>}
+              {!rows.length && <p className="px-4 py-2 text-xs text-muted-foreground">لا توجد حركات خلال الفترة المحددة؛ يظهر الرصيد المعتمد أدناه.</p>}
               <DataGridView dataSource={displayRows} scheme={movementScheme} isReport hideSearch dontConvertToCards idProperty="id" onRowDoubleClick={openVoucher} defaultRowHeight={38} style={{ height: "clamp(360px, 52vh, 720px)" }} containerStyle={{ minWidth: 0 }} />
             </>}
           </div>

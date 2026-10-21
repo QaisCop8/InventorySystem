@@ -16,6 +16,7 @@ import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSea
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { useAnnounceTransactionSaved } from "@/lib/transaction-success"
 
 interface CurrencyOption {
   currency_id?: number
@@ -125,6 +126,8 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+  // "تمت العملية بنجاح" في نافذة السند بعد نجاح الحفظ (lib/transaction-success.ts)
+  const announceSaved = useAnnounceTransactionSaved()
 
 
   const listSearch = useVoucherListSearch({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
@@ -488,6 +491,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
         return false
       }
       const saved = await response.json()
+      announceSaved()
       setForm(normalizeVoucher(saved, voucherType))
       setIsNewMode(false)
 

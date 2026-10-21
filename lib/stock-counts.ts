@@ -30,7 +30,7 @@ import { runSchemaOnce } from "@/lib/schema-once"
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const STOCK_COUNT_STATUS = { COUNTING: 1, FINISHED: 2, POSTED: 3, CANCELLED: 4 } as const
-export const STOCK_COUNT_STATUS_NAME: Record<number, string> = { 1: "قيد الجرد", 2: "منتهي — مراجعة", 3: "مرحّل", 4: "ملغى" }
+export const STOCK_COUNT_STATUS_NAME: Record<number, string> = { 1: "قيد الجرد", 2: "منتهي — مراجعة", 3: "معتمد", 4: "ملغى" }
 
 export const STOCK_COUNT_PERMISSIONS = {
   view: "استعلام جرد المخازن",

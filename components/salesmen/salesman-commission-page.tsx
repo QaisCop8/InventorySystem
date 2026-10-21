@@ -33,7 +33,7 @@ export default function SalesmanCommissionPage(){
  const hasSingleCurrency=Boolean(filters.currency_id)||new Set(salesmanSummary.map(row=>Number(row.currency_id))).size<=1
  const maxSales=Math.max(1,...salesmanSummary.map(row=>row.sales-row.returns))
  const maxMonthlyCommission=Math.max(1,...monthlyCommission.map(row=>Math.abs(row.amount)))
- const statuses:Record<string,string>={calculated:"محسوبة",approved:"معتمدة",posted:"مرحل جزئياً",paid:"مدفوعة",cancelled:"ملغاة"}
+ const statuses:Record<string,string>={calculated:"محسوبة",approved:"معتمدة",posted:"مدفوعة جزئياً",paid:"مدفوعة",cancelled:"ملغاة"}
  return <main dir="rtl" className="min-h-full space-y-5 bg-slate-50 p-4 text-slate-900 sm:p-6">
   <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4"><div><div className="flex items-center gap-2 text-emerald-700"><WalletCards size={20}/><span className="text-xs font-bold">إدارة المبيعات</span></div><h1 className="mt-1 text-2xl font-black">عمولات وأداء المندوبين</h1><p className="mt-1 text-sm text-slate-500">قواعد العمولة، كشف الاستحقاقات، التحصيل والأهداف</p></div><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading?"animate-spin":""}`}/>تحديث</Button></header>
   {message&&<div role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</div>}

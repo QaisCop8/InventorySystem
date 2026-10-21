@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         FROM voucher_header_tbl vh LEFT JOIN salesmen s ON s.id = vh.salesman_id WHERE vh.id = ${id}
       `)[0]
       if (!header || Number(header.vch_type) !== 14) return NextResponse.json({ error: "الارسالية غير موجودة" }, { status: 404 })
-      if (Number(header.status) !== 2) return NextResponse.json({ error: "الارسالية غير مرحّلة" }, { status: 400 })
+      if (Number(header.status) !== 2) return NextResponse.json({ error: "الارسالية غير معتمدة" }, { status: 400 })
       if (!access.branchIds.includes(Number(header.branch_id))) return NextResponse.json({ error: "لا يوجد لديك صلاحية على فرع هذه الارسالية" }, { status: 403 })
       const existingReturn = await consignmentReturn(id)
       if (existingReturn) return NextResponse.json({ error: `تم عمل مرتجع (${existingReturn.vch_code}) لهذه الارسالية` }, { status: 400 })

@@ -296,7 +296,7 @@ export function VisaCommissionJournalsPage() {
   return (
     <PageShell
       title="قيود عمولة الفيزا"
-      description="حركات بطاقات الائتمان في سندات القبض المرحّلة التي لم يُنشأ لها قيد عمولة: قيد لكل حركة ينقل المبلغ من حساب البطاقات إلى حساب البنك ويُثبت عمولة البنك."
+      description="حركات بطاقات الائتمان في سندات القبض المعتمدة التي لم يُنشأ لها قيد عمولة: قيد لكل حركة ينقل المبلغ من حساب البطاقات إلى حساب البنك ويُثبت عمولة البنك."
       icon={CreditCard}
       gradient="from-sky-700 via-indigo-700 to-violet-800"
       messagesRef={messages.ref}

@@ -141,8 +141,8 @@ export async function previewYearClosing(year: number, retainedAccountId: number
   if (!branchesOut.length) checks.push({ key: "empty", level: "error", title: "لا توجد أرصدة لحسابات قائمة الدخل في هذه السنة", detail: "تأكد من تصنيف الحسابات (الإيرادات والمصروفات) على قائمة الدخل في دليل الحسابات" })
   const draftCount = Number((drafts as any[])[0]?.count || 0)
   checks.push(draftCount
-    ? { key: "drafts", level: "warning", title: `${draftCount} سند غير مرحّل في السنة`, detail: "تدخل في الإقفال كما في التقارير المالية، وبعد الإقفال لن يمكن ترحيلها أو تعديلها — يُفضّل مراجعتها أولاً" }
-    : { key: "drafts", level: "ok", title: "كل سندات السنة مرحّلة" })
+    ? { key: "drafts", level: "warning", title: `${draftCount} سند غير معتمد في السنة`, detail: "تدخل في الإقفال كما في التقارير المالية، وبعد الإقفال لن يمكن ترحيلها أو تعديلها — يُفضّل مراجعتها أولاً" }
+    : { key: "drafts", level: "ok", title: "كل سندات السنة معتمدة" })
   checks.push((unbalanced as any[]).length
     ? { key: "unbalanced", level: "warning", title: `${(unbalanced as any[]).length} سند قيده غير متوازن`, detail: (unbalanced as any[]).slice(0, 8).map((row) => `${row.vch_code} (${row.vch_date})`).join("، ") }
     : { key: "unbalanced", level: "ok", title: "كل القيود متوازنة" })

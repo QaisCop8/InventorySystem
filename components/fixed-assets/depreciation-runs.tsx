@@ -114,7 +114,7 @@ export function DepreciationRuns({ lookups, onChanged }: { lookups: Lookups; onC
         <Field label="ملاحظات" htmlFor="fa-run-notes"><Input id="fa-run-notes" value={notes} onChange={event => setNotes(event.target.value)} /></Field>
         <Button onClick={() => void calculate()} disabled={busy !== "" || !period}>{busy === "preview" ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}احتساب</Button>
       </div>
-      <p className="mt-2 text-[11px] text-slate-500">يشمل التشغيل كل الإهلاك المخطط غير المرحّل حتى الفترة المختارة (بما فيها الأشهر السابقة الفائتة) لأصول الفرع الحالي، ويُنشئ قيد إهلاك واحداً مجمّعاً حسب الحسابات ومراكز التكلفة.</p>
+      <p className="mt-2 text-[11px] text-slate-500">يشمل التشغيل كل الإهلاك المخطط غير المعتمد حتى الفترة المختارة (بما فيها الأشهر السابقة الفائتة) لأصول الفرع الحالي، ويُنشئ قيد إهلاك واحداً مجمّعاً حسب الحسابات ومراكز التكلفة.</p>
     </SectionCard>
 
     {preview && <SectionCard title="مراجعة قبل الترحيل" actions={<>
@@ -124,9 +124,9 @@ export function DepreciationRuns({ lookups, onChanged }: { lookups: Lookups; onC
       <div className="mb-3 grid gap-3 sm:grid-cols-3">
         <Stat label="إجمالي الإهلاك" value={money(total)} tone="teal" />
         <Stat label="عدد الأصول" value={assets} />
-        <Stat label="أشهر سابقة غير مرحّلة" value={catchUp} tone={catchUp ? "amber" : "slate"} hint={catchUp ? "ستُرحّل ضمن هذا التشغيل" : undefined} />
+        <Stat label="أشهر سابقة غير معتمدة" value={catchUp} tone={catchUp ? "amber" : "slate"} hint={catchUp ? "ستُرحّل ضمن هذا التشغيل" : undefined} />
       </div>
-      <DataTable rows={preview} columns={previewColumns} maxHeight="45dvh" empty="لا يوجد إهلاك مخطط غير مرحّل حتى هذه الفترة" />
+      <DataTable rows={preview} columns={previewColumns} maxHeight="45dvh" empty="لا يوجد إهلاك مخطط غير معتمد حتى هذه الفترة" />
     </SectionCard>}
 
     <SectionCard title="سجل تشغيلات الإهلاك" icon={<History className="h-4 w-4" />}>

@@ -175,7 +175,7 @@ async function putHandler(request: NextRequest) {
     // دفاع ثانٍ — الاستثناء الوحيد هو إلغاؤه منطقياً (status=3) عبر تأكيد الحذف.
     const currentRows = await sql`SELECT status, internal_voucher_id FROM voucher_header_tbl WHERE id = ${data.id} FOR UPDATE`
     if (currentRows.length > 0 && Number(currentRows[0].status) === 2 && status !== 3) {
-      return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+      return NextResponse.json({ error: "السند معتمد ولا يمكن تعديله" }, { status: 400 })
     }
     if (currentRows.length > 0 && Number(currentRows[0].internal_voucher_id) === FIXED_ASSET_INTERNAL_VOUCHER) {
       return NextResponse.json({ error: "هذا القيد صادر من نظام الأصول الثابتة — يُعكس من شاشة الأصول (عكس الإهلاك أو العملية) وليس من سند القيد" }, { status: 409 })

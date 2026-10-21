@@ -283,7 +283,7 @@ export function AIChat() {
           if (result.ok) {
             pushAssistant({
               kind: "success",
-              content: "تم حفظ سند القيد من المرفق (غير مرحّل) — راجعه ثم رحّله",
+              content: "تم حفظ سند القيد من المرفق (غير معتمد) — راجعه ثم رحّله",
               details: [
                 { label: "رقم السند", value: result.code },
                 { label: "الأسطر", value: String(lines.length) },
@@ -745,10 +745,10 @@ export function AIChat() {
                           ) : null}
                           {message.invoicePrefill && (
                             <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-3 py-2 dark:border-white/10">
-                              {/* حفظ مباشر غير مرحّل: فقط إن طوبق الطرف وكل الأصناف (وإلا المراجعة أولاً) */}
+                              {/* حفظ مباشر غير معتمد: فقط إن طوبق الطرف وكل الأصناف (وإلا المراجعة أولاً) */}
                               {message.invoicePrefill.account_id && !message.invoicePrefill.unmatched?.length && (
                                 <Button type="button" size="sm" className="h-8 gap-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => openInvoicePrefill({ ...message.invoicePrefill!, autoSave: true })}>
-                                  <Save className="h-3.5 w-3.5" />حفظ غير مرحّل
+                                  <Save className="h-3.5 w-3.5" />حفظ غير معتمد
                                 </Button>
                               )}
                               <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => openInvoicePrefill(message.invoicePrefill!)}>

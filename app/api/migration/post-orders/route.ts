@@ -649,7 +649,7 @@ export async function POST(req: NextRequest) {
             order_id: order.id,
             order_number: order.order_number,
             status: "skipped",
-            reason: "الطلبية مرحلة مسبقا",
+            reason: "الطلبية معتمدة مسبقا",
           });
           continue;
         }

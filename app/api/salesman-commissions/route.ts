@@ -239,7 +239,7 @@ async function postAction(request: NextRequest) {
       if (!receiptId || !invoiceId || amount<=0) return NextResponse.json({ error: "حدد سند القبض والفاتورة ومبلغ التخصيص" }, { status: 400 })
       const receipt=(await sql`SELECT id,vch_type,vch_date,amount,currency_id,status,branch_id,account_id FROM voucher_header_tbl WHERE id=${receiptId} FOR UPDATE`)[0]
       const invoice=(await sql`SELECT id,vch_type,vch_date,amount,currency_id,status,salesman_id,branch_id,account_id FROM voucher_header_tbl WHERE id=${invoiceId} FOR UPDATE`)[0]
-      if (!receipt || Number(receipt.vch_type)!==4 || Number(receipt.status)!==2 || !invoice || Number(invoice.vch_type)!==12 || Number(invoice.status)!==2 || !invoice.salesman_id) return NextResponse.json({ error: "سند القبض أو فاتورة المبيعات غير صالحة أو غير مرحلة" }, { status: 400 })
+      if (!receipt || Number(receipt.vch_type)!==4 || Number(receipt.status)!==2 || !invoice || Number(invoice.vch_type)!==12 || Number(invoice.status)!==2 || !invoice.salesman_id) return NextResponse.json({ error: "سند القبض أو فاتورة المبيعات غير صالحة أو غير معتمدة" }, { status: 400 })
       if (!access.branchIds.includes(Number(invoice.branch_id)) || !access.branchIds.includes(Number(receipt.branch_id))) return NextResponse.json({ error: "غير مخول لتخصيص سند من هذا الفرع" }, { status: 403 })
       if (Number(receipt.branch_id)!==Number(invoice.branch_id)||Number(receipt.currency_id)!==Number(invoice.currency_id)||Number(receipt.account_id)!==Number(invoice.account_id)) return NextResponse.json({ error: "يجب أن يتطابق فرع وعملة وعميل سند القبض مع الفاتورة" }, { status: 400 })
       const prior=(await sql`SELECT COALESCE(SUM(applied_amount),0) amount FROM salesman_commission_collections WHERE receipt_id=${receiptId}`)[0]
@@ -271,7 +271,7 @@ async function postAction(request: NextRequest) {
       if (!tx || !["approved","posted"].includes(tx.status) || Number(tx.final_commission)<=0) return NextResponse.json({ error: "العمولة غير معتمدة أو غير قابلة للصرف" }, { status: 409 })
       if (!access.branchIds.includes(Number(tx.branch_id))) return NextResponse.json({ error: "غير مخول لصرف عمولة من هذا الفرع" }, { status: 403 })
       const voucher=(await sql`SELECT id,vch_type,status,branch_id,currency_id,amount FROM voucher_header_tbl WHERE id=${voucherId} FOR UPDATE`)[0]
-      if (!voucher || Number(voucher.vch_type)!==5 || Number(voucher.status)!==2 || Number(voucher.branch_id)!==Number(tx.branch_id)) return NextResponse.json({ error: "يجب ربط العمولة بسند صرف مرحل من الفرع نفسه" }, { status: 400 })
+      if (!voucher || Number(voucher.vch_type)!==5 || Number(voucher.status)!==2 || Number(voucher.branch_id)!==Number(tx.branch_id)) return NextResponse.json({ error: "يجب ربط العمولة بسند صرف معتمد من الفرع نفسه" }, { status: 400 })
       if(Number(voucher.currency_id)!==Number(tx.currency_id)) return NextResponse.json({error:"Payment currency must match commission currency"},{status:400})
       const allocated=(await sql`SELECT COALESCE(SUM(amount),0) amount FROM salesman_commission_payments WHERE payment_voucher_id=${voucherId}`)[0]
       if(Number(allocated.amount)+amount>Number(voucher.amount)+0.009) return NextResponse.json({error:"Payment exceeds the unallocated voucher amount"},{status:400})

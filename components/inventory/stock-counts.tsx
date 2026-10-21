@@ -44,7 +44,7 @@ type LineEdit = { counted_qty: number | null; counted_pieces: number | null; not
 const STATUS: Record<number, { label: string; className: string }> = {
   1: { label: "قيد الجرد", className: "bg-sky-100 text-sky-800" },
   2: { label: "منتهي — مراجعة", className: "bg-amber-100 text-amber-800" },
-  3: { label: "مرحّل", className: "bg-emerald-100 text-emerald-800" },
+  3: { label: "معتمد", className: "bg-emerald-100 text-emerald-800" },
   4: { label: "ملغى", className: "bg-slate-200 text-slate-600" },
 }
 const today = () => new Date().toISOString().slice(0, 10)
@@ -129,7 +129,7 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
         {[
           ["قيد الجرد", totals.open, ClipboardList, "text-sky-600"],
           ["بانتظار المراجعة والترحيل", totals.review, ClipboardCheck, "text-amber-600"],
-          ["مرحّلة", totals.posted, CheckCircle2, "text-emerald-600"],
+          ["معتمدة", totals.posted, CheckCircle2, "text-emerald-600"],
         ].map(([label, value, Icon, color]: any) => (
           <div key={label} className="flex items-center justify-between rounded-2xl border bg-white p-5 shadow-sm">
             <div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>
@@ -139,7 +139,7 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {[[0, "الكل"], [1, "قيد الجرد"], [2, "منتهي"], [3, "مرحّل"], [4, "ملغى"]].map(([value, label]) => (
+        {[[0, "الكل"], [1, "قيد الجرد"], [2, "منتهي"], [3, "معتمد"], [4, "ملغى"]].map(([value, label]) => (
           <button key={value} type="button" onClick={() => setStatus(Number(value))}
             className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${status === value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
             {label}

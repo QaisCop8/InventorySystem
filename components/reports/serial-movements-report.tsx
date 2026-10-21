@@ -60,7 +60,7 @@ const serialState = (row: SerialRow) =>
       ? { label: "في المخزون", className: "bg-emerald-100 text-emerald-800" }
       : { label: "خارج المخزون", className: "bg-amber-100 text-amber-800" }
 
-const statusName = (status: number) => (status === 3 ? "ملغى" : status === 2 ? "مرحّل" : "فعال")
+const statusName = (status: number) => (status === 3 ? "ملغى" : status === 2 ? "معتمد" : "فعال")
 
 const openVoucher = (voucherId?: number | null, vchType?: number | null) => {
   if (!voucherId || !vchType) return

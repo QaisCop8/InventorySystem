@@ -256,7 +256,7 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
             <Label>حالة السندات</Label>
             <Select value={filters.status} onValueChange={(status) => set({ status })}>
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="posted">المرحل فقط</SelectItem><SelectItem value="all">المحفوظ والمرحل</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="posted">المعتمد فقط</SelectItem><SelectItem value="all">المحفوظ والمرحل</SelectItem></SelectContent>
             </Select>
           </div>
           {(kind === "sales" || kind === "purchases" || kind === "sales-purchases") && (

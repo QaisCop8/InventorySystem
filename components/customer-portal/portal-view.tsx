@@ -131,7 +131,7 @@ export default function CustomerPortalView({ token }: { token: string }) {
           <div className={`rounded-3xl p-5 shadow-sm ${owes ? "bg-gradient-to-l from-rose-500 to-orange-500 text-white" : "bg-gradient-to-l from-emerald-500 to-teal-500 text-white"}`}>
             <p className="text-xs font-semibold text-white/85">{owes ? "الرصيد المستحق عليك" : data.balance < 0 ? "رصيد لصالحك" : "الرصيد"}</p>
             <p className="mt-1 text-3xl font-black tabular-nums" dir="ltr" style={{ textAlign: "right" }}>{money(Math.abs(data.balance))} <span className="text-base font-bold">{data.currency.code}</span></p>
-            <p className="mt-1 text-xs text-white/80">حسب الحركات المرحّلة حتى اليوم</p>
+            <p className="mt-1 text-xs text-white/80">حسب الحركات المعتمدة حتى اليوم</p>
           </div>
         </section>
 

@@ -129,7 +129,7 @@ export async function allocateSettlement(input: { voucherId: number; otherId: nu
     const invoice = Number(current.vch_type) === SALES_INVOICE ? current : other
     const payment = invoice === current ? other : current
     if (Number(invoice.vch_type) !== SALES_INVOICE || !PAYMENT_TYPES.includes(Number(payment.vch_type) as any)) throw new Error("يجب ربط فاتورة مبيعات بسند قبض أو إشعار دائن أو مرتجع مبيعات")
-    if (Number(invoice.status) !== 2 || Number(payment.status) !== 2) throw new Error("يجب أن يكون السندان مرحّلين")
+    if (Number(invoice.status) !== 2 || Number(payment.status) !== 2) throw new Error("يجب أن يكون السندان معتمدين")
     if (!invoice.party_id || Number(invoice.party_id) !== Number(payment.party_id)) throw new Error("يجب أن يكون السندان لنفس العميل")
     const amount = Number(input.amount)
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("مبلغ التسديد يجب أن يكون أكبر من صفر")

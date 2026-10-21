@@ -69,7 +69,7 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 font-semibold text-red-700">{error}</p>}
             {voucher && !loading && <>
               {!voucher.party_name && <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">يجب اختيار العميل في السند لتتمكن من التسديد.</p>}
-              {!voucher.posted && <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">السند غير مرحّل — يمكن التسديد بعد ترحيله.</p>}
+              {!voucher.posted && <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">السند غير معتمد — يمكن التسديد بعد ترحيله.</p>}
               {!view?.can_settle && <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">لا يوجد لديك صلاحية "تسديد الفواتير" — عرض فقط.</p>}
               <div className="grid grid-cols-2 gap-2 rounded-xl border bg-slate-50 p-3 sm:grid-cols-3 lg:grid-cols-6">
                 <Info label="العميل" value={voucher.party_name ? `${voucher.party_code ? `${voucher.party_code} - ` : ""}${voucher.party_name}` : "-"} wide />

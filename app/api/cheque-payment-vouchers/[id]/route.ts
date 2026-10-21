@@ -78,7 +78,7 @@ async function patchHandler(request: NextRequest, { params }: { params: Promise<
     return await withTenantTransaction(async () => {
       const rows = await sql`SELECT id,status FROM voucher_header_tbl WHERE id=${id} AND vch_type=21 FOR UPDATE`
       if (!rows[0] || Number(rows[0].status) !== 1) {
-        return NextResponse.json({ error: "السند غير موجود أو مرحل أو ملغي" }, { status: 409 })
+        return NextResponse.json({ error: "السند غير موجود أو معتمد أو ملغي" }, { status: 409 })
       }
       if (posting) {
         await sql`UPDATE voucher_header_tbl SET status=2,vch_status=2,is_printed=${action === "post_print" ? 1 : 0},last_update_date=CURRENT_TIMESTAMP WHERE id=${id}`

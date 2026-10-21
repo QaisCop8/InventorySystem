@@ -385,19 +385,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     if (action === "reopen") {
-      if (status !== STOCK_COUNT_STATUS.FINISHED) return jsonError("يمكن إعادة فتح جرد منتهٍ غير مرحّل فقط")
+      if (status !== STOCK_COUNT_STATUS.FINISHED) return jsonError("يمكن إعادة فتح جرد منتهٍ غير معتمد فقط")
       await sql`UPDATE stock_counts SET status = ${STOCK_COUNT_STATUS.COUNTING}, finished_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
       return NextResponse.json({ ok: true })
     }
 
     if (action === "refresh") {
-      if (status !== STOCK_COUNT_STATUS.FINISHED && status !== STOCK_COUNT_STATUS.COUNTING) return jsonError("لا يمكن تحديث جرد مرحّل أو ملغى")
+      if (status !== STOCK_COUNT_STATUS.FINISHED && status !== STOCK_COUNT_STATUS.COUNTING) return jsonError("لا يمكن تحديث جرد معتمد أو ملغى")
       await refreshSystemQuantities(countId, scope)
       return NextResponse.json({ ok: true })
     }
 
     if (action === "cancel") {
-      if (status === STOCK_COUNT_STATUS.POSTED) return jsonError("لا يمكن إلغاء جرد مرحّل — ألغِ سندات التسوية الخاصة به أولاً")
+      if (status === STOCK_COUNT_STATUS.POSTED) return jsonError("لا يمكن إلغاء جرد معتمد — ألغِ سندات التسوية الخاصة به أولاً")
       await sql`UPDATE stock_counts SET status = ${STOCK_COUNT_STATUS.CANCELLED}, updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
       return NextResponse.json({ ok: true })
     }
@@ -422,7 +422,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const countId = await countIdOf(context)
     const header = await loadCountHeader(countId)
     if (!header) return jsonError("وثيقة الجرد غير موجودة", 404)
-    if (Number(header.status) === STOCK_COUNT_STATUS.POSTED) return jsonError("لا يمكن حذف جرد مرحّل")
+    if (Number(header.status) === STOCK_COUNT_STATUS.POSTED) return jsonError("لا يمكن حذف جرد معتمد")
     await sql`DELETE FROM stock_counts WHERE id = ${countId}`
     return NextResponse.json({ ok: true })
   } catch (error: any) {

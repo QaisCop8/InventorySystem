@@ -310,7 +310,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
               <Label>حالة السندات</Label>
               <Select value={filters.status} onValueChange={(status) => set({ status })}>
                 <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">المحفوظ والمرحل</SelectItem><SelectItem value="posted">المرحل فقط</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="all">المحفوظ والمرحل</SelectItem><SelectItem value="posted">المعتمد فقط</SelectItem></SelectContent>
               </Select>
             </div>
           )}

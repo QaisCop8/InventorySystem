@@ -41,6 +41,7 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 import { finiteItemNumber, guardItemAmountInput, handleItemAmountKeyDown } from "@/lib/item-amount"
+import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -488,7 +489,7 @@ export default function UnifiedStockVoucher({
   // unified-receipt-voucher.tsx.
   const isLocked = form.status === 2 || form.status === 3
   const statusBadge =
-    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "معتمد - مطبوع" : "معتمد") : ""
   // ترتيب التنقل بـ Tab/Enter بين أعمدة شبكة الأصناف — يطابق ترتيب الأعمدة الفعلي المرئي في scheme.
   // warehouse_name مرئي بالسطر لسند الاستعمال وسند ادخال بضاعة وسند اخراج بضاعة (showRowWarehouseColumn)
   // — أصناف هذه الأنواع قد تدخل/تُصرف من مستودعات مختلفة لكل سطر؛ الإرسالية الداخلية وحدها تبقى
@@ -502,6 +503,8 @@ export default function UnifiedStockVoucher({
     ? ["product_code", "quantity", "unit_price", "note"]
     : ["product_code", "quantity", "unit_price", "batch_number", "expiry_date", "note"]
   const messagesRef = useRef<any>(null)
+  // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
+  useTransactionSuccessMessages(messagesRef)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState("items")
@@ -2967,7 +2970,7 @@ export default function UnifiedStockVoucher({
         <ConfirmDialogYesNo
           visible={showDeleteConfirm}
           title={form.status === 2 ? `تأكيد إلغاء ${labels.title}` : `تأكيد حذف ${labels.title}`}
-          message={form.status === 2 ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${labels.title}؟`}
+          message={form.status === 2 ? "السند معتمد هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${labels.title}؟`}
           onConfirm={() => {
             setShowDeleteConfirm(false)
             onDelete?.()

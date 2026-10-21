@@ -829,7 +829,7 @@ export const archiveAndDeleteStockVoucher = async (voucherId: number): Promise<{
   if (headerRows.length === 0) return { error: "السند غير موجود" }
   const voucher = headerRows[0]
   if (Number(voucher.status) !== 1) {
-    return { error: "لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)" }
+    return { error: "لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير معتمد)" }
   }
 
   const deletionError = await validateVoucherDeletion(voucherId)

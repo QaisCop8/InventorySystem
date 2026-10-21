@@ -25,6 +25,7 @@ import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/component
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSearch } from "@/components/common/voucher-list-table"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { useAnnounceTransactionSaved } from "@/lib/transaction-success"
 
 interface StockVouchersProps {
   voucherType: StockVoucherType
@@ -160,6 +161,8 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
+  // "تمت العملية بنجاح" في نافذة السند بعد نجاح الحفظ (lib/transaction-success.ts)
+  const announceSaved = useAnnounceTransactionSaved()
 
   const listSearch = useVoucherListSearch({ code: "", dateFrom: "", dateTo: "" })
   const { draft: searchDraft, setDraft: setSearchDraft, filters: searchFilters } = listSearch
@@ -593,6 +596,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         return false
       }
       const saved = await response.json()
+      announceSaved()
 
       if (action === "post_print" || action === "save_print") {
         const rows = (dataToSave.items || []).filter((i) => i.product_id)
@@ -823,7 +827,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "مرحل" : "مسودة" }))}
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "معتمد" : "مسودة" }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },

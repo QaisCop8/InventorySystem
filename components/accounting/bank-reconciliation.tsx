@@ -527,7 +527,7 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-mono text-xs font-bold">{line.vch_code}</span>
                       <span className="text-xs text-slate-500">{line.vch_type_name}</span>
-                      {Number(line.voucher_status) === 1 && <Badge variant="outline" className="px-1 py-0 text-[10px] text-amber-700">غير مرحّل</Badge>}
+                      {Number(line.voucher_status) === 1 && <Badge variant="outline" className="px-1 py-0 text-[10px] text-amber-700">غير معتمد</Badge>}
                       {line.matched_elsewhere && <Badge variant="outline" className="px-1 py-0 text-[10px]">مسوّى في تسوية أخرى</Badge>}
                     </div>
                     <div className="truncate text-xs text-slate-500">{[line.note || line.voucher_note, line.cheque_numbers && `شيك ${line.cheque_numbers}`, line.manual_voucher].filter(Boolean).join(" • ") || "—"}</div>
@@ -601,7 +601,7 @@ function CreateJournalDialog({ line, busy, onClose, onSubmit }: {
           </div>
           <AutoCompleteAccount label="الحساب المقابل *" value={counter} valueMode="id" showCostCenterButton={false} onValueChange={setCounter} />
           <div className="space-y-1.5"><Label>البيان</Label><Input value={note} maxLength={70} onChange={(event) => setNote(event.target.value)} /></div>
-          <p className="text-xs text-slate-500">يُنشأ سند قيد مرحّل بتاريخ سطر الكشف ويُطابَق معه مباشرة.</p>
+          <p className="text-xs text-slate-500">يُنشأ سند قيد معتمد بتاريخ سطر الكشف ويُطابَق معه مباشرة.</p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>إلغاء</Button>
             <Button disabled={busy || !counter} onClick={() => void onSubmit(Number(counter), note)}>إنشاء القيد ومطابقته</Button>

@@ -73,7 +73,7 @@ export async function cancelDepositReceipt(client: PoolClient, receiptVoucherId:
   if (!receiptId) return
   const current = await client.query("SELECT status, vch_code FROM voucher_header_tbl WHERE id=$1 FOR UPDATE", [receiptId])
   if (!current.rowCount || Number(current.rows[0].status) === 3) return
-  if (Number(current.rows[0].status) === 2) throw new DraftValidationError(`سند قبض العربون ${current.rows[0].vch_code} مُرحّل — ألغِه من شاشة سند القبض أولاً ثم أعد ${action}`)
+  if (Number(current.rows[0].status) === 2) throw new DraftValidationError(`سند قبض العربون ${current.rows[0].vch_code} معتمد — ألغِه من شاشة سند القبض أولاً ثم أعد ${action}`)
   await client.query("UPDATE voucher_header_tbl SET status=3, vch_status=1, amount=0, last_update_date=CURRENT_TIMESTAMP WHERE id=$1", [receiptId])
   await client.query("DELETE FROM voucher_journal_detail_tbl WHERE voucher_id=$1", [receiptId])
 }
@@ -131,7 +131,7 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
   const bookId = await defaultReceiptBookId(client, userId)
   if (receiptId) {
     const updated = await client.query(`UPDATE voucher_header_tbl SET vch_date=$2,currency_id=$3,rate=1,account_id=$4,customer_name=$5,to_account_id=$4,amount=$6,note=$7,status=1,vch_status=1,draft_code=$8,branch_id=COALESCE(branch_id,$9),vch_book_id=COALESCE(vch_book_id,$10),last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2 RETURNING id`, [receiptId, orderDate, currencyId, accountId, customerName, deposit, note, draftNumber, branchId, bookId])
-    if (!updated.rowCount) throw new DraftValidationError("سند العربون مُرحّل ولا يمكن تعديل المسودة")
+    if (!updated.rowCount) throw new DraftValidationError("سند العربون معتمد ولا يمكن تعديل المسودة")
   } else {
     const code = await nextReceiptCode(client, bookId, branchId)
     const inserted = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,account_id,customer_name,to_account_id,amount,note,status,vch_status,is_printed,insert_user,draft_code) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,$7,$9,$10,1,1,0,$11,$12) RETURNING id`, [RECEIPT_VCH_TYPE, code, orderDate, bookId, branchId, currencyId, accountId, customerName, deposit, note, userId, draftNumber])

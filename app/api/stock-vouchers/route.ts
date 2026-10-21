@@ -263,7 +263,7 @@ async function putHandler(request: NextRequest) {
     }
     const previousStatus = Number(currentRows[0].status)
     if (previousStatus === 2 && status !== 3) {
-      return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+      return NextResponse.json({ error: "السند معتمد ولا يمكن تعديله" }, { status: 400 })
     }
 
     let items: any[] = []
