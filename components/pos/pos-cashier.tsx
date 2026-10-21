@@ -827,6 +827,8 @@ export default function PosCashier(){
 function PosPrintPreview({title,html,onClose}:{title:string;html:string;onClose:()=>void}){
  const frameRef=useRef<HTMLIFrameElement>(null),autoPrinted=useRef(false)
  const printNow=()=>{try{const target=frameRef.current?.contentWindow;target?.focus();target?.print()}catch{window.print()}}
+ // Esc (وزر الرجوع في تطبيق أندرويد — components/native/native-back-button.tsx) يغلق المعاينة
+ useEffect(()=>{const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape"){event.preventDefault();onClose()}};document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey)},[onClose])
  return <div className="pos-print-preview" role="dialog" aria-modal="true" aria-label={`معاينة ${title}`}>
   <div className="pos-print-preview-bar">
    <button type="button" className="pos-print-preview-close" onClick={onClose}><X size={18}/>إغلاق</button>

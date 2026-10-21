@@ -103,7 +103,8 @@ export default function CustomFlexGrid({
                 beginningEdit={beginningEdit}
                 selectionChanged={selectionChanged}
                 onRowDoubleClick={onRowDoubleClick}
-                keyActionEnter={keyActionEnter}
+                // يُمرَّر فقط إن حُدِّد: Wijmo يرفض undefined لخاصية enum ("Invalid enum value: undefined")
+                {...(keyActionEnter !== undefined ? { keyActionEnter } : {})}
             >
                 {/* Optional row headers for numbering */}
                 {allowDragging && (allowDragging === "Rows" || allowDragging === "Both") && (
