@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { withTenantTransaction } from "@/lib/database"
+import sql, { withTenantTransaction } from "@/lib/database"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
 import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { saveTobaccoHandover, saveTobaccoOpening, suggestedOpeningFor, tobaccoLines } from "@/lib/pos-tobacco"
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (!ctx.point.tobacco_custody || !session) return NextResponse.json({ enabled: false, session_id: session ? Number(session.id) : null, opened: false, handed_over: false, lines: [] })
     const lines = await tobaccoLines(Number(session.id), session.tobacco_opened ? undefined : await suggestedOpeningFor(session))
     // لا أصناف دخان معرّفة ولا أسطر لهذه الوردية ← العهدة غير فعّالة عملياً: لا نافذة استلام ولا تسليم
-    const enabled = lines.length > 0
+    const enabled = lines.length > 0 && !session.tobacco_skipped
     return NextResponse.json({ enabled, session_id: Number(session.id), opened: Boolean(session.tobacco_opened), handed_over: Boolean(session.tobacco_handed_over), received: Boolean(session.received_from_session_id), lines })
   } catch (error) {
     console.error("[pos/tobacco] GET failed", error)
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json().catch(() => ({}))
     const pointId = Number(data.point_id || 0)
     const action = String(data.action || "")
-    const ctx = await context(request, pointId, action === "handover" ? "handover" : "receiveHandover")
+    const ctx = await context(request, pointId, action === "handover" ? "handover" : action === "skip" ? "access" : "receiveHandover")
     if ("error" in ctx) return ctx.error
     if (!ctx.point.tobacco_custody) return NextResponse.json({ error: "عهدة الدخان غير مفعّلة لهذه النقطة" }, { status: 400 })
     const lines: any[] = Array.isArray(data.lines) ? data.lines : []
@@ -52,6 +52,12 @@ export async function POST(request: NextRequest) {
       const session = await getOpenPosSession(pointId, ctx.userId)
       if (!session) return NextResponse.json({ error: "يجب فتح أو استلام عهدة أولاً" }, { status: 400 })
       if (session.tobacco_handed_over) return NextResponse.json({ error: "تم تسليم عهدة الدخان لهذه الوردية" }, { status: 400 })
+      if (action === "skip") {
+        // وردية بلا عهدة دخان: تُعلَّم كمستلمة دون أسطر حتى لا تظهر النافذة مجدداً ولا يُطلب تسليمها
+        if (session.tobacco_opened) return NextResponse.json({ error: "تم استلام عهدة الدخان لهذه الوردية" }, { status: 400 })
+        await sql`UPDATE pos_sessions_tbl SET tobacco_opened = true, tobacco_skipped = true, updated_at = NOW() WHERE id = ${Number(session.id)}`
+        return NextResponse.json({ success: true, lines: [] })
+      }
       if (action === "open") {
         await saveTobaccoOpening(Number(session.id), lines.map((line) => ({ product_id: Number(line.product_id), qty: Number(line.qty) })))
       } else if (action === "handover") {

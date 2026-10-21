@@ -165,6 +165,8 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   )`
   await sql`ALTER TABLE pos_sessions_tbl ADD COLUMN IF NOT EXISTS tobacco_opened BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`ALTER TABLE pos_sessions_tbl ADD COLUMN IF NOT EXISTS tobacco_handed_over BOOLEAN NOT NULL DEFAULT FALSE`
+  // الكاشير ألغى استلام عهدة الدخان لهذه الوردية (لا عهدة دخان معه) — لا نافذة استلام ولا تسليم
+  await sql`ALTER TABLE pos_sessions_tbl ADD COLUMN IF NOT EXISTS tobacco_skipped BOOLEAN NOT NULL DEFAULT FALSE`
   // طابعة مجموعة الأصناف: تُطبع عليها أصناف المجموعة (الاسم والكمية) عند حفظ فاتورة الكاشير مع print_by_item_group
   await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_invoices BOOLEAN NOT NULL DEFAULT FALSE`

@@ -75,7 +75,7 @@ export async function POST(request:NextRequest){
       } else {
         if(!session)return NextResponse.json({error:"يجب فتح أو استلام عهدة أولاً"},{status:400});const value=amount(data.amount)
         // عهدة الدخان تُسلَّم أولاً (lib/pos-tobacco.ts) — لا تسليم/إغلاق للنقد قبلها
-        if(["handover","close"].includes(action)&&point.tobacco_custody&&session.tobacco_opened&&!session.tobacco_handed_over&&(await sql`SELECT 1 FROM pos_tobacco_custody_tbl WHERE session_id=${Number(session.id)} LIMIT 1`).length)return NextResponse.json({error:"يجب تسليم عهدة الدخان أولاً"},{status:400})
+        if(["handover","close"].includes(action)&&point.tobacco_custody&&session.tobacco_opened&&!session.tobacco_handed_over&&!session.tobacco_skipped&&(await sql`SELECT 1 FROM pos_tobacco_custody_tbl WHERE session_id=${Number(session.id)} LIMIT 1`).length)return NextResponse.json({error:"يجب تسليم عهدة الدخان أولاً"},{status:400})
         if(!Number.isFinite(value)||value<0)return NextResponse.json({error:"مبلغ العهدة غير صالح"},{status:400})
         if(["cash_in","cash_out"].includes(action)){
           const currencies=await getPosCurrencies(Number(point.currency_id))

@@ -52,6 +52,19 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
     } finally { setSaving(false) }
   }
 
+  // إلغاء الاستلام: الوردية بلا عهدة دخان (قد لا يكون مع هذا الكاشير دخان)
+  const skip = async () => {
+    setSaving(true); setError("")
+    try {
+      const response = await fetch("/api/pos/tobacco", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "skip", point_id: pointId }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "تعذر إلغاء عهدة الدخان")
+      onCancel?.()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "تعذر إلغاء عهدة الدخان")
+    } finally { setSaving(false) }
+  }
+
   const totals = lines.reduce((sum, line) => {
     const counted = number(line.product_id)
     return { opening: sum.opening + line.opening_qty, sold: sum.sold + line.sold_qty, expected: sum.expected + line.expected_qty, counted: sum.counted + counted, diff: sum.diff + (counted - line.expected_qty) }
@@ -123,6 +136,7 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
           <span className="text-xs text-slate-500">{mode === "open" ? "يجب استلام عهدة الدخان قبل البيع" : "بعد التسليم يكمل تسليم النقد"}</span>
           <div className="flex gap-2">
             {mode === "handover" && onCancel && <Button variant="outline" onClick={onCancel} disabled={saving}>إلغاء</Button>}
+            {mode === "open" && <Button variant="outline" onClick={() => void skip()} disabled={saving} title="لا توجد عهدة دخان مع هذه الوردية">إلغاء</Button>}
             <Button onClick={() => void save()} disabled={saving || loading || invalid} className="bg-amber-600 hover:bg-amber-700">
               {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <PackageCheck className="ml-2 h-4 w-4" />}{mode === "open" ? "استلام" : "تسليم الدخان"}
             </Button>
