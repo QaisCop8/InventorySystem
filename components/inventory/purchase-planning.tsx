@@ -213,7 +213,7 @@ export function PurchasePlanning() {
   }
 
   return (
-    <div className="space-y-5 p-1" dir="rtl">
+    <div className="flex flex-col gap-5 p-1 lg:h-full lg:min-h-0 lg:overflow-hidden" dir="rtl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">تخطيط المشتريات الذكي</h1>
@@ -236,7 +236,7 @@ export function PurchasePlanning() {
         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">التكلفة التقديرية</CardTitle><TrendingUp className="h-4 w-4 text-violet-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{selectedValueAvailable ? `${formatNumber(selectedValue)} ${selectedCurrency}` : "غير متاحة"}</div><p className="text-xs text-muted-foreground">تظهر عند توفر الأسعار وبعملة موحدة</p></CardContent></Card>
       </div>
 
-      <Card>
+      <Card className="flex flex-col lg:min-h-0 lg:flex-1">
         <CardHeader className="gap-3 pb-3 md:flex-row md:items-end md:justify-between">
           <div><CardTitle>اقتراحات التوريد</CardTitle><p className="mt-1 text-sm text-muted-foreground">متوسط الاستهلاك محسوب من فواتير البيع النشطة خلال آخر {periodDays} يومًا.</p></div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -255,7 +255,7 @@ export function PurchasePlanning() {
             </label>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col lg:min-h-0 lg:flex-1">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">عرض:</span>
@@ -265,7 +265,7 @@ export function PurchasePlanning() {
               <ShoppingCart className="ml-2 h-4 w-4" /> إنشاء طلبية شراء للأصناف المحددة
             </Button>}
           </div>
-          <Table className="[&_th]:text-right" containerClassName="max-h-[calc(100dvh-16rem)] min-h-64 overflow-y-auto rounded-lg border">
+          <Table className="[&_th]:text-right" containerClassName="rounded-lg border lg:min-h-48 lg:flex-1 lg:overflow-auto">
             <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background"><TableRow>
               <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label="تحديد الأصناف الظاهرة" /></TableHead>
               <TableHead>الصنف</TableHead><TableHead>المورد</TableHead><TableHead>المتاح</TableHead><TableHead>الوارد بطلبات مفتوحة</TableHead><TableHead>مبيعات الفترة</TableHead><TableHead>متوسط يومي</TableHead><TableHead>تغطية المخزون</TableHead><TableHead>آخر سعر شراء</TableHead><TableHead className="min-w-28">الكمية المقترحة</TableHead>
