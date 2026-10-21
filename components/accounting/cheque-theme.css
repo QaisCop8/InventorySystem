@@ -57,5 +57,7 @@
   height: 100% !important;
   max-height: none !important;
   transform: none !important;
+  /* Tailwind v4 يزيح النافذة لتوسيطها بخاصية translate المستقلة (لا transform) — بدونها تبقى مزاحة نصف عرضها يساراً */
+  translate: none !important;
   border-radius: 0 !important;
 }
