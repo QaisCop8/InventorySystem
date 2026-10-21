@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { reapplyUserFont } from "@/lib/user-font"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/components/auth/auth-context"
@@ -88,12 +88,15 @@ interface ThemeSettingsProviderProps {
 
 export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) {
   const [settings, setSettings] = useState<ThemeSettings>(defaultSettings)
+  // true بعد تحميل إعدادات المستخدم من الخادم — قبلها لا يُحفظ شيء فوق الإعدادات المحفوظة بقيم افتراضية
+  const loadedRef = useRef(false)
+  const cacheKey = (userId: unknown) => `theme-settings:${String(userId || "")}`
   const [loading, setLoading] = useState(false) // Start with false to prevent blocking
   const [previewMode, setPreviewMode] = useState(false)
   const { setTheme } = useTheme()
   const { user } = useAuth()
 
-  const fetchSettings = async () => {
+  const fetchSettings = async (): Promise<ThemeSettings | null> => {
     try {
 
       const url = new URL("/api/settings/theme", window.location.origin)
@@ -103,7 +106,7 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
       url.searchParams.set("organization_id", "1")
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
 
       const response = await fetch(url.toString(), {
         signal: controller.signal,
@@ -129,14 +132,14 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
           rtl_support: data.rtl_support !== undefined ? data.rtl_support : defaultSettings.rtl_support,
         }
         setSettings(loadedSettings)
-      } else {
-        setSettings(defaultSettings)
+        loadedRef.current = true
+        try { localStorage.setItem(cacheKey(user?.id), JSON.stringify(loadedSettings)) } catch { /* التخزين المحلي غير متاح */ }
+        return loadedSettings
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-      } else {
-      }
-      setSettings(defaultSettings)
+      // فشل التحميل: تبقى الإعدادات الحالية (المخزّنة محلياً) بدل الرجوع للافتراضي
+      return null
+    } catch {
+      return null
     }
   }
 
@@ -149,16 +152,19 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
       console.log("[v0] Saving theme settings for user:", user?.id)
       console.log("[v0] Settings to save:", settings)
 
+      // لم تُحمَّل إعدادات المستخدم بعد (مثلاً زر الوضع الداكن فور فتح الصفحة): تُحمَّل أولاً حتى لا تُكتب
+      // القيم الافتراضية (مثل شكل شريط الأدوات) فوق إعداداته المحفوظة
+      const base = loadedRef.current ? settings : (await fetchSettings()) ?? settings
       const settingsToSave = {
-        ...settings,
+        ...base,
         ...overrides,
         user_id: user?.id,
-        organization_id: settings.organization_id || 1,
+        organization_id: base.organization_id || 1,
       }
 
       console.log("[v0] Final settings payload:", settingsToSave)
 
-      const method = settings.id ? "PUT" : "POST"
+      const method = base.id ? "PUT" : "POST"
       console.log("[v0] Using HTTP method:", method)
 
       const response = await fetch("/api/settings/theme", {
@@ -175,6 +181,8 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
       if (response.ok) {
         const savedData = await response.json()
         console.log("[v0] Theme settings saved successfully:", savedData)
+        loadedRef.current = true
+        try { localStorage.setItem(cacheKey(user?.id), JSON.stringify({ ...settingsToSave, id: savedData.id })) } catch { /* التخزين المحلي غير متاح */ }
 
         setSettings((prev) => ({
           ...prev,
@@ -334,9 +342,13 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
     // Apply default theme immediately
     applyTheme()
 
-    // Then try to fetch user settings in the background
+    // Then try to fetch user settings in the background (cached copy first so the page doesn't flip styles)
     if (user?.id) {
-      fetchSettings()
+      try {
+        const cached = localStorage.getItem(cacheKey(user.id))
+        if (cached) setSettings({ ...defaultSettings, ...JSON.parse(cached) })
+      } catch { /* تخزين محلي غير متاح أو تالف */ }
+      void fetchSettings()
     }
   }, [user])
 
