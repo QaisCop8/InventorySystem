@@ -405,7 +405,8 @@ export async function POST(request: NextRequest) {
     isDeleted,
     priceCategory,
     account_id,
-    image_url
+    image_url,
+    tax_number
   ) VALUES (
     ${data.customer_code},
     ${data.customer_name || data.name},
@@ -433,7 +434,8 @@ export async function POST(request: NextRequest) {
     ${data.isDeleted || false}  ,
     ${Number(data.pricecategory) || Number(data.priceCategory) || 1},
     ${accountId},
-    ${data.image_url || null}
+    ${data.image_url || null},
+    ${String(data.tax_number || "").trim().slice(0, 50) || null}
   )
   RETURNING *;
 `;
@@ -553,6 +555,7 @@ export async function PUT(request: NextRequest) {
         priceCategory = ${Number(updateData.pricecategory) || Number(updateData.priceCategory) || 0},
         account_id = ${accountId},
         image_url = ${updateData.image_url || null},
+        tax_number = ${String(updateData.tax_number || "").trim().slice(0, 50) || null},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *

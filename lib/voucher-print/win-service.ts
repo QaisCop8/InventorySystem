@@ -1,6 +1,6 @@
 "use client"
 
-import { amountInArabicWords, cellText, type PrintDocument } from "./document"
+import { amountInArabicWords, cellText, headerPrintFields, type PrintCell, type PrintColumn, type PrintDocument } from "./document"
 import { copyLabelsFor, visibleColumns, type PrintContext } from "./html"
 import { paperDimensions, type VoucherPrintSettings } from "./settings"
 
@@ -125,7 +125,7 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
   }
 
   // Header fields
-  const fields = settings.show_fields ? (document.fields || []).filter(field => String(field.value ?? "").trim()) : []
+  const fields = headerPrintFields(document, settings)
   if (fields.length) {
     const perRow = compact ? 2 : 3
     const gap = 12
@@ -145,9 +145,44 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
     y += 6
   }
 
-  // Lines table
-  const columns = visibleColumns(document, settings)
-  if (columns.length) {
+  // مربعات المعلومات (تفاصيل الدفع…) ومربع "بالكلمات" — نمط سندات القبض/الصرف
+  const boxPt = base * 0.95
+  for (const infoBox of document.boxes || []) {
+    const items = infoBox.items.filter(item => String(item.value ?? "").trim())
+    if (!items.length) continue
+    const perRow = compact ? 2 : 4
+    const cellWidth = (width - 12) / perRow
+    const rowsCount = Math.ceil(items.length / perRow)
+    const height = (infoBox.title ? lineHeight(boxPt) : 0) + rowsCount * lineHeight(boxPt) + 10
+    ensure(height + 6)
+    box(left, y, width, height, BLACK)
+    let boxY = y + 5
+    if (infoBox.title) { text(infoBox.title, left + 6, boxY, width - 12, lineHeight(boxPt), boxPt, RTL, true); boxY += lineHeight(boxPt) }
+    items.forEach((item, index) => {
+      const column = index % perRow
+      if (index && column === 0) boxY += lineHeight(boxPt)
+      text(`${item.label} : ${item.value ?? ""}`, right - 6 - (column + 1) * cellWidth, boxY, cellWidth, lineHeight(boxPt), boxPt, RTL, true)
+    })
+    y += height + 8
+  }
+  const boxedWords = document.wordsInBox && settings.show_amount_in_words && document.amount !== undefined ? `بالكلمات : ${amountInArabicWords(document.amount, document.currencyName)}` : ""
+  if (boxedWords) {
+    const lines = estimateLines(boxedWords, width - 12, boxPt)
+    const height = lines * lineHeight(boxPt) + 10
+    ensure(height + 6)
+    box(left, y, width, height, BLACK)
+    text(boxedWords, left + 6, y + 5, width - 12, lines * lineHeight(boxPt), boxPt, RTL, true)
+    y += height + 10
+  }
+
+  // Lines table (والجداول الإضافية بعنوان: تفاصيل الشيكات…)
+  const drawTable = (columns: PrintColumn[], rows: Record<string, PrintCell>[], title?: string) => {
+    if (!columns.length) return
+    if (title) {
+      ensure(lineHeight(base) * 4)
+      text(title, left, y, width, lineHeight(base), base, RTL, true)
+      y += lineHeight(base) + 2
+    }
     const numberWeight = settings.show_row_numbers ? 0.45 : 0
     const totalWeight = columns.reduce((sum, column) => sum + (column.weight || 1), 0) + numberWeight
     const cells = [
@@ -190,7 +225,7 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
     }
     ensure(lineHeight(tablePt) * 3)
     drawHeader()
-    document.rows.forEach((row, index) => {
+    rows.forEach((row, index) => {
       const values = cells.map(cell => cell.key === "#" ? String(index + 1) : cellText(columns.find(column => column.key === cell.key)!, row[cell.key]))
       const lines = Math.max(...values.map((value, position) => estimateLines(value, cells[position].width, tablePt)))
       const height = lines * lineHeight(tablePt) + 8
@@ -210,10 +245,12 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
     })
     y += 8
   }
+  drawTable(visibleColumns(document, settings), document.rows)
+  for (const section of document.sections || []) if (section.rows.length) drawTable(section.columns, section.rows, section.title)
 
   // Totals + words + notes
   const totals = settings.show_totals ? document.totals || [] : []
-  const words = settings.show_amount_in_words && document.amount !== undefined ? amountInArabicWords(document.amount, document.currencyName) : ""
+  const words = !document.wordsInBox && settings.show_amount_in_words && document.amount !== undefined ? amountInArabicWords(document.amount, document.currencyName) : ""
   const notes = settings.show_notes ? document.notes || "" : ""
   const totalsWidth = compact ? width : Math.min(260, width * 0.42)
   const sideWidth = compact ? width : width - totalsWidth - 12

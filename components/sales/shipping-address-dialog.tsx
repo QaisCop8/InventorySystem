@@ -49,6 +49,25 @@ export async function resolveShippingNames(info: ShippingInfo | null | undefined
   }
 }
 
+/**
+ * حقول "تفاصيل الشحن" لرأس السند المطبوع — تظهر في الطباعة فقط إن فُعّل "طباعة تفاصيل الشحن" في إعدادات
+ * طباعة نوع السند (lib/voucher-print/document.ts: headerPrintFields). سند بلا بيانات شحن ⇐ لا حقول.
+ */
+export async function shippingPrintFields(voucher: { shipping_info?: ShippingInfo | null } | null | undefined) {
+  const info = (voucher as any)?.shipping_info as ShippingInfo | null | undefined
+  if (!hasShippingInfo(info)) return []
+  const names = await resolveShippingNames(info)
+  return [
+    { label: "المرسل إليه", value: info?.destination_name || "" },
+    { label: "هاتف الشحن", value: info?.phone || "" },
+    { label: "المنطقة", value: names.city },
+    { label: "عنوان الشحن", value: info?.address || "" },
+    { label: "ص.ب", value: info?.po_box || "" },
+    { label: "السيارة", value: names.car },
+    { label: "السائق", value: names.driver },
+  ]
+}
+
 /** نافذة عنوان الشحن لفواتير وإرساليات المبيعات: المرسل إليه، السيارة، السائق، المنطقة، ص.ب، الهاتف، العنوان. */
 export function ShippingAddressDialog({ open, onOpenChange, value, onSave, readOnly = false, defaults }: {
   open: boolean

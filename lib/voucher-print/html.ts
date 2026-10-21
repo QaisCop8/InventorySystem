@@ -1,4 +1,4 @@
-import { amountInArabicWords, cellText, type CompanyInfo, type PrintDocument } from "./document"
+import { amountInArabicWords, cellText, headerPrintFields, type CompanyInfo, type PrintCell, type PrintColumn, type PrintDocument } from "./document"
 import { paperDimensions, type VoucherPrintSettings } from "./settings"
 
 export type PrintContext = { company: CompanyInfo; printedBy?: string; printedAt?: Date; barcodeSvg?: string }
@@ -24,15 +24,24 @@ export function logoSource(raw: string) {
   return safeImage(/^(data:|https?:|\/)/i.test(value) ? value : `data:image/png;base64,${value}`)
 }
 
+function tableHtml(columns: PrintColumn[], rows: Record<string, PrintCell>[], showRowNumbers: boolean, title?: string) {
+  if (!columns.length) return ""
+  const weights = columns.reduce((sum, column) => sum + (column.weight || 1), 0) + (showRowNumbers ? 0.45 : 0)
+  return `${title ? `<h3 class="section-title">${escapeHtml(title)}</h3>` : ""}<table class="lines"><colgroup>${showRowNumbers ? `<col style="width:${(0.45 / weights) * 100}%">` : ""}${columns.map(column => `<col style="width:${((column.weight || 1) / weights) * 100}%">`).join("")}</colgroup>
+    <thead><tr>${showRowNumbers ? "<th>#</th>" : ""}${columns.map(column => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((row, index) => `<tr>${showRowNumbers ? `<td class="num">${index + 1}</td>` : ""}${columns.map(column => `<td class="${column.numeric ? "num" : column.align === "center" ? "center" : ""}"${column.numeric ? ' dir="ltr"' : ""}>${escapeHtml(cellText(column, row[column.key]))}</td>`).join("")}</tr>`).join("")}</tbody>
+  </table>`
+}
+
 function copyHtml(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext, copyLabel: string) {
   const { company } = context
   const columns = visibleColumns(document, settings)
-  const weights = columns.reduce((sum, column) => sum + (column.weight || 1), 0) + (settings.show_row_numbers ? 0.45 : 0)
   const logo = settings.show_logo ? logoSource(company.logo) : ""
   const companyLines = settings.show_company_info
     ? [company.address, [company.phone, company.email].filter(Boolean).join(" · "), company.taxNumber ? `الرقم الضريبي: ${company.taxNumber}` : ""].filter(Boolean)
     : []
-  const fields = settings.show_fields ? (document.fields || []).filter(field => String(field.value ?? "").trim()) : []
+  const fields = headerPrintFields(document, settings)
+  const wordsBox = document.wordsInBox && settings.show_amount_in_words && document.amount !== undefined ? amountInArabicWords(document.amount, document.currencyName) : ""
   const signatures = settings.show_signatures ? settings.signatures.split(/[,،]/).map(label => label.trim()).filter(Boolean) : []
   const printedAt = context.printedAt || new Date()
   const meta = [
@@ -47,13 +56,13 @@ function copyHtml(document: PrintDocument, settings: VoucherPrintSettings, conte
   </header>
   ${settings.header_text ? `<p class="header-text">${escapeHtml(settings.header_text)}</p>` : ""}
   ${fields.length ? `<div class="fields">${fields.map(field => `<div><small>${escapeHtml(field.label)}:</small> <b>${escapeHtml(field.value)}</b></div>`).join("")}</div>` : ""}
-  ${columns.length ? `<table class="lines"><colgroup>${settings.show_row_numbers ? `<col style="width:${(0.45 / weights) * 100}%">` : ""}${columns.map(column => `<col style="width:${((column.weight || 1) / weights) * 100}%">`).join("")}</colgroup>
-    <thead><tr>${settings.show_row_numbers ? "<th>#</th>" : ""}${columns.map(column => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead>
-    <tbody>${document.rows.map((row, index) => `<tr>${settings.show_row_numbers ? `<td class="num">${index + 1}</td>` : ""}${columns.map(column => `<td class="${column.numeric ? "num" : column.align === "center" ? "center" : ""}"${column.numeric ? ' dir="ltr"' : ""}>${escapeHtml(cellText(column, row[column.key]))}</td>`).join("")}</tr>`).join("")}</tbody>
-  </table>` : ""}
+  ${(document.boxes || []).filter(box => box.items.some(item => String(item.value ?? "").trim())).map(box => `<div class="info-box">${box.title ? `<b class="info-box-title">${escapeHtml(box.title)}</b>` : ""}<div class="info-box-items">${box.items.filter(item => String(item.value ?? "").trim()).map(item => `<span><small>${escapeHtml(item.label)} :</small> <b dir="auto">${escapeHtml(item.value)}</b></span>`).join("")}</div></div>`).join("")}
+  ${wordsBox ? `<div class="info-box words-box"><b>بالكلمات :</b> <span>${escapeHtml(wordsBox)}</span></div>` : ""}
+  ${tableHtml(columns, document.rows, settings.show_row_numbers)}
+  ${(document.sections || []).filter(section => section.rows.length).map(section => tableHtml(section.columns, section.rows, settings.show_row_numbers, section.title)).join("")}
   <div class="summary">
     <div class="summary-side">
-      ${settings.show_amount_in_words && document.amount !== undefined ? `<p class="words">${escapeHtml(amountInArabicWords(document.amount, document.currencyName))}</p>` : ""}
+      ${!document.wordsInBox && settings.show_amount_in_words && document.amount !== undefined ? `<p class="words">${escapeHtml(amountInArabicWords(document.amount, document.currencyName))}</p>` : ""}
       ${settings.show_notes && document.notes ? `<div class="notes"><small>ملاحظات</small><p>${escapeHtml(document.notes)}</p></div>` : ""}
       ${settings.show_barcode && context.barcodeSvg ? `<div class="barcode">${context.barcodeSvg}</div>` : ""}
     </div>
@@ -112,6 +121,12 @@ ${options.preview ? `.copy{width:${paper.widthMm}mm;min-height:${paper.receipt ?
 .lines tbody tr:nth-child(even) td{background:#f8fafc}
 .lines .num{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
 .lines .center{text-align:center}
+.info-box{padding:2mm 3mm;border:1px solid #334155;break-inside:avoid}
+.info-box-title{display:block;margin-bottom:1mm;font-size:${base * 0.95}px}
+.info-box-items{display:flex;flex-wrap:wrap;gap:1mm 10mm}
+.info-box-items small{color:#334155;font-size:${base * 0.9}px;font-weight:700}
+.words-box b{font-size:${base * 0.95}px}
+.section-title{margin-top:2mm;font-size:${base}px;font-weight:800}
 .summary{display:flex;${compact ? "flex-direction:column;" : ""}gap:3mm;align-items:flex-start;break-inside:avoid}
 .summary-side{flex:1;display:flex;flex-direction:column;gap:2mm;min-width:0}
 .words{padding:2mm 3mm;border-inline-start:3px solid ${accent};background:${accent}10;font-weight:700}

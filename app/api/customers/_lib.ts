@@ -33,7 +33,9 @@ export const ensureCustomerCompatibilityColumns = async () => { return runSchema
       ADD COLUMN IF NOT EXISTS job_title VARCHAR(255),
       ADD COLUMN IF NOT EXISTS region VARCHAR(255),
       ADD COLUMN IF NOT EXISTS sales_commission NUMERIC(12, 3) DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS collection_commission NUMERIC(12, 3) DEFAULT 0
+      ADD COLUMN IF NOT EXISTS collection_commission NUMERIC(12, 3) DEFAULT 0,
+      -- الرقم الضريبي / المشتغل المرخص للعميل (يُطبع في رأس السندات إن فُعّل "طباعة المشتغل المرخص للعميل")
+      ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50)
   `
 }) }
 

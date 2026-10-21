@@ -19,7 +19,9 @@ import UnifiedReceiptVoucher, {
 import { Edit, Plus, Search } from "lucide-react"
 import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSearch } from "@/components/common/voucher-list-table"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
-import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
+import { VoucherDocumentPrinter } from "@/components/common/voucher-print-layout"
+import type { PrintDocument } from "@/lib/voucher-print/document"
+import { receiptVoucherDocument } from "@/lib/voucher-print/receipt"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { logVoucherAudit } from "@/lib/audit-client"
@@ -194,7 +196,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
-  const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+  const [printData, setPrintData] = useState<PrintDocument | null>(null)
 
 
   const listSearch = useVoucherListSearch({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
@@ -213,6 +215,22 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }).length
   }, [vouchers])
   const averageAmount = totalVouchers > 0 ? totalAmount / totalVouchers : 0
+
+  // طباعة سند القبض/الصرف بنمط الشامل (lib/voucher-print/receipt.ts)
+  const buildReceiptPrint = (record: any, copyLabel: string): PrintDocument => {
+    const journalRows: any[] = Array.isArray(record.journal) ? record.journal : []
+    const partyRow = journalRows.find((row) => Number(row.account_id) === Number(record.account_id))
+    return receiptVoucherDocument({ ...record, cheques: record.cheques || [], cards: record.cards || [] }, {
+      voucherTypeId: voucherType,
+      title: labels.title,
+      copyLabel,
+      partyName: record.customer_name || partyRow?.account_name || "",
+      partyCode: partyRow?.account_code || "",
+      currencyName: currencyName(record.currency_id) || undefined,
+      paymentClassification: paymentClassifications.find((item) => Number(item.id) === Number(record.payment_classification_id))?.name,
+      salesman: salesmen.find((item) => Number(item.id) === Number(record.salesman_id))?.name,
+    })
+  }
 
   const currencyName = (currencyId: number | null) => {
     const currency = currencies.find((c) => Number(c.currency_id ?? c.id) === currencyId)
@@ -751,24 +769,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       const saved = await response.json()
 
       if (action === "post_print" || action === "save_print") {
-        const journalRows = Array.isArray(saved.journal) ? saved.journal : []
-        setPrintData({
-          title: labels.title,
-          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
-          vch_code: saved.vch_code,
-          vch_date: saved.vch_date,
-          currency_name: currencies.find((c) => Number(c.currency_id ?? c.id) === saved.currency_id)?.currency_name,
-          amount: Number(saved.amount || 0),
-          manual_voucher: saved.manual_voucher,
-          note: saved.note,
-          rows: journalRows.map((row: any) => ({
-            account_code: row.account_code,
-            account_name: row.account_name,
-            debit: row.credit_debit === 1 ? row.amount : null,
-            credit: row.credit_debit === 2 ? row.amount : null,
-            note: row.note,
-          })),
-        })
+        setPrintData(buildReceiptPrint({ ...record, ...saved, cheques: saved.cheques || record.cheques, cards: saved.cards || record.cards }, action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق"))
       }
 
       await fetchVouchers()
@@ -820,24 +821,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       }
     }
 
-    const journalRows = Array.isArray(form.journal) ? form.journal : []
-    setPrintData({
-      title: labels.title,
-      copyLabel,
-      vch_code: form.vch_code,
-      vch_date: form.vch_date,
-      currency_name: currencyName(form.currency_id),
-      amount: Number(form.amount || 0),
-      manual_voucher: form.manual_voucher,
-      note: form.note,
-      rows: journalRows.map((row: any) => ({
-        account_code: row.account_code,
-        account_name: row.account_name,
-        debit: row.credit_debit === 1 ? row.amount : null,
-        credit: row.credit_debit === 2 ? row.amount : null,
-        note: row.note,
-      })),
-    })
+    setPrintData(buildReceiptPrint(form, copyLabel))
   }
 
   const advanceAfterDelete = async () => {
@@ -1191,7 +1175,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />
-      <VoucherPrintLayout data={printData} voucherTypeId={voucherType} />
+      <VoucherDocumentPrinter document={printData} />
     </div>
   )
 }

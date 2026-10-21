@@ -338,6 +338,8 @@ export default function PrintSettings() {
           <TabsContent value="content" className="mt-0 space-y-5">
             <div className="grid gap-2 sm:grid-cols-2">
               <Toggle label="بيانات رأس السند" hint="العميل، المستودع، العملة…" checked={form.show_fields} onChange={value => update({ show_fields: value })} />
+              <Toggle label="طباعة المشتغل المرخص للعميل" hint="الرقم الضريبي لعميل/مورد السند (من بطاقة العميل)" checked={form.show_party_tax_number} onChange={value => update({ show_party_tax_number: value })} />
+              <Toggle label="طباعة تفاصيل الشحن" hint="المرسل إليه، الهاتف، المنطقة، العنوان، ص.ب، السيارة، السائق — في رأس فواتير وإرساليات المبيعات" checked={form.show_shipping_details} onChange={value => update({ show_shipping_details: value })} />
               <Toggle label="ترقيم الأسطر" checked={form.show_row_numbers} onChange={value => update({ show_row_numbers: value })} />
               <Toggle label="المجاميع" checked={form.show_totals} onChange={value => update({ show_totals: value })} />
               <Toggle label="المبلغ كتابةً" checked={form.show_amount_in_words} onChange={value => update({ show_amount_in_words: value })} />

@@ -24,6 +24,10 @@ export type VoucherPrintSettings = {
   show_company_info: boolean
   header_text: string
   show_fields: boolean
+  // تفاصيل الشحن (المرسل إليه، الهاتف، المنطقة، العنوان، ص.ب، السيارة، السائق) في رأس فواتير/إرساليات المبيعات
+  show_shipping_details: boolean
+  // "المشتغل المرخص" (الرقم الضريبي) لعميل/مورد السند في رأس الطباعة — لكل أنواع السندات
+  show_party_tax_number: boolean
   show_row_numbers: boolean
   hidden_columns: string[]
   show_totals: boolean
@@ -77,6 +81,8 @@ export const DEFAULT_PRINT_SETTINGS: VoucherPrintSettings = {
   show_company_info: true,
   header_text: "",
   show_fields: true,
+  show_shipping_details: false,
+  show_party_tax_number: false,
   show_row_numbers: true,
   hidden_columns: [],
   show_totals: true,
@@ -167,6 +173,8 @@ export function normalizePrintSettings(raw: Partial<VoucherPrintSettings> | null
     show_logo: bool("show_logo"),
     show_company_info: bool("show_company_info"),
     show_fields: bool("show_fields"),
+    show_shipping_details: bool("show_shipping_details"),
+    show_party_tax_number: bool("show_party_tax_number"),
     show_row_numbers: bool("show_row_numbers"),
     show_totals: bool("show_totals"),
     show_amount_in_words: bool("show_amount_in_words"),

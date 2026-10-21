@@ -15,6 +15,10 @@ export type PrintDocument = {
   date: string
   copyLabel?: string
   fields?: { label: string; value: PrintCell }[]
+  // تفاصيل الشحن — تُطبع في رأس السند فقط إن فُعّل "طباعة تفاصيل الشحن" في إعدادات طباعة نوع السند
+  shippingFields?: { label: string; value: PrintCell }[]
+  // المشتغل المرخص للعميل — يُجلب تلقائياً عند الطباعة (lib/voucher-print/print.ts) إن فُعّل في إعدادات الطباعة
+  partyTaxNumber?: string
   columns: PrintColumn[]
   rows: Record<string, PrintCell>[]
   totals?: { label: string; value: PrintCell; strong?: boolean }[]
@@ -26,7 +30,15 @@ export type PrintDocument = {
   // مصدر السجل في أرشفة السندات: الطلبيات في جدول مستقل (orders) — افتراضياً سند
   auditSource?: "voucher" | "order" | "purchase_order"
   noAudit?: boolean
+  // نمط سندات القبض/الصرف (مثل الشامل): مربعات معلومات بعنوان بعد حقول الرأس ("تفاصيل الدفع")،
+  // المبلغ كتابةً في مربع مستقل ("بالكلمات") بدل أسفل الصفحة، وجداول إضافية بعنوان ("تفاصيل الشيكات"...).
+  boxes?: PrintBox[]
+  wordsInBox?: boolean
+  sections?: PrintSection[]
 }
+
+export type PrintBox = { title?: string; items: { label: string; value: PrintCell }[] }
+export type PrintSection = { title: string; columns: PrintColumn[]; rows: Record<string, PrintCell>[] }
 
 export type CompanyInfo = {
   name: string
@@ -92,4 +104,12 @@ export function amountInArabicWords(amount: number, currencyName = "") {
   const currency = currencyName ? ` ${currencyName}` : ""
   const fractionText = fraction ? ` و${integerToArabic(fraction)} من مائة` : ""
   return `فقط ${integerToArabic(whole)}${currency}${fractionText} لا غير`
+}
+
+/** حقول رأس السند للطباعة: بيانات الرأس (إن فُعّلت) + تفاصيل الشحن (إن فُعّل "طباعة تفاصيل الشحن"). */
+export function headerPrintFields(document: PrintDocument, settings: { show_fields: boolean; show_shipping_details?: boolean; show_party_tax_number?: boolean }) {
+  const filled = (list?: { label: string; value: PrintCell }[]) => (list || []).filter(field => String(field.value ?? "").trim())
+  const party = settings.show_party_tax_number && String(document.partyTaxNumber || "").trim()
+    ? [{ label: "المشتغل المرخص للعميل", value: String(document.partyTaxNumber).trim() }] : []
+  return [...(settings.show_fields ? filled(document.fields) : []), ...party, ...(settings.show_shipping_details ? filled(document.shippingFields) : [])]
 }

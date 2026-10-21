@@ -135,7 +135,23 @@ async function withOriginalSnapshot(document: PrintDocument, bundle: SettingsBun
   }
 }
 
-async function printVoucherWith(document: PrintDocument, resolve: () => Promise<SettingsBundle>): Promise<PrintResult> {
+// "طباعة المشتغل المرخص للعميل": يُجلب الرقم الضريبي لعميل/مورد السند عند الحاجة فقط (لكل أنواع السندات بلا تعديل كل شاشة)
+async function withPartyTaxNumber(document: PrintDocument, settings: VoucherPrintSettings): Promise<PrintDocument> {
+  if (!settings.show_party_tax_number || document.partyTaxNumber !== undefined || document.noAudit) return document
+  const query = document.auditVoucherId
+    ? `voucher_id=${encodeURIComponent(String(document.auditVoucherId))}`
+    : document.code && document.voucherTypeId ? `vch_type=${encodeURIComponent(String(document.voucherTypeId))}&vch_code=${encodeURIComponent(String(document.code))}` : ""
+  if (!query) return document
+  try {
+    const data = await fetch(`/api/voucher-print-party?${query}`, { cache: "no-store" }).then((response) => (response.ok ? response.json() : null))
+    return { ...document, partyTaxNumber: String(data?.tax_number || "") }
+  } catch {
+    return document
+  }
+}
+
+async function printVoucherWith(original: PrintDocument, resolve: () => Promise<SettingsBundle>): Promise<PrintResult> {
+  let document = original
   // زر واتساب: نفس المستند يُرسل لنافذة واتساب (PDF) بدل الطابعة
   const whatsapp = document.noAudit ? null : takeVoucherWhatsApp()
   if (whatsapp) {
@@ -146,6 +162,7 @@ async function printVoucherWith(document: PrintDocument, resolve: () => Promise<
   const mobileWindow = mobile ? window.open("", "_blank") : null
   try {
     const { settings, company } = await withOriginalSnapshot(document, await resolve())
+    document = await withPartyTaxNumber(document, settings)
     // تقرير ارشفة السندات: كل طباعة (نسخة أصلية/نسخة/للتدقيق) تُسجَّل باسم المستخدم ووقتها
     if (!document.noAudit) logVoucherAudit({ action: printActionForCopyLabel(document.copyLabel), source: document.auditSource, voucher_id: document.auditVoucherId ?? null, vch_type: document.voucherTypeId, vch_code: document.code, copy_label: document.copyLabel ?? null })
     const context = buildPrintContext(document, company, settings)
@@ -177,8 +194,9 @@ async function printVoucherWith(document: PrintDocument, resolve: () => Promise<
 }
 
 /** ملف PDF للسند بإعدادات طباعة نوعه (نفس شكل الطباعة) — لإرساله عبر واتساب. */
-export async function voucherPdfBlob(document: PrintDocument): Promise<Blob> {
-  const { settings, company } = await withOriginalSnapshot(document, await loadVoucherPrintSettings(document.voucherTypeId))
+export async function voucherPdfBlob(original: PrintDocument): Promise<Blob> {
+  const { settings, company } = await withOriginalSnapshot(original, await loadVoucherPrintSettings(original.voucherTypeId))
+  const document = await withPartyTaxNumber(original, settings)
   const html = renderPrintHtml(document, settings, buildPrintContext(document, company, settings))
   const paper = paperDimensions(settings)
   const { reportPdfBlob } = await import("@/lib/report-pdf")
