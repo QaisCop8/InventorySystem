@@ -267,6 +267,9 @@ export async function POST(request: NextRequest) {
       const vchBookId = Number(isReturn?(point.return_book_id||point.sales_book_id):point.sales_book_id) || null
       if (!vchBookId) return NextResponse.json({ error: "يجب تعيين دفتر افتراضي لفاتورة المبيعات" }, { status: 400 })
       const defaultSellingAccountId=Number(systemSettings.default_selling_account_id)||null
+      // المردودات: حساب مردودات المبيعات من تعريف الصنف، وإن كان فارغاً فمن حسابات الأصناف في إعدادات النظام
+      const returnAccountByProduct=new Map<number,number>()
+      if(isReturn){const productIds=[...new Set(invoiceItems.map((item:any)=>Number(item.item_id||item.product_id)).filter((id:number)=>id>0))];if(productIds.length)for(const row of await sql`SELECT id,selling_returns_account_id FROM products WHERE id=ANY(${productIds}::int[])`)if(Number(row.selling_returns_account_id)>0)returnAccountByProduct.set(Number(row.id),Number(row.selling_returns_account_id))}
       const vchCode = await generateSalesVoucherCode(request.url, vchType, vchBookId, Number(point.branch_id) || null)
       if (!vchCode) return NextResponse.json({ error: "تعذر توليد رقم فاتورة المبيعات" }, { status: 400 })
 
@@ -277,7 +280,7 @@ export async function POST(request: NextRequest) {
           ...data,discount_type:"amount",discount_value:Math.round(totalInvoiceDiscount*100)/100,campaign_discount_amount:Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100,campaign_discount_id:campaignResult.campaignId,vch_type:vchType,vch_code:vchCode,vch_book_id:vchBookId,branch_id:Number(point.branch_id),rate:pointRate,
           currency_id:Number(point.currency_id),to_store_id:Number(point.main_warehouse_id),cash_account_id:Number(point.cash_account_id),
           tax_account_id:Number(point.tax_account_id)||null,vat_percent:taxRate,pos_payments:payments,
-          items:invoiceItems.map((item:any)=>({...item,account_id:isReturn?(point.return_account_id||item.account_id):item.account_id||defaultSellingAccountId,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
+          items:invoiceItems.map((item:any)=>({...item,account_id:isReturn?(returnAccountByProduct.get(Number(item.item_id||item.product_id))||Number(point.return_account_id)||item.account_id):item.account_id||defaultSellingAccountId,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
         }),
       })
       const response=await createSalesVoucher(forwarded)

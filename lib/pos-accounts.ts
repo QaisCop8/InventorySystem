@@ -4,7 +4,10 @@ import { getSystemSettings } from "@/lib/system-settings"
 // Cash, incoming cheques and cards are configured per user and currency.
 // Sales tax and sales returns use the existing system accounting defaults.
 export async function resolvePosAccounts(point: any, userId: string) {
-  const defaults = await sql`
+  // كل حساب يُحلّ منفرداً: تعريف نقطة البيع ← الحسابات الافتراضية للمستخدم بعملة النقطة (صف الفرع أولاً ثم صف كل
+  // الفروع) ← الحسابات الافتراضية للنظام بالعملة (virtual_cash_bank_accounts). سابقاً كان يؤخذ صف مستخدم واحد فقط،
+  // فإن كان حقل "حسابات البطاقات" فارغاً فيه لا يُنظر في صف آخر معبّأ.
+  const rows = await sql`
     WITH selected_user AS (
       SELECT id,user_id FROM user_settings
       WHERE user_id::text=${userId} OR id::text=${userId}
@@ -15,19 +18,25 @@ export async function resolvePosAccounts(point: any, userId: string) {
     WHERE d.currency_id=${Number(point.currency_id)}
       AND (to_jsonb(d)->>'branch_id' IS NULL OR to_jsonb(d)->>'branch_id'=${String(point.branch_id)})
     ORDER BY CASE WHEN to_jsonb(d)->>'branch_id'=${String(point.branch_id)} THEN 0 ELSE 1 END,
-      CASE WHEN d.user_id::text=u.id::text THEN 0 ELSE 1 END,d.id DESC LIMIT 1
-  `
-  const user = defaults[0] || {}
+      CASE WHEN d.user_id::text=u.id::text THEN 0 ELSE 1 END,d.id DESC
+  ` as any[]
+  // فحص وجود الجدول أولاً (لا try/catch: استعلام فاشل داخل معاملة البيع يُبطل المعاملة كلها)
+  let virtual: any = {}
+  const hasVirtual = (await sql`SELECT to_regclass('virtual_cash_bank_accounts') IS NOT NULL AS ok`)[0]?.ok
+  if (hasVirtual) virtual = (await sql`SELECT * FROM virtual_cash_bank_accounts WHERE currency_id=${Number(point.currency_id)} ORDER BY id DESC LIMIT 1`)[0] || {}
   const system = await getSystemSettings()
   const id = (...values: unknown[]) => values.map(Number).find(value => Number.isSafeInteger(value) && value > 0) || null
+  const user = (field: string) => id(...rows.map(row => row[field]))
   return {
     ...point,
     pos_configured_cash_account_id: id(point.cash_account_id),
-    cash_account_id: id(point.cash_account_id, user.account_id),
-    cheque_account_id: id(point.cheque_account_id, user.received_cheqs_account_id),
-    card_account_id: id(point.card_account_id, user.cards_account_id),
+    cash_account_id: id(point.cash_account_id, user("account_id"), virtual.cash_account_id),
+    cheque_account_id: id(point.cheque_account_id, user("received_cheqs_account_id"), virtual.incoming_checks_account_id),
+    card_account_id: id(point.card_account_id, user("cards_account_id"), virtual.card_account_id),
     tax_account_id: id(point.tax_account_id, system.default_sales_tax_account),
-    return_account_id: id(point.return_account_id, system.default_selling_returns_account_id),
+    // حساب المردودات: من تعريف الصنف (products.selling_returns_account_id) وإلا هذا الافتراضي من إعدادات النظام
+    // (حسابات الأصناف). لم يعد يُعرَّف في نقطة البيع.
+    return_account_id: id(system.default_selling_returns_account_id),
     walk_in_account_id: id(point.walk_in_account_id),
     receivable_account_id: null,
   }
