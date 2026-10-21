@@ -5,6 +5,7 @@ import { createOrderWorkflowStatus } from "@/lib/workflow"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getTenantPool } from "@/lib/database"
 import { validateAccountStops } from "@/lib/account-stops"
+import { orderDocKey, queueAutoSms } from "@/lib/sms"
 
 // حالات الطلبية/الأصناف (نفس منطق شامل ShamelAPI OrderItemsM): 1 غير جاهز، 2 جاهز، 3 مرسلة جزئياً، 4 مرسلة كلياً،
 // 5 ملغي، 6 مغلق.
@@ -171,6 +172,8 @@ async function postHandler(request: NextRequest) {
         // لا يُفشِل إنشاء الطلبية نفسها إن تعذّر إنشاء سجل سير العمل (كأن تسلسل sales_order
         // الافتراضي غير مُهيَّأ بعد على هذه القاعدة).
       }
+      // رسالة SMS تلقائية للعميل عند إضافة طلبية إن فُعّلت (lib/sms.ts)
+      await queueAutoSms(orderDocKey(Number((order as any).order_type ?? orderData.order_type ?? type ?? 1)), Number((order as any).id), String(authorization.userId))
     }
 
     return NextResponse.json(order, { status: 201 });

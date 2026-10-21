@@ -44,6 +44,7 @@ import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemLevelVatEnabled, itemVatRates } from "@/lib/item-vat-server"
 import { creditIncreasesFromJournal, validateCustomerCreditLimit } from "@/lib/credit-limit"
+import { queueAutoSms, voucherDocKey } from "@/lib/sms"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -589,6 +590,9 @@ async function postHandler(request: NextRequest) {
     // نقطة البيع تستخدم حقول رأس السند فقط (رقم السند، والعملة/السعر/العميل لسند القبض) — لا داعي لإعادة قراءة
     // الأصناف والأرقام التسلسلية وحسابات القيد (4 استعلامات) لبناء ردّ لا يُستخدم.
     if (posClientSaleId) return NextResponse.json({ ...voucher, city_id: voucher.location_id, items: [] }, { status: 201 })
+
+    // رسالة SMS تلقائية للعميل إن فُعّلت لهذا النوع (lib/sms.ts) — في الخلفية، لا تؤخر الحفظ ولا تشمل نقاط البيع
+    await queueAutoSms(voucherDocKey(vchType), Number(voucher.id), String(authorization.userId))
 
     const savedItemsWithNames = await attachItemSerials(await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType))
     const journalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)

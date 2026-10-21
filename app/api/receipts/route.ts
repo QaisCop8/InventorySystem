@@ -26,6 +26,7 @@ import {
 } from "./_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { workingPeriodErrorMessage } from "@/lib/working-period"
+import { queueAutoSms, voucherDocKey } from "@/lib/sms"
 
 export async function GET(request: NextRequest) {
   try {
@@ -157,6 +158,8 @@ async function postHandler(request: NextRequest) {
     await saveNoteRows(voucher.id, data.notes)
     await consumeChequeBookLeaves(voucher.id, data.vch_date, data.cheques)
 
+    // رسالة SMS تلقائية (سند قبض/صرف) إن فُعّلت لنوعه (lib/sms.ts)
+    await queueAutoSms(voucherDocKey(vchType), Number(voucher.id), String(authorization.userId))
     const details = await fetchDetails(voucher.id)
     return NextResponse.json({ ...voucher, ...details }, { status: 201 })
   } catch (error) {

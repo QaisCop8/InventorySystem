@@ -61,6 +61,7 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 import { useTransactionSuccessMessages } from "@/lib/transaction-success"
+import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -547,6 +548,8 @@ export default function UnifiedSalesDelivery({
   // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
 
   useTransactionSuccessMessages(messagesRef)
+  // رسالة SMS للعميل (lib/sms.ts)
+  const [smsOpen, setSmsOpen] = useState(false)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState("items")
@@ -3169,6 +3172,7 @@ export default function UnifiedSalesDelivery({
             ...(openFullscreen ? { width: "100%", maxWidth: "100%", height: "100%", maxHeight: "100%" } : {}),
           } : undefined}
         >
+        {smsOpen && <SmsSendDialog open={smsOpen} onOpenChange={setSmsOpen} docKey={`vch_${voucherType}`} documentId={Number(form.id)} />}
         <UniversalToolbar
           currentRecord={currentIndex + 1}
           totalRecords={totalRecords}
@@ -3191,6 +3195,7 @@ export default function UnifiedSalesDelivery({
           onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={() => guardedAction(() => onPrint?.())}
           onWhatsApp={onPrint ? () => guardedAction(() => { armVoucherWhatsApp(form.account_id); onPrint?.() }) : undefined}
+          onSms={form.id > 0 && form.status !== 3 ? () => setSmsOpen(true) : undefined}
           // مرتجع ارسالية برسم البيع يُنشأ من الارسالية فقط — لا نسخ (كما في شامل)
           onClone={isConsignmentReturn ? undefined : () => guardedAction(() => onClone?.())}
           showUtilityLabels

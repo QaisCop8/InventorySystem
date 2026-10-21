@@ -78,6 +78,7 @@ import { screenHotkeysAllowed } from "@/lib/hotkeys"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { logVoucherAudit } from "@/lib/audit-client"
+import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
 
 const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 1, label: "غير جاهز" },
@@ -394,6 +395,8 @@ function UnifiedSalesOrder({
   }, [state.formData.id, state.formData.vch_code])
   const toast = useRef<Toast | null>(null);
   const message = useRef(Messages);
+  // رسالة SMS للعميل (lib/sms.ts)
+  const [smsOpen, setSmsOpen] = useState(false)
   const [loading, setLoading] = useState(false);
   const setFromExcelRef = useRef(false);
   const appendItemsRef = useRef(false);
@@ -3391,6 +3394,7 @@ function UnifiedSalesOrder({
 
       >
 
+        {smsOpen && <SmsSendDialog open={smsOpen} onOpenChange={setSmsOpen} docKey={`order_${Number(vch_type) === 2 ? 2 : 1}`} documentId={Number(state.formData?.id)} />}
         <div className="flex-shrink-0">
           <UniversalToolbar
             currentRecord={currentIndex}
@@ -3404,6 +3408,7 @@ function UnifiedSalesOrder({
             onDelete={() => guardToolbarAction(() => handleDeleteClick(false))}
             onPrint={() => guardToolbarAction(() => handlePrint())}
             onWhatsApp={() => guardToolbarAction(() => { armVoucherWhatsApp(state.formData?.customer_id); handlePrint() })}
+            onSms={Number(state.formData?.id) > 0 ? () => setSmsOpen(true) : undefined}
             isLoading={navLoading}
             isSaving={state.isSaving}
             canSave={canSave}

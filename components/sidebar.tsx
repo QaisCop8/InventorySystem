@@ -58,7 +58,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2 } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -169,8 +169,6 @@ export const menuItems: MenuItem[] = [
           { title: "قيود تحويل عملة حساب", section: "account-currency-transfer-journals", icon: ArrowLeftRight },
           { title: "قيود فرق عملة", section: "currency-difference-journals", icon: DollarSign },
           { title: "التسوية البنكية", section: "bank-reconciliation", icon: Landmark },
-          { title: "إقفال الفترات", section: "period-locks", icon: Lock },
-          { title: "إقفال السنة المالية", section: "year-end-closing", icon: CalendarCheck2 },
           { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
           { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
         ],
@@ -500,6 +498,7 @@ export const menuItems: MenuItem[] = [
       { title: "إعدادات الخطوط", section: "font-settings", icon: Settings },
       { title: "إعدادات النظام", section: "system-settings", icon: Settings },
       { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
+      { title: "إعدادات الرسائل SMS", section: "sms-settings", icon: MessageSquareText },
       { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
       // "اعدادات عامة" أصبحت تبويباً داخل "إعدادات النظام" (المسار vouchers-general-settings باقٍ للمفضلة القديمة)
     ],
@@ -511,6 +510,8 @@ export const menuItems: MenuItem[] = [
     submenu: [
       { title: "البداية السريعة", section: "personal-assistant", icon: Sparkles },
       { title: "اختصارات الصفحات", section: "page-shortcuts", icon: Keyboard },
+      { title: "إقفال الفترات", section: "period-locks", icon: Lock },
+      { title: "إقفال السنة المالية", section: "year-end-closing", icon: CalendarCheck2 },
       { title: "بريد الرسائل والتحسينات", section: "feature-requests", icon: Lightbulb },
     ],
   },

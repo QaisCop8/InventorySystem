@@ -168,6 +168,7 @@ const Promotions = lazyDefault(() => import("@/components/sales/promotions"))
 const PeriodLocks = lazyDefault(() => import("@/components/accounting/period-locks"))
 const LandedCosts = lazyDefault(() => import("@/components/accounting/landed-costs"))
 const YearEndClosing = lazyDefault(() => import("@/components/accounting/year-end-closing"))
+const SmsSettings = lazyDefault(() => import("@/components/settings/sms-settings"))
 const VoucherWhatsAppHost = dynamic(() => import("@/components/common/voucher-whatsapp-host"), { ssr: false })
 const PageShortcutsListener = dynamic(() => import("@/components/page-shortcuts-listener").then((mod) => mod.PageShortcutsListener), { ssr: false })
 const InternalManufacturingDashboardPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingDashboardPage")
@@ -330,6 +331,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   accounts: Accounts,
   "unified-accounts": UnifiedAccounts,
   "print-settings": PrintSettings,
+  "sms-settings": SmsSettings,
   "voucher-settings": VoucherSettings,
   "document-settings": DocumentSettings,
   permissions: Permissions,

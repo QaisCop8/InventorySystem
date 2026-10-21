@@ -270,6 +270,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     "user-settings": "المستخدمين",
     "font-settings": "إعدادات الخطوط",
     "print-settings": "إعدادات الطباعة",
+    "sms-settings": "إعدادات الرسائل SMS",
     "voucher-settings": "إعدادات السندات وطباعتها",
     "system-settings": "إعدادات النظام",
     permissions: "الصلاحيات",

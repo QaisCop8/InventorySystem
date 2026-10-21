@@ -42,6 +42,7 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 import { useTransactionSuccessMessages } from "@/lib/transaction-success"
+import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
 
 export interface VoucherJournalRow {
   account_id: number | null
@@ -412,6 +413,8 @@ export default function UnifiedReceiptVoucher({
   const messagesRef = useRef<any>(null)
   // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
   useTransactionSuccessMessages(messagesRef)
+  // رسالة SMS للعميل (lib/sms.ts)
+  const [smsOpen, setSmsOpen] = useState(false)
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("main")
   const [renderChequeGrid, setRenderChequeGrid] = useState(false)
@@ -1963,6 +1966,7 @@ export default function UnifiedReceiptVoucher({
           >
             <X className="h-4 w-4" />
           </button>
+          {smsOpen && <SmsSendDialog open={smsOpen} onOpenChange={setSmsOpen} docKey={`vch_${form.vch_type}`} documentId={Number(form.id)} />}
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
@@ -1972,6 +1976,7 @@ export default function UnifiedReceiptVoucher({
             onClone={onClone}
             onPrint={onPrint}
             onWhatsApp={onPrint ? () => { armVoucherWhatsApp(form.to_account_id); onPrint() } : undefined}
+            onSms={form.id > 0 && form.status !== 3 ? () => setSmsOpen(true) : undefined}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
