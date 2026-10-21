@@ -74,6 +74,8 @@ export async function POST(request:NextRequest){
           SELECT ${Number(session.id)},currency_id,COALESCE(handover_amount,0),COALESCE(handover_amount,0),rate_to_point FROM pos_session_currencies_tbl WHERE session_id=${sourceId}`;await sql`UPDATE pos_sessions_tbl SET status='handed_over',closed_at=NOW(),updated_at=NOW() WHERE id=${sourceId}`;await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,reference,note,user_id) VALUES(${Number(session.id)},'receive',${received},${String(sourceId)},${String(data.note||"")},${userId})`
       } else {
         if(!session)return NextResponse.json({error:"يجب فتح أو استلام عهدة أولاً"},{status:400});const value=amount(data.amount)
+        // عهدة الدخان تُسلَّم أولاً (lib/pos-tobacco.ts) — لا تسليم/إغلاق للنقد قبلها
+        if(["handover","close"].includes(action)&&point.tobacco_custody&&session.tobacco_opened&&!session.tobacco_handed_over)return NextResponse.json({error:"يجب تسليم عهدة الدخان أولاً"},{status:400})
         if(!Number.isFinite(value)||value<0)return NextResponse.json({error:"مبلغ العهدة غير صالح"},{status:400})
         if(["cash_in","cash_out"].includes(action)){
           const currencies=await getPosCurrencies(Number(point.currency_id))

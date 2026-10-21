@@ -8,7 +8,8 @@ export async function GET() {
   try {
     await ensureTables()
     const rows = await sql`
-      SELECT id, name, currency_id, financial_account_id
+      SELECT id, name, currency_id, financial_account_id,
+        COALESCE(link_bank_machine, false) AS link_bank_machine, pinpad_machine_id
       FROM credit_cards_types_tbl
       WHERE COALESCE(status, 1) != 3
       ORDER BY id

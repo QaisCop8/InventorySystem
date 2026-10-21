@@ -5,6 +5,7 @@ import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X } from "lucide-react"
+import { PinpadPayButton } from "@/components/pinpad/pinpad-pay-button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { Input } from "@/components/ui/input"
@@ -83,6 +84,13 @@ export interface VoucherCardRow {
   amount: number | null
   bank_amount: number | null
   currency_id: number | null
+  // تحصيل عبر جهاز الدفع (PinPad) — lib/pinpad.ts
+  card_entry?: "pinpad" | "manual" | null
+  pinpad_machine_id?: number | null
+  card_auth_code?: string | null
+  card_trans_id?: string | null
+  card_terminal_id?: string | null
+  card_merchant?: string | null
 }
 
 export interface VoucherNoteRow {
@@ -141,6 +149,8 @@ interface CardTypeOption {
   name: string
   currency_id: number | null
   financial_account_id: number | null
+  link_bank_machine?: boolean
+  pinpad_machine_id?: number | null
 }
 
 interface BankOption {
@@ -1736,6 +1746,8 @@ export default function UnifiedReceiptVoucher({
   // ---- تفاصيل البطاقة (بطاقة واحدة فقط لكل سند، بمبلغها = بطاقات في الرئيسية) ----
   const card = form.cards?.[0] || emptyCardRow
 
+  const CLEAR_PINPAD: Partial<VoucherCardRow> = { card_entry: null, pinpad_machine_id: null, card_auth_code: null, card_trans_id: null, card_terminal_id: null, card_merchant: null }
+  const [pinpadError, setPinpadError] = useState("")
   const patchCard = (patch: Partial<VoucherCardRow>) => {
     onCardsChange([{ ...card, ...patch }])
   }
@@ -1749,7 +1761,7 @@ export default function UnifiedReceiptVoucher({
 
   const handleCardTypeChange = (value: number | null) => {
     if (!value) {
-      patchCard({ card_type_id: null, card_type_name: "", account_id: null, account_code: "", account_name: "", currency_id: null })
+      patchCard({ card_type_id: null, card_type_name: "", account_id: null, account_code: "", account_name: "", currency_id: null, ...CLEAR_PINPAD })
       return
     }
     const match = cardTypes.find((t) => t.id === value)
@@ -1759,8 +1771,14 @@ export default function UnifiedReceiptVoucher({
       card_type_name: match.name,
       account_id: match.financial_account_id ?? null,
       currency_id: match.currency_id ?? null,
+      ...CLEAR_PINPAD,
     })
   }
+
+  // جهاز الدفع المربوط بنوع البطاقة (credit_cards_types_tbl.pinpad_machine_id) — زر "إرسال للجهاز"
+  const cardPinpadType = cardTypes.find((t) => t.id === card.card_type_id)
+  const cardPinpadMachine = cardPinpadType?.link_bank_machine ? Number(cardPinpadType.pinpad_machine_id) || 0 : 0
+  const cardCurrencyCode = String(currencies.find((c) => Number(c.currency_id ?? c.id) === Number(card.currency_id ?? form.currency_id))?.currency_code || "")
 
   // عند تغيير عملة السند: تفريغ نوع البطاقة إن لم يعد يطابق العملة الجديدة (القائمة تُصفّى
   // بـ credit_cards_types_tbl.currency_id)، ضبط سعر الصرف (1 لعملة الأساس، وإلا آخر سعر بتاريخ
@@ -2454,7 +2472,7 @@ export default function UnifiedReceiptVoucher({
                   </div>
                   <div className="grid gap-1.5">
                     <Label>رقم البطاقة</Label>
-                    <Input value={card.card_no} onChange={(e) => patchCard({ card_no: e.target.value })} maxLength={50} />
+                    <Input value={card.card_no} readOnly={card.card_entry === "pinpad"} onChange={(e) => patchCard({ card_no: e.target.value })} maxLength={50} />
                   </div>
                   <div className="grid gap-1.5">
                     <Label>تاريخ انتهاء البطاقة</Label>
@@ -2485,6 +2503,40 @@ export default function UnifiedReceiptVoucher({
                     />
                   </div>
                 </div>
+                {cardPinpadMachine > 0 && (
+                  <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+                    {card.card_entry === "pinpad" ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                        <span className="font-bold text-emerald-700">✓ تمت العملية على جهاز الدفع</span>
+                        <span>رقم الموافقة: <b dir="ltr">{card.card_auth_code || "-"}</b></span>
+                        {card.card_trans_id && <span>رقم الحركة: <b dir="ltr">{card.card_trans_id}</b></span>}
+                        {card.card_terminal_id && <span>الجهاز: <b dir="ltr">{card.card_terminal_id}</b></span>}
+                        {!isLocked && <button type="button" className="mr-auto text-rose-600 underline" onClick={() => patchCard({ card_no: "", ...CLEAR_PINPAD })}>إلغاء الربط والإدخال يدوياً</button>}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-slate-600">هذه البطاقة مربوطة بجهاز الدفع — اضغط «إرسال للجهاز» ليُرسل مبلغ البطاقات ويمرّر العميل بطاقته، أو أدخل الرقم يدوياً.</p>
+                        <PinpadPayButton
+                          machineId={cardPinpadMachine}
+                          amount={Number(form.credit_card_amount || 0)}
+                          currency={cardCurrencyCode}
+                          batch={form.vch_code || ""}
+                          disabled={isLocked}
+                          className="max-w-md"
+                          onError={(message) => setPinpadError(message)}
+                          onSuccess={(result) => {
+                            setPinpadError("")
+                            patchCard({
+                              card_no: result.card_number || result.auth_code, card_entry: "pinpad", pinpad_machine_id: result.machine_id,
+                              card_auth_code: result.auth_code, card_trans_id: result.trans_id, card_terminal_id: result.terminal_id, card_merchant: result.merchant,
+                            })
+                          }}
+                        />
+                      </>
+                    )}
+                    {pinpadError && <p role="alert" className="rounded bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">{pinpadError}</p>}
+                  </div>
+                )}
               </fieldset>
               </TabsContent>
               )}

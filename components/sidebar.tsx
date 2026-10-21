@@ -331,6 +331,7 @@ export const menuItems: MenuItem[] = [
           { title: "تقرير متابعة الكاشير", section: "cashier-log-report", icon: FileText },
           { title: "تقرير حركات الكاشير إجمالي", section: "cashier-log-total-report", icon: TrendingUp },
           { title: "تقرير حركات الكاشير تفصيلي", section: "cashier-log-detailed-report", icon: BarChart3 },
+          { title: "تقرير عهد البيع بالتجزئة", section: "pos-custody-report", icon: Wallet },
         ],
       },
     ],

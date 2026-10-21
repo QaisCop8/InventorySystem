@@ -38,6 +38,8 @@ async function ensureProductTypeColumns() { return runSchemaOnce("app/api/invent
   try {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`
+    // صنف دخان: يدخل في "عهدة الدخان" بالكاشير (كميات تُستلم وتُسلَّم مع العهدة)
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_tobacco BOOLEAN NOT NULL DEFAULT FALSE`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_type INTEGER DEFAULT 1`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_classification_id INTEGER`
@@ -867,6 +869,7 @@ export async function POST(request: NextRequest) {
         // أعمدة كانت تُضاف داخل معاملة الحفظ: ALTER TABLE يطلب قفلاً حصرياً على جدول products حتى لو كان العمود
         // موجوداً، فعند حفظ عدة أصناف بالتوازي (استيراد Excel) تنتظر كل معاملة الأخرى → deadlock detected.
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`)
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_tobacco BOOLEAN NOT NULL DEFAULT FALSE`)
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
         await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`)
         // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
@@ -1496,6 +1499,7 @@ export async function POST(request: NextRequest) {
 
     await persistProductCostCenters(client, productId, productData.cost_centers)
     await client.query(`UPDATE products SET pos_sold_using_scale=$1 WHERE id=$2`, [isScaleProduct(productData.pos_sold_using_scale), productId])
+    if (productData.is_tobacco !== undefined) await client.query(`UPDATE products SET is_tobacco=$1 WHERE id=$2`, [productData.is_tobacco === true || productData.is_tobacco === "true", productId])
     await persistProductBrands(client, productId, productData.product_brands)
     await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
 

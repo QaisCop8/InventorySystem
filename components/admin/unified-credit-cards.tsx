@@ -30,6 +30,8 @@ export interface CreditCardRecord {
   status: number
   link_bank_machine: boolean
   machine_type_id: number | null
+  // جهاز الدفع: 1 البنك العربي، 2 بنك فلسطين (Verifone X990)، 3 NeoCash — يُرسل له المبلغ من الكاشير
+  pinpad_machine_id?: number | null
 }
 
 interface LookupOption {
@@ -234,6 +236,12 @@ export default function UnifiedCreditCards({
     onFormChange("holidays", next)
   }
 
+  // أجهزة الدفع المدعومة في CashierWinService (نفس أرقام الشامل)
+  const PINPAD_MACHINES = [
+    { id: 1, name: "البنك العربي (Arab Bank)" },
+    { id: 2, name: "بنك فلسطين (Verifone X990)" },
+    { id: 3, name: "NeoCash" },
+  ]
   const machineTypeOptions = [
     ...banks.map((b) => ({ id: b.id, name: b.bank_name })),
     { id: MACHINE_TYPE_NEO_CASH, name: "neo_cash" },
@@ -447,21 +455,21 @@ export default function UnifiedCreditCards({
                     checked={form.link_bank_machine}
                     onChange={(e) => {
                       onFormChange("link_bank_machine", e.target.checked)
-                      if (!e.target.checked) onFormChange("machine_type_id", null)
+                      if (!e.target.checked) { onFormChange("machine_type_id", null); onFormChange("pinpad_machine_id", null) }
                     }}
                   />
                   الربط مع ماكينات البنوك
                 </label>
                 {form.link_bank_machine && (
                   <div className="grid gap-1.5">
-                    <Label>نوع الماكينة *</Label>
+                    <Label>جهاز الدفع (الماكينة) *</Label>
                     <select
-                      value={form.machine_type_id ?? ""}
-                      onChange={(e) => onFormChange("machine_type_id", e.target.value === "" ? null : Number(e.target.value))}
+                      value={form.pinpad_machine_id ?? ""}
+                      onChange={(e) => onFormChange("pinpad_machine_id", e.target.value === "" ? null : Number(e.target.value))}
                       className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     >
                       <option value="">اختر</option>
-                      {machineTypeOptions.map((m) => (
+                      {PINPAD_MACHINES.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name}
                         </option>

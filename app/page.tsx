@@ -232,6 +232,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "batch-log-report": BatchLogReport,
   "serial-movements-report": SerialMovementsReport,
   "cashier-log-report": lazyNamed(() => import("@/components/reports/cashier-followup-report"), "default"),
+  "pos-custody-report": lazyNamed(() => import("@/components/reports/pos-custody-report"), "default"),
   "cashier-log-total-report": lazyNamed(() => import("@/components/reports/cashier-total-report"), "default"),
   "cashier-log-detailed-report": lazyNamed(() => import("@/components/reports/cashier-detailed-report"), "default"),
   "receivables-statement-report": ReceivablesStatementReport,

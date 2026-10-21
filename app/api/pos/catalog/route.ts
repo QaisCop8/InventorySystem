@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
+import { ensureTables as ensureCreditCardTables } from "@/app/api/credit-cards/_lib"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 
 export async function GET(request:NextRequest) {
   try {
-    await ensureSalesTables(); await ensurePosTables()
+    await ensureSalesTables(); await ensurePosTables(); await ensureCreditCardTables()
     const pointId=Number(request.nextUrl.searchParams.get("point_id")||0), userId=requestUserId(request)
     if(!pointId||!userId)return NextResponse.json({error:"نقطة البيع والمستخدم مطلوبان"},{status:400})
     const point=await getPosPoint(pointId,userId); if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم"},{status:403})
@@ -103,7 +104,7 @@ export async function GET(request:NextRequest) {
       sql`SELECT id,code,name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
       sql`SELECT id,bank_code code,bank_name name FROM banks WHERE COALESCE(status,1)=1 ORDER BY bank_name`,
       sql`SELECT id,bank_id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)=1 AND bank_id IS NOT NULL ORDER BY branch_name`,
-      sql`SELECT id,name,currency_id FROM credit_cards_types_tbl WHERE COALESCE(status,1)=1 AND currency_id=${Number(point.currency_id)} ORDER BY name`,
+      sql`SELECT id,name,currency_id,COALESCE(link_bank_machine,false) AS link_bank_machine,pinpad_machine_id FROM credit_cards_types_tbl WHERE COALESCE(status,1)=1 AND currency_id=${Number(point.currency_id)} ORDER BY name`,
       loadStoredSettings(),
     ])
     const pointCurrencyId=Number(point.currency_id)

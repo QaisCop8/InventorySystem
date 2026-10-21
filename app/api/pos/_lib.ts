@@ -100,6 +100,13 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS session_id BIGINT`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS reference VARCHAR(160)`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS due_date DATE`
+  // بيانات جهاز الدفع (PinPad) لدفعات البطاقة — lib/pinpad.ts
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_entry VARCHAR(10)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS pinpad_machine_id INTEGER`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_auth_code VARCHAR(40)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_trans_id VARCHAR(60)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_terminal_id VARCHAR(60)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_merchant VARCHAR(120)`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_point_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_session_id BIGINT`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shift_guid UUID`
@@ -142,6 +149,22 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS return_account_id INTEGER`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
+  // عهدة الدخان (lib/pos-tobacco.ts): كميات أصناف الدخان تُستلم عند فتح العهدة وتُسلَّم قبل تسليمها
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS tobacco_custody BOOLEAN NOT NULL DEFAULT FALSE`
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_tobacco BOOLEAN NOT NULL DEFAULT FALSE`
+  await sql`CREATE TABLE IF NOT EXISTS pos_tobacco_custody_tbl (
+    session_id BIGINT NOT NULL REFERENCES pos_sessions_tbl(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL,
+    opening_qty NUMERIC(18,4) NOT NULL DEFAULT 0,
+    sold_qty NUMERIC(18,4),
+    expected_qty NUMERIC(18,4),
+    counted_qty NUMERIC(18,4),
+    opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    handed_over_at TIMESTAMPTZ,
+    PRIMARY KEY (session_id, product_id)
+  )`
+  await sql`ALTER TABLE pos_sessions_tbl ADD COLUMN IF NOT EXISTS tobacco_opened BOOLEAN NOT NULL DEFAULT FALSE`
+  await sql`ALTER TABLE pos_sessions_tbl ADD COLUMN IF NOT EXISTS tobacco_handed_over BOOLEAN NOT NULL DEFAULT FALSE`
   // طابعة مجموعة الأصناف: تُطبع عليها أصناف المجموعة (الاسم والكمية) عند حفظ فاتورة الكاشير مع print_by_item_group
   await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_invoices BOOLEAN NOT NULL DEFAULT FALSE`

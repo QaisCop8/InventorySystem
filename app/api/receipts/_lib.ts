@@ -623,6 +623,13 @@ export const ensureTables = async () => { return runSchemaOnce("app/api/receipts
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_voucher_cards_detail_tbl_voucher_id ON voucher_cards_detail_tbl(voucher_id)`
+  // بيانات جهاز الدفع (PinPad) عند تحصيل البطاقة عبر الجهاز — lib/pinpad.ts
+  await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS card_entry VARCHAR(10)`
+  await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS pinpad_machine_id INTEGER`
+  await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS card_auth_code VARCHAR(40)`
+  await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS card_trans_id VARCHAR(60)`
+  await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS card_terminal_id VARCHAR(60)`
+  await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS card_merchant VARCHAR(120)`
 }) }
 
 // vch_type values on voucher_header_tbl, per voucher_types_tbl.
@@ -1087,10 +1094,14 @@ export const saveCardRows = async (voucherId: number, cards: any[], defaultCurre
     await sql`
       INSERT INTO voucher_cards_detail_tbl (
         voucher_id, card_type_id, card_no, expire_date, account_id, amount, bank_amount, net_amount,
-        currency_id, bank_currency_id, card_currency_id, order_no, fees_voucher_id
+        currency_id, bank_currency_id, card_currency_id, order_no, fees_voucher_id,
+        card_entry, pinpad_machine_id, card_auth_code, card_trans_id, card_terminal_id, card_merchant
       ) VALUES (
         ${voucherId}, ${row.card_type_id || null}, ${row.card_no || ""}, ${row.expire_date || null}, ${row.account_id || null},
-        ${amount}, ${bankAmount}, ${netAmount}, ${cardCurrencyId}, ${cardCurrencyId}, ${cardCurrencyId}, ${i + 1}, ${feesVoucherId}
+        ${amount}, ${bankAmount}, ${netAmount}, ${cardCurrencyId}, ${cardCurrencyId}, ${cardCurrencyId}, ${i + 1}, ${feesVoucherId},
+        ${row.card_entry === "pinpad" ? "pinpad" : row.card_no ? "manual" : null}, ${Number(row.pinpad_machine_id) || null},
+        ${String(row.card_auth_code || "").slice(0, 40) || null}, ${String(row.card_trans_id || "").slice(0, 60) || null},
+        ${String(row.card_terminal_id || "").slice(0, 60) || null}, ${String(row.card_merchant || "").slice(0, 120) || null}
       )
     `
   }

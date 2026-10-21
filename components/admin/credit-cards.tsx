@@ -51,6 +51,7 @@ const initialForm: CreditCardRecord = {
   status: 1,
   link_bank_machine: false,
   machine_type_id: null,
+  pinpad_machine_id: null,
 }
 
 const normalizeRecord = (record: any): CreditCardRecord => ({
@@ -71,6 +72,7 @@ const normalizeRecord = (record: any): CreditCardRecord => ({
   status: Number(record.status ?? 1),
   link_bank_machine: Boolean(record.link_bank_machine),
   machine_type_id: record.machine_type_id ?? null,
+  pinpad_machine_id: record.pinpad_machine_id ?? null,
 })
 
 export default function CreditCards() {
@@ -197,7 +199,7 @@ export default function CreditCards() {
     if (!data.financial_account_id) return "الحساب محاسبي مطلوب"
     if (!data.waseet_account_id) return "حساب الوسيط مطلوب"
     if (!data.commission_type_id) return "نوع العمولة مطلوب"
-    if (data.link_bank_machine && data.machine_type_id === null) return "نوع الماكينة مطلوب"
+    if (data.link_bank_machine && !data.pinpad_machine_id) return "جهاز الدفع (الماكينة) مطلوب"
     return null
   }
 
@@ -211,7 +213,7 @@ export default function CreditCards() {
     !!form.financial_account_id &&
     !!form.waseet_account_id &&
     !!form.commission_type_id &&
-    (!form.link_bank_machine || form.machine_type_id !== null)
+    (!form.link_bank_machine || !!form.pinpad_machine_id)
 
   const saveCard = async () => {
     const error = validateForm(form)

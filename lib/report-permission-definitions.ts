@@ -48,6 +48,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "batch-log-report", title: "أرشفة الرقم التشغيلي" },
   { section: "serial-movements-report", title: "تقرير حركات السيريال" },
   { section: "cashier-log-report", title: "تقرير متابعة الكاشير" },
+  { section: "pos-custody-report", title: "تقرير عهد البيع بالتجزئة" },
   { section: "cashier-log-total-report", title: "تقرير حركات الكاشير إجمالي" },
   { section: "cashier-log-detailed-report", title: "تقرير حركات الكاشير تفصيلي" },
   { section: "task-orders-report", title: "تقارير أوامر العمل" },

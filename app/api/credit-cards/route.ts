@@ -43,7 +43,7 @@ const validate = (data: any): string | null => {
   if (!data.financial_account_id) return "الحساب محاسبي مطلوب"
   if (!data.waseet_account_id) return "حساب الوسيط مطلوب"
   if (!data.commission_type_id) return "نوع العمولة مطلوب"
-  if (data.link_bank_machine && !data.machine_type_id && data.machine_type_id !== 0) return "نوع الماكينة مطلوب"
+  if (data.link_bank_machine && ![1, 2, 3].includes(Number(data.pinpad_machine_id))) return "جهاز الدفع (الماكينة) مطلوب"
   return null
 }
 
@@ -64,12 +64,12 @@ export async function POST(request: NextRequest) {
         main_type, name, name_lang2, currency_id, bank_id,
         commission_type_id, commission_value, commission_max_amount,
         financial_account_id, waseet_account_id, commission_account_id,
-        insert_date, notes, status, link_bank_machine, machine_type_id
+        insert_date, notes, status, link_bank_machine, machine_type_id, pinpad_machine_id
       ) VALUES (
         ${data.main_type}, ${data.name.trim()}, ${data.name_lang2.trim()}, ${data.currency_id}, ${data.bank_id},
         ${data.commission_type_id}, ${data.commission_value || 0}, ${data.commission_max_amount || 0},
         ${data.financial_account_id}, ${data.waseet_account_id}, ${data.commission_account_id || null},
-        CURRENT_DATE, ${data.notes || ""}, ${Number(data.status || 1)}, ${Boolean(data.link_bank_machine)}, ${data.link_bank_machine ? data.machine_type_id : null}
+        CURRENT_DATE, ${data.notes || ""}, ${Number(data.status || 1)}, ${Boolean(data.link_bank_machine)}, ${data.link_bank_machine ? (data.machine_type_id ?? null) : null}, ${data.link_bank_machine ? Number(data.pinpad_machine_id) : null}
       )
       RETURNING *
     `
@@ -118,7 +118,8 @@ export async function PUT(request: NextRequest) {
         notes = ${data.notes || ""},
         status = ${Number(data.status ?? 1)},
         link_bank_machine = ${Boolean(data.link_bank_machine)},
-        machine_type_id = ${data.link_bank_machine ? data.machine_type_id : null}
+        machine_type_id = ${data.link_bank_machine ? (data.machine_type_id ?? null) : null},
+        pinpad_machine_id = ${data.link_bank_machine ? Number(data.pinpad_machine_id) || null : null}
       WHERE id = ${data.id}
       RETURNING *
     `

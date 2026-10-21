@@ -226,13 +226,17 @@ export async function POST(request: NextRequest) {
           if(!validBank||!validBranch)return NextResponse.json({error:"اختر بنكاً وفرعاً صالحين للشيك"},{status:400})
         }
         if(payment.payment_method==="card"){
+          // دفعة عبر جهاز الدفع (lib/pinpad.ts): رقم البطاقة يأتي مقنّعاً من الجهاز (مثل 4111****1111) أو مرجع QR
+          const pinpad=payment.pinpad&&typeof payment.pinpad==="object"?payment.pinpad:null
           const digits=String(payment.reference||"").replace(/[\s-]/g,"")
           const cardTypeId=Number(payment.card_type_id)
-          if(!/^\d+$/.test(digits)||!cardTypeId)
+          if(!cardTypeId||(!pinpad&&!/^\d+$/.test(digits))||(pinpad&&!String(pinpad.auth_code||pinpad.trans_id||"").trim()))
             return NextResponse.json({error:"رقم البطاقة أو نوعها غير صالح"},{status:400})
           if(!(await sql`SELECT id FROM credit_cards_types_tbl WHERE id=${cardTypeId} AND currency_id=${Number(point.currency_id)} AND COALESCE(status,1)=1`)[0])
             return NextResponse.json({error:"نوع البطاقة غير متاح"},{status:400})
-          payment.reference=`****${digits.slice(-4)}`
+          const lastDigits=digits.replace(/\D/g,"").slice(-4)
+          payment.reference=lastDigits?`****${lastDigits}`:digits.slice(0,40)
+          payment.card_meta=pinpad?{entry:"pinpad",machine:Number(pinpad.machine_id)||null,auth:String(pinpad.auth_code||"").slice(0,40),trans:String(pinpad.trans_id||"").slice(0,60),terminal:String(pinpad.terminal_id||"").slice(0,60),merchant:String(pinpad.merchant||"").slice(0,120)}:{entry:"manual"}
         }
         if(payment.payment_method==="account"&&!Number(data.pos_customer_id))return NextResponse.json({error:"اختر العميل للدفع على الحساب"},{status:400})
         if(payment.payment_method==="gift_card"&&!String(payment.reference||"").trim())return NextResponse.json({error:"رقم بطاقة الهدية مطلوب"},{status:400})
@@ -289,6 +293,9 @@ export async function POST(request: NextRequest) {
           await sql`INSERT INTO pos_sale_payments_tbl (voucher_id,payment_method,amount,account_id,reference,currency_id,currency_amount,exchange_rate) VALUES (${Number(saved.id)},'cash',${Number(row.amount)},${Number(row.account_id||point.cash_account_id)},${String(row.reference||"")||null},${Number(row.currency_id)},${Number(row.currency_amount)},${Number(row.exchange_rate||1)})`
       }
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
+      // بيانات جهاز الدفع لدفعة البطاقة (رقم الموافقة/الحركة/الجهاز) أو "manual" للإدخال اليدوي
+      const cardMeta=payments.find((p:any)=>p.payment_method==="card"&&p.card_meta)?.card_meta
+      if(cardMeta)await sql`UPDATE pos_sale_payments_tbl SET card_entry=${cardMeta.entry},pinpad_machine_id=${cardMeta.machine??null},card_auth_code=${cardMeta.auth??null},card_trans_id=${cardMeta.trans??null},card_terminal_id=${cardMeta.terminal??null},card_merchant=${cardMeta.merchant??null} WHERE voucher_id=${Number(saved.id)} AND payment_method='card'`
       if(discountCardId)await sql`UPDATE voucher_header_tbl SET discount_card_id=${discountCardId},discount_card_amount=${discountCardGross} WHERE id=${Number(saved.id)}`
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
       await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`

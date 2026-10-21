@@ -189,6 +189,8 @@ interface ProductFormData {
   minimum_order_quantity: number
   related_items_mode: number
   pos_sold_using_scale: boolean
+  // صنف دخان (عهدة الدخان في الكاشير)
+  is_tobacco: boolean
   barcode?: string
 
   currency_id: number
@@ -290,6 +292,7 @@ export const initialFormData: ProductFormData = {
   minimum_order_quantity: 0,
   related_items_mode: 1,
   pos_sold_using_scale: false,
+  is_tobacco: false,
 
   currency_id: 0,
   tax_rate: 15,
@@ -963,6 +966,7 @@ export function CompactProductForm({
     const newFormData = {
       ...product,
       pos_sold_using_scale: isScaleProduct(product.pos_sold_using_scale),
+      is_tobacco: product.is_tobacco === true || product.is_tobacco === "true",
       product_type: Number(product.product_type ?? 1) || 1,
       units: unitsWithNames,
       prices: pricesWithNames,
@@ -3341,6 +3345,10 @@ export function CompactProductForm({
                           {!isService && <div className="space-y-2 sm:col-span-3">
                             <div className="flex items-center gap-2"><Checkbox id="pos_sold_using_scale" checked={Boolean(formData.pos_sold_using_scale)} onCheckedChange={checked => updateFormData("pos_sold_using_scale", checked === true)} /><Label htmlFor="pos_sold_using_scale">يباع بالميزان الالكتروني</Label></div>
                             {formData.pos_sold_using_scale && <p className="text-xs text-muted-foreground">باركود الصنف 7 أرقام مثل 2000001. الأرقام الستة التالية في باركود الميزان تمثل الكمية مقسومة على 1000.</p>}
+                          </div>}
+                          {!isService && <div className="space-y-2 sm:col-span-3">
+                            <div className="flex items-center gap-2"><Checkbox id="is_tobacco" checked={Boolean(formData.is_tobacco)} onCheckedChange={checked => updateFormData("is_tobacco", checked === true)} /><Label htmlFor="is_tobacco">دخان</Label></div>
+                            {formData.is_tobacco && <p className="text-xs text-muted-foreground">يدخل في "عهدة الدخان" بالكاشير: يستلم الكاشير كميته عند فتح العهدة ويسلّم المتبقي عند تسليمها.</p>}
                           </div>}
                           <div className="flex items-center gap-2">
                             <Checkbox
