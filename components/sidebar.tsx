@@ -58,7 +58,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -204,7 +204,20 @@ export const menuItems: MenuItem[] = [
           { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
         ],
       },
-      { title: "تقارير الطلبيات", section: "order-reports", icon: BarChart3 },
+      {
+        title: "تقارير الطلبيات",
+        section: "order-reports-menu",
+        icon: BarChart3,
+        submenu: [
+          { title: "ملخص الطلبيات", section: "order-reports", icon: BarChart3 },
+          { title: "تقرير الطلبيات تفصيلي", section: "orders-detailed-report", icon: ClipboardList },
+          { title: "تقرير الطلبيات إجمالي", section: "orders-total-report", icon: Layers },
+          { title: "الطلبيات حسب الصنف", section: "orders-by-item-report", icon: PackageSearch },
+          { title: "الطلبيات حسب العميل/المورد", section: "orders-by-party-report", icon: Users },
+          { title: "الطلبيات غير المسلّمة", section: "orders-backlog-report", icon: Timer },
+          { title: "الطلبيات حسب المندوب", section: "orders-by-salesman-report", icon: UserRound },
+        ],
+      },
     ],
   },
   {
