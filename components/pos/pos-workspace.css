@@ -316,7 +316,12 @@
   .pos-net strong { font-size: 24px; }
   .pos-pay-button strong { font-size: 22px; }
 }
-@media (max-width: 900px) { .pos-workspace { height: auto; min-height: 100%; } }
+@media (max-width: 900px) {
+  .pos-workspace { height: auto; min-height: 100%; }
+  /* الصفحة كلها تتمرّر هنا: قائمة الأصناف بلا ارتفاع محدد، فلو بقيت overflow:auto + overscroll-behavior:contain
+     يحتجز أندرويد (WebView) لمسة السحب داخلها ولا يمرّرها للصفحة — فلا يعمل التمرير إلا على حواف الشاشة. */
+  .pos-products { overflow: visible; overscroll-behavior: auto; contain: none; will-change: auto; }
+}
 @media (prefers-reduced-motion: reduce) { .pos-workspace *, .pos-workspace *::after { transition: none !important; animation: none !important; } .pos-workspace button:hover, .pos-workspace button:active { transform: none !important; } }
 
 /* ── Dark mode ──────────────────────────────────────────────────────────── */
@@ -400,6 +405,8 @@
   .pos-layout[data-mobile-pane="cart"] .pos-catalog { display: none; }
   .pos-layout[data-mobile-pane="catalog"] .pos-sale { display: none; }
   .pos-catalog, .pos-products, .pos-cart { max-height: none; }
+  /* نفس السبب على الجوال: القوائم بلا ارتفاع محدد ⇐ لا تحتجز السحب؛ التمرير للصفحة */
+  .pos-catalog, .pos-products, .pos-cart { overflow: visible; overscroll-behavior: auto; contain: none; will-change: auto; }
   .pos-cart { min-height: 220px; }
   .pos-toolbar-actions { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
   .pos-toolbar-actions::-webkit-scrollbar { display: none; }

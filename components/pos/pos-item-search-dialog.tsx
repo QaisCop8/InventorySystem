@@ -77,6 +77,9 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
   const [activeUnit, setActiveUnit] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  // نوع آخر ضغطة (لمس/فأرة) — اللمس يختار بنقرة واحدة
+  const touchRef = useRef(false)
+  const notePointer = (event: React.PointerEvent) => { touchRef.current = event.pointerType === "touch" || event.pointerType === "pen" }
 
   useEffect(() => {
     if (!open) return
@@ -193,10 +196,12 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                   type="button"
                   data-index={index}
                   onMouseEnter={() => setActiveUnit(index)}
-                  onClick={() => setActiveUnit(index)}
+                  onPointerDown={notePointer}
+                  // اللمس: نقرة واحدة تختار (لا يوجد نقر مزدوج موثوق على الشاشات اللمسية)؛ الفأرة: تحديد ثم نقر مزدوج
+                  onClick={() => (touchRef.current ? onSelect(unitProduct, unit) : setActiveUnit(index))}
                   onDoubleClick={() => onSelect(unitProduct, unit)}
                   className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-right transition-colors",
+                    "flex w-full touch-manipulation items-center justify-between gap-3 rounded-xl border px-4 py-3 text-right transition-colors",
                     index === activeUnit ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50",
                   )}
                 >
@@ -219,11 +224,13 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                   type="button"
                   data-index={index}
                   onMouseEnter={() => setActive(index)}
-                  // نقرة واحدة تحدد الصنف فقط؛ الإضافة بالنقر المزدوج (أو Enter) حتى لا يُضاف مرتين
-                  onClick={() => setActive(index)}
+                  onPointerDown={notePointer}
+                  // الفأرة: نقرة تحدد الصنف والإضافة بالنقر المزدوج (أو Enter) حتى لا يُضاف مرتين.
+                  // اللمس: نقرة واحدة تضيف — النقر المزدوج على الشاشات اللمسية لا يصل كـdblclick بشكل موثوق (تكبير الشاشة).
+                  onClick={() => (touchRef.current ? chooseProduct(product) : setActive(index))}
                   onDoubleClick={() => chooseProduct(product)}
                   className={cn(
-                    "grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition-colors",
+                    "grid w-full touch-manipulation grid-cols-[1fr_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition-colors",
                     index === active ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50",
                   )}
                 >
