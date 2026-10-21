@@ -11,7 +11,7 @@ type Line = { product_id: number; product_code: string; product_name: string; un
 
 const fmt = (value: number) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 
-export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "open" | "handover"; pointId: number; onDone: () => void; onCancel?: () => void }) {
+export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "open" | "handover"; pointId: number; onDone: (lines: Line[]) => void; onCancel?: () => void }) {
   const [lines, setLines] = useState<Line[]>([])
   const [values, setValues] = useState<Record<number, string>>({})
   const [received, setReceived] = useState(false)
@@ -46,7 +46,7 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذر حفظ عهدة الدخان")
-      onDone()
+      onDone(Array.isArray(data.lines) ? data.lines : [])
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "تعذر حفظ عهدة الدخان")
     } finally { setSaving(false) }
