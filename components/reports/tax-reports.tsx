@@ -45,7 +45,7 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
   const [error, setError] = useState("")
   const [result, setResult] = useState<Result | null>(null)
   const [search, setSearch] = useState("")
-  const [filters, setFilters] = useState({ fromDate: monthStart(), toDate: today(), currencyId: 0, branchIds: [] as number[], statuses: [2] as number[], classifications: [] as number[], showNotes: false })
+  const [filters, setFilters] = useState({ fromDate: monthStart(), toDate: today(), currencyId: 0, branchIds: [] as number[], statuses: [] as number[], classifications: [] as number[], showNotes: false })
   const set = (patch: Partial<typeof filters>) => setFilters((current) => ({ ...current, ...patch }))
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
     }
   }
 
-  const reset = () => { set({ fromDate: monthStart(), toDate: today(), branchIds: [], statuses: [2], classifications: [], showNotes: false }); setResult(null); setSearch(""); setError("") }
+  const reset = () => { set({ fromDate: monthStart(), toDate: today(), branchIds: [], statuses: [], classifications: [], showNotes: false }); setResult(null); setSearch(""); setError("") }
   const term = search.trim().toLowerCase()
   const visibleRows = useMemo(() => {
     if (!result || result.shape === "calculation") return []
