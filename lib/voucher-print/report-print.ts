@@ -10,6 +10,8 @@ export type ReportPrintInput = {
   title: string
   subtitle?: string
   summary?: { label: string; value: string }[]
+  // الفلاتر المطبَّقة (من شريط فلاتر التقرير) — تُطبع تحت العنوان: "من تاريخ: … · الفروع: …"
+  filters?: { label: string; value: string }[]
   tablesHtml: string[]
 }
 
@@ -61,7 +63,8 @@ export function renderReportHtml(input: ReportPrintInput, settings: ReportPrintS
   </div></div>`
   const imageHeader = settings.header_image ? `<img class="header-image" src="${escapeHtml(settings.header_image)}" alt="">` : textHeader
   const header = settings.show_header ? `<header class="head">${settings.header_type === "image" ? imageHeader : textHeader}${settings.header_text ? `<p class="header-text">${escapeHtml(settings.header_text)}</p>` : ""}</header>` : ""
-  const title = settings.show_report_title ? `<div class="title"><h2>${escapeHtml(input.title)}</h2>${input.subtitle ? `<p>${escapeHtml(input.subtitle)}</p>` : ""}</div>` : ""
+  const filtersLine = input.filters?.length ? `<div class="filters">${input.filters.map(filter => `<span><small>${escapeHtml(filter.label)}:</small> <b>${escapeHtml(filter.value)}</b></span>`).join("")}</div>` : ""
+  const title = settings.show_report_title ? `<div class="title"><h2>${escapeHtml(input.title)}</h2>${input.subtitle ? `<p>${escapeHtml(input.subtitle)}</p>` : ""}${filtersLine}</div>` : filtersLine
   const summary = input.summary?.length ? `<div class="summary">${input.summary.map(item => `<div><small>${escapeHtml(item.label)}</small><b dir="ltr">${escapeHtml(item.value)}</b></div>`).join("")}</div>` : ""
   const marginBoxes = footerOn && !options.preview ? [
     settings.show_page_numbers ? `@bottom-center{content:"صفحة " counter(page) " من " counter(pages);font:8pt ${settings.font_family},Tahoma,sans-serif;color:#475569}` : "",
@@ -90,6 +93,9 @@ ${settings.border_frame ? (options.preview ? `.sheet{outline:1px solid #111;outl
 .title{text-align:center}
 .title h2{font-size:${settings.data_font_size + 5}pt;font-weight:800}
 .title p{color:#475569;font-size:${settings.data_font_size}pt}
+.filters{display:flex;flex-wrap:wrap;justify-content:center;gap:1mm 5mm;margin-top:1.5mm;padding:1.5mm 3mm;border:1px solid #cbd5e1;border-radius:1.5mm;font-size:${settings.data_font_size - 0.5}pt}
+.filters small{color:#475569}
+.filters b{font-weight:700}
 .summary{display:flex;flex-wrap:wrap;gap:2mm 6mm;justify-content:center}
 .summary small{color:#64748b;margin-inline-end:1.5mm}
 table{width:100%;border-collapse:collapse;font-size:${settings.data_font_size}pt}
@@ -104,6 +110,35 @@ tfoot td{font-weight:800;background:#f1f5f9;border-top:1.5px solid #334155}
 .table-gap{height:4mm}
 .preview-foot{position:absolute;inset-inline:${settings.margin_right_mm}mm;bottom:3mm;display:flex;justify-content:space-between;gap:4mm;color:#475569;font-size:8pt}
 </style></head><body>${settings.border_frame && !options.preview ? `<div class="frame"></div>` : ""}<div class="sheet">${header}${title}${summary}${input.tablesHtml.join(`<div class="table-gap"></div>`)}${previewFooter}</div></body></html>`
+}
+
+// عنوان عمود أرقامه رقمية يُحاذى مثل أرقامه (يساراً) — وإلا يبقى العنوان العربي يميناً والأرقام يساراً
+// فيبدو كل رقم تحت عمود آخر في الأعمدة العريضة. العمود رقمي إن كانت أغلب خلاياه غير الفارغة أرقاماً.
+function alignNumericHeaders(table: HTMLTableElement) {
+  const columnOf = (row: HTMLTableRowElement) => {
+    const map: { cell: HTMLTableCellElement; index: number }[] = []
+    let index = 0
+    for (const cell of Array.from(row.cells)) { map.push({ cell, index }); index += Math.max(1, cell.colSpan || 1) }
+    return map
+  }
+  const stats = new Map<number, { numeric: number; text: number }>()
+  for (const row of Array.from(table.tBodies).flatMap(body => Array.from(body.rows))) {
+    for (const { cell, index } of columnOf(row)) {
+      if ((cell.colSpan || 1) > 1) continue
+      const value = (cell.textContent || "").trim()
+      if (!value || value === "—" || value === "-") continue
+      const entry = stats.get(index) || { numeric: 0, text: 0 }
+      if (cell.className === "n") entry.numeric++; else entry.text++
+      stats.set(index, entry)
+    }
+  }
+  const headRows = table.tHead ? Array.from(table.tHead.rows) : []
+  const lastHead = headRows[headRows.length - 1]
+  if (!lastHead) return
+  for (const { cell, index } of columnOf(lastHead)) {
+    const entry = stats.get(index)
+    if ((cell.colSpan || 1) === 1 && entry && entry.numeric > 0 && entry.numeric >= entry.text) cell.className = "n"
+  }
 }
 
 // Copies the visible report tables (without buttons, inputs and screen styling) so the print is
@@ -123,6 +158,7 @@ function captureTables(root: HTMLElement) {
       for (const attribute of Array.from(cell.attributes)) if (!["colspan", "rowspan"].includes(attribute.name)) cell.removeAttribute(attribute.name)
       if (numeric) cell.className = "n"
     })
+    alignNumericHeaders(clone)
     clone.querySelectorAll("tr, thead, tbody, tfoot").forEach(node => { node.removeAttribute("class"); node.removeAttribute("style") })
     clone.removeAttribute("class")
     clone.removeAttribute("style")
@@ -182,6 +218,8 @@ export async function buildReportFrom(from: HTMLElement | null, options: { forPd
   if (!tablesHtml.length) return null
   const title = root.querySelector(".report-header h1, h1")?.textContent?.trim() || reportContextOf(from).title || document.title
   const subtitle = root.querySelector(".report-header p")?.textContent?.trim() || ""
+  // الفلاتر المطبَّقة تُطبع في رأس التقرير (نفس ما يُسجَّل في أرشفة التقارير)
+  const filters = collectReportFilters(root).filter(filter => filter.value && filter.value !== filter.label)
   const summary = Array.from(root.querySelectorAll<HTMLElement>(".report-summary-card"))
     .filter(card => card.offsetParent !== null)
     .map(card => ({ label: card.querySelector(".report-summary-label")?.textContent?.trim() || "", value: card.querySelector(".report-summary-value")?.textContent?.trim() || "" }))
@@ -193,7 +231,7 @@ export async function buildReportFrom(from: HTMLElement | null, options: { forPd
   // في PDF لا تُطبَّق هوامش @page ولا ترقيم الصفحات (يُضافان عند بناء الـPDF)
   const effective = options.forPdf ? { ...settings, show_footer: false } : settings
   return {
-    html: renderReportHtml({ title, subtitle, summary, tablesHtml }, effective, company, { landscape, printedBy: currentUserName() }),
+    html: renderReportHtml({ title, subtitle, summary, filters, tablesHtml }, effective, company, { landscape, printedBy: currentUserName() }),
     title,
     landscape,
     paper: { widthMm: paper.widthMm, heightMm: paper.heightMm },
