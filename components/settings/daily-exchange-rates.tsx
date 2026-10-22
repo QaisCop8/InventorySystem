@@ -1,18 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useEffect, useRef, useState } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Loader2, Save } from "lucide-react"
-import * as wjcCore from "@grapecity/wijmo"
-import { KeyAction } from "@grapecity/wijmo.grid"
-import DataGridView from "@/components/common/DataGridView"
+import { ArrowLeftRight, CalendarDays, Coins, Loader2, Save, X } from "lucide-react"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface CurrencyRateRow {
-  ser: number
   currency_id: number
   currency_code: string
   currency_name: string
@@ -20,7 +14,6 @@ interface CurrencyRateRow {
   buy_rate: number
   sell_rate: number
   exchange_rate: number
-  inverse_rate: number
 }
 
 interface DailyExchangeRatesDialogProps {
@@ -29,30 +22,14 @@ interface DailyExchangeRatesDialogProps {
   onSaved?: () => void
 }
 
-const EDITABLE_COLUMNS = ["buy_rate", "sell_rate", "exchange_rate"] as const
+type RateField = "buy_rate" | "sell_rate" | "exchange_rate"
+const FIELDS: { key: RateField; label: string }[] = [
+  { key: "buy_rate", label: "سعر الشراء" },
+  { key: "sell_rate", label: "سعر البيع" },
+  { key: "exchange_rate", label: "سعر الصرف" },
+]
 
-function withDerivedFields(rows: Omit<CurrencyRateRow, "ser" | "inverse_rate">[]): CurrencyRateRow[] {
-  return rows.map((row, index) => ({
-    ...row,
-    ser: index + 1,
-    inverse_rate: row.exchange_rate > 0 ? 1 / row.exchange_rate : 0,
-  }))
-}
-
-const scheme = {
-  name: "DailyExchangeRatesScheme",
-  showFooter: false,
-  columns: [
-    { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", align: "center" },
-    { header: "رئيسية", name: "is_base", width: 70, isReadOnly: true, dataType: "Boolean", align: "center" },
-    { header: "رمز العملة", name: "currency_code", width: 110, isReadOnly: true },
-    { header: "اسم العملة (ar)", name: "currency_name", width: "*", minWidth: 200, isReadOnly: true },
-    { header: "سعر الشراء", name: "buy_rate", width: 130, dataType: "Number" },
-    { header: "سعر البيع", name: "sell_rate", width: 130, dataType: "Number" },
-    { header: "سعر الصرف", name: "exchange_rate", width: 130, dataType: "Number" },
-    { header: "سعر الصرف المقابل", name: "inverse_rate", width: 160, isReadOnly: true, dataType: "Number" },
-  ],
-}
+const fmt = (value: number, digits = 3) => (Number.isFinite(value) ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—")
 
 // نافذة إدخال/تحديث أسعار الصرف اليومية لكل العملات دفعة واحدة — تُفتح يدوياً من زر شريط الأدوات
 // العلوي، أو تلقائياً عبر useDailyExchangeRatesCheck عند اكتشاف عملة بلا سعر صرف مسجَّل لليوم.
@@ -60,6 +37,7 @@ const scheme = {
 // بنفس افتراض /api/exchange-rates/lookup. تغيير التاريخ يُعيد التحميل من /api/exchange-rates?date=...
 // التي تعرض السعر المسجَّل لذلك التاريخ إن وُجد، أو تنسخ آخر سعر سابق وتحفظه تلقائياً كسعر ذلك اليوم
 // إن لم يوجد (انظر lib/database.ts's getOrCreateRatesForDate).
+// التصميم: بطاقة لكل عملة بحقول عادية (بدل شبكة Wijmo) — Enter ينتقل للحقل التالي، F3 يحفظ.
 export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyExchangeRatesDialogProps) {
   const workspaceTabActive = useWorkspaceTabActive()
   const now = new Date()
@@ -71,42 +49,15 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
   const [rows, setRows] = useState<CurrencyRateRow[]>([])
+  // نص الحقول كما يكتبه المستخدم (يسمح بـ"3." أثناء الكتابة) — المفتاح: currencyId:field
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const savingRef = useRef(false)
-
-  // مرجع دوماً بآخر rows حيّة — تُقرَأ من داخل مُعالِجات Wijmo (cellEditEnded/beginningEdit/onKeyDown)
-  // التي لا يُعاد ربطها بالضرورة عند كل عرض (render)، فتتجنَّب الإغلاق المتجمِّد (stale closure).
   const rowsRef = useRef(rows)
-  useEffect(() => {
-    rowsRef.current = rows
-  }, [rows])
-
-  const gridRef = useRef<any>(null)
-  const pendingNavigationRef = useRef<{ row: number; col: number } | null>(null)
-  // Wijmo keeps editor state on the CollectionView/grid pair. Reusing it after
-  // the dialog closes can make a new grid finish an editor owned by the old grid.
-  const collectionView = useMemo(() => new wjcCore.CollectionView<CurrencyRateRow>([]), [open])
-  useEffect(() => {
-    if (open) return
-    pendingNavigationRef.current = null
-    gridRef.current = null
-  }, [open])
-  useEffect(() => {
-    if (!open) return
-    const currentRows = collectionView.sourceCollection as CurrencyRateRow[]
-    const isSameGridData =
-      currentRows.length === rows.length && currentRows.every((row, index) => row === rows[index])
-    // Cell editing already mutates the object used by FlexGrid. Refreshing the
-    // CollectionView for that same set of objects resets its selection to row 0.
-    if (isSameGridData) {
-      gridRef.current?.invalidate?.()
-      return
-    }
-    collectionView.sourceCollection = rows
-    collectionView.refresh()
-  }, [open, rows, collectionView])
+  useEffect(() => { rowsRef.current = rows }, [rows])
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -117,112 +68,34 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       .then((data) => {
         const list = Array.isArray(data?.rates) ? data.rates : []
         const baseId = list.length > 0 ? Math.min(...list.map((r: any) => Number(r.currency_id))) : null
-        const mapped = list
+        const mapped: CurrencyRateRow[] = list
           .filter((r: any) => r.is_active !== false)
-          .map((r: any) => {
-            const isBase = Number(r.currency_id) === baseId
-            return {
-              currency_id: Number(r.currency_id),
-              currency_code: r.currency_code ?? "",
-              currency_name: r.currency_name ?? "",
-              is_base: isBase,
-              buy_rate: Number(r.buy_rate) || 0,
-              sell_rate: Number(r.sell_rate) || 0,
-              exchange_rate: Number(r.exchange_rate) || 0,
-            }
-          })
-          .sort((a: any, b: any) => a.currency_id - b.currency_id)
-        setRows(withDerivedFields(mapped))
+          .map((r: any) => ({
+            currency_id: Number(r.currency_id),
+            currency_code: r.currency_code ?? "",
+            currency_name: r.currency_name ?? "",
+            is_base: Number(r.currency_id) === baseId,
+            buy_rate: Number(r.buy_rate) || 0,
+            sell_rate: Number(r.sell_rate) || 0,
+            exchange_rate: Number(r.exchange_rate) || 0,
+          }))
+          .sort((a: CurrencyRateRow, b: CurrencyRateRow) => a.currency_id - b.currency_id)
+        setRows(mapped)
+        setDrafts({})
+        // التركيز على أول حقل قابل للتعديل
+        requestAnimationFrame(() => listRef.current?.querySelector<HTMLInputElement>("input[data-rate-input]")?.focus())
       })
       .catch((err) => setError(err instanceof Error ? err.message : "حدث خطأ أثناء تحميل أسعار الصرف"))
       .finally(() => setLoading(false))
   }, [open, rateDate])
 
-  const updateRow = (currencyId: number, field: (typeof EDITABLE_COLUMNS)[number], value: number) => {
-    setRows((prev) => {
-      const row = prev.find((item) => item.currency_id === currencyId)
-      if (!row) return prev
-      row[field] = value
-      row.inverse_rate = row.exchange_rate > 0 ? 1 / row.exchange_rate : 0
-      return [...prev]
-    })
+  const setField = (currencyId: number, field: RateField, text: string) => {
+    const clean = text.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1")
+    setDrafts((current) => ({ ...current, [`${currencyId}:${field}`]: clean }))
+    const numeric = clean === "" || clean === "." ? 0 : Number(clean)
+    setRows((current) => current.map((row) => (row.currency_id === currencyId ? { ...row, [field]: Number.isFinite(numeric) ? numeric : 0 } : row)))
   }
-
-  // يمنع بدء تحرير خلايا السعر (شراء/بيع/صرف) لسطر العملة الرئيسية — سعرها ثابت دوماً عند 1.
-  const handleBeginningEdit = (grid: any, e: any) => {
-    const colName = grid?.columns?.[e.col]?.binding
-    const row = rowsRef.current[e.row]
-    if (row?.is_base && (EDITABLE_COLUMNS as readonly string[]).includes(colName)) {
-      e.cancel = true
-    }
-  }
-
-  const handleCellEditEnded = (grid: any, e: any) => {
-    const colName = grid?.columns?.[e.col]?.binding
-    const row = rowsRef.current[e.row]
-    if (!row || !(EDITABLE_COLUMNS as readonly string[]).includes(colName)) return
-    const raw = grid.getCellData(e.row, e.col, false)
-    const numeric = raw === "" || raw === null || raw === undefined ? 0 : Number(raw)
-    updateRow(row.currency_id, colName, Number.isFinite(numeric) ? numeric : 0)
-  }
-
-  // Tab/Enter تنتقل بين أعمدة السعر القابلة للتحرير فقط (تتخطّى الأعمدة القرائية)، وتنتقل لأول عمود
-  // قابل بالسطر التالي عند الوصول لآخر عمود — تتخطّى أي سطر رئيسي (غير قابل للتحرير) في طريقها.
-  const handleKeyDown = (grid: any, e: any) => {
-    // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة، ومرة أخرى بمعطيات غير مكتملة
-    // (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — بلا هذا الحارس، قراءة e.keyCode على undefined
-    // بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط قد يمنع Wijmo من بدء تحرير الخلية.
-    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
-    if (e.keyCode !== Util_TAB && e.keyCode !== Util_ENTER) return
-    if (e.defaultPrevented || pendingNavigationRef.current) return
-    // أثناء التحرير قد يعيد Wijmo selection لأول صف قبل وصول keydown؛ editRange
-    // هو المصدر الصحيح لموقع الخلية التي كتب فيها المستخدم.
-    const editRange = grid.editRange
-    const row = editRange?.row ?? grid.selection.row
-    const col = editRange?.col ?? grid.selection.col
-    if (row < 0 || col < 0) return
-    const colName = grid.columns[col]?.binding
-    const idx = EDITABLE_COLUMNS.indexOf(colName as any)
-    if (idx === -1) return
-
-    e.preventDefault()
-    e.stopPropagation()
-    grid.finishEditing?.()
-
-    let nextIdx = idx + 1
-    let nextRow = row
-    if (nextIdx >= EDITABLE_COLUMNS.length) {
-      nextIdx = 0
-      nextRow = row + 1
-      while (nextRow < grid.rows.length && rowsRef.current[nextRow]?.is_base) {
-        nextRow += 1
-      }
-    }
-    if (nextRow >= grid.rows.length) return
-
-    const nextColIndex = grid.columns.findIndex((c: any) => c.binding === EDITABLE_COLUMNS[nextIdx])
-    if (nextColIndex === -1) return
-    pendingNavigationRef.current = { row: nextRow, col: nextColIndex }
-    // Move after Wijmo has completed the current editor lifecycle; otherwise its
-    // own edit-ending work may restore the selection to the cell just committed.
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-      try {
-        const target = pendingNavigationRef.current
-        if (!target) return
-        // FlexGrid.select expects a numeric column index. Passing the binding
-        // string made Enter resolve an invalid range and jump to an earlier row.
-        grid.select(target.row, target.col)
-        grid.focus()
-        grid.startEditing(true, target.row, target.col)
-      } catch {
-        // The dialog may have closed while the deferred navigation was pending.
-      } finally {
-        pendingNavigationRef.current = null
-      }
-      })
-    })
-  }
+  const fieldText = (row: CurrencyRateRow, field: RateField) => drafts[`${row.currency_id}:${field}`] ?? String(row[field] ?? "")
 
   const handleSave = async () => {
     if (savingRef.current) return
@@ -230,6 +103,8 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     setSaving(true)
     setError("")
     try {
+      const invalid = rowsRef.current.find((row) => !row.is_base && !(row.exchange_rate > 0))
+      if (invalid) throw new Error(`أدخل سعر صرف صحيحاً لعملة ${invalid.currency_code}`)
       for (const row of rowsRef.current) {
         if (row.is_base) continue
         const res = await fetch("/api/exchange-rates", {
@@ -265,17 +140,29 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
 
   useEffect(() => {
     if (!open) return
-    const handleShortcut = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!workspaceTabActive.current) return
       if (event.key !== "F3") return
       event.preventDefault()
       event.stopPropagation()
-      if (!savingRef.current && !loading && rowsRef.current.length > 0) {
-        void handleSave()
-      }
+      if (!savingRef.current && !loading && rowsRef.current.length > 0) void handleSave()
     }
     document.addEventListener("keydown", handleShortcut, true)
     return () => document.removeEventListener("keydown", handleShortcut, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, loading])
+
+  // Enter = الانتقال للحقل التالي؛ في آخر حقل ينتقل لزر الحفظ
+  const handleEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return
+    event.preventDefault()
+    const inputs = Array.from(listRef.current?.querySelectorAll<HTMLInputElement>("input[data-rate-input]") || [])
+    const next = inputs[inputs.indexOf(event.currentTarget) + 1]
+    if (next) { next.focus(); next.select() } else document.getElementById("daily-rates-save")?.focus()
+  }
+
+  const base = rows.find((row) => row.is_base)
+  const others = rows.filter((row) => !row.is_base)
 
   return (
     <Dialog
@@ -287,73 +174,119 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       }}
     >
       <DialogContent
-        className="flex h-[min(85vh,720px)] max-w-6xl flex-col overflow-hidden"
+        className="flex max-h-[min(88dvh,760px)] w-[min(94vw,760px)] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border-0 p-0 shadow-2xl [&>button]:hidden"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>أسعار الصرف اليومية</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex items-center gap-3">
-          <Label htmlFor="daily-exchange-rate-date" className="whitespace-nowrap text-sm text-muted-foreground">
-            أسعار الصرف بتاريخ
-          </Label>
-          <Input
-            id="daily-exchange-rate-date"
-            type="date"
-            value={rateDate}
-            max={today}
-            onChange={(e) => setRateDate(e.target.value || today)}
-            className="w-48"
-          />
+        {/* الرأس */}
+        <div className="relative overflow-hidden bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-700 px-5 py-4 text-white sm:px-6">
+          <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><Coins className="h-6 w-6" /></span>
+              <div>
+                <DialogTitle className="text-lg font-bold text-white">أسعار الصرف اليومية</DialogTitle>
+                <DialogDescription className="text-xs text-white/80">حدّث أسعار العملات لهذا اليوم — العملة الرئيسية ثابتة بقيمة 1</DialogDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 ring-1 ring-white/25 focus-within:bg-white/25">
+                <CalendarDays className="h-4 w-4 shrink-0" />
+                <span className="sr-only">أسعار الصرف بتاريخ</span>
+                <input
+                  id="daily-exchange-rate-date"
+                  type="date"
+                  value={rateDate}
+                  max={today}
+                  onChange={(e) => setRateDate(e.target.value || today)}
+                  className="bg-transparent text-sm font-semibold text-white outline-none [color-scheme:dark]"
+                />
+              </label>
+              <button type="button" onClick={handleClose} disabled={saving} aria-label="إغلاق" className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25 transition hover:bg-white/25 disabled:opacity-50">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {error && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-        )}
-
-        <div className="relative min-h-0 w-full flex-1 overflow-hidden [&_.wj-flexgrid]:overflow-x-hidden">
+        {/* المحتوى */}
+        <div ref={listRef} className="relative min-h-[220px] flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4 sm:p-5 dark:bg-slate-900">
           {loading && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/75 backdrop-blur-[1px]">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="absolute inset-0 z-20 grid place-items-center bg-white/70 backdrop-blur-[1px] dark:bg-slate-900/70">
+              <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
             </div>
           )}
-            <DataGridView
-              key={open ? "daily-exchange-rates-open" : "daily-exchange-rates-closed"}
-              innerRef={gridRef}
-              containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%", overflow: "hidden" }}
-              style={{ height: "100%", minHeight: 0, maxHeight: "100%", width: "100%", overflowX: "hidden" }}
-              scheme={scheme}
-              dataSource={collectionView}
-              idProperty="currency_id"
-              isReport={false}
-              showContextMenu={false}
-              cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
-              beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
-              onKeyDownCapture={(s: any, e: any) => handleKeyDown(s, e)}
-              keyActionEnter={KeyAction.None}
-              keyActionTab={KeyAction.None}
-              dontConvertToCards={true}
-            />
+
+          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>}
+
+          {base && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+              <span className="flex items-center gap-2 font-semibold text-emerald-800 dark:text-emerald-200">
+                <span className="rounded-lg bg-emerald-600 px-2 py-0.5 font-mono text-xs font-bold text-white">{base.currency_code}</span>
+                {base.currency_name}
+              </span>
+              <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-slate-900">العملة الرئيسية · 1.000</span>
+            </div>
+          )}
+
+          {!loading && others.length === 0 && !error && (
+            <div className="grid h-32 place-items-center rounded-xl border-2 border-dashed text-sm text-slate-500">لا توجد عملات أخرى مفعّلة</div>
+          )}
+
+          {others.map((row) => (
+            <div key={row.currency_id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition focus-within:border-emerald-300 focus-within:shadow-md dark:border-slate-700 dark:bg-slate-950">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 font-mono text-xs font-black text-white shadow-sm">{row.currency_code}</span>
+                  <div>
+                    <b className="block text-sm text-slate-900 dark:text-slate-100">{row.currency_name}</b>
+                    <small className="text-xs text-slate-500">{row.currency_code}</small>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300" dir="ltr">
+                  <span>1 {row.currency_code} = {fmt(row.exchange_rate)} {base?.currency_code}</span>
+                  <ArrowLeftRight className="h-3.5 w-3.5 text-slate-400" />
+                  <span>1 {base?.currency_code} = {row.exchange_rate > 0 ? fmt(1 / row.exchange_rate, 4) : "—"} {row.currency_code}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {FIELDS.map((field) => (
+                  <label key={field.key} className="grid gap-1">
+                    <span className={`text-xs font-semibold ${field.key === "exchange_rate" ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500"}`}>{field.label}{field.key === "exchange_rate" && " *"}</span>
+                    <input
+                      data-rate-input
+                      inputMode="decimal"
+                      dir="ltr"
+                      value={fieldText(row, field.key)}
+                      onChange={(e) => setField(row.currency_id, field.key, e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onKeyDown={handleEnter}
+                      className={`h-11 w-full rounded-xl border px-3 text-center font-mono text-base font-bold outline-none transition focus:ring-4 dark:bg-slate-900 ${field.key === "exchange_rate"
+                        ? "border-emerald-300 bg-emerald-50/60 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-100 dark:text-emerald-200 dark:focus:ring-emerald-900/50"
+                        : "border-slate-200 bg-slate-50 text-slate-800 focus:border-sky-400 focus:bg-white focus:ring-sky-100 dark:border-slate-700 dark:text-slate-100 dark:focus:ring-sky-900/50"}`}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="flex shrink-0 justify-end gap-3">
-          <Button onClick={handleSave} disabled={saving || loading || rows.length === 0}>
-            {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
-            حفظ
-          </Button>
-          <Button variant="outline" onClick={handleClose} disabled={saving}>
-            إغلاق
-          </Button>
+        {/* التذييل */}
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:justify-between sm:px-6 dark:border-slate-800 dark:bg-slate-950">
+          <span className="hidden text-xs text-slate-500 sm:block">Enter للانتقال بين الحقول · F3 للحفظ</span>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button id="daily-rates-save" onClick={handleSave} disabled={saving || loading || rows.length === 0} className="h-11 flex-1 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700 sm:h-10 sm:w-32 sm:flex-none">
+              {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
+              حفظ
+            </Button>
+            <Button variant="outline" onClick={handleClose} disabled={saving} className="h-11 flex-1 rounded-xl sm:h-10 sm:w-28 sm:flex-none">
+              إغلاق
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   )
 }
-
-// أكواد المفاتيح (Tab=9, Enter=13) — بلا اعتماد على Util.keyboardKeys (خاص بسندات المخزون) لإبقاء
-// هذا المكوّن مستقلاً بلا استيراد إضافي غير ضروري.
-const Util_TAB = 9
-const Util_ENTER = 13

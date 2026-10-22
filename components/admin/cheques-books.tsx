@@ -322,7 +322,7 @@ export default function ChequesBooks() {
             <div className="text-sm text-muted-foreground">شيكات جاهزة للاستخدام</div>
           </CardContent>
         </Card>
-        <Card className="bg-blue-50">
+        <Card className="bg-teal-50">
           <CardHeader>
             <CardTitle className="text-base">الشيكات المستخدمة</CardTitle>
           </CardHeader>

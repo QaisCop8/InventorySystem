@@ -129,13 +129,11 @@ export const menuItems: MenuItem[] = [
     title: "الملفات والتعريفات",
     icon: Users,
     submenu: [
+      { title: "التعريفات", section: "definitions", icon: Settings },
       { title: "العملاء", section: "customers", icon: Users },
       { title: "بوابة العملاء", section: "customer-portal", icon: Globe },
       { title: "الموردين", section: "suppliers", icon: Truck },
       { title: "المشتركين", section: "subscribers", icon: UserCheck },
-      { title: "السيارات", section: "cars", icon: Car },
-      { title: "السائقين", section: "drivers", icon: IdCard },
-      { title: "التعريفات", section: "definitions", icon: Settings },
     ],
   },
   {
@@ -293,6 +291,8 @@ export const menuItems: MenuItem[] = [
           { title: "عمولات المندوبين", section: "salesman-commissions", icon: WalletCards },
           { title: "نماذج العملاء والأصناف", section: "customer-product-templates", icon: Grid3x3 },
           { title: "العروض والأسعار الخاصة", section: "promotions", icon: Megaphone },
+          { title: "السيارات", section: "cars", icon: Car },
+          { title: "السائقين", section: "drivers", icon: IdCard },
         ],
       },
       {
