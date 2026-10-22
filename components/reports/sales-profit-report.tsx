@@ -136,7 +136,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     const voucher = (row: any) => row.voucher_id ? <VoucherLink id={Number(row.voucher_id)} type={Number(row.vch_type)} code={row.vch_code || row.label} /> : row.vch_code || row.label
     const typeBadge = (row: any) => <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${Number(row.vch_type) === SALES_RETURN ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{Number(row.vch_type) === SALES_RETURN ? "مرتجع" : "مبيعات"}</span>
     const leading: Column[] = activeGroup === "item"
-      ? [{ key: "code", label: "كود الصنف", render: (row) => <span className="font-mono font-bold text-teal-700">{row.code}</span> }, { key: "label", label: "الصنف", render: (row) => <span className="font-semibold">{row.label}</span> }, { key: "group_name", label: "المجموعة", render: (row) => row.group_name }]
+      ? [{ key: "code", label: "رقم الصنف", render: (row) => <span className="font-mono font-bold text-teal-700">{row.code}</span> }, { key: "label", label: "الصنف", render: (row) => <span className="font-semibold">{row.label}</span> }, { key: "group_name", label: "المجموعة", render: (row) => row.group_name }]
       : activeGroup === "line"
         ? [{ key: "vch_code", label: "رقم السند", render: voucher }, { key: "vch_date", label: "التاريخ", render: (row) => row.vch_date }, { key: "type", label: "الحركة", render: typeBadge }, { key: "label", label: "الصنف", render: (row) => <span className="font-semibold">{row.label}</span> }, { key: "unit", label: "الوحدة", render: (row) => row.unit_name || "-" }, { key: "customer", label: "العميل", render: (row) => row.customer_name }]
         : activeGroup === "invoice"
