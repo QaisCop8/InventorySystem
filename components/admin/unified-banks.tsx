@@ -186,7 +186,7 @@ export default function UnifiedBanks({
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialogYesNo
+      <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
         message="هل تريد حذف هذا البنك؟"
         onConfirm={onConfirmDelete}

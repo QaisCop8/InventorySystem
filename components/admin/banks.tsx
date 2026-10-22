@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { Landmark as LandmarkIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -258,36 +260,18 @@ export default function Banks() {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-slate-50">
-          <CardHeader>
-            <CardTitle className="text-base">إجمالي البنوك</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{totalBanks}</div>
-            <div className="text-sm text-muted-foreground">عدد البنوك المسجلة</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-base">البنوك الفعالة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{activeBanks}</div>
-            <div className="text-sm text-muted-foreground">البنوك ذات الحالة نشط</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-base">البنوك المعطلة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{inactiveBanks}</div>
-            <div className="text-sm text-muted-foreground">البنوك غير النشطة</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+      <VoucherListHero
+        category="الملفات"
+        icon={LandmarkIcon}
+        title="البنوك"
+        subtitle="إدارة بنوك الشركة ورموزها الأساسية"
+        addLabel="إضافة بنك جديد"
+        onNew={handleNew}
+        addDisabled={loading}
+      />
+
+      <VoucherStats stats={[{ label: <>إجمالي البنوك</>, value: <>{totalBanks}</> }, { label: <>البنوك الفعالة</>, value: <>{activeBanks}</> }, { label: <>البنوك المعطلة</>, value: <>{inactiveBanks}</> }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
@@ -308,9 +292,6 @@ export default function Banks() {
               بحث
             </Button>
           </div>
-          <Button onClick={handleNew} className="whitespace-nowrap" disabled={loading}>
-            إضافة بنك جديد
-          </Button>
         </div>
       </div>
 

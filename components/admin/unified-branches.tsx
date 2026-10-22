@@ -257,7 +257,7 @@ export default function UnifiedBranches({
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialogYesNo
+      <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
         message="هل تريد حذف هذا الفرع؟"
         onConfirm={onConfirmDelete}

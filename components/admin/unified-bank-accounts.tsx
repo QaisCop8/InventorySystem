@@ -555,14 +555,14 @@ export default function UnifiedBankAccounts({
         onSelect={(record) => guardedAction(() => onNavigateRecord?.(record))}
       />
 
-      <ConfirmDialogYesNo
+      <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
         message="هل تريد حذف حساب البنك هذا؟"
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
 
-      <ConfirmDialogYesNo
+      <ConfirmDialogYesNo useAppDialog
         visible={showUnsavedConfirm}
         message="تم تعديل البيانات، هل تريد الحفظ؟"
         showBack

@@ -340,7 +340,7 @@ export default function Warehouses() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialogYesNo
+      <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
         message="هل أنت متأكد من حذف هذا المستودع؟"
         onConfirm={deleteWarehouse}

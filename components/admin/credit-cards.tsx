@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { CreditCard as CreditCardIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -304,36 +306,18 @@ export default function CreditCards() {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-slate-50">
-          <CardHeader>
-            <CardTitle className="text-base">إجمالي بطاقات الائتمان</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{visibleCards.length}</div>
-            <div className="text-sm text-muted-foreground">عدد أنواع البطاقات المسجلة</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-base">بطاقات ائتمان</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{visibleCards.filter((c) => c.main_type === 1).length}</div>
-            <div className="text-sm text-muted-foreground">النوع: بطاقة ائتمان</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-base">بطاقات صراف</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{visibleCards.filter((c) => c.main_type === 2).length}</div>
-            <div className="text-sm text-muted-foreground">النوع: بطاقة صراف</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+      <VoucherListHero
+        category="الملفات"
+        icon={CreditCardIcon}
+        title="بطاقات الائتمان"
+        subtitle="إدارة أنواع بطاقات الائتمان والصراف الآلي"
+        addLabel="إضافة بطاقة جديدة"
+        onNew={openNewDialog}
+        addDisabled={loading}
+      />
+
+      <VoucherStats stats={[{ label: <>إجمالي بطاقات الائتمان</>, value: <>{visibleCards.length}</> }, { label: <>بطاقات ائتمان</>, value: <>{visibleCards.filter((c) => c.main_type === 1).length}</> }, { label: <>بطاقات صراف</>, value: <>{visibleCards.filter((c) => c.main_type === 2).length}</> }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
@@ -354,10 +338,6 @@ export default function CreditCards() {
               بحث
             </Button>
           </div>
-          <Button onClick={openNewDialog} className="whitespace-nowrap" disabled={loading}>
-            <Plus className="h-4 w-4" />
-            إضافة بطاقة جديدة
-          </Button>
         </div>
       </div>
 

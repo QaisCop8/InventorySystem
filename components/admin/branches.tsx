@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { Building2 as Building2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -327,36 +329,17 @@ export default function Branches() {
 
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-slate-50">
-          <CardHeader>
-            <CardTitle className="text-base">إجمالي الفروع</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{totalBranches}</div>
-            <div className="text-sm text-muted-foreground">عدد الفروع المعروضة</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-base">الفروع الفعالة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{activeBranches}</div>
-            <div className="text-sm text-muted-foreground">الفروع ذات الحالة نشط</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-base">الفروع المعطلة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{inactiveBranches}</div>
-            <div className="text-sm text-muted-foreground">الفروع غير النشطة</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+      <VoucherListHero
+        category="الملفات"
+        icon={Building2Icon}
+        title="الفروع"
+        subtitle="إدارة فروع الشركة وربطها بالبنوك"
+        addLabel="إضافة فرع"
+        onNew={handleNew}
+      />
+
+      <VoucherStats stats={[{ label: <>إجمالي الفروع</>, value: <>{totalBranches}</> }, { label: <>الفروع الفعالة</>, value: <>{activeBranches}</> }, { label: <>الفروع المعطلة</>, value: <>{inactiveBranches}</> }]} />
 
       <Card>
         <CardHeader>
@@ -382,9 +365,6 @@ export default function Branches() {
                     </option>
                   ))}
                 </select>
-                <Button onClick={handleNew} className="whitespace-nowrap">
-                  إضافة فرع
-                </Button>
               </div>
             </div>
 

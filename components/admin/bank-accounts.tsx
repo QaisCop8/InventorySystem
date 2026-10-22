@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { Wallet as WalletIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -292,36 +294,17 @@ export default function BankAccounts() {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-slate-50">
-          <CardHeader>
-            <CardTitle className="text-base">إجمالي حسابات البنوك</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{totalAccounts}</div>
-            <div className="text-sm text-muted-foreground">عدد الحسابات المعروضة</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-base">الحسابات الفعالة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{activeAccounts}</div>
-            <div className="text-sm text-muted-foreground">الحسابات ذات الحالة نشط</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-base">الحسابات المعطلة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{inactiveAccounts}</div>
-            <div className="text-sm text-muted-foreground">الحسابات غير النشطة</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+      <VoucherListHero
+        category="الملفات"
+        icon={WalletIcon}
+        title="حسابات البنوك"
+        subtitle="إدارة حسابات الشركة لدى البنوك والفروع"
+        addLabel="إضافة حساب بنك"
+        onNew={openNewDialog}
+      />
+
+      <VoucherStats stats={[{ label: <>إجمالي حسابات البنوك</>, value: <>{totalAccounts}</> }, { label: <>الحسابات الفعالة</>, value: <>{activeAccounts}</> }, { label: <>الحسابات المعطلة</>, value: <>{inactiveAccounts}</> }]} />
 
       <Card>
         <CardHeader>
@@ -334,9 +317,6 @@ export default function BankAccounts() {
                 <div className="text-xl font-semibold">الحسابات البنكية</div>
                 <p className="text-sm text-muted-foreground">إدارة حسابات الشركة لدى البنوك والفروع</p>
               </div>
-              <Button onClick={openNewDialog} className="whitespace-nowrap">
-                إضافة حساب بنك
-              </Button>
             </div>
 
             <div className="overflow-auto rounded-lg border border-slate-200">

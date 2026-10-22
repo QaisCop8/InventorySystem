@@ -438,13 +438,18 @@ export default function UnifiedCreditCards({
       </Dialog>
 
       <ConfirmDialogYesNo
+        useAppDialog
+        title="تأكيد الحذف"
         visible={showDeleteConfirm}
         message="هل تريد حذف بطاقة الائتمان هذه؟"
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
 
+      {/* useAppDialog: تُعرض فوق نافذة البطاقة (المكوّن القديم كان يظهر خلفها فتتعطل كل الأزرار بانتظار ردٍّ لا يُرى) */}
       <ConfirmDialogYesNo
+        useAppDialog
+        title="حفظ التغييرات"
         visible={showUnsavedConfirm}
         message="تم تعديل البيانات، هل تريد الحفظ؟"
         showBack
