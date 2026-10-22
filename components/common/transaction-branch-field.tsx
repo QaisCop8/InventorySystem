@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Label } from "@/components/ui/label"
+import { useAuth } from "@/components/auth/auth-context"
 
 interface BranchOption {
   id: number
@@ -33,6 +34,8 @@ export default function TransactionBranchField({
   disabled?: boolean
 }) {
   const family = familyProp || FAMILY_BY_VOUCHER_TYPE[Number(voucherType)]
+  // الفرع المختار من رأس الصفحة هو الافتراضي لأي سند جديد (إن كان مسموحاً للمستخدم فيه)، ثم فرع المستخدم المحفوظ
+  const { activeBranchId } = useAuth()
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [defaultBranchId, setDefaultBranchId] = useState<number | null>(null)
 
@@ -58,9 +61,12 @@ export default function TransactionBranchField({
   const allowedIds = useMemo(() => new Set(branches.map((branch) => Number(branch.id))), [branches])
   useEffect(() => {
     if (value || branches.length === 0) return
-    const next = defaultBranchId && allowedIds.has(defaultBranchId) ? defaultBranchId : Number(branches[0].id)
+    const headerBranch = Number(activeBranchId) || null
+    const next = action === "create" && headerBranch && allowedIds.has(headerBranch)
+      ? headerBranch
+      : defaultBranchId && allowedIds.has(defaultBranchId) ? defaultBranchId : Number(branches[0].id)
     if (next > 0) onChange(next)
-  }, [allowedIds, branches, defaultBranchId, onChange, value])
+  }, [action, activeBranchId, allowedIds, branches, defaultBranchId, onChange, value])
 
   return (
     <div className="grid gap-1.5">
