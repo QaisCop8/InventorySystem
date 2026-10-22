@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  ArrowRight, ArrowRightLeft, Pencil, ShoppingBag, Ban, ChefHat, Circle, Clock, Combine, CreditCard, Link2Off, Loader2, Lock, Minus, Plus, Printer,
+  ArrowRight, ArrowRightLeft, Pencil, ShoppingBag, Wallet, Ban, ChefHat, Circle, Clock, Combine, CreditCard, Link2Off, Loader2, Lock, Minus, Plus, Printer,
   RectangleHorizontal, RefreshCw, Search, Send, Split, Square, Users, UtensilsCrossed, X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,9 @@ import type { RestaurantPermission } from "@/lib/transaction-permission-definiti
 import { printPosReceipt, type PosReceipt } from "@/lib/pos-receipt-print"
 import { PosPrintPreview } from "@/components/pos/pos-print-preview"
 import { useAuth } from "@/components/auth/auth-context"
+import { PosStartSessionDialog } from "@/components/pos/pos-start-session-dialog"
+import { PosHandoverDialog } from "@/components/pos/pos-handover-dialog"
+import { printCustodyHandover } from "@/lib/pos-custody-print"
 import {
   PosPaymentDetailsDialog, type CurrencyOption, type LookupOption, type PaymentDetail, type PaymentMethod,
 } from "@/components/pos/pos-payment-details-dialog"
@@ -125,6 +128,20 @@ export default function RestaurantPos() {
   const [cashAmounts, setCashAmounts] = useState<Record<number, number>>({})
   const [payCustomerId, setPayCustomerId] = useState<number | null>(null)
   const [payError, setPayError] = useState("")
+
+  // عهدة المطعم (لكل موقع) — نفس نوافذ عهدة الكاشير
+  const [custodyLocation, setCustodyLocation] = useState<number | null>(null)
+  const [custodyPicker, setCustodyPicker] = useState(false)
+  const [custodyInfo, setCustodyInfo] = useState<{ session: any; pending: any[]; active_shift: any; currencies: CurrencyOption[] } | null>(null)
+  const [custodyOpen, setCustodyOpen] = useState(false)
+  const [custodyAction, setCustodyAction] = useState("handover")
+  const [custodyAmount, setCustodyAmount] = useState(0)
+  const [custodyAmounts, setCustodyAmounts] = useState<Record<number, number>>({})
+  const [movementAmounts, setMovementAmounts] = useState<Record<number, number>>({})
+  const [custodyCurrencyId, setCustodyCurrencyId] = useState(0)
+  const [custodyNote, setCustodyNote] = useState("")
+  const [custodyError, setCustodyError] = useState("")
+  const [custodyBusy, setCustodyBusy] = useState(false)
 
   const perms = floor?.permissions
   const can = (key: RestaurantPermission) => Boolean(perms?.[key])
@@ -234,9 +251,103 @@ export default function RestaurantPos() {
     if (data?.order_id) void showOrder(Number(data.order_id))
   }
 
+  // ---------------- العهدة ----------------
+  const custodyLocationName = floor?.locations.find((l) => l.id === custodyLocation)?.name || ""
+  const custodyCurrency = (custodyInfo?.currencies || [])[0]
+  const loadCustody = useCallback(async (locationId: number) => {
+    const response = await fetch(`/api/restaurant/custody?location_id=${locationId}`, { cache: "no-store" })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(String(data?.error || "تعذر تحميل العهدة"))
+    const info = {
+      session: data.session || null, pending: data.pending || [], active_shift: data.active_shift || null,
+      currencies: (data.currencies || []).map((row: any) => ({ currency_id: Number(row.currency_id), currency_code: String(row.currency_code || ""), currency_name: String(row.currency_name || ""), rate_to_point: Number(row.rate_to_point || 1) })),
+    }
+    setCustodyInfo(info)
+    return info
+  }, [])
+  const openCustody = async (locationId?: number | null) => {
+    const resolved = locationId ?? (locationFilter !== "all" ? locationFilter : floor?.locations.length === 1 ? floor.locations[0].id : null)
+    if (!resolved) { setCustodyPicker(true); return }
+    setCustodyPicker(false); setCustodyLocation(resolved); setCustodyError(""); setCustodyNote(""); setMovementAmounts({}); setCustodyAmount(0)
+    try {
+      const info = await loadCustody(resolved)
+      const session = info.session
+      setCustodyAction(session ? "handover" : info.pending.length ? "receive" : "open")
+      const amounts: Record<number, number> = {}
+      for (const row of session?.currencies || []) amounts[Number(row.currency_id)] = Number(row.expected_amount || 0)
+      setCustodyAmounts(amounts)
+      setCustodyCurrencyId(Number(info.currencies[0]?.currency_id || 0))
+      setCustodyOpen(true)
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذر تحميل العهدة" })
+    }
+  }
+  const runCustody = async (sourceId?: number, shiftGuid?: string) => {
+    if (!custodyLocation || !custodyInfo) return
+    const session = custodyInfo.session
+    const action = !session ? (sourceId ? "receive" : "open") : custodyAction
+    const currencies = custodyInfo.currencies
+    setCustodyBusy(true); setCustodyError("")
+    try {
+      const amountsFor = (source: Record<number, number>) => currencies.map((row) => ({ currency_id: row.currency_id, amount: Number(source[row.currency_id] || 0) }))
+      const response = await fetch("/api/restaurant/custody", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action, location_id: custodyLocation, shift_guid: shiftGuid, source_session_id: sourceId, note: custodyNote, amount: custodyAmount,
+          currency_amounts: action === "cash_in" || action === "cash_out" ? amountsFor(movementAmounts).filter((row) => row.amount > 0) : amountsFor(custodyAmounts),
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(String(data?.error || "فشلت عملية العهدة"))
+      // إيصال تسليم/إغلاق العهدة بنفس طريقة الكاشير
+      if (session && (action === "handover" || action === "close")) {
+        void printCustodyHandover({
+          kind: action === "close" ? "close" : "handover", pointName: custodyLocationName, userName: user?.fullName || user?.username || "",
+          currencyCode: custodyCurrency?.currency_code || "", session, currencies, amounts: { ...custodyAmounts }, note: custodyNote,
+        }).catch((error) => setMessage({ type: "error", text: `تمت العملية لكن تعذرت الطباعة: ${error instanceof Error ? error.message : ""}` }))
+      }
+      setMessage({ type: "success", text: "تم تنفيذ عملية العهدة بنجاح" })
+      setCustodyOpen(false); setMovementAmounts({}); setCustodyNote("")
+      await loadCustody(custodyLocation)
+    } catch (error) {
+      setCustodyError(error instanceof Error ? error.message : "فشلت عملية العهدة")
+    } finally {
+      setCustodyBusy(false)
+    }
+  }
+  const canCustody = can("receiveCustody") || can("handoverCustody")
+  const custodyDialogs = (
+    <>
+      <Dialog open={custodyPicker} onOpenChange={setCustodyPicker}>
+        <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
+          <DialogHeader><DialogTitle>عهدة أي موقع؟</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            {(floor?.locations || []).map((location) => <Button key={location.id} variant="outline" className="h-12" onClick={() => void openCustody(location.id)}>{location.name}</Button>)}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {custodyInfo && (
+        <>
+          <PosStartSessionDialog open={custodyOpen && !custodyInfo.session} onOpenChange={setCustodyOpen} userName={user?.fullName || user?.username || ""}
+            currency={custodyCurrency?.currency_name || ""} amount={custodyAmount} onAmountChange={setCustodyAmount} currencies={custodyInfo.currencies}
+            amounts={custodyAmounts} onCurrencyAmountChange={(currencyId, amount) => setCustodyAmounts((current) => ({ ...current, [currencyId]: amount }))}
+            busy={custodyBusy} online error={custodyError} pending={custodyInfo.pending} activeShift={custodyInfo.active_shift}
+            onConfirm={(sourceId, shiftGuid) => void runCustody(sourceId, shiftGuid)} />
+          <PosHandoverDialog open={custodyOpen && !!custodyInfo.session} onOpenChange={setCustodyOpen} session={custodyInfo.session} userName={user?.fullName || user?.username || ""}
+            currencyCode={custodyCurrency?.currency_code || ""} currencies={custodyInfo.currencies} action={custodyAction}
+            onActionChange={(action) => { setCustodyAction(action); setCustodyAmount(0); setMovementAmounts({}) }}
+            amount={custodyAmount} onAmountChange={setCustodyAmount} currencyId={custodyCurrencyId} onCurrencyIdChange={setCustodyCurrencyId}
+            amounts={custodyAmounts} onCurrencyAmountChange={(id, amount) => setCustodyAmounts((current) => ({ ...current, [id]: amount }))}
+            movementAmounts={movementAmounts} onMovementAmountChange={(id, amount) => setMovementAmounts((current) => ({ ...current, [id]: amount }))}
+            note={custodyNote} onNoteChange={setCustodyNote} onConfirm={() => void runCustody()} busy={custodyBusy} error={custodyError} />
+        </>
+      )}
+    </>
+  )
+
   const startTakeaway = () => {
     if (!can("takeaway")) return
-    const first = locationFilter !== "all" ? locationFilter : floor?.locations.find((l) => l.pos_point_id)?.id ?? floor?.locations[0]?.id ?? null
+    const first = locationFilter !== "all" ? locationFilter : floor?.locations.find((l) => l.configured)?.id ?? floor?.locations[0]?.id ?? null
     setTakeawayLocation(first); setTakeawayName(""); setTakeawayOpen(true)
   }
   const confirmTakeaway = async () => {
@@ -356,8 +467,16 @@ export default function RestaurantPos() {
     setPayError("")
   }
 
-  const startPayment = (lines: Line[], partial: boolean) => {
-    if (!catalog?.canPay) { setMessage({ type: "error", text: `الدفع يتطلب أن تكون من مستخدمي نقطة البيع ${catalog?.point?.name || ""} وأن تفتح العهدة عليها من شاشة كاشير نقطة البيع` }); return }
+  const startPayment = async (lines: Line[], partial: boolean) => {
+    if (!order || !catalog?.canPay) { setMessage({ type: "error", text: "لا توجد لديك صلاحية دفع حساب الطاولة" }); return }
+    // مثل الكاشير: لا دفع بلا عهدة مفتوحة على موقع الطلب
+    const info = await loadCustody(order.location_id).catch(() => null)
+    if (!info?.session) {
+      setScopeOpen(false)
+      setMessage({ type: "error", text: "يجب فتح أو استلام العهدة على هذا الموقع قبل الدفع" })
+      if (can("receiveCustody")) void openCustody(order.location_id)
+      return
+    }
     setScopeOpen(false)
     const amount = amountFor(lines)
     setPayLines({ lines, partial })
@@ -530,7 +649,10 @@ export default function RestaurantPos() {
               <p className="text-sm text-rose-50">{tables.length - busyCount} فارغة · {busyCount} مشغولة</p>
             </div>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => void loadFloor()} disabled={loadingFloor}><RefreshCw className={`ml-1 h-4 w-4 ${loadingFloor ? "animate-spin" : ""}`} />تحديث</Button>
+          <div className="flex gap-2">
+            {canCustody && locations.length > 0 && <Button variant="secondary" size="sm" onClick={() => void openCustody()}><Wallet className="ml-1 h-4 w-4" />العهدة</Button>}
+            <Button variant="secondary" size="sm" onClick={() => void loadFloor()} disabled={loadingFloor}><RefreshCw className={`ml-1 h-4 w-4 ${loadingFloor ? "animate-spin" : ""}`} />تحديث</Button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -651,6 +773,7 @@ export default function RestaurantPos() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {custodyDialogs}
         {printPreview && <PosPrintPreview title={printPreview.title} html={printPreview.html} onClose={() => setPrintPreview(null)} />}
         {toast}
       </div>
@@ -666,12 +789,13 @@ export default function RestaurantPos() {
     { key: "print", label: "طباعة", icon: Printer, show: can("printBill"), disabled: !hasRemaining, onClick: () => void printBill() },
     { key: "cancel", label: order.payments.length ? "إغلاق" : "إلغاء", icon: Ban, show: order.payments.length ? can("pay") && !hasRemaining : can("cancelOrder"), tone: "text-red-600",
       onClick: () => { if (order.payments.length) void act("close", { order_id: order.id }, "تم إغلاق الطاولة"); else { setCancelReason(""); setCancelOpen(true) } } },
+    { key: "custody", label: "العهدة", icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
   ]
 
   return (
     <div dir="rtl" className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b bg-gradient-to-l from-rose-700 to-orange-600 px-3 py-2 text-white">
-        <Button size="sm" variant="secondary" onClick={() => void backToFloor()}><ArrowRight className="ml-1 h-4 w-4" />الطاولات</Button>
+        <Button size="sm" variant="secondary" className="h-10 px-4 text-base font-bold" onClick={() => void backToFloor()}><ArrowRight className="ml-1 h-5 w-5" />رجوع</Button>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           {isTakeaway && (
             <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/80 px-3 py-1 text-sm font-bold">
@@ -798,7 +922,7 @@ export default function RestaurantPos() {
                 <CreditCard className="ml-1 h-5 w-5" />دفع الحساب
               </Button>
             )}
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
               {actionButtons.filter((button) => button.show).map((button) => (
                 <Button key={button.key} variant="outline" size="sm" className={`flex h-auto flex-col gap-0.5 px-1 py-1.5 text-xs ${button.tone || ""}`} disabled={busy || button.disabled || pending.length > 0} onClick={button.onClick}>
                   <button.icon className="h-4 w-4" />{button.label}
@@ -868,8 +992,9 @@ export default function RestaurantPos() {
           payments={payments} cashAmounts={cashAmounts} onCashChange={updateCash}
           onPaymentAmount={(method, value, currencyId) => { updatePayment(method, value, currencyId); setPayError("") }}
           onPaymentField={(method, field, value) => updatePaymentField(method, field, value)}
-          pinpadBatch={catalog.session?.id ?? ""} onConfirm={() => void confirmPayment()} busy={busy} error={payError} />
+          pinpadBatch={custodyInfo?.session?.id ?? ""} onConfirm={() => void confirmPayment()} busy={busy} error={payError} />
       )}
+      {custodyDialogs}
       {printPreview && <PosPrintPreview title={printPreview.title} html={printPreview.html} onClose={() => setPrintPreview(null)} />}
       {toast}
     </div>

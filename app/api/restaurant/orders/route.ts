@@ -6,6 +6,7 @@ import {
   errorStatus,
   lineNet,
   loadOrder,
+  locationSalePoint,
   lockOpenOrder,
   logRestaurant,
   ORDER_STATUS,
@@ -15,8 +16,9 @@ import {
   touchOrder,
 } from "@/lib/restaurant"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
-import { POST as createPosSale } from "@/app/api/pos/sales/route"
-import { ensurePosTables, getOpenPosSession, getPosPoint } from "@/app/api/pos/_lib"
+import { savePosSaleCore } from "@/app/api/pos/_sale-core"
+import { ensureRestaurantCustodyTables, getOpenRestaurantSession, recordRestaurantSaleCash } from "@/lib/restaurant-custody"
+import { ensurePosTables } from "@/app/api/pos/_lib"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { ensureTables as ensureStockVoucherTables } from "@/app/api/stock-vouchers/_lib"
@@ -354,14 +356,14 @@ async function handlePrint(ctx: Ctx, order: any) {
  */
 async function handlePay(ctx: Ctx, order: any) {
   if (Number(ctx.data.revision) !== Number(order.revision)) throw fail("تغيّر الطلب من مستخدم آخر؛ تمت إعادة تحميله، راجع المبلغ وأعد الدفع", 409)
-  const location = (await sql`SELECT id, name, pos_point_id FROM restaurant_locations_tbl WHERE id = ${Number(order.location_id)}`)[0]
-  const pointId = Number(location?.pos_point_id) || 0
-  if (!pointId) throw fail("لم تُحدَّد نقطة بيع لهذا الموقع في تعريف المواقع")
-  const point = await getPosPoint(pointId, ctx.userId)
-  if (!point) throw fail("نقطة البيع المرتبطة بالموقع غير متاحة لهذا المستخدم", 403)
-  if (Number(point.branch_id) !== Number(order.branch_id)) throw fail("نقطة البيع المرتبطة بالموقع تتبع فرعاً آخر")
-  const session = await getOpenPosSession(pointId, ctx.userId)
-  if (!session) throw fail(`يجب فتح أو استلام العهدة على نقطة البيع ${point.name || ""} من شاشة كاشير نقطة البيع قبل الدفع`)
+  // إعدادات البيع من الموقع نفسه (مستقلة عن نقاط بيع الكاشير وعهدته)
+  const location = (await sql`SELECT * FROM restaurant_locations_tbl WHERE id = ${Number(order.location_id)}`)[0]
+  if (!location) throw fail("موقع الطلب غير موجود")
+  const point = await locationSalePoint(location, ctx.userId)
+  if (Number(point.branch_id) !== Number(order.branch_id)) throw fail("موقع الطلب يتبع فرعاً آخر")
+  // مثل الكاشير: الدفع يتطلب عهدة مفتوحة للمستخدم على موقع الطلب
+  const session = await getOpenRestaurantSession(Number(location.id), ctx.userId)
+  if (!session) throw fail(`يجب فتح أو استلام عهدة على الموقع "${location.name}" قبل الدفع`)
 
   const items = await sql`SELECT * FROM restaurant_order_items_tbl WHERE order_id = ${Number(order.id)} ORDER BY id FOR UPDATE`
   const requested = Array.isArray(ctx.data.lines) && ctx.data.lines.length
@@ -392,8 +394,6 @@ async function handlePay(ctx: Ctx, order: any) {
   const now = localDateTime()
   const body = {
     pos_client_sale_id: `restaurant-${Number(order.id)}-r${Number(order.revision)}`,
-    pos_point_id: pointId,
-    pos_session_id: Number(session.id),
     pos_customer_id: customer ? Number(customer.id) : null,
     pos_mode: "sale",
     cashier_action: "حفظ فاتورة",
@@ -424,21 +424,20 @@ async function handlePay(ctx: Ctx, order: any) {
       account_id: accounts.get(Number(item.product_id)) || null,
     })),
   }
-  const headers = new Headers(ctx.request.headers)
-  headers.set("x-user-id", ctx.userId)
-  headers.set("content-type", "application/json")
-  headers.delete("content-length")
-  const response = await createPosSale(new NextRequest(new URL("/api/pos/sales", ctx.request.url), { method: "POST", headers, body: JSON.stringify(body) }))
+  // نفس محرك فاتورة الكاشير (فاتورة + سند قبض + شيكات) بلا عهدة كاشير
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${body.pos_client_sale_id}`}))`
+  const response = await savePosSaleCore(ctx.request, body, { userId: ctx.userId, point, session: null, clientSaleId: body.pos_client_sale_id })
   const saved = await response.json().catch(() => ({}))
   if (!response.ok) throw fail(String(saved?.error || "تعذر حفظ فاتورة الطاولة"), response.status)
   if (saved?.duplicate) throw fail("هذه الدفعة سُجّلت مسبقاً؛ حدّث الشاشة", 409)
   const voucher = (await sql`SELECT id, vch_code, amount FROM voucher_header_tbl WHERE id = ${Number(saved.id)}`)[0]
+  await recordRestaurantSaleCash(session, point, body, String(voucher?.vch_code || ""), ctx.userId)
   for (const { item, quantity } of selected) {
     await sql`UPDATE restaurant_order_items_tbl SET paid_quantity = paid_quantity + ${quantity}, updated_at = NOW() WHERE id = ${Number(item.id)}`
   }
   await sql`
-    INSERT INTO restaurant_order_payments_tbl (order_id, voucher_id, vch_code, amount, lines, user_id)
-    VALUES (${Number(order.id)}, ${Number(voucher?.id) || null}, ${String(voucher?.vch_code || saved.vch_code || "")}, ${num(voucher?.amount)},
+    INSERT INTO restaurant_order_payments_tbl (order_id, session_id, voucher_id, vch_code, amount, lines, user_id)
+    VALUES (${Number(order.id)}, ${Number(session.id)}, ${Number(voucher?.id) || null}, ${String(voucher?.vch_code || saved.vch_code || "")}, ${num(voucher?.amount)},
             ${JSON.stringify(selected.map(({ item, quantity }) => ({ item_id: Number(item.id), product_id: Number(item.product_id), quantity })))}::jsonb, ${ctx.userId})
   `
   if (customer) await sql`UPDATE restaurant_orders_tbl SET customer_id = ${Number(customer.id)} WHERE id = ${Number(order.id)}`
@@ -497,7 +496,7 @@ export async function POST(request: NextRequest) {
 
     if (action === "pay") {
       // تهيئة جداول الفاتورة قبل فتح المعاملة (كما في api/pos/sales) حتى لا تحجز أوامر DDL أقفالاً طوال الحفظ
-      await ensureSalesTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables(); await ensureDiscountCardTables()
+      await ensureSalesTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables(); await ensureDiscountCardTables(); await ensureRestaurantCustodyTables()
       await loadStoredSettings()
     }
 

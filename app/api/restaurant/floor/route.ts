@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { authorizeRestaurant, errorStatus } from "@/lib/restaurant"
-import { ensurePosTables } from "@/app/api/pos/_lib"
 
 // لوحة الطاولات للفرع النشط: المواقع النشطة وطاولاتها وحالة كل طاولة (الطلب المفتوح، المتبقي، الطاولات المدموجة)
 // + صلاحيات المطعم الفعّالة للمستخدم على هذا الفرع (لإظهار/إخفاء الأزرار؛ الخادم يفرضها في api/restaurant/orders)
@@ -9,12 +8,11 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await authorizeRestaurant(request, [])
     if (!auth.ok) return auth.response
-    await ensurePosTables()
     const [locations, tables, takeaways] = await Promise.all([
       sql`
-        SELECT l.id, l.code, l.name, l.color, l.pos_point_id, p.name AS pos_point_name
+        SELECT l.id, l.code, l.name, l.color,
+               (l.warehouse_id IS NOT NULL AND l.currency_id IS NOT NULL AND l.price_category_id IS NOT NULL AND l.sales_book_id IS NOT NULL) AS configured
         FROM restaurant_locations_tbl l
-        LEFT JOIN pos_points_tbl p ON p.id = l.pos_point_id
         WHERE l.status = 1 AND l.branch_id = ${auth.branchId}
         ORDER BY l.sort_order, l.id
       `,

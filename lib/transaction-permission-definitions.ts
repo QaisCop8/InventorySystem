@@ -82,6 +82,8 @@ export const RESTAURANT_PERMISSIONS = {
   printBill: "طباعة حساب الطاولة - مطاعم",
   pay: "دفع حساب الطاولة - مطاعم",
   cancelOrder: "إلغاء طلب الطاولة - مطاعم",
+  receiveCustody: "استلام عهدة - مطاعم",
+  handoverCustody: "تسليم عهدة - مطاعم",
 } as const
 
 export type RestaurantPermission = keyof typeof RESTAURANT_PERMISSIONS

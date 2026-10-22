@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { ensureNamedPermission, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { resolvePosAccounts } from "@/lib/pos-accounts"
 import {
   RESTAURANT_PERMISSION_CATEGORY,
   RESTAURANT_PERMISSIONS,
@@ -34,6 +35,12 @@ export async function ensureRestaurantTables() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `
+    // إعدادات البيع الخاصة بالموقع (مستقلة عن نقاط بيع الكاشير): منها الأصناف والأسعار ودفتر الفاتورة وحسابات الدفع
+    for (const column of [
+      "warehouse_id INTEGER", "currency_id INTEGER", "price_category_id INTEGER", "sales_book_id INTEGER",
+      "cash_account_id INTEGER", "walk_in_account_id INTEGER", "card_account_id INTEGER", "cheque_account_id INTEGER", "tax_account_id INTEGER",
+      "max_discount_percent NUMERIC(7,3) NOT NULL DEFAULT 100", "invoice_print_mode INTEGER NOT NULL DEFAULT 1", "print_by_item_group BOOLEAN NOT NULL DEFAULT TRUE",
+    ]) await sql.unsafe(`ALTER TABLE restaurant_locations_tbl ADD COLUMN IF NOT EXISTS ${column}`)
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS restaurant_locations_code_uq ON restaurant_locations_tbl (LOWER(code)) WHERE status <> 3`
     await sql`CREATE INDEX IF NOT EXISTS restaurant_locations_branch_idx ON restaurant_locations_tbl (branch_id)`
     await sql`
@@ -275,6 +282,46 @@ export async function tableWithState(tableId: number) {
     WHERE t.id = ${tableId}
     LIMIT 1
   `)[0] || null
+}
+
+/**
+ * إعدادات البيع للموقع بصيغة "نقطة بيع" يفهمها محرك البيع (app/api/pos/_sale-core.ts) وكتالوج الأصناف — بلا أي
+ * نقطة بيع كاشير. الحسابات الفارغة تُكمَّل كالكاشير: حسابات المستخدم الافتراضية للعملة ثم حسابات النظام.
+ */
+export async function locationSalePoint(location: any, userId: string) {
+  const missing = [
+    [location.warehouse_id, "المستودع"], [location.currency_id, "العملة"],
+    [location.price_category_id, "فئة السعر"], [location.sales_book_id, "دفتر فواتير البيع"],
+  ].filter(([value]) => !(Number(value) > 0)).map(([, label]) => label)
+  if (missing.length) {
+    throw Object.assign(new Error(`أكمل إعدادات البيع للموقع "${location.name}" من شاشة المواقع: ${missing.join("، ")}`), { status: 400 })
+  }
+  const currency = (await sql`SELECT currency_code, currency_name FROM currency WHERE id = ${Number(location.currency_id)}`)[0]
+  const printMode = Number(location.invoice_print_mode ?? 1)
+  return resolvePosAccounts({
+    name: location.name,
+    branch_id: Number(location.branch_id),
+    main_warehouse_id: Number(location.warehouse_id),
+    currency_id: Number(location.currency_id),
+    currency_code: currency?.currency_code || "",
+    currency_name: currency?.currency_name || "",
+    price_category_id: Number(location.price_category_id),
+    sales_book_id: Number(location.sales_book_id),
+    return_book_id: null,
+    cash_account_id: Number(location.cash_account_id) || null,
+    walk_in_account_id: Number(location.walk_in_account_id) || null,
+    card_account_id: Number(location.card_account_id) || null,
+    cheque_account_id: Number(location.cheque_account_id) || null,
+    gift_account_id: null,
+    tax_account_id: Number(location.tax_account_id) || null,
+    return_account_id: null,
+    max_discount_percent: Number(location.max_discount_percent ?? 100),
+    allow_returns: false,
+    allow_gifts: false,
+    invoice_print_mode: printMode,
+    print_invoices: printMode > 0,
+    print_by_item_group: location.print_by_item_group !== false,
+  }, userId)
 }
 
 export function errorStatus(error: unknown) {

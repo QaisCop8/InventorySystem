@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Edit, LayoutGrid, Loader2, MapPin, Plus, RefreshCw, Search, Store, Trash2 } from "lucide-react"
+import { CreditCard, Edit, LayoutGrid, Loader2, MapPin, Package, Plus, RefreshCw, Search, Store, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,28 +10,52 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useFileAccess } from "@/components/auth/use-file-access"
 import { useAuth } from "@/components/auth/auth-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 
-type Location = {
-  id: number; code: string; name: string; branch_id: number; branch_name?: string; pos_point_id: number | null
-  pos_point_name?: string | null; sort_order: number; color: string | null; notes: string | null; status: number; tables_count?: number
+type Location = Record<string, any> & {
+  id: number; code: string; name: string; branch_id: number; branch_name?: string; status: number; tables_count?: number
+  warehouse_name?: string | null; currency_code?: string | null; price_category_name?: string | null; sales_book_name?: string | null
 }
-type Option = { id: number; name: string; branch_id?: number }
-type Form = { id: number; code: string; name: string; branch_id: string; pos_point_id: string; sort_order: string; color: string; notes: string; active: boolean }
+type Option = { id: number; name: string; code?: string }
+type Options = { branches: Option[]; warehouses: Option[]; currencies: Option[]; books: Option[]; priceCategories: Option[] }
+const ACCOUNT_FIELDS = [
+  ["cash_account_id", "حساب الصندوق"], ["walk_in_account_id", "الحساب النقدي (العميل النقدي)"], ["card_account_id", "حساب البطاقات"],
+  ["cheque_account_id", "حساب الشيكات"], ["tax_account_id", "حساب الضريبة"],
+] as const
+const PRINT_MODES = [{ id: "0", name: "عدم الطباعة" }, { id: "1", name: "طباعة فاتورة كاملة" }, { id: "2", name: "طباعة فاتورة QR" }]
 
+type Form = {
+  id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; sales_book_id: string
+  cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
+  max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; sort_order: string; color: string; notes: string; active: boolean
+}
+const str = (value: unknown) => (value == null || value === "" ? "" : String(value))
 const emptyForm = (branchId: number | null, code = ""): Form => ({
-  id: 0, code, name: "", branch_id: branchId ? String(branchId) : "", pos_point_id: "none", sort_order: "0", color: "#0f766e", notes: "", active: true,
+  id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", sales_book_id: "",
+  cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
+  max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, sort_order: "0", color: "#0f766e", notes: "", active: true,
 })
 const toForm = (row: Location): Form => ({
-  id: row.id, code: row.code, name: row.name, branch_id: String(row.branch_id), pos_point_id: row.pos_point_id ? String(row.pos_point_id) : "none",
-  sort_order: String(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "", active: Number(row.status) !== 2,
+  id: row.id, code: row.code, name: row.name, branch_id: str(row.branch_id), warehouse_id: str(row.warehouse_id), currency_id: str(row.currency_id),
+  price_category_id: str(row.price_category_id), sales_book_id: str(row.sales_book_id), cash_account_id: str(row.cash_account_id),
+  walk_in_account_id: str(row.walk_in_account_id), card_account_id: str(row.card_account_id), cheque_account_id: str(row.cheque_account_id),
+  tax_account_id: str(row.tax_account_id), max_discount_percent: str(row.max_discount_percent ?? 100), invoice_print_mode: str(row.invoice_print_mode ?? 1),
+  print_by_item_group: row.print_by_item_group !== false, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
+  active: Number(row.status) !== 2,
 })
-const errorText = async (response: Response, fallback: string) => {
-  const data = await response.json().catch(() => ({}))
-  return String(data?.error || fallback)
+const errorText = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
+
+function OptionSelect({ value, onChange, options, placeholder, disabled }: { value: string; onChange: (value: string) => void; options: Option[]; placeholder: string; disabled?: boolean }) {
+  return (
+    <Select value={value || undefined} disabled={disabled} onValueChange={onChange}>
+      <SelectTrigger><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent>{options.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} — ` : ""}{option.name}</SelectItem>)}</SelectContent>
+    </Select>
+  )
 }
 
 export default function RestaurantLocations() {
@@ -39,8 +63,7 @@ export default function RestaurantLocations() {
   const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const { activeBranchId } = useAuth()
   const [rows, setRows] = useState<Location[]>([])
-  const [branches, setBranches] = useState<Option[]>([])
-  const [points, setPoints] = useState<Option[]>([])
+  const [options, setOptions] = useState<Options>({ branches: [], warehouses: [], currencies: [], books: [], priceCategories: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [search, setSearch] = useState("")
@@ -64,10 +87,15 @@ export default function RestaurantLocations() {
         setRows(await listRes.json())
       }
       if (optionsRes.ok) {
-        const options = await optionsRes.json()
-        setBranches((options.branches || []).map((b: any) => ({ id: Number(b.id), name: String(b.branch_name || "") })))
-        setPoints((options.points || []).map((p: any) => ({ id: Number(p.id), name: String(p.name || ""), branch_id: Number(p.branch_id) })))
-        nextCodeRef.current = String(options.next_code || "")
+        const data = await optionsRes.json()
+        const map = (list: any[], name = "name") => (list || []).map((row: any) => ({ id: Number(row.id), name: String(row[name] ?? row.name ?? ""), code: row.code ? String(row.code) : undefined }))
+        setOptions({
+          branches: map(data.branches, "branch_name"), warehouses: map(data.warehouses), currencies: map(data.currencies),
+          books: map(data.books), priceCategories: map(data.priceCategories),
+        })
+        nextCodeRef.current = String(data.next_code || "")
+      } else {
+        setError(await errorText(optionsRes, "تعذر تحميل بيانات الشاشة"))
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذر تحميل المواقع")
@@ -90,26 +118,29 @@ export default function RestaurantLocations() {
     void confirmYesNo("توجد تغييرات غير محفوظة على الموقع. هل تريد المتابعة دون حفظ؟").then((ok) => { if (ok) { setOpen(false); continueNavigation() } })
   })
 
-  const openForm = (value: Form) => {
-    setForm(value); initialRef.current = JSON.stringify(value); setFormError(""); setOpen(true)
-  }
+  const openForm = (value: Form) => { setForm(value); initialRef.current = JSON.stringify(value); setFormError(""); setOpen(true) }
   const closeForm = async () => {
     if (dirty && !(await confirmYesNo("توجد تغييرات غير محفوظة. هل تريد الإغلاق دون حفظ؟"))) return
     setOpen(false)
   }
+  const set = (patch: Partial<Form>) => setForm((current) => ({ ...current, ...patch }))
 
   const save = async () => {
-    if (!form.name.trim()) { setFormError("اسم الموقع مطلوب"); return }
-    if (!form.branch_id) { setFormError("الفرع مطلوب"); return }
+    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"]]
+    const missing = required.filter(([value]) => !value).map(([, label]) => label)
+    if (missing.length) { setFormError(`الحقول المطلوبة: ${missing.join("، ")}`); return }
     setSaving(true); setFormError("")
     try {
       const response = await fetch("/api/restaurant/locations", {
         method: form.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: form.id || undefined, code: form.code, name: form.name, branch_id: Number(form.branch_id),
-          pos_point_id: form.pos_point_id === "none" ? null : Number(form.pos_point_id), sort_order: Number(form.sort_order) || 0,
-          color: form.color, notes: form.notes, status: form.active ? 1 : 2,
+          ...form, id: form.id || undefined,
+          branch_id: Number(form.branch_id), warehouse_id: Number(form.warehouse_id), currency_id: Number(form.currency_id),
+          price_category_id: Number(form.price_category_id), sales_book_id: Number(form.sales_book_id),
+          ...Object.fromEntries(ACCOUNT_FIELDS.map(([key]) => [key, Number(form[key]) || null])),
+          max_discount_percent: Number(form.max_discount_percent), invoice_print_mode: Number(form.invoice_print_mode),
+          sort_order: Number(form.sort_order) || 0, status: form.active ? 1 : 2,
         }),
       })
       if (!response.ok) throw new Error(await errorText(response, "تعذر حفظ الموقع"))
@@ -130,8 +161,8 @@ export default function RestaurantLocations() {
     await load()
   }
 
-  const branchPoints = points.filter((point) => String(point.branch_id) === form.branch_id)
   const readOnly = form.id ? !canUpdate : !canCreate
+  const configured = (row: Location) => row.warehouse_id && row.currency_id && row.price_category_id && row.sales_book_id
 
   return (
     <div dir="rtl" className="flex h-full flex-col gap-4 p-3 sm:p-5">
@@ -140,7 +171,7 @@ export default function RestaurantLocations() {
           <MapPin className="h-8 w-8" />
           <div>
             <h1 className="text-xl font-bold">مواقع المطعم</h1>
-            <p className="text-sm text-teal-50">الصالات والطوابق والمناطق الخارجية — لكل موقع فرعه ونقطة البيع التي يُدفع عليها حساب طاولاته</p>
+            <p className="text-sm text-teal-50">الصالات والطوابق والمناطق الخارجية — لكل موقع فرعه وإعدادات البيع الخاصة به (مستقلة عن الكاشير)</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -158,7 +189,7 @@ export default function RestaurantLocations() {
           <SelectTrigger className="sm:w-56"><SelectValue placeholder="الفرع" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الفروع</SelectItem>
-            {branches.map((branch) => <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>)}
+            {options.branches.map((branch) => <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -182,10 +213,12 @@ export default function RestaurantLocations() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-1"><Store className="h-4 w-4 text-muted-foreground" />{row.branch_name || "-"}</div>
                 <div className="flex items-center gap-1"><LayoutGrid className="h-4 w-4 text-muted-foreground" />{row.tables_count ?? 0} طاولة</div>
-                <div className="col-span-2 text-muted-foreground">نقطة البيع: {row.pos_point_name || <span className="text-amber-600">غير محددة (لا يمكن الدفع)</span>}</div>
+                <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" />{row.warehouse_name || "—"}</div>
+                <div className="flex items-center gap-1"><CreditCard className="h-4 w-4 text-muted-foreground" />{row.currency_code || "—"} · {row.price_category_name || "—"}</div>
+                {!configured(row) && <div className="col-span-2 text-amber-600">إعدادات البيع غير مكتملة — لا يمكن البيع على هذا الموقع</div>}
               </div>
               <div className="mt-auto flex justify-end gap-2">
-                {(canUpdate || canView) && <Button size="sm" variant="outline" onClick={() => openForm(toForm(row))}><Edit className="ml-1 h-4 w-4" />{canUpdate ? "تعديل" : "عرض"}</Button>}
+                <Button size="sm" variant="outline" onClick={() => openForm(toForm(row))}><Edit className="ml-1 h-4 w-4" />{canUpdate ? "تعديل" : "عرض"}</Button>
                 {canDelete && <Button size="sm" variant="outline" className="text-red-600" onClick={() => void remove(row)}><Trash2 className="ml-1 h-4 w-4" />حذف</Button>}
               </div>
             </div>
@@ -195,35 +228,54 @@ export default function RestaurantLocations() {
       )}
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void closeForm() }}>
-        <DialogContent dir="rtl" className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto">
-          <DialogHeader><DialogTitle>{form.id ? "تعديل موقع" : "إضافة موقع"}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1"><Label>الرمز</Label><Input value={form.code} disabled={readOnly} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="تلقائي" /></div>
-            <div className="space-y-1"><Label>اسم الموقع *</Label><Input value={form.name} disabled={readOnly} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="الصالة الرئيسية" autoFocus /></div>
-            <div className="space-y-1">
-              <Label>الفرع *</Label>
-              <Select value={form.branch_id} disabled={readOnly} onValueChange={(value) => setForm({ ...form, branch_id: value, pos_point_id: "none" })}>
-                <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
-                <SelectContent>{branches.map((branch) => <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>نقطة البيع (للدفع)</Label>
-              <Select value={form.pos_point_id} disabled={readOnly} onValueChange={(value) => setForm({ ...form, pos_point_id: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">بدون</SelectItem>
-                  {branchPoints.map((point) => <SelectItem key={point.id} value={String(point.id)}>{point.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1"><Label>الترتيب</Label><Input type="number" min={0} value={form.sort_order} disabled={readOnly} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} /></div>
-            <div className="space-y-1"><Label>اللون</Label><Input type="color" className="h-10 p-1" value={form.color} disabled={readOnly} onChange={(e) => setForm({ ...form, color: e.target.value })} /></div>
-            <div className="space-y-1 sm:col-span-2"><Label>ملاحظات</Label><Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            <div className="flex items-center gap-2 sm:col-span-2"><Switch checked={form.active} disabled={readOnly} onCheckedChange={(value) => setForm({ ...form, active: value })} /><Label>نشط</Label></div>
+        <DialogContent dir="rtl" className="flex max-h-[94dvh] w-[calc(100vw-1rem)] max-w-3xl flex-col overflow-hidden p-0">
+          <DialogHeader className="border-b px-5 py-3"><DialogTitle>{form.id ? "تعديل موقع" : "إضافة موقع"}</DialogTitle></DialogHeader>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1"><Label>الرمز</Label><Input value={form.code} disabled={readOnly} onChange={(e) => set({ code: e.target.value })} placeholder="تلقائي" /></div>
+              <div className="space-y-1"><Label>اسم الموقع *</Label><Input value={form.name} disabled={readOnly} onChange={(e) => set({ name: e.target.value })} placeholder="الصالة الرئيسية" autoFocus /></div>
+              <div className="space-y-1"><Label>الفرع *</Label><OptionSelect value={form.branch_id} disabled={readOnly} onChange={(value) => set({ branch_id: value })} options={options.branches} placeholder="اختر الفرع" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1"><Label>الترتيب</Label><Input type="number" min={0} value={form.sort_order} disabled={readOnly} onChange={(e) => set({ sort_order: e.target.value })} /></div>
+                <div className="space-y-1"><Label>اللون</Label><Input type="color" className="h-10 p-1" value={form.color} disabled={readOnly} onChange={(e) => set({ color: e.target.value })} /></div>
+              </div>
+            </section>
+
+            <section className="rounded-xl border bg-muted/30 p-3 sm:p-4">
+              <h3 className="mb-3 flex items-center gap-2 font-bold"><Package className="h-5 w-5 text-teal-600" />إعدادات البيع</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><Label>المستودع *</Label><OptionSelect value={form.warehouse_id} disabled={readOnly} onChange={(value) => set({ warehouse_id: value })} options={options.warehouses} placeholder="اختر المستودع" /></div>
+                <div className="space-y-1"><Label>العملة *</Label><OptionSelect value={form.currency_id} disabled={readOnly} onChange={(value) => set({ currency_id: value })} options={options.currencies} placeholder="اختر العملة" /></div>
+                <div className="space-y-1"><Label>فئة السعر *</Label><OptionSelect value={form.price_category_id} disabled={readOnly} onChange={(value) => set({ price_category_id: value })} options={options.priceCategories} placeholder="اختر فئة السعر" /></div>
+                <div className="space-y-1"><Label>دفتر فواتير البيع *</Label><OptionSelect value={form.sales_book_id} disabled={readOnly} onChange={(value) => set({ sales_book_id: value })} options={options.books} placeholder="اختر الدفتر" /></div>
+                <div className="space-y-1"><Label>أعلى نسبة خصم %</Label><Input type="number" min={0} max={100} value={form.max_discount_percent} disabled={readOnly} onChange={(e) => set({ max_discount_percent: e.target.value })} /></div>
+                <div className="space-y-1">
+                  <Label>طباعة الفاتورة بعد الدفع</Label>
+                  <OptionSelect value={form.invoice_print_mode} disabled={readOnly} onChange={(value) => set({ invoice_print_mode: value })} options={PRINT_MODES.map((mode) => ({ id: Number(mode.id), name: mode.name }))} placeholder="اختر" />
+                </div>
+                <div className="flex items-center gap-2 sm:col-span-2"><Switch checked={form.print_by_item_group} disabled={readOnly} onCheckedChange={(value) => set({ print_by_item_group: value })} /><Label>طباعة قسائم المطبخ حسب طابعة مجموعة الصنف</Label></div>
+              </div>
+            </section>
+
+            <section className="rounded-xl border bg-muted/30 p-3 sm:p-4">
+              <h3 className="mb-1 flex items-center gap-2 font-bold"><CreditCard className="h-5 w-5 text-teal-600" />حسابات الدفع</h3>
+              <p className="mb-3 text-xs text-muted-foreground">اختيارية: عند تركها فارغة تُستخدم حسابات المستخدم الافتراضية لعملة الموقع ثم حسابات النظام (كما في الكاشير).</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {ACCOUNT_FIELDS.map(([key, label]) => (
+                  <AutoCompleteAccount key={key} label={label} value={form[key]} valueMode="id" disabled={readOnly}
+                    onValueChange={(value: string) => set({ [key]: value } as Partial<Form>)} placeholder="اختياري — الحساب الافتراضي"
+                    leafOnly showCostCenterButton={false} showCostCenterDialog={false} />
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="space-y-1"><Label>ملاحظات</Label><Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => set({ notes: e.target.value })} /></div>
+              <div className="flex items-center gap-2"><Switch checked={form.active} disabled={readOnly} onCheckedChange={(value) => set({ active: value })} /><Label>نشط</Label></div>
+            </section>
+            {formError && <div className="rounded-md bg-red-50 p-2 text-sm text-red-700">{formError}</div>}
           </div>
-          {formError && <div className="rounded-md bg-red-50 p-2 text-sm text-red-700">{formError}</div>}
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 border-t px-5 py-3">
             <Button variant="outline" onClick={() => void closeForm()}>إغلاق</Button>
             {!readOnly && <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}حفظ</Button>}
           </DialogFooter>
