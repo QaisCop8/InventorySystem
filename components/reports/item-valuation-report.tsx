@@ -30,7 +30,7 @@ export function ItemValuationReport() {
     setLoading(true); setError("")
     try {
       const response = await fetch(`/api/reports/item-valuation?to_date=${toDate}&${filterQuery}&price_way=${priceWay}&with_zeros=${withZeros ? 1 : 0}&search=${encodeURIComponent(search.trim())}`)
-      const data = await response.json()
+      const data = await response.json().catch(() => ({ error: `تعذر قراءة استجابة الخادم (${response.status})` }))
       if (!response.ok) throw new Error(data.error || "تعذر تحميل تقييم البضاعة")
       setRows(data.rows || [])
     } catch (cause) {

@@ -67,7 +67,7 @@ export function ExpiryBalancesReport() {
       if (toExpiry) params.set("to_expiry", toExpiry)
       if (includeNoExpiry) params.set("include_no_expiry", "1")
       const response = await fetch(`/api/reports/expiry-balances?${params}`, { cache: "no-store" })
-      const data = await response.json()
+      const data = await response.json().catch(() => ({ error: `تعذر قراءة استجابة الخادم (${response.status})` }))
       if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
       setRows(data.rows || [])
       setHasRun(true)

@@ -8,10 +8,10 @@ export const reportDate = (value: string | null, fallback = new Date().toISOStri
 
 // includeUnposted: تقييم المخزون وتقارير الأرباح تعتمد كل السندات غير المحذوفة (مرحّلة أو غير مرحّلة)؛
 // أرصدة المخزون والقوائم المالية تبقى على السندات المرحّلة فقط.
-export type InventoryReportFilters = { productIds?: number[]; warehouseIds?: number[]; branchIds?: number[]; includeUnposted?: boolean }
+export type InventoryReportFilters = { productIds?: number[]; excludeProductIds?: number[]; warehouseIds?: number[]; branchIds?: number[]; includeUnposted?: boolean }
 export const reportIds = (value: string | null) => [...new Set((value || "").split(",").map(Number).filter(id => Number.isSafeInteger(id) && id > 0))]
 export const inventoryFilters = (params: URLSearchParams): InventoryReportFilters => ({
-  productIds: reportIds(params.get("product_ids")), warehouseIds: reportIds(params.get("warehouse_ids")), branchIds: reportIds(params.get("branch_ids")),
+  productIds: reportIds(params.get("product_ids")), excludeProductIds: reportIds(params.get("product_ids_exclude")), warehouseIds: reportIds(params.get("warehouse_ids")), branchIds: reportIds(params.get("branch_ids")),
 })
 export async function inventoryReportMeta(organizationId: number) {
   const [products, warehouses, branches] = await Promise.all([
@@ -34,7 +34,7 @@ export async function getInventoryReportProducts(organizationId: number, product
 }
 
 export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
-  const { productIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
+  const { productIds = [], excludeProductIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
   await ensureLandedCostSchema()
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
@@ -48,6 +48,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
         WHERE COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
           AND (${productId}=0 OR p.id=${productId})
           AND (${productIds.length}=0 OR p.id=ANY(${productIds}::int[]))
+          AND (${excludeProductIds.length}=0 OR NOT (p.id=ANY(${excludeProductIds}::int[])))
           AND (${search}='' OR p.product_code ILIKE ${`%${search}%`} OR p.product_name ILIKE ${`%${search}%`})
         ORDER BY p.product_code,p.product_name`,
     sql`
@@ -113,6 +114,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
         AND (${branchIds.length}=0 OR vh.branch_id=ANY(${branchIds}::int[]))
         AND (${warehouseIds.length}=0 OR vi.store_id=ANY(${warehouseIds}::int[]) OR (vh.vch_type=10 AND (vh.from_store_id=ANY(${warehouseIds}::int[]) OR vh.to_store_id=ANY(${warehouseIds}::int[]))))
         AND (${productIds.length}=0 OR p.id=ANY(${productIds}::int[]))
+        AND (${excludeProductIds.length}=0 OR NOT (p.id=ANY(${excludeProductIds}::int[])))
         AND (vh.vch_type NOT IN (12,17) OR COALESCE(vi.delivery_item_id,0)=0)
         AND COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
         AND (${productId}=0 OR p.id=${productId})

@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 
     const toDate = reportDate(params.get("to_date"))
     const productIds = parseIds(params.get("product_ids"))
+    const excludeProductIds = new Set(parseIds(params.get("product_ids_exclude")))
     const warehouseIds = parseIds(params.get("warehouse_ids"))
     const branchIds = parseIds(params.get("branch_ids"))
     const nearDays = Math.max(1, Math.min(3650, Number(params.get("near_days")) || 30))
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const productById = new Map((products as any[]).map((row) => [Number(row.id), row]))
     // افتراضياً: الأصناف المتتبَّعة بالصلاحية فقط (إلا إن اختيرت أصناف بعينها)
-    const scopeIds = productIds.length ? productIds : (products as any[]).filter((row) => row.has_expiry).map((row) => Number(row.id))
+    const scopeIds = (productIds.length ? productIds : (products as any[]).filter((row) => row.has_expiry).map((row) => Number(row.id))).filter((id) => !excludeProductIds.has(id))
     if (!scopeIds.length) return NextResponse.json({ to_date: toDate, near_days: nearDays, rows: [] })
     const scopeWarehouses = (warehouses as any[]).filter((row) => !warehouseIds.length || warehouseIds.includes(Number(row.id)))
     const branchScope: (number | null)[] = branchIds.length ? branchIds : [null]
