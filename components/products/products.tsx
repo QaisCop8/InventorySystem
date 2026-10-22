@@ -1,6 +1,8 @@
 "use client"
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { Package as PackageIcon } from "lucide-react"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -670,7 +672,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   return (
     // min-w-0 + overflow-x-hidden: لا يتسع عرض الصفحة عن الشاشة على الجوال (كان أي عنصر عريض يمدّ الصفحة فتنزاح
     // وتنقص من الحواف)؛ الجدول يتمرّر أفقياً داخل حاويته فقط.
-    <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden bg-background p-3 sm:p-4 lg:p-6 min-h-screen" dir="rtl">
+    <div className="voucher-list-page min-w-0 max-w-full space-y-5 overflow-x-hidden bg-background p-3 sm:p-5 min-h-screen" dir="rtl">
       {state.error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -703,23 +705,13 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
 
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">إدارة الأصناف</h1>
-          <p className="text-muted-foreground mt-1">إدارة وتتبع جميع الأصناف والمخزون</p>
-        </div>
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-          <Button
-            variant="outline"
-            disabled={!canCreate}
-            onClick={() => { if (canCreate) setState((prev) => ({ ...prev, showExcelImport: true })) }}
-            className="flex items-center gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            استيراد من Excel
-          </Button>
-          <Button
-            onClick={() => {
+      <VoucherListHero
+        category="الملفات"
+        icon={PackageIcon}
+        title="إدارة الأصناف"
+        subtitle="إدارة وتتبع جميع الأصناف والمخزون"
+        addLabel="صنف جديد"
+        onNew={() => {
               if (!canCreate) {
                 toast.current?.show({
                   severity: 'error',
@@ -736,79 +728,11 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 formData: initialFormData,
                 error: null,
               }))
-            }
-            }
-            className="bg-primary hover:bg-primary/90 text-primary-foreground flex-1 sm:flex-none"
-          >
-            <Plus className="ml-2 h-4 w-4" />
-            صنف جديد
-          </Button>
-        </div>
-      </div>
+            }}
+        actions={<button type="button" disabled={!canCreate} onClick={() => { if (canCreate) setState((prev) => ({ ...prev, showExcelImport: true })) }} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"><FileSpreadsheet className="h-4 w-4" />استيراد من Excel</button>}
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700">إجمالي الأصناف</p>
-                <p className="text-2xl lg:text-3xl font-bold text-blue-900">{statistics.totalProducts}</p>
-              </div>
-              <Package className="h-8 w-8 lg:h-10 lg:w-10 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-700">المنتجات النشطة</p>
-                <p className="text-2xl lg:text-3xl font-bold text-green-900">{statistics.activeProducts}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 lg:h-10 lg:w-10 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-700">مخزون منخفض</p>
-                <p className="text-2xl lg:text-3xl font-bold text-orange-900">{statistics.lowStockProducts}</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 lg:h-10 lg:w-10 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-700">نفد المخزون</p>
-                <p className="text-2xl lg:text-3xl font-bold text-red-900">{statistics.outOfStockProducts}</p>
-              </div>
-              <X className="h-8 w-8 lg:h-10 lg:w-10 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-700">قيمة المخزون</p>
-                <p className="text-xl lg:text-2xl font-bold text-purple-900">
-                  {statistics.totalValue.toLocaleString()}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 lg:h-10 lg:w-10 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <VoucherStats stats={[{ label: <>إجمالي الأصناف</>, value: <>{statistics.totalProducts}</> }, { label: <>المنتجات النشطة</>, value: <>{statistics.activeProducts}</> }, { label: <>مخزون منخفض</>, value: <>{statistics.lowStockProducts}</> }, { label: <>نفد المخزون</>, value: <>{statistics.outOfStockProducts}</> }, { label: <>قيمة المخزون</>, value: <>{statistics.totalValue.toLocaleString()}</> }]} />
 
       <Card>
         <CardHeader>

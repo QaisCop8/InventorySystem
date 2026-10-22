@@ -8,12 +8,17 @@ import "./voucher-list-theme.css"
 // رأس بنفس تصميم رأس الرئيسية (.page-hero) مع زر الإضافة (F5)، وبطاقات مؤشرات حديثة بألوان النظام.
 // بطاقات البحث والجدول تُنسَّق عبر .voucher-list-page في voucher-list-theme.css.
 
-export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText }: {
+export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText, category = "الحركات", actions, addDisabled = false }: {
   title: ReactNode
   subtitle?: ReactNode
   addLabel: ReactNode
   onNew: () => void
   icon?: LucideIcon
+  /** النص الصغير فوق العنوان (الحركات / الملفات…) */
+  category?: ReactNode
+  /** أزرار إضافية بجانب زر الإضافة (مثل الاستيراد) */
+  actions?: ReactNode
+  addDisabled?: boolean
 }) {
   return (
     <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
@@ -24,21 +29,25 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
         <div className="flex min-w-0 items-center gap-4">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur"><Icon className="h-7 w-7 text-white" /></span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-emerald-50/90">الحركات</p>
+            <p className="text-xs font-semibold text-emerald-50/90">{category}</p>
             <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">{title}</h1>
             {subtitle && <p className="mt-1 text-sm text-emerald-50/85">{subtitle}</p>}
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {actions}
         <button
           type="button"
           data-hotkey-new
           onClick={onNew}
-          className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-emerald-700 shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/40"
+          disabled={addDisabled}
+          className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-emerald-700 shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-white/40 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus className="h-4 w-4" />
           {addLabel}
           <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700" dir="ltr">F5</span>
         </button>
+        </div>
       </div>
     </header>
   )

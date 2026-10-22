@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { BookOpen as BookIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -302,36 +304,22 @@ export default function ChequesBooks() {
   const usedCheques = visibleBooks.reduce((sum, b) => sum + (b.used_count || 0), 0)
 
   return (
-    <div className="space-y-4" dir="rtl">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="bg-slate-50">
-          <CardHeader>
-            <CardTitle className="text-base">إجمالي دفاتر الشيكات</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{visibleBooks.length}</div>
-            <div className="text-sm text-muted-foreground">عدد الدفاتر المسجلة ({totalCheques.toLocaleString()} شيك)</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-base">الشيكات المتوفرة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{availableCheques.toLocaleString()}</div>
-            <div className="text-sm text-muted-foreground">شيكات جاهزة للاستخدام</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-teal-50">
-          <CardHeader>
-            <CardTitle className="text-base">الشيكات المستخدمة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{usedCheques.toLocaleString()}</div>
-            <div className="text-sm text-muted-foreground">شيكات صُرفت ضمن سندات</div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+      <VoucherListHero
+        category="الملفات"
+        icon={BookIcon}
+        title="دفاتر الشيكات"
+        subtitle="إدارة دفاتر الشيكات البنكية وإصدار الشيكات"
+        addLabel="إضافة دفتر شيكات"
+        onNew={openNewDialog}
+        addDisabled={loading}
+      />
+
+      <VoucherStats stats={[
+        { label: "إجمالي دفاتر الشيكات", value: <>{visibleBooks.length} <small className="text-xs font-semibold text-slate-400">({totalCheques.toLocaleString()} شيك)</small></> },
+        { label: "الشيكات المتوفرة", value: availableCheques.toLocaleString() },
+        { label: "الشيكات المستخدمة", value: usedCheques.toLocaleString() },
+      ]} />
 
       <Card>
         <CardHeader>
@@ -355,10 +343,6 @@ export default function ChequesBooks() {
                     disabled={loading}
                   />
                 </div>
-                <Button onClick={openNewDialog} className="whitespace-nowrap" disabled={loading}>
-                  <Plus className="h-4 w-4" />
-                  إضافة دفتر شيكات
-                </Button>
               </div>
             </div>
 

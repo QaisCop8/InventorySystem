@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { showAlert } from "@/components/ui/confirm-host"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,7 @@ import {
   Bell,
   MessageSquare,
   Phone,
+  Users as UsersIcon,
 } from "lucide-react"
 import { ExcelImport } from "@/components/ui/excel-import"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -1644,7 +1646,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   }
   return (
 
-    <div className="w-full p-6 space-y-6" dir="rtl">
+    <div className="voucher-list-page w-full space-y-5 p-3 sm:p-5" dir="rtl">
       {/* Success Message */}
       <ConfirmDialogYesNo
         useAppDialog
@@ -1683,84 +1685,34 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       {/* Error Message */}
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
 
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{`إدارة ${entityPlural}`} </h1>
-        <div className="flex gap-2">
-          <Button onClick={() => handleNewCustomer(false)} disabled={!canCreate} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            {`${entitySingleIndef} جديد`}
-          </Button>
-          <Button
-            variant="outline"
+      {/* Header: نفس تصميم صفحات الحركات (VoucherListHero) */}
+      <VoucherListHero
+        category="الملفات"
+        icon={UsersIcon}
+        title={`إدارة ${entityPlural}`}
+        addLabel={`${entitySingleIndef} جديد`}
+        onNew={() => handleNewCustomer(false)}
+        addDisabled={!canCreate}
+        actions={
+          <button
+            type="button"
             disabled={!canCreate}
             onClick={() => { if (canCreate) setShowImportDialog(true) }}
-            className="flex items-center gap-2 bg-transparent"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Upload className="h-4 w-4" />
             استيراد من Excel
-          </Button>
-        </div>
-      </div>
+          </button>
+        }
+      />
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700">{`إجمالي ${entityPlural}`}</p>
-                <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
-              </div>
-              <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
-                <span className="text-blue-700 text-lg font-bold">{statistics.total}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-700"> {`${entityPlural} النشطين`}</p>
-                <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
-              </div>
-              <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
-                <span className="text-green-700 text-lg font-bold">{statistics.active}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-700">{`${entityPlural} غير النشطين`}</p>
-                <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
-              </div>
-              <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
-                <span className="text-red-700 text-lg font-bold">{statistics.inactive}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-700">{`${entityPluralIndef} VIP`}</p>
-                <p className="text-3xl font-bold text-purple-900">{statistics.vip}</p>
-              </div>
-              <div className="h-10 w-10 bg-purple-200 rounded-full flex items-center justify-center">
-                <span className="text-purple-700 text-lg font-bold">{statistics.vip}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <VoucherStats stats={[
+        { label: `إجمالي ${entityPlural}`, value: statistics.total },
+        { label: `${entityPlural} النشطين`, value: statistics.active },
+        { label: `${entityPlural} غير النشطين`, value: statistics.inactive },
+        { label: `${entityPluralIndef} VIP`, value: statistics.vip },
+      ]} />
 
       {/* Advanced Search */}
       <Card>

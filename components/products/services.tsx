@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { Wrench as WrenchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -397,7 +399,7 @@ export function Services() {
   }
 
   return (
-    <div className="space-y-6 p-4 lg:p-6 bg-background min-h-screen" dir="rtl">
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5 bg-background min-h-screen" dir="rtl">
       {state.error && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
@@ -417,15 +419,13 @@ export function Services() {
         </Alert>
       )}
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">إدارة الخدمات</h1>
-          <p className="text-muted-foreground mt-1">إدارة الخدمات المتاحة في النظام</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            disabled={!canCreate}
-            onClick={() => canCreate && setState((prev) => ({
+      <VoucherListHero
+        category="الملفات"
+        icon={WrenchIcon}
+        title="إدارة الخدمات"
+        subtitle="إدارة الخدمات المتاحة في النظام"
+        addLabel="خدمة جديدة"
+        onNew={() => canCreate && setState((prev) => ({
               ...prev,
               showDialog: true,
               editingProduct: null,
@@ -433,49 +433,10 @@ export function Services() {
               error: null,
               successMessage: null,
             }))}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="ml-2 h-4 w-4" />
-            خدمة جديدة
-          </Button>
-        </div>
-      </div>
+        addDisabled={!canCreate}
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700">إجمالي الخدمات</p>
-                <p className="text-2xl font-bold text-blue-900">{serviceStats.totalServices}</p>
-              </div>
-              <Package className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-700">الخدمات النشطة</p>
-                <p className="text-2xl font-bold text-green-900">{serviceStats.activeServices}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-700">الخدمات غير النشطة</p>
-                <p className="text-2xl font-bold text-orange-900">{serviceStats.inactiveServices}</p>
-              </div>
-              <AlertTriangle className="h-8 w-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <VoucherStats stats={[{ label: <>إجمالي الخدمات</>, value: <>{serviceStats.totalServices}</> }, { label: <>الخدمات النشطة</>, value: <>{serviceStats.activeServices}</> }, { label: <>الخدمات غير النشطة</>, value: <>{serviceStats.inactiveServices}</> }]} />
 
       <Card>
         <CardHeader>
