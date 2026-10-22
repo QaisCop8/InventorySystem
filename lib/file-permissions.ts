@@ -10,7 +10,7 @@ type AccessContext = { userId: string; branchId: number; entries: { access_id: n
 type Denied = { ok: false; response: NextResponse }
 type Granted = { ok: true; userId: string; branchId: number; accessId: number }
 
-async function accessContext(request: NextRequest): Promise<AccessContext | Denied> {
+async function accessContext(request: NextRequest, options: { branchSwitcher?: boolean } = {}): Promise<AccessContext | Denied> {
   const user = await getSessionUser(request)
   if (!user) return { ok: false, response: NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }) }
   await ensureFilePermissions(await resolveCurrentDbName())
@@ -20,10 +20,20 @@ async function accessContext(request: NextRequest): Promise<AccessContext | Deni
     return { ok: false, response: NextResponse.json({ error: "الفرع غير صالح" }, { status: 400 }) }
   }
   const userRow = (await sql`SELECT branch_id FROM user_settings WHERE user_id=${user.user_id} LIMIT 1`)[0]
-  const branchId = requested || Number(userRow?.branch_id) || 0
   const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
-  if (memberships.length && !memberships.some((row: any) => Number(row.branch_id) === branchId)) {
-    return { ok: false, response: NextResponse.json({ error: "المستخدم غير مخول للعمل على هذا الفرع" }, { status: 403 }) }
+  const memberIds = memberships.map((row: any) => Number(row.branch_id))
+  const isMember = (id: number) => memberIds.includes(id)
+  // مستخدم مقيَّد بفروع (صفوف user_branches): بلا فرع صريح في الطلب يُستخدم فرعه الافتراضي إن كان من فروعه وإلا
+  // أول فرع مسموح — كان يُحسب 0 فيُرفض كل طلب بلا x-branch-id (مثل قائمة فروع رأس الصفحة) بعد تقييد المستخدم.
+  const defaultBranch = Number(userRow?.branch_id) || 0
+  let branchId = requested || defaultBranch || 0
+  if (memberIds.length && !isMember(branchId)) {
+    if (!requested || options.branchSwitcher) {
+      // قائمة الفروع (مبدّل الفرع) تُحمَّل حتى لو كان الفرع المحفوظ بالمتصفح لم يعد مسموحاً، ليختار المستخدم فرعاً صالحاً
+      branchId = isMember(defaultBranch) ? defaultBranch : memberIds[0]
+    } else {
+      return { ok: false, response: NextResponse.json({ error: "المستخدم غير مخول للعمل على هذا الفرع" }, { status: 403 }) }
+    }
   }
   const entries = await sql`
     SELECT al.id access_id,al.name access_name,
@@ -71,7 +81,7 @@ const LOOKUP_TRANSACTIONS: Record<FileFamily, TransactionFamily[]> = {
 export async function authorizeFileRead(request: NextRequest, families: FileFamily[]): Promise<(Granted & { lookupOnly: boolean }) | Denied> {
   const primary = families[0]
   if (!primary) return { ok: false, response: NextResponse.json({ error: "نوع الملف غير صالح" }, { status: 400 }) }
-  const context = await accessContext(request)
+  const context = await accessContext(request, { branchSwitcher: primary === "branches" })
   if ("ok" in context) return context
   const full = hasFilePermissionEntries(context.entries, primary, "view")
   const fileLookup = families.some(family => ["view", "create", "update"].some(action => hasFilePermissionEntries(context.entries, family, action as FileAction)))
