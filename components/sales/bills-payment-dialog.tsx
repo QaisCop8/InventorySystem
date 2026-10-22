@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useEffect, useState } from "react"
 import { ArrowDownWideNarrow, ArrowUpWideNarrow, CheckCircle2, Link2Off, Loader2, Wallet } from "lucide-react"
@@ -12,7 +13,7 @@ type Candidate = Voucher & { remaining_in_current: number; overdue_days: number 
 type Linked = { id: number; amount: number; payment_amount: number; voucher_id: number; vch_type: number; vch_code: string; vch_date: string; voucher_amount: number; currency_name: string | null; type_label: string }
 type View = { voucher: Voucher; linked: Linked[]; candidates: Candidate[]; can_settle: boolean }
 
-const fmt = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 
 /** تسديد الفواتير — من فاتورة مبيعات (ربط سندات القبض/الإشعارات/المرتجعات) أو من سند تسديد (ربط الفواتير المفتوحة). */
 export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: boolean; onOpenChange: (open: boolean) => void; voucherId: number | null }) {

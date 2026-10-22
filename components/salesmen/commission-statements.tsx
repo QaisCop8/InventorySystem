@@ -1,10 +1,11 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
 type Row = Record<string, any>
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const sourceLabels: Record<string, string> = { invoice: "فاتورة", return: "مرتجع", collection: "تحصيل", payment: "دفعة" }
 
 export function CommissionStatements({ statements, audit }: { statements: Row[]; audit: Row[] }) {

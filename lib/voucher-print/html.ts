@@ -1,3 +1,4 @@
+import { amountFractionOptions } from "@/lib/decimals"
 import { amountInArabicWords, cellText, headerPrintFields, type CompanyInfo, type PrintCell, type PrintColumn, type PrintDocument } from "./document"
 import { paperDimensions, type VoucherPrintSettings } from "./settings"
 
@@ -66,7 +67,7 @@ function copyHtml(document: PrintDocument, settings: VoucherPrintSettings, conte
       ${settings.show_notes && document.notes ? `<div class="notes"><small>ملاحظات</small><p>${escapeHtml(document.notes)}</p></div>` : ""}
       ${settings.show_barcode && context.barcodeSvg ? `<div class="barcode">${context.barcodeSvg}</div>` : ""}
     </div>
-    ${settings.show_totals && document.totals?.length ? `<div class="totals">${document.totals.map(total => `<div class="${total.strong ? "strong" : ""}"><span>${escapeHtml(total.label)}</span><b dir="ltr">${escapeHtml(typeof total.value === "number" ? total.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : total.value)}</b></div>`).join("")}</div>` : ""}
+    ${settings.show_totals && document.totals?.length ? `<div class="totals">${document.totals.map(total => `<div class="${total.strong ? "strong" : ""}"><span>${escapeHtml(total.label)}</span><b dir="ltr">${escapeHtml(typeof total.value === "number" ? total.value.toLocaleString("en-US", amountFractionOptions()) : total.value)}</b></div>`).join("")}</div>` : ""}
   </div>
   ${signatures.length ? `<div class="signatures">${signatures.map(label => `<div><span></span><small>${escapeHtml(label)}</small></div>`).join("")}</div>` : ""}
   ${settings.show_footer && (settings.footer_text || meta.length) ? `<footer class="foot">${settings.footer_text ? `<p>${escapeHtml(settings.footer_text)}</p>` : ""}${meta.length ? `<small>${escapeHtml(meta.join(" · "))}</small>` : ""}</footer>` : ""}

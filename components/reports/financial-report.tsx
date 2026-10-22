@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 import { ValuationMethod } from "./valuation-method"
 
@@ -28,7 +29,7 @@ type Summary = Record<string, number>
 
 const currentDate = () => new Date().toISOString().slice(0,10)
 const firstDate = () => `${currentDate().slice(0,4)}-01-01`
-const formatter = new Intl.NumberFormat("ar",{minimumFractionDigits:2,maximumFractionDigits:2})
+const formatter = amountNumberFormat("ar")
 const emptyMeta:Meta={accounts:[],currencies:[],branches:[],salesmen:[],voucher_types:[],shifts:[]}
 const configs:Record<FinancialReportType,{title:string;description:string;icon:any;accent:string}>={
   vouchers:{title:"تقرير السندات",description:"مراجعة السندات وقيمها وحالة ترحيلها والحسابات المرتبطة بها",icon:FileText,accent:"from-cyan-500 to-blue-600"},

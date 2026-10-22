@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Eraser, RefreshCw, Save, Search } from "lucide-react"
@@ -13,7 +14,7 @@ import { Grid, HrPage, inputClass, selectClass, type Column } from "./hr-shared"
 const monthNames = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"]
 type Filters = { currency: string; salaryType: string; employee: string; department: string; job: string; contractType: string }
 const emptyFilters: Filters = { currency: "", salaryType: "all", employee: "", department: "", job: "", contractType: "all" }
-const englishMoney = (value: any) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const englishMoney = (value: any) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 
 export function SalaryPeriodsPage() {
   const today = new Date()

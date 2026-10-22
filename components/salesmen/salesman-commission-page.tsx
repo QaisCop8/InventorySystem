@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { CommissionStatements } from "./commission-statements"
 import { CommissionPayDialog } from "./commission-pay-dialog"
@@ -14,7 +15,7 @@ type Rule = { id?:number; name:string; salesman_id:string; basis:string; tier_me
 const today=()=>new Date().toISOString().slice(0,10)
 const monthStart=()=>`${today().slice(0,7)}-01`
 const blankRule=():Rule=>({name:"",salesman_id:"",basis:"sales",tier_metric:"sales",commission_percent:"0",customer_id:"",item_id:"",item_group_id:"",warehouse_id:"",branch_id:"",currency_id:"",minimum_sales:"0",effective_from:today(),effective_to:"",tiers_text:"0:1\n10000:2\n25000:3\n50000:4",is_active:true})
-const money=(value:unknown)=>Number(value||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})
+const money=(value:unknown)=>Number(value||0).toLocaleString("en-US",amountFractionOptions())
 const SelectField=({label,value,onChange,options,allLabel}:{label:string;value:string;onChange:(value:string)=>void;options:any[];allLabel?:string})=><div className="min-w-0 space-y-1.5"><Label>{label}</Label><select value={value} onChange={event=>onChange(event.target.value)} className="h-10 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"><option value="">{allLabel||"اختر"}</option>{options.map(option=><option key={option.id} value={String(option.id)}>{option.code?`${option.code} — `:""}{option.name||option.product_name||option.warehouse_name||option.branch_name||option.currency_name}</option>)}</select></div>
 
 export default function SalesmanCommissionPage(){

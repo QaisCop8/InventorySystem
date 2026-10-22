@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useState, type FormEvent } from "react"
 import { BadgeCheck, Building2, CalendarRange, Clock3, FileText, Landmark, Loader2, Phone, Printer, Send, Upload, XCircle } from "lucide-react"
@@ -19,7 +20,7 @@ type PortalData = {
   payments: Payment[]
 }
 
-const money = (value: number | string) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: number | string) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const todayText = () => new Date().toISOString().slice(0, 10)
 const logoSrc = (logo: string) => (!logo ? "" : /^(https?:|data:|\/)/i.test(logo) ? logo : `data:image/png;base64,${logo}`)
 const STATUS: Record<string, { label: string; className: string; icon: typeof Clock3 }> = {

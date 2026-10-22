@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -134,7 +135,7 @@ const formatTime = (at?: number) =>
   at ? new Date(at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : ""
 
 const formatAmount = (value: number) =>
-  Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 
 export function AIChat() {
   const { user, activeBranchId, activeBranchName } = useAuth()

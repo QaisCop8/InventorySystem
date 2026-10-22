@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
@@ -31,7 +32,7 @@ type Result =
 
 const emptyMeta: Meta = { accounts: [], currencies: [], branches: [], cost_types: [], cost_centers: [] }
 const today = () => new Date().toISOString().slice(0, 10)
-const money = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("en-US")
 const fmt = (value: number) => money.format(Number(value || 0))
 const th = "whitespace-nowrap px-3 py-3 text-right text-xs"
 const num = "px-3 py-2.5 tabular-nums"

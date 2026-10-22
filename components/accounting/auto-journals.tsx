@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 import "@/components/accounting/cheque-theme.css"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -19,7 +20,7 @@ type Journal = { id: number; code: string }
 
 const emptyMeta: Meta = { base_currency_id: null, currencies: [], accounts: [], card_types: [] }
 const today = () => new Date().toISOString().slice(0, 10)
-const money = new Intl.NumberFormat("ar", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("ar")
 const fmt = (value: unknown) => money.format(Number(value || 0))
 
 function useMeta(date: string) {

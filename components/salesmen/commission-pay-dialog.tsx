@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useEffect, useState } from "react"
 import { Banknote, Loader2, X } from "lucide-react"
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button"
 type Voucher = { id: number; vch_code: string; vch_date: string; amount: number; account_name: string | null; remaining: number }
 type Row = { id: number; salesman_name?: string; invoice_code?: string; customer_name?: string; currency_code?: string; final_commission: number; paid_amount?: number }
 
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 
 export function CommissionPayDialog({ row, onClose, onPaid }: { row: Row; onClose: () => void; onPaid: () => void }) {
   const [vouchers, setVouchers] = useState<Voucher[]>([])

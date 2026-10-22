@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { amountInArabicWords, cellText, headerPrintFields, type PrintCell, type PrintColumn, type PrintDocument } from "./document"
 import { copyLabelsFor, visibleColumns, type PrintContext } from "./html"
@@ -269,7 +270,7 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
       for (const total of totals) {
         const pt = total.strong ? base * 1.1 : base
         if (total.strong) line(totalsX + 4, totalY - 1, totalsX + totalsWidth - 4, totalY - 1, BLACK)
-        const value = typeof total.value === "number" ? total.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(total.value ?? "")
+        const value = typeof total.value === "number" ? total.value.toLocaleString("en-US", amountFractionOptions()) : String(total.value ?? "")
         text(total.label, totalsX + totalsWidth / 2, totalY, totalsWidth / 2 - 5, lineHeight(pt), pt, RTL, Boolean(total.strong))
         text(value, totalsX + 5, totalY, totalsWidth / 2 - 5, lineHeight(pt), pt, LTR, true)
         totalY += lineHeight(pt) + 2

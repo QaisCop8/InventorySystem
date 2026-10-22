@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useState } from "react"
@@ -16,7 +17,7 @@ type PortalPayment = {
 }
 type PortalLinkRow = { id: number; account_id: number; account_code: string; account_name: string; created_by: string | null; created_at: string; last_access_at: string | null; access_count: number; mobile: string | null; pending: string | number }
 
-const money = (value: number | string) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: number | string) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const dateTime = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { hour12: false }).slice(0, 17) : "—")
 const STATUS_TABS = [
   { key: "pending", label: "بانتظار المراجعة" },

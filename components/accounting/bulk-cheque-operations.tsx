@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 import "@/components/accounting/cheque-theme.css"
 
 import {useCallback,useEffect,useMemo,useRef,useState} from "react"
@@ -16,7 +17,7 @@ type Option={id:number;type?:number;code?:string;name?:string;currency_id?:numbe
 type Meta={currencies:Option[];banks:Option[];bank_accounts:Option[];accounts:Option[]}
 const emptyMeta:Meta={currencies:[],banks:[],bank_accounts:[],accounts:[]}
 const today=()=>new Date().toISOString().slice(0,10)
-const money=new Intl.NumberFormat("ar",{minimumFractionDigits:2,maximumFractionDigits:2})
+const money=amountNumberFormat("ar")
 const config:Record<Mode,{title:string;description:string;operation:string;type:number;icon:any;gradient:string;targetLabel?:string}>={
  deposit:{title:"إيداع الشيكات الواردة",description:"حدد عدة شيكات مستحقة وأودعها بحساب البنك، مع إنشاء سند مستقل لكل شيك.",operation:"deposit",type:1,icon:ArrowDownToLine,gradient:"from-emerald-700 via-emerald-600 to-teal-600",targetLabel:"حساب البنك"},
  endorse:{title:"تجيير الشيكات",description:"اختر الشيكات الواردة وحساب المستفيد، وسيُنشأ سند مستقل لكل شيك.",operation:"endorse",type:1,icon:Send,gradient:"from-emerald-700 via-emerald-600 to-teal-600",targetLabel:"حساب المستفيد"},

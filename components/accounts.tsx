@@ -2,7 +2,8 @@
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useMemo, useState } from "react"
-import { CheckCircle, FileSpreadsheet, Plus, RefreshCw } from "lucide-react"
+import { BookOpen as BookOpenIcon, CheckCircle, FileSpreadsheet, Plus, RefreshCw } from "lucide-react"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
@@ -459,43 +460,30 @@ export default function Accounts() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-4 lg:p-6" dir="rtl">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 rounded-xl border bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-wide text-muted-foreground">نظام الحسابات</p>
-            <h2 className="text-2xl font-semibold">إدارة الحسابات</h2>
-            <p className="text-sm text-muted-foreground">إدارة الحسابات المحاسبية وتصنيفاتها</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button className="h-11 gap-2" variant="outline" onClick={() => setShowExcelImportDialog(true)}>
-              <FileSpreadsheet className="h-4 w-4" /> استيراد من اكسل
-            </Button>
-            <Button className="h-11 gap-2" onClick={handleNew}>
-              <Plus className="h-4 w-4" /> حساب جديد
-            </Button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" dir="rtl">
+      <div className="voucher-list-page space-y-5">
+        {/* Header: نفس تصميم صفحات الملفات والحركات (VoucherListHero) */}
+        <VoucherListHero
+          category="نظام الحسابات"
+          icon={BookOpenIcon}
+          title="إدارة الحسابات"
+          subtitle="إدارة الحسابات المحاسبية وتصنيفاتها"
+          addLabel="حساب جديد"
+          onNew={handleNew}
+          actions={
+            <button
+              type="button"
+              onClick={() => setShowExcelImportDialog(true)}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              استيراد من اكسل
+            </button>
+          }
+        />
 
-        {/* Stats Cards (now collapsible) */}
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="stats">
-            <AccordionTrigger className="text-sm font-medium">الاحصائيات</AccordionTrigger>
-            <AccordionContent>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {stats.map((stat) => (
-                  <Card key={stat.label} className={stat.color}>
-                    <CardContent className="p-6 text-right">
-                      <p className="text-sm font-medium text-slate-600">{stat.label}</p>
-                      <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        {/* الإحصائيات */}
+        <VoucherStats stats={stats.map((stat) => ({ label: stat.label, value: stat.value }))} />
 
         
 
@@ -668,7 +656,7 @@ export default function Accounts() {
                 />
               </div>
               <div className="flex items-end">
-                <Button variant="secondary" className="h-10 w-full" onClick={refreshAccounts}>
+                <Button variant="outline" className="h-10 w-full rounded-xl border-emerald-200 bg-emerald-50 font-bold text-emerald-700 hover:bg-emerald-100" onClick={refreshAccounts}>
                   <RefreshCw className="mr-2 h-4 w-4" /> تحديث
                 </Button>
               </div>

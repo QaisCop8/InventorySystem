@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -28,8 +29,8 @@ export type Field = { key: string; label: string; type?: "text" | "number" | "ch
 export type Column = { key: string; label: string; width?: number | string; type?: "number" | "boolean"; format?: (value: any, row: any) => any; render?: (row: any) => React.ReactNode }
 export const inputClass = "h-10 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-blue-500"
 export const selectClass = "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-export const money = (v: any) => Number(v || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-export const englishMoney = (v: any) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export const money = (v: any) => Number(v || 0).toLocaleString("ar-EG", amountFractionOptions())
+export const englishMoney = (v: any) => Number(v || 0).toLocaleString("en-US", amountFractionOptions())
 
 export function HrPage({ title, subtitle = "نظام ادارة الموظفين", children, report = false, loading = false }: { title: string; subtitle?: string; children: React.ReactNode; report?: boolean; loading?: boolean }) {
   if (report) return <PreventDialogOutsideClose><ReportPage loading={loading}><ReportHeader title={title} description={subtitle} category="تقارير الموظفين والرواتب" />{children}</ReportPage></PreventDialogOutsideClose>

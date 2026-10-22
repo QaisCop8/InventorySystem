@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
@@ -39,7 +40,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const yearStart = () => `${today().slice(0, 4)}-01-01`
 const emptyMeta: Meta = { accounts: [], currencies: [], branches: [], salesmen: [] }
 const emptySummary: Summary = { opening_balance: 0, total_debit: 0, total_credit: 0, final_balance: 0 }
-const money = new Intl.NumberFormat("ar", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("ar")
 
 export function ReportMultiChoice({ label, options, selected, onChange, placeholder, portalContainer }: {
   label: string; options: ReportOption[]; selected: number[]; onChange: (ids: number[]) => void; placeholder: string

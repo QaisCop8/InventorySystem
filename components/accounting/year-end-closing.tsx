@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useState } from "react"
@@ -25,7 +26,7 @@ type Closing = {
   reversed_at: string | null; retained_code: string | null; retained_name: string | null; journal_codes: string | null
 }
 
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const STEPS = ["الإعداد", "الفحوصات", "قيد الإقفال", "التنفيذ"]
 
 async function api<T = any>(url: string, init?: RequestInit): Promise<T> {

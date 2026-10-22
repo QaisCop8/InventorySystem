@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useEffect, useMemo, useState } from "react"
 import { Archive, Copy, Eye, FilePen, Loader2, Printer, RefreshCw, Search, Trash2 } from "lucide-react"
@@ -65,7 +66,7 @@ const dateTime = (value?: string | null) => {
   return `${part(date.getDate())}/${part(date.getMonth() + 1)}/${date.getFullYear()} ${part(date.getHours())}:${part(date.getMinutes())}:${part(date.getSeconds())}`
 }
 const day = (value?: string | null) => (value ? String(value).slice(0, 10) : "-")
-const money = (value: unknown) => (value == null || value === "" ? "-" : Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+const money = (value: unknown) => (value == null || value === "" ? "-" : Number(value).toLocaleString("en-US", amountFractionOptions()))
 const today = (offset = 0) => { const value = new Date(); value.setDate(value.getDate() + offset); return value.toISOString().slice(0, 10) }
 const show = (key: string, value: unknown) => {
   if (value == null || value === "") return ""

@@ -1,3 +1,4 @@
+import { amountFractionOptions } from "@/lib/decimals"
 import sql from "@/lib/database"
 import { hasNamedPermission } from "@/lib/permissions"
 import { CREDIT_LIMIT_OVERRIDE_PERMISSION, CREDIT_LIMIT_PERMISSION_CATEGORY } from "@/lib/transaction-permission-definitions"
@@ -10,7 +11,7 @@ import { CREDIT_LIMIT_OVERRIDE_PERMISSION, CREDIT_LIMIT_PERMISSION_CATEGORY } fr
 export type CreditIncrease = { accountId: number; amount: number }
 
 const round2 = (value: number) => Math.round(value * 100) / 100
-const money = (value: number) => round2(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: number) => round2(value).toLocaleString("en-US", amountFractionOptions())
 
 /** صافي ما يُضاف لذمة كل حساب من أسطر قيد (مدين − دائن) بعملة الأساس. */
 export function creditIncreasesFromJournal(rows: any[]): CreditIncrease[] {

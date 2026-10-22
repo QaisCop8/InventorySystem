@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 
 import { useEffect, useMemo, useState } from "react"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
@@ -35,7 +36,7 @@ type Row = {
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
-const money = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("en-US")
 const emptyMeta: Meta = { accounts: [], currencies: [], branches: [], salesmen: [], periods: [30, 60, 90, 120] }
 // تدرّج لوني من الحديث (أخضر) إلى الأقدم (أحمر)
 const BUCKET_TONES = ["bg-emerald-50 text-emerald-800", "bg-lime-50 text-lime-800", "bg-amber-50 text-amber-800", "bg-orange-50 text-orange-800", "bg-rose-50 text-rose-800", "bg-red-100 text-red-900"]

@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -50,7 +51,7 @@ const STATUS: Record<number, { label: string; className: string }> = {
 const today = () => new Date().toISOString().slice(0, 10)
 const dateOnly = (value?: string | null) => (value ? String(value).slice(0, 10) : "-")
 const qty = (value: number | null | undefined) => (value == null ? "—" : Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 }))
-const money = (value: number) => value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: number) => value.toLocaleString(undefined, amountFractionOptions())
 const isMeasured = (line: CountLine) => isMeasuredProduct(line.measurment_id)
 const isLotProduct = (line: CountLine) => !line.has_serial && (line.has_expiry || line.has_batch || line.has_variants || isMeasured(line))
 const productOf = (line: CountLine) => ({ measurment_id: line.measurment_id, length: line.product_length, width: line.product_width, density: line.product_density })

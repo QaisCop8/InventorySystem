@@ -1,4 +1,5 @@
 ﻿"use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useState } from "react"
 import { AlertTriangle, BarChart3, CheckCircle2, ClipboardList, DollarSign, Printer, Search, Timer, Users } from "lucide-react"
@@ -25,7 +26,7 @@ type Summary = {
 export const ORDER_TYPE_OPTIONS = [{ id: 1, name: "طلبيات المبيعات" }, { id: 2, name: "طلبيات المشتريات" }] as ReportOption[]
 const STATUS_LABEL: Record<number, string> = { 1: "غير جاهزة", 2: "جاهزة", 3: "مرسلة جزئياً", 4: "مرسلة كلياً", 5: "ملغاة", 6: "مغلقة" }
 const STATUS_TONE: Record<number, string> = { 1: "bg-amber-500", 2: "bg-emerald-500", 3: "bg-sky-500", 4: "bg-indigo-500", 5: "bg-rose-500", 6: "bg-slate-500" }
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const day = (value: unknown) => (value ? new Date(String(value)).toLocaleDateString("en-GB") : "—")
 const yearStart = () => `${new Date().getFullYear()}-01-01`

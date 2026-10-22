@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 import "@/components/accounting/cheque-theme.css"
 
 import { createChequeCsvBlob } from "@/lib/cheque-csv"
@@ -29,7 +30,7 @@ const emptySummary:Summary={count:0,total:0,due:0,returned:0}
 const today=()=>new Date().toISOString().slice(0,10)
 const firstDay=()=>`${today().slice(0,4)}-01-01`
 const initialFilters:Filters={q:"",statusId:"all",currencyId:"all",bankId:"all",fromDueDate:firstDay(),toDueDate:"",minAmount:"",maxAmount:""}
-const money=new Intl.NumberFormat("ar",{minimumFractionDigits:2,maximumFractionDigits:2})
+const money=amountNumberFormat("ar")
 const dateText=(value?:string)=>value?String(value).slice(0,10):"—"
 const statusTone=(id:number)=>id===4?"bg-emerald-100 text-emerald-800":id===5?"bg-rose-100 text-rose-800":id===7?"bg-violet-100 text-violet-800":id===8?"bg-sky-100 text-sky-800":id===9?"bg-slate-200 text-slate-700":"bg-amber-100 text-amber-800"
 

@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
@@ -19,7 +20,7 @@ type BalanceKind = "receivables" | "accounting"
 type Meta = { accounts: ReportOption[]; currencies: ReportOption[]; branches: ReportOption[] }
 type Row = { id: number; account_code: string; account_name: string; debit: number; credit: number; balance: number; currency_code?: string; currency_name?: string }
 const today = () => new Date().toISOString().slice(0, 10)
-const money = new Intl.NumberFormat("ar", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("ar")
 const emptyMeta: Meta = { accounts: [], currencies: [], branches: [] }
 
 export function AccountBalancesReport({ kind }: { kind: BalanceKind }) {

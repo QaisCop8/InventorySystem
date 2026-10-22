@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BadgePercent, CalendarRange, CreditCard, Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react"
@@ -134,7 +135,7 @@ export default function DiscountCards() {
     void load()
   }
 
-  const money = (value: number) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const money = (value: number) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 
   return (
     <div dir="rtl" className="flex min-h-full flex-col gap-3 bg-slate-50 p-3 sm:p-4 dark:bg-slate-950">

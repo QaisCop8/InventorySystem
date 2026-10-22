@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { loadVoucherPrintSettings, printVoucherWithSettings, type PrintResult } from "@/lib/voucher-print/print"
 import type { PrintDocument } from "@/lib/voucher-print/document"
@@ -21,7 +22,7 @@ export type CustodyPrintInput = {
 }
 
 const PAYMENT_LABELS: Record<string, string> = { cash: "نقدي", cheque: "شيكات", card: "بطاقات", account: "ذمم", gift_card: "بطاقات هدايا" }
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const pad = (value: number) => String(value).padStart(2, "0")
 const stamp = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`

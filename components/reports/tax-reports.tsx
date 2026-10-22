@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 
 import { useEffect, useMemo, useState } from "react"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
@@ -29,7 +30,7 @@ type Result =
 
 const today = () => new Date().toISOString().slice(0, 10)
 const monthStart = () => `${today().slice(0, 7)}-01`
-const money = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("en-US")
 const fmt = (value: number) => money.format(Number(value || 0))
 const th = "whitespace-nowrap px-3 py-3 text-right text-xs"
 const num = "px-3 py-2.5 tabular-nums"

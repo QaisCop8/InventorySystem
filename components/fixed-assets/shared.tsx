@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useMemo, type KeyboardEvent, type ReactNode } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
@@ -28,7 +29,7 @@ export const emptyLookups: Lookups = { categories: [], locations: [], accounts: 
 export const today = () => new Date().toISOString().slice(0, 10)
 export const thisPeriod = () => today().slice(0, 7)
 export const n = (value: unknown) => (Number.isFinite(Number(value)) ? Number(value) : 0)
-export const money = (value: unknown) => n(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+export const money = (value: unknown) => n(value).toLocaleString("en-US", amountFractionOptions())
 export const day = (value: unknown) => String(value ?? "").slice(0, 10)
 
 export async function api<T = any>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {

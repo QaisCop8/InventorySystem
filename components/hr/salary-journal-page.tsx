@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { RefreshCw, Search } from "lucide-react"
@@ -11,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Grid, HrPage, inputClass, selectClass, type Column } from "./hr-shared"
 
 const englishInteger = (value: any) => String(Number(value) || 0)
-const englishMoney = (value: any) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const englishMoney = (value: any) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const isSalaryClosed = (value: any) => value === true || value === 1 || ["true", "1"].includes(String(value ?? "").trim().toLowerCase())
 
 export function SalaryJournalPage() {

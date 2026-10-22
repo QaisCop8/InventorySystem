@@ -1,4 +1,5 @@
 "use client"
+import { amountNumberFormat } from "@/lib/decimals"
 
 type Row = {
   id: number
@@ -9,7 +10,7 @@ type Row = {
   balance?: number | string
 }
 
-const money = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = amountNumberFormat("en-US")
 const value = (row: Row) => Number(row.balance || 0)
 const formatted = (amount: number) => Math.abs(amount) < 0.00001 ? "" : money.format(amount)
 

@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Banknote, CalendarClock, FileWarning, Landmark, Minus, PackageX, Percent, RefreshCw, Receipt, Sparkles, Sunrise, TrendingUp, Users, Wallet } from "lucide-react"
@@ -6,7 +7,7 @@ import type { MorningBriefing as Briefing } from "@/lib/morning-briefing"
 
 type Response = Briefing & { summary: { text: string | null; error?: string } | null; generated_at: string }
 
-const money = (value: number) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: number) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const VOUCHER_NAMES: Record<number, string> = { 4: "سند قبض", 5: "سند صرف", 12: "فاتورة مبيعات", 16: "مرتجع مبيعات" }
 const localDay = (offset = 0) => {
   const date = new Date()

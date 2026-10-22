@@ -1,3 +1,4 @@
+import { amountFractionOptions } from "@/lib/decimals"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -237,7 +238,7 @@ async function accountBalance(accountId: number | null) {
     FROM voucher_journal_detail_tbl vjd JOIN voucher_header_tbl vh ON vh.id = vjd.voucher_id
     WHERE vjd.account_id = ${accountId} AND vh.status <> 3
   `)[0] as any
-  return Number(row?.balance || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(row?.balance || 0).toLocaleString("en-US", amountFractionOptions())
 }
 
 async function companyName() {
@@ -271,7 +272,7 @@ export async function previewDocumentSms(docKey: string, documentId: number, tem
     "[CustomerBalance]": template?.message_text?.includes("[CustomerBalance]") ? await accountBalance(document.accountId) : "",
     "[Code]": document.code,
     "[TransactionDate]": String(document.date || "").slice(0, 10).split("-").reverse().join("/"),
-    "[TransactionValue]": document.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    "[TransactionValue]": document.amount.toLocaleString("en-US", amountFractionOptions()),
     "[TransactionCurrency]": document.currency,
     "[TransactionType]": document.typeLabel,
     "[CompanyName]": template?.message_text?.includes("[CompanyName]") ? await companyName() : "",

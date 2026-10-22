@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useVoucherPrinter } from "./use-voucher-printer"
 import type { PrintDocument } from "@/lib/voucher-print/document"
@@ -34,7 +35,7 @@ export function accountVoucherDocument(data: VoucherPrintData, voucherTypeId: nu
     date: data.vch_date,
     fields: [
       { label: "العملة", value: data.currency_name },
-      { label: "المبلغ", value: data.amount === undefined ? "" : Number(data.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+      { label: "المبلغ", value: data.amount === undefined ? "" : Number(data.amount).toLocaleString("en-US", amountFractionOptions()) },
       { label: "سند يدوي", value: data.manual_voucher },
     ],
     columns: [

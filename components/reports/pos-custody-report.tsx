@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronDown, ChevronLeft, Cigarette, Printer, Search, Wallet } from "lucide-react"
@@ -28,7 +29,7 @@ const STATUS_OPTIONS: ReportOption[] = [
 const STATUS_LABEL: Record<string, string> = { open: "مفتوحة", handover_pending: "بانتظار الاستلام", handed_over: "مُسلَّمة", closed: "مغلقة" }
 const STATUS_TONE: Record<string, string> = { open: "bg-sky-100 text-sky-700", handover_pending: "bg-amber-100 text-amber-700", handed_over: "bg-emerald-100 text-emerald-700", closed: "bg-slate-200 text-slate-700" }
 const METHOD_LABEL: Record<string, string> = { cash: "نقدي", card: "بطاقات", cheque: "شيكات", cheques: "شيكات", credit: "ذمم", account: "ذمم", voucher: "قسائم" }
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => (value == null ? "—" : Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 }))
 const when = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—")
 const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`

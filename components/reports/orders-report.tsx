@@ -1,4 +1,5 @@
 "use client"
+import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ClipboardList, Layers, PackageSearch, Printer, Search, Timer, UserRound, Users, type LucideIcon } from "lucide-react"
@@ -94,7 +95,7 @@ const CONFIG: Record<View, { title: string; description: string; icon: LucideIco
   },
 }
 
-const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const day = (value: unknown) => (value ? new Date(String(value)).toLocaleDateString("en-GB") : "—")
 const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`
