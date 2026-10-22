@@ -390,7 +390,8 @@ export default function CreditCards() {
 
       <UnifiedCreditCards
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        // سجل جديد: موضعه بعد آخر سجل (مثل 2 / 1)، وأزرار التنقل مفعّلة للانتقال للسجلات المحفوظة
+        currentIndex={form.id > 0 ? currentIndex : filteredCards.length}
         totalRecords={filteredCards.length}
         form={form}
         isSaving={isSaving}
@@ -408,8 +409,8 @@ export default function CreditCards() {
         onConfirmDelete={deleteCard}
         onCancelDelete={() => setShowDeleteConfirm(false)}
         canSave={canSaveForm}
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={filteredCards.length === 0 ? true : currentIndex >= filteredCards.length - 1}
+        isFirstRecord={form.id > 0 ? currentIndex <= 0 : filteredCards.length === 0}
+        isLastRecord={form.id > 0 ? (filteredCards.length === 0 ? true : currentIndex >= filteredCards.length - 1) : filteredCards.length === 0}
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />

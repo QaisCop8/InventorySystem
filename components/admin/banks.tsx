@@ -337,7 +337,8 @@ export default function Banks() {
 
       <UnifiedBanks
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        // سجل جديد: موضعه بعد آخر سجل، وأزرار التنقل مفعّلة للانتقال للسجلات المحفوظة
+        currentIndex={form.id > 0 ? currentIndex : filteredBanks.length}
         totalRecords={filteredBanks.length}
         form={form}
         isSaving={isSaving}
@@ -356,8 +357,8 @@ export default function Banks() {
         hasDuplicateName={hasDuplicateName}
         onConfirmDelete={deleteBank}
         onCancelDelete={() => setShowDeleteConfirm(false)}
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={filteredBanks.length === 0 ? true : currentIndex >= filteredBanks.length - 1}
+        isFirstRecord={form.id > 0 ? currentIndex <= 0 : filteredBanks.length === 0}
+        isLastRecord={form.id > 0 ? (filteredBanks.length === 0 ? true : currentIndex >= filteredBanks.length - 1) : filteredBanks.length === 0}
         deleteError={deleteError}
       />
     </div>

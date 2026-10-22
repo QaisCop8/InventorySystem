@@ -417,7 +417,8 @@ export default function Branches() {
 
       <UnifiedBranches
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        // سجل جديد: موضعه بعد آخر سجل، وأزرار التنقل مفعّلة للانتقال للسجلات المحفوظة
+        currentIndex={form.id > 0 ? currentIndex : filteredBranches.length}
         totalRecords={filteredBranches.length}
         form={form}
         isSaving={isSaving}
@@ -472,8 +473,8 @@ export default function Branches() {
         usedSymbols={branches.filter((b) => b.id !== form.id && b.branch_symbol).map((b) => String(b.branch_symbol).toUpperCase())}
         showSymbolValidationError={showSymbolValidationError}
         saveError={saveError}
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={filteredBranches.length === 0 ? true : currentIndex >= filteredBranches.length - 1}
+        isFirstRecord={form.id > 0 ? currentIndex <= 0 : filteredBranches.length === 0}
+        isLastRecord={form.id > 0 ? (filteredBranches.length === 0 ? true : currentIndex >= filteredBranches.length - 1) : filteredBranches.length === 0}
         isNewMode={isNewMode}
       />
 

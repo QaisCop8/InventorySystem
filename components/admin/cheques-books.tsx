@@ -400,7 +400,8 @@ export default function ChequesBooks() {
 
       <UnifiedChequesBooks
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        // سجل جديد: موضعه بعد آخر سجل، وأزرار التنقل مفعّلة للانتقال للسجلات المحفوظة
+        currentIndex={form.id > 0 ? currentIndex : filteredBooks.length}
         totalRecords={filteredBooks.length}
         form={form}
         isSaving={isSaving}
@@ -419,8 +420,8 @@ export default function ChequesBooks() {
         onConfirmDelete={deleteBook}
         onCancelDelete={() => setShowDeleteConfirm(false)}
         canSave={canSaveForm}
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={filteredBooks.length === 0 ? true : currentIndex >= filteredBooks.length - 1}
+        isFirstRecord={form.id > 0 ? currentIndex <= 0 : filteredBooks.length === 0}
+        isLastRecord={form.id > 0 ? (filteredBooks.length === 0 ? true : currentIndex >= filteredBooks.length - 1) : filteredBooks.length === 0}
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />

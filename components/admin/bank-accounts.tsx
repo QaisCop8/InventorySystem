@@ -366,7 +366,8 @@ export default function BankAccounts() {
 
       <UnifiedBankAccounts
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        // سجل جديد: موضعه بعد آخر سجل، وأزرار التنقل مفعّلة للانتقال للسجلات المحفوظة
+        currentIndex={form.id > 0 ? currentIndex : visibleBankAccounts.length}
         totalRecords={visibleBankAccounts.length}
         banks={banks}
         branches={branches}
@@ -389,8 +390,8 @@ export default function BankAccounts() {
           !!form.currency_id &&
           currencies.some((c) => Number(c.currency_id ?? c.id) === form.currency_id)
         }
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={visibleBankAccounts.length === 0 ? true : currentIndex >= visibleBankAccounts.length - 1}
+        isFirstRecord={form.id > 0 ? currentIndex <= 0 : visibleBankAccounts.length === 0}
+        isLastRecord={form.id > 0 ? (visibleBankAccounts.length === 0 ? true : currentIndex >= visibleBankAccounts.length - 1) : visibleBankAccounts.length === 0}
         isNewMode={isNewMode}
         errorMessages={errorMessages}
         allBankAccounts={bankAccounts}
