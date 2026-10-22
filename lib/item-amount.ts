@@ -24,7 +24,7 @@ const isValidAmountDraft = (value: string, allowVatAction: boolean) => {
 }
 
 /** Filter keystrokes and pasted text in editable item-amount cells. */
-export function guardItemAmountInput(grid: any, row: number, col: number, allowVatAction: boolean) {
+export function guardItemAmountInput(grid: any, row: number, col: number, allowVatAction: boolean, immediateVatStep = false) {
   window.setTimeout(() => {
     const selection = grid?.selection
     if (selection && (selection.row !== row || selection.col !== col)) return
@@ -52,7 +52,8 @@ export function guardItemAmountInput(grid: any, row: number, col: number, allowV
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return
       if (event.key === "+" || event.key === "-") {
-        if (!allowVatAction) {
+        // وضع التطبيق الفوري: معالج الشبكة يطبّق الضريبة مباشرة، فلا يُكتب الرمز في الخلية
+        if (!allowVatAction || immediateVatStep) {
           event.preventDefault()
           return
         }
@@ -114,7 +115,11 @@ export function guardItemAmountInput(grid: any, row: number, col: number, allowV
 }
 
 /** Handle amount-cell key input, including a trailing + / - VAT action. */
-export function handleItemAmountKeyDown(grid: any, event: KeyboardEvent, allowVatAction: boolean) {
+/**
+ * onVatStep (اختياري): تطبيق فوري — + يضيف الضريبة للمبلغ و- يزيلها مباشرة دون كتابة الرمز في الخلية؛
+ * يُمرَّر المبلغ المكتوب حالياً، وتتولى الشاشة الحساب ومنع التكرار.
+ */
+export function handleItemAmountKeyDown(grid: any, event: KeyboardEvent, allowVatAction: boolean, onVatStep?: (row: number, action: "add" | "remove", baseAmount: number | null) => void) {
   const selection = grid?.selection
   if (!selection || !event || typeof event.key !== "string") return false
   const { row, col } = selection
@@ -136,6 +141,16 @@ export function handleItemAmountKeyDown(grid: any, event: KeyboardEvent, allowVa
     const amountText = currentText.replace(/[+-]$/, "")
     if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(amountText)) {
       event.preventDefault()
+      return true
+    }
+
+    if (onVatStep) {
+      event.preventDefault()
+      event.stopPropagation()
+      const typed = Number(amountText)
+      // إلغاء التحرير (لا يُحفظ النص المكتوب كقيمة) ثم تطبيق الضريبة على المبلغ المكتوب
+      if (grid.activeEditor) grid.finishEditing?.(true)
+      onVatStep(row, event.key === "+" ? "add" : "remove", Number.isFinite(typed) ? typed : null)
       return true
     }
 

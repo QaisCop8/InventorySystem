@@ -31,6 +31,9 @@ interface Unit {
   barcode: string;
   primary_barcode?: string;
   to_main_qnty?: number;
+  /** كل باركودات الوحدة (لوحة الوحدات تعرض سطراً لكل وحدة + باركود) */
+  barcodes?: string[];
+  _row_key?: string;
 }
 
 interface Product {
@@ -95,6 +98,20 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const [searchName, setSearchName] = useState("");
   const [searchPrice, setSearchPrice] = useState("");
   const [searchBarcode, setSearchBarcode] = useState("");
+  // نوع الرقم في فلتر/عمود الباركود: باركود (افتراضي) أو رقم المصنع (product_numbers.type 2) أو الرقم الأصلي (type 1)
+  const [numberType, setNumberType] = useState<"barcode" | "factory" | "original">("barcode");
+  const [productNumbers, setProductNumbers] = useState<Record<string, Record<number, string>>>({});
+  useEffect(() => {
+    if (numberType === "barcode" || productNumbers[numberType]) return;
+    let active = true;
+    fetch(`/api/products/numbers?type=${numberType === "original" ? 1 : 2}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { numbers: {} }))
+      .then((data) => { if (active) setProductNumbers((current) => ({ ...current, [numberType]: data.numbers || {} })) })
+      .catch(() => undefined);
+    return () => { active = false };
+  }, [numberType, productNumbers]);
+  const numberLabel = numberType === "factory" ? "رقم المصنع" : numberType === "original" ? "الرقم الأصلي" : "الباركود";
+  const numbersOf = useCallback((productId: unknown) => (numberType === "barcode" ? "" : productNumbers[numberType]?.[Number(productId)] || ""), [numberType, productNumbers]);
   const [selectedTypes, setSelectedTypes] = useState<number[]>(() =>
     Array.isArray(productTypes) && productTypes.length > 0
       ? Array.from(new Set(productTypes))
@@ -330,12 +347,16 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       }
       if (price && !String(displayPrice(p)).includes(price)) return false;
       if (barcode) {
-        const own = p._barcodes ?? "";
-        if (!own.includes(barcode) && !(p.units || []).some((unit: Unit) => String(unit.barcode || "").toLowerCase().includes(barcode))) return false;
+        if (numberType !== "barcode") {
+          if (!numbersOf(p.id).toLowerCase().includes(barcode)) return false;
+        } else {
+          const own = p._barcodes ?? "";
+          if (!own.includes(barcode) && !(p.units || []).some((unit: Unit) => (unit.barcodes?.length ? unit.barcodes : [unit.barcode]).some((code) => String(code || "").toLowerCase().includes(barcode)))) return false;
+        }
       }
       return true;
     });
-  }, [products, deferredCode, deferredName, deferredPrice, deferredBarcode, templateFilter, displayPrice]);
+  }, [products, deferredCode, deferredName, deferredPrice, deferredBarcode, templateFilter, displayPrice, numberType, numbersOf]);
   const visibleProducts = useMemo(() => filteredProducts.slice(0, 200), [filteredProducts]);
 
   const clearFilters = useCallback(() => {
@@ -670,8 +691,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     { key: "product_name", header: "اسم الصنف", className: "max-w-[340px] truncate font-semibold text-slate-800" },
     { key: "first_unit", header: "الوحدة", width: "80px", className: "text-slate-600" },
     { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => displayPrice(product).toLocaleString() },
-    { key: "first_barcode", header: "الباركود", width: "140px", className: "font-mono text-xs text-slate-500" },
-  ], [ShowSelect, toggleProductChecked, displayPrice]);
+    numberType === "barcode"
+      ? { key: "first_barcode", header: "الباركود", width: "140px", className: "font-mono text-xs text-slate-500" }
+      : { key: "first_barcode", header: numberLabel, width: "160px", className: "font-mono text-xs text-slate-600", render: (product: Product) => numbersOf(product.id) || "—" },
+  ], [ShowSelect, toggleProductChecked, displayPrice, numberType, numberLabel, numbersOf]);
 
   type AttributeRow = (typeof selectedAttributeRows)[number];
 
@@ -698,6 +721,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     { key: "value_name", header: "القيمة" },
     { key: "image_url", header: "", width: "40px", align: "center", render: (row) => productThumb(row.image_url) },
   ], [ShowSelect, toggleAttributeKey]);
+
+  // كل وحدة بعدد باركوداتها: وحدة لها 3 باركودات ⇐ 3 أسطر (الاختيار يُرجع الوحدة مع ذلك الباركود)
+  const unitBarcodeRows = (units: Unit[]): Unit[] => units.flatMap((unit) => {
+    const codes = (unit.barcodes && unit.barcodes.length ? unit.barcodes : String(unit.barcode || "").split(",").map((code) => code.trim())).filter(Boolean);
+    return codes.length
+      ? codes.map((code) => ({ ...unit, barcode: code, _row_key: `${unit.unit_id}:${code}` }))
+      : [{ ...unit, barcode: "", _row_key: `${unit.unit_id}:` }];
+  });
 
   const unitColumns = useMemo<SearchColumn<Unit>[]>(() => [
     { key: "unit_name", header: "الوحدة", className: "font-semibold text-slate-700" },
@@ -766,8 +797,23 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               <SearchFilterField label="السعر">
                 <Input ref={searchPriceRef} className={searchInputClassName} placeholder="السعر" value={searchPrice} onChange={(e) => setSearchPrice(e.target.value)} />
               </SearchFilterField>
-              <SearchFilterField label="الباركود">
-                <Input ref={searchBarcodeRef} className={searchInputClassName} placeholder="الباركود" value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} />
+              <SearchFilterField label={
+                <span className="flex items-center justify-between gap-2">
+                  <span>{numberLabel}</span>
+                  <select
+                    tabIndex={-1}
+                    aria-label="نوع الرقم"
+                    value={numberType}
+                    onChange={(event) => setNumberType(event.target.value as "barcode" | "factory" | "original")}
+                    className="h-5 rounded-md border border-slate-200 bg-slate-50 px-1 text-[11px] font-semibold text-emerald-700 outline-none focus:border-emerald-400"
+                  >
+                    <option value="barcode">باركود</option>
+                    <option value="factory">رقم المصنع</option>
+                    <option value="original">الرقم الأصلي</option>
+                  </select>
+                </span>
+              }>
+                <Input ref={searchBarcodeRef} className={searchInputClassName} placeholder={numberLabel} value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} />
               </SearchFilterField>
               {Array.isArray(productTypes) && productTypes.length === 1 ? (
                 <SearchFilterField label="النوع">
@@ -853,9 +899,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             ) : (
               <SearchResultsTable<Unit>
                 ref={unitsTableRef}
-                rows={selectedProduct.units || []}
+                rows={unitBarcodeRows(selectedProduct.units || [])}
                 columns={unitColumns}
-                getRowKey={(unit) => unit.unit_id}
+                getRowKey={(unit) => unit._row_key || unit.unit_id}
                 onPick={(unit) => handleUnitRowDoubleClick(unit)}
                 onActiveChange={(unit) => { if (unit) handleSelectUnit(unit) }}
                 isRowMarked={(unit) => selectedProduct.selected_unit?.unit_id === unit.unit_id}

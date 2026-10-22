@@ -2839,7 +2839,16 @@ td {
 }
 .unified-customers-compact .customer-definition-form [data-slot="card-content"] { padding: 12px 18px 18px !important; }
 /* بطاقة التعريف الأولى: رأس بتدرج نعناعي ناعم */
-.unified-customers-compact .customer-definition-form .customer-hero-card { overflow: hidden !important; }
+/* لا قصّ: قوائم الاختيار (فئة السعر/المندوب/التصنيف) تُفتح داخل البطاقة (appendTo=self) وكانت تُقصّ عند حدّها السفلي؛
+   زوايا رأس البطاقة تُدوَّر مباشرة بدل overflow:hidden */
+.unified-customers-compact .customer-definition-form .customer-hero-card { overflow: visible !important; }
+.unified-customers-compact .customer-definition-form .customer-hero-card > [data-slot="card-header"] { border-radius: 20px 20px 0 0 !important; }
+
+/* لا مساحة فارغة أسفل النافذة: جسم النموذج عمودي مرن، والتبويبات والتبويب النشط وبطاقته تمتد حتى أسفل النافذة */
+.unified-customers-compact .customer-definition-form { display: flex !important; flex-direction: column !important; }
+.unified-customers-compact .customer-definition-form > div[data-orientation] { flex: 1 0 auto !important; display: flex !important; flex-direction: column !important; }
+.unified-customers-compact .customer-definition-form > div[data-orientation] > [role="tabpanel"][data-state="active"] { flex: 1 0 auto !important; display: flex !important; flex-direction: column !important; }
+.unified-customers-compact .customer-definition-form > div[data-orientation] > [role="tabpanel"][data-state="active"] > [data-slot="card"]:last-child { flex: 1 0 auto !important; }
 .unified-customers-compact .customer-definition-form .customer-hero-card > [data-slot="card-header"] {
   padding: 14px 18px 12px !important; border-bottom: 1px solid var(--cf-border) !important;
   background: linear-gradient(110deg, var(--cf-accent-soft), transparent 75%) !important;

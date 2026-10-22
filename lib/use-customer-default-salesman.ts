@@ -35,3 +35,20 @@ export function useCustomerDefaultSalesman({ recordId, accountId, locked, onSale
     return () => { cancelled = true }
   }, [recordId, accountId, locked])
 }
+
+/**
+ * مندوب العميل مباشرة عند اختيار المستخدم للعميل (أوثق من مراقبة تغيّر الحقل في useCustomerDefaultSalesman،
+ * التي قد تتخطّى الاختيار حين يتزامن مع تحميل/تبديل السند). يعيد null إن لم يكن للعميل مندوب.
+ */
+export async function fetchCustomerDefaultSalesman(accountId: unknown): Promise<number | null> {
+  const account = Number(accountId) || 0
+  if (account <= 0) return null
+  try {
+    const response = await fetch(`/api/customers/default-salesman?account_id=${account}`, { cache: "no-store" })
+    const data = response.ok ? await response.json() : null
+    const salesmanId = Number(data?.salesman_id) || 0
+    return salesmanId > 0 ? salesmanId : null
+  } catch {
+    return null
+  }
+}

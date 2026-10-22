@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
-import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
+import { fetchCustomerDefaultSalesman, useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemVatRateFor, useItemVatRates } from "@/lib/use-item-vat-rates"
 import {
@@ -906,8 +906,12 @@ export default function UnifiedSalesDelivery({
   itemsRef.current = items
   const amountEditSnapshotRef = useRef<{ grid: any; row: number; value: any } | null>(null)
   const amountVatAdjustmentRef = useRef(new Map<number, AppliedItemAmountAction>())
+  // مستوى الضريبة المطبَّق بـ+/- على مبلغ كل سطر: -1 (أُزيلت) .. +1 (أُضيفت). + مسموح حتى +1 فقط (مرة واحدة، أو
+  // مرتين إن سبقها -)، و- حتى -1. يُصفَّر عند كتابة مبلغ يدوياً.
+  const amountVatLevelRef = useRef(new Map<number, number>())
   useEffect(() => {
     amountVatAdjustmentRef.current.clear()
+    amountVatLevelRef.current.clear()
   }, [form.id, form.vch_code, gridResetToken])
   // نفس نمط formRef في unified-stock-voucher.tsx — يقرأه معالِج Alt+C (نسخ سند للحافظة العابرة
   // لنوع السند، انظر lib/voucher-clipboard.ts) دون حاجة لإدراج كل حقل رأس يقرأه بمصفوفة تبعيات
@@ -1396,6 +1400,50 @@ export default function UnifiedSalesDelivery({
     if (price === null || !Number.isFinite(price)) return price
     const vatPercent = lineRate === undefined ? Number(formRef.current.vat_percent || 0) : (lineRate ?? 0)
     return priceEntryIncludesTax && vatPercent > 0 ? Math.round((price / (1 + vatPercent / 100)) * 100) / 100 : price
+  }
+
+  // + / - في خلية المبلغ: تطبيق فوري (لا يُكتب الرمز في الخلية) — + يضرب المبلغ في (1 + نسبة الضريبة) و- يقسمه عليها،
+  // ثم يُعاد حساب السعر من المبلغ الجديد. الحد: مستوى السطر بين -1 و+1 (انظر amountVatLevelRef).
+  const applyAmountVatStep = (row: number, action: "add" | "remove", typedAmount: number | null) => {
+    const currentForm = formRef.current
+    if (Number(currentForm.status) === 2 || Number(currentForm.status) === 3) return
+    const currentRow = itemsRef.current[row]
+    if (!currentRow?.product_id) return
+    const level = amountVatLevelRef.current.get(row) ?? 0
+    if (action === "add" && level >= 1) {
+      messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "تمت إضافة الضريبة لهذا السطر مسبقاً", life: 2000 }])
+      return
+    }
+    if (action === "remove" && level <= -1) {
+      messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "تمت إزالة الضريبة من هذا السطر مسبقاً", life: 2000 }])
+      return
+    }
+    const vatDisabled = Number(currentForm.vat_classification_id) === 2 || Number(currentForm.vat_classification_id) === 3
+    const vatRate = vatDisabled
+      ? 0
+      : itemVatRef.current.enabled
+        ? (itemVatRef.current.rateOf(currentRow.product_id) ?? 0)
+        : (finiteItemNumber(currentForm.vat_percent) ?? 0)
+    if (!(vatRate > 0)) {
+      messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "لا توجد نسبة ضريبة لهذا الصنف", life: 2000 }])
+      return
+    }
+    const quantity = finiteItemNumber(currentRow.quantity)
+    const discountPercent = finiteItemNumber(currentRow.discount_percent) ?? 0
+    const discountFactor = 1 - Math.min(Math.max(discountPercent, 0), 100) / 100
+    const base = typedAmount ?? finiteItemNumber(currentRow.total_price)
+    if (base == null || quantity === null || quantity <= 0 || discountFactor <= 0) return
+    // المبلغ المكتوب قبل الضغط يبدأ دورة جديدة (لم تُطبَّق عليه ضريبة بعد)
+    const startLevel = typedAmount != null && Math.abs(typedAmount - (finiteItemNumber(currentRow.total_price) ?? NaN)) > 0.0001 ? 0 : level
+    if (action === "add" && startLevel >= 1) return
+    if (action === "remove" && startLevel <= -1) return
+    const factor = 1 + vatRate / 100
+    const amount = Math.round((action === "add" ? base * factor : base / factor) * 100) / 100
+    const unitPrice = amount / (quantity * discountFactor)
+    if (!Number.isFinite(unitPrice)) return
+    amountVatAdjustmentRef.current.delete(row)
+    amountVatLevelRef.current.set(row, startLevel + (action === "add" ? 1 : -1))
+    patchItemRow(row, { unit_price: unitPrice, total_price: amount, line_amount: amount })
   }
 
   const patchItemRow = (index: number, patch: Partial<SalesVoucherItemRow>) => {
@@ -2079,6 +2127,8 @@ export default function UnifiedSalesDelivery({
           ? (itemVatRef.current.rateOf(currentRow?.product_id) ?? 0)
           : (finiteItemNumber(currentForm.vat_percent) ?? 0)
       const productId = Number(currentRow?.product_id) || null
+      // مبلغ مكتوب يدوياً (بلا +/-) يبدأ دورة ضريبة جديدة للسطر
+      if (!parsedAmount.vatAction) amountVatLevelRef.current.delete(row)
       const previousAdjustment = amountVatAdjustmentRef.current.get(row)
       const amountAction = applyItemAmountAction(parsedAmount.amount, parsedAmount.vatAction, vatRate, productId, previousAdjustment)
       const { netAmount, displayAmount } = amountAction
@@ -2185,7 +2235,7 @@ export default function UnifiedSalesDelivery({
     const row = itemsRef.current[e.row]
     if (colName === "total_price") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
-      guardItemAmountInput(grid, e.row, e.col, true)
+      guardItemAmountInput(grid, e.row, e.col, true, true)
     }
     if (isFromDelivery && colName !== "unit_price") {
       e.cancel = true
@@ -2688,7 +2738,7 @@ export default function UnifiedSalesDelivery({
       }
     }
 
-    if (handleItemAmountKeyDown(grid, e, true)) return
+    if (handleItemAmountKeyDown(grid, e, true, applyAmountVatStep)) return
 
     // Restrict non-numeric chars in numeric columns (quantity/unit_price/discount)
     if (['quantity', 'bonus_quantity', 'unit_price', 'discount_percent'].includes(colName)) {
@@ -3465,6 +3515,8 @@ export default function UnifiedSalesDelivery({
                     onAccountSelect={(account) => {
                       onFormChange("account_id", account?.id ?? null)
                       onFormChange("customer_name", account?.name ?? "")
+                      // مندوب العميل من تعريفه (customers.salesman) يُعيَّن فوراً عند اختيار العميل
+                      if (account?.id && !isLocked) void fetchCustomerDefaultSalesman(account.id).then((salesmanId) => { if (salesmanId) onFormChange("salesman_id", salesmanId) })
                     }}
                     searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [2,3, 5] : [2,3, 5]}
                     showOrderOnlyFilter={hasOrderSourceItems}
