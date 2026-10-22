@@ -14,8 +14,9 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency, Warehouse as WarehouseIcon, Ruler, Network } from "lucide-react"
+import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency, Warehouse as WarehouseIcon, Ruler, Network, ShieldCheck } from "lucide-react"
 import "./definitions-theme.css"
+import { BranchUsersDialog } from "./branch-users-dialog"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { cn } from "@/lib/utils"
@@ -48,6 +49,7 @@ interface Branch {
   manager?: string
   phone?: string
   is_active: boolean
+  status?: number
 }
 
 interface Department {
@@ -249,6 +251,8 @@ function Definitions() {
   const [showTaxClassificationForm, setShowTaxClassificationForm] = useState(false)
   const [taxClassificationForm, setTaxClassificationForm] = useState<{ id?: number; name: string; tax_percent: number; status?: number }>({ name: "", tax_percent: 0, status: 1 })
   const [branches, setBranches] = useState<Branch[]>([])
+  // نافذة صلاحيات مستخدمي الفرع (زر في بطاقة الفرع)
+  const [branchUsersFor, setBranchUsersFor] = useState<Branch | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [editingBranchId, setEditingBranchId] = useState<number | null>(null);
@@ -2638,12 +2642,17 @@ function Definitions() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditBranch(branch)}>
+                          <Button variant="outline" size="sm" onClick={() => handleEditBranch(branch)} title="تعديل الفرع">
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Badge variant={branch.is_active ? "default" : "secondary"}>
-                            {branch.is_active ? "نشط" : "غير نشط"}
-                          </Badge>
+                          <Button variant="outline" size="sm" onClick={(event) => { event.stopPropagation(); setBranchUsersFor(branch) }} className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50" title="المستخدمون الذين يعملون في هذا الفرع">
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            صلاحيات المستخدمين
+                          </Button>
+                          {/* الحالة من status (1 نشط) — الحقل is_active غير موجود في جدول الفروع فكانت كل الفروع "غير نشط" */}
+                          {(() => { const active = branch.status != null ? Number(branch.status) === 1 : branch.is_active !== false; return (
+                            <Badge variant={active ? "default" : "secondary"}>{active ? "نشط" : "غير نشط"}</Badge>
+                          ) })()}
                         </div>
                       </div>
                     </div>
@@ -2781,7 +2790,8 @@ function Definitions() {
         </TabsContent>
 
         <TabsContent value="items" className="space-y-6">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* التصنيف الضريبي والوحدات: نصف الصفحة لكل منهما */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Card dir="rtl">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -4433,6 +4443,7 @@ function Definitions() {
         </TabsContent>
 
       </Tabs>
+      {branchUsersFor && <BranchUsersDialog branch={branchUsersFor} onClose={() => setBranchUsersFor(null)} />}
 
       <ConfirmDialogYesNo
         visible={confirmDeleteVisible}

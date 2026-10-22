@@ -21,6 +21,7 @@ import { menuItems, SECTION_TITLES, type MenuItem } from "@/components/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { activateCompany } from "@/lib/tenant-client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { requestGuardedNavigation } from "@/lib/navigation-guard";
 import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
 import { useToast } from "@/hooks/use-toast";
 
@@ -174,6 +175,12 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
   };
 
   const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([]);
+  // تغيير الفرع يعيد تحميل كل الشاشات المفتوحة ⇐ يُسأل أولاً عن أي شاشة بتغييرات غير محفوظة (حفظ/عدم حفظ/رجوع)
+  const changeBranchGuarded = (selected: { id: number; branch_name: string }) => {
+    if (selected.id === activeBranchId) return;
+    const apply = () => setActiveBranchContext({ id: selected.id, name: selected.branch_name });
+    if (requestGuardedNavigation(apply)) apply();
+  };
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const { dialogOpen: exchangeRatesOpen, setDialogOpen: setExchangeRatesOpen, checkNow: recheckExchangeRates } = useDailyExchangeRatesCheck();
 
@@ -193,13 +200,15 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     const fetchBranches = async () => {
       try {
         setIsLoadingBranches(true);
-        const response = await fetch("/api/branches", { signal: controller.signal });
+        // فروع المستخدم فقط (عضوية user_branches) — نفس الفروع المتاحة له في الحركات
+        const response = await fetch("/api/branches?scope=mine", { signal: controller.signal });
         if (!response.ok) throw new Error("فشل في تحميل الفروع");
         const data = await response.json();
         const normalized = Array.isArray(data) ? data : [];
         setBranches(normalized);
 
-        if (!activeBranchId && normalized.length > 0) {
+        // الفرع النشط المحفوظ قد لا يعود مسموحاً (تغيّرت صلاحياته) ⇐ يُستبدل بفرعه الافتراضي أو أول فرع مسموح
+        if (normalized.length > 0 && (!activeBranchId || !normalized.some((branch) => branch.id === activeBranchId))) {
           const userBranch = user?.branchId
             ? normalized.find((branch) => branch.id === user.branchId)
             : undefined;
@@ -346,9 +355,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               value={activeBranchId?.toString() || ""}
               onChange={(event) => {
                 const selected = branches.find((branch) => branch.id === Number(event.target.value));
-                if (selected) {
-                  setActiveBranchContext({ id: selected.id, name: selected.branch_name });
-                }
+                if (selected) changeBranchGuarded(selected);
               }}
               disabled={isLoadingBranches || branches.length === 0}
             >
@@ -460,7 +467,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
                   value={activeBranchId?.toString() || ""}
                   onChange={(event) => {
                     const selected = branches.find((branch) => branch.id === Number(event.target.value));
-                    if (selected) setActiveBranchContext({ id: selected.id, name: selected.branch_name });
+                    if (selected) changeBranchGuarded(selected);
                   }}
                   disabled={isLoadingBranches || branches.length === 0}
                 >

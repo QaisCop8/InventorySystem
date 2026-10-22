@@ -46,6 +46,14 @@ export async function GET(request: NextRequest) {
           ORDER BY id ASC
         `
 
+    // scope=mine (قائمة فرع رأس الصفحة): دائماً فروع عضوية المستخدم فقط (بلا صفوف = كل الفروع)، حتى لمن يملك صلاحية ملف الفروع
+    if (searchParams.get("scope") === "mine") {
+      const mine = await sql`SELECT branch_id FROM user_branches WHERE user_id::text = ${String(authorization.userId)}`
+      const mineIds = new Set(mine.map((row: any) => Number(row.branch_id)))
+      const myBranches = mine.length ? branches.filter((row: any) => mineIds.has(Number(row.id))) : branches
+      return NextResponse.json(authorization.lookupOnly ? projectFileLookup("branches", myBranches) : myBranches)
+    }
+
     if (authorization.lookupOnly) {
       const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${authorization.userId}`
       const allowedIds = new Set(memberships.map((row: any) => Number(row.branch_id)))

@@ -4294,40 +4294,28 @@ export default function UnifiedSalesDelivery({
           accountLabel={"العميل / المورد"}
           onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
         />
-        <AlertDialog open={showUnsavedConfirm} onOpenChange={setShowUnsavedConfirm}>
-          <AlertDialogContent dir="rtl" className="z-[10060] max-w-md">
-            <AlertDialogHeader>
-              <AlertDialogTitle>تم تعديل البيانات</AlertDialogTitle>
-              <AlertDialogDescription className="text-right">
-                هل تريد حفظ التعديلات قبل المتابعة؟
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2 sm:justify-start">
-              <AlertDialogAction
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => {
-                  setShowUnsavedConfirm(false)
-                  void saveAndContinue("save")
-                }}
-              >
-                نعم، حفظ
-              </AlertDialogAction>
-              <AlertDialogAction
-                className="bg-slate-600 hover:bg-slate-700"
-                onClick={() => {
-                  const action = pendingActionRef.current
-                  pendingActionRef.current = null
-                  action?.()
-                }}
-              >
-                لا، متابعة
-              </AlertDialogAction>
-              <AlertDialogCancel onClick={() => { pendingActionRef.current = null }}>
-                رجوع
-              </AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* نافذة التغييرات غير المحفوظة: نفس نافذة باقي الحركات (ConfirmDialogYesNo) */}
+        <ConfirmDialogYesNo
+          useAppDialog
+          title="حفظ التغييرات"
+          visible={showUnsavedConfirm}
+          message="تم تعديل البيانات، هل تريد الحفظ؟"
+          showBack
+          onConfirm={() => {
+            setShowUnsavedConfirm(false)
+            void saveAndContinue("save")
+          }}
+          onCancel={() => {
+            setShowUnsavedConfirm(false)
+            const action = pendingActionRef.current
+            pendingActionRef.current = null
+            action?.()
+          }}
+          onBack={() => {
+            setShowUnsavedConfirm(false)
+            pendingActionRef.current = null
+          }}
+        />
 
         <PostVoucherDialog
           visible={postDialogOpen}
