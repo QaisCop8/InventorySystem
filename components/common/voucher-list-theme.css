@@ -1,0 +1,44 @@
+/* صفحات قوائم الحركات (VoucherListHero/VoucherStats في voucher-list-shell.tsx): بطاقات البحث والجدول
+   بتصميم حديث موحّد بألوان النظام — تُطبَّق على أبناء .voucher-list-page المباشرين فقط (لا تمس نافذة السند). */
+.voucher-list-page > [data-slot="card"] {
+  gap: 0;
+  padding-top: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 12px 28px -22px rgb(15 23 42 / 35%);
+}
+.voucher-list-page > [data-slot="card"] > [data-slot="card-header"] {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  background: linear-gradient(to left, #ecfdf5, #ffffff 70%);
+  border-bottom: 1px solid #d1fae5;
+}
+.voucher-list-page > [data-slot="card"] [data-slot="card-title"] {
+  font-size: 15px;
+  font-weight: 800;
+  color: #064e3b;
+}
+.voucher-list-page > [data-slot="card"] [data-slot="card-title"] > svg {
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 10px;
+  background: #d1fae5;
+  color: #047857;
+}
+.voucher-list-page > [data-slot="card"] [data-slot="card-content"] input:not([type="checkbox"]):not([type="radio"]) {
+  border-radius: 10px;
+  background-color: #f8fafc;
+}
+.voucher-list-page > [data-slot="card"] [data-slot="card-content"] input:focus {
+  background-color: #fff;
+  border-color: #34d399;
+  box-shadow: 0 0 0 4px rgb(16 185 129 / 14%);
+}
+
+.dark .voucher-list-page > [data-slot="card"] { background: #0b1220; border-color: #1e293b; box-shadow: none; }
+.dark .voucher-list-page > [data-slot="card"] > [data-slot="card-header"] { background: linear-gradient(to left, #052e2b, #0b1220 70%); border-bottom-color: #064e3b; }
+.dark .voucher-list-page > [data-slot="card"] [data-slot="card-title"] { color: #a7f3d0; }
+.dark .voucher-list-page > [data-slot="card"] [data-slot="card-title"] > svg { background: #064e3b; color: #6ee7b7; }
+.dark .voucher-list-page > [data-slot="card"] [data-slot="card-content"] input:not([type="checkbox"]):not([type="radio"]) { background-color: #0f172a; }

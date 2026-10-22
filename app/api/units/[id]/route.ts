@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "@/lib/database"
 
 function toText(value: unknown, fallback = "") {
@@ -97,6 +98,11 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     if (!unitId) {
       return NextResponse.json({ error: "معرف الوحدة غير صالح" }, { status: 400 })
     }
+
+    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
+    const usageRow = (await sql`SELECT * FROM units WHERE id = ${unitId}`)[0] as any
+    const usages = await findUsages(unitId, { idColumns: /^(unit_id|.+_unit_id|measurment_unit)$/, textColumns: /^unit$/, excludeTables: ["units"], textValues: [usageRow?.unit_name, usageRow?.unit_name_en] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("الوحدة", String(usageRow?.unit_name || ""), usages) }, { status: 400 })
 
     const deleted = await sql`
       DELETE FROM units

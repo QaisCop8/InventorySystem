@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "../../../../lib/database"
 
 function getDatabaseErrorResponse() {
@@ -82,6 +83,11 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "معرف المدينة مطلوب" }, { status: 400 })
     }
+
+    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
+    const usageRow = (await sql`SELECT * FROM cities WHERE id = ${id}`)[0] as any
+    const usages = await findUsages(id, { idColumns: /^city_id$/, textColumns: /^city$/, excludeTables: ["cities"], textValues: [usageRow?.name, id] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("المدينة", String(usageRow?.name || ""), usages) }, { status: 400 })
 
     const result = await sql`
       UPDATE cities

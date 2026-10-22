@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -72,6 +73,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "معرف نوع الرخصة غير صالح" }, { status: 400 })
     }
+
+    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
+    const usageRow = (await sql`SELECT * FROM license_types WHERE id = ${id}`)[0] as any
+    const usages = await findUsages(id, { idColumns: /^license_type_id$/, excludeTables: ["license_types"] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("نوع الرخصة", String(usageRow?.name || ""), usages) }, { status: 400 })
 
     const deleted = await sql`
       UPDATE license_types

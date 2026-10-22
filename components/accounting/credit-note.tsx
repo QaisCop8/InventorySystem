@@ -1,6 +1,8 @@
 "use client"
 
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { FileMinus } from "lucide-react"
 import { creditNoteSnapshot } from "@/lib/credit-note-changes"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -695,64 +697,10 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
   }
 
   return (
-    <div className="w-full max-w-full space-y-6" dir="rtl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">{labels.listTitle}</h1>
-        <Button data-hotkey-new onClick={openNewDialog} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          {labels.addLabel} <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
-        </Button>
-      </div>
+    <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
+      <VoucherListHero icon={FileMinus} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-700">{`إجمالي ${labels.listTitle}`}</p>
-                <p className="text-3xl font-bold text-blue-900">{totalVouchers}</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-200">
-                <span className="text-lg font-bold text-blue-700">{totalVouchers}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-700">سندات هذا الشهر</p>
-                <p className="text-3xl font-bold text-green-900">{thisMonthCount}</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-200">
-                <span className="text-lg font-bold text-green-700">{thisMonthCount}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-          <CardContent className="p-6">
-            <div>
-              <p className="text-sm font-medium text-purple-700">إجمالي المبالغ</p>
-              <p className="text-3xl font-bold text-purple-900">{totalAmount.toLocaleString()}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100">
-          <CardContent className="p-6">
-            <div>
-              <p className="text-sm font-medium text-amber-700">متوسط قيمة السند</p>
-              <p className="text-3xl font-bold text-amber-900">
-                {averageAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString()}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</> }]} />
 
       <Card>
         <CardHeader>

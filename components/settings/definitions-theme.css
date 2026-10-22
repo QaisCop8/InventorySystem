@@ -1,0 +1,115 @@
+/* شاشة الملفات والتعريفات (components/settings/definitions.tsx): تصميم حديث موحّد لكل البطاقات والقوائم
+   والنماذج بألوان النظام (زمردي) — بلا تعديل كل قسم على حدة. */
+
+/* التبويبات: بطاقات صغيرة بأيقونة، والنشط بتدرّج النظام */
+.defs-page .defs-tab {
+  border: 1px solid transparent;
+  color: #334155;
+  transition: background-color .15s, border-color .15s, box-shadow .15s;
+}
+.defs-page .defs-tab:hover { background: #f0fdf4; border-color: #bbf7d0; }
+.defs-page .defs-tab .defs-tab-icon { background: #ecfdf5; color: #047857; }
+.defs-page .defs-tab .defs-tab-hint { color: #64748b; }
+.defs-page .defs-tab[data-state="active"] {
+  background: linear-gradient(to left, #047857, #059669 55%, #0d9488) !important;
+  color: #fff !important;
+  border-color: transparent;
+  box-shadow: 0 10px 22px -14px rgb(5 150 105 / 80%) !important;
+}
+.defs-page .defs-tab[data-state="active"] .defs-tab-icon { background: rgb(255 255 255 / 18%); color: #fff; }
+.defs-page .defs-tab[data-state="active"] .defs-tab-hint { color: rgb(236 253 245 / 85%); }
+
+/* البطاقات */
+.defs-page [data-slot="card"] {
+  gap: 0;
+  padding-top: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 12px 28px -22px rgb(15 23 42 / 35%);
+}
+.defs-page [data-slot="card-header"] {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  background: linear-gradient(to left, #ecfdf5, #ffffff 70%);
+  border-bottom: 1px solid #d1fae5;
+}
+.defs-page [data-slot="card-title"] {
+  font-size: 15px;
+  font-weight: 800;
+  color: #064e3b;
+}
+.defs-page [data-slot="card-title"] > svg {
+  box-sizing: content-box;
+  padding: 7px;
+  border-radius: 10px;
+  background: #d1fae5;
+  color: #047857 !important;
+}
+
+/* نماذج الإضافة/التعديل داخل البطاقات */
+.defs-page [data-slot="card-content"] .bg-muted\/30.rounded-lg.border {
+  border-radius: 14px;
+  border: 1px dashed #6ee7b7;
+  background: linear-gradient(180deg, #f0fdf9, #ffffff);
+}
+.defs-page .erp-input,
+.defs-page [data-slot="card-content"] input:not([type="checkbox"]):not([type="radio"]),
+.defs-page [data-slot="card-content"] select {
+  border-radius: 10px;
+  border-color: #e2e8f0;
+  background-color: #f8fafc;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.defs-page .erp-input:focus,
+.defs-page [data-slot="card-content"] input:focus,
+.defs-page [data-slot="card-content"] select:focus {
+  background-color: #fff;
+  border-color: #34d399;
+  box-shadow: 0 0 0 4px rgb(16 185 129 / 14%);
+  outline: none;
+}
+
+/* عناصر القوائم */
+.defs-page [data-slot="card-content"] .space-y-3 > div[class*="rounded-lg"][class*="border"],
+.defs-page [data-slot="card-content"] .space-y-2 > div[class*="rounded-lg"][class*="border"] {
+  border-radius: 14px;
+  border-color: #e2e8f0;
+  transition: transform .12s, box-shadow .12s, border-color .12s, background-color .12s;
+}
+.defs-page [data-slot="card-content"] .space-y-3 > div[class*="rounded-lg"][class*="border"]:hover,
+.defs-page [data-slot="card-content"] .space-y-2 > div[class*="rounded-lg"][class*="border"]:hover {
+  border-color: #a7f3d0;
+  box-shadow: 0 8px 18px -14px rgb(5 150 105 / 55%);
+  transform: translateY(-1px);
+}
+.defs-page [data-slot="card-content"] div[class*="bg-primary/10"][class*="border-primary"] {
+  background: linear-gradient(to left, #ecfdf5, #f0fdfa) !important;
+  border-color: #34d399 !important;
+  box-shadow: inset -4px 0 0 #10b981, 0 8px 18px -14px rgb(5 150 105 / 55%) !important;
+}
+
+/* الأزرار */
+.defs-page .erp-btn-primary,
+.defs-page [data-slot="card-header"] button {
+  border-radius: 10px;
+}
+.defs-page [data-slot="card-content"] button[class*="outline"],
+.defs-page [data-slot="card-content"] button[data-variant="outline"] {
+  border-radius: 9px;
+}
+
+/* الوضع الداكن */
+.dark .defs-page [data-slot="card"] { background: #0b1220; border-color: #1e293b; box-shadow: none; }
+.dark .defs-page [data-slot="card-header"] { background: linear-gradient(to left, #052e2b, #0b1220 70%); border-bottom-color: #064e3b; }
+.dark .defs-page [data-slot="card-title"] { color: #a7f3d0; }
+.dark .defs-page [data-slot="card-title"] > svg { background: #064e3b; color: #6ee7b7 !important; }
+.dark .defs-page .defs-tab { color: #cbd5e1; }
+.dark .defs-page .defs-tab:hover { background: #052e2b; border-color: #065f46; }
+.dark .defs-page .defs-tab .defs-tab-icon { background: #052e2b; color: #6ee7b7; }
+.dark .defs-page [data-slot="card-content"] .bg-muted\/30.rounded-lg.border { background: #052e2b; border-color: #065f46; }
+.dark .defs-page .erp-input,
+.dark .defs-page [data-slot="card-content"] input:not([type="checkbox"]):not([type="radio"]),
+.dark .defs-page [data-slot="card-content"] select { background-color: #0f172a; border-color: #334155; }

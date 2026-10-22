@@ -86,6 +86,11 @@ export async function DELETE(request: NextRequest) {
     await ensureCustomerCategoryStatus()
     const id = Number(new URL(request.url).searchParams.get("id"))
     if (!id) return NextResponse.json({ error: "Category ID is required" }, { status: 400 })
+    // فحص الارتباط قبل الحذف: التصنيف مستخدم في بطاقات العملاء (customers.classification = المعرّف أو الاسم)
+    const usageRow = (await sql`SELECT name FROM customer_categories WHERE id = ${id}`)[0] as any
+    const usedBy = (await sql`SELECT COUNT(*)::int AS count FROM customers WHERE COALESCE(isdeleted, false) = false AND COALESCE(type, 1) = 1 AND BTRIM(COALESCE(classification, '')) IN (${String(id)}, ${String(usageRow?.name || '').trim() || '#none#'})`)[0] as any
+    if (Number(usedBy?.count) > 0) return NextResponse.json({ error: `لا يمكن حذف تصنيف العملاء "${usageRow?.name || ""}" لأنه مستخدم في ${usedBy.count} بطاقة عميل — يمكنك إيقافه بدلاً من حذفه` }, { status: 400 })
+
     const deleted = await sql`UPDATE customer_categories SET status = 3, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *`
     if (!deleted.length) return NextResponse.json({ error: "Category not found" }, { status: 404 })
     return NextResponse.json({ category: deleted[0] })

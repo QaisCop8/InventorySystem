@@ -26,6 +26,18 @@
   color: rgb(236 253 245 / 90%) !important;
 }
 
+/* شريط التبويبات داخل الرأس شفاف على التدرّج (كان أبيض فيختفي نص التبويب غير النشط الأبيض) */
+.cheque-page-header [role="tablist"] {
+  background: rgb(255 255 255 / 14%) !important;
+  border: 1px solid rgb(255 255 255 / 25%) !important;
+  box-shadow: none !important;
+}
+
+.cheque-page-header [role="tablist"] button:not([data-state="active"]) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
 /* أزرار/تبويبات داخل الرأس: زجاجية بيضاء شفافة، والنشط أبيض بنص زمردي */
 .cheque-page-header button {
   background: rgb(255 255 255 / 14%) !important;

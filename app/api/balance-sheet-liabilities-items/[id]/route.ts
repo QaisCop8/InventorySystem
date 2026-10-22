@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -86,6 +87,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (!itemId) {
       return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
     }
+
+    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
+    const usageRow = (await sql`SELECT * FROM balance_sheet_liabilities_items WHERE id = ${itemId}`)[0] as any
+    const usages = await findUsages(itemId, { idColumns: /^finanical_list_liabilities_id$/, excludeTables: ["balance_sheet_liabilities_items"] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("بند الخصوم", String(usageRow?.name || ""), usages) }, { status: 400 })
 
     const result = await sql`
       UPDATE balance_sheet_liabilities_items

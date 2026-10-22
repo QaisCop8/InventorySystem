@@ -14,7 +14,8 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency } from "lucide-react"
+import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency, Warehouse as WarehouseIcon, Ruler, Network } from "lucide-react"
+import "./definitions-theme.css"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { cn } from "@/lib/utils"
@@ -1023,7 +1024,10 @@ function Definitions() {
   const deleteCategory = async (endpoint: string, fetchCategories: () => Promise<void>) => {
     try {
       const response = await fetch(endpoint, { method: "DELETE" })
-      if (!response.ok) throw new Error("تعذر حذف التصنيف")
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "تعذر حذف التصنيف")
+      }
       await fetchCategories()
       toast({ title: "تم الحذف", description: "تم حذف التصنيف" })
     } catch (error) {
@@ -2443,35 +2447,50 @@ function Definitions() {
   };
 
   return (
-    <div className="p-6" dir="rtl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Settings className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-heading font-bold text-primary">الملفات والتعريفات</h1>
+    <div className="defs-page min-h-full space-y-5 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" dir="rtl">
+      {/* رأس الصفحة بنفس تصميم رأس الرئيسية (page-hero) مع ملخص سريع للتعريفات */}
+      <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
+        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur"><Settings className="h-7 w-7 text-white" /></span>
+            <div>
+              <p className="text-xs font-semibold text-emerald-50/90">إدارة شاملة للنظام</p>
+              <h1 className="text-2xl font-black text-white drop-shadow-sm sm:text-3xl">الملفات والتعريفات</h1>
+              <p className="mt-1 text-sm text-emerald-50/85">المدن والمستودعات والوحدات والتصنيفات والتعريفات المالية والفروع في مكان واحد</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { label: "الفروع", value: branches.length, icon: Building },
+              { label: "المستودعات", value: warehouses.filter((w: any) => w.status !== 3).length, icon: WarehouseIcon },
+              { label: "الوحدات", value: units.length, icon: Ruler },
+              { label: "مراكز التكلفة", value: costCenters.length, icon: Network },
+            ].map((stat) => (
+              <div key={stat.label} className="flex min-w-[118px] items-center gap-2.5 rounded-xl bg-white/12 px-3 py-2 ring-1 ring-white/20 backdrop-blur">
+                <stat.icon className="h-4 w-4 shrink-0 text-white/90" />
+                <div className="leading-tight"><b className="block text-lg font-black text-white">{stat.value}</b><small className="text-[11px] text-emerald-50/85">{stat.label}</small></div>
+              </div>
+            ))}
+          </div>
         </div>
-        <Badge variant="outline" className="text-sm">
-          إدارة شاملة للنظام
-        </Badge>
-      </div>
+      </header>
 
       <Tabs defaultValue="definitions" className="w-full" dir="rtl">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="definitions" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            التعريفات الأساسية
-          </TabsTrigger>
-          <TabsTrigger value="items" className="flex items-center gap-2">
-            <Package2 className="h-4 w-4" />
-            الاصناف
-          </TabsTrigger>
-          <TabsTrigger value="financial-definitions" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            التعريفات المالية
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="flex items-center gap-2">
-            <Building className="h-4 w-4" />
-            الأقسام والفروع
-          </TabsTrigger>
+        <TabsList className="defs-tabs mb-5 grid h-auto w-full grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:grid-cols-4 dark:border-slate-800 dark:bg-slate-900">
+          {[
+            { value: "definitions", label: "التعريفات الأساسية", hint: "مدن، مستودعات، رخص، تصنيفات", icon: Package },
+            { value: "items", label: "الأصناف", hint: "وحدات، فئات أسعار، تصنيفات", icon: Package2 },
+            { value: "financial-definitions", label: "التعريفات المالية", hint: "قوائم مالية، مراكز تكلفة", icon: CreditCard },
+            { value: "departments", label: "الأقسام والفروع", hint: "الفروع المرخّصة والأقسام", icon: Building },
+          ].map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value} className="defs-tab group h-auto justify-start gap-3 rounded-xl px-3 py-2.5 text-right">
+              <span className="defs-tab-icon grid h-9 w-9 shrink-0 place-items-center rounded-lg"><tab.icon className="h-4 w-4" /></span>
+              <span className="min-w-0 leading-tight"><b className="block truncate text-sm">{tab.label}</b><small className="defs-tab-hint hidden truncate text-[11px] sm:block">{tab.hint}</small></span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="departments" className="space-y-6">

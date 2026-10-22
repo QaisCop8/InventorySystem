@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -89,6 +90,11 @@ export async function DELETE(request: NextRequest) {
     await ensureProductCategoryStatus()
     const id = Number(new URL(request.url).searchParams.get("id"))
     if (!id) return NextResponse.json({ error: "Category ID is required" }, { status: 400 })
+    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
+    const usageRow = (await sql`SELECT * FROM product_categories WHERE id = ${id}`)[0] as any
+    const usages = await findUsages(id, { idColumns: /^category_id$/, excludeTables: ["product_categories"], excludeColumns: ["access_list.category_id"] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("تصنيف الأصناف", String(usageRow?.name || ""), usages) }, { status: 400 })
+
     const deleted = await sql`UPDATE product_categories SET status = 3, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *`
     if (!deleted.length) return NextResponse.json({ error: "Category not found" }, { status: 404 })
     return NextResponse.json({ category: deleted[0] })

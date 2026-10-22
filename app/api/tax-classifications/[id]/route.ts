@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "@/lib/database"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
@@ -47,6 +48,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const id = Number(params.id)
     // mark as deleted (status = 3)
+    // فحص الارتباط قبل الحذف: لا يُحذف تعريف مستخدم في تعريفات أخرى أو حركات (lib/delete-guard.ts)
+    const usageRow = (await sql`SELECT * FROM tax_classifications WHERE id = ${id}`)[0] as any
+    const usages = await findUsages(id, { idColumns: /^(tax_classification_id|tax_classification|vat_classification_id)$/, excludeTables: ["tax_classifications"] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("التصنيف الضريبي", String(usageRow?.name || ""), usages) }, { status: 400 })
+
     const deleted = await sql`
       UPDATE tax_classifications
       SET status = 3, updated_at = CURRENT_TIMESTAMP

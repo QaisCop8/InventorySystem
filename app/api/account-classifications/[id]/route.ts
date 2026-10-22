@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { findUsages, usageMessage } from "@/lib/delete-guard"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -70,3 +71,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// حذف تصنيف الحساب: يُرفض إن كان مستخدماً في تعريفات أخرى أو حركات (lib/delete-guard.ts)، وإلا يُعلَّم محذوفاً (status = 3)
+export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id)
+    if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "المعرّف غير صالح" }, { status: 400 })
+    const row = (await sql`SELECT * FROM account_classifications WHERE id = ${id}`)[0] as any
+    if (!row) return NextResponse.json({ error: "السجل غير موجود" }, { status: 404 })
+    const usages = await findUsages(id, { idColumns: /^classification_id$/, excludeTables: ["account_classifications"] })
+    if (usages.length) return NextResponse.json({ error: usageMessage("تصنيف الحساب", String(row.name || ""), usages) }, { status: 400 })
+    await sql`UPDATE account_classifications SET status = 3, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`
+    return NextResponse.json({ success: true, id })
+  } catch (error) {
+    console.error("[delete account_classifications]", error)
+    return NextResponse.json({ error: "تعذر حذف تصنيف الحساب" }, { status: 500 })
+  }
+}

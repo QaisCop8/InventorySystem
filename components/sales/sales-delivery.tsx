@@ -1,6 +1,8 @@
 "use client"
 
 import { salesVoucherSnapshot } from "@/lib/sales-voucher-changes"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { ReceiptText } from "lucide-react"
 import { peekVoucherPrefill, VOUCHER_PREFILL_EVENT } from "@/lib/ai-voucher-prefill"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
@@ -958,30 +960,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   return (
-    <div className={`w-full max-w-full ${useFullPageMode && dialogOpen ? "h-full" : "space-y-6"}`} dir="rtl">
+    <div className={`voucher-list-page w-full max-w-full ${useFullPageMode && dialogOpen ? "h-full" : "space-y-6"}`} dir="rtl">
       {!(useFullPageMode && dialogOpen) && <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">{LIST_TITLE}</h1>
-        <Button data-hotkey-new onClick={openNewDialog} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          {`إضافة ${TITLE}`} <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
-        </Button>
-      </div>
+      <VoucherListHero icon={ReceiptText} title={<>{LIST_TITLE}</>} addLabel={<>{`إضافة ${TITLE}`}</>} onNew={openNewDialog} />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-          <CardContent className="p-6">
-            <p className="text-sm font-medium text-blue-700">{`إجمالي ${LIST_TITLE}`}</p>
-            <p className="text-3xl font-bold text-blue-900">{totalVouchers}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100">
-          <CardContent className="p-6">
-            <p className="text-sm font-medium text-purple-700">إجمالي المبالغ</p>
-            <p className="text-3xl font-bold text-purple-900">{totalAmount.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <VoucherStats stats={[{ label: <>{`إجمالي ${LIST_TITLE}`}</>, value: <>{totalVouchers}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString()}</> }]} />
 
       <Card>
         <CardHeader>
