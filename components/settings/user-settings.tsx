@@ -538,7 +538,7 @@ export function UserSettings() {
       </Card>
 
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl">
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
           <DialogTitle className="sr-only">تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
           {selectedUser && (
             <form
@@ -610,7 +610,7 @@ export function UserSettings() {
                 onClose={() => setShowUserDialog(false)}
               />
 
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950/40">
+              <div className="user-dialog-body min-h-0 flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-emerald-50/40 via-slate-50/70 to-slate-50/70 p-3 pb-8 sm:p-5 sm:pb-10 dark:from-slate-950/40 dark:via-slate-950/40 dark:to-slate-950/40">
                 <Messages innerRef={editMessages} />
 
                 <FormSection icon={Key} title="معلومات الدخول" description="البريد الإلكتروني يُستخدم اسماً للدخول" tone="sky">
@@ -664,6 +664,7 @@ export function UserSettings() {
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
+                          onShow={revealOpenDropdown}
                           onChange={(e: any) => setEditDefaultScreen(e.value)}
                         />
                       </div>
@@ -695,6 +696,7 @@ export function UserSettings() {
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
+                          onShow={revealOpenDropdown}
                           onChange={(e: any) => setEditDepartment(e.value)}
                         />
                       </div>
@@ -712,6 +714,7 @@ export function UserSettings() {
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
+                          onShow={revealOpenDropdown}
                           onChange={(e: any) => setEditBranchId(e.value)}
                         />
                       </div>
@@ -729,6 +732,7 @@ export function UserSettings() {
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
+                          onShow={revealOpenDropdown}
                           onChange={(e: any) => setEditJobRoleId(e.value)}
                         />
                       </div>
@@ -758,7 +762,7 @@ export function UserSettings() {
       </Dialog>
 
       <Dialog open={showNewUserDialog} onOpenChange={setShowNewUserDialog}>
-        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl">
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
           <DialogTitle className="sr-only">إضافة مستخدم جديد</DialogTitle>
           <form
             className="flex min-h-0 flex-1 flex-col"
@@ -809,7 +813,7 @@ export function UserSettings() {
               onClose={() => setShowNewUserDialog(false)}
             />
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950/40">
+            <div className="user-dialog-body min-h-0 flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-emerald-50/40 via-slate-50/70 to-slate-50/70 p-3 pb-8 sm:p-5 sm:pb-10 dark:from-slate-950/40 dark:via-slate-950/40 dark:to-slate-950/40">
               <Messages innerRef={newMessages} />
 
               <FormSection icon={Key} title="معلومات الدخول" description="البريد الإلكتروني يُستخدم اسماً للدخول" tone="sky">
@@ -837,6 +841,7 @@ export function UserSettings() {
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
+                        onShow={revealOpenDropdown}
                         onChange={(e: any) => setNewDefaultScreen(e.value)}
                       />
                     </div>
@@ -868,6 +873,7 @@ export function UserSettings() {
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
+                        onShow={revealOpenDropdown}
                         onChange={(e: any) => setNewDepartment(e.value)}
                       />
                     </div>
@@ -885,6 +891,7 @@ export function UserSettings() {
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
+                        onShow={revealOpenDropdown}
                         onChange={(e: any) => setNewBranchId(e.value)}
                       />
                     </div>
@@ -902,6 +909,7 @@ export function UserSettings() {
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
+                        onShow={revealOpenDropdown}
                         onChange={(e: any) => setNewJobRoleId(e.value)}
                       />
                     </div>
@@ -1013,6 +1021,14 @@ function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: 
   )
 }
 
+// تمرير جسم النافذة حتى تظهر قائمة الاختيار المفتوحة كاملة (appendTo="self" داخل منطقة التمرير)
+function revealOpenDropdown() {
+  window.setTimeout(() => {
+    const panels = document.querySelectorAll<HTMLElement>(".user-dialog-body .p-dropdown-panel")
+    panels[panels.length - 1]?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+  }, 60)
+}
+
 function FormSection({ icon: Icon, title, description, tone, children }: {
   icon: typeof User
   title: string
@@ -1021,7 +1037,8 @@ function FormSection({ icon: Icon, title, description, tone, children }: {
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+    <section className="relative rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_14px_30px_-24px_rgba(15,23,42,0.45)] sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+      <span className="pointer-events-none absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-gradient-to-l from-emerald-400 via-teal-400 to-sky-400 opacity-70" />
       <div className="mb-4 flex items-center gap-3">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${SECTION_TONES[tone]}`}>
           <Icon className="h-[18px] w-[18px]" />
@@ -1068,11 +1085,11 @@ function PasswordEye({ shown, onToggle }: { shown: boolean; onToggle: () => void
 
 function UserDialogFooter({ submitLabel, onCancel }: { submitLabel: string; onCancel: () => void }) {
   return (
-    <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-200 bg-white px-3 py-3 sm:flex-row sm:justify-end sm:px-6 dark:border-slate-800 dark:bg-slate-900">
-      <Button type="button" variant="outline" className="h-10 w-full rounded-xl sm:w-auto" onClick={onCancel}>
+    <div className="flex shrink-0 flex-row-reverse items-center justify-center gap-2 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900">
+      <Button type="button" variant="outline" className="h-11 flex-1 rounded-xl sm:h-10 sm:w-32 sm:flex-none" onClick={onCancel}>
         إلغاء
       </Button>
-      <Button type="submit" className="h-10 w-full rounded-xl bg-emerald-600 px-6 font-bold hover:bg-emerald-700 sm:w-auto">
+      <Button type="submit" className="h-11 flex-1 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-6 font-bold shadow-md shadow-emerald-600/20 hover:from-emerald-700 hover:to-teal-700 sm:h-10 sm:w-44 sm:flex-none">
         <Save className="ml-1.5 h-4 w-4" />
         {submitLabel}
       </Button>

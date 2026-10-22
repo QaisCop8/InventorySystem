@@ -46,6 +46,14 @@ export async function signupManagementUser(data: { fullName: string; email: stri
   `
   const user = inserted[0]
 
+  // دعوات الشركات المعلّقة لهذا البريد ⇐ عضويات (تظهر الشركات للمستخدم فوراً بعد التسجيل)
+  try {
+    const { acceptCompanyInvitations } = await import("@/lib/company-invitations")
+    await acceptCompanyInvitations(email, Number(user.id), passwordHash)
+  } catch (error) {
+    console.error("[management-auth] accepting company invitations failed", error)
+  }
+
   return { success: true, user }
 }
 

@@ -1,5 +1,6 @@
 "use client"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
+import { useSectionIntent } from "@/lib/section-intents"
 
 import dynamic from "next/dynamic"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -111,6 +112,17 @@ export function ItemCardReport() {
       if (requestId === requestRef.current) setError(cause instanceof Error ? cause.message : "تعذر تحميل بطاقة الصنف")
     } finally { if (requestId === requestRef.current) setLoading(false) }
   }
+
+  // فتح من تقرير آخر (أرصدة المخزون...): يُحدَّد الصنف ويُعرض تقريره مباشرة
+  useSectionIntent<{ product_id: number }>("item-card-report", ({ product_id }) => {
+    const product = products.find((item) => Number(item.id) === Number(product_id))
+    if (!product) { setError("الصنف غير موجود في قائمة بطاقة الصنف"); return }
+    setSelectedIds([product.id]); setItemSearch("")
+    const period = { fromDate, toDate, warehouseIds: [...warehouseIds], showTransfers }
+    appliedPeriod.current = period
+    setReportProducts([product])
+    void loadProduct(product, period)
+  }, !loadingProducts && products.length > 0)
 
   const runReport = () => {
     if (!fromDate || !toDate || fromDate > toDate) { setError("تاريخ البداية يجب أن يسبق تاريخ النهاية"); return }

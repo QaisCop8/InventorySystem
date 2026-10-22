@@ -411,6 +411,18 @@ export async function createTenantEmployeeWithManagementLink(userData: {
     return createUser(userData)
   }
 
+  // بريد بلا حساب إدارة: لا يُنشأ حساب في management.users (كان يمنع التسجيل لاحقاً بنفس البريد) — يُنشأ
+  // مستخدم الشركة فقط مع دعوة معلّقة تتحوّل لعضوية عند التسجيل أو تعيين كلمة المرور (lib/company-invitations.ts)
+  const existingIdentity = await managementSql`SELECT id FROM users WHERE LOWER(email) = ${email} LIMIT 1`
+  if (!existingIdentity.length) {
+    const tenantOnly = await createUser({ ...userData, email })
+    if (tenantOnly.success && tenantOnly.userId) {
+      const { inviteEmailToCompany } = await import("@/lib/company-invitations")
+      await inviteEmailToCompany({ email, companyId, dbName: currentDbName, tenantUserId: tenantOnly.userId, fullName: userData.fullName })
+    }
+    return { ...tenantOnly, existingIdentity: false }
+  }
+
   const passwordHash = await hashPassword(userData.password)
 
   const managementPool = getManagementPool()

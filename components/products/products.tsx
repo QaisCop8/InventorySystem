@@ -1,6 +1,7 @@
 "use client"
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
+import { useSectionIntent } from "@/lib/section-intents"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Package as PackageIcon } from "lucide-react"
 import { useState, useEffect, useMemo, useRef } from "react"
@@ -491,6 +492,20 @@ export function Products({ entityType = "products" }: ProductsProps) {
       setState((prev) => ({ ...prev, isSubmitting: false }))
     }
   }
+
+  // فتح تعريف صنف من شاشة أخرى (رقم الصنف في التقارير): من القائمة المحمّلة وإلا يُجلب الصنف
+  useSectionIntent<{ product_id: number }>("products", ({ product_id }) => {
+    const found = state.products.find((item) => Number(item.id) === Number(product_id))
+    if (found) { handleEditProduct(found); return }
+    void fetch(`/api/inventory/products?activeOnly=false&ids=${Number(product_id)}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : Array.isArray(data?.products) ? data.products : []
+        const product = list.find((item: any) => Number(item.id) === Number(product_id))
+        if (product) handleEditProduct(product)
+      })
+      .catch(() => undefined)
+  }, !state.loading)
 
   const handleEditProduct = (product: Product) => {
     if (!canViewProducts) return

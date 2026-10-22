@@ -52,7 +52,7 @@ async function loadSalesLines(filters: ProfitFilters) {
   return (await pool.query(`
     SELECT vi.id AS line_id, vh.id AS voucher_id, vh.vch_type, vh.vch_code, vh.vch_date::date::text AS vch_date,
       vi.item_id AS product_id, p.product_code, COALESCE(p.product_name, vi.item_name) AS product_name,
-      u.unit_name, p.category_id AS group_id, g.group_name,
+      u.unit_name, COALESCE(g.id, mg.id) AS group_id, COALESCE(NULLIF(g.group_name, ''), mg.group_name) AS group_name,
       vh.account_id AS customer_id, acc.name AS customer_name, vh.salesman_id, sm.name AS salesman_name,
       vh.branch_id, b.branch_name, vi.store_id AS warehouse_id, w.warehouse_name,
       COALESCE(vi.qnty, 0) AS qnty, COALESCE(vi.bonus, 0) AS bonus, COALESCE(vi.price, 0) AS price,
@@ -70,6 +70,7 @@ async function loadSalesLines(filters: ProfitFilters) {
     JOIN products p ON p.id = vi.item_id
     LEFT JOIN units u ON u.id = vi.unit_id
     LEFT JOIN item_groups g ON g.id = p.category_id
+    LEFT JOIN item_groups mg ON mg.id = p.main_stock_id
     LEFT JOIN account_tbl acc ON acc.id = vh.account_id
     LEFT JOIN salesmen sm ON sm.id = vh.salesman_id
     LEFT JOIN branches b ON b.id = vh.branch_id

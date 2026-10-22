@@ -40,11 +40,14 @@ export async function getProductBalances(_organizationId: number, toDate: string
   // nor prices for this report depend on the optional movement ledger.
   const [products, lines, includePurchaseReturns] = await Promise.all([
     sql`SELECT p.id,p.product_code,p.product_name,p.barcode,u.unit_name AS main_unit,
-               groups.group_name AS category,p.currency_id,p.last_purchase_price,
+               -- مجموعة الصنف: المجموعة الفرعية (category_id) وإلا المجموعة الرئيسية (main_stock_id) — كثير من الأصناف
+               -- تحفظ مجموعتها في main_stock_id فقط فكان العمود "—" (نفس منطق كتالوج نقطة البيع)
+               COALESCE(NULLIF(groups.group_name,''),NULLIF(main_group.group_name,'')) AS category,p.currency_id,p.last_purchase_price,
                COALESCE((to_jsonb(p)->>'initial_price')::numeric,0) AS initial_price
         FROM products p
         LEFT JOIN units u ON u.id=p.measurment_unit
         LEFT JOIN item_groups groups ON groups.id=p.category_id
+        LEFT JOIN item_groups main_group ON main_group.id=p.main_stock_id
         WHERE COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
           AND (${productId}=0 OR p.id=${productId})
           AND (${productIds.length}=0 OR p.id=ANY(${productIds}::int[]))

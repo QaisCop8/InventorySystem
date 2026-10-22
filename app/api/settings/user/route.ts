@@ -405,6 +405,10 @@ export async function PUT(request: NextRequest) {
           : null
 
     const passwordHash = rawPassword ? await hashPassword(rawPassword) : null
+    // البريد وربط حساب الإدارة قبل التعديل — لنقل العضوية/الدعوة إن تغيّر البريد (lib/company-invitations.ts)
+    const beforeUpdate = data.email !== undefined
+      ? (await sql`SELECT email, management_user_id FROM user_settings WHERE user_id = ${data.user_id} LIMIT 1`)[0] as any
+      : null
 
     const result = await sql`
       UPDATE user_settings
@@ -457,7 +461,39 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, user: result[0] })
+    // تغيّر البريد (أو ربط حساب الإدارة لا يطابق البريد الحالي): تُنقل عضوية الشركة لحساب البريد الجديد إن وُجد،
+    // وإلا تُنشأ دعوة له (ويُرسل بريد الدعوة) — فتظهر الشركة للمستخدم عند الدخول بالبريد الجديد.
+    let invitation: { sent: boolean } | null = null
+    if (beforeUpdate && String(updatedUser.email || "").trim()) {
+      try {
+        const newEmail = String(updatedUser.email).trim().toLowerCase()
+        const linked = updatedUser.management_user_id
+          ? (await managementSql`SELECT LOWER(email) AS email FROM users WHERE id = ${Number(updatedUser.management_user_id)} LIMIT 1`)[0] as any
+          : null
+        const emailChanged = String(beforeUpdate.email || "").trim().toLowerCase() !== newEmail
+        const linkMismatch = Boolean(linked && linked.email !== newEmail)
+        if (emailChanged || linkMismatch) {
+          const dbName = await resolveCurrentDbName()
+          const company = (await managementSql`SELECT id, name FROM companies WHERE db_name = ${dbName} LIMIT 1`)[0] as any
+          if (company?.id) {
+            const { relinkTenantUserEmail } = await import("@/lib/company-invitations")
+            const outcome = await relinkTenantUserEmail({
+              dbName, companyId: Number(company.id), tenantUserId: updatedUser.user_id, email: newEmail,
+              fullName: updatedUser.full_name, previousManagementUserId: Number(beforeUpdate.management_user_id) || null,
+            })
+            if (outcome.invited) {
+              invitation = await issuePasswordCode({ email: newEmail, purpose: "invite", tenantDb: dbName, fullName: updatedUser.full_name, companyName: company.name })
+            } else if (outcome.linked) {
+              invitation = { sent: await sendAddedToCompanyEmail(newEmail, updatedUser.full_name, company.name) }
+            }
+          }
+        }
+      } catch (relinkError) {
+        console.error("[settings/user PUT] email relink failed:", relinkError)
+      }
+    }
+
+    return NextResponse.json({ success: true, user: result[0], invitation })
   } catch (error) {
     console.error("Database update error:", error)
     return NextResponse.json(

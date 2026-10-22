@@ -24,11 +24,12 @@ export async function GET(request: NextRequest) {
     const params = request.nextUrl.searchParams
 
     const [products, warehouses, branches] = await Promise.all([
-      sql`SELECT p.id, p.product_code, p.product_name, u.unit_name AS main_unit, g.group_name AS category,
+      sql`SELECT p.id, p.product_code, p.product_name, u.unit_name AS main_unit, COALESCE(NULLIF(g.group_name, ''), mg.group_name) AS category,
             COALESCE((to_jsonb(p)->>'has_expiry_date')::boolean, false) AS has_expiry
           FROM products p
           LEFT JOIN units u ON u.id = p.measurment_unit
           LEFT JOIN item_groups g ON g.id = p.category_id
+          LEFT JOIN item_groups mg ON mg.id = p.main_stock_id
           WHERE COALESCE(p.deleted, false) = false AND COALESCE(p.status, 1) <> 3 AND COALESCE(p.type, 1) = 1
           ORDER BY p.product_code, p.product_name`,
       sql`SELECT id, warehouse_code code, warehouse_name name FROM warehouses WHERE COALESCE(status, 1) <> 3 ORDER BY warehouse_code`,

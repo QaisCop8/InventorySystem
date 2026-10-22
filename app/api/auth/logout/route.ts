@@ -25,6 +25,15 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
     cookieStore.delete("tenant_db")
 
+    // إنهاء جلسة نظام إدارة الشركات أيضاً: بقاؤها كان يجعل صفحة /management/login تحوّل المستخدم مباشرة
+    // لصفحة الشركات بدل عرض شاشة الدخول.
+    try {
+      const { logoutManagementUser } = await import("@/lib/management-auth")
+      await logoutManagementUser()
+    } catch (error) {
+      console.error("[auth/logout] management logout failed", error)
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Logout API error:", error)

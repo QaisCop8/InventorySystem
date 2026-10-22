@@ -96,6 +96,21 @@ export async function setPasswordWithCode(email: string, code: string, newPasswo
   const normalized = normalize(email)
   const hash = await hashPassword(newPassword)
   await managementSql`UPDATE users SET password_hash = ${hash}, email_verified = true, updated_at = CURRENT_TIMESTAMP WHERE LOWER(email) = ${normalized}`
+  // مدعو بلا حساب إدارة بعد (lib/company-invitations.ts): يُنشأ حسابه الآن وتتحوّل دعواته لعضويات شركات
+  try {
+    const { acceptCompanyInvitations, invitedFullName } = await import("@/lib/company-invitations")
+    let identity = (await managementSql`SELECT id FROM users WHERE LOWER(email) = ${normalized} LIMIT 1`)[0] as any
+    if (!identity) {
+      const fullName = (await invitedFullName(normalized)) || normalized
+      identity = (await managementSql`
+        INSERT INTO users (full_name, email, password_hash, email_verified, is_active)
+        VALUES (${fullName}, ${normalized}, ${hash}, true, true) ON CONFLICT (email) DO NOTHING RETURNING id`)[0]
+        ?? (await managementSql`SELECT id FROM users WHERE LOWER(email) = ${normalized} LIMIT 1`)[0]
+    }
+    if (identity?.id) await acceptCompanyInvitations(normalized, Number(identity.id), hash)
+  } catch (error) {
+    console.error("[password-codes] accepting company invitations failed", error)
+  }
   const companies = await managementSql`
     SELECT DISTINCT c.db_name FROM users u JOIN user_company uc ON uc.user_id = u.id JOIN companies c ON c.id = uc.company_id
     WHERE LOWER(u.email) = ${normalized} AND c.db_name IS NOT NULL`
