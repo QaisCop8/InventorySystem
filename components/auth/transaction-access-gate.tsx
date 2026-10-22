@@ -4,7 +4,9 @@ import { useCallback, useMemo, type ReactNode } from "react"
 import { Lock } from "lucide-react"
 import { useAuth } from "./auth-context"
 import {
+  canAccessRestaurantScreen,
   canAccessTransactionScreen,
+  RESTAURANT_SCREEN_SECTION,
   TRANSACTION_FAMILIES,
   transactionFamilyForSection,
   type TransactionAccessEntry,
@@ -25,6 +27,7 @@ export function useTransactionSectionAccess() {
     }
   }, [user, activeBranchId, permissionVersion])
   return useCallback((section: string | null | undefined) => {
+    if (section === RESTAURANT_SCREEN_SECTION) return canAccessRestaurantScreen(entries)
     const family = transactionFamilyForSection(section)
     return !family || canAccessTransactionScreen(entries, family)
   }, [entries])

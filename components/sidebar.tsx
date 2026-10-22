@@ -54,6 +54,8 @@ import {
   Settings2,
   BriefcaseBusiness,
   Store,
+  UtensilsCrossed,
+  LayoutGrid,
   Search,
   X,
   PanelRightClose,
@@ -334,6 +336,16 @@ export const menuItems: MenuItem[] = [
           { title: "تقرير عهد البيع بالتجزئة", section: "pos-custody-report", icon: Wallet },
         ],
       },
+    ],
+  },
+  {
+    id: "restaurants",
+    title: "المطاعم",
+    icon: UtensilsCrossed,
+    submenu: [
+      { title: "المواقع", section: "restaurant-locations", icon: MapPin },
+      { title: "الطاولات", section: "restaurant-tables", icon: LayoutGrid },
+      { title: "شاشة المطعم", section: "restaurant-pos", icon: UtensilsCrossed },
     ],
   },
   {

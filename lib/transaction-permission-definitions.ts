@@ -66,6 +66,35 @@ export const POS_CASHIER_PERMISSIONS = {
 
 export type PosCashierPermission = keyof typeof POS_CASHIER_PERMISSIONS
 
+// شاشة المطعم (الطاولات): كل إجراء صلاحية مستقلة تُفحص على فرع الموقع (lib/restaurant.ts#authorizeRestaurant)
+export const RESTAURANT_PERMISSION_CATEGORY = "المطاعم"
+export const RESTAURANT_PERMISSIONS = {
+  access: "الدخول لشاشة المطعم",
+  openTable: "فتح طاولة - مطاعم",
+  takeaway: "طلب سفري - مطاعم",
+  addItems: "إضافة أصناف للطاولة - مطاعم",
+  editItems: "تعديل أصناف الطاولة - مطاعم",
+  deleteItems: "حذف أصناف من الطاولة - مطاعم",
+  discount: "إدخال خصم - مطاعم",
+  transfer: "نقل طاولة - مطاعم",
+  merge: "دمج الطاولات - مطاعم",
+  split: "فصل وتقسيم الطاولات - مطاعم",
+  printBill: "طباعة حساب الطاولة - مطاعم",
+  pay: "دفع حساب الطاولة - مطاعم",
+  cancelOrder: "إلغاء طلب الطاولة - مطاعم",
+} as const
+
+export type RestaurantPermission = keyof typeof RESTAURANT_PERMISSIONS
+export const RESTAURANT_SCREEN_SECTION = "restaurant-pos"
+
+/** الدخول لشاشة المطعم من قائمة صلاحيات المستخدم المخزّنة — قبل وصول الصلاحية للقائمة (لم تُحدَّث بعد) تبقى الشاشة متاحة والخادم يفرضها. */
+export function canAccessRestaurantScreen(entries: TransactionAccessEntry[] | null): boolean {
+  if (!entries) return true
+  const matches = entries.filter((entry) => String(entry.access_name || "").trim() === RESTAURANT_PERMISSIONS.access)
+  if (!matches.length) return true
+  return matches.every((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
+}
+
 // تجاوز حد الائتمان (حد الدين) المعرّف على العميل عند حفظ فاتورة مبيعات آجلة
 export const CREDIT_LIMIT_PERMISSION_CATEGORY = "العملاء والذمم"
 export const CREDIT_LIMIT_OVERRIDE_PERMISSION = "السماح بتجاوز حد الدين"

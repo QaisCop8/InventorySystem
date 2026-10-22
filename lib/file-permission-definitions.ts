@@ -12,6 +12,8 @@ export const FILE_FAMILIES = {
   branches: "الفروع",
   "bank-accounts": "حسابات البنوك",
   "credit-cards": "بطاقات الائتمان",
+  "restaurant-locations": "مواقع المطاعم",
+  "restaurant-tables": "طاولات المطاعم",
 } as const
 
 export type FileFamily = keyof typeof FILE_FAMILIES
@@ -36,6 +38,8 @@ const FAMILY_ALIASES: Record<FileFamily, string[]> = {
   accounts: ["الحسابات المحاسبية", "الحسابات المحاسبيه", "الحساب"], banks: ["البنك"], branches: ["الفرع"],
   "bank-accounts": ["الحسابات البنكية", "الحساب البنكي", "حساب البنك"],
   "credit-cards": ["بطاقات الإئتمان", "بطاقة الائتمان", "بطاقات الفيزا"],
+  "restaurant-locations": ["مواقع المطعم", "موقع المطعم"],
+  "restaurant-tables": ["طاولات المطعم", "طاولة المطعم"],
 }
 const ACTION_PREFIXES: Record<FileAction, string[]> = {
   access: ["الدخول لشاشة", "الدخول إلى شاشة", "الدخول لشاشات", "فتح شاشة"],

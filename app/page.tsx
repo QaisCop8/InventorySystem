@@ -127,6 +127,9 @@ const PosCashier = dynamic(() => import("@/components/pos/pos-cashier"), { ssr: 
 const PosPointsSettings = dynamic(() => import("@/components/pos/pos-points-settings"), { ssr: false })
 const Campaigns = dynamic(() => import("@/components/pos/campaigns"), { ssr: false })
 const DiscountCards = dynamic(() => import("@/components/pos/discount-cards"), { ssr: false })
+const RestaurantLocations = dynamic(() => import("@/components/restaurant/restaurant-locations"), { ssr: false })
+const RestaurantTables = dynamic(() => import("@/components/restaurant/restaurant-tables"), { ssr: false })
+const RestaurantPos = dynamic(() => import("@/components/restaurant/restaurant-pos"), { ssr: false })
 const MorningBriefing = dynamic(() => import("@/components/briefing/morning-briefing"), { ssr: false })
 const UnifiedCampaigns = dynamic(() => import("@/components/pos/unified-campaigns"), { ssr: false })
 
@@ -321,6 +324,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "pos-points-settings": PosPointsSettings,
   campaigns: Campaigns,
   "pos-discount-cards": DiscountCards,
+  "restaurant-locations": RestaurantLocations,
+  "restaurant-tables": RestaurantTables,
+  "restaurant-pos": RestaurantPos,
   "morning-briefing": MorningBriefing,
   "customer-portal": CustomerPortalAdmin,
   "unified-campaigns": UnifiedCampaigns,

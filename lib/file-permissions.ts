@@ -75,6 +75,7 @@ const LOOKUP_TRANSACTIONS: Record<FileFamily, TransactionFamily[]> = {
   "bank-accounts": ["receipt", "payment", "cheque_payment", "journal"],
   "credit-cards": ["receipt", "payment", "sales_invoice"],
   employees: ["journal"], branches: ACCOUNT_LOOKUP_TRANSACTIONS,
+  "restaurant-locations": [], "restaurant-tables": [],
 }
 
 /** Shared pickers receive selector metadata; only primary-family query grants return full records. */
@@ -108,6 +109,8 @@ const LOOKUP_FIELDS: Record<FileFamily, string[]> = {
   banks: ["bank_code", "bank_name"], branches: ["branch_code", "branch_name", "bank_id"],
   "bank-accounts": ["bank_id", "branch_id", "bank_branch_id", "account_id", "bank_name", "branch_name", "account_name", "account_code"],
   "credit-cards": ["main_type", "main_type_id", "credit_card_type_id", "card_name", "card_code", "account_id"],
+  "restaurant-locations": ["branch_id", "branch_name"],
+  "restaurant-tables": ["location_id", "location_name", "seats"],
 }
 
 export function projectFileLookup(family: FileFamily, rows: any[]): any[] {
