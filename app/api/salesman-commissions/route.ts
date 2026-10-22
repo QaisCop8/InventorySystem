@@ -74,6 +74,22 @@ export async function GET(request: NextRequest) {
     const access = await authorizeTransaction(request, "salesman_commission", "view")
     if (!access.ok) return access.response
     const params = request.nextUrl.searchParams
+    // نافذة "صرف العمولة": سندات الصرف المعتمدة من فرع وعملة العمولة التي ما زال فيها مبلغ غير مخصّص — تُختار
+    // تلقائياً في الواجهة بدل إدخال رقم السند يدوياً، مع رصيد العمولة المتبقي.
+    if (params.get("payable_vouchers") === "1") {
+      const tx = (await sql`SELECT t.id,t.branch_id,t.currency_id,t.final_commission,
+          (SELECT COALESCE(SUM(pm.amount),0) FROM salesman_commission_payments pm WHERE pm.transaction_id=t.id) paid_amount
+        FROM salesman_commission_transactions t WHERE t.id=${num(params.get("transaction_id"))}`)[0] as any
+      if (!tx || !access.branchIds.includes(Number(tx.branch_id))) return NextResponse.json({ error: "العمولة غير موجودة أو خارج الفروع المصرح بها" }, { status: 404 })
+      const vouchers = await sql`
+        SELECT v.id, v.vch_code, v.vch_date::date vch_date, v.amount, a.name account_name,
+          v.amount - COALESCE((SELECT SUM(p.amount) FROM salesman_commission_payments p WHERE p.payment_voucher_id=v.id),0) remaining
+        FROM voucher_header_tbl v LEFT JOIN account_tbl a ON a.id=v.account_id
+        WHERE v.vch_type=5 AND v.status=2 AND v.branch_id=${Number(tx.branch_id)} AND v.currency_id=${Number(tx.currency_id)}
+          AND v.amount - COALESCE((SELECT SUM(p.amount) FROM salesman_commission_payments p WHERE p.payment_voucher_id=v.id),0) > 0.009
+        ORDER BY v.vch_date DESC, v.id DESC LIMIT 200`
+      return NextResponse.json({ remaining: Math.max(0, Number(tx.final_commission) - Number(tx.paid_amount)), vouchers })
+    }
     const from = params.get("from") || new Date().toISOString().slice(0, 10).slice(0, 8) + "01"
     const to = params.get("to") || new Date().toISOString().slice(0, 10)
     if (!validDate(from) || !validDate(to) || from > to) return NextResponse.json({ error: "فترة التقرير غير صالحة" }, { status: 400 })
@@ -272,9 +288,9 @@ async function postAction(request: NextRequest) {
       if (!access.branchIds.includes(Number(tx.branch_id))) return NextResponse.json({ error: "غير مخول لصرف عمولة من هذا الفرع" }, { status: 403 })
       const voucher=(await sql`SELECT id,vch_type,status,branch_id,currency_id,amount FROM voucher_header_tbl WHERE id=${voucherId} FOR UPDATE`)[0]
       if (!voucher || Number(voucher.vch_type)!==5 || Number(voucher.status)!==2 || Number(voucher.branch_id)!==Number(tx.branch_id)) return NextResponse.json({ error: "يجب ربط العمولة بسند صرف معتمد من الفرع نفسه" }, { status: 400 })
-      if(Number(voucher.currency_id)!==Number(tx.currency_id)) return NextResponse.json({error:"Payment currency must match commission currency"},{status:400})
+      if(Number(voucher.currency_id)!==Number(tx.currency_id)) return NextResponse.json({error:"عملة سند الصرف يجب أن تطابق عملة العمولة"},{status:400})
       const allocated=(await sql`SELECT COALESCE(SUM(amount),0) amount FROM salesman_commission_payments WHERE payment_voucher_id=${voucherId}`)[0]
-      if(Number(allocated.amount)+amount>Number(voucher.amount)+0.009) return NextResponse.json({error:"Payment exceeds the unallocated voucher amount"},{status:400})
+      if(Number(allocated.amount)+amount>Number(voucher.amount)+0.009) return NextResponse.json({error:"المبلغ يتجاوز الرصيد غير المخصّص في سند الصرف"},{status:400})
       const paid=(await sql`SELECT COALESCE(SUM(amount),0) amount FROM salesman_commission_payments WHERE transaction_id=${id}`)[0]
       if (Number(paid.amount)+amount>Number(tx.final_commission)+0.009) return NextResponse.json({ error: "مبلغ الصرف يتجاوز رصيد العمولة" }, { status: 400 })
       await sql`INSERT INTO salesman_commission_payments(transaction_id,payment_voucher_id,amount,created_by) VALUES(${id},${voucherId},${amount},${num(access.userId)||null})`
