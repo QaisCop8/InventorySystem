@@ -18,7 +18,15 @@ export function ProductVariantProvider() {
       const detail = (event as CustomEvent<PendingRequest>).detail
       if (!detail?.product || typeof detail.resolve !== "function") return
       setPending(detail)
-      setSelection(detail.product.selected_attributes || {})
+      // افتراضياً: أول قيمة لكل خاصية لم يُختر لها شيء (يغيّرها المستخدم إن أراد) — لا تعديل في وضع العرض فقط
+      const saved = detail.product.selected_attributes || {}
+      const defaults: Record<string, string> = { ...saved }
+      if (!detail.readOnly) {
+        for (const attribute of detail.product.attributes || []) {
+          if (!defaults[attribute.name] && attribute.values?.length) defaults[attribute.name] = attribute.values[0]
+        }
+      }
+      setSelection(defaults)
       setReadOnly(!!detail.readOnly)
       setError("")
     }

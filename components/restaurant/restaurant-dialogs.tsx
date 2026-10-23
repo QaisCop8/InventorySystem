@@ -254,3 +254,57 @@ export function AddonsDialog(props: {
     </Dialog>
   )
 }
+
+/** نافذة إدخال قيمة واحدة داخل التطبيق (بدل window.prompt) — رقم مع أزرار سريعة، أو نص */
+export function ValueDialog(props: {
+  open: boolean; onOpenChange: (open: boolean) => void; title: string; label: string; value: string
+  kind?: "number" | "text"; min?: number; max?: number; suffix?: string; presets?: number[]; placeholder?: string
+  busy?: boolean; onConfirm: (value: string) => void
+}) {
+  const { open, onOpenChange, title, label, value, kind = "text", min, max, suffix, presets, placeholder, busy, onConfirm } = props
+  const [text, setText] = useState("")
+  const [error, setError] = useState("")
+  useEffect(() => { if (open) { setText(value); setError("") } }, [open, value])
+  const submit = () => {
+    if (kind === "number") {
+      const number = Number(text)
+      if (text.trim() === "" || !Number.isFinite(number) || (min !== undefined && number < min) || (max !== undefined && number > max)) {
+        setError(`أدخل رقماً${min !== undefined && max !== undefined ? ` بين ${min} و${max}` : " صالحاً"}`)
+        return
+      }
+    }
+    onConfirm(text.trim())
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
+        <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>{label}</Label>
+            <div className="relative">
+              <Input autoFocus className="h-12 text-lg font-bold" type={kind === "number" ? "number" : "text"} inputMode={kind === "number" ? "decimal" : undefined}
+                min={min} max={max} value={text} placeholder={placeholder} onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => { setText(event.target.value); setError("") }} onKeyDown={(event) => { if (event.key === "Enter") submit() }} />
+              {suffix && <span className="absolute left-3 top-3 text-lg font-bold text-muted-foreground">{suffix}</span>}
+            </div>
+          </div>
+          {presets && presets.length > 0 && (
+            <div className="grid grid-cols-4 gap-2">
+              {presets.map((preset) => (
+                <Button key={preset} type="button" variant={Number(text) === preset ? "default" : "outline"} className="h-11 font-bold" onClick={() => { setText(String(preset)); setError("") }}>
+                  {preset}{suffix || ""}
+                </Button>
+              ))}
+            </div>
+          )}
+          {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+          <Button className="h-11" disabled={busy} onClick={submit}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

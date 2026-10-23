@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
+import { currentPosTenantKey, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
 import { ArrowRightLeft, Ban, Combine, Loader2, Lock, Minus, Plus, Printer, Split, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +24,7 @@ import {
   PosPaymentDetailsDialog, type CurrencyOption, type LookupOption, type PaymentDetail, type PaymentMethod,
 } from "@/components/pos/pos-payment-details-dialog"
 import {
-  AddonsDialog, addonsText, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
+  AddonsDialog, addonsText, ValueDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
 import { RestaurantFloor, type Takeaway } from "./restaurant-floor"
@@ -37,6 +38,9 @@ type Catalog = {
 }
 type Line = { item: OrderItem; quantity: number }
 
+// بحث عربي متسامح: بلا تشكيل، وتوحيد الألف/الياء/التاء المربوطة
+const searchKey = (value: string) => value.toLocaleLowerCase("ar").replace(/[ً-ٟـ]/g, "").replace(/[إأآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+const CATALOG_REFRESH_MS = 5 * 60_000
 const errorOf = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
 const pad = (value: number) => String(value).padStart(2, "0")
 const nowText = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}` }
@@ -54,7 +58,8 @@ function normalizeCatalog(data: any): Catalog {
       id: Number(row.id), code: String(row.product_code || ""), name: String(row.product_name || "صنف"), price: Number(row.first_price || 0),
       unitId: Number(row.unit_id) || null, unitName: String(row.unit_name || ""), category: String(row.category_name || "غير مصنف"),
       groupPrinter: String(row.group_printer || "").trim(),
-      image: row.product_image ? (/^(https?:|data:|\/)/i.test(String(row.product_image)) ? String(row.product_image) : `data:image/bmp;base64,${row.product_image}`) : undefined,
+      imageUrl: row.image_url ? String(row.image_url) : null, hasImage: Boolean(row.has_image),
+      search: searchKey(`${row.product_name || ""} ${row.product_code || ""}`),
       unitPrices: (Array.isArray(row.unit_prices) ? row.unit_prices : []).map((option: any) => ({ unitId: Number(option.unit_id) || null, unitName: String(option.unit_name || ""), price: Number(option.price || 0) })),
       addonGroups: (Array.isArray(row.addon_groups) ? row.addon_groups : []).map((group: any) => ({ name: String(group.name || ""), values: (group.values || []).map(String) })),
       relatedMode: Number(row.related_items_mode || 1),
@@ -102,6 +107,7 @@ export default function RestaurantPos() {
   const [splitQty, setSplitQty] = useState<Record<number, number>>({})
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
+  const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
   const [addonsTarget, setAddonsTarget] = useState<{ kind: "pending"; key: string } | { kind: "item"; item: OrderItem } | null>(null)
   const [editing, setEditing] = useState<{ kind: "item"; item: OrderItem } | { kind: "pending"; key: string } | null>(null)
   const [scopeOpen, setScopeOpen] = useState(false)
@@ -154,24 +160,44 @@ export default function RestaurantPos() {
   }, [loadFloor, order])
   useEffect(() => { if (!message) return; const t = window.setTimeout(() => setMessage(null), 6000); return () => window.clearTimeout(t) }, [message])
 
+  // الكتالوج: من الذاكرة أو من IndexedDB فوراً (كالكاشير) ثم تحديث بالخلفية؛ التحميل الكامل يُنتظر فقط أول مرة على الجهاز
+  const catalogKey = useCallback((locationId: number) => `restaurant:${currentPosTenantKey(user?.id)}:location:${locationId}`, [user?.id])
+  const catalogAt = useRef(new Map<number, number>())
+  const activeLocation = useRef<number | null>(null)
+  const fetchCatalog = useCallback(async (locationId: number) => {
+    const response = await fetch(`/api/restaurant/catalog?location_id=${locationId}`, { cache: "no-store" })
+    if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الأصناف"))
+    const raw = await response.json()
+    const next = normalizeCatalog(raw)
+    catalogCache.current.set(locationId, next)
+    catalogAt.current.set(locationId, Date.now())
+    void savePosCatalog(catalogKey(locationId), raw).catch(() => undefined)
+    if (activeLocation.current === locationId) setCatalog(next)
+    return next
+  }, [catalogKey])
   const loadCatalog = useCallback(async (locationId: number, force = false) => {
-    const cached = catalogCache.current.get(locationId)
-    if (cached && !force) { setCatalog(cached); setCatalogError(""); return cached }
-    setCatalogLoading(true); setCatalogError("")
+    activeLocation.current = locationId
+    setCatalogError("")
+    let cached = catalogCache.current.get(locationId) || null
+    if (!cached && !force) {
+      const stored = await loadPosCatalog<any>(catalogKey(locationId)).catch(() => null)
+      if (stored?.catalog) { cached = normalizeCatalog(stored.catalog); catalogCache.current.set(locationId, cached); catalogAt.current.set(locationId, 0) }
+    }
+    if (cached) {
+      setCatalog(cached)
+      if (force || Date.now() - (catalogAt.current.get(locationId) || 0) > CATALOG_REFRESH_MS) void fetchCatalog(locationId).catch(() => undefined)
+      return cached
+    }
+    setCatalogLoading(true)
     try {
-      const response = await fetch(`/api/restaurant/catalog?location_id=${locationId}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الأصناف"))
-      const next = normalizeCatalog(await response.json())
-      catalogCache.current.set(locationId, next)
-      setCatalog(next)
-      return next
+      return await fetchCatalog(locationId)
     } catch (error) {
       setCatalog(null); setCatalogError(error instanceof Error ? error.message : "تعذر تحميل الأصناف")
       return null
     } finally {
       setCatalogLoading(false)
     }
-  }, [])
+  }, [catalogKey, fetchCatalog])
 
   const showOrder = useCallback(async (orderId: number) => {
     setBusy(true)
@@ -347,10 +373,13 @@ export default function RestaurantPos() {
     for (const product of products) counts.set(product.category, (counts.get(product.category) || 0) + 1)
     return [...counts.entries()].map(([name, count]) => ({ name, count }))
   }, [products])
+  // البحث يُطبَّق بأولوية منخفضة (useDeferredValue) فتبقى الكتابة سريعة حتى مع آلاف الأصناف
+  const deferredQuery = useDeferredValue(query)
   const shown = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase("ar")
-    return products.filter((product) => (category === "all" || product.category === category) && (!term || product.name.toLocaleLowerCase("ar").includes(term) || product.code.toLowerCase().includes(term)))
-  }, [products, category, query])
+    const terms = searchKey(deferredQuery.trim()).split(/\s+/).filter(Boolean)
+    if (!terms.length && category === "all") return products
+    return products.filter((product) => (category === "all" || product.category === category) && terms.every((term) => product.search.includes(term)))
+  }, [products, category, deferredQuery])
 
   /**
    * إضافة صنف حسب "إضافة الأصناف التابعة" في تعريفه (كما في طلبية المبيعات): 1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع.
@@ -377,6 +406,11 @@ export default function RestaurantPos() {
     })
     if (missing > 0) setMessage({ type: "error", text: `${missing} من توابع ${product.name} غير متاحة في قائمة هذا الموقع وتم تخطيها` })
   }
+
+  // مرجع ثابت لشبكة الأصناف (memo) — الضغط على صنف لا يعيد رسم الشبكة
+  const addProductRef = useRef(addProduct)
+  addProductRef.current = addProduct
+  const onAddProduct = useCallback((product: Product) => addProductRef.current(product), [])
 
   const isTakeaway = order?.order_type === "takeaway"
   const tableNames = isTakeaway ? `سفري${order?.takeaway_name ? ` ${order.takeaway_name}` : ""}` : order?.tables.map((table) => table.name).join(" + ") || ""
@@ -607,13 +641,12 @@ export default function RestaurantPos() {
     if (data) setEditing(null)
   }
 
-  const setOrderDiscount = async () => {
-    if (!order) return
-    const raw = window.prompt("نسبة خصم الطلب %", String(order.discount_percent || 0))
-    if (raw === null) return
-    const value = Number(raw)
-    if (!Number.isFinite(value) || value < 0 || value > 100) { setMessage({ type: "error", text: "نسبة الخصم غير صالحة" }); return }
-    await act("update_order", { order_id: order.id, discount_percent: value }, "تم تحديث خصم الطلب")
+  const saveValueDialog = async (raw: string) => {
+    if (!order || !valueDialog) return
+    const data = valueDialog === "discount"
+      ? await act("update_order", { order_id: order.id, discount_percent: Number(raw) }, "تم تحديث خصم الطلب")
+      : await act("update_order", { order_id: order.id, takeaway_name: raw })
+    if (data) setValueDialog(null)
   }
   const changeGuests = async (delta: number) => {
     if (!order || !can("openTable")) return
@@ -743,14 +776,19 @@ export default function RestaurantPos() {
         products={shown} productById={productById} categories={categories} totalProducts={products.length}
         query={query} onQuery={setQuery} category={category} onCategory={setCategory} catalogLoading={catalogLoading} catalogError={catalogError}
         pending={pending} pendingTotal={pendingTotal} remainingTotal={remainingTotal} mobileTab={mobileTab} onMobileTab={setMobileTab} actions={actions}
-        onBack={() => void backToFloor()} onAddProduct={addProduct}
+        onBack={() => void backToFloor()} onAddProduct={onAddProduct}
         onPendingQty={(key, delta) => setPending((rows) => rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : []))}
         onPendingRemove={(key) => setPending((rows) => rows.filter((row) => row.key !== key))}
         onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => setEditing({ kind: "item", item })}
         onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => setAddonsTarget({ kind: "item", item })}
-        onSend={() => void sendPending()} onPay={() => setScopeOpen(true)} onDiscount={() => void setOrderDiscount()} onGuests={(delta) => void changeGuests(delta)}
+        onSend={() => void sendPending()} onPay={() => setScopeOpen(true)} onDiscount={() => setValueDialog("discount")} onGuests={(delta) => void changeGuests(delta)}
         onUnmerge={(tableId, name) => void confirmYesNo(`فك الطاولة ${name} من الطلب؟`).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, `تم فك الطاولة ${name}`) })}
-        onRenameTakeaway={() => { const name = window.prompt("اسم/رقم الزبون", order.takeaway_name || ""); if (name !== null) void act("update_order", { order_id: order.id, takeaway_name: name }) }} />
+        onRenameTakeaway={() => setValueDialog("takeaway_name")} />
+
+      <ValueDialog open={valueDialog !== null} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
+        {...(valueDialog === "discount"
+          ? { title: "خصم الطلب", label: "نسبة الخصم على الطلب", value: String(order.discount_percent || 0), kind: "number" as const, min: 0, max: 100, suffix: "%", presets: [0, 5, 10, 15, 20, 25, 30, 50] }
+          : { title: "اسم الطلب السفري", label: "اسم/رقم الزبون", value: order.takeaway_name || "", placeholder: "اختياري" })} />
 
       <ItemEditDialog open={editing !== null} onOpenChange={(value) => { if (!value) setEditing(null) }} line={editLine} busy={busy}
         canDiscount={can("discount")} canDelete={editing?.kind === "pending" || can("deleteItems")} canReduce={editing?.kind === "pending" || can("deleteItems")}

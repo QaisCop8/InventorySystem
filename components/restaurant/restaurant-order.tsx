@@ -1,5 +1,6 @@
 "use client"
 
+import { memo, useEffect, useRef, useState } from "react"
 import { ArrowRight, ChefHat, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, Search, Send, ShoppingBag, Sparkles, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +18,7 @@ export type Order = {
 }
 export type Product = {
   id: number; code: string; name: string; price: number; unitId: number | null; unitName: string; category: string
-  groupPrinter: string; image?: string; unitPrices: { unitId: number | null; unitName: string; price: number }[]
+  groupPrinter: string; imageUrl: string | null; hasImage: boolean; search: string; unitPrices: { unitId: number | null; unitName: string; price: number }[]
   addonGroups: AddonGroup[]; relatedMode: number; relatedIds: number[]
 }
 export type Pending = {
@@ -54,6 +55,99 @@ function AddonChips({ addons }: { addons?: Addon[] }) {
     </span>
   )
 }
+
+// ---------------- صور الأصناف: تُطلب دفعةً واحدة للأصناف الظاهرة فقط وتُخزَّن طوال الجلسة ----------------
+const imageCache = new Map<number, string | null>()
+const imageWaiters = new Map<number, ((src: string | null) => void)[]>()
+const imageQueue = new Set<number>()
+let imageTimer: number | null = null
+async function flushImages() {
+  imageTimer = null
+  const ids = [...imageQueue].slice(0, 60)
+  ids.forEach((id) => imageQueue.delete(id))
+  if (imageQueue.size) imageTimer = window.setTimeout(flushImages, 40)
+  let images: Record<string, string> = {}
+  try {
+    const response = await fetch("/api/restaurant/product-images", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) })
+    if (response.ok) images = (await response.json()).images || {}
+  } catch { /* تبقى الصورة البديلة */ }
+  for (const id of ids) {
+    const src = images[id] || null
+    imageCache.set(id, src)
+    for (const resolve of imageWaiters.get(id) || []) resolve(src)
+    imageWaiters.delete(id)
+  }
+}
+function requestImage(id: number, resolve: (src: string | null) => void) {
+  if (imageCache.has(id)) { resolve(imageCache.get(id) ?? null); return }
+  imageWaiters.set(id, [...(imageWaiters.get(id) || []), resolve])
+  imageQueue.add(id)
+  if (imageTimer === null) imageTimer = window.setTimeout(flushImages, 40)
+}
+
+function ProductImage({ product }: { product: Product }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [src, setSrc] = useState<string | null>(product.imageUrl || (product.hasImage ? imageCache.get(product.id) ?? null : null))
+  useEffect(() => {
+    if (product.imageUrl || !product.hasImage || imageCache.has(product.id) || !ref.current) return
+    let active = true
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return
+      observer.disconnect()
+      requestImage(product.id, (value) => { if (active) setSrc(value) })
+    }, { rootMargin: "300px" })
+    observer.observe(ref.current)
+    return () => { active = false; observer.disconnect() }
+  }, [product.id, product.imageUrl, product.hasImage])
+  if (src) return <img src={src} alt="" className="h-24 w-full object-cover" loading="lazy" decoding="async" />
+  return <div ref={ref} className={`flex h-24 w-full items-center justify-center bg-gradient-to-br text-3xl font-black text-white ${toneFor(product.category)}`}>{initials(product.name)}</div>
+}
+
+const ProductTile = memo(function ProductTile({ product, canAdd, onAdd }: { product: Product; canAdd: boolean; onAdd: (product: Product) => void }) {
+  return (
+    <button type="button" onClick={() => onAdd(product)} disabled={!canAdd}
+      className="group flex flex-col overflow-hidden rounded-2xl border bg-card text-right shadow-sm transition hover:border-rose-400 hover:shadow-md active:scale-[0.97] disabled:opacity-50 [contain:content]">
+      <ProductImage product={product} />
+      <div className="flex flex-1 flex-col gap-1 p-2">
+        <span className="line-clamp-2 text-sm font-bold leading-tight">{product.name}</span>
+        <div className="mt-auto flex items-center justify-between gap-1">
+          <span className="text-base font-black text-rose-700 dark:text-rose-400">{money(product.price)}</span>
+          <span className="flex gap-0.5">
+            {product.addonGroups.length > 0 && <Sparkles className="h-3.5 w-3.5 text-rose-500" aria-label="له إضافات" />}
+            {product.relatedMode > 1 && product.relatedIds.length > 0 && <Link2 className="h-3.5 w-3.5 text-sky-600" aria-label="له توابع" />}
+          </span>
+        </div>
+      </div>
+    </button>
+  )
+})
+
+const PAGE = 120
+/** شبكة الأصناف: لا تُعاد رسمها عند تغيّر الطلب (memo)، وتُرسم 120 صنفاً ثم المزيد عند التمرير */
+const ProductGrid = memo(function ProductGrid({ products, canAdd, onAdd, empty }: { products: Product[]; canAdd: boolean; onAdd: (product: Product) => void; empty: boolean }) {
+  const [limit, setLimit] = useState(PAGE)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { setLimit(PAGE); scrollRef.current?.scrollTo({ top: 0 }) }, [products])
+  useEffect(() => {
+    const target = sentinelRef.current
+    if (!target || limit >= products.length) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) setLimit((current) => Math.min(products.length, current + PAGE))
+    }, { root: scrollRef.current, rootMargin: "600px" })
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [limit, products.length])
+  return (
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-2 sm:gap-3">
+        {products.slice(0, limit).map((product) => <ProductTile key={product.id} product={product} canAdd={canAdd} onAdd={onAdd} />)}
+      </div>
+      {limit < products.length && <div ref={sentinelRef} className="h-10" />}
+      {!products.length && empty && <div className="p-10 text-center text-muted-foreground">لا توجد أصناف مطابقة</div>}
+    </div>
+  )
+})
 
 export function RestaurantOrder(p: Props) {
   const { order, can, pending } = p
@@ -226,31 +320,7 @@ export function RestaurantOrder(p: Props) {
           {p.catalogLoading ? (
             <div className="flex flex-1 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-rose-600" /></div>
           ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(136px,1fr))] gap-2 sm:gap-3">
-                {p.products.slice(0, 400).map((product) => (
-                  <button key={product.id} type="button" onClick={() => p.onAddProduct(product)} disabled={!can("addItems")}
-                    className="group flex flex-col overflow-hidden rounded-2xl border bg-card text-right shadow-sm transition hover:-translate-y-0.5 hover:border-rose-400 hover:shadow-md active:scale-[0.97] disabled:opacity-50">
-                    {product.image ? (
-                      <img src={product.image} alt="" className="h-24 w-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className={`flex h-24 w-full items-center justify-center bg-gradient-to-br text-3xl font-black text-white ${toneFor(product.category)}`}>{initials(product.name)}</div>
-                    )}
-                    <div className="flex flex-1 flex-col gap-1 p-2">
-                      <span className="line-clamp-2 text-sm font-bold leading-tight">{product.name}</span>
-                      <div className="mt-auto flex items-center justify-between gap-1">
-                        <span className="text-base font-black text-rose-700 dark:text-rose-400">{money(product.price)}</span>
-                        <span className="flex gap-0.5">
-                          {product.addonGroups.length > 0 && <Sparkles className="h-3.5 w-3.5 text-rose-500" aria-label="له إضافات" />}
-                          {product.relatedMode > 1 && product.relatedIds.length > 0 && <Link2 className="h-3.5 w-3.5 text-sky-600" aria-label="له توابع" />}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {!p.products.length && !p.catalogError && <div className="p-10 text-center text-muted-foreground">لا توجد أصناف مطابقة</div>}
-            </div>
+            <ProductGrid products={p.products} canAdd={can("addItems")} onAdd={p.onAddProduct} empty={!p.catalogError} />
           )}
         </section>
       </div>

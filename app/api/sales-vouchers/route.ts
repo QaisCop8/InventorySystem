@@ -3,6 +3,7 @@ import { validateAccountStops } from "@/lib/account-stops"
 import { type NextRequest, NextResponse } from "next/server"
 import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql, { withTenantTransaction } from "@/lib/database"
+import { missingSelectionsMessage } from "@/lib/voucher-item-attributes"
 import { deletePosRelatedVouchers } from "@/app/api/pos/_receipts"
 import { isMixedPosReturn, needsPosReceipt } from "@/lib/pos-receipt"
 import { reversePosSessionPayments } from "@/app/api/pos/_session-payments"
@@ -394,6 +395,11 @@ async function postHandler(request: NextRequest) {
 
     const payloadError = validatePayload(data, items)
     if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
+    // صنف له "المتغيرات والخصائص" يجب اختيار قيمة لكل خاصية (الكاشير وشاشة المطعم بلا نافذة خصائص فيُستثنيان)
+    if (!data.pos_client_sale_id) {
+      const selectionError = await missingSelectionsMessage(items)
+      if (selectionError) return NextResponse.json({ error: selectionError }, { status: 400 })
+    }
     const sourceError = await validateSourceInvoice(items, data)
     if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
@@ -678,6 +684,11 @@ async function putHandler(request: NextRequest) {
       items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       const payloadError = validatePayload(data, items)
       if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
+      // صنف له "المتغيرات والخصائص" يجب اختيار قيمة لكل خاصية (الكاشير وشاشة المطعم بلا نافذة خصائص فيُستثنيان)
+      if (!data.pos_client_sale_id) {
+        const selectionError = await missingSelectionsMessage(items)
+        if (selectionError) return NextResponse.json({ error: selectionError }, { status: 400 })
+      }
       const sourceError = await validateSourceInvoice(items, data, Number(data.id || 0))
       if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 

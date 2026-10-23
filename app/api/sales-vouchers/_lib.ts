@@ -1,4 +1,5 @@
 import sql, { memoInTransaction } from "@/lib/database"
+import { saveVoucherItemSelection, savedSelections } from "@/lib/voucher-item-attributes"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion } from "@/lib/consignment"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
@@ -534,17 +535,8 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     const row = rows[i]
     const inserted = [{ id: insertedIds[i] }]
     savedRows.push({ ...row, id: Number(inserted[0].id) })
-    const selected = row.selected_attributes && typeof row.selected_attributes === "object" ? Object.values(row.selected_attributes).map(String) : []
-    for (const value of selected) {
-      await sql`INSERT INTO voucher_item_attributes_tbl (voucher_item_id, product_attribute_value_id)
-        SELECT ${inserted[0].id}, pav.id FROM product_atrributes_values_tbl pav JOIN attribute_values_tbl av ON av.id = pav.value_id
-        WHERE pav.product_id = ${Number(row.product_id)} AND av.name = ${value}
-        ON CONFLICT DO NOTHING`
-      if (row.order_item_id) await sql`INSERT INTO order_item_attributes_tbl (order_item_id, product_attribute_value_id)
-        SELECT ${Number(row.order_item_id)}, pav.id FROM product_atrributes_values_tbl pav JOIN attribute_values_tbl av ON av.id = pav.value_id
-        WHERE pav.product_id = ${Number(row.product_id)} AND av.name = ${value}
-        ON CONFLICT DO NOTHING`
-    }
+    // اختيار "تهيئة الصنف": روابط الجدول + نسخة JSON على السطر (lib/voucher-item-attributes.ts)
+    await saveVoucherItemSelection(Number(inserted[0].id), Number(row.item_id ?? row.product_id), row.selected_attributes, Number(row.order_item_id) || null)
   }
   return savedRows
 }
@@ -686,6 +678,7 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
     WHERE vi.id = ANY(${itemIds}::bigint[])
     ORDER BY vi.id, a.name, av.name
   `
+  const savedById = await savedSelections(itemIds)
   const byItem = new Map<number, { attributes: any[]; selected: Record<string, string> }>()
   for (const row of attributeRows as any[]) {
     const itemId = Number(row.voucher_item_id)
@@ -705,7 +698,11 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
   }
   return (rows as any[]).map((row) => {
     const entry = byItem.get(Number(row.id))
-    return entry ? { ...row, attributes: entry.attributes, selected_attributes: entry.selected } : row
+    // الروابط قد تكون حُذفت (إعادة حفظ قيم الصنف قديماً) — النسخة المحفوظة على السطر تُكمل الاختيار
+    const saved = savedById.get(Number(row.id))
+    const selected = entry && Object.keys(entry.selected).length ? entry.selected : saved || entry?.selected
+    if (!entry) return saved ? { ...row, selected_attributes: saved } : row
+    return { ...row, attributes: entry.attributes, selected_attributes: selected }
   })
 }
 

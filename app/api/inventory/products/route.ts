@@ -699,9 +699,12 @@ async function ensureProductAttributeTables(client: any) {
   await client.query(`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`)
 }
 
+// لا حذف شامل ثم إعادة إدراج: روابط اختيار الخصائص في السندات والطلبيات (voucher_item_attributes_tbl /
+// order_item_attributes_tbl) تشير لمعرّف صف القيمة مع ON DELETE CASCADE، فكان كل حفظ للصنف يمحو خصائص كل
+// الفواتير السابقة. تُحدَّث الصفوف في مكانها (ON CONFLICT) وتُحذف فقط القيم التي أُزيلت فعلاً من الصنف.
 async function persistProductAttributes(client: any, productId: number, attributes: any[]) {
   await ensureProductAttributeTables(client)
-  await client.query(`DELETE FROM product_atrributes_values_tbl WHERE product_id = $1`, [productId])
+  const keptIds: number[] = []
   for (const attribute of Array.isArray(attributes) ? attributes : []) {
     const name = String(attribute?.name || "").trim()
     if (!name) continue
@@ -717,12 +720,14 @@ async function persistProductAttributes(client: any, productId: number, attribut
         `INSERT INTO attribute_values_tbl (attr_id, name) VALUES ($1, $2) ON CONFLICT (attr_id, name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
         [attrId, value],
       )
-      await client.query(
-        `INSERT INTO product_atrributes_values_tbl (product_id, attr_id, value_id, image_url) VALUES ($1, $2, $3, $4) ON CONFLICT (product_id, attr_id, value_id) DO UPDATE SET image_url = EXCLUDED.image_url`,
+      const kept = await client.query(
+        `INSERT INTO product_atrributes_values_tbl (product_id, attr_id, value_id, image_url) VALUES ($1, $2, $3, $4) ON CONFLICT (product_id, attr_id, value_id) DO UPDATE SET image_url = EXCLUDED.image_url RETURNING id`,
         [productId, attrId, Number(valueResult.rows[0].id), attribute?.value_images?.[value] || null],
       )
+      if (kept.rows[0]?.id) keptIds.push(Number(kept.rows[0].id))
     }
   }
+  await client.query(`DELETE FROM product_atrributes_values_tbl WHERE product_id = $1 AND NOT (id = ANY($2::bigint[]))`, [productId, keptIds])
 }
 
 async function resolveProductUnitId(client: any, productId: number, candidateUnitId: number | null): Promise<number | null> {

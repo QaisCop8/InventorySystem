@@ -33,7 +33,14 @@ export async function GET(request: NextRequest) {
       const groups = (Array.isArray(extra?.attributes) ? extra.attributes : [])
         .map((group: any) => ({ name: String(group?.name || "").trim(), values: (Array.isArray(group?.values) ? group.values : []).map((value: unknown) => String(value || "").trim()).filter(Boolean) }))
         .filter((group: any) => group.name && group.values.length)
-      return { ...product, addon_groups: groups, related_items_mode: Math.min(3, Math.max(1, Number(extra?.related_items_mode || 1))), related_ids: relatedById.get(Number(product.id)) || [] }
+      // حقول الشاشة فقط: الصور تُحمَّل عند ظهور الصنف (api/restaurant/product-images) بدل تضمينها كلها في الكتالوج
+      const image = String(product.product_image || "")
+      return {
+        id: Number(product.id), product_code: product.product_code, product_name: product.product_name, unit_id: product.unit_id, unit_name: product.unit_name,
+        first_price: product.first_price, category_name: product.category_name, group_printer: product.group_printer, unit_prices: product.unit_prices,
+        image_url: /^(https?:|\/)/i.test(image) ? image : null, has_image: Boolean(image) && !/^(https?:|\/)/i.test(image),
+        addon_groups: groups, related_items_mode: Math.min(3, Math.max(1, Number(extra?.related_items_mode || 1))), related_ids: relatedById.get(Number(product.id)) || [],
+      }
     })
     return NextResponse.json({ ...catalog, products, session: null, can_pay: auth.permissions.pay })
   } catch (error) {
