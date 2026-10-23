@@ -238,6 +238,10 @@ export async function PUT(request: NextRequest) {
     await ensureBranchColumn()
     await ensurePermissionTables(await resolveCurrentDbName())
     const data = await request.json()
+    // كلمة المرور لا تُغيَّر من تعريف المستخدم — يعيّنها المستخدم من شاشة الدخول عبر "نسيت كلمة المرور" (رمز بالبريد)
+    if ((typeof data?.password === "string" && data.password.trim()) || (typeof data?.password_hash === "string" && data.password_hash.trim())) {
+      return NextResponse.json({ error: "لا يمكن تغيير كلمة المرور من تعريف المستخدم؛ يستخدم المستخدم \"نسيت كلمة المرور\" من شاشة الدخول" }, { status: 400 })
+    }
     console.log("[v0] PUT request data:", data)
 
     if (!data?.user_id) {

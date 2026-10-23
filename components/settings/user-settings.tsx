@@ -79,15 +79,12 @@ export function UserSettings() {
   const [filters, setFilters] = useState({ search: "", role: "all", department: "all" })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [showPasswordReset, setShowPasswordReset] = useState(false)
-  const [showEditPassword, setShowEditPassword] = useState(false)
 
   const pageMessages = useRef<any>(null)
   const editMessages = useRef<any>(null)
   const newMessages = useRef<any>(null)
-  const resetMessages = useRef<any>(null)
   const showMessage = (detail: string, severity: "error" | "success" = "error") => {
-    const target = showNewUserDialog ? newMessages : showUserDialog ? editMessages : showPasswordReset ? resetMessages : pageMessages
+    const target = showNewUserDialog ? newMessages : showUserDialog ? editMessages : pageMessages
     target.current?.clear?.()
     target.current?.show?.([{ severity, summary: "", detail, life: 6000 }])
   }
@@ -252,7 +249,6 @@ export function UserSettings() {
     setEditJobRoleId(user.job_role_id ?? null)
     setEditDefaultScreen(user.dashboard_layout?.default_screen || "dashboard")
     setEditOpenScreensFullscreen(Boolean(user.dashboard_layout?.open_screens_fullscreen))
-    setShowEditPassword(false)
     setShowUserDialog(true)
   }
 
@@ -264,10 +260,6 @@ export function UserSettings() {
     window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: "permissions" } }))
   }
 
-  const handlePasswordReset = (user) => {
-    setSelectedUser(user)
-    setShowPasswordReset(true)
-  }
 
   const saveUser = async (userData, isNew = false) => {
 
@@ -348,7 +340,6 @@ export function UserSettings() {
             email_notifications: userData.email_notifications,
             is_active: userData.is_active,
             dashboard_layout: userData.dashboard_layout,
-            ...(userData.password && { password_hash: userData.password }),
           }),
         })
         console.log("responseresponseresponseresponseresponse ", response)
@@ -519,14 +510,6 @@ export function UserSettings() {
                         >
                           <Shield className="h-3 w-3" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handlePasswordReset(user)}
-                          title="إعادة تعيين كلمة المرور"
-                        >
-                          <Key className="h-3 w-3" />
-                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -546,20 +529,6 @@ export function UserSettings() {
               onSubmit={(e) => {
                 e.preventDefault()
                 const formData = new FormData(e.currentTarget)
-
-                const password = formData.get("password") as string
-                const confirmPassword = formData.get("confirmPassword") as string
-
-                if (showEditPassword && password) {
-                  if (password !== confirmPassword) {
-                    showMessage("كلمة المرور وتأكيد كلمة المرور غير متطابقتان")
-                    return
-                  }
-                  if (password.length < 6) {
-                    showMessage("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
-                    return
-                  }
-                }
 
                 if (!editDepartment) {
                   showMessage("يجب اختيار القسم")
@@ -596,7 +565,6 @@ export function UserSettings() {
                   email_notifications: formData.get("emailNotifications") === "on",
                   is_active: formData.get("active") === "on",
                   dashboard_layout: dashboardLayout,
-                  ...(showEditPassword && password && { password: password }),
                 }
                 saveUser(userData)
               }}
@@ -622,33 +590,10 @@ export function UserSettings() {
                       <Input id="email" name="email" type="email" defaultValue={selectedUser.email} required className={FIELD_CLASS} dir="rtl" />
                     </FieldBox>
 
-                    <div className="md:col-span-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                          <Key className="h-4 w-4 text-amber-600" />
-                          كلمة المرور
-                        </div>
-                        <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => setShowEditPassword(!showEditPassword)}>
-                          {showEditPassword ? "إلغاء تغيير كلمة المرور" : "تغيير كلمة المرور"}
-                        </Button>
-                      </div>
-
-                      {showEditPassword && (
-                        <div className="mt-3 grid grid-cols-1 gap-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3 md:grid-cols-2 dark:border-amber-500/30 dark:bg-amber-500/10">
-                          <FieldBox label="كلمة المرور الجديدة *" htmlFor="editPassword" hint="كلمة المرور يجب أن تكون 6 أحرف على الأقل">
-                            <div className="relative">
-                              <Input id="editPassword" name="password" type={showPassword ? "text" : "password"} placeholder="أدخل كلمة المرور الجديدة" minLength={6} className={`${FIELD_CLASS} pr-10`} dir="rtl" />
-                              <PasswordEye shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
-                            </div>
-                          </FieldBox>
-                          <FieldBox label="تأكيد كلمة المرور الجديدة *" htmlFor="editConfirmPassword">
-                            <div className="relative">
-                              <Input id="editConfirmPassword" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="أعد إدخال كلمة المرور الجديدة" minLength={6} className={`${FIELD_CLASS} pr-10`} dir="rtl" />
-                              <PasswordEye shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
-                            </div>
-                          </FieldBox>
-                        </div>
-                      )}
+                    {/* كلمة المرور لا تُغيَّر من تعريف المستخدم: يغيّرها المستخدم بنفسه من شاشة الدخول عبر "نسيت كلمة المرور" (رمز على بريده) */}
+                    <div className="md:col-span-2 flex items-start gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2.5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                      <Key className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                      <span>كلمة المرور لا تُغيَّر من هنا — يعيّنها المستخدم بنفسه من شاشة الدخول عبر <b>"نسيت كلمة المرور"</b>، فيصله رمز التعيين على بريده الإلكتروني.</span>
                     </div>
 
                     <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="defaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
@@ -923,42 +868,6 @@ export function UserSettings() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showPasswordReset} onOpenChange={setShowPasswordReset}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>إعادة تعيين كلمة المرور</DialogTitle>
-          </DialogHeader>
-          <Messages innerRef={resetMessages} />
-          {selectedUser && (
-            <div className="space-y-4" dir="rtl">
-              <div className="text-center">
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
-                  <p className="text-sm text-yellow-800 text-right">
-                    سيتم إرسال رابط إعادة تعيين كلمة المرور إلى البريد الإلكتروني للمستخدم:
-                  </p>
-                  <p className="font-semibold text-yellow-900 mt-2 text-right">{selectedUser.full_name}</p>
-                  <p className="text-sm text-yellow-700 text-right">{selectedUser.email}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setShowPasswordReset(false)}>
-                  إلغاء
-                </Button>
-                <Button
-                  onClick={() => {
-                    // Here you would typically call an API to send password reset email
-                    showMessage(`تم إرسال رابط إعادة تعيين كلمة المرور إلى ${selectedUser.email}`)
-                    setShowPasswordReset(false)
-                  }}
-                >
-                  إرسال رابط الإعادة
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
