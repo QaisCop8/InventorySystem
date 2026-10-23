@@ -9,7 +9,7 @@ import { openLahzaPopup } from "@/lib/lahza-popup"
 
 type Checkout = {
   company: { id: number; name: string; status: string }
-  counts: { users: number; branches: number; posPoints: number }
+  counts: { users: number; branches: number; posPoints: number; restaurantLocations: number }
   quote: { currency: string; total: number; lines: { label: string; amount: number }[] }
   contacts: { phone: string; whatsapp: string }
   user: { name: string; email: string }

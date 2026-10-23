@@ -30,7 +30,7 @@ export function ensureBillingTables() {
       // أسعار مبدئية للتجربة فقط — يغيّرها مسؤول المنصة من لوحة الإدارة ← الأسعار
       await managementSql`
         INSERT INTO platform_pricing (id, currency, base_price, per_user, per_branch, per_pos_point)
-        VALUES (1, 'USD', 100, 10, 20, 15) ON CONFLICT (id) DO NOTHING`
+        VALUES (1, 'USD', 600, 10, 20, 15) ON CONFLICT (id) DO NOTHING`
       await managementSql`
         CREATE TABLE IF NOT EXISTS company_payments (
           id SERIAL PRIMARY KEY,
@@ -66,6 +66,9 @@ export function ensureBillingTables() {
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_started_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_error TEXT`
       // أرقام التواصل مع المبيعات (صفحة خيارات الدفع) — يعدّلها مسؤول المنصة مع الأسعار
+      // مواقع المطاعم: سعر سنوي لكل موقع (افتراضياً 50) + عددها في كل دفعة
+      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS per_restaurant_location NUMERIC(12,2) NOT NULL DEFAULT 50`
+      await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS number_of_restaurant_locations INTEGER`
       await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_phone VARCHAR(40) NOT NULL DEFAULT '+970 92 373 001'`
       await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_whatsapp VARCHAR(40) NOT NULL DEFAULT '+970 569 555 576'`
       // "ارسال بطاقة للمبيعات": طلب تواصل بدل الدفع الإلكتروني
@@ -91,9 +94,9 @@ export type { Pricing, LicenseCounts }
 
 export async function getPricing(): Promise<Pricing> {
   await ensureBillingTables()
-  const [row] = await managementSql`SELECT currency, base_price, per_user, per_branch, per_pos_point FROM platform_pricing WHERE id = 1`
+  const [row] = await managementSql`SELECT currency, base_price, per_user, per_branch, per_pos_point, per_restaurant_location FROM platform_pricing WHERE id = 1`
   const currency = (LAHZA_CURRENCIES as readonly string[]).includes(String(row?.currency)) ? (row.currency as LahzaCurrency) : "USD"
-  return { currency, base_price: Number(row?.base_price || 0), per_user: Number(row?.per_user || 0), per_branch: Number(row?.per_branch || 0), per_pos_point: Number(row?.per_pos_point || 0) }
+  return { currency, base_price: Number(row?.base_price || 0), per_user: Number(row?.per_user || 0), per_branch: Number(row?.per_branch || 0), per_pos_point: Number(row?.per_pos_point || 0), per_restaurant_location: Number(row?.per_restaurant_location ?? 50) }
 }
 
 export async function getSalesContacts(): Promise<{ phone: string; whatsapp: string }> {
@@ -139,7 +142,8 @@ export async function savePricing(input: Partial<Pricing>) {
   const currency = input.currency && (LAHZA_CURRENCIES as readonly string[]).includes(input.currency) ? input.currency : current.currency
   await managementSql`
     UPDATE platform_pricing SET currency = ${currency}, base_price = ${money(input.base_price, current.base_price)}, per_user = ${money(input.per_user, current.per_user)},
-      per_branch = ${money(input.per_branch, current.per_branch)}, per_pos_point = ${money(input.per_pos_point, current.per_pos_point)}, updated_at = CURRENT_TIMESTAMP
+      per_branch = ${money(input.per_branch, current.per_branch)}, per_pos_point = ${money(input.per_pos_point, current.per_pos_point)},
+      per_restaurant_location = ${money(input.per_restaurant_location, current.per_restaurant_location)}, updated_at = CURRENT_TIMESTAMP
     WHERE id = 1`
   return getPricing()
 }
@@ -152,7 +156,7 @@ type Session = { id: number; email: string; full_name: string }
 
 async function ownedCompany(companyId: number, userId: number) {
   const [company] = await managementSql`
-    SELECT c.id, c.name, c.status, c.number_of_users, c.number_of_branches, c.number_of_pos_points
+    SELECT c.id, c.name, c.status, c.number_of_users, c.number_of_branches, c.number_of_pos_points, c.number_of_restaurant_locations
     FROM companies c JOIN user_company uc ON uc.company_id = c.id
     WHERE c.id = ${companyId} AND uc.user_id = ${userId} AND COALESCE(uc.is_active, true) = true`
   return company || null
@@ -175,7 +179,7 @@ export async function startCompanyPayment(companyId: number, session: Session, o
   }
 
   const pricing = await getPricing()
-  const counts = { users: Number(company.number_of_users) || 1, branches: Number(company.number_of_branches) || 1, posPoints: Number(company.number_of_pos_points) || 0 }
+  const counts = { users: Number(company.number_of_users) || 1, branches: Number(company.number_of_branches) || 1, posPoints: Number(company.number_of_pos_points) || 0, restaurantLocations: Number(company.number_of_restaurant_locations) || 0 }
   const quote = priceFor(pricing, counts)
   if (!(quote.total > 0)) throw Object.assign(new Error("لم يُحدَّد سعر الاشتراك بعد — تواصل مع إدارة النظام"), { status: 400 })
   const reference = `ARK-C${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -183,18 +187,18 @@ export async function startCompanyPayment(companyId: number, session: Session, o
     // نافذة لحظة المنبثقة (LahzaPopup) تُفتح من المتصفح بالمفتاح العام وبنفس المرجع والمبلغ المسجّلين هنا؛
     // التحقق النهائي بالخادم بالمفتاح السري (confirmCompanyPayment يطابق المبلغ والعملة).
     await managementSql`
-      INSERT INTO company_payments (company_id, user_id, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points)
-      VALUES (${companyId}, ${session.id}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints})`
+      INSERT INTO company_payments (company_id, user_id, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations)
+      VALUES (${companyId}, ${session.id}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints}, ${counts.restaurantLocations})`
     return { provisioned: false as const, reference, amount: quote.total, amountMinor: toMinorUnits(quote.total), currency: quote.currency, email: session.email, fullName: session.full_name, publicKey: lahzaPublicKey() }
   }
   const callbackUrl = `${origin}/management/companies/payment-callback`
   const { authorizationUrl } = await initializeLahzaTransaction({
     email: session.email, firstName: session.full_name, amount: quote.total, currency: quote.currency, reference, callbackUrl,
-    metadata: { company_id: companyId, company_name: company.name, users: counts.users, branches: counts.branches, pos_points: counts.posPoints },
+    metadata: { company_id: companyId, company_name: company.name, users: counts.users, branches: counts.branches, pos_points: counts.posPoints, restaurant_locations: counts.restaurantLocations },
   })
   await managementSql`
-    INSERT INTO company_payments (company_id, user_id, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points, authorization_url)
-    VALUES (${companyId}, ${session.id}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints}, ${authorizationUrl})`
+    INSERT INTO company_payments (company_id, user_id, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations, authorization_url)
+    VALUES (${companyId}, ${session.id}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints}, ${counts.restaurantLocations}, ${authorizationUrl})`
   return { provisioned: false as const, authorizationUrl, reference, amount: quote.total, currency: quote.currency }
 }
 
@@ -252,15 +256,16 @@ const LICENSE_COLUMNS: Record<LicenseResource, { column: string; initialized: st
   users: { column: "number_of_users", initialized: "license_initialized", base: 1 },
   branches: { column: "number_of_branches", initialized: "license_initialized", base: 1 },
   pos_points: { column: "number_of_pos_points", initialized: "pos_license_initialized", base: 0 },
+  restaurant_locations: { column: "number_of_restaurant_locations", initialized: "restaurant_license_initialized", base: 0 },
 }
 
 export function licenseUnitPrice(pricing: Pricing, resource: LicenseResource) {
-  return resource === "users" ? pricing.per_user : resource === "branches" ? pricing.per_branch : pricing.per_pos_point
+  return resource === "users" ? pricing.per_user : resource === "branches" ? pricing.per_branch : resource === "restaurant_locations" ? pricing.per_restaurant_location : pricing.per_pos_point
 }
 
 export async function licensePaymentInfo() {
   const pricing = await getPricing()
-  const prices = { users: pricing.per_user, branches: pricing.per_branch, pos_points: pricing.per_pos_point }
+  const prices = { users: pricing.per_user, branches: pricing.per_branch, pos_points: pricing.per_pos_point, restaurant_locations: pricing.per_restaurant_location }
   return { enabled: isLahzaConfigured() && Boolean(lahzaPublicKey()), testMode: isLahzaTestMode(), currency: pricing.currency, prices }
 }
 
@@ -343,6 +348,7 @@ async function subscriptionCompany(companyId: number, userId: number) {
   const [company] = await managementSql`
     SELECT c.id, c.name, c.status, c.db_name, c.expiry_date, COALESCE(c.is_trial, false) AS is_trial,
            COALESCE(c.number_of_users, 1) AS number_of_users, COALESCE(c.number_of_branches, 1) AS number_of_branches, COALESCE(c.number_of_pos_points, 0) AS number_of_pos_points,
+           COALESCE(c.number_of_restaurant_locations, 0) AS number_of_restaurant_locations,
            GREATEST(COALESCE(c.expiry_date, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) AS period_start,
            GREATEST(COALESCE(c.expiry_date, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + INTERVAL '1 year' AS period_end,
            (c.expiry_date IS NULL OR c.expiry_date < CURRENT_TIMESTAMP + (${RENEWAL_WINDOW_DAYS} * INTERVAL '1 day')) AS renewal_due
@@ -361,26 +367,28 @@ export async function startSubscriptionPayment(companyId: number, session: Sessi
   if (purpose === "renewal" && company.is_trial) throw Object.assign(new Error("حوّل النسخة التجريبية إلى نسخة حقيقية بدل التجديد"), { status: 400 })
   if (purpose === "renewal" && !company.renewal_due) throw Object.assign(new Error(`التجديد متاح عندما يتبقى على الاشتراك أقل من ${RENEWAL_WINDOW_DAYS} يوماً`), { status: 400 })
 
-  let counts: LicenseCounts = { users: Number(company.number_of_users) || 1, branches: Number(company.number_of_branches) || 1, posPoints: Number(company.number_of_pos_points) || 0 }
+  let counts: LicenseCounts = { users: Number(company.number_of_users) || 1, branches: Number(company.number_of_branches) || 1, posPoints: Number(company.number_of_pos_points) || 0, restaurantLocations: Number(company.number_of_restaurant_locations) || 0 }
   if (purpose === "upgrade") {
     // الترخيص المطلوب لا يقل عن الاستخدام الفعلي الحالي (وإلا تُحجب الإضافات القائمة)
-    const usage = await countTenantUsage(String(company.db_name)).catch(() => ({ users: 1, branches: 1, pos_points: 0 }))
+    const usage = await countTenantUsage(String(company.db_name)).catch(() => ({ users: 1, branches: 1, pos_points: 0, restaurant_locations: 0 }))
     const whole = (value: unknown, min: number) => Math.max(min, Math.floor(Number(value)))
     counts = {
       users: whole(requested?.users ?? counts.users, 1), branches: whole(requested?.branches ?? counts.branches, 1), posPoints: whole(requested?.posPoints ?? counts.posPoints, 0),
+      restaurantLocations: whole(requested?.restaurantLocations ?? counts.restaurantLocations, 0),
     }
-    if (![counts.users, counts.branches, counts.posPoints].every((value) => Number.isFinite(value) && value <= 100000)) throw Object.assign(new Error("الأعداد المطلوبة غير صالحة"), { status: 400 })
+    if (![counts.users, counts.branches, counts.posPoints, counts.restaurantLocations].every((value) => Number.isFinite(value) && value <= 100000)) throw Object.assign(new Error("الأعداد المطلوبة غير صالحة"), { status: 400 })
     if (counts.users < usage.users) throw Object.assign(new Error(`عدد المستخدمين لا يقل عن المستخدمين الحاليين (${usage.users})`), { status: 400 })
     if (counts.branches < usage.branches) throw Object.assign(new Error(`عدد الفروع لا يقل عن الفروع الحالية (${usage.branches})`), { status: 400 })
     if (counts.posPoints < usage.pos_points) throw Object.assign(new Error(`عدد نقاط البيع لا يقل عن النقاط الحالية (${usage.pos_points})`), { status: 400 })
+    if (counts.restaurantLocations < usage.restaurant_locations) throw Object.assign(new Error(`عدد مواقع المطاعم لا يقل عن المواقع الحالية (${usage.restaurant_locations})`), { status: 400 })
   }
   const pricing = await getPricing()
   const quote = priceFor(pricing, counts)
   if (!(quote.total > 0)) throw Object.assign(new Error("لم يُحدَّد سعر الاشتراك بعد — تواصل مع إدارة النظام"), { status: 400 })
   const reference = `ARK-${purpose === "upgrade" ? "U" : "R"}${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
   await managementSql`
-    INSERT INTO company_payments (company_id, user_id, purpose, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points)
-    VALUES (${companyId}, ${session.id}, ${purpose}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints})`
+    INSERT INTO company_payments (company_id, user_id, purpose, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations)
+    VALUES (${companyId}, ${session.id}, ${purpose}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints}, ${counts.restaurantLocations})`
   return {
     reference, amount: quote.total, amountMinor: toMinorUnits(quote.total), currency: quote.currency, email: session.email, fullName: session.full_name, publicKey: lahzaPublicKey(),
     periodStart: company.period_start, periodEnd: company.period_end,
@@ -402,9 +410,10 @@ async function confirmSubscriptionPayment(payment: any) {
         `UPDATE companies SET
            expiry_date = GREATEST(COALESCE(expiry_date, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP) + INTERVAL '1 year',
            is_trial = false, status = CASE WHEN status = 'stopped' THEN status ELSE 'approved' END,
-           number_of_users = $2, number_of_branches = $3, number_of_pos_points = $4, license_initialized = true, pos_license_initialized = true
+           number_of_users = $2, number_of_branches = $3, number_of_pos_points = $4, number_of_restaurant_locations = $5,
+           license_initialized = true, pos_license_initialized = true, restaurant_license_initialized = true
          WHERE id = $1 RETURNING expiry_date`,
-        [payment.company_id, Number(payment.number_of_users) || 1, Number(payment.number_of_branches) || 1, Number(payment.number_of_pos_points) || 0],
+        [payment.company_id, Number(payment.number_of_users) || 1, Number(payment.number_of_branches) || 1, Number(payment.number_of_pos_points) || 0, Number(payment.number_of_restaurant_locations) || 0],
       )
       expiry = updated.rows[0]?.expiry_date ? new Date(updated.rows[0].expiry_date).toISOString() : null
       applied = true
@@ -420,7 +429,7 @@ async function confirmSubscriptionPayment(payment: any) {
     void sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: payment.purpose === "upgrade" ? `تحويل نسخة تجريبية إلى حقيقية — ${payment.company_name}` : `تجديد اشتراك — ${payment.company_name}`,
-      html: `<div dir="rtl"><p>${payment.purpose === "upgrade" ? "تم تحويل النسخة التجريبية" : "تم تجديد اشتراك"} شركة "${payment.company_name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع${expiry ? `، وينتهي الاشتراك في ${expiry.slice(0, 10)}` : ""}.</p></div>`,
+      html: `<div dir="rtl"><p>${payment.purpose === "upgrade" ? "تم تحويل النسخة التجريبية" : "تم تجديد اشتراك"} شركة "${payment.company_name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع، ${Number(payment.number_of_restaurant_locations) || 0} موقع مطعم${expiry ? `، وينتهي الاشتراك في ${expiry.slice(0, 10)}` : ""}.</p></div>`,
     }).catch(() => undefined)
   }
   return { status: "approved" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name), expiryDate: expiry }
@@ -467,12 +476,13 @@ async function provisionPaidCompany(companyId: number) {
     // التزويد يضبط ترخيصاً افتراضياً — يُثبَّت هنا الترخيص المدفوع فعلاً
     await managementSql`
       UPDATE companies SET number_of_users = ${Number(payment.number_of_users) || 1}, number_of_branches = ${Number(payment.number_of_branches) || 1},
-        number_of_pos_points = ${Number(payment.number_of_pos_points) || 0}, provisioning_error = NULL
+        number_of_pos_points = ${Number(payment.number_of_pos_points) || 0},
+        number_of_restaurant_locations = ${Number(payment.number_of_restaurant_locations) || 0}, restaurant_license_initialized = true, provisioning_error = NULL
       WHERE id = ${companyId}`
     void sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: "شركة جديدة مدفوعة تم اعتمادها",
-      html: `<div dir="rtl"><p>تم دفع اشتراك شركة "${owner.name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}) من ${owner.full_name} (${owner.email}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع. تم اعتماد الشركة وإنشاء قاعدتها تلقائياً لمدة سنة.</p></div>`,
+      html: `<div dir="rtl"><p>تم دفع اشتراك شركة "${owner.name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}) من ${owner.full_name} (${owner.email}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع، ${Number(payment.number_of_restaurant_locations) || 0} موقع مطعم. تم اعتماد الشركة وإنشاء قاعدتها تلقائياً لمدة سنة.</p></div>`,
     }).catch(() => undefined)
   } catch (error) {
     // الدفع يبقى ناجحاً: "اعادة المحاولة" تعيد الإنشاء فقط بلا دفع جديد

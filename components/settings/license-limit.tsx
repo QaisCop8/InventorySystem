@@ -1,13 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Loader2, Monitor, Send, Users } from "lucide-react"
+import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Loader2, Monitor, Send, Users, UtensilsCrossed } from "lucide-react"
 import { openLahzaPopup } from "@/lib/lahza-popup"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { WorkspaceDialogProvider } from "@/contexts/workspace-dialog-context"
 
-export type LicenseResource = "users" | "branches" | "pos_points"
+export type LicenseResource = "users" | "branches" | "pos_points" | "restaurant_locations"
 type License = { limits: Record<LicenseResource, number>; usage: Record<LicenseResource, number>; pending: Array<{ id: number; resource: LicenseResource; quantity: number; created_at: string }> }
 export type LicenseLimitPayload = { code?: string; error?: string; resource?: LicenseResource; limit?: number; used?: number; pending_request_id?: number | null }
 
@@ -15,6 +15,7 @@ const LABELS: Record<LicenseResource, { plural: string; single: string; icon: ty
   users: { plural: "المستخدمين", single: "مستخدم", icon: Users },
   branches: { plural: "الفروع", single: "فرع", icon: Building2 },
   pos_points: { plural: "نقاط البيع", single: "نقطة بيع", icon: Monitor },
+  restaurant_locations: { plural: "مواقع المطاعم", single: "موقع مطعم", icon: UtensilsCrossed },
 }
 
 export function useCompanyLicense() {

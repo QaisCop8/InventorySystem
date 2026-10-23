@@ -43,6 +43,7 @@ interface Company {
   number_of_users?: number
   number_of_branches?: number
   number_of_pos_points?: number
+  number_of_restaurant_locations?: number
   expiry_date?: string | null
   db_name?: string | null
   requested_by_name?: string | null
@@ -136,6 +137,7 @@ export default function ManagementCompaniesPage() {
   const [newCompanyUsers, setNewCompanyUsers] = useState("1")
   const [newCompanyBranches, setNewCompanyBranches] = useState("1")
   const [newCompanyPosPoints, setNewCompanyPosPoints] = useState("0")
+  const [newCompanyRestaurants, setNewCompanyRestaurants] = useState("0")
   const [saving, setSaving] = useState(false)
   const [selecting, setSelecting] = useState<number | null>(null)
   const [error, setError] = useState("")
@@ -230,7 +232,7 @@ export default function ManagementCompaniesPage() {
       const res = await fetch("/api/management/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0), pay: paymentEnabled }),
+        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0), number_of_restaurant_locations: Number(newCompanyRestaurants || 0), pay: paymentEnabled }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -240,6 +242,7 @@ export default function ManagementCompaniesPage() {
       setShowAddDialog(false)
       setNewCompanyName("")
       setNewCompanyPosPoints("0")
+      setNewCompanyRestaurants("0")
       await loadCompanies()
       if (data.payment_required && data.company?.id) await startPayment(Number(data.company.id))
     } catch {
@@ -544,6 +547,7 @@ export default function ManagementCompaniesPage() {
             id: subscription.company.id, name: subscription.company.name, expiry_date: subscription.company.expiry_date,
             number_of_users: Number(subscription.company.number_of_users) || 1, number_of_branches: Number(subscription.company.number_of_branches) || 1,
             number_of_pos_points: Number(subscription.company.number_of_pos_points) || 0,
+            number_of_restaurant_locations: Number(subscription.company.number_of_restaurant_locations) || 0,
           }}
           purpose={subscription.purpose}
           pricing={pricing}
@@ -571,11 +575,12 @@ export default function ManagementCompaniesPage() {
             <label htmlFor="new-company-name" className="text-sm font-bold text-slate-200">اسم الشركة</label>
             <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-right" autoFocus />
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: "عدد المستخدمين", value: newCompanyUsers, set: setNewCompanyUsers, min: 1 },
               { label: "عدد الفروع", value: newCompanyBranches, set: setNewCompanyBranches, min: 1 },
               { label: "عدد نقاط البيع", value: newCompanyPosPoints, set: setNewCompanyPosPoints, min: 0 },
+              { label: "مواقع المطاعم", value: newCompanyRestaurants, set: setNewCompanyRestaurants, min: 0 },
             ].map((field) => (
               <div key={field.label} className="space-y-2">
                 <label className="text-xs font-bold text-slate-300">{field.label}</label>
@@ -584,7 +589,7 @@ export default function ManagementCompaniesPage() {
             ))}
           </div>
           {paymentEnabled && pricing ? (() => {
-            const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0 })
+            const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0, restaurantLocations: Number(newCompanyRestaurants) || 0 })
             return (
               <div className="space-y-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-4">
                 <p className="flex items-center gap-2 text-sm font-black text-emerald-200"><CreditCard className="h-4 w-4" />تكلفة الاشتراك السنوي</p>
@@ -606,7 +611,7 @@ export default function ManagementCompaniesPage() {
             <button
               type="button"
               onClick={handleAddCompany}
-              disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0)}
+              disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0) || !(Number(newCompanyRestaurants || 0) >= 0)}
               className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
             >
               {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled ? "جاري التحويل للدفع..." : "جاري الإنشاء..."}</> : paymentEnabled ? <><CreditCard className="h-4 w-4" />الدفع وإنشاء الشركة</> : "إنشاء"}

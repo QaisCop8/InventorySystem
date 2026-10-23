@@ -21,7 +21,7 @@ export async function GET() {
     const rows = await managementSql`
       SELECT c.id, c.name, c.status, c.created_at, c.expiry_date, c.db_name, c.provisioning_error,
              COALESCE(c.is_trial, false) AS is_trial,
-             COALESCE(c.number_of_users, 1) AS number_of_users, COALESCE(c.number_of_branches, 1) AS number_of_branches, COALESCE(c.number_of_pos_points, 0) AS number_of_pos_points,
+             COALESCE(c.number_of_users, 1) AS number_of_users, COALESCE(c.number_of_branches, 1) AS number_of_branches, COALESCE(c.number_of_pos_points, 0) AS number_of_pos_points, COALESCE(c.number_of_restaurant_locations, 0) AS number_of_restaurant_locations,
              (c.status = 'approved' AND (c.expiry_date IS NULL OR c.expiry_date < CURRENT_TIMESTAMP + INTERVAL '30 days')) AS renewal_due,
              (c.status = 'provisioning' AND c.provisioning_started_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes') AS provisioning_stale,
              u.full_name AS requested_by_name, u.email AS requested_by_email
@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(numberOfBranches) || numberOfBranches < 1 || numberOfBranches > 100000) return NextResponse.json({ error: "عدد الفروع يجب أن يكون 1 أو أكثر" }, { status: 400 })
     const numberOfPosPoints = Math.floor(Number(data.number_of_pos_points ?? 0))
     if (!Number.isFinite(numberOfPosPoints) || numberOfPosPoints < 0 || numberOfPosPoints > 100000) return NextResponse.json({ error: "عدد نقاط البيع يجب أن يكون 0 أو أكثر" }, { status: 400 })
+    const numberOfRestaurantLocations = Math.floor(Number(data.number_of_restaurant_locations ?? 0))
+    if (!Number.isFinite(numberOfRestaurantLocations) || numberOfRestaurantLocations < 0 || numberOfRestaurantLocations > 100000) return NextResponse.json({ error: "عدد مواقع المطاعم يجب أن يكون 0 أو أكثر" }, { status: 400 })
     await ensureLicenseTables()
 
     // مطابقة بلا حساسية لحالة الأحرف/المسافات الطرفية — عبر كل الشركات (لا فقط شركات نفس المستخدم)
@@ -69,8 +71,8 @@ export async function POST(request: NextRequest) {
     // الدفع الإلكتروني (لحظة) مفعّل ⇒ الشركة تنتظر الدفع ثم تُنشأ تلقائياً عند نجاحه، بدل انتظار موافقة مسؤول المنصة
     const payNow = data.pay === true && (await paymentsEnabled())
     const inserted = await managementSql`
-      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, number_of_pos_points, license_initialized, pos_license_initialized)
-      VALUES (${name}, ${payNow ? "awaiting_payment" : "pending"}, ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, true, true)
+      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations, license_initialized, pos_license_initialized, restaurant_license_initialized)
+      VALUES (${name}, ${payNow ? "awaiting_payment" : "pending"}, ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, ${numberOfRestaurantLocations}, true, true, true)
       RETURNING id, name, status, created_at
     `
     const company = inserted[0]
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
     void sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: "طلب إنشاء شركة جديدة بانتظار الموافقة",
-      html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>الترخيص المطلوب: ${numberOfUsers} مستخدم، ${numberOfBranches} فرع، ${numberOfPosPoints} نقطة بيع.</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,
+      html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>الترخيص المطلوب: ${numberOfUsers} مستخدم، ${numberOfBranches} فرع، ${numberOfPosPoints} نقطة بيع، ${numberOfRestaurantLocations} موقع مطعم.</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,
     })
 
     return NextResponse.json({ success: true, company })

@@ -5,14 +5,15 @@ import managementSql, { ensureManagementTables } from "@/lib/management-db"
 // number_of_branches/number_of_pos_points بقاعدة الإدارة). إضافة مستخدم/فرع/نقطة بيع (أو إعادة تفعيل مستخدم) تُرفض عند بلوغ الحد، ويمكن للشركة إرسال
 // طلب زيادة يوافق عليه مسؤول المنصة (فيُرفع الحد) أو يرفضه.
 
-export type LicenseResource = "users" | "branches" | "pos_points"
+export type LicenseResource = "users" | "branches" | "pos_points" | "restaurant_locations"
 export const LICENSE_RESOURCE_LABELS: Record<LicenseResource, { plural: string; single: string }> = {
   users: { plural: "المستخدمين", single: "مستخدم" },
   branches: { plural: "الفروع", single: "فرع" },
   pos_points: { plural: "نقاط البيع", single: "نقطة بيع" },
+  restaurant_locations: { plural: "مواقع المطاعم", single: "موقع مطعم" },
 }
 
-export type LicenseUsage = { users: number; branches: number; pos_points: number }
+export type LicenseUsage = { users: number; branches: number; pos_points: number; restaurant_locations: number }
 export type CompanyLicense = {
   companyId: number
   companyName: string
@@ -43,6 +44,9 @@ export function ensureLicenseTables() {
       // (pos_license_initialized مستقل عن license_initialized لأنه أُضيف لاحقاً لشركات مُهيّأة أصلاً).
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS number_of_pos_points INTEGER DEFAULT 0`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS pos_license_initialized BOOLEAN DEFAULT false`
+      // مواقع المطاعم: مثل نقاط البيع — 0 للشركات الجديدة، والقائمة يُرفع حدها لعدد مواقعها الفعلي عند أول فحص
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS number_of_restaurant_locations INTEGER DEFAULT 0`
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS restaurant_license_initialized BOOLEAN DEFAULT false`
       await managementSql`
         CREATE TABLE IF NOT EXISTS company_license_requests (
           id SERIAL PRIMARY KEY,
@@ -76,7 +80,9 @@ export async function countTenantUsage(dbName?: string): Promise<LicenseUsage> {
     const branches = branchTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM branches WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
     const posTable = await sql`SELECT to_regclass('pos_points_tbl') IS NOT NULL AS ok`
     const posPoints = posTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM pos_points_tbl WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
-    return { users: Number(users?.n || 0), branches: Number(branches?.n || 0), pos_points: Number(posPoints?.n || 0) }
+    const restaurantTable = await sql`SELECT to_regclass('restaurant_locations_tbl') IS NOT NULL AS ok`
+    const restaurantLocations = restaurantTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM restaurant_locations_tbl WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
+    return { users: Number(users?.n || 0), branches: Number(branches?.n || 0), pos_points: Number(posPoints?.n || 0), restaurant_locations: Number(restaurantLocations?.n || 0) }
   }
   return dbName ? withTenantDb(dbName, query) : query()
 }
@@ -84,7 +90,8 @@ export async function countTenantUsage(dbName?: string): Promise<LicenseUsage> {
 async function companyForDb(dbName: string) {
   return (await managementSql`
     SELECT id, name, COALESCE(number_of_users, 1) AS number_of_users, COALESCE(number_of_branches, 1) AS number_of_branches,
-           COALESCE(number_of_pos_points, 0) AS number_of_pos_points,
+           COALESCE(number_of_pos_points, 0) AS number_of_pos_points, COALESCE(number_of_restaurant_locations, 0) AS number_of_restaurant_locations,
+           COALESCE(restaurant_license_initialized, false) AS restaurant_license_initialized,
            COALESCE(license_initialized, false) AS license_initialized, COALESCE(pos_license_initialized, false) AS pos_license_initialized
     FROM companies WHERE db_name = ${dbName} LIMIT 1`)[0]
 }
@@ -96,7 +103,7 @@ export async function getCurrentCompanyLicense(): Promise<CompanyLicense | null>
   const company = await companyForDb(dbName)
   if (!company) return null
   const usage = await countTenantUsage()
-  let limits: LicenseUsage = { users: Number(company.number_of_users), branches: Number(company.number_of_branches), pos_points: Number(company.number_of_pos_points) }
+  let limits: LicenseUsage = { users: Number(company.number_of_users), branches: Number(company.number_of_branches), pos_points: Number(company.number_of_pos_points), restaurant_locations: Number(company.number_of_restaurant_locations) }
   if (!company.license_initialized) {
     limits = { ...limits, users: Math.max(limits.users, usage.users, 1), branches: Math.max(limits.branches, usage.branches, 1) }
     await managementSql`UPDATE companies SET number_of_users = ${limits.users}, number_of_branches = ${limits.branches}, license_initialized = true WHERE id = ${company.id}`
@@ -104,6 +111,10 @@ export async function getCurrentCompanyLicense(): Promise<CompanyLicense | null>
   if (!company.pos_license_initialized) {
     limits = { ...limits, pos_points: Math.max(limits.pos_points, usage.pos_points) }
     await managementSql`UPDATE companies SET number_of_pos_points = ${limits.pos_points}, pos_license_initialized = true WHERE id = ${company.id}`
+  }
+  if (!company.restaurant_license_initialized) {
+    limits = { ...limits, restaurant_locations: Math.max(limits.restaurant_locations, usage.restaurant_locations) }
+    await managementSql`UPDATE companies SET number_of_restaurant_locations = ${limits.restaurant_locations}, restaurant_license_initialized = true WHERE id = ${company.id}`
   }
   const pending = await managementSql`
     SELECT id, resource, quantity, created_at FROM company_license_requests

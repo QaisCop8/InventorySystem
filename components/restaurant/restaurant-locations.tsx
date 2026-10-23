@@ -15,6 +15,7 @@ import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useFileAccess } from "@/components/auth/use-file-access"
 import { useAuth } from "@/components/auth/auth-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 
 type Location = Record<string, any> & {
   id: number; code: string; name: string; branch_id: number; branch_name?: string; status: number; tables_count?: number
@@ -125,6 +126,17 @@ export default function RestaurantLocations() {
   }
   const set = (patch: Partial<Form>) => setForm((current) => ({ ...current, ...patch }))
 
+  // ترخيص الشركة: عدد مواقع المطاعم — عند بلوغ الحد تُفتح نافذة طلب الزيادة/الدفع بدل نموذج الإضافة
+  const { license, reload: reloadLicense } = useCompanyLicense()
+  const licenseRequest = useLicenseRequestDialog(() => void reloadLicense())
+  const addLocation = () => {
+    if (license && license.usage.restaurant_locations >= license.limits.restaurant_locations) {
+      licenseRequest.open("restaurant_locations", `تم الوصول للحد المرخّص من مواقع المطاعم (${license.usage.restaurant_locations} من ${license.limits.restaurant_locations}).`, license.pending.some((request) => request.resource === "restaurant_locations"))
+      return
+    }
+    openForm(emptyForm(activeBranchId, nextCodeRef.current))
+  }
+
   const save = async () => {
     const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"]]
     const missing = required.filter(([value]) => !value).map(([, label]) => label)
@@ -176,9 +188,11 @@ export default function RestaurantLocations() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="ml-1 h-4 w-4" />تحديث</Button>
-          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={() => openForm(emptyForm(activeBranchId, nextCodeRef.current))}><Plus className="ml-1 h-4 w-4" />إضافة موقع</Button>}
+          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={addLocation}><Plus className="ml-1 h-4 w-4" />إضافة موقع</Button>}
         </div>
       </div>
+      {licenseRequest.element}
+      <LicenseUsageStrip resource="restaurant_locations" license={license} onRequest={() => licenseRequest.open("restaurant_locations")} />
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">

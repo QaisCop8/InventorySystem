@@ -17,6 +17,7 @@ export type SubscriptionCompany = {
   number_of_users: number
   number_of_branches: number
   number_of_pos_points: number
+  number_of_restaurant_locations?: number
 }
 
 const formatDate = (date: Date) => date.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
@@ -32,12 +33,13 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
   const [users, setUsers] = useState(String(company.number_of_users || 1))
   const [branches, setBranches] = useState(String(company.number_of_branches || 1))
   const [posPoints, setPosPoints] = useState(String(company.number_of_pos_points || 0))
+  const [restaurants, setRestaurants] = useState(String(company.number_of_restaurant_locations || 0))
   const [busy, setBusy] = useState(false)
   const [popupOpen, setPopupOpen] = useState(false)
   const [error, setError] = useState("")
   const [verificationReference, setVerificationReference] = useState("")
 
-  const counts = { users: Number(users) || 1, branches: Number(branches) || 1, posPoints: Number(posPoints) || 0 }
+  const counts = { users: Number(users) || 1, branches: Number(branches) || 1, posPoints: Number(posPoints) || 0, restaurantLocations: Number(restaurants) || 0 }
   const quote = priceFor(pricing, counts)
   const period = useMemo(() => {
     const now = new Date()
@@ -72,7 +74,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
       const response = await fetch(`/api/management/companies/${company.id}/subscription-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purpose, number_of_users: counts.users, number_of_branches: counts.branches, number_of_pos_points: counts.posPoints }),
+        body: JSON.stringify({ purpose, number_of_users: counts.users, number_of_branches: counts.branches, number_of_pos_points: counts.posPoints, number_of_restaurant_locations: counts.restaurantLocations }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذّر بدء عملية الدفع")
@@ -112,10 +114,11 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {field("عدد المستخدمين", users, setUsers, 1)}
           {field("عدد الفروع", branches, setBranches, 1)}
           {field("عدد نقاط البيع", posPoints, setPosPoints, 0)}
+          {field("مواقع المطاعم", restaurants, setRestaurants, 0)}
         </div>
 
         <div className="space-y-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-4">

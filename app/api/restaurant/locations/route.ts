@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { ensureRestaurantTables, errorStatus } from "@/lib/restaurant"
+import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 
 const text = (value: unknown, max: number) => String(value ?? "").trim().slice(0, max)
 const optionalId = (value: unknown) => {
@@ -133,8 +134,14 @@ async function save(request: NextRequest, mode: "create" | "update") {
     if (!Number.isInteger(id) || Number(id) <= 0) return NextResponse.json({ error: "معرف الموقع غير صالح" }, { status: 400 })
     current = (await sql`SELECT * FROM restaurant_locations_tbl WHERE id = ${id} AND status <> 3`)[0]
     if (!current) return NextResponse.json({ error: "الموقع غير موجود" }, { status: 404 })
-  } else if (!text(data.code, 20)) {
-    data.code = await nextCode()
+  } else {
+    // ترخيص الشركة: عدد مواقع المطاعم المسموح به (0 افتراضياً للشركات الجديدة) — يُطلب رفعه/يُدفع من شاشة المواقع
+    try { await assertLicenseAllows("restaurant_locations") } catch (licenseError) {
+      const body = licenseErrorResponseBody(licenseError)
+      if (body) return NextResponse.json(body, { status: 409 })
+      throw licenseError
+    }
+    if (!text(data.code, 20)) data.code = await nextCode()
   }
   const checked = await validate(data, id, permission.userId)
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 })

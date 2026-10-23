@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const data = await request.json().catch(() => ({}))
     const purpose = data.purpose === "upgrade" ? "upgrade" : "renewal"
     const result = await startSubscriptionPayment(companyId, session, purpose, {
-      users: data.number_of_users, branches: data.number_of_branches, posPoints: data.number_of_pos_points,
+      users: data.number_of_users, branches: data.number_of_branches, posPoints: data.number_of_pos_points, restaurantLocations: data.number_of_restaurant_locations,
     })
     return NextResponse.json(result)
   } catch (error) {

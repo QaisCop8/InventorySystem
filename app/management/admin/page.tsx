@@ -30,7 +30,8 @@ interface AllCompany {
   number_of_users?: number
   number_of_branches?: number
   number_of_pos_points?: number
-  usage?: { users: number; branches: number; pos_points?: number } | null
+  number_of_restaurant_locations?: number
+  usage?: { users: number; branches: number; pos_points?: number; restaurant_locations?: number } | null
   pending_license_requests?: number
 }
 

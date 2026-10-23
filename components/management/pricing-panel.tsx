@@ -39,7 +39,7 @@ export function PricingPanel() {
   }
 
   if (!pricing) return <div className="grid h-40 place-items-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
-  const example = priceFor(pricing, { users: 5, branches: 2, posPoints: 1 })
+  const example = priceFor(pricing, { users: 5, branches: 2, posPoints: 1, restaurantLocations: 1 })
   const field = (key: keyof Omit<Pricing, "currency">, label: string, hint: string) => (
     <label className="block text-sm">
       <span className="font-semibold text-slate-700">{label}</span>
@@ -62,7 +62,7 @@ export function PricingPanel() {
           </p>
         </div>
       </div>
-      <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-6">
         <label className="block text-sm">
           <span className="font-semibold text-slate-700">العملة</span>
           <select value={pricing.currency} onChange={(event) => setPricing({ ...pricing, currency: event.target.value as Pricing["currency"] })}
@@ -74,6 +74,7 @@ export function PricingPanel() {
         {field("per_user", "لكل مستخدم إضافي", "سنوياً")}
         {field("per_branch", "لكل فرع إضافي", "سنوياً")}
         {field("per_pos_point", "لكل نقطة بيع", "سنوياً")}
+        {field("per_restaurant_location", "لكل موقع مطعم", "سنوياً")}
       </div>
       <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
         <p className="text-sm font-bold text-slate-700 sm:col-span-2">التواصل مع المبيعات (يظهر في صفحة خيارات الدفع)</p>
@@ -89,7 +90,7 @@ export function PricingPanel() {
         </label>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-        <span className="text-slate-600">مثال: 5 مستخدمين، فرعان، نقطة بيع = <b className="tabular-nums text-slate-900" dir="ltr">{example.total.toFixed(2)} {example.currency}</b> سنوياً</span>
+        <span className="text-slate-600">مثال: 5 مستخدمين، فرعان، نقطة بيع، موقع مطعم = <b className="tabular-nums text-slate-900" dir="ltr">{example.total.toFixed(2)} {example.currency}</b> سنوياً</span>
         <button type="button" onClick={() => void save()} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-lg bg-violet-600 px-5 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-60">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}حفظ الأسعار
         </button>
