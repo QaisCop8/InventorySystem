@@ -353,6 +353,21 @@ async function handlePrint(ctx: Ctx, order: any) {
 }
 
 /**
+ * إضافات السطر ← "المتغيرات والخصائص" في سطر الفاتورة: أول قيمة مختارة لكل مجموعة (نافذة تهيئة الصنف اختيار واحد
+ * لكل خاصية)، وكل الإضافات مع ملاحظة المطبخ في ملاحظة السطر حتى لا يضيع شيء.
+ */
+function invoiceAttributes(item: any) {
+  const addons = cleanAddons(item.addons)
+  const selected: Record<string, string> = {}
+  for (const addon of addons) if (addon.group && !selected[addon.group]) selected[addon.group] = addon.value
+  const note = [addons.length ? addons.map((addon) => addon.value).join("، ") : "", String(item.note || "").trim()].filter(Boolean).join(" — ")
+  return {
+    ...(Object.keys(selected).length ? { selected_attributes: selected } : {}),
+    ...(note ? { note: note.slice(0, 500) } : {}),
+  }
+}
+
+/**
  * دفع كامل أو جزئي: يُصدر فاتورة كاشير (api/pos/sales) على نقطة بيع الموقع لجزء الكميات المختار، ثم يزيد paid_quantity.
  * الطلب يُغلق تلقائياً عند دفع كل الكميات. revision يمنع الدفع على نسخة قديمة من الطلب (ويجعل رقم العملية فريداً).
  */
@@ -424,6 +439,7 @@ async function handlePay(ctx: Ctx, order: any) {
       quantity, qnty: quantity, unit_price: num(item.price), price: num(item.price), discount_percent: num(item.discount), discount: num(item.discount),
       total_price: lineNet(num(item.price), quantity, num(item.discount)), line_amount: lineNet(num(item.price), quantity, num(item.discount)),
       account_id: accounts.get(Number(item.product_id)) || null,
+      ...invoiceAttributes(item),
     })),
   }
   // نفس محرك فاتورة الكاشير (فاتورة + سند قبض + شيكات) بلا عهدة كاشير

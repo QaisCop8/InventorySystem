@@ -63,6 +63,8 @@ export async function GET(request: NextRequest) {
   try {
     console.log("[v0] User API GET request started")
     await ensureBranchColumn()
+    // user_settings.job_role_id يُنشأ مع جداول الأدوار — مطلوب لقائمة المستخدمين أدناه
+    await ensurePermissionTables(await resolveCurrentDbName())
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("user_id")
@@ -112,6 +114,7 @@ export async function GET(request: NextRequest) {
         us.permissions,
         us.branch_id,
         b.branch_name,
+        us.job_role_id,
         us.last_login,
         us.is_active,
         us.created_at,
@@ -119,7 +122,8 @@ export async function GET(request: NextRequest) {
       FROM user_settings us
       LEFT JOIN branches b ON b.id = us.branch_id
       WHERE us.is_active = true
-      ORDER BY us.created_at DESC
+      -- رقم المستخدم تصاعدياً (رقمياً؛ user_id نصّي في بعض القواعد ورقمي في أخرى)
+      ORDER BY CASE WHEN us.user_id::text ~ '^[0-9]+$' THEN us.user_id::text::bigint END NULLS LAST, us.user_id::text
     `
     return NextResponse.json(users)
   } catch (error) {

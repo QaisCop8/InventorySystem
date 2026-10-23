@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
       const groups = (Array.isArray(extra?.attributes) ? extra.attributes : [])
         .map((group: any) => ({ name: String(group?.name || "").trim(), values: (Array.isArray(group?.values) ? group.values : []).map((value: unknown) => String(value || "").trim()).filter(Boolean) }))
         .filter((group: any) => group.name && group.values.length)
+        // المجموعات وقيمها تصاعدياً (ترتيب عربي) كما في نافذة تهيئة الصنف
+        .map((group: any) => ({ ...group, values: [...group.values].sort((a: string, b: string) => a.localeCompare(b, "ar", { numeric: true })) }))
+        .sort((a: any, b: any) => a.name.localeCompare(b.name, "ar", { numeric: true }))
       // حقول الشاشة فقط: الصور تُحمَّل عند ظهور الصنف (api/restaurant/product-images) بدل تضمينها كلها في الكتالوج
       const image = String(product.product_image || "")
       return {

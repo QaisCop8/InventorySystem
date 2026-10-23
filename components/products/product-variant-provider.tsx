@@ -35,7 +35,11 @@ export function ProductVariantProvider() {
   }, [])
 
   if (!pending) return null
-  const attributes = pending.product.attributes || []
+  // الخصائص وقيمها تصاعدياً (ترتيب عربي)
+  const byText = (a: string, b: string) => a.localeCompare(b, "ar", { numeric: true })
+  const attributes = [...(pending.product.attributes || [])]
+    .map((attribute) => ({ ...attribute, values: [...(attribute.values || [])].sort(byText) }))
+    .sort((a, b) => byText(a.name, b.name))
   const cancel = () => { pending.resolve(null); setPending(null); setSelection({}); setError(""); setReadOnly(false) }
   const confirm = () => {
     if (readOnly) { cancel(); return }
