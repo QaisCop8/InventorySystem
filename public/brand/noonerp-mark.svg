@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420"><defs>
+  <linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset=".5" stop-color="#059669"/><stop offset="1" stop-color="#0e7490"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+  <linearGradient id="bars" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#a7f3d0"/></linearGradient>
+</defs>
+  <rect width="420" height="420" rx="112" fill="url(#badge)"/><ellipse cx="130" cy="60" rx="230" ry="110" fill="#ffffff" opacity=".14"/>
+  <path d="M 104 178 L 104 228 A 106 106 0 0 0 316 228 L 316 140" fill="none" stroke="#ffffff" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="url(#bars)">
+    <rect x="158" y="244" width="26" height="40" rx="9"/><rect x="197" y="222" width="26" height="62" rx="9"/><rect x="236" y="198" width="26" height="86" rx="9"/>
+  </g>
+  <circle cx="210" cy="150" r="30" fill="url(#gold)"/><circle cx="200" cy="140" r="9" fill="#ffffff" opacity=".55"/></svg>

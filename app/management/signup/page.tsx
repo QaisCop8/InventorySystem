@@ -3,6 +3,7 @@
 import { useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, UserPlus, UserRound, Zap } from "lucide-react"
+import { NoonLogo } from "@/components/brand/noon-logo"
 
 // The app sets `[dir="rtl"] input { direction: rtl }` globally; inline direction wins so Latin email/password
 // typing keeps the caret after the last character (same fix as components/auth/management-login.tsx).
@@ -48,17 +49,7 @@ const css = `
 `
 
 function Wordmark() {
-  return (
-    <div className="flex items-center gap-3" dir="ltr">
-      <span className="relative grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,.8)] ring-1 ring-white/30">
-        <span className="text-[26px] font-black leading-none text-white" aria-hidden="true">ن</span>
-      </span>
-      <span className="leading-none">
-        <span className="block text-2xl font-black tracking-[0.18em] text-white">NOON</span>
-        <span className="mt-1 block text-[11px] font-bold tracking-[0.42em] text-emerald-300">ERP SYSTEM</span>
-      </span>
-    </div>
-  )
+  return <NoonLogo tone="dark" size="lg" />
 }
 
 // قوة كلمة المرور (للعرض فقط — الحد الأدنى المفروض يبقى 6 أحرف كما في الخادم)

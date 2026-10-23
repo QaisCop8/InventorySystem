@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1200" viewBox="0 0 2400 1200">
+  <defs>
+  <linearGradient id="bgDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1020"/><stop offset="1" stop-color="#111a33"/></linearGradient>
+  <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="90"/></filter>
+  <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
+  <filter id="shadow" x="-40%" y="-40%" width="180%" height="190%"><feDropShadow dx="0" dy="30" stdDeviation="34" flood-color="#059669" flood-opacity=".38"/></filter>
+    <linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset=".5" stop-color="#059669"/><stop offset="1" stop-color="#0e7490"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+    <linearGradient id="bars" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#a7f3d0"/></linearGradient>
+    <linearGradient id="erpText" gradientUnits="userSpaceOnUse" x1="1650" y1="0" x2="2004" y2="0"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+    <clipPath id="sq"><rect width="420" height="420" rx="112"/></clipPath>
+  </defs>
+  <rect width="2400" height="1200" fill="#ffffff"/>
+     <circle cx="380" cy="240" r="420" fill="#10b981" opacity=".07" filter="url(#blur)"/>
+     <circle cx="2120" cy="1000" r="460" fill="#06b6d4" opacity=".07" filter="url(#blur)"/>
+  <g transform="translate(300 390)">
+    <rect width="420" height="420" rx="112" fill="url(#badge)" filter="url(#shadow)"/>
+    <g clip-path="url(#sq)">
+      <ellipse cx="130" cy="60" rx="230" ry="110" fill="#ffffff" opacity=".16"/>
+      <circle cx="380" cy="400" r="160" fill="#0e7490" opacity=".35" filter="url(#soft)"/>
+    </g>
+    <!-- حرف النون: وعاء بذراعين (الأيمن أطول) يحتضن أعمدة نمو، ونقطة ذهبية فوقها -->
+    <path d="M 104 178 L 104 228 A 106 106 0 0 0 316 228 L 316 140" fill="none" stroke="#ffffff" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="url(#bars)">
+      <rect x="158" y="244" width="26" height="40" rx="9"/>
+      <rect x="197" y="222" width="26" height="62" rx="9"/>
+      <rect x="236" y="198" width="26" height="86" rx="9"/>
+    </g>
+    <circle cx="210" cy="150" r="30" fill="url(#gold)"/>
+    <circle cx="200" cy="140" r="9" fill="#ffffff" opacity=".55"/>
+    <rect width="420" height="420" rx="112" fill="none" stroke="#ffffff" stroke-opacity=".18" stroke-width="3"/>
+  </g>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+    <text x="1530" y="610" font-size="250" font-weight="700" fill="#0f172a" letter-spacing="-8">noon<tspan dx="6" font-weight="300" fill="url(#erpText)">ERP</tspan></text>
+    <text x="1530" y="762" font-size="88" font-weight="600" fill="#334155" direction="rtl">نظام إدارة موارد المؤسسات</text>
+    <text x="1530" y="850" font-size="40" font-weight="600" fill="#64748b" letter-spacing="14">SMART  BUSINESS  MANAGEMENT</text>
+  </g>
+</svg>

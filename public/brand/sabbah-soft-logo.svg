@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1200" viewBox="0 0 2400 1200">
+  <defs>
+  <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ee7b7"/><stop offset="1" stop-color="#10b981"/></linearGradient>
+  <linearGradient id="mid" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#047857"/></linearGradient>
+  <linearGradient id="low" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#0e7490"/></linearGradient>
+  <linearGradient id="ribbon" gradientUnits="userSpaceOnUse" x1="100" y1="90" x2="320" y2="340"><stop offset="0" stop-color="#34d399"/><stop offset=".5" stop-color="#059669"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+  <filter id="stackShadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#047857" flood-opacity=".30"/></filter>
+    <linearGradient id="softText" gradientUnits="userSpaceOnUse" x1="1746" y1="0" x2="2052" y2="0"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+    <linearGradient id="bgDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1020"/><stop offset="1" stop-color="#0f1f2a"/></linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="90"/></filter>
+  </defs>
+  <rect width="2400" height="1200" fill="#ffffff"/><circle cx="380" cy="240" r="420" fill="#10b981" opacity=".07" filter="url(#blur)"/><circle cx="2120" cy="1000" r="460" fill="#06b6d4" opacity=".07" filter="url(#blur)"/>
+  <g transform="translate(270 360) scale(1.15)"><g filter="url(#stackShadow)" transform="translate(0 20)">
+  <!-- صّ بأسلوب لونين متداخلين: وعاء زمردي + حلقة فيروزية شفافة، وشدّة ذهبية -->
+  <path d="M 96 170 L 96 230 A 92 92 0 0 0 280 230" fill="none" stroke="#10b981" stroke-width="54" stroke-linecap="round" opacity=".9"/>
+  <rect x="226" y="150" width="128" height="104" rx="52" fill="none" stroke="#06b6d4" stroke-width="44" opacity=".82"/>
+  <path d="M 160 78 Q 166 114 188 108 Q 202 104 206 78 Q 210 110 230 108 Q 246 106 250 78 Q 256 112 274 100" fill="none" stroke="url(#gold)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</g></g>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+    <text x="1530" y="600" font-size="220" font-weight="700" fill="#0f172a" letter-spacing="-6">sabbah<tspan dx="28" font-weight="300" fill="url(#softText)">soft</tspan></text>
+    <text x="1530" y="752" font-size="100" font-weight="700" fill="#047857" direction="rtl">شركة الصبّاح للبرمجة</text>
+    <text x="1530" y="842" font-size="40" font-weight="600" fill="#64748b" letter-spacing="14">SOFTWARE  SOLUTIONS</text>
+  </g>
+</svg>

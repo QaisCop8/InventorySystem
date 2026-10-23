@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useReportAccess } from "@/components/auth/use-report-access"
 import { useFileSectionAccess } from "@/components/auth/use-file-access"
+import { NoonMark } from "@/components/brand/noon-logo"
 import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
 import { cn } from "@/lib/utils"
 import {
@@ -792,7 +793,7 @@ export function Sidebar({
             {companyLogo ? (
               <img src={companyLogo} alt={companyName} className="h-full w-full bg-white object-contain p-1" />
             ) : (
-              <Sparkles className="h-5 w-5 text-white" />
+              <NoonMark className="h-full w-full" />
             )}
           </div>
           {isOpen && (

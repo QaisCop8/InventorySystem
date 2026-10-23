@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { NoonLogo } from "@/components/brand/noon-logo"
 import {
   AlertCircle,
   ArrowLeft,
@@ -74,15 +75,7 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
       <section className="relative z-10 mx-auto grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_32px_90px_-42px_rgba(15,23,42,0.4)] lg:min-h-[700px] lg:grid-cols-[0.88fr_1.12fr]">
         <div className="flex flex-col justify-between px-6 py-7 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
           <header className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
-                <span className="text-2xl font-black leading-none" aria-hidden="true">ن</span>
-              </div>
-              <div>
-                <div className="text-base font-bold">Noon ERP</div>
-                <div className="text-[11px] font-medium text-slate-500">نون — نظام إدارة الأعمال</div>
-              </div>
-            </div>
+            <NoonLogo size="md" tagline="نون — نظام إدارة الأعمال" />
             <div className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />اتصال آمن
             </div>

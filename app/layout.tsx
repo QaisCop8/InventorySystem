@@ -66,8 +66,8 @@ export const metadata: Metadata = {
     title: "NoonERP System",
   },
   icons: {
-    icon: "/icon-192.jpg",
-    apple: "/icon-192.jpg",
+    icon: [{ url: "/favicon.png", type: "image/png", sizes: "64x64" }, { url: "/icon-192.png", type: "image/png", sizes: "192x192" }],
+    apple: "/apple-touch-icon.png",
   },
   other: {
     "mobile-web-app-capable": "yes",
@@ -81,7 +81,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#2563eb",
+  themeColor: "#059669",
 }
 
 export default function RootLayout({

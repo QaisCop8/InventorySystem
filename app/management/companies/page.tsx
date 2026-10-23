@@ -29,6 +29,7 @@ import { SubscriptionDialog } from "@/components/management/subscription-dialog"
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
 import { activateCompany } from "@/lib/tenant-client"
 import { useToast } from "@/hooks/use-toast"
+import { NoonLogo } from "@/components/brand/noon-logo"
 
 interface Company {
   id: number
@@ -121,17 +122,7 @@ const css = `
 `
 
 function Wordmark() {
-  return (
-    <div className="flex items-center gap-3" dir="ltr">
-      <span className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,.8)] ring-1 ring-white/30">
-        <span className="text-[22px] font-black leading-none text-white" aria-hidden="true">ن</span>
-      </span>
-      <span className="leading-none">
-        <span className="block text-xl font-black tracking-[0.18em] text-white">NOON</span>
-        <span className="mt-1 block text-[10px] font-bold tracking-[0.42em] text-emerald-300">ERP SYSTEM</span>
-      </span>
-    </div>
-  )
+  return <NoonLogo tone="dark" size="md" />
 }
 
 export default function ManagementCompaniesPage() {
