@@ -74,7 +74,7 @@ let lastError = ""
 export function lastMailError() {
   return lastError
 }
-const scrub = (text: string) => text.replace(/xkeysib-[A-Za-z0-9-]+/g, "xkeysib-***").replace(/re_[A-Za-z0-9_]{10,}/g, "re_***").slice(0, 300)
+const scrub = (text: string) => text.replace(/x(?:key|smtp)sib-[A-Za-z0-9-]+/g, "xkeysib-***").replace(/re_[A-Za-z0-9_]{10,}/g, "re_***").slice(0, 300)
 
 export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<boolean> {
   const selected = provider()
