@@ -75,7 +75,8 @@ jobs:
       # التكيّفية في أندرويد 8+ التي يقصّها المشغّل دائرةً أو مربعاً — الحرف داخل المنطقة الآمنة فلا يُقص).
       - name: App icons from android-app/assets
         run: |
-          sudo apt-get install -y -qq imagemagick > /dev/null
+          sudo apt-get update -qq > /dev/null
+          sudo apt-get install -y -qq --no-install-recommends imagemagick > /dev/null
           res=android/app/src/main/res
           for pair in mdpi:48:108 hdpi:72:162 xhdpi:96:216 xxhdpi:144:324 xxxhdpi:192:432; do
             IFS=: read -r density size layer <<< "$pair"
