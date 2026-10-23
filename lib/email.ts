@@ -69,9 +69,18 @@ async function sendResend(to: string, subject: string, html: string) {
 
 // أفضل جهد دوماً — فشل الإرسال لا يُسقط التدفّق الأساسي. يُعيد true عند الإرسال الفعلي فقط؛ التدفقات التي يعتمد عليها
 // المستخدم (رمز استعادة كلمة المرور، دعوة مستخدم) تفحص القيمة لتعرض خطأً واضحاً بدل رسالة نجاح مضلِّلة.
+// سبب آخر فشل إرسال (بلا أسرار) — يُعرض في رسالة الخطأ لتشخيص الإعداد دون الحاجة لسجلات الخادم
+let lastError = ""
+export function lastMailError() {
+  return lastError
+}
+const scrub = (text: string) => text.replace(/xkeysib-[A-Za-z0-9-]+/g, "xkeysib-***").replace(/re_[A-Za-z0-9_]{10,}/g, "re_***").slice(0, 300)
+
 export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<boolean> {
   const selected = provider()
   if (!selected || !senderEmail()) {
+    const missing = [!selected && "BREVO_API_KEY", !senderEmail() && "MAIL_FROM (بريد صالح)"].filter(Boolean).join("، ")
+    lastError = `متغيرات البيئة غير موجودة على الخادم: ${missing} — أضفها ثم أعد النشر (Deploy)`
     console.log(`[email] (not sent — email provider not configured) to=${to} subject=${subject}`)
     return false
   }
@@ -79,10 +88,13 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
     if (selected === "brevo") await sendBrevo(to, subject, html)
     else if (selected === "resend") await sendResend(to, subject, html)
     else await sendSmtp(to, subject, html)
+    lastError = ""
     return true
   } catch (error) {
-    // السبب الفعلي يظهر في سجلات الخادم (wrangler tail / سجلات Cloudflare)
-    console.error(`[email] Failed to send via ${selected} to=${to}:`, error instanceof Error ? error.message : error)
+    const message = error instanceof Error ? error.message : String(error)
+    lastError = scrub(message)
+    // السبب الفعلي يظهر أيضاً في سجلات الخادم
+    console.error(`[email] Failed to send via ${selected} to=${to}:`, lastError)
     return false
   }
 }

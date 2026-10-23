@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { resolveCurrentDbName } from "@/lib/database"
 import { emailIsRegistered, issuePasswordCode, setPasswordWithCode, verifyPasswordCode } from "@/lib/password-codes"
+import { lastMailError } from "@/lib/email"
 
 // استعادة/تعيين كلمة المرور بثلاث خطوات: request (إرسال رمز بالبريد) ← verify ← reset.
 export async function POST(request: NextRequest) {
@@ -16,7 +17,8 @@ export async function POST(request: NextRequest) {
       const { sent } = await issuePasswordCode({ email, purpose: "reset", tenantDb })
       if (!sent) {
         // السبب الفعلي (مفتاح خاطئ، مرسِل غير موثَّق، رفض SMTP...) مسجّل في سجلات الخادم من lib/email.ts
-        return NextResponse.json({ error: "تعذّر إرسال البريد الإلكتروني الآن — إعدادات البريد على الخادم غير مكتملة أو رفض مزوّد البريد الإرسال. تواصل مع مسؤول النظام." }, { status: 503 })
+        const reason = lastMailError()
+        return NextResponse.json({ error: `تعذّر إرسال البريد الإلكتروني الآن — إعدادات البريد على الخادم غير مكتملة أو رفض مزوّد البريد الإرسال. تواصل مع مسؤول النظام.${reason ? `\nالسبب: ${reason}` : ""}` }, { status: 503 })
       }
       return NextResponse.json({ success: true, message: "تم إرسال رمز التحقق إلى بريدك الإلكتروني" })
     }

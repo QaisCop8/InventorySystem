@@ -31,7 +31,7 @@ function Notice({ tone, text }: { tone: "error" | "success"; text: string }) {
   return tone === "error" ? (
     <Alert className="border-red-200 bg-red-50">
       <AlertCircle className="h-4 w-4 text-red-600" />
-      <AlertDescription className="text-red-700">{text}</AlertDescription>
+      <AlertDescription className="whitespace-pre-line break-words text-red-700">{text}</AlertDescription>
     </Alert>
   ) : (
     <Alert className="border-green-200 bg-green-50">
