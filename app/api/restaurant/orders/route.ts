@@ -4,6 +4,7 @@ import {
   authorizeRestaurant,
   ensureRestaurantTables,
   errorStatus,
+  assertAddonsComplete,
   cleanAddons,
   lineNet,
   loadOrder,
@@ -159,6 +160,8 @@ async function handleAddItems(ctx: Ctx, order: any) {
   const items = Array.isArray(ctx.data.items) ? ctx.data.items : []
   if (!items.length) throw fail("لا توجد أصناف للإضافة")
   if (items.length > 200) throw fail("عدد الأصناف كبير جداً")
+  // لا إرسال للمطبخ قبل اختيار إضافات كل صنف له "المتغيرات والخصائص"
+  await assertAddonsComplete(items.map((item: any) => ({ product_id: positiveId(item.product_id), product_name: item.product_name, addons: item.addons })))
   const ids = [...new Set(items.map((item: any) => positiveId(item.product_id)).filter(Boolean))] as number[]
   const products = ids.length ? await sql`
     SELECT id, product_code, product_name FROM products
@@ -195,6 +198,7 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
   const discount = ctx.data.discount === undefined ? num(item.discount) : Math.round(num(ctx.data.discount) * 1000) / 1000
   const note = ctx.data.note === undefined ? item.note : String(ctx.data.note || "").trim().slice(0, 300) || null
   const addons = ctx.data.addons === undefined ? cleanAddons(item.addons) : cleanAddons(ctx.data.addons)
+  if (ctx.data.addons !== undefined) await assertAddonsComplete([{ product_id: Number(item.product_id), product_name: item.product_name, addons }])
   if (!(quantity > 0) || quantity > 100000) throw fail("الكمية غير صالحة")
   if (quantity < qty(item.paid_quantity)) throw fail(`لا يمكن أن تقل الكمية عن المدفوع منها (${qty(item.paid_quantity)})`)
   // تخفيض كمية صنف مُسجَّل = حذف جزء منه
@@ -394,6 +398,8 @@ async function handlePay(ctx: Ctx, order: any) {
     if (quantity > 0) selected.push({ item, quantity: qty(quantity) })
   }
   if (!selected.length) throw fail("لا توجد كميات غير مدفوعة للدفع")
+  // ولا دفع (حفظ فاتورة) لسطر صنف بلا إضافاته المطلوبة
+  await assertAddonsComplete(selected.map(({ item }) => ({ product_id: Number(item.product_id), product_name: item.product_name, addons: item.addons })))
 
   const discountPercent = num(order.discount_percent)
   if (discountPercent > 0 && !ctx.permissions.discount) throw fail("لا توجد لديك صلاحية إدخال خصم - مطاعم", 403)

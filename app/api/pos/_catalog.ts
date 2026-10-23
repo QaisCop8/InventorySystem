@@ -3,6 +3,50 @@ import { getPosCurrencies } from "@/lib/pos-currencies"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { getOpenPosSession } from "./_lib"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
+import { runSchemaOnce } from "@/lib/schema-once"
+
+const byText = (a: string, b: string) => a.localeCompare(b, "ar", { numeric: true })
+
+function ensureProductExtrasSchema() {
+  return runSchemaOnce("app/api/pos/_catalog.ts#ensureProductExtrasSchema", async () => {
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
+    await sql`CREATE TABLE IF NOT EXISTS product_related_items (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, related_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, UNIQUE(product_id, related_id), CHECK (product_id <> related_id))`
+  })
+}
+
+/**
+ * لكل صنف: addon_groups = "المتغيرات والخصائص" (المجموعات وقيمها تصاعدياً)، و related_items_mode / related_ids =
+ * التوابع (1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع) — مشتركة بين كاشير نقطة البيع وشاشة المطعم.
+ */
+export async function attachProductExtras<T extends { id: number | string }>(products: T[]) {
+  const ids = products.map((product) => Number(product.id)).filter((id) => id > 0)
+  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[] }))
+  await ensureProductExtrasSchema()
+  const [extras, relations] = await Promise.all([
+    sql`SELECT id, attributes, related_items_mode FROM products WHERE id = ANY(${ids}::int[]) AND (CASE WHEN jsonb_typeof(attributes) = 'array' THEN jsonb_array_length(attributes) ELSE 0 END > 0 OR COALESCE(related_items_mode, 1) > 1)`,
+    sql`SELECT product_id, related_id FROM product_related_items WHERE product_id = ANY(${ids}::int[]) ORDER BY id`,
+  ])
+  const extraById = new Map<number, any>((extras as any[]).map((row) => [Number(row.id), row]))
+  const relatedById = new Map<number, number[]>()
+  for (const row of relations as any[]) relatedById.set(Number(row.product_id), [...(relatedById.get(Number(row.product_id)) || []), Number(row.related_id)])
+  return products.map((product) => {
+    const extra = extraById.get(Number(product.id))
+    const groups = (Array.isArray(extra?.attributes) ? extra.attributes : [])
+      .map((group: any) => ({
+        name: String(group?.name || "").trim(),
+        values: (Array.isArray(group?.values) ? group.values : []).map((value: unknown) => String(value || "").trim()).filter(Boolean).sort(byText),
+      }))
+      .filter((group: any) => group.name && group.values.length)
+      .sort((a: any, b: any) => byText(a.name, b.name))
+    return {
+      ...product,
+      addon_groups: groups as { name: string; values: string[] }[],
+      related_items_mode: Math.min(3, Math.max(1, Number(extra?.related_items_mode || 1))),
+      related_ids: relatedById.get(Number(product.id)) || [],
+    }
+  })
+}
 
 // كتالوج نقطة البيع (أصناف المخزن الرئيسي بأسعار فئة السعر، العملات، البنوك، البطاقات، الحملات وجلسة المستخدم المفتوحة)
 // — مشترك بين كاشير نقطة البيع (api/pos/catalog) وشاشة المطعم (api/restaurant/catalog)
@@ -117,8 +161,8 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
       })
       return {...rest,first_price:firstPrice,barcode_options:barcodeOptions,unit_prices:unitPrices}
     })
-    const [campaigns,campaignUsage]=await Promise.all([getPosCampaigns(),getPosCampaignUsage()])
-    return {point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),allow_negative_item_balances:!(systemSettings.allow_negative_item_balances===false||systemSettings.allow_negative_item_balances==="false"||systemSettings.allow_negative_item_balances===0||systemSettings.allow_negative_item_balances==="0"),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:pricedProducts,customers,salesmen,banks,bankBranches,cardTypes,campaigns,
+    const [campaigns,campaignUsage,productsWithExtras]=await Promise.all([getPosCampaigns(),getPosCampaignUsage(),attachProductExtras(pricedProducts)])
+    return {point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),allow_negative_item_balances:!(systemSettings.allow_negative_item_balances===false||systemSettings.allow_negative_item_balances==="false"||systemSettings.allow_negative_item_balances===0||systemSettings.allow_negative_item_balances==="0"),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:productsWithExtras,customers,salesmen,banks,bankBranches,cardTypes,campaigns,
       campaignUsage,
       currencies:rates.filter((row:any)=>Number(row.exchange_rate)>0).map((row:any)=>({...row,rate_to_point:Number(row.exchange_rate)/pointRate})),
       session,server_time:new Date().toISOString()}

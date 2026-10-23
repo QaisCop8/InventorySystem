@@ -446,8 +446,20 @@ export default function RestaurantPos() {
     }
   }
 
+  /** المجموعات الناقصة لسطر: كل مجموعة "متغيرات وخصائص" للصنف يجب أن يُختار منها قيمة على الأقل */
+  const missingGroups = (productId: number, addons?: Addon[]) =>
+    (productById.get(productId)?.addonGroups || []).filter((group) => !(addons || []).some((addon) => addon.group === group.name && group.values.includes(addon.value))).map((group) => group.name)
+
   const sendPending = async () => {
     if (!order || !pending.length) return
+    // لا إرسال للمطبخ قبل اختيار الإضافات المطلوبة — تُفتح نافذة الإضافات لأول سطر ناقص
+    const incomplete = pending.find((line) => missingGroups(line.productId, line.addons).length)
+    if (incomplete) {
+      setMobileTab("ticket")
+      setMessage({ type: "error", text: `اختر إضافات "${incomplete.name}": ${missingGroups(incomplete.productId, incomplete.addons).join("، ")}` })
+      setAddonsTarget({ kind: "pending", key: incomplete.key })
+      return
+    }
     const lines = pending
     const data = await act("add_items", {
       order_id: order.id,
@@ -781,7 +793,17 @@ export default function RestaurantPos() {
         onPendingRemove={(key) => setPending((rows) => rows.filter((row) => row.key !== key))}
         onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => setEditing({ kind: "item", item })}
         onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => setAddonsTarget({ kind: "item", item })}
-        onSend={() => void sendPending()} onPay={() => setScopeOpen(true)} onDiscount={() => setValueDialog("discount")} onGuests={(delta) => void changeGuests(delta)}
+        onSend={() => void sendPending()} onPay={() => {
+          // ولا دفع قبل اكتمال إضافات الأصناف غير المدفوعة
+          const incomplete = order.items.find((item) => item.remaining_quantity > 0 && missingGroups(item.product_id, item.addons).length)
+          if (incomplete) {
+            setMobileTab("ticket")
+            setMessage({ type: "error", text: `اختر إضافات "${incomplete.product_name}" قبل الدفع: ${missingGroups(incomplete.product_id, incomplete.addons).join("، ")}` })
+            if (can("editItems")) setAddonsTarget({ kind: "item", item: incomplete })
+            return
+          }
+          setScopeOpen(true)
+        }} onDiscount={() => setValueDialog("discount")} onGuests={(delta) => void changeGuests(delta)}
         onUnmerge={(tableId, name) => void confirmYesNo(`فك الطاولة ${name} من الطلب؟`).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, `تم فك الطاولة ${name}`) })}
         onRenameTakeaway={() => setValueDialog("takeaway_name")} />
 

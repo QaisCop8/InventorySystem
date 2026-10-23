@@ -219,9 +219,16 @@ export function AddonsDialog(props: {
   const { open, onOpenChange, title, groups, selected, note, busy, onSave } = props
   const [picked, setPicked] = useState<Addon[]>([])
   const [text, setText] = useState("")
-  useEffect(() => { if (open) { setPicked(selected); setText(note) } }, [open, selected, note])
+  const [error, setError] = useState("")
+  useEffect(() => { if (open) { setPicked(selected); setText(note); setError("") } }, [open, selected, note])
+  // كل مجموعة مطلوبة: قيمة واحدة على الأقل
+  const save = () => {
+    const missing = groups.filter((group) => !picked.some((addon) => addon.group === group.name)).map((group) => group.name)
+    if (missing.length) { setError(`اختر قيمة من: ${missing.join("، ")}`); return }
+    onSave(picked, text.trim())
+  }
   const has = (group: string, value: string) => picked.some((addon) => addon.group === group && addon.value === value)
-  const toggle = (group: string, value: string) => setPicked((current) => has(group, value) ? current.filter((addon) => !(addon.group === group && addon.value === value)) : [...current, { group, value }])
+  const toggle = (group: string, value: string) => { setError(""); setPicked((current) => has(group, value) ? current.filter((addon) => !(addon.group === group && addon.value === value)) : [...current, { group, value }]) }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
@@ -229,7 +236,7 @@ export function AddonsDialog(props: {
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
           {groups.map((group) => (
             <div key={group.name}>
-              <div className="mb-2 text-sm font-bold text-muted-foreground">{group.name}</div>
+              <div className="mb-2 text-sm font-bold text-muted-foreground">{group.name} <span className="text-red-600">*</span></div>
               <div className="flex flex-wrap gap-2">
                 {group.values.map((value) => {
                   const active = has(group.name, value)
@@ -244,11 +251,12 @@ export function AddonsDialog(props: {
             </div>
           ))}
           {!groups.length && <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">لا توجد إضافات معرّفة لهذا الصنف (تُعرّف من تبويب "المتغيرات والخصائص" في تعريف الصنف)</p>}
+          {error && <p className="rounded-md bg-red-50 p-2 text-sm font-semibold text-red-700">{error}</p>}
           <div className="space-y-1"><Label>ملاحظة للمطبخ</Label><Textarea rows={2} value={text} onChange={(event) => setText(event.target.value)} placeholder="بدون بصل، حار..." /></div>
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button disabled={busy} onClick={() => onSave(picked, text.trim())}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
+          <Button disabled={busy} onClick={save}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

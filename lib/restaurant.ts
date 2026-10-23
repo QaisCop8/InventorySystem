@@ -346,6 +346,32 @@ export function cleanAddons(input: unknown): { group: string; value: string }[] 
   return rows
 }
 
+/**
+ * كل صنف له "المتغيرات والخصائص" يجب أن يُختار له قيمة واحدة على الأقل من كل مجموعة — يُفحص عند الإرسال للمطبخ
+ * وعند الدفع. lines: [{product_id, product_name, addons}] — يرمي خطأ 400 برسالة جاهزة.
+ */
+export async function assertAddonsComplete(lines: { product_id: number; product_name?: string; addons?: unknown }[]) {
+  const ids = [...new Set(lines.map((line) => Number(line.product_id)).filter((id) => id > 0))]
+  if (!ids.length) return
+  const rows = await sql`SELECT id, product_name, attributes FROM products WHERE id = ANY(${ids}::int[]) AND jsonb_typeof(attributes) = 'array'`
+  const groupsById = new Map<number, { name: string; values: string[] }[]>()
+  for (const row of rows as any[]) {
+    const groups = (row.attributes as any[])
+      .map((group) => ({ name: String(group?.name || "").trim(), values: (Array.isArray(group?.values) ? group.values : []).map((value: unknown) => String(value || "").trim()).filter(Boolean) }))
+      .filter((group) => group.name && group.values.length)
+    if (groups.length) groupsById.set(Number(row.id), groups)
+  }
+  for (const line of lines) {
+    const groups = groupsById.get(Number(line.product_id))
+    if (!groups) continue
+    const addons = cleanAddons(line.addons)
+    const missing = groups.filter((group) => !addons.some((addon) => addon.group === group.name && group.values.includes(addon.value))).map((group) => group.name)
+    if (missing.length) {
+      throw Object.assign(new Error(`اختر إضافات الصنف "${line.product_name || ""}": ${missing.join("، ")}`), { status: 400 })
+    }
+  }
+}
+
 export function errorStatus(error: unknown) {
   return Number((error as { status?: number })?.status) || 500
 }
