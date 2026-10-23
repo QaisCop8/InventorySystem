@@ -119,6 +119,12 @@ export async function ensureRestaurantTables() {
       )
     `
     await sql`CREATE INDEX IF NOT EXISTS restaurant_order_items_order_idx ON restaurant_order_items_tbl (order_id)`
+    // الإضافات المختارة للسطر من "المتغيرات والخصائص" في تعريف الصنف: [{group, value}] — تُطبع في قسيمة المطبخ
+    await sql`ALTER TABLE restaurant_order_items_tbl ADD COLUMN IF NOT EXISTS addons JSONB NOT NULL DEFAULT '[]'::jsonb`
+    // أعمدة الصنف التي تقرؤها شاشة المطعم (تُنشئها عادةً مسارات الأصناف)
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
+    await sql`CREATE TABLE IF NOT EXISTS product_related_items (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, related_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, UNIQUE(product_id, related_id), CHECK (product_id <> related_id))`
     await sql`
       CREATE TABLE IF NOT EXISTS restaurant_order_payments_tbl (
         id SERIAL PRIMARY KEY,
@@ -322,6 +328,22 @@ export async function locationSalePoint(location: any, userId: string) {
     print_invoices: printMode > 0,
     print_by_item_group: location.print_by_item_group !== false,
   }, userId)
+}
+
+/** إضافات السطر: مصفوفة {group, value} نظيفة (حد 30 إضافة، 80 حرفاً لكل قيمة) */
+export function cleanAddons(input: unknown): { group: string; value: string }[] {
+  if (!Array.isArray(input)) return []
+  const seen = new Set<string>()
+  const rows: { group: string; value: string }[] = []
+  for (const entry of input.slice(0, 30)) {
+    const group = String((entry as any)?.group ?? "").trim().slice(0, 80)
+    const value = String((entry as any)?.value ?? entry ?? "").trim().slice(0, 80)
+    const key = `${group} ${value}`
+    if (!value || seen.has(key)) continue
+    seen.add(key)
+    rows.push({ group, value })
+  }
+  return rows
 }
 
 export function errorStatus(error: unknown) {

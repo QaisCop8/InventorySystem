@@ -18,7 +18,11 @@ export type FloorTable = {
 export type OrderItem = {
   id: number; product_id: number; product_code: string; product_name: string; unit_id: number | null; unit_name: string | null
   price: number; quantity: number; paid_quantity: number; remaining_quantity: number; discount: number; note: string | null; created_at: string
+  addons?: Addon[]
 }
+export type Addon = { group: string; value: string }
+export type AddonGroup = { name: string; values: string[] }
+export const addonsText = (addons?: Addon[] | null) => (addons || []).map((addon) => addon.value).join("، ")
 
 export const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 export const round4 = (value: number) => Math.round(value * 10000) / 10000
@@ -50,7 +54,7 @@ export function TablePickerDialog(props: {
   const toggle = (id: number) => setSelected((current) => multiple ? (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]) : [id])
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-2xl flex-col">
+      <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col">
         <DialogHeader><DialogTitle>{title}</DialogTitle>{description && <DialogDescription>{description}</DialogDescription>}</DialogHeader>
         {children}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
@@ -178,7 +182,7 @@ export function PayScopeDialog(props: {
   const tabs: { key: PayScope["mode"]; label: string }[] = [{ key: "all", label: "كامل الحساب" }, { key: "items", label: "أصناف محددة" }, { key: "equal", label: "تقسيم بالتساوي" }]
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-lg flex-col">
+      <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
         <DialogHeader><DialogTitle>دفع حساب الطاولة</DialogTitle><DialogDescription>المتبقي على الطاولة {money(total)} {currencyCode}</DialogDescription></DialogHeader>
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
           {tabs.map((tab) => (
@@ -201,6 +205,50 @@ export function PayScopeDialog(props: {
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
           <Button disabled={!lines.length || !(amount > 0) || busy} onClick={() => onContinue(lines, partial)}>متابعة للدفع</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** إضافات السطر: مجموعات "المتغيرات والخصائص" من تعريف الصنف، اختيار متعدد لكل مجموعة + ملاحظة للمطبخ */
+export function AddonsDialog(props: {
+  open: boolean; onOpenChange: (open: boolean) => void; title: string; groups: AddonGroup[]; selected: Addon[]; note: string
+  busy?: boolean; onSave: (addons: Addon[], note: string) => void
+}) {
+  const { open, onOpenChange, title, groups, selected, note, busy, onSave } = props
+  const [picked, setPicked] = useState<Addon[]>([])
+  const [text, setText] = useState("")
+  useEffect(() => { if (open) { setPicked(selected); setText(note) } }, [open, selected, note])
+  const has = (group: string, value: string) => picked.some((addon) => addon.group === group && addon.value === value)
+  const toggle = (group: string, value: string) => setPicked((current) => has(group, value) ? current.filter((addon) => !(addon.group === group && addon.value === value)) : [...current, { group, value }])
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
+        <DialogHeader><DialogTitle>إضافات — {title}</DialogTitle><DialogDescription>اختر الإضافات لتظهر على الطلب وفي قسيمة المطبخ</DialogDescription></DialogHeader>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+          {groups.map((group) => (
+            <div key={group.name}>
+              <div className="mb-2 text-sm font-bold text-muted-foreground">{group.name}</div>
+              <div className="flex flex-wrap gap-2">
+                {group.values.map((value) => {
+                  const active = has(group.name, value)
+                  return (
+                    <button key={value} type="button" onClick={() => toggle(group.name, value)}
+                      className={`min-h-11 rounded-full border-2 px-4 text-sm font-semibold transition ${active ? "border-rose-600 bg-rose-600 text-white" : "border-slate-200 bg-background hover:border-rose-300"}`}>
+                      {active && <Check className="ml-1 inline h-4 w-4" />}{value}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          {!groups.length && <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">لا توجد إضافات معرّفة لهذا الصنف (تُعرّف من تبويب "المتغيرات والخصائص" في تعريف الصنف)</p>}
+          <div className="space-y-1"><Label>ملاحظة للمطبخ</Label><Textarea rows={2} value={text} onChange={(event) => setText(event.target.value)} placeholder="بدون بصل، حار..." /></div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+          <Button disabled={busy} onClick={() => onSave(picked, text.trim())}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

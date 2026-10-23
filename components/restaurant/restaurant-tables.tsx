@@ -218,7 +218,7 @@ export default function RestaurantTables() {
       )}
 
       <Dialog open={form !== null} onOpenChange={(value) => { if (!value) void close() }}>
-        <DialogContent dir="rtl" className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
+        <DialogContent dir="rtl" className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>{form?.id ? "تعديل طاولة" : "إضافة طاولة"}</DialogTitle></DialogHeader>
           {form && (
             <div className="grid grid-cols-2 gap-3">
@@ -240,7 +240,7 @@ export default function RestaurantTables() {
       </Dialog>
 
       <Dialog open={bulk !== null} onOpenChange={(value) => { if (!value) void close() }}>
-        <DialogContent dir="rtl" className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
+        <DialogContent dir="rtl" className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
           <DialogHeader><DialogTitle>إضافة مجموعة طاولات</DialogTitle></DialogHeader>
           {bulk && (
             <div className="grid grid-cols-2 gap-3">

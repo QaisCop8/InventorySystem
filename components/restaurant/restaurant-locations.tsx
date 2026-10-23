@@ -228,7 +228,7 @@ export default function RestaurantLocations() {
       )}
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void closeForm() }}>
-        <DialogContent dir="rtl" className="flex max-h-[94dvh] w-[calc(100vw-1rem)] max-w-3xl flex-col overflow-hidden p-0">
+        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col overflow-hidden p-0">
           <DialogHeader className="border-b px-5 py-3"><DialogTitle>{form.id ? "تعديل موقع" : "إضافة موقع"}</DialogTitle></DialogHeader>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
             <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">

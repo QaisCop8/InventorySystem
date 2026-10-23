@@ -4,6 +4,7 @@ import {
   authorizeRestaurant,
   ensureRestaurantTables,
   errorStatus,
+  cleanAddons,
   lineNet,
   loadOrder,
   locationSalePoint,
@@ -173,10 +174,10 @@ async function handleAddItems(ctx: Ctx, order: any) {
     if (discount < 0 || discount > 100) throw fail(`خصم الصنف ${product.product_name} غير صالح`)
     requireDiscountPermission(ctx, discount)
     await sql`
-      INSERT INTO restaurant_order_items_tbl (order_id, product_id, product_code, product_name, unit_id, unit_name, price, quantity, discount, note, added_by)
+      INSERT INTO restaurant_order_items_tbl (order_id, product_id, product_code, product_name, unit_id, unit_name, price, quantity, discount, note, addons, added_by)
       VALUES (${Number(order.id)}, ${Number(product.id)}, ${String(product.product_code || "")}, ${String(item.product_name || product.product_name || "").slice(0, 200)},
               ${positiveId(item.unit_id) || null}, ${String(item.unit_name || "").slice(0, 50) || null}, ${price}, ${quantity}, ${discount},
-              ${String(item.note || "").trim().slice(0, 300) || null}, ${ctx.userId})
+              ${String(item.note || "").trim().slice(0, 300) || null}, ${JSON.stringify(cleanAddons(item.addons))}::jsonb, ${ctx.userId})
     `
   }
   await logRestaurant(Number(order.id), "add_items", { count: items.length }, ctx.userId)
@@ -193,6 +194,7 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
   const quantity = ctx.data.quantity === undefined ? qty(item.quantity) : qty(ctx.data.quantity)
   const discount = ctx.data.discount === undefined ? num(item.discount) : Math.round(num(ctx.data.discount) * 1000) / 1000
   const note = ctx.data.note === undefined ? item.note : String(ctx.data.note || "").trim().slice(0, 300) || null
+  const addons = ctx.data.addons === undefined ? cleanAddons(item.addons) : cleanAddons(ctx.data.addons)
   if (!(quantity > 0) || quantity > 100000) throw fail("الكمية غير صالحة")
   if (quantity < qty(item.paid_quantity)) throw fail(`لا يمكن أن تقل الكمية عن المدفوع منها (${qty(item.paid_quantity)})`)
   // تخفيض كمية صنف مُسجَّل = حذف جزء منه
@@ -202,7 +204,7 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
     requireDiscountPermission(ctx, discount || 1)
     if (qty(item.paid_quantity) > 0) throw fail("لا يمكن تغيير خصم صنف دُفع جزء منه")
   }
-  await sql`UPDATE restaurant_order_items_tbl SET quantity = ${quantity}, discount = ${discount}, note = ${note}, updated_at = NOW() WHERE id = ${Number(item.id)}`
+  await sql`UPDATE restaurant_order_items_tbl SET quantity = ${quantity}, discount = ${discount}, note = ${note}, addons = ${JSON.stringify(addons)}::jsonb, updated_at = NOW() WHERE id = ${Number(item.id)}`
   await logRestaurant(Number(order.id), "update_item", { item_id: Number(item.id), from: qty(item.quantity), quantity, discount }, ctx.userId)
 }
 
@@ -310,8 +312,8 @@ async function handleSplit(ctx: Ctx, order: any) {
     }
     await sql`UPDATE restaurant_order_items_tbl SET quantity = quantity - ${line.quantity}, updated_at = NOW() WHERE id = ${Number(item.id)}`
     await sql`
-      INSERT INTO restaurant_order_items_tbl (order_id, product_id, product_code, product_name, unit_id, unit_name, price, quantity, discount, note, added_by)
-      SELECT ${targetOrderId}, product_id, product_code, product_name, unit_id, unit_name, price, ${line.quantity}, discount, note, ${ctx.userId}
+      INSERT INTO restaurant_order_items_tbl (order_id, product_id, product_code, product_name, unit_id, unit_name, price, quantity, discount, note, addons, added_by)
+      SELECT ${targetOrderId}, product_id, product_code, product_name, unit_id, unit_name, price, ${line.quantity}, discount, note, addons, ${ctx.userId}
       FROM restaurant_order_items_tbl WHERE id = ${Number(item.id)}
     `
   }
