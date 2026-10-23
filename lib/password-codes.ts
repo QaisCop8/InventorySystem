@@ -111,17 +111,23 @@ export async function setPasswordWithCode(email: string, code: string, newPasswo
   } catch (error) {
     console.error("[password-codes] accepting company invitations failed", error)
   }
+  await writePasswordToCompanies(normalized, hash, check.row?.tenant_db ? String(check.row.tenant_db) : null)
+  await managementSql`UPDATE password_codes SET used = true WHERE id = ${check.row!.id}`
+  return { ok: true }
+}
+
+/** نسخ تجزئة كلمة المرور لكل شركة مرتبط بها البريد (user_settings) — الهوية موحّدة عبر الشركات */
+export async function writePasswordToCompanies(email: string, hash: string, extraDb?: string | null) {
+  const normalized = normalize(email)
   const companies = await managementSql`
     SELECT DISTINCT c.db_name FROM users u JOIN user_company uc ON uc.user_id = u.id JOIN companies c ON c.id = uc.company_id
     WHERE LOWER(u.email) = ${normalized} AND c.db_name IS NOT NULL`
   const databases = new Set<string>(companies.map((row: any) => String(row.db_name)))
-  if (check.row?.tenant_db) databases.add(String(check.row.tenant_db))
+  if (extraDb) databases.add(extraDb)
   for (const dbName of databases) {
     await withTenantDb(dbName, () => sql`UPDATE user_settings SET password_hash = ${hash}, updated_at = CURRENT_TIMESTAMP WHERE LOWER(TRIM(email)) = ${normalized}`)
       .catch((error) => console.error(`[password-codes] could not update ${dbName}`, error))
   }
-  await managementSql`UPDATE password_codes SET used = true WHERE id = ${check.row!.id}`
-  return { ok: true }
 }
 
 /** رسالة "تمت إضافتك لشركة" لمستخدم لديه حساب مسبقاً (يدخل بكلمة مروره الحالية). */

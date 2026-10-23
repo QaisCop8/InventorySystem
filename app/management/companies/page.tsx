@@ -8,6 +8,7 @@ import {
   Plus,
   Loader2,
   LogOut,
+  KeyRound,
   ShieldCheck,
   Clock,
   XCircle,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react"
 import { priceFor, type Pricing } from "@/lib/company-pricing"
 import { SubscriptionDialog } from "@/components/management/subscription-dialog"
+import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
 import { activateCompany } from "@/lib/tenant-client"
 import { useToast } from "@/hooks/use-toast"
 
@@ -136,6 +138,7 @@ export default function ManagementCompaniesPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [companies, setCompanies] = useState<Company[]>([])
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newCompanyName, setNewCompanyName] = useState("")
@@ -342,12 +345,17 @@ export default function ManagementCompaniesPage() {
                 <LayoutDashboard className="h-4 w-4" /> لوحة الإدارة
               </a>
             )}
+            <button type="button" onClick={() => setChangePasswordOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white">
+              <KeyRound className="h-4 w-4" /> تغيير كلمة المرور
+            </button>
             <button type="button" onClick={handleLogout} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-rose-500/15 hover:text-rose-200">
               <LogOut className="h-4 w-4" /> تسجيل الخروج
             </button>
           </div>
         </div>
       </header>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
 
       <main className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <section className="cp-rise mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

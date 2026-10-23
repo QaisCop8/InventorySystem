@@ -163,6 +163,27 @@ export async function getManagementSession(): Promise<ManagementUser | null> {
   }
 }
 
+/**
+ * تغيير كلمة مرور المستخدم المسجّل دخوله (بوابة الإدارة): يتحقق من الحالية، ويكتب الجديدة لحساب الإدارة ولكل شركة
+ * مرتبط بها البريد، وينهي جلسات الإدارة الأخرى لهذا الحساب (تبقى الجلسة الحالية).
+ */
+export async function changeManagementPassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; error?: string; status?: number }> {
+  const user = await getManagementSession()
+  if (!user) return { ok: false, error: "يجب تسجيل الدخول", status: 401 }
+  if (!currentPassword) return { ok: false, error: "أدخل كلمة المرور الحالية", status: 400 }
+  if (String(newPassword || "").length < 6) return { ok: false, error: "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل", status: 400 }
+  const row = (await sql`SELECT password_hash FROM users WHERE id = ${user.id}`)[0]
+  if (!row || (await hashPassword(currentPassword)) !== row.password_hash) return { ok: false, error: "كلمة المرور الحالية غير صحيحة", status: 400 }
+  const hash = await hashPassword(newPassword)
+  if (hash === row.password_hash) return { ok: false, error: "كلمة المرور الجديدة مطابقة للحالية", status: 400 }
+  await sql`UPDATE users SET password_hash = ${hash}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user.id}`
+  const { writePasswordToCompanies } = await import("./password-codes")
+  await writePasswordToCompanies(user.email, hash)
+  const token = (await cookies()).get(SESSION_COOKIE)?.value || ""
+  await sql`DELETE FROM management_sessions WHERE user_id = ${user.id} AND session_token <> ${token}`
+  return { ok: true }
+}
+
 export async function logoutManagementUser(): Promise<void> {
   try {
     await ensureManagementTables()
