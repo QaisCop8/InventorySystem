@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { CompanyLicenseBar, LicenseRequestsPanel } from "@/components/management/company-license-admin"
 import { PricingPanel } from "@/components/management/pricing-panel"
 import { FeatureRequestsAdmin } from "@/components/management/feature-requests-admin"
-import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit } from "lucide-react"
+import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
+import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit, KeyRound } from "lucide-react"
 
 interface PendingCompany {
   id: number
@@ -63,6 +64,7 @@ export default function ManagementAdminPage() {
   const [companies, setCompanies] = useState<PendingCompany[]>([])
   const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
+  const [passwordUser, setPasswordUser] = useState<ManagedUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [forbidden, setForbidden] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
@@ -591,6 +593,10 @@ export default function ManagementAdminPage() {
                     </div>
                     <div className="text-sm text-slate-500">{user.email}</div>
                   </div>
+                  <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="gap-1 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setPasswordUser(user)}>
+                    <KeyRound className="h-4 w-4" /> تغيير كلمة المرور
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -610,8 +616,10 @@ export default function ManagementAdminPage() {
                       </>
                     )}
                   </Button>
+                  </div>
                 </div>
               ))}
+              <ChangePasswordDialog open={Boolean(passwordUser)} onOpenChange={(open) => { if (!open) setPasswordUser(null) }} target={passwordUser} />
             </div>
           ))}
 

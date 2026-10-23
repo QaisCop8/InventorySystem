@@ -184,6 +184,26 @@ export async function changeManagementPassword(currentPassword: string, newPassw
   return { ok: true }
 }
 
+/** مسؤول الموقع يعيّن كلمة مرور مستخدم بدون القديمة: تُكتب في كل شركاته وتُنهى كل جلساته. */
+export async function adminSetManagementPassword(userId: number, newPassword: string): Promise<{ ok: boolean; error?: string; status?: number }> {
+  const admin = await getManagementSession()
+  if (!admin || !admin.is_platform_admin) return { ok: false, error: "لا تملك صلاحية القيام بهذا الإجراء", status: 403 }
+  if (String(newPassword || "").length < 6) return { ok: false, error: "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل", status: 400 }
+  const row = (await sql`SELECT id, email FROM users WHERE id = ${userId}`)[0]
+  if (!row) return { ok: false, error: "المستخدم غير موجود", status: 404 }
+  const hash = await hashPassword(newPassword)
+  await sql`UPDATE users SET password_hash = ${hash}, updated_at = CURRENT_TIMESTAMP WHERE id = ${userId}`
+  const { writePasswordToCompanies } = await import("./password-codes")
+  await writePasswordToCompanies(row.email, hash)
+  if (userId === admin.id) {
+    const token = (await cookies()).get(SESSION_COOKIE)?.value || ""
+    await sql`DELETE FROM management_sessions WHERE user_id = ${userId} AND session_token <> ${token}`
+  } else {
+    await sql`DELETE FROM management_sessions WHERE user_id = ${userId}`
+  }
+  return { ok: true }
+}
+
 export async function logoutManagementUser(): Promise<void> {
   try {
     await ensureManagementTables()

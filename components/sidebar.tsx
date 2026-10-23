@@ -347,6 +347,19 @@ export const menuItems: MenuItem[] = [
       { title: "المواقع", section: "restaurant-locations", icon: MapPin },
       { title: "الطاولات", section: "restaurant-tables", icon: LayoutGrid },
       { title: "شاشة المطعم", section: "restaurant-pos", icon: UtensilsCrossed },
+      {
+        title: "التقارير",
+        section: "restaurant-reports",
+        icon: BarChart3,
+        submenu: [
+          { title: "تقرير الطاولات", section: "restaurant-tables-report", icon: LayoutGrid },
+          { title: "طلبات المطعم تفصيلي", section: "restaurant-orders-report", icon: ClipboardList },
+          { title: "الأصناف المباعة في المطعم", section: "restaurant-items-report", icon: PackageSearch },
+          { title: "المطعم حسب النادل", section: "restaurant-waiters-report", icon: UserRound },
+          { title: "المطعم حسب الموقع", section: "restaurant-locations-report", icon: MapPin },
+          { title: "أوقات الذروة في المطعم", section: "restaurant-hours-report", icon: Timer },
+        ],
+      },
     ],
   },
   {

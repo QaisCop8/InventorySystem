@@ -22,8 +22,9 @@ function PasswordField({ id, label, value, onChange, autoComplete, autoFocus }: 
   )
 }
 
-/** تغيير كلمة المرور من بوابة الإدارة: الحالية + الجديدة + التأكيد → api/management/auth/change-password */
-export function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+/** تغيير كلمة المرور من بوابة الإدارة: الحالية + الجديدة + التأكيد → api/management/auth/change-password.
+ *  مع target (مسؤول الموقع → تبويب المستخدمين): بدون كلمة المرور الحالية → api/management/admin/users/[id]/password */
+export function ChangePasswordDialog({ open, onOpenChange, target }: { open: boolean; onOpenChange: (open: boolean) => void; target?: { id: number; full_name: string; email: string } | null }) {
   const [current, setCurrent] = useState("")
   const [next, setNext] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -43,9 +44,9 @@ export function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; on
     if (next !== confirm) { setError("كلمة المرور الجديدة وتأكيدها غير متطابقتين"); return }
     setBusy(true)
     try {
-      const response = await fetch("/api/management/auth/change-password", {
+      const response = await fetch(target ? `/api/management/admin/users/${target.id}/password` : "/api/management/auth/change-password", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_password: current, new_password: next }),
+        body: JSON.stringify(target ? { new_password: next } : { current_password: current, new_password: next }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذّر تغيير كلمة المرور")
@@ -62,8 +63,10 @@ export function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; on
     <Dialog open={open} onOpenChange={(value) => { if (!busy) onOpenChange(value) }}>
       <DialogContent dir="rtl" className="w-[calc(100vw-2rem)] max-w-md" onPointerDownOutside={(event) => event.preventDefault()}>
         <DialogHeader className="text-right">
-          <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-emerald-600" />تغيير كلمة المرور</DialogTitle>
-          <DialogDescription>تُطبَّق كلمة المرور الجديدة على حسابك في كل الشركات، وتُنهى جلساتك على الأجهزة الأخرى.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-emerald-600" />{target ? `تعيين كلمة مرور: ${target.full_name}` : "تغيير كلمة المرور"}</DialogTitle>
+          <DialogDescription>{target
+            ? <>تعيين كلمة مرور جديدة للمستخدم <span dir="ltr" className="font-semibold">{target.email}</span> بدون كلمة المرور القديمة — تُطبَّق في كل شركاته وتُنهى جميع جلساته.</>
+            : "تُطبَّق كلمة المرور الجديدة على حسابك في كل الشركات، وتُنهى جلساتك على الأجهزة الأخرى."}</DialogDescription>
         </DialogHeader>
         {done ? (
           <div className="space-y-2 py-6 text-center">
@@ -73,8 +76,8 @@ export function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; on
         ) : (
           <form onSubmit={submit} className="space-y-4">
             {error && <p className="rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-700">{error}</p>}
-            <PasswordField id="mgmt-current-password" label="كلمة المرور الحالية" value={current} onChange={(value) => { setCurrent(value); setError("") }} autoComplete="current-password" autoFocus />
-            <PasswordField id="mgmt-new-password" label="كلمة المرور الجديدة" value={next} onChange={(value) => { setNext(value); setError("") }} autoComplete="new-password" />
+            {!target && <PasswordField id="mgmt-current-password" label="كلمة المرور الحالية" value={current} onChange={(value) => { setCurrent(value); setError("") }} autoComplete="current-password" autoFocus />}
+            <PasswordField id="mgmt-new-password" label="كلمة المرور الجديدة" value={next} onChange={(value) => { setNext(value); setError("") }} autoComplete="new-password" autoFocus={Boolean(target)} />
             <div>
               <PasswordField id="mgmt-confirm-password" label="تأكيد كلمة المرور الجديدة" value={confirm} onChange={(value) => { setConfirm(value); setError("") }} autoComplete="new-password" />
               {confirm && confirm !== next && <p className="mt-1 text-xs text-red-600">غير مطابقة لكلمة المرور الجديدة</p>}
