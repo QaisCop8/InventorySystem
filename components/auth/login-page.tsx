@@ -69,11 +69,12 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
   }
 
   return (
-    <main dir={pageDirection} className="relative min-h-screen overflow-hidden bg-[#f4f7f6] px-4 py-6 text-slate-950 sm:px-6 lg:flex lg:items-center lg:justify-center lg:py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,rgba(16,185,129,0.10),transparent_30%),radial-gradient(circle_at_10%_90%,rgba(14,116,144,0.08),transparent_32%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] [background-size:32px_32px]" />
+    <main dir={pageDirection} className="relative min-h-screen overflow-hidden bg-[#f8f4ec] px-4 py-6 text-slate-950 sm:px-6 lg:flex lg:items-center lg:justify-center lg:py-10">
+      {/* خلفية بيج فاتحة دافئة: توهّج رملي خفيف + لمسة خضراء من ألوان الشعار، وشبكة بخطوط بنية باهتة */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_8%,rgba(217,186,140,0.22),transparent_34%),radial-gradient(circle_at_8%_92%,rgba(16,185,129,0.06),transparent_32%),linear-gradient(180deg,#fbf8f2_0%,#f5efe4_100%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(120,90,50,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(120,90,50,0.05)_1px,transparent_1px)] [background-size:32px_32px]" />
 
-      <section className="relative z-10 mx-auto grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_32px_90px_-42px_rgba(15,23,42,0.4)] lg:min-h-[700px] lg:grid-cols-[0.88fr_1.12fr]">
+      <section className="relative z-10 mx-auto grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-[#ece3d3] bg-white shadow-[0_32px_90px_-42px_rgba(15,23,42,0.4)] lg:min-h-[700px] lg:grid-cols-[0.88fr_1.12fr]">
         <div className="flex flex-col justify-between px-6 py-7 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
           <header className="flex items-center justify-between">
             <NoonLogo size="md" tagline="نون — نظام إدارة الأعمال" />
