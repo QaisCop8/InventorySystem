@@ -797,10 +797,6 @@ function NumberingSettingsStep({ values, autoNumbering, onChange, onAutoNumberin
   }
 
   return <section className="space-y-5 rounded-3xl border border-amber-100 bg-slate-50/60 p-4 sm:p-6">
-    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 font-bold text-amber-950">
-      <input type="checkbox" checked={autoNumbering} onChange={(event) => onAutoNumberingChange(event.target.checked)} className="h-4 w-4 accent-amber-600" />
-      الترقيم التلقائي للسندات والملفات
-    </label>
     <div className="rounded-2xl border border-amber-100 bg-white p-4">
       <h4 className="mb-4 text-lg font-black text-slate-900">ترقيم السندات</h4>
       <div className="grid gap-3 lg:grid-cols-2">{voucherNumberingFields.map((field) => renderNumberingField(field, true))}</div>
