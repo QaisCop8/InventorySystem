@@ -30,6 +30,7 @@ const MAX_CODE_RETRY_ATTEMPTS = 5
 import { saveJournalRows, validateJournalAccountCurrencies } from "../receipts/_lib"
 import { validateLeafAccounts } from "@/lib/leaf-accounts"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
+import { productionLinkError } from "@/lib/production-links"
 import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
 import { workingPeriodErrorMessage } from "@/lib/working-period"
 
@@ -261,6 +262,8 @@ async function putHandler(request: NextRequest) {
     if (currentRows.length === 0) {
       return NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
     }
+    const linkError = await productionLinkError(Number(data.id))
+    if (linkError) return NextResponse.json({ error: linkError }, { status: 409 })
     const previousStatus = Number(currentRows[0].status)
     if (previousStatus === 2 && status !== 3) {
       return NextResponse.json({ error: "السند معتمد ولا يمكن تعديله" }, { status: 400 })

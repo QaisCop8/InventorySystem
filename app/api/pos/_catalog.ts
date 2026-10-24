@@ -103,7 +103,9 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
         SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,p.pos_sold_using_scale,
                COALESCE(NULLIF(ig.group_name,''),NULLIF(main_group.group_name,''),'غير مصنف') category_name,
                COALESCE(ig.id,main_group.id) group_id,
-               CASE WHEN ig.id IS NOT NULL THEN NULLIF(TRIM(ig.default_printer),'') ELSE NULLIF(TRIM(main_group.default_printer),'') END group_printer,
+               -- الأولوية لطابعة الصنف نفسه (products.default_printer)، وإلا طابعة مجموعته
+               NULLIF(TRIM(to_jsonb(p)->>'default_printer'),'') item_printer,
+               COALESCE(NULLIF(TRIM(to_jsonb(p)->>'default_printer'),''), CASE WHEN ig.id IS NOT NULL THEN NULLIF(TRIM(ig.default_printer),'') ELSE NULLIF(TRIM(main_group.default_printer),'') END) group_printer,
                u.id unit_id,u.unit_name,COALESCE(pu.first_barcode,p.barcode,'') first_barcode,
                COALESCE(CASE WHEN pr_unit.product_id IS NOT NULL THEN pr_unit.price WHEN pr_row.product_id IS NOT NULL THEN pr_row.price WHEN uc.n=1 AND sp.n=1 THEN sp.price END,0) source_price,
                CASE WHEN pr_unit.product_id IS NOT NULL THEN pr_unit.currency_id WHEN pr_row.product_id IS NOT NULL THEN pr_row.currency_id WHEN uc.n=1 AND sp.n=1 THEN sp.currency_id END price_currency_id,

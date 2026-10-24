@@ -189,6 +189,7 @@ interface ProductFormData {
   minimum_order_quantity: number
   related_items_mode: number
   pos_sold_using_scale: boolean
+  default_printer?: string | null
   // صنف دخان (عهدة الدخان في الكاشير)
   is_tobacco: boolean
   barcode?: string
@@ -966,6 +967,7 @@ export function CompactProductForm({
     const newFormData = {
       ...product,
       pos_sold_using_scale: isScaleProduct(product.pos_sold_using_scale),
+      default_printer: product.default_printer || "",
       is_tobacco: product.is_tobacco === true || product.is_tobacco === "true",
       product_type: Number(product.product_type ?? 1) || 1,
       units: unitsWithNames,
@@ -3345,6 +3347,11 @@ export function CompactProductForm({
                           {!isService && <div className="space-y-2 sm:col-span-3">
                             <div className="flex items-center gap-2"><Checkbox id="pos_sold_using_scale" checked={Boolean(formData.pos_sold_using_scale)} onCheckedChange={checked => updateFormData("pos_sold_using_scale", checked === true)} /><Label htmlFor="pos_sold_using_scale">يباع بالميزان الالكتروني</Label></div>
                             {formData.pos_sold_using_scale && <p className="text-xs text-muted-foreground">باركود الصنف 7 أرقام مثل 2000001. الأرقام الستة التالية في باركود الميزان تمثل الكمية مقسومة على 1000.</p>}
+                          </div>}
+                          {!isService && <div className="space-y-2 sm:col-span-3">
+                            <Label htmlFor="default_printer">الطابعة الافتراضية</Label>
+                            <Input id="default_printer" dir="ltr" maxLength={150} className="max-w-md" value={formData.default_printer || ""} onChange={(e) => updateFormData("default_printer", e.target.value)} placeholder="اسم الطابعة في Windows" />
+                            <p className="text-xs text-muted-foreground">مع تفعيل "طباعة على المخزون الرئيسي" في الكاشير والمطعم: تُطبع ورقة الصنف على هذه الطابعة، وإن تُركت فارغة فعلى طابعة مجموعة الصنف.</p>
                           </div>}
                           {!isService && <div className="space-y-2 sm:col-span-3">
                             <div className="flex items-center gap-2"><Checkbox id="is_tobacco" checked={Boolean(formData.is_tobacco)} onCheckedChange={checked => updateFormData("is_tobacco", checked === true)} /><Label htmlFor="is_tobacco">دخان</Label></div>

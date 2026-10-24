@@ -3,6 +3,7 @@ import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
 import { fetchVoucherItems, archiveAndDeleteStockVoucher } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
+import { productionLinkError } from "@/lib/production-links"
 import { attachItemSerials } from "@/lib/item-serials"
 import { workingPeriodErrorMessage } from "@/lib/working-period"
 
@@ -64,6 +65,8 @@ async function deleteHandler(request: NextRequest, { params }: { params: { id: s
     }
     const authorization = await authorizeStoredVoucher(request, id, "delete")
     if (!authorization.ok) return authorization.response
+    const linkError = await productionLinkError(id)
+    if (linkError) return NextResponse.json({ error: linkError }, { status: 409 })
 
     const result = await archiveAndDeleteStockVoucher(id)
     if (result.error) {

@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import { getInventoryReportProducts, reportDate } from "@/lib/item-inventory-reports"
 import { buildItemCard, type ItemCardLine } from "@/lib/item-card-ledger"
 import sql from "@/lib/database"
+import { ensureProductionTables } from "@/lib/production-vouchers"
 
 const ids = (value: string | null) => String(value || "").split(",").map(Number).filter(id => Number.isSafeInteger(id) && id > 0)
 
@@ -37,8 +38,12 @@ export async function GET(request: NextRequest) {
     if (!products.length) return NextResponse.json({ error: "الصنف غير موجود" }, { status: 404 })
     // A new company may have products before its first inventory voucher is created.
     const tables = await sql`SELECT to_regclass('voucher_items_tbl') AS vouchers`
+    // سندات الإدخال/الإخراج/الإرسالية المولّدة من سند انتاج تظهر بالبطاقة باسم سند الانتاج ورقمه
+    if (tables[0]?.vouchers) await ensureProductionTables()
     const lines = tables[0]?.vouchers ? await sql`
       SELECT vi.id,vh.id AS voucher_id,vh.vch_code,vh.vch_type,vh.vch_date::date::text AS movement_date,
+             COALESCE((SELECT pv.code FROM production_vouchers_tbl pv WHERE pv.in_voucher_id=vh.id OR pv.out_voucher_id=vh.id LIMIT 1),
+               (SELECT pv.code FROM production_transfers_tbl pt JOIN production_vouchers_tbl pv ON pv.id=pt.production_id WHERE pt.voucher_id=vh.id LIMIT 1)) AS production_code,
              vi.qnty,vi.bonus,vi.price,vi.discount,vi.vat_ratio,vi.delivery_item_id,
              COALESCE(NULLIF(pu.to_main_qnty,0),1) AS unit_factor,u.unit_name AS item_unit,
              vh.to_store_id,vh.from_store_id,vi.store_id,

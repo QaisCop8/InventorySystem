@@ -3,6 +3,7 @@ import { amountFractionOptions } from "@/lib/decimals"
 
 import "@/components/accounting/cheque-theme.css"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
+import { voucherStatusLabel } from "@/components/common/voucher-list-table"
 import { useEffect, useRef, useState } from "react"
 import { BookOpen, CheckCheck, FileCheck2, Plus, Search, Wallet, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -214,10 +215,10 @@ export default function UnifiedChequePaymentVoucher() {
                 <div className="flex items-center justify-between gap-3 border-b border-emerald-100 bg-gradient-to-l from-emerald-50 to-white px-5 py-4"><h2 className="font-bold text-emerald-900">سندات صرف الشيكات</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{loading ? "جاري التحميل..." : `${rows.length} سند`}</span></div>
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[700px] text-sm">
-                        <thead className="bg-slate-50 text-slate-500"><tr>{["رقم السند", "التاريخ", "حساب المستفيد", "الإجمالي", ""].map((label, index) => <th key={index} className="px-5 py-3 text-right text-xs font-semibold">{label}</th>)}</tr></thead>
+                        <thead className="bg-slate-50 text-slate-500"><tr>{["رقم السند", "التاريخ", "حساب المستفيد", "الإجمالي", "حالة السند", ""].map((label, index) => <th key={index} className="px-5 py-3 text-right text-xs font-semibold">{label}</th>)}</tr></thead>
                         <tbody>{rows.map(row => <tr key={row.id} title="انقر نقراً مزدوجاً لفتح السند" onDoubleClick={() => { if (!loading && !saving) void openRecord(Number(row.id)) }} className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-emerald-50/40">
-                            <td className="px-5 py-4 font-mono font-bold text-emerald-800">{row.vch_code}</td><td className="px-5 py-4">{String(row.vch_date).slice(0, 10)}</td><td className="px-5 py-4">{row.account_name || "—"}</td><td className="px-5 py-4 font-semibold tabular-nums">{money(row.amount)}</td><td className="px-5 py-4 text-left"><Button size="sm" variant="outline" className="rounded-lg" disabled={loading || saving} onClick={() => void openRecord(Number(row.id))}>عرض السند</Button></td>
-                        </tr>)}{!loading && !rows.length && <tr><td colSpan={5} className="px-5 py-14 text-center text-slate-500">لا توجد سندات صرف شيكات لعرضها</td></tr>}</tbody>
+                            <td className="px-5 py-4 font-mono font-bold text-emerald-800">{row.vch_code}</td><td className="px-5 py-4">{String(row.vch_date).slice(0, 10)}</td><td className="px-5 py-4">{row.account_name || "—"}</td><td className="px-5 py-4 font-semibold tabular-nums">{money(row.amount)}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${Number(row.status) === 2 ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : Number(row.status) === 3 ? "bg-red-600 text-white ring-red-700" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>{voucherStatusLabel(row.status) || "—"}</span></td><td className="px-5 py-4 text-left"><Button size="sm" variant="outline" className="rounded-lg" disabled={loading || saving} onClick={() => void openRecord(Number(row.id))}>عرض السند</Button></td>
+                        </tr>)}{!loading && !rows.length && <tr><td colSpan={6} className="px-5 py-14 text-center text-slate-500">لا توجد سندات صرف شيكات لعرضها</td></tr>}</tbody>
                     </table>
                 </div>
             </section>

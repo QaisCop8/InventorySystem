@@ -810,12 +810,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "معتمد" : "مسودة" }))}
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
                 { header: "المبلغ", name: "display_amount", width: 140, isReadOnly: true },
-                { header: "الحالة", name: "display_status", width: 140, isReadOnly: true },
+                { header: "حالة السند", name: "voucher_status", width: 140, isReadOnly: true },
               ]}
               onOpen={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
             />

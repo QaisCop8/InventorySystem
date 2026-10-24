@@ -58,6 +58,7 @@ function normalizeCatalog(data: any): Catalog {
       id: Number(row.id), code: String(row.product_code || ""), name: String(row.product_name || "صنف"), price: Number(row.first_price || 0),
       unitId: Number(row.unit_id) || null, unitName: String(row.unit_name || ""), category: String(row.category_name || "غير مصنف"),
       groupPrinter: String(row.group_printer || "").trim(),
+      itemPrinter: String(row.item_printer || "").trim(),
       imageUrl: row.image_url ? String(row.image_url) : null, hasImage: Boolean(row.has_image),
       search: searchKey(`${row.product_name || ""} ${row.product_code || ""}`),
       unitPrices: (Array.isArray(row.unit_prices) ? row.unit_prices : []).map((option: any) => ({ unitId: Number(option.unit_id) || null, unitName: String(option.unit_name || ""), price: Number(option.price || 0) })),
@@ -415,13 +416,17 @@ export default function RestaurantPos() {
   const isTakeaway = order?.order_type === "takeaway"
   const tableNames = isTakeaway ? `سفري${order?.takeaway_name ? ` ${order.takeaway_name}` : ""}` : order?.tables.map((table) => table.name).join(" + ") || ""
 
-  // قسائم المطبخ: لكل مجموعة أصناف لها طابعة ورقة بالأصناف والكميات والملاحظات (بلا أسعار) — كما في كاشير نقطة البيع
+  // قسائم المطبخ: ورقة بالأصناف والكميات والملاحظات (بلا أسعار) — كما في كاشير نقطة البيع. الأولوية لطابعة الصنف
+  // (الطابعة الافتراضية في ملف الصنف): أصنافها تُجمع على ورقة واحدة لكل طابعة؛ وإلا حسب مجموعة الصنف وطابعتها.
   const printKitchen = async (lines: Pending[]) => {
     const groups = new Map<string, { name: string; printer: string; lines: Pending[] }>()
+    const products = new Map((catalog?.products || []).map((product) => [product.id, product]))
     for (const line of lines) {
-      if (!line.groupPrinter) continue
-      const key = `${line.category}|${line.groupPrinter}`
-      const group = groups.get(key) || { name: line.category, printer: line.groupPrinter, lines: [] }
+      const itemPrinter = products.get(line.productId)?.itemPrinter || ""
+      const printer = itemPrinter || line.groupPrinter
+      if (!printer) continue
+      const key = itemPrinter ? `printer|${itemPrinter}` : `${line.category}|${printer}`
+      const group = groups.get(key) || { name: itemPrinter ? itemPrinter : line.category, printer, lines: [] }
       group.lines.push(line); groups.set(key, group)
     }
     // نفس شرط الكاشير: إعداد نقطة البيع "طباعة حسب مجموعة الصنف"

@@ -1016,7 +1016,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "معتمد" : "مسودة", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), invoice_display: voucher.has_linked_invoice ? "تم إصدار فاتورة" : "", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
@@ -1025,7 +1025,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
                   ? { header: "المندوب", name: "salesman_display", width: "*", isReadOnly: true }
                   : { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
                 { header: "المبلغ", name: "display_amount", width: 130, isReadOnly: true },
-                { header: "الحالة", name: "display_status", width: 150, isReadOnly: true },
+                { header: "حالة السند", name: "voucher_status", width: 130, isReadOnly: true },
+                // الإرساليات: هل صدرت عنها فاتورة (كانت تُدمج سابقاً بعمود الحالة)
+                ...(filteredVouchers.some((voucher) => voucher.has_linked_invoice) ? [{ header: "الفاتورة", name: "invoice_display", width: 140, isReadOnly: true }] : []),
               ]}
               onOpen={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
             />

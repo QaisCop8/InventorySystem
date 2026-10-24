@@ -46,13 +46,18 @@ const STATUS_BADGES: Record<number, string> = {
   3: "bg-red-600 text-white ring-red-700 !text-[13px] !font-extrabold",
 }
 
+/** حالة السند من voucher_header_tbl.status: 2 معتمد (مرحّل)، 3 ملغى، وغير ذلك غير معتمد. */
+export const voucherStatusLabel = (status: unknown) => (status == null || status === "" ? "" : Number(status) === 2 ? "معتمد" : Number(status) === 3 ? "ملغى" : "غير معتمد")
+const STATUS_COLUMNS = new Set(["display_status", "status_name", "voucher_status"])
+
 export function VoucherListTable<T extends Record<string, any>>({
   rows,
-  columns,
+  columns: baseColumns,
   onOpen,
   emptyText = "لا توجد نتائج",
   maxHeight = "max(420px, calc(100dvh - 340px))",
   loading = false,
+  statusColumn = true,
 }: {
   rows: T[]
   columns: VoucherListColumn[]
@@ -60,10 +65,15 @@ export function VoucherListTable<T extends Record<string, any>>({
   emptyText?: string
   maxHeight?: string
   loading?: boolean
+  /** عمود «حالة السند» (معتمد/غير معتمد) يُضاف تلقائياً لكل قوائم السندات ما لم يكن للقائمة عمود حالة خاص */
+  statusColumn?: boolean
 }) {
+  const columns = statusColumn && !baseColumns.some((column) => STATUS_COLUMNS.has(column.name))
+    ? [...baseColumns, { header: "حالة السند", name: "voucher_status", width: 120 }]
+    : baseColumns
   const cellValue = (row: T, column: VoucherListColumn) => {
-    const value = row[column.name]
-    if (column.name === "display_status" || column.name === "status_name") {
+    const value = column.name === "voucher_status" ? voucherStatusLabel(row.status) : row[column.name]
+    if (STATUS_COLUMNS.has(column.name)) {
       if (value == null || value === "") return "—"
       const tone = STATUS_BADGES[Number(row.status)] || "bg-slate-100 text-slate-600 ring-slate-200"
       return <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold ring-1", tone)}>{value}</span>

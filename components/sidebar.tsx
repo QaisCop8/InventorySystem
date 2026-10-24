@@ -61,7 +61,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Factory } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -257,6 +257,7 @@ export const menuItems: MenuItem[] = [
           { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
           { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
           { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
+          { title: "سند انتاج بضاعة", section: "production-vouchers", icon: Factory },
           { title: "جرد المخازن", section: "stock-counts", icon: ClipboardCheck },
         ],
       },
@@ -477,6 +478,17 @@ export const menuItems: MenuItem[] = [
       { title: "أرصدة الأصناف حسب تاريخ الصلاحية", section: "expiry-balances-report", icon: CalendarDays },
       { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
       { title: "تقرير حركات السيريال", section: "serial-movements-report", icon: Package },
+      {
+        title: "تقارير الانتاج",
+        section: "production-reports",
+        icon: Factory,
+        submenu: [
+          { title: "تقرير الانتاج تفصيلي", section: "production-detailed-report", icon: ClipboardList },
+          { title: "المواد المنتجة حسب الصنف", section: "production-produced-report", icon: PackageSearch },
+          { title: "استهلاك المواد الخام حسب الصنف", section: "production-raw-report", icon: Layers },
+          { title: "تكلفة سندات الانتاج", section: "production-vouchers-report", icon: Factory },
+        ],
+      },
     ],
   },
   {

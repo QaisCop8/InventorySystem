@@ -61,6 +61,7 @@ const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"
 const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
 const SerialMovementsReport = lazyNamed(() => import("@/components/reports/serial-movements-report"), "SerialMovementsReport")
 const StockCounts = lazyDefault(() => import("@/components/inventory/stock-counts"))
+const ProductionVouchers = lazyDefault(() => import("@/components/inventory/production-vouchers"))
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
 const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
@@ -325,6 +326,11 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={10} />,
   "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={11} />,
   "stock-counts": StockCounts,
+  "production-vouchers": ProductionVouchers,
+  "production-detailed-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionDetailedReport"),
+  "production-produced-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionProducedReport"),
+  "production-raw-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionRawReport"),
+  "production-vouchers-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionVouchersReport"),
   "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={12} />,
   "pos-cashier": PosCashier,
   "pos-points-settings": PosPointsSettings,

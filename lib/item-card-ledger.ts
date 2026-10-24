@@ -19,6 +19,13 @@ export type ItemCardLine = {
   [key: string]: unknown
 }
 
+/** حركات مولّدة من سند انتاج (lib/production-vouchers.ts): تُسمّى باسمه ورقمه بدل سند الإدخال/الإخراج/الإرسالية. */
+const productionVoucherName = (line: ItemCardLine, type: number) => {
+  const code = line.production_code ? String(line.production_code) : ""
+  if (!code) return ""
+  return type === 8 ? `سند انتاج ${code} — مواد منتجة` : type === 9 ? `سند انتاج ${code} — مواد خام` : `سند انتاج ${code} — نقل الى مستودع`
+}
+
 const numeric = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0
 const storeId = (...values: unknown[]) => values.map(numeric).find(value => value > 0) || 0
 
@@ -48,7 +55,7 @@ export function buildItemCard(lines: ItemCardLine[], fromDate: string, toDate: s
     const price = numeric(line.price) / (vatDivisor > 0 ? vatDivisor : 1) * (1 - numeric(line.discount) / 100) * (1 - headerDiscount)
     return legs.filter(leg => included(leg.store)).map(leg => ({
       ...line, id: `${line.id}-${leg.sign}`, voucher_id: numeric(line.voucher_id), vch_type: type,
-      voucher_type_name: itemVoucherNames[type], store_name: leg.name || "", store_id: leg.store,
+      voucher_type_name: productionVoucherName(line, type) || itemVoucherNames[type], store_name: leg.name || "", store_id: leg.store,
       unit_factor: factor, quantity, bonus, price, amount: price * quantity,
       quantity_in: leg.sign > 0 ? quantity + bonus : 0,
       quantity_out: leg.sign < 0 ? quantity + bonus : 0,

@@ -18,7 +18,7 @@ export type Order = {
 }
 export type Product = {
   id: number; code: string; name: string; price: number; unitId: number | null; unitName: string; category: string
-  groupPrinter: string; imageUrl: string | null; hasImage: boolean; search: string; unitPrices: { unitId: number | null; unitName: string; price: number }[]
+  groupPrinter: string; itemPrinter: string; imageUrl: string | null; hasImage: boolean; search: string; unitPrices: { unitId: number | null; unitName: string; price: number }[]
   addonGroups: AddonGroup[]; relatedMode: number; relatedIds: number[]
 }
 export type Pending = {

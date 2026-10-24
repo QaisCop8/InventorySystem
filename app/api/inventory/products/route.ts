@@ -54,6 +54,8 @@ async function ensureProductTypeColumns() { return runSchemaOnce("app/api/invent
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
+    // الطابعة الافتراضية للصنف: أولوية على طابعة مجموعة الصنف في طباعة الأقسام (الكاشير/المطعم)
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
   } catch (error) {
     console.error("[v0] Failed to ensure product type columns:", error)
   }
@@ -114,6 +116,7 @@ async function ensureProductSchemaColumns(client: any) {
     ["has_colors", "BOOLEAN DEFAULT false"],
     ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
     ["related_items_mode", "INTEGER NOT NULL DEFAULT 1"],
+    ["default_printer", "VARCHAR(150)"],
   ]
 
   for (const [columnName, columnType] of columns) {
@@ -1504,6 +1507,7 @@ export async function POST(request: NextRequest) {
 
     await persistProductCostCenters(client, productId, productData.cost_centers)
     await client.query(`UPDATE products SET pos_sold_using_scale=$1 WHERE id=$2`, [isScaleProduct(productData.pos_sold_using_scale), productId])
+    if (productData.default_printer !== undefined) await client.query(`UPDATE products SET default_printer=$1 WHERE id=$2`, [String(productData.default_printer || "").trim().slice(0, 150) || null, productId])
     if (productData.is_tobacco !== undefined) await client.query(`UPDATE products SET is_tobacco=$1 WHERE id=$2`, [productData.is_tobacco === true || productData.is_tobacco === "true", productId])
     await persistProductBrands(client, productId, productData.product_brands)
     await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
