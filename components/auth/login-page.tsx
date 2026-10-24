@@ -23,6 +23,7 @@ import {
   TrendingUp,
   UserRound,
 } from "lucide-react"
+import { PoweredBy } from "@/components/brand/powered-by"
 
 interface LoginPageProps {
   onLogin: (credentials: { username: string; password: string; rememberMe: boolean }) => void | Promise<void>
@@ -131,7 +132,7 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
           </div>
 
           <footer className="flex items-center justify-between gap-4 border-t border-slate-100 pt-5 text-[11px] text-slate-400">
-            <span>© {new Date().getFullYear()} Noon ERP</span>
+            <span className="flex flex-col gap-1"><span>© {new Date().getFullYear()} Noon ERP</span><PoweredBy /></span>
             <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />بياناتك محمية ومشفّرة</span>
           </footer>
         </div>

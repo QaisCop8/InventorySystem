@@ -131,7 +131,7 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
                OR EXISTS(SELECT 1 FROM product_warehouses pw WHERE pw.product_id=p.id AND pw.warehouse_id=${Number(point.main_warehouse_id)}))
         ORDER BY p.product_code
       `,
-      sql`SELECT a.id,a.code,a.name,a.id account_id,(SELECT c.pricecategory FROM customers c WHERE c.account_id=a.id AND COALESCE(c.isDeleted,false)=false ORDER BY c.id DESC LIMIT 1) pricecategory FROM account_tbl a WHERE COALESCE(a.status,1)<>3 AND a.type IN (2,3,5) ORDER BY a.name`,
+      sql`SELECT a.id,a.code,a.name,a.id account_id,(SELECT c.pricecategory FROM customers c WHERE c.account_id=a.id AND COALESCE(c.isDeleted,false)=false ORDER BY c.id DESC LIMIT 1) pricecategory FROM account_tbl a WHERE COALESCE(a.status,1)<>3 AND a.type IN (2,3,5) ORDER BY a.code`,
       getPosCurrencies(Number(point.currency_id)),
       getOpenPosSession(pointId,userId),
       sql`SELECT id,code,name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,

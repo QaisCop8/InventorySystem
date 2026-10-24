@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 import { Boxes, ShieldCheck, Sparkles } from "lucide-react"
+import { PoweredBy } from "@/components/brand/powered-by"
 
 interface ManagementAuthShellProps {
   eyebrow: string
@@ -38,7 +39,7 @@ export function ManagementAuthShell({ eyebrow, title, description, children, com
           </div>
         </section>
 
-        <footer className="mt-5 flex items-center justify-center gap-1.5 text-[10px] text-slate-400"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />اتصال مشفّر وآمن — بيانات شركاتك محمية</footer>
+        <footer className="mt-5 flex flex-col items-center gap-1.5 text-[10px] text-slate-400"><span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />اتصال مشفّر وآمن — بيانات شركاتك محمية</span><PoweredBy /></footer>
       </div>
     </main>
   )

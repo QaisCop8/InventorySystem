@@ -30,6 +30,7 @@ import { ChangePasswordDialog } from "@/components/management/change-password-di
 import { activateCompany } from "@/lib/tenant-client"
 import { useToast } from "@/hooks/use-toast"
 import { NoonLogo } from "@/components/brand/noon-logo"
+import { PoweredBy } from "@/components/brand/powered-by"
 
 interface Company {
   id: number
@@ -539,6 +540,7 @@ export default function ManagementCompaniesPage() {
         )}
 
         <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
+        <div className="mt-2 flex justify-center"><PoweredBy tone="dark" /></div>
       </main>
 
       {subscription && pricing && (

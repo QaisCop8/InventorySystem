@@ -5,6 +5,7 @@ import { PasswordReset } from "./password-reset"
 import { Switch } from "@/components/ui/switch"
 import { AlertCircle, ArrowLeft, BarChart3, Building2, CheckCircle2, Database, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, TrendingUp } from "lucide-react"
 import { NoonLogo } from "@/components/brand/noon-logo"
+import { PoweredBy } from "@/components/brand/powered-by"
 
 // The app sets `[dir="rtl"] input { direction: rtl }` globally, which overrides an input's own dir
 // attribute: typing Latin text then leaves the caret at the left edge. Setting direction inline wins
@@ -252,6 +253,7 @@ export function ManagementLogin({ onLogin, footer }: Props) {
         </div>
       </div>
       <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
+      <PoweredBy tone="dark" className="mt-2" />
     </section>
   </main>
 }

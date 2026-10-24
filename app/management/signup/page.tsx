@@ -4,6 +4,7 @@ import { useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, UserPlus, UserRound, Zap } from "lucide-react"
 import { NoonLogo } from "@/components/brand/noon-logo"
+import { PoweredBy } from "@/components/brand/powered-by"
 
 // The app sets `[dir="rtl"] input { direction: rtl }` globally; inline direction wins so Latin email/password
 // typing keeps the caret after the last character (same fix as components/auth/management-login.tsx).
@@ -239,6 +240,7 @@ export default function ManagementSignupPage() {
           </div>
         </div>
         <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
+        <PoweredBy tone="dark" className="mt-2" />
       </section>
 
       <aside className="relative hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">

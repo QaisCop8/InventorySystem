@@ -113,6 +113,7 @@ interface CurrencyOption {
 }
 
 const API_URL = "/api/accounts"
+const codeCollator = new Intl.Collator("en", { numeric: true, sensitivity: "base" })
 const CURRENCIES_API_URL = "/api/exchange-rates"
 
 const ACCOUNT_TYPE_OPTIONS = [
@@ -432,7 +433,8 @@ export default function AccountSearchDialog({
       }
       return true
     })
-    setSearchResults(results)
+    // ترتيب النتائج حسب رقم الحساب تصاعدياً بترتيب رقمي طبيعي (2 قبل 10، C9 قبل C10) — ترتيب SQL النصي لا يضمنه
+    setSearchResults([...results].sort((a, b) => codeCollator.compare(String(a.code || ""), String(b.code || ""))))
     setSelectedAccount(null)
   }
 
@@ -467,7 +469,8 @@ export default function AccountSearchDialog({
       }
       return true
     })
-    setSearchResults(results)
+    // ترتيب النتائج حسب رقم الحساب تصاعدياً بترتيب رقمي طبيعي (2 قبل 10، C9 قبل C10) — ترتيب SQL النصي لا يضمنه
+    setSearchResults([...results].sort((a, b) => codeCollator.compare(String(a.code || ""), String(b.code || ""))))
     setSelectedAccount(null)
   }
 

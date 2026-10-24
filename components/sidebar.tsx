@@ -64,6 +64,7 @@ import {
   LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Factory, KeyRound } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
+import { PoweredBy } from "@/components/brand/powered-by"
 
 interface SidebarProps {
   isOpen: boolean
@@ -985,6 +986,7 @@ export function Sidebar({
               </>
             )}
           </div>
+          <div className={cn("mt-1.5 flex", isOpen ? "justify-start" : "justify-center")}><PoweredBy compact={!isOpen} /></div>
         </div>
       </aside>
     </div>
