@@ -2,7 +2,7 @@
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeftRight, CheckCircle2, ExternalLink, Factory, Loader2, PackagePlus, Plus, Undo2, X } from "lucide-react"
+import { ArrowLeftRight, ExternalLink, Factory, Loader2, PackagePlus, Plus, Undo2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +18,7 @@ import { ProductionGrid } from "@/components/inventory/production-grid"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 import { VoucherSearchButton as CodeSearchButton } from "@/components/common/voucher-search-dialog"
 
 // سند انتاج بضاعة: جدول المواد المنتجة + جدول المواد الخام. اختيار صنف منتَج يضيف مكونات التصنيع المعرّفة عليه
@@ -98,6 +99,7 @@ export default function ProductionVouchers() {
   const [postOpen, setPostOpen] = useState(false)
   const [codeSearchOpen, setCodeSearchOpen] = useState(false)
   const [notice, setNotice] = useState("")
+  const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
   const initialRef = useRef("")
 
   const locked = form.status !== 1
@@ -324,7 +326,8 @@ export default function ProductionVouchers() {
         return
       }
       // كباقي السندات: بعد الحفظ يُفتح سند جديد بنفس الفرع
-      setNotice(`تم ${post ? "حفظ وترحيل" : "حفظ"} سند الانتاج ${data.code}${data.posted ? ` — سند الإخراج ${data.posted.out_voucher?.vch_code || ""} وسند الإدخال ${data.posted.in_voucher?.vch_code || ""}` : ""}${print ? " (لا يوجد نموذج طباعة لسند الانتاج بعد)" : ""}`)
+      setNotice(`تم ${post ? "حفظ وترحيل" : "حفظ"} سند الانتاج ${data.code}${data.posted ? ` — سند الإخراج ${data.posted.out_voucher?.vch_code || ""} وسند الإدخال ${data.posted.in_voucher?.vch_code || ""}` : ""}`)
+      if (print) handlePrint(fromServer(data))
       begin(newForm(form.branch_id), null)
       void loadList()
     } catch (e) {
@@ -346,6 +349,25 @@ export default function ProductionVouchers() {
       setFormError(e instanceof Error ? e.message : "تعذر تنفيذ الإجراء")
       return false
     } finally { setBusy(false) }
+  }
+
+  // طباعة سند الانتاج (نموذج سندات المخزون): المواد المنتجة ثم المواد الخام — غير المعتمد "نسخة للتدقيق"
+  const handlePrint = (doc: Form = form) => {
+    if (!doc.id || doc.status === 3) return
+    const finished = warehouseName(doc.finished_store_id), raw = warehouseName(doc.raw_store_id)
+    const value = (lines: Line[]) => lines.reduce((sum, line) => sum + num(line.quantity) * num(line.price), 0)
+    const rowsOf = (lines: Line[], label: string, store: string) => lines.map((line) => ({
+      product_code: line.product_code, product_name: `${label}: ${line.product_name}`, warehouse_name: store, unit: line.unit_name,
+      quantity: num(line.quantity), unit_price: num(line.price), total_price: Math.round(num(line.quantity) * num(line.price) * 1000) / 1000,
+    }))
+    setPrintData({
+      title: "سند انتاج بضاعة",
+      copyLabel: doc.status === 2 ? "" : "نسخة للتدقيق",
+      vch_code: doc.code,
+      vch_date: doc.vch_date,
+      note: [doc.note, `قيمة المواد المنتجة ${money(value(doc.produced))} — قيمة المواد الخام ${money(value(doc.raw))}`].filter(Boolean).join(" — "),
+      rows: [...rowsOf(doc.produced, "منتَج", finished), ...rowsOf(doc.raw, "خام", raw)],
+    })
   }
 
   // ───── شريط الأدوات الموحّد: التنقل بين سندات القائمة، جديد، نسخ ─────
@@ -406,6 +428,16 @@ export default function ProductionVouchers() {
             <span className="text-xs font-normal text-slate-500">— {warehouseName(target === "produced" ? form.finished_store_id : form.raw_store_id) || "اختر المستودع"}</span>
           </h3>
           <div className="flex items-center gap-3">
+            {target === "produced" && form.status === 2 && (
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={() => setTransferOpen(true)}>
+                <ArrowLeftRight className="h-3.5 w-3.5 text-sky-600" />نقل الى مستودع
+              </Button>
+            )}
+            {target === "produced" && (form.status === 2 || form.status === 4) && (
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={() => void act("unpost", {}, "إلغاء ترحيل سند الانتاج؟ سيُلغى سند الإدخال وسند الإخراج المرتبطان ويعود السند غير معتمد.")}>
+                <Undo2 className="h-3.5 w-3.5 text-amber-600" />إلغاء الترحيل
+              </Button>
+            )}
             <span className="text-sm">الإجمالي: <b dir="ltr" className="font-mono">{money(target === "produced" ? totals.produced : totals.raw)}</b></span>
             {!locked && <Button size="sm" variant="outline" className="gap-1" onClick={() => { setSearchRow(lines.length); setSearch(target) }}><Plus className="h-4 w-4" />إضافة صنف</Button>}
           </div>
@@ -487,11 +519,11 @@ export default function ProductionVouchers() {
             canSave={form.status === 1}
             canDelete={Boolean(form.id) && form.status === 1}
             canClone={form.produced.length > 0}
-            canPrint={false}
+            canPrint={Boolean(form.id) && form.status !== 3}
+            onPrint={() => handlePrint()}
             isFirstRecord={recordIndex <= 0}
             isLastRecord={recordIndex < 0 || recordIndex >= rows.length - 1}
             isNewRecord={!form.id}
-            hotkeys={{ print: null }}
           />
           <DialogHeader className="border-b bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-4 text-right text-white">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
@@ -571,16 +603,6 @@ export default function ProductionVouchers() {
             )}
           </div>
 
-          <DialogFooter className="flex flex-wrap gap-2 border-t bg-white px-4 py-3 sm:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {form.status === 1 && <Button disabled={busy} onClick={() => setPostOpen(true)} className="gap-1 bg-emerald-700 hover:bg-emerald-800">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}حفظ (F3)</Button>}
-              {form.status === 2 && <Button disabled={busy} onClick={() => setTransferOpen(true)} className="gap-1 bg-sky-700 hover:bg-sky-800"><ArrowLeftRight className="h-4 w-4" />نقل الى مستودع</Button>}
-              {(form.status === 2 || form.status === 4) && <Button disabled={busy} variant="outline" className="gap-1" onClick={() => void act("unpost", {}, "إلغاء ترحيل سند الانتاج؟ سيُلغى سند الإدخال وسند الإخراج المرتبطان.")}><Undo2 className="h-4 w-4" />إلغاء الترحيل</Button>}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" disabled={busy} onClick={() => void close()} className="gap-1"><X className="h-4 w-4" />إغلاق</Button>
-            </div>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -595,6 +617,8 @@ export default function ProductionVouchers() {
         selectBaseProduct
         title={search === "raw" ? "اختيار مادة خام" : "اختيار صنف منتَج"}
       />
+
+      <StockVoucherPrintLayout data={printData} voucherTypeId={8} />
 
       <PostVoucherDialog visible={postOpen} isSaving={busy} onSelect={handlePostAction} onCancel={() => setPostOpen(false)} />
 
