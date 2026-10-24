@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic"
 // GET ?user_id&branch_id&type&q (الحسابات مع حالة السماح) · PUT { user_id, branch_id, deny:[ids], allow:[ids] }.
 // الجدول يحفظ المنع فقط (lib/account-access.ts) — branch_id 0 = كل الفروع.
 
+const ACCOUNT_TYPE_OPTIONS = [{ id: 1, name: "حساب محاسبي" }, { id: 2, name: "عملاء" }, { id: 3, name: "موردين" }, { id: 5, name: "مشتركين" }]
+const PARTY_TYPES = [2, 3, 5]
+
 const ids = (value: unknown) => [...new Set((Array.isArray(value) ? value : []).map(Number).filter((id) => Number.isInteger(id) && id > 0))]
 
 export async function GET(request: NextRequest) {
@@ -24,7 +27,8 @@ export async function GET(request: NextRequest) {
             FROM user_settings WHERE COALESCE(is_active, true) = true ORDER BY user_id`,
         sql`SELECT id, branch_name AS name FROM branches WHERE COALESCE(status, 1) <> 3 AND bank_id IS NULL ORDER BY id`.catch(() =>
           sql`SELECT id, branch_name AS name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY id`),
-        sql`SELECT id, name FROM account_classification_types WHERE COALESCE(status, 1) <> 3 ORDER BY id`.catch(() => []),
+        // أنواع الحسابات بالشاشة: محاسبي (كل ما ليس عميلاً/مورداً/مشتركاً) · عملاء 2 · موردين 3 · مشتركين 5
+        Promise.resolve(ACCOUNT_TYPE_OPTIONS),
       ])
       // عدد الحسابات الممنوعة لكل مستخدم (لكل الفروع) — لعرضه بجانب اسمه
       const counts = await sql`SELECT user_id, COUNT(DISTINCT account_id)::int AS n FROM user_account_restrictions GROUP BY user_id`
@@ -34,18 +38,24 @@ export async function GET(request: NextRequest) {
     const userId = String(params.get("user_id") || "").trim()
     if (!userId) return NextResponse.json({ error: "اختر المستخدم" }, { status: 400 })
     const branchId = Math.max(0, Number(params.get("branch_id")) || 0)
-    const typeIds = String(params.get("types") || "").split(",").map(Number).filter((id) => id > 0)
+    const typeIds = String(params.get("types") || "").split(",").map(Number).filter((id) => [1, 2, 3, 5].includes(id))
+    const accounting = typeIds.includes(1)
+    const partyTypes = typeIds.filter((id) => PARTY_TYPES.includes(id))
     const search = String(params.get("q") || "").trim()
     const rows = await sql`
-      SELECT a.id, a.code, a.name, a.type, t.name AS type_name, a.father_id,
+      SELECT a.id, a.code, a.name, a.type,
+        CASE COALESCE(a.type, 1) WHEN 2 THEN 'عملاء' WHEN 3 THEN 'موردين' WHEN 5 THEN 'مشتركين' ELSE 'حساب محاسبي' END AS type_name, a.father_id,
         EXISTS (SELECT 1 FROM account_tbl ch WHERE ch.father_id = a.id AND COALESCE(ch.status, 1) <> 3) AS has_children,
         EXISTS (SELECT 1 FROM user_account_restrictions r WHERE r.user_id = ${userId} AND r.account_id = a.id AND r.branch_id = ${branchId}) AS denied,
         EXISTS (SELECT 1 FROM user_account_restrictions r WHERE r.user_id = ${userId} AND r.account_id = a.id AND r.branch_id = 0) AS denied_all_branches,
         (SELECT array_agg(r.branch_id ORDER BY r.branch_id) FROM user_account_restrictions r WHERE r.user_id = ${userId} AND r.account_id = a.id AND r.branch_id > 0) AS denied_branch_ids
       FROM account_tbl a
-      LEFT JOIN account_classification_types t ON t.id = a.type
       WHERE COALESCE(a.status, 1) <> 3
-        AND (${typeIds.length} = 0 OR a.type = ANY(${typeIds}::int[]))
+        AND (${typeIds.length} = 0
+             OR (${accounting} AND NOT (COALESCE(a.type, 1) = ANY(${PARTY_TYPES}::int[])))
+             OR COALESCE(a.type, 1) = ANY(${partyTypes}::int[]))
+        -- الحسابات الأب (لها حسابات فرعية) لا تُعرض: الصلاحية على الحسابات الفرعية
+        AND NOT EXISTS (SELECT 1 FROM account_tbl ch WHERE ch.father_id = a.id AND COALESCE(ch.status, 1) <> 3)
         AND (${search} = '' OR a.code ILIKE ${"%" + search + "%"} OR a.name ILIKE ${"%" + search + "%"})
       ORDER BY a.code
       LIMIT 5000
