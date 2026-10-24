@@ -4,6 +4,7 @@ import { runSchemaOnce } from "@/lib/schema-once"
 import { getBaseCurrencyId } from "@/lib/auto-journals"
 import { lotBalances, normalizeExpiry } from "@/lib/stock-lots"
 import { PRODUCTION_RELEASING_STATUS } from "@/lib/production-links"
+import { withBranchSymbol } from "@/lib/branch-symbol"
 import {
   INTERNAL_DELIVERY_VCH_TYPE,
   STOCK_IN_VCH_TYPE,
@@ -270,11 +271,36 @@ async function validateLines(rawLines: unknown, role: number): Promise<LineInput
   return lines
 }
 
-async function nextProductionCode() {
-  const row = ((await sql`
-    SELECT COALESCE(MAX(CASE WHEN code ~ '^PR[0-9]{1,9}$' THEN SUBSTRING(code FROM 3)::int ELSE 0 END), 0) + 1 AS next FROM production_vouchers_tbl
-  `) as any[])[0]
-  return `PR${String(Number(row?.next || 1)).padStart(6, "0")}`
+// رقم سند الانتاج بنفس قاعدة باقي السندات: بادئة (P) + رمز الفرع + تسلسل مبطّن بأصفار = 10 خانات (lib/voucher-code.ts)
+export const PRODUCTION_CODE_PREFIX = "P"
+async function productionCodeSegment(branchId: number | null) {
+  return `${PRODUCTION_CODE_PREFIX}${await withBranchSymbol("", branchId)}`.toUpperCase()
+}
+
+export async function nextProductionCode(branchId: number | null, sequence?: number) {
+  const segment = await productionCodeSegment(branchId)
+  if (sequence && sequence > 0) return buildVoucherCode(segment, "", sequence)
+  const rows = (await sql`SELECT code FROM production_vouchers_tbl WHERE code LIKE ${segment + "%"}`) as any[]
+  let max = 0
+  for (const row of rows) {
+    const value = Number(String(row.code).slice(segment.length))
+    if (Number.isInteger(value) && value > max) max = value
+  }
+  return buildVoucherCode(segment, "", max + 1)
+}
+
+/** ما يكتبه المستخدم في رقم السند: كود موجود ⇒ معرّفه، أو رقم تسلسلي ⇒ الكود الكامل بصيغة الفرع. */
+export async function resolveProductionCode(raw: string, branchId: number | null) {
+  const text = String(raw || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10)
+  if (!text) return { code: await nextProductionCode(branchId), id: null }
+  const exact = ((await sql`SELECT id FROM production_vouchers_tbl WHERE UPPER(code) = ${text} LIMIT 1`) as any[])[0]
+  if (exact) return { code: text, id: Number(exact.id) }
+  const segment = await productionCodeSegment(branchId)
+  const digits = (text.startsWith(segment) ? text.slice(segment.length) : text).match(/^\d+$/)
+  if (!digits) return { code: text, id: null }
+  const code = await nextProductionCode(branchId, Number(digits[0]))
+  const found = ((await sql`SELECT id FROM production_vouchers_tbl WHERE UPPER(code) = ${code} LIMIT 1`) as any[])[0]
+  return { code, id: found ? Number(found.id) : null }
 }
 
 async function activeWarehouse(id: unknown, label: string) {
@@ -308,8 +334,12 @@ export async function saveProduction(data: any, userId: string, branchId: number
       WHERE id = ${id}`
     await sql`DELETE FROM production_voucher_items_tbl WHERE production_id = ${id}`
   } else {
+    // رقم مكتوب/مولّد في الشاشة يُعتمد إن كان صالحاً وغير مستخدم، وإلا يُولَّد التالي لفرع السند
+    const typed = String(data.code || "").trim().toUpperCase()
+    let requested = /^[A-Z0-9]{1,10}$/.test(typed) ? typed : null
+    if (requested && ((await sql`SELECT 1 FROM production_vouchers_tbl WHERE UPPER(code) = ${requested}`) as any[]).length) requested = null
     for (let attempt = 0; attempt < 5 && !id; attempt++) {
-      const code = await nextProductionCode()
+      const code = attempt === 0 && requested ? requested : await nextProductionCode(branchId)
       const inserted = (await sql`
         INSERT INTO production_vouchers_tbl (code, vch_date, branch_id, finished_store_id, raw_store_id, note, status, created_by)
         VALUES (${code}, ${vchDate}, ${branchId}, ${finished}, ${raw}, ${note}, 1, ${userId})

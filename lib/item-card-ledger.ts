@@ -3,8 +3,8 @@ const outgoingTypes = new Set([9, 11, 12, 13, 14, 19])
 
 export const itemVoucherNames: Record<number, string> = {
   8: "سند إدخال بضاعة", 9: "سند إخراج بضاعة", 10: "إرسالية داخلية", 11: "سند استعمال",
-  12: "فاتورة مبيعات", 13: "إرسالية مبيعات", 14: "إرسالية بضاعة أمانة",
-  15: "مردود إرسالية بضاعة أمانة", 16: "مردود مبيعات", 17: "فاتورة مشتريات",
+  12: "فاتورة مبيعات", 13: "إرسالية مبيعات", 14: "إرسالية برسم البيع",
+  15: "مرتجع إرسالية برسم البيع", 16: "مردود مبيعات", 17: "فاتورة مشتريات",
   18: "إرسالية مشتريات", 19: "مردود مشتريات",
 }
 
@@ -23,7 +23,8 @@ export type ItemCardLine = {
 const productionVoucherName = (line: ItemCardLine, type: number) => {
   const code = line.production_code ? String(line.production_code) : ""
   if (!code) return ""
-  return type === 8 ? `سند انتاج ${code} — مواد منتجة` : type === 9 ? `سند انتاج ${code} — مواد خام` : `سند انتاج ${code} — نقل الى مستودع`
+  // المواد المنتجة وارد (سند الإدخال المرتبط) والمواد الخام صادر (سند الإخراج المرتبط)
+  return type === 8 ? "سند انتاج بضاعة (مواد منتجة)" : type === 9 ? "سند انتاج بضاعة (مواد خام)" : `إرسالية داخلية (نقل من سند انتاج ${code})`
 }
 
 const numeric = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0
@@ -55,7 +56,10 @@ export function buildItemCard(lines: ItemCardLine[], fromDate: string, toDate: s
     const price = numeric(line.price) / (vatDivisor > 0 ? vatDivisor : 1) * (1 - numeric(line.discount) / 100) * (1 - headerDiscount)
     return legs.filter(leg => included(leg.store)).map(leg => ({
       ...line, id: `${line.id}-${leg.sign}`, voucher_id: numeric(line.voucher_id), vch_type: type,
-      voucher_type_name: productionVoucherName(line, type) || itemVoucherNames[type], store_name: leg.name || "", store_id: leg.store,
+      voucher_type_name: productionVoucherName(line, type) || itemVoucherNames[type],
+      // رقم السند المعروض لحركات سند الانتاج = رقم سند الانتاج نفسه (والسند المرتبط في linked_vch_code)
+      ...(line.production_code && type !== 10 ? { vch_code: String(line.production_code), linked_vch_code: line.vch_code } : {}),
+      store_name: leg.name || "", store_id: leg.store,
       unit_factor: factor, quantity, bonus, price, amount: price * quantity,
       quantity_in: leg.sign > 0 ? quantity + bonus : 0,
       quantity_out: leg.sign < 0 ? quantity + bonus : 0,

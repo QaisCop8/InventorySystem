@@ -8,6 +8,8 @@ import {
   deleteProduction,
   ensureProductionTables,
   loadProduction,
+  nextProductionCode,
+  resolveProductionCode,
   postProduction,
   productionProductInfo,
   saveProduction,
@@ -54,6 +56,14 @@ export async function GET(request: NextRequest) {
       const auth = await authorize(request, "view")
       if (!auth.ok) return auth.response
       return NextResponse.json(await productionProductInfo(productId))
+    }
+    // رقم السند: التالي لفرع (سند جديد) أو حلّ ما كتبه المستخدم (رقم تسلسلي/كود موجود)
+    if (params.get("next_code") === "1" || params.has("resolve_code")) {
+      const auth = await authorize(request, "view", params.get("branch_id") || undefined)
+      if (!auth.ok) return auth.response
+      const branchId = Number(params.get("branch_id")) || auth.branchId
+      if (params.has("resolve_code")) return NextResponse.json(await resolveProductionCode(String(params.get("resolve_code")), branchId))
+      return NextResponse.json({ code: await nextProductionCode(branchId), id: null })
     }
     if (params.get("meta") === "1") {
       const auth = await authorize(request, "view", params.get("branch_id") || undefined)
