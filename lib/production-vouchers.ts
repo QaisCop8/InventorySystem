@@ -3,7 +3,7 @@ import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { getBaseCurrencyId } from "@/lib/auto-journals"
 import { lotBalances, normalizeExpiry } from "@/lib/stock-lots"
-import { PRODUCTION_RELEASING_STATUS } from "@/lib/production-links"
+import { PRODUCTION_RELEASING_STATUS, PRODUCTION_SYNCING_STATUS } from "@/lib/production-links"
 import { withBranchSymbol } from "@/lib/branch-symbol"
 import {
   INTERNAL_DELIVERY_VCH_TYPE,
@@ -16,6 +16,7 @@ import {
   resolveVoucherBookName,
 } from "@/app/api/stock-vouchers/_lib"
 import { POST as createStockVoucher, PUT as updateStockVoucher } from "@/app/api/stock-vouchers/route"
+import { DELETE as deleteStockVoucher } from "@/app/api/stock-vouchers/[id]/route"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // سند انتاج بضاعة (ادارة الاصناف ← الحركات): جدولان — المواد المنتجة (role 1) والمواد الخام (role 2).
@@ -28,7 +29,7 @@ import { POST as createStockVoucher, PUT as updateStockVoucher } from "@/app/api
 export const PRODUCTION_STATUS = { SAVED: 1, POSTED: 2, CANCELLED: 3 } as const
 export const PRODUCED_ROLE = 1
 export const RAW_ROLE = 2
-export const PRODUCTION_STATUS_NAME: Record<number, string> = { 1: "غير معتمد", 2: "معتمد", 3: "ملغى", 4: "قيد الإلغاء" }
+export const PRODUCTION_STATUS_NAME: Record<number, string> = { 1: "غير معتمد", 2: "معتمد", 3: "ملغى", 4: "قيد الإلغاء", 5: "قيد الحفظ" }
 
 export class ProductionError extends Error {
   constructor(message: string, public status = 400) { super(message) }
@@ -310,66 +311,10 @@ async function activeWarehouse(id: unknown, label: string) {
   return number
 }
 
-/** إنشاء/تعديل سند انتاج غير مرحّل — الترحيل منفصل (postProduction). */
-export async function saveProduction(data: any, userId: string, branchId: number, existingId: number | null) {
-  const vchDate = /^\d{4}-\d{2}-\d{2}$/.test(String(data.vch_date || "")) ? String(data.vch_date) : null
-  if (!vchDate) throw new ProductionError("التاريخ غير صالح")
-  const finished = await activeWarehouse(data.finished_store_id, "مستودع المواد الجاهزة")
-  const raw = await activeWarehouse(data.raw_store_id, "مستودع المواد الخام")
-  const produced = await validateLines(data.produced, PRODUCED_ROLE)
-  const rawLines = await validateLines(data.raw, RAW_ROLE)
-  if (!produced.length) throw new ProductionError("أضف صنفاً واحداً على الأقل في المواد المنتجة")
-  if (!rawLines.length) throw new ProductionError("أضف صنفاً واحداً على الأقل في المواد الخام")
-  const products = await loadProductionProducts([...produced, ...rawLines].map((line) => line.item_id))
-  const note = String(data.note || "").trim().slice(0, 1000) || null
-
-  let id = existingId
-  if (id) {
-    const current = ((await sql`SELECT status FROM production_vouchers_tbl WHERE id = ${id} FOR UPDATE`) as any[])[0]
-    if (!current) throw new ProductionError("سند الانتاج غير موجود", 404)
-    if (Number(current.status) !== PRODUCTION_STATUS.SAVED) throw new ProductionError("سند الانتاج معتمد أو ملغى ولا يمكن تعديله — ألغِ الترحيل أولاً")
-    await sql`
-      UPDATE production_vouchers_tbl SET vch_date = ${vchDate}, branch_id = ${branchId}, finished_store_id = ${finished}, raw_store_id = ${raw},
-        note = ${note}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}`
-    await sql`DELETE FROM production_voucher_items_tbl WHERE production_id = ${id}`
-  } else {
-    // رقم مكتوب/مولّد في الشاشة يُعتمد إن كان صالحاً وغير مستخدم، وإلا يُولَّد التالي لفرع السند
-    const typed = String(data.code || "").trim().toUpperCase()
-    let requested = /^[A-Z0-9]{1,10}$/.test(typed) ? typed : null
-    if (requested && ((await sql`SELECT 1 FROM production_vouchers_tbl WHERE UPPER(code) = ${requested}`) as any[]).length) requested = null
-    for (let attempt = 0; attempt < 5 && !id; attempt++) {
-      const code = attempt === 0 && requested ? requested : await nextProductionCode(branchId)
-      const inserted = (await sql`
-        INSERT INTO production_vouchers_tbl (code, vch_date, branch_id, finished_store_id, raw_store_id, note, status, created_by)
-        VALUES (${code}, ${vchDate}, ${branchId}, ${finished}, ${raw}, ${note}, 1, ${userId})
-        ON CONFLICT (code) DO NOTHING RETURNING id`) as any[]
-      if (inserted[0]) id = Number(inserted[0].id)
-    }
-    if (!id) throw new ProductionError("تعذر توليد رقم سند الانتاج — أعد المحاولة")
-  }
-  const insertLines = async (lines: LineInput[], role: number) => {
-    for (const [index, line] of lines.entries()) {
-      const product = products.get(line.item_id)!
-      await sql`
-        INSERT INTO production_voucher_items_tbl (production_id, role, item_id, unit_id, quantity, price, expiry_date, batch_no, note, source_line, sort_order)
-        VALUES (${id}, ${role}, ${line.item_id}, ${product.unit_id}, ${line.quantity}, ${line.price}, ${line.expiry_date}, ${line.batch_no || null},
-                ${line.note || null}, ${role === RAW_ROLE ? line.source_line : null}, ${index})`
-    }
-  }
-  await insertLines(produced, PRODUCED_ROLE)
-  await insertLines(rawLines, RAW_ROLE)
-  return Number(id)
-}
-
-export async function deleteProduction(id: number) {
-  const current = ((await sql`SELECT status, in_voucher_id, out_voucher_id FROM production_vouchers_tbl WHERE id = ${id}`) as any[])[0]
-  if (!current) throw new ProductionError("سند الانتاج غير موجود", 404)
-  if (Number(current.status) !== PRODUCTION_STATUS.SAVED || current.in_voucher_id || current.out_voucher_id) throw new ProductionError("سند الانتاج معتمد — ألغِ الترحيل أولاً ثم احذفه")
-  await sql`DELETE FROM production_vouchers_tbl WHERE id = ${id}`
-}
-
-// ───────────── الترحيل وإلغاؤه ─────────────
+// ───────────── السندات المرتبطة (اخراج الخام / ادخال المنتَج) ─────────────
+// مثل باقي السندات: الحفظ يُنشئ/يعدّل سندَي الإخراج والإدخال المرتبطين **محفوظين غير مرحّلين** (status 1) — فيدخلان
+// في "المتاح" وفي الأرصدة غير المرحّلة، ويُطبَّق فحص الرصيد السالب (السماح باخراج كميات سالبة) على الخام فور الحفظ.
+// الترحيل يرحّلهما (status 2)، وإلغاء الترحيل يلغيهما ثم يعيد إنشاءهما محفوظين، والحذف يحذفهما.
 
 /** الدفتر الافتراضي للمستخدم لنوع السند، وإلا أول دفتر مسموح له. */
 async function userBookFor(userId: string, vchType: number, label: string) {
@@ -408,11 +353,11 @@ async function voucherHeaderPayload(request: NextRequest, vchType: number, bookI
 }
 
 /** الخام ذو الصلاحية/الدفعة يُصرف من دفعات مستودع الخام الأقدم صلاحية أولاً (FIFO) — يُقسَّم لأكثر من سطر عند الحاجة. */
-async function allocateRawLines(lines: any[], rawStoreId: number, branchId: number) {
+async function allocateRawLines(lines: any[], rawStoreId: number, branchId: number, excludeVoucherId: number | null = null) {
   const products = await loadProductionProducts(lines.map((line) => Number(line.item_id)))
   const tracked = lines.filter((line) => { const p = products.get(Number(line.item_id)); return p && (p.has_expiry || p.has_batch) })
   const lots = tracked.length
-    ? await lotBalances({ warehouseId: rawStoreId, productIds: [...new Set(tracked.map((line) => Number(line.item_id)))], branchId, mode: "active" })
+    ? await lotBalances({ warehouseId: rawStoreId, productIds: [...new Set(tracked.map((line) => Number(line.item_id)))], branchId, mode: "active", excludeVoucherId })
     : []
   const remaining = new Map(lots.map((lot, index) => [index, Number(lot.quantity)]))
   const result: any[] = []
@@ -452,46 +397,201 @@ const itemPayload = (line: any, quantity: number, storeId: number, extra: { expi
   note: note || line.note || undefined,
 })
 
+type SyncContext = {
+  request: NextRequest; userId: string; branchId: number; code: string; note: string | null; vchDate: string
+  finishedStoreId: number; rawStoreId: number; produced: any[]; raw: any[]
+}
+type Links = { in_voucher_id: number | null; out_voucher_id: number | null }
+
+async function storedHeader(voucherId: number | null) {
+  if (!voucherId) return null
+  const row = ((await sql`SELECT id, vch_type, vch_code, vch_book_id, branch_id, currency_id, rate, status FROM voucher_header_tbl WHERE id = ${voucherId}`) as any[])[0]
+  return row && Number(row.status) !== 3 ? row : null
+}
+
+/** حمولة سند مرتبط: رأس السند القائم (رقمه/دفتره) إن وُجد وإلا رأس جديد بالدفتر الافتراضي للمستخدم. */
+async function linkedPayload(ctx: SyncContext, vchType: number, status: number, existingId: number | null) {
+  const existing = await storedHeader(existingId)
+  // الفرع أو التاريخ تغيّر: الرقم يُعاد توليده فقط لسند جديد؛ القائم يحتفظ برقمه
+  const header = existing
+    ? { id: Number(existing.id), vch_type: vchType, vch_code: existing.vch_code, vch_date: ctx.vchDate, vch_book_id: existing.vch_book_id, branch_id: ctx.branchId, currency_id: existing.currency_id, rate: Number(existing.rate) || 1 }
+    : await voucherHeaderPayload(ctx.request, vchType, await userBookFor(ctx.userId, vchType, vchType === STOCK_OUT_VCH_TYPE ? "سند اخراج بضاعة" : "سند ادخال بضاعة"), ctx.branchId, ctx.vchDate)
+  const label = `سند انتاج رقم ${ctx.code}${ctx.note ? ` — ${ctx.note}` : ""}`
+  if (vchType === STOCK_OUT_VCH_TYPE) {
+    const allocations = await allocateRawLines(ctx.raw, ctx.rawStoreId, ctx.branchId, existing ? Number(existing.id) : null)
+    return { existing: Boolean(existing), payload: { ...header, to_store_id: ctx.rawStoreId, note: `مواد خام — ${label}`, status, insert_user: Number(ctx.userId) || null, items: allocations.map((row) => itemPayload(row.line, row.quantity, ctx.rawStoreId, row)) } }
+  }
+  return { existing: Boolean(existing), payload: { ...header, to_store_id: ctx.finishedStoreId, note: `مواد منتجة — ${label}`, status, insert_user: Number(ctx.userId) || null, items: ctx.produced.map((line) => itemPayload(line, line.quantity, ctx.finishedStoreId, line)) } }
+}
+
+async function writeLinked(ctx: SyncContext, vchType: number, status: number, existingId: number | null) {
+  const { existing, payload } = await linkedPayload(ctx, vchType, status, existingId)
+  const call = voucherCaller(ctx.request, ctx.branchId)
+  const result = existing ? await call(updateStockVoucher, payload, "PUT") : await call(createStockVoucher, payload, "POST")
+  const what = vchType === STOCK_OUT_VCH_TYPE ? "سند إخراج المواد الخام" : "سند إدخال المواد المنتجة"
+  if (!result.ok) throw new ProductionError(`تعذر ${existing ? "تعديل" : "إنشاء"} ${what}: ${result.body?.error || "خطأ غير معروف"}`)
+  return { id: existing ? Number((payload as any).id) : Number(result.body.id), vch_code: existing ? String(payload.vch_code) : String(result.body.vch_code), created: !existing }
+}
+
+/** حذف سند مرتبط محفوظ (أو إلغاؤه إن كان مرحّلاً). */
+async function removeLinked(request: NextRequest, branchId: number, voucherId: number | null) {
+  const header = await storedHeader(voucherId)
+  if (!header) return
+  if (Number(header.status) === 2) { await cancelLinkedVoucher(voucherCaller(request, branchId), Number(header.id)); return }
+  const headers = new Headers(request.headers)
+  headers.delete("content-length")
+  headers.set("x-branch-id", String(branchId))
+  const response = await deleteStockVoucher(new NextRequest(new URL(`/api/stock-vouchers/${header.id}`, request.url), { method: "DELETE", headers }), { params: { id: String(header.id) } })
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    throw new ProductionError(`تعذر حذف السند ${header.vch_code}: ${body?.error || "خطأ غير معروف"}`)
+  }
+}
+
+/** ينشئ/يعدّل السندين المرتبطين — الإدخال أولاً ثم الإخراج (الأكثر عرضة لرفض الرصيد)؛ فشل الثاني يعيد الأول لحالته. */
+async function syncLinked(ctx: SyncContext, links: Links, status: number, rollback?: SyncContext): Promise<Links> {
+  const inn = await writeLinked(ctx, STOCK_IN_VCH_TYPE, status, links.in_voucher_id)
+  try {
+    const out = await writeLinked(ctx, STOCK_OUT_VCH_TYPE, status, links.out_voucher_id)
+    return { in_voucher_id: inn.id, out_voucher_id: out.id }
+  } catch (error) {
+    if (inn.created) await removeLinked(ctx.request, ctx.branchId, inn.id).catch(() => undefined)
+    else if (rollback) await writeLinked(rollback, STOCK_IN_VCH_TYPE, 1, inn.id).catch(() => undefined)
+    throw error
+  }
+}
+
+async function contextFor(request: NextRequest, production: any, userId: string): Promise<SyncContext> {
+  return {
+    request, userId, branchId: production.branch_id, code: production.code, note: production.note || null, vchDate: production.vch_date,
+    finishedStoreId: production.finished_store_id, rawStoreId: production.raw_store_id, produced: production.produced, raw: production.raw,
+  }
+}
+
+// ───────────── الحفظ ─────────────
+
+/** إنشاء/تعديل سند انتاج غير مرحّل مع سندَيه المرتبطين (محفوظين) — الترحيل منفصل (postProduction). */
+export async function saveProduction(request: NextRequest, data: any, userId: string, branchId: number, existingId: number | null) {
+  const vchDate = /^\d{4}-\d{2}-\d{2}$/.test(String(data.vch_date || "")) ? String(data.vch_date) : null
+  if (!vchDate) throw new ProductionError("التاريخ غير صالح")
+  const finished = await activeWarehouse(data.finished_store_id, "مستودع المواد الجاهزة")
+  const raw = await activeWarehouse(data.raw_store_id, "مستودع المواد الخام")
+  const produced = await validateLines(data.produced, PRODUCED_ROLE)
+  const rawLines = await validateLines(data.raw, RAW_ROLE)
+  if (!produced.length) throw new ProductionError("أضف صنفاً واحداً على الأقل في المواد المنتجة")
+  if (!rawLines.length) throw new ProductionError("أضف صنفاً واحداً على الأقل في المواد الخام")
+  const products = await loadProductionProducts([...produced, ...rawLines].map((line) => line.item_id))
+  const note = String(data.note || "").trim().slice(0, 1000) || null
+  const withMeta = (line: LineInput) => { const p = products.get(line.item_id)!; return { ...line, product_name: p.product_name, unit_id: p.unit_id, unit_name: p.unit_name } }
+
+  let id = existingId
+  let code = ""
+  let previous: any = null
+  if (id) {
+    previous = await loadProduction(id)
+    if (!previous) throw new ProductionError("سند الانتاج غير موجود", 404)
+    if (previous.status !== PRODUCTION_STATUS.SAVED) throw new ProductionError("سند الانتاج معتمد أو ملغى ولا يمكن تعديله — ألغِ الترحيل أولاً")
+    code = previous.code
+    await sql`UPDATE production_vouchers_tbl SET status = ${PRODUCTION_SYNCING_STATUS} WHERE id = ${id}`
+  } else {
+    // رقم مكتوب/مولّد في الشاشة يُعتمد إن كان صالحاً وغير مستخدم، وإلا يُولَّد التالي لفرع السند
+    const typed = String(data.code || "").trim().toUpperCase()
+    let requested = /^[A-Z0-9]{1,10}$/.test(typed) ? typed : null
+    if (requested && ((await sql`SELECT 1 FROM production_vouchers_tbl WHERE UPPER(code) = ${requested}`) as any[]).length) requested = null
+    for (let attempt = 0; attempt < 5 && !id; attempt++) {
+      const candidate = attempt === 0 && requested ? requested : await nextProductionCode(branchId)
+      const inserted = (await sql`
+        INSERT INTO production_vouchers_tbl (code, vch_date, branch_id, finished_store_id, raw_store_id, note, status, created_by)
+        VALUES (${candidate}, ${vchDate}, ${branchId}, ${finished}, ${raw}, ${note}, ${PRODUCTION_SYNCING_STATUS}, ${userId})
+        ON CONFLICT (code) DO NOTHING RETURNING id`) as any[]
+      if (inserted[0]) { id = Number(inserted[0].id); code = candidate }
+    }
+    if (!id) throw new ProductionError("تعذر توليد رقم سند الانتاج — أعد المحاولة")
+  }
+
+  const ctx: SyncContext = { request, userId, branchId, code, note, vchDate, finishedStoreId: finished, rawStoreId: raw, produced: produced.map(withMeta), raw: rawLines.map(withMeta) }
+  let links: Links
+  try {
+    links = await syncLinked(ctx, { in_voucher_id: previous?.in_voucher_id ?? null, out_voucher_id: previous?.out_voucher_id ?? null }, 1, previous ? await contextFor(request, previous, userId) : undefined)
+  } catch (error) {
+    if (previous) await sql`UPDATE production_vouchers_tbl SET status = 1 WHERE id = ${id}`
+    else await sql`DELETE FROM production_vouchers_tbl WHERE id = ${id}`
+    throw error
+  }
+
+  await sql`
+    UPDATE production_vouchers_tbl SET vch_date = ${vchDate}, branch_id = ${branchId}, finished_store_id = ${finished}, raw_store_id = ${raw}, note = ${note},
+      in_voucher_id = ${links.in_voucher_id}, out_voucher_id = ${links.out_voucher_id}, status = 1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${id}`
+  await sql`DELETE FROM production_voucher_items_tbl WHERE production_id = ${id}`
+  const insertLines = async (lines: LineInput[], role: number) => {
+    for (const [index, line] of lines.entries()) {
+      const product = products.get(line.item_id)!
+      await sql`
+        INSERT INTO production_voucher_items_tbl (production_id, role, item_id, unit_id, quantity, price, expiry_date, batch_no, note, source_line, sort_order)
+        VALUES (${id}, ${role}, ${line.item_id}, ${product.unit_id}, ${line.quantity}, ${line.price}, ${line.expiry_date}, ${line.batch_no || null},
+                ${line.note || null}, ${role === RAW_ROLE ? line.source_line : null}, ${index})`
+    }
+  }
+  await insertLines(produced, PRODUCED_ROLE)
+  await insertLines(rawLines, RAW_ROLE)
+  return Number(id)
+}
+
+export async function deleteProduction(request: NextRequest, id: number) {
+  const production = await loadProduction(id)
+  if (!production) throw new ProductionError("سند الانتاج غير موجود", 404)
+  if (production.status !== PRODUCTION_STATUS.SAVED) throw new ProductionError("سند الانتاج معتمد — ألغِ الترحيل أولاً ثم احذفه")
+  await sql`UPDATE production_vouchers_tbl SET status = ${PRODUCTION_SYNCING_STATUS} WHERE id = ${id}`
+  try {
+    await removeLinked(request, production.branch_id, production.in_voucher_id)
+    await removeLinked(request, production.branch_id, production.out_voucher_id)
+  } catch (error) {
+    await sql`UPDATE production_vouchers_tbl SET status = 1 WHERE id = ${id}`
+    throw error
+  }
+  await sql`DELETE FROM production_vouchers_tbl WHERE id = ${id}`
+}
+
+// ───────────── الترحيل وإلغاؤه ─────────────
+
 export async function postProduction(request: NextRequest, id: number, userId: string) {
   const production = await loadProduction(id)
   if (!production) throw new ProductionError("سند الانتاج غير موجود", 404)
   if (production.status !== PRODUCTION_STATUS.SAVED) throw new ProductionError("سند الانتاج معتمد أو ملغى مسبقاً")
   if (!production.produced.length || !production.raw.length) throw new ProductionError("سند الانتاج يحتاج مواد منتجة ومواد خام")
-  // أسعار وأصناف السند تُعاد قراءتها كما حُفظت؛ الأصناف تُفحص مجدداً (قد تكون تغيّرت منذ الحفظ)
+  // الأصناف تُفحص مجدداً (قد تكون تغيّرت منذ الحفظ)
   await validateLines(production.produced, PRODUCED_ROLE)
   await validateLines(production.raw, RAW_ROLE)
+  const ctx = await contextFor(request, production, userId)
 
-  const branchId = production.branch_id
-  const outBook = await userBookFor(userId, STOCK_OUT_VCH_TYPE, "سند اخراج بضاعة")
-  const inBook = await userBookFor(userId, STOCK_IN_VCH_TYPE, "سند ادخال بضاعة")
-  const note = `سند انتاج رقم ${production.code}${production.note ? ` — ${production.note}` : ""}`
-  const call = voucherCaller(request, branchId)
-
-  const allocations = await allocateRawLines(production.raw, production.raw_store_id, branchId)
-  const outPayload = {
-    ...(await voucherHeaderPayload(request, STOCK_OUT_VCH_TYPE, outBook, branchId, production.vch_date)),
-    to_store_id: production.raw_store_id, note: `مواد خام — ${note}`, status: 2, insert_user: Number(userId) || null,
-    items: allocations.map((row) => itemPayload(row.line, row.quantity, production.raw_store_id, row)),
+  await sql`UPDATE production_vouchers_tbl SET status = ${PRODUCTION_SYNCING_STATUS} WHERE id = ${id}`
+  let out: Awaited<ReturnType<typeof writeLinked>>
+  try {
+    // الإخراج أولاً (فحص الرصيد)؛ فشله لا يغيّر شيئاً
+    out = await writeLinked(ctx, STOCK_OUT_VCH_TYPE, 2, production.out_voucher_id)
+  } catch (error) {
+    await sql`UPDATE production_vouchers_tbl SET status = 1 WHERE id = ${id}`
+    throw error
   }
-  const out = await call(createStockVoucher, outPayload, "POST")
-  if (!out.ok) throw new ProductionError(`تعذر إنشاء سند إخراج المواد الخام: ${out.body?.error || "خطأ غير معروف"}`)
-
-  const inPayload = {
-    ...(await voucherHeaderPayload(request, STOCK_IN_VCH_TYPE, inBook, branchId, production.vch_date)),
-    to_store_id: production.finished_store_id, note: `مواد منتجة — ${note}`, status: 2, insert_user: Number(userId) || null,
-    items: production.produced.map((line: any) => itemPayload(line, line.quantity, production.finished_store_id, line)),
-  }
-  const inn = await call(createStockVoucher, inPayload, "POST")
-  if (!inn.ok) {
-    // تعويض: إلغاء سند الإخراج الذي أُنشئ للتو كي لا يبقى ترحيل جزئي
-    await call(updateStockVoucher, { ...outPayload, id: out.body.id, vch_code: out.body.vch_code, status: 3 }, "PUT").catch(() => null)
-    throw new ProductionError(`تعذر إنشاء سند إدخال المواد المنتجة: ${inn.body?.error || "خطأ غير معروف"} — أُلغي سند الإخراج المرتبط`)
+  let inn: Awaited<ReturnType<typeof writeLinked>>
+  try {
+    inn = await writeLinked(ctx, STOCK_IN_VCH_TYPE, 2, production.in_voucher_id)
+  } catch (error) {
+    // تعويض: سند الإخراج رُحّل ولا يعود "محفوظاً" — يُلغى ويُنشأ بدله سند إخراج محفوظ
+    let outId: number | null = null
+    try {
+      await cancelLinkedVoucher(voucherCaller(request, production.branch_id), out.id)
+      outId = (await writeLinked(ctx, STOCK_OUT_VCH_TYPE, 1, null)).id
+    } catch { /* يبقى السند بلا سند إخراج — الترحيل التالي ينشئه */ }
+    await sql`UPDATE production_vouchers_tbl SET status = 1, out_voucher_id = ${outId} WHERE id = ${id}`
+    throw error
   }
   await sql`
-    UPDATE production_vouchers_tbl SET status = 2, in_voucher_id = ${Number(inn.body.id)}, out_voucher_id = ${Number(out.body.id)},
+    UPDATE production_vouchers_tbl SET status = 2, in_voucher_id = ${inn.id}, out_voucher_id = ${out.id},
       posted_by = ${userId}, posted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}`
-  return { in_voucher: { id: Number(inn.body.id), vch_code: inn.body.vch_code }, out_voucher: { id: Number(out.body.id), vch_code: out.body.vch_code } }
+  return { in_voucher: { id: inn.id, vch_code: inn.vch_code }, out_voucher: { id: out.id, vch_code: out.vch_code } }
 }
 
 async function cancelLinkedVoucher(call: ReturnType<typeof voucherCaller>, voucherId: number | null) {
@@ -506,8 +606,8 @@ async function cancelLinkedVoucher(call: ReturnType<typeof voucherCaller>, vouch
   if (!result.ok) throw new ProductionError(`تعذر إلغاء السند ${row.vch_code}: ${result.body?.error || "خطأ غير معروف"}`)
 }
 
-/** إلغاء الترحيل: يُلغي (منطقياً) سندَي الإدخال والإخراج ويعيد السند لغير معتمد. ممنوع مع وجود نقل فعّال. */
-export async function unpostProduction(request: NextRequest, id: number) {
+/** إلغاء الترحيل: يُلغي (منطقياً) سندَي الإدخال والإخراج المرحّلين ثم يعيد إنشاءهما محفوظين. ممنوع مع وجود نقل فعّال. */
+export async function unpostProduction(request: NextRequest, id: number, userId: string) {
   const production = await loadProduction(id)
   if (!production) throw new ProductionError("سند الانتاج غير موجود", 404)
   // RELEASING = محاولة إلغاء سابقة توقفت بعد إلغاء سند الإدخال — تُستكمل
@@ -521,15 +621,18 @@ export async function unpostProduction(request: NextRequest, id: number) {
     await cancelLinkedVoucher(call, production.out_voucher_id)
   } catch (error) {
     const stillPosted = ((await sql`SELECT status FROM voucher_header_tbl WHERE id = ${production.in_voucher_id}`) as any[])[0]
-    if (stillPosted && Number(stillPosted.status) !== 3) {
-      await sql`UPDATE production_vouchers_tbl SET status = 2 WHERE id = ${id}`
-      throw error
-    }
-    // الإدخال أُلغي والإخراج لم يُلغَ: يبقى السند "قيد الإلغاء" لإعادة المحاولة
+    if (stillPosted && Number(stillPosted.status) !== 3) await sql`UPDATE production_vouchers_tbl SET status = 2 WHERE id = ${id}`
+    // وإلا: الإدخال أُلغي والإخراج لم يُلغَ — يبقى "قيد الإلغاء" لإعادة المحاولة
     throw error
   }
+  // السند يعود "محفوظاً": سندان مرتبطان جديدان محفوظان (المرحّلان لا يعودان لحالة الحفظ)
+  let links: Links = { in_voucher_id: null, out_voucher_id: null }
+  try {
+    links = await syncLinked(await contextFor(request, production, userId), links, 1)
+  } catch { /* يبقى بلا سندات مرتبطة — الحفظ أو الترحيل التالي ينشئها */ }
   await sql`
-    UPDATE production_vouchers_tbl SET status = 1, in_voucher_id = NULL, out_voucher_id = NULL, posted_by = NULL, posted_at = NULL, updated_at = CURRENT_TIMESTAMP
+    UPDATE production_vouchers_tbl SET status = 1, in_voucher_id = ${links.in_voucher_id}, out_voucher_id = ${links.out_voucher_id},
+      posted_by = NULL, posted_at = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}`
 }
 

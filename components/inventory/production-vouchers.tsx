@@ -40,7 +40,7 @@ const money = (value: number) => Number(value || 0).toLocaleString("en-US", amou
 const qty = (value: number) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const keyOf = () => Math.random().toString(36).slice(2)
 const num = (value: unknown) => { const n = Number(value); return Number.isFinite(n) ? n : 0 }
-const STATUS_LABEL: Record<number, string> = { 1: "غير معتمد", 2: "معتمد", 3: "ملغى", 4: "قيد الإلغاء" }
+const STATUS_LABEL: Record<number, string> = { 1: "غير معتمد", 2: "معتمد", 3: "ملغى", 4: "قيد الإلغاء", 5: "قيد الحفظ" }
 const STATUS_TONE: Record<number, string> = { 1: "bg-amber-100 text-amber-800", 2: "bg-emerald-100 text-emerald-800", 3: "bg-rose-100 text-rose-700", 4: "bg-orange-100 text-orange-800" }
 
 const emptyForm = (defaults?: { finished_store_id?: number | null; raw_store_id?: number | null }, branchId: number | null = null): Form => ({

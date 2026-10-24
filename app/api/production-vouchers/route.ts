@@ -124,7 +124,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
     const posting = await authorize(request, "post", auth.branchId)
     if (!posting.ok) return posting.response
   }
-  const id = await saveProduction(data, auth.userId, auth.branchId, existingId)
+  const id = await saveProduction(request, data, auth.userId, auth.branchId, existingId)
   let posted: any = null
   let postError: string | null = null
   if (data.post) {
@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest) {
     if (!auth.ok) return auth.response
     let result: any = null
     if (action === "post") result = await postProduction(request, id, auth.userId)
-    else if (action === "unpost") await unpostProduction(request, id)
+    else if (action === "unpost") await unpostProduction(request, id, auth.userId)
     else if (action === "transfer") result = await transferProduction(request, id, data, auth.userId)
     else await cancelProductionTransfer(request, id, Number(data.transfer_id))
     return NextResponse.json({ ok: true, result, production: await loadProduction(id) })
@@ -174,7 +174,7 @@ export async function DELETE(request: NextRequest) {
     if (!(id > 0)) throw new ProductionError("معرف سند الانتاج غير صالح")
     const auth = await authorize(request, "delete", await storedBranch(id))
     if (!auth.ok) return auth.response
-    await deleteProduction(id)
+    await deleteProduction(request, id)
     return NextResponse.json({ ok: true })
   } catch (error) {
     return fail(error, "تعذر حذف سند الانتاج")
