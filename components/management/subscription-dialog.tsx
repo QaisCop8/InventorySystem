@@ -96,7 +96,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
   const editable = purpose === "upgrade"
   const field = (label: string, value: string, set: (value: string) => void, min: number) => (
     <div className="space-y-2">
-      <label className="text-xs font-bold text-slate-300">{label}</label>
+      <label className="text-xs font-bold text-slate-600">{label}</label>
       <input type="number" min={min} value={value} disabled={!editable || busy} onChange={(event) => set(event.target.value)} className="cp-field text-right tabular-nums disabled:opacity-60" />
     </div>
   )
@@ -105,11 +105,11 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
     <Dialog open={!popupOpen} onOpenChange={(open) => { if (!open && !busy) onClose() }}>
       <DialogContent dir="rtl" className="cp-dialog max-w-lg">
         <DialogHeader className="text-right">
-          <DialogTitle className="flex items-center gap-2 text-xl font-black text-white">
-            {purpose === "upgrade" ? <Sparkles className="h-5 w-5 text-violet-300" /> : <CalendarClock className="h-5 w-5 text-emerald-300" />}
+          <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900">
+            {purpose === "upgrade" ? <Sparkles className="h-5 w-5 text-violet-700" /> : <CalendarClock className="h-5 w-5 text-emerald-700" />}
             {purpose === "upgrade" ? "التحويل إلى نسخة حقيقية" : "تمديد الاشتراك"}
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-stone-500">
             {company.name} — {purpose === "upgrade" ? "اختر الترخيص المطلوب وادفع الاشتراك السنوي، وتبقى كل بياناتك كما هي." : "اشتراك سنة جديدة بنفس الترخيص الحالي."}
           </DialogDescription>
         </DialogHeader>
@@ -121,26 +121,26 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
           {field("مواقع المطاعم", restaurants, setRestaurants, 0)}
         </div>
 
-        <div className="space-y-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-4">
+        <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
           {quote.lines.filter((line) => line.amount > 0).map((line) => (
-            <div key={line.label} className="flex justify-between text-xs text-slate-300"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
+            <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
           ))}
-          <div className="flex justify-between border-t border-white/10 pt-2 text-base font-black"><span>الإجمالي</span><span className="tabular-nums text-emerald-300" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
-          <div className="flex items-start gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs leading-6 text-slate-200">
-            <CalendarClock className="mt-1 h-4 w-4 shrink-0 text-cyan-300" />
+          <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>الإجمالي</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
+          <div className="flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-6 text-slate-700">
+            <CalendarClock className="mt-1 h-4 w-4 shrink-0 text-cyan-700" />
             <span>
               مدة الاشتراك الجديد: من <b>{formatDate(period.start)}</b> إلى <b>{formatDate(period.end)}</b>
-              {period.fromExpiry ? <span className="block text-slate-400">تبدأ من نهاية الاشتراك الحالي، فلا تخسر الأيام المتبقية.</span> : null}
+              {period.fromExpiry ? <span className="block text-stone-500">تبدأ من نهاية الاشتراك الحالي، فلا تخسر الأيام المتبقية.</span> : null}
             </span>
           </div>
-          {testMode && <p className="rounded-lg bg-amber-400/10 px-2 py-1.5 text-[11px] leading-5 text-amber-200">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+          {testMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
         </div>
 
-        {error && <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
+        {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-white/15 px-5 text-sm font-bold text-slate-200 transition hover:bg-white/10">إلغاء</button>
-          {verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-white/15 px-4 text-sm font-bold text-slate-200 transition hover:bg-white/10">إعادة التحقق دون إعادة الدفع</button>}
+          <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">إلغاء</button>
+          {verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-[#ece3d3] px-4 text-sm font-bold text-slate-700 transition hover:bg-stone-100">إعادة التحقق دون إعادة الدفع</button>}
           {!verificationReference && <button type="button" disabled={busy || !(quote.total > 0)} onClick={() => void pay()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت
           </button>}
