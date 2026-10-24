@@ -57,6 +57,39 @@ export async function GET(request: NextRequest) {
       if (!auth.ok) return auth.response
       return NextResponse.json(await productionProductInfo(productId))
     }
+    // التنقل (الأول/السابق/التالي/الأخير) بترتيب المعرّف كباقي السندات — على فروع المستخدم المسموحة، دون الملغاة.
+    // سند جديد (current_id=0): السابق = الأخير والتالي = الأول. يُعاد معه موقع السند (index من total) لعدّاد الشريط.
+    const navigate = params.get("navigate")
+    if (navigate || params.get("nav_info") === "1") {
+      const auth = await authorize(request, "view")
+      if (!auth.ok) return auth.response
+      const currentId = Math.max(0, Number(params.get("current_id")) || 0)
+      let direction = String(navigate || "")
+      if (!currentId && direction === "previous") direction = "last"
+      if (!currentId && direction === "next") direction = "first"
+      const scope = auth.branchIds
+      let targetId: number | null = currentId || null
+      if (navigate) {
+        const rows = direction === "first"
+          ? await sql`SELECT id FROM production_vouchers_tbl WHERE status <> 3 AND branch_id = ANY(${scope}::int[]) ORDER BY id ASC LIMIT 1`
+          : direction === "last"
+            ? await sql`SELECT id FROM production_vouchers_tbl WHERE status <> 3 AND branch_id = ANY(${scope}::int[]) ORDER BY id DESC LIMIT 1`
+            : direction === "previous"
+              ? await sql`SELECT id FROM production_vouchers_tbl WHERE status <> 3 AND branch_id = ANY(${scope}::int[]) AND id < ${currentId} ORDER BY id DESC LIMIT 1`
+              : direction === "next"
+                ? await sql`SELECT id FROM production_vouchers_tbl WHERE status <> 3 AND branch_id = ANY(${scope}::int[]) AND id > ${currentId} ORDER BY id ASC LIMIT 1`
+                : null
+        if (!rows) return NextResponse.json({ error: "اتجاه تنقل غير صالح" }, { status: 400 })
+        targetId = (rows as any[])[0] ? Number((rows as any[])[0].id) : null
+      }
+      const position = ((await sql`
+        SELECT COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE id <= ${targetId || 0})::int AS upto
+        FROM production_vouchers_tbl WHERE status <> 3 AND branch_id = ANY(${scope}::int[])
+      `) as any[])[0]
+      return NextResponse.json({ id: targetId, index: targetId ? Number(position.upto) : Number(position.total) + 1, total: Number(position.total) })
+    }
+
     // رقم السند: التالي لفرع (سند جديد) أو حلّ ما كتبه المستخدم (رقم تسلسلي/كود موجود)
     if (params.get("next_code") === "1" || params.has("resolve_code")) {
       const auth = await authorize(request, "view", params.get("branch_id") || undefined)

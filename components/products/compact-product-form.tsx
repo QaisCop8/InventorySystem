@@ -2589,7 +2589,11 @@ export function CompactProductForm({
         />
       </div>
       <Messages innerRef={messagesRef} />
+      {/* useAppDialog: نوافذ التأكيد من نفس نظام نافذة الصنف (Radix) — نافذة PrimeReact خارجها كانت تُعرض
+          فوق نافذة صنف "modal" لا تسمح بالنقر/التركيز خارجها، فيتجمّد النظام حتى تحديث الصفحة */}
       <ConfirmDialogYesNo
+        useAppDialog
+        title="حذف الصنف"
         visible={showConfirm}
         onConfirm={confirmDelete}
         onCancel={() => { setShowConfirm(false); popupHasClosed() }}
@@ -2597,6 +2601,7 @@ export function CompactProductForm({
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
         visible={copyAccountField !== null}
         title="تأكيد نسخ الحساب"
         message={copyAccountField && Number(formData[copyAccountField]) > 0
@@ -2609,6 +2614,9 @@ export function CompactProductForm({
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
+        title="تغييرات غير محفوظة"
+        onDismiss={() => { setShowUnsaved(false); setNextFunction(null); popupHasClosed(); }}
         visible={showUnsaved}
         onConfirm={async () => {
           const requestedAction = nextFunction

@@ -99,6 +99,7 @@ export default function ProductionVouchers() {
   const [postOpen, setPostOpen] = useState(false)
   const [codeSearchOpen, setCodeSearchOpen] = useState(false)
   const [notice, setNotice] = useState("")
+  const [nav, setNav] = useState({ index: 1, total: 0 })
   const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
   const initialRef = useRef("")
 
@@ -136,6 +137,16 @@ export default function ProductionVouchers() {
   }
   const newForm = (branchId: number | null = form.branch_id ?? activeBranchId ?? null) => emptyForm(defaults, branchId)
   const openNew = () => { setNotice(""); begin(newForm(activeBranchId ?? null), null) }
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch(`/api/production-vouchers?nav_info=1&current_id=${form.id || 0}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (!cancelled && data) setNav({ index: Number(data.index) || 1, total: Number(data.total) || 0 }) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [open, form.id, rows])
 
   // تعبئة تلقائية (رقم السند/الفرع) لسند جديد لم يُعدَّل بعد لا تُعدّ تغييراً غير محفوظ
   const autoPatch = (patch: Partial<Form>) => setForm((value) => {
@@ -371,15 +382,21 @@ export default function ProductionVouchers() {
   }
 
   // ───── شريط الأدوات الموحّد: التنقل بين سندات القائمة، جديد، نسخ ─────
-  const recordIndex = form.id ? rows.findIndex((row) => Number(row.id) === form.id) : -1
   const guarded = async (action: () => void) => {
     if (dirty && !(await confirmYesNo("توجد تغييرات غير محفوظة على سند الانتاج. هل تريد المتابعة دون حفظ؟"))) return
     action()
   }
-  const navigate = async (index: number) => {
-    const target = rows[Math.max(0, Math.min(rows.length - 1, index))]
-    if (!target || Number(target.id) === form.id) return
-    await guarded(() => void openRow(Number(target.id)))
+  // التنقل من الخادم بترتيب المعرّف (كباقي السندات) — لا يعتمد على القائمة المصفّاة في الشاشة
+  const navigate = async (direction: "first" | "previous" | "next" | "last") => {
+    try {
+      const response = await fetch(`/api/production-vouchers?navigate=${direction}&current_id=${form.id || 0}`, { cache: "no-store" })
+      if (!response.ok) throw new Error(await readError(response, "تعذر التنقل"))
+      const data = await response.json()
+      if (!data.id || data.id === form.id) return
+      await guarded(() => void openRow(Number(data.id)))
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "تعذر التنقل")
+    }
   }
   // نسخ: سند جديد غير معتمد بنفس المستودعات والأصناف والكميات والأسعار (بتاريخ اليوم)
   const cloneCurrent = () => {
@@ -505,24 +522,24 @@ export default function ProductionVouchers() {
           onEscapeKeyDown={(event) => { if (search !== null || transferOpen || busy) event.preventDefault() }}
         >
           <UniversalToolbar
-            currentRecord={recordIndex >= 0 ? recordIndex + 1 : rows.length + 1}
-            totalRecords={rows.length}
+            currentRecord={nav.index}
+            totalRecords={nav.total}
             onNew={() => void guarded(() => { setNotice(""); begin(newForm(), null) })}
             onSave={() => { if (form.status === 1 && !busy) setPostOpen(true) }}
             onDelete={() => void remove()}
             onClone={() => void guarded(() => cloneCurrent())}
-            onFirst={() => void navigate(0)}
-            onPrevious={() => void navigate(recordIndex - 1)}
-            onNext={() => void navigate(recordIndex + 1)}
-            onLast={() => void navigate(rows.length - 1)}
+            onFirst={() => void navigate("first")}
+            onPrevious={() => void navigate("previous")}
+            onNext={() => void navigate("next")}
+            onLast={() => void navigate("last")}
             isSaving={busy}
             canSave={form.status === 1}
             canDelete={Boolean(form.id) && form.status === 1}
             canClone={form.produced.length > 0}
             canPrint={Boolean(form.id) && form.status !== 3}
             onPrint={() => handlePrint()}
-            isFirstRecord={recordIndex <= 0}
-            isLastRecord={recordIndex < 0 || recordIndex >= rows.length - 1}
+            isFirstRecord={form.id ? nav.index <= 1 : nav.total === 0}
+            isLastRecord={form.id ? nav.index >= nav.total : nav.total === 0}
             isNewRecord={!form.id}
           />
           <DialogHeader className="border-b bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-4 text-right text-white">
