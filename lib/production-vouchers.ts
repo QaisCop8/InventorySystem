@@ -145,16 +145,42 @@ export async function loadProductionProducts(productIds: number[]): Promise<Map<
 
 /** الصنف المنتَج + مكونات التصنيع المعرّفة عليه (كمية المكوّن لكل وحدة منتَجة). */
 export async function productionProductInfo(productId: number) {
-  const products = await loadProductionProducts([productId])
-  const product = products.get(Number(productId))
-  if (!product) throw new ProductionError("الصنف غير موجود", 404)
+  const [info] = await productionProductsInfo([productId])
+  if (!info) throw new ProductionError("الصنف غير موجود", 404)
+  return info
+}
+
+/** عدة أصناف دفعة واحدة (اختيار متعدد من البحث): كل صنف مع مكونات تصنيعه — 3 استعلامات بدل 3 لكل صنف. */
+export async function productionProductsInfo(productIds: number[]) {
+  const ids = [...new Set(productIds.map(Number).filter((id) => id > 0))].slice(0, 200)
+  if (!ids.length) return []
   const hasTable = Boolean(((await sql`SELECT to_regclass('product_manufacturing_components') IS NOT NULL AS ok`) as any[])[0]?.ok)
-  const rows = hasTable ? (await sql`SELECT component_id, quantity FROM product_manufacturing_components WHERE product_id = ${productId} ORDER BY id`) as any[] : []
-  const componentProducts = await loadProductionProducts(rows.map((row) => Number(row.component_id)))
-  const components = rows
-    .map((row) => ({ product: componentProducts.get(Number(row.component_id)), per_unit: Number(row.quantity || 0) }))
-    .filter((row): row is { product: ProductionProduct; per_unit: number } => Boolean(row.product) && row.per_unit > 0)
-  return { product, components }
+  const rows = hasTable ? (await sql`SELECT product_id, component_id, quantity FROM product_manufacturing_components WHERE product_id = ANY(${ids}::int[]) ORDER BY id`) as any[] : []
+  const products = await loadProductionProducts([...ids, ...rows.map((row) => Number(row.component_id))])
+  return ids
+    .filter((id) => products.has(id))
+    .map((id) => ({
+      product: products.get(id)!,
+      components: rows
+        .filter((row) => Number(row.product_id) === id)
+        .map((row) => ({ product: products.get(Number(row.component_id)), per_unit: Number(row.quantity || 0) }))
+        .filter((row): row is { product: ProductionProduct; per_unit: number } => Boolean(row.product) && row.per_unit > 0),
+    }))
+}
+
+/** رقم الصنف أو باركوده (أو باركود إحدى وحداته) المكتوب في جدول السند ⇒ معرّف الصنف — طلب واحد بدل بحث ثم تحميل. */
+export async function productionProductIdByCode(code: string) {
+  const text = String(code || "").trim()
+  if (!text) return null
+  const row = ((await sql`
+    SELECT p.id FROM products p
+    WHERE COALESCE(p.deleted, false) = false AND COALESCE(p.status, 1) <> 3
+      AND (UPPER(p.product_code) = UPPER(${text}) OR p.barcode = ${text}
+           OR EXISTS (SELECT 1 FROM product_units pu WHERE pu.product_id = p.id AND (to_jsonb(pu)->>'barcode') = ${text}))
+    ORDER BY (UPPER(p.product_code) = UPPER(${text})) DESC, p.id
+    LIMIT 1
+  `) as any[])[0]
+  return row ? Number(row.id) : null
 }
 
 // ───────────── المستودعات الافتراضية ─────────────

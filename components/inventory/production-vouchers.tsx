@@ -228,78 +228,101 @@ export default function ProductionVouchers() {
     }))
   }
 
-  // اختيار صنف من البحث أو بكتابة رقمه في سطر الجدول: atIndex = السطر المستهدف (يُستبدل صنفه، أو يُضاف إن كان السطر الفارغ الأخير)
-  const addProducts = async (products: any[], target: "produced" | "raw", atIndex?: number): Promise<boolean> => {
-    setFormError("")
+  // اختيار صنف من البحث أو بكتابة رقمه في سطر الجدول: atIndex = السطر المستهدف (يُستبدل صنفه، أو يُضاف إن كان السطر الفارغ الأخير).
+  // كل الأصناف المختارة تُحمَّل بطلب واحد؛ وطلب مكرَّر لنفس الأصناف/السطر أثناء تنفيذ الأول يُتجاهل (كان يضيف الصنف مرتين).
+  const addingRef = useRef(new Set<string>())
+  const lastPickRef = useRef({ key: "", at: 0 })
+  const formRef = useRef(form)
+  formRef.current = form
+  const applyProducts = (items: { product: any; components: any[] }[], target: "produced" | "raw", atIndex?: number) => {
     let added = false
-    for (const [position, picked] of products.entries()) {
-      const id = Number(picked?.id || picked?.product_id)
-      if (!id) continue
-      const replaceAt = position === 0 && atIndex !== undefined && atIndex < form[target].length ? atIndex : null
-      try {
-        const response = await fetch(`/api/production-vouchers?product_id=${id}`, { cache: "no-store" })
-        if (!response.ok) throw new Error(await readError(response, "تعذر تحميل الصنف"))
-        const { product, components } = await response.json()
-        if (product.unsupported) { setFormError(`لا يمكن استخدام "${product.product_name}" في سند الانتاج: ${product.unsupported}`); continue }
-        const base = (p: any): Omit<Line, "key"> => ({
-          item_id: p.id, product_code: p.product_code, product_name: p.product_name, unit_name: p.unit_name, quantity: "1", price: String(p.price || 0),
-          expiry_date: "", batch_no: "", note: "", has_expiry: p.has_expiry, has_batch: p.has_batch,
-        })
-        if (target === "raw") {
-          setForm((value) => {
-            const raw = [...value.raw]
-            const line = { ...base(product), key: keyOf(), source: null, edited: true }
-            if (replaceAt !== null && raw[replaceAt]) raw[replaceAt] = { ...line, quantity: raw[replaceAt].quantity || "1" }
-            else raw.push(line)
-            return { ...value, raw }
-          })
-          added = true
-          continue
-        }
-        const key = keyOf()
-        const skipped = components.filter((component: any) => component.product.unsupported).map((component: any) => component.product.product_name)
+    const messages: string[] = []
+    const base = (p: any): Omit<Line, "key"> => ({
+      item_id: p.id, product_code: p.product_code, product_name: p.product_name, unit_name: p.unit_name, quantity: "1", price: String(p.price || 0),
+      expiry_date: "", batch_no: "", note: "", has_expiry: p.has_expiry, has_batch: p.has_batch,
+    })
+    items.forEach(({ product, components }, position) => {
+      if (product.unsupported) { messages.push(`لا يمكن استخدام "${product.product_name}" في سند الانتاج: ${product.unsupported}`); return }
+      const replaceAt = position === 0 && atIndex !== undefined && atIndex < formRef.current[target].length ? atIndex : null
+      added = true
+      if (target === "raw") {
+        const line = { ...base(product), key: keyOf(), source: null, edited: true }
         setForm((value) => {
-          const produced = [...value.produced]
-          const previous = replaceAt !== null ? produced[replaceAt] : null
-          const quantity = previous ? num(previous.quantity) || 1 : 1
-          const line = { ...base(product), key, quantity: String(quantity) }
-          if (previous) produced[replaceAt!] = line
-          else produced.push(line)
-          // تغيير الصنف المنتَج في سطر: تُستبدل مكوناته غير المعدّلة بمكونات الصنف الجديد
-          const raw = value.raw
-            .filter((row) => !(previous && row.source === previous.key && !row.edited))
-            .map((row) => (previous && row.source === previous.key ? { ...row, source: null } : row))
-          return {
-            ...value,
-            produced,
-            raw: [
-              ...raw,
-              ...components.filter((component: any) => !component.product.unsupported).map((component: any) => ({
-                ...base(component.product), key: keyOf(), quantity: String(Math.round(Number(component.per_unit) * quantity * 1e6) / 1e6), source: key, per_unit: Number(component.per_unit), edited: false,
-              })),
-            ],
-          }
+          const raw = [...value.raw]
+          if (replaceAt !== null && raw[replaceAt]) raw[replaceAt] = { ...line, quantity: raw[replaceAt].quantity || "1" }
+          else raw.push(line)
+          return { ...value, raw }
         })
-        added = true
-        if (!components.length) setFormError(`لا توجد مكونات تصنيع معرّفة على "${product.product_name}" — أضف المواد الخام يدوياً`)
-        else if (skipped.length) setFormError(`لم تُضف مكونات غير مدعومة في سند الانتاج: ${skipped.join("، ")}`)
-      } catch (e) {
-        setFormError(e instanceof Error ? e.message : "تعذر إضافة الصنف")
+        return
       }
-    }
+      const key = keyOf()
+      const usable = components.filter((component: any) => !component.product.unsupported)
+      const componentKeys = usable.map(() => keyOf())
+      setForm((value) => {
+        const produced = [...value.produced]
+        const previous = replaceAt !== null ? produced[replaceAt] : null
+        const quantity = previous ? num(previous.quantity) || 1 : 1
+        const line = { ...base(product), key, quantity: String(quantity) }
+        if (previous) produced[replaceAt!] = line
+        else produced.push(line)
+        // تغيير الصنف المنتَج في سطر: تُستبدل مكوناته غير المعدّلة بمكونات الصنف الجديد
+        const raw = value.raw
+          .filter((row) => !(previous && row.source === previous.key && !row.edited))
+          .map((row) => (previous && row.source === previous.key ? { ...row, source: null } : row))
+        return {
+          ...value,
+          produced,
+          raw: [
+            ...raw,
+            ...usable.map((component: any, index: number) => ({
+              ...base(component.product), key: componentKeys[index], quantity: String(Math.round(Number(component.per_unit) * quantity * 1e6) / 1e6), source: key, per_unit: Number(component.per_unit), edited: false,
+            })),
+          ],
+        }
+      })
+      const skipped = components.filter((component: any) => component.product.unsupported).map((component: any) => component.product.product_name)
+      if (!components.length) messages.push(`لا توجد مكونات تصنيع معرّفة على "${product.product_name}" — أضف المواد الخام يدوياً`)
+      else if (skipped.length) messages.push(`لم تُضف مكونات غير مدعومة في سند الانتاج: ${skipped.join("، ")}`)
+    })
+    setFormError(messages.join(" — "))
     return added
   }
 
-  // رقم صنف مكتوب في الجدول (نفس بحث رقم/باركود الصنف في إرسالية المبيعات)
-  const lookupCode = async (target: "produced" | "raw", row: number, code: string) => {
+  const addProducts = async (products: any[], target: "produced" | "raw", atIndex?: number): Promise<boolean> => {
+    const ids = [...new Set(products.map((picked) => Number(picked?.id || picked?.product_id)).filter((id) => id > 0))]
+    if (!ids.length) return false
+    const guardKey = `${target}:${atIndex ?? "end"}:${ids.join(",")}`
+    if (addingRef.current.has(guardKey)) return false
+    addingRef.current.add(guardKey)
+    setFormError("")
     try {
-      const response = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1`, { cache: "no-store" })
-      const product = await response.json().catch(() => null)
-      if (!response.ok || !product?.id) throw new Error(`لا يوجد صنف برقم ${code}`)
-      return await addProducts([product], target, row)
+      const response = await fetch(`/api/production-vouchers?product_ids=${ids.join(",")}`, { cache: "no-store" })
+      if (!response.ok) throw new Error(await readError(response, "تعذر تحميل الأصناف"))
+      const { items } = await response.json()
+      return applyProducts(items || [], target, atIndex)
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "تعذر إضافة الصنف")
+      return false
+    } finally {
+      addingRef.current.delete(guardKey)
+    }
+  }
+
+  // رقم/باركود صنف مكتوب في الجدول: طلب واحد يحلّ الرقم ويحمّل الصنف ومكوناته
+  const lookupCode = async (target: "produced" | "raw", row: number, code: string) => {
+    const guardKey = `${target}:${row}:code:${code}`
+    if (addingRef.current.has(guardKey)) return false
+    addingRef.current.add(guardKey)
+    try {
+      const response = await fetch(`/api/production-vouchers?product_code=${encodeURIComponent(code)}`, { cache: "no-store" })
+      if (!response.ok) throw new Error(await readError(response, `لا يوجد صنف برقم ${code}`))
+      const { items } = await response.json()
+      return applyProducts(items || [], target, row)
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "تعذر البحث عن الصنف")
       return false
+    } finally {
+      addingRef.current.delete(guardKey)
     }
   }
 
@@ -626,7 +649,15 @@ export default function ProductionVouchers() {
       <ProductSearchPopup
         visible={search !== null}
         onClose={() => setSearch(null)}
-        onSelect={(products) => { const target = search || "produced"; setSearch(null); void addProducts(products, target, searchRow) }}
+        onSelect={(products) => {
+          const target = search || "produced"
+          setSearch(null)
+          // نافذة البحث قد تُبلغ نفس الاختيار مرتين (Enter + نقر مزدوج) — يُتجاهل التكرار خلال ثانية ونصف
+          const pickKey = `${target}:${searchRow ?? "end"}:${products.map((p: any) => p?.id || p?.product_id).join(",")}`
+          if (lastPickRef.current.key === pickKey && Date.now() - lastPickRef.current.at < 1500) return
+          lastPickRef.current = { key: pickKey, at: Date.now() }
+          void addProducts(products, target, searchRow)
+        }}
         priceCategoryId={1}
         ShowSelect
         searchText=""

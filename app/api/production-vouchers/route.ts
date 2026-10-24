@@ -12,6 +12,8 @@ import {
   resolveProductionCode,
   postProduction,
   productionProductInfo,
+  productionProductsInfo,
+  productionProductIdByCode,
   saveProduction,
   transferProduction,
   unpostProduction,
@@ -56,6 +58,16 @@ export async function GET(request: NextRequest) {
       const auth = await authorize(request, "view")
       if (!auth.ok) return auth.response
       return NextResponse.json(await productionProductInfo(productId))
+    }
+    // اختيار أصناف: عدة معرّفات دفعة واحدة، أو رقم/باركود مكتوب في الجدول — { items: [{ product, components }] }
+    if (params.has("product_ids") || params.has("product_code")) {
+      const auth = await authorize(request, "view")
+      if (!auth.ok) return auth.response
+      const ids = params.has("product_code")
+        ? [await productionProductIdByCode(String(params.get("product_code")))].filter((id): id is number => Boolean(id))
+        : String(params.get("product_ids")).split(",").map(Number).filter((id) => id > 0)
+      if (params.has("product_code") && !ids.length) return NextResponse.json({ error: `لا يوجد صنف بالرقم ${params.get("product_code")}` }, { status: 404 })
+      return NextResponse.json({ items: await productionProductsInfo(ids) })
     }
     // التنقل (الأول/السابق/التالي/الأخير) بترتيب المعرّف كباقي السندات — على فروع المستخدم المسموحة، دون الملغاة.
     // سند جديد (current_id=0): السابق = الأخير والتالي = الأول. يُعاد معه موقع السند (index من total) لعدّاد الشريط.
