@@ -2,6 +2,7 @@ import { reportAmountSql } from "@/lib/report-currency"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
+import { accountAccessError, filterAccessibleAccounts } from "@/lib/account-access"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
@@ -67,9 +68,13 @@ export async function GET(request: NextRequest) {
       sql`SELECT id, code, name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
     ])
 
+    // صلاحيات المستخدمين على الحسابات: الممنوع لا يظهر بالخيارات ولا يُستعلم عنه
+    const visibleAccounts = await filterAccessibleAccounts(request, accounts as any[])
     if (params.get("meta") === "1" || accountIds.length === 0) {
-      return NextResponse.json({ meta: { accounts, currencies, branches, salesmen } })
+      return NextResponse.json({ meta: { accounts: visibleAccounts, currencies, branches, salesmen } })
     }
+    const accessError = await accountAccessError(request, accountIds)
+    if (accessError) return NextResponse.json({ error: accessError }, { status: 403 })
     if (branchIds.length > 0 && effectiveBranchIds.length === 0) {
       return NextResponse.json({ error: "لا تملك صلاحية على الفروع المحددة" }, { status: 403 })
     }

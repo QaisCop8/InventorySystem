@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
+import { accountAccessError, filterAccessibleAccounts } from "@/lib/account-access"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { reportAmountSql } from "@/lib/report-currency"
@@ -57,7 +58,8 @@ export async function GET(request: NextRequest) {
               WHERE vh.vch_type = 14 AND vh.status <> 3 AND ${sql.unsafe(branchSql)} ORDER BY vh.vch_date DESC, vh.id DESC LIMIT 500`
         : Promise.resolve([]),
     ])
-    const meta = { currencies, branches, warehouses, products, accounts, consignments, voucher_types: DELIVERY_TYPES.map((id) => ({ id, name: TYPE_NAMES[id] })) }
+    // صلاحيات المستخدمين على الحسابات: الممنوع لا يظهر بخيارات الحسابات
+    const meta = { currencies, branches, warehouses, products, accounts: await filterAccessibleAccounts(request, accounts as any[]), consignments, voucher_types: DELIVERY_TYPES.map((id) => ({ id, name: TYPE_NAMES[id] })) }
     if (p.get("meta") === "1") return NextResponse.json({ meta })
 
     const today = new Date().toISOString().slice(0, 10)
@@ -80,6 +82,8 @@ export async function GET(request: NextRequest) {
     if (kind === "deliveries") {
       const types = ids(p.get("voucher_types")).filter((id) => DELIVERY_TYPES.includes(id))
       const accountIds = ids(p.get("account_ids"))
+      const accessError = await accountAccessError(request, accountIds)
+      if (accessError) return NextResponse.json({ error: accessError }, { status: 403 })
       const invoiceStatus = p.get("invoice_status") || "all"
       const rows = (await sql`
         SELECT vh.id, vh.vch_type, vh.vch_code, vh.vch_date::date::text AS vch_date, vh.status,

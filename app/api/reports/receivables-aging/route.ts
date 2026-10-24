@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { accountAccessError, filterAccessibleAccounts } from "@/lib/account-access"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
@@ -102,9 +103,12 @@ export async function GET(request: NextRequest) {
       sql`SELECT id, name FROM salesmen WHERE COALESCE(is_active, true) ORDER BY name`.catch(() => []),
       loadPeriods(),
     ])
-    const meta = { accounts, currencies, branches, salesmen, periods: savedPeriods }
+    // صلاحيات المستخدمين على الحسابات: الممنوع لا يظهر بالخيارات ولا يُستعلم عنه
+    const meta = { accounts: await filterAccessibleAccounts(request, accounts as any[]), currencies, branches, salesmen, periods: savedPeriods }
     const accountIds = parseIds(params.get("account_ids"))
     if (params.get("meta") === "1" || accountIds.length === 0) return NextResponse.json({ meta })
+    const accessError = await accountAccessError(request, accountIds)
+    if (accessError) return NextResponse.json({ error: accessError }, { status: 403 })
     if (branchIds.length && !effectiveBranchIds.length) return NextResponse.json({ error: "لا تملك صلاحية على الفروع المحددة" }, { status: 403 })
 
     const toDate = validDate(params.get("to_date"), new Date().toISOString().slice(0, 10))

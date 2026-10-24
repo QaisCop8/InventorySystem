@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { deniedAccountIdsFor } from "@/lib/account-access"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { getOpenPosSession } from "./_lib"
@@ -164,7 +165,10 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
       return {...rest,first_price:firstPrice,barcode_options:barcodeOptions,unit_prices:unitPrices}
     })
     const [campaigns,campaignUsage,productsWithExtras]=await Promise.all([getPosCampaigns(),getPosCampaignUsage(),attachProductExtras(pricedProducts)])
-    return {point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),allow_negative_item_balances:!(systemSettings.allow_negative_item_balances===false||systemSettings.allow_negative_item_balances==="false"||systemSettings.allow_negative_item_balances===0||systemSettings.allow_negative_item_balances==="0"),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:productsWithExtras,customers,salesmen,banks,bankBranches,cardTypes,campaigns,
+    // صلاحيات المستخدمين على الحسابات: العملاء الممنوعون عن المستخدم (بفرع النقطة) لا يظهرون بالكاشير/المطعم
+    const deniedCustomers=await deniedAccountIdsFor(userId,Number(point.branch_id)||0)
+    const visibleCustomers=deniedCustomers.size?(customers as any[]).filter((row:any)=>!deniedCustomers.has(Number(row.id))):customers
+    return {point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),allow_negative_item_balances:!(systemSettings.allow_negative_item_balances===false||systemSettings.allow_negative_item_balances==="false"||systemSettings.allow_negative_item_balances===0||systemSettings.allow_negative_item_balances==="0"),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:productsWithExtras,customers:visibleCustomers,salesmen,banks,bankBranches,cardTypes,campaigns,
       campaignUsage,
       currencies:rates.filter((row:any)=>Number(row.exchange_rate)>0).map((row:any)=>({...row,rate_to_point:Number(row.exchange_rate)/pointRate})),
       session,server_time:new Date().toISOString()}

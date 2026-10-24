@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { filterAccessibleAccounts } from "@/lib/account-access"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import {
   statusLabelToCode,
@@ -239,6 +240,8 @@ export async function GET(request: NextRequest) {
         ORDER BY a.code ASC
       `
     }
+    // صلاحيات المستخدمين على الحسابات: الحسابات الممنوعة عن المستخدم (بالفرع النشط) لا تظهر في البحث والاختيار
+    rows = await filterAccessibleAccounts(request, rows as any[], "id", activeBranchId)
 
     const stopRows = await sql`
       SELECT id, account_id, voucher_types_id, stop_date

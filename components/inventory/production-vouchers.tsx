@@ -2,7 +2,7 @@
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeftRight, CheckCircle2, ExternalLink, Factory, Loader2, PackagePlus, Plus, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react"
+import { ArrowLeftRight, CheckCircle2, ExternalLink, Factory, Loader2, PackagePlus, Plus, Undo2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +14,8 @@ import { voucherHref } from "@/lib/voucher-links"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { VoucherListTable, VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
+import { ProductionGrid } from "@/components/inventory/production-grid"
+import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 
 // سند انتاج بضاعة: جدول المواد المنتجة + جدول المواد الخام. اختيار صنف منتَج يضيف مكونات التصنيع المعرّفة عليه
 // للمواد الخام (كمية المكوّن × كمية المنتَج، وتُعاد حسابها مع تغيّر الكمية ما لم يعدّلها المستخدم يدوياً).
@@ -88,6 +90,7 @@ export default function ProductionVouchers() {
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState("")
   const [search, setSearch] = useState<null | "produced" | "raw">(null)
+  const [searchRow, setSearchRow] = useState<number | undefined>(undefined)
   const [transferOpen, setTransferOpen] = useState(false)
   const initialRef = useRef("")
 
@@ -164,11 +167,14 @@ export default function ProductionVouchers() {
     }))
   }
 
-  const addProducts = async (products: any[], target: "produced" | "raw") => {
+  // اختيار صنف من البحث أو بكتابة رقمه في سطر الجدول: atIndex = السطر المستهدف (يُستبدل صنفه، أو يُضاف إن كان السطر الفارغ الأخير)
+  const addProducts = async (products: any[], target: "produced" | "raw", atIndex?: number): Promise<boolean> => {
     setFormError("")
-    for (const picked of products) {
+    let added = false
+    for (const [position, picked] of products.entries()) {
       const id = Number(picked?.id || picked?.product_id)
       if (!id) continue
+      const replaceAt = position === 0 && atIndex !== undefined && atIndex < form[target].length ? atIndex : null
       try {
         const response = await fetch(`/api/production-vouchers?product_id=${id}`, { cache: "no-store" })
         if (!response.ok) throw new Error(await readError(response, "تعذر تحميل الصنف"))
@@ -179,26 +185,60 @@ export default function ProductionVouchers() {
           expiry_date: "", batch_no: "", note: "", has_expiry: p.has_expiry, has_batch: p.has_batch,
         })
         if (target === "raw") {
-          setForm((value) => ({ ...value, raw: [...value.raw, { ...base(product), key: keyOf(), source: null, edited: true }] }))
+          setForm((value) => {
+            const raw = [...value.raw]
+            const line = { ...base(product), key: keyOf(), source: null, edited: true }
+            if (replaceAt !== null && raw[replaceAt]) raw[replaceAt] = { ...line, quantity: raw[replaceAt].quantity || "1" }
+            else raw.push(line)
+            return { ...value, raw }
+          })
+          added = true
           continue
         }
         const key = keyOf()
         const skipped = components.filter((component: any) => component.product.unsupported).map((component: any) => component.product.product_name)
-        setForm((value) => ({
-          ...value,
-          produced: [...value.produced, { ...base(product), key }],
-          raw: [
-            ...value.raw,
-            ...components.filter((component: any) => !component.product.unsupported).map((component: any) => ({
-              ...base(component.product), key: keyOf(), quantity: String(component.per_unit), source: key, per_unit: Number(component.per_unit), edited: false,
-            })),
-          ],
-        }))
+        setForm((value) => {
+          const produced = [...value.produced]
+          const previous = replaceAt !== null ? produced[replaceAt] : null
+          const quantity = previous ? num(previous.quantity) || 1 : 1
+          const line = { ...base(product), key, quantity: String(quantity) }
+          if (previous) produced[replaceAt!] = line
+          else produced.push(line)
+          // تغيير الصنف المنتَج في سطر: تُستبدل مكوناته غير المعدّلة بمكونات الصنف الجديد
+          const raw = value.raw
+            .filter((row) => !(previous && row.source === previous.key && !row.edited))
+            .map((row) => (previous && row.source === previous.key ? { ...row, source: null } : row))
+          return {
+            ...value,
+            produced,
+            raw: [
+              ...raw,
+              ...components.filter((component: any) => !component.product.unsupported).map((component: any) => ({
+                ...base(component.product), key: keyOf(), quantity: String(Math.round(Number(component.per_unit) * quantity * 1e6) / 1e6), source: key, per_unit: Number(component.per_unit), edited: false,
+              })),
+            ],
+          }
+        })
+        added = true
         if (!components.length) setFormError(`لا توجد مكونات تصنيع معرّفة على "${product.product_name}" — أضف المواد الخام يدوياً`)
         else if (skipped.length) setFormError(`لم تُضف مكونات غير مدعومة في سند الانتاج: ${skipped.join("، ")}`)
       } catch (e) {
         setFormError(e instanceof Error ? e.message : "تعذر إضافة الصنف")
       }
+    }
+    return added
+  }
+
+  // رقم صنف مكتوب في الجدول (نفس بحث رقم/باركود الصنف في إرسالية المبيعات)
+  const lookupCode = async (target: "produced" | "raw", row: number, code: string) => {
+    try {
+      const response = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1`, { cache: "no-store" })
+      const product = await response.json().catch(() => null)
+      if (!response.ok || !product?.id) throw new Error(`لا يوجد صنف برقم ${code}`)
+      return await addProducts([product], target, row)
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "تعذر البحث عن الصنف")
+      return false
     }
   }
 
@@ -252,6 +292,28 @@ export default function ProductionVouchers() {
     } finally { setBusy(false) }
   }
 
+  // ───── شريط الأدوات الموحّد: التنقل بين سندات القائمة، جديد، نسخ ─────
+  const recordIndex = form.id ? rows.findIndex((row) => Number(row.id) === form.id) : -1
+  const guarded = async (action: () => void) => {
+    if (dirty && !(await confirmYesNo("توجد تغييرات غير محفوظة على سند الانتاج. هل تريد المتابعة دون حفظ؟"))) return
+    action()
+  }
+  const navigate = async (index: number) => {
+    const target = rows[Math.max(0, Math.min(rows.length - 1, index))]
+    if (!target || Number(target.id) === form.id) return
+    await guarded(() => void openRow(Number(target.id)))
+  }
+  // نسخ: سند جديد غير معتمد بنفس المستودعات والأصناف والكميات والأسعار (بتاريخ اليوم)
+  const cloneCurrent = () => {
+    const keys = new Map(form.produced.map((line) => [line.key, keyOf()]))
+    const strip = (line: Line): Line => ({ ...line, id: undefined, transferred: 0 })
+    begin({
+      ...form, id: null, code: "", status: 1, vch_date: today(),
+      produced: form.produced.map((line) => ({ ...strip(line), key: keys.get(line.key)! })),
+      raw: form.raw.map((line) => ({ ...strip(line), key: keyOf(), source: line.source ? keys.get(line.source) ?? null : null })),
+    }, null)
+  }
+
   const remove = async () => {
     if (!form.id || !(await confirmYesNo(`حذف سند الانتاج ${form.code}؟`))) return
     setBusy(true)
@@ -287,65 +349,24 @@ export default function ProductionVouchers() {
             <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">{lines.length}</span>
             <span className="text-xs font-normal text-slate-500">— {warehouseName(target === "produced" ? form.finished_store_id : form.raw_store_id) || "اختر المستودع"}</span>
           </h3>
-          {!locked && <Button size="sm" variant="outline" className="gap-1" onClick={() => setSearch(target)}><Plus className="h-4 w-4" />إضافة صنف</Button>}
+          <div className="flex items-center gap-3">
+            <span className="text-sm">الإجمالي: <b dir="ltr" className="font-mono">{money(target === "produced" ? totals.produced : totals.raw)}</b></span>
+            {!locked && <Button size="sm" variant="outline" className="gap-1" onClick={() => { setSearchRow(lines.length); setSearch(target) }}><Plus className="h-4 w-4" />إضافة صنف</Button>}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500">
-              <tr>
-                <th className="w-10 p-2 text-right">#</th><th className="p-2 text-right">رمز الصنف</th><th className="p-2 text-right">الصنف</th><th className="p-2 text-right">الوحدة</th>
-                <th className="w-28 p-2 text-right">الكمية</th><th className="w-28 p-2 text-right">سعر الشراء</th><th className="p-2 text-right">القيمة</th>
-                {target === "produced" && showExpiry && <th className="w-36 p-2 text-right">الصلاحية</th>}
-                {target === "produced" && showBatch && <th className="w-28 p-2 text-right">الرقم التشغيلي</th>}
-                {target === "produced" && locked && <th className="p-2 text-right">المنقول</th>}
-                {!locked && <th className="w-12 p-2" />}
-              </tr>
-            </thead>
-            <tbody>
-              {lines.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-muted-foreground">{target === "produced" ? "أضف الأصناف المنتجة — تُضاف مكونات التصنيع للمواد الخام تلقائياً" : "لا توجد مواد خام"}</td></tr>}
-              {lines.map((line, index) => (
-                <tr key={line.key} className="border-t align-middle">
-                  <td className="p-2 text-xs text-slate-400">{index + 1}</td>
-                  <td className="p-2 font-mono text-xs">{line.product_code}</td>
-                  <td className="p-2 font-medium">
-                    {line.product_name}
-                    {target === "raw" && line.source && <span className="mr-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">{line.edited ? "مكوّن (معدّل)" : "مكوّن تصنيع"}</span>}
-                  </td>
-                  <td className="p-2 text-xs text-slate-500">{line.unit_name || "—"}</td>
-                  <td className="p-2">
-                    {locked ? <span dir="ltr" className="font-mono">{qty(num(line.quantity))}</span>
-                      : <Input type="number" min={0} step="any" dir="ltr" className="h-8" value={line.quantity} onChange={(event) => update(line.key, { quantity: event.target.value })} />}
-                  </td>
-                  <td className="p-2">
-                    {locked ? <span dir="ltr" className="font-mono">{money(num(line.price))}</span>
-                      : <Input type="number" min={0} step="any" dir="ltr" className="h-8" value={line.price} onChange={(event) => update(line.key, { price: event.target.value })} />}
-                  </td>
-                  <td className="p-2 font-mono font-semibold" dir="ltr">{money(num(line.quantity) * num(line.price))}</td>
-                  {target === "produced" && showExpiry && (
-                    <td className="p-2">{locked ? (line.expiry_date || "—") : (line.has_expiry || line.expiry_date) ? <Input type="date" dir="ltr" className="h-8" value={line.expiry_date} onChange={(event) => update(line.key, { expiry_date: event.target.value })} /> : "—"}</td>
-                  )}
-                  {target === "produced" && showBatch && (
-                    <td className="p-2">{locked ? (line.batch_no || "—") : (line.has_batch || line.batch_no) ? <Input className="h-8" maxLength={30} value={line.batch_no} onChange={(event) => update(line.key, { batch_no: event.target.value })} /> : "—"}</td>
-                  )}
-                  {target === "produced" && locked && <td className="p-2 font-mono text-xs" dir="ltr">{qty(line.transferred || 0)}</td>}
-                  {!locked && (
-                    <td className="p-2 text-center">
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-rose-600" title="حذف السطر"
-                        onClick={() => (target === "produced" ? void removeProduced(line) : setForm((value) => ({ ...value, raw: value.raw.filter((row) => row.key !== line.key) })))}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-            {lines.length > 0 && (
-              <tfoot className="border-t bg-slate-50 font-bold">
-                <tr><td colSpan={6} className="p-2">الإجمالي</td><td className="p-2 font-mono" dir="ltr">{money(target === "produced" ? totals.produced : totals.raw)}</td><td colSpan={4} /></tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
+        <ProductionGrid
+          gridKey={`${target}-${form.id ?? "new"}-${form.status}`}
+          lines={lines}
+          locked={locked}
+          produced={target === "produced"}
+          showExpiry={target === "produced" && showExpiry}
+          showBatch={target === "produced" && showBatch}
+          onCode={(row, code) => lookupCode(target, row, code)}
+          onSearch={(row) => { setSearchRow(row); setSearch(target) }}
+          onPatch={(key, patch) => update(key, patch)}
+          onRemove={(row) => { const line = lines[row]; if (!line) return; if (target === "produced") void removeProduced(line); else setForm((value) => ({ ...value, raw: value.raw.filter((item) => item.key !== line.key) })) }}
+        />
+        {!locked && <p className="border-t bg-slate-50 px-4 py-1.5 text-[11px] text-slate-500">اكتب رقم الصنف ثم Enter — F10 بحث الأصناف، F7 حذف السطر{target === "produced" ? "، مكونات التصنيع تُضاف للمواد الخام تلقائياً" : ""}</p>}
       </section>
     )
   }
@@ -386,7 +407,36 @@ export default function ProductionVouchers() {
       />
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void close() }}>
-        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0" onPointerDownOutside={(event) => event.preventDefault()}>
+        <DialogContent
+          dir="rtl"
+          className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+          // نافذة بحث الأصناف/النقل تُفتح خارج هذه النافذة: التركيز أو النقر فيها يُعدّ "خارجها" فكانت تُغلق السند
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          onFocusOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => { if (search !== null || transferOpen || busy) event.preventDefault() }}
+        >
+          <UniversalToolbar
+            currentRecord={recordIndex >= 0 ? recordIndex + 1 : rows.length + 1}
+            totalRecords={rows.length}
+            onNew={() => void guarded(() => begin(emptyForm(defaults), null))}
+            onSave={() => { if (form.status === 1) void save(false) }}
+            onDelete={() => void remove()}
+            onClone={() => void guarded(() => cloneCurrent())}
+            onFirst={() => void navigate(0)}
+            onPrevious={() => void navigate(recordIndex - 1)}
+            onNext={() => void navigate(recordIndex + 1)}
+            onLast={() => void navigate(rows.length - 1)}
+            isSaving={busy}
+            canSave={form.status === 1}
+            canDelete={Boolean(form.id) && form.status === 1}
+            canClone={form.produced.length > 0}
+            canPrint={false}
+            isFirstRecord={recordIndex <= 0}
+            isLastRecord={recordIndex < 0 || recordIndex >= rows.length - 1}
+            isNewRecord={!form.id}
+            hotkeys={{ print: null }}
+          />
           <DialogHeader className="border-b bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-4 text-right text-white">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
               <Factory className="h-5 w-5" />سند انتاج بضاعة
@@ -452,14 +502,11 @@ export default function ProductionVouchers() {
 
           <DialogFooter className="flex flex-wrap gap-2 border-t bg-white px-4 py-3 sm:justify-between">
             <div className="flex flex-wrap gap-2">
-              {form.status === 1 && <Button disabled={busy} onClick={() => void save(false)} className="gap-1">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}حفظ</Button>}
-              {form.status === 1 && <Button disabled={busy} onClick={() => void save(true)} className="gap-1 bg-emerald-700 hover:bg-emerald-800"><CheckCircle2 className="h-4 w-4" />حفظ وترحيل</Button>}
+              {form.status === 1 && <Button disabled={busy} onClick={() => void save(true)} className="gap-1 bg-emerald-700 hover:bg-emerald-800">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}حفظ وترحيل</Button>}
               {form.status === 2 && <Button disabled={busy} onClick={() => setTransferOpen(true)} className="gap-1 bg-sky-700 hover:bg-sky-800"><ArrowLeftRight className="h-4 w-4" />نقل الى مستودع</Button>}
               {(form.status === 2 || form.status === 4) && <Button disabled={busy} variant="outline" className="gap-1" onClick={() => void act("unpost", {}, "إلغاء ترحيل سند الانتاج؟ سيُلغى سند الإدخال وسند الإخراج المرتبطان.")}><Undo2 className="h-4 w-4" />إلغاء الترحيل</Button>}
-              {form.status === 1 && form.id && <Button disabled={busy} variant="outline" className="gap-1 text-rose-600" onClick={() => void remove()}><Trash2 className="h-4 w-4" />حذف</Button>}
             </div>
             <div className="flex gap-2">
-              {form.status === 1 && !form.id && <Button variant="ghost" disabled={busy} className="gap-1" onClick={() => begin(emptyForm(defaults), null)}><RotateCcw className="h-4 w-4" />تفريغ</Button>}
               <Button variant="outline" disabled={busy} onClick={() => void close()} className="gap-1"><X className="h-4 w-4" />إغلاق</Button>
             </div>
           </DialogFooter>
@@ -469,7 +516,7 @@ export default function ProductionVouchers() {
       <ProductSearchPopup
         visible={search !== null}
         onClose={() => setSearch(null)}
-        onSelect={(products) => { const target = search || "produced"; setSearch(null); void addProducts(products, target) }}
+        onSelect={(products) => { const target = search || "produced"; setSearch(null); void addProducts(products, target, searchRow) }}
         priceCategoryId={1}
         ShowSelect
         searchText=""

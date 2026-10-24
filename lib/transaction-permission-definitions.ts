@@ -30,6 +30,7 @@ export const TRANSACTION_FAMILIES = {
   period_lock: "إقفال الفترات",
   landed_cost: "تحميل تكاليف الشحن والجمارك",
   year_end_closing: "إقفال السنة المالية",
+  account_access: "صلاحيات المستخدمين على الحسابات",
 } as const
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
@@ -146,6 +147,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "period-locks": "period_lock",
   "landed-costs": "landed_cost",
   "year-end-closing": "year_end_closing",
+  "account-access": "account_access",
   "salesman-commissions": "salesman_commission",
 }
 

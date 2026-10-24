@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { deniedAccountIds } from "@/lib/account-access"
 import { authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { accountFileFamilyForType } from "../_lib"
 
@@ -61,6 +62,8 @@ export async function GET(request: NextRequest) {
     const storedAuthorization = await authorizeFileRead(request, [accountFileFamilyForType(account.type), "accounts", "customers", "suppliers", "subscribers", "employees", "items", "services", "bank-accounts", "credit-cards"])
     if (!storedAuthorization.ok) return storedAuthorization.response
     if (account.status === 3) return NextResponse.json({ error: "Account deleted" }, { status: 403 })
+    // صلاحيات المستخدمين على الحسابات: حساب ممنوع يُعامل كغير موجود عند البحث بالرمز
+    if ((await deniedAccountIds(request)).has(Number(account.id))) return NextResponse.json({ error: "Account not found" }, { status: 404 })
     if (storedAuthorization.lookupOnly) return NextResponse.json(projectFileLookup("accounts", [account])[0])
 
     const stopRows = await sql`

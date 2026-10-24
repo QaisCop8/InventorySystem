@@ -61,7 +61,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Factory } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Factory, KeyRound } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -565,6 +565,7 @@ export const menuItems: MenuItem[] = [
       { title: "اختصارات الصفحات", section: "page-shortcuts", icon: Keyboard },
       { title: "إقفال الفترات", section: "period-locks", icon: Lock },
       { title: "إقفال السنة المالية", section: "year-end-closing", icon: CalendarCheck2 },
+      { title: "صلاحيات المستخدمين على الحسابات", section: "account-access", icon: KeyRound },
       { title: "بريد الرسائل والتحسينات", section: "feature-requests", icon: Lightbulb },
     ],
   },

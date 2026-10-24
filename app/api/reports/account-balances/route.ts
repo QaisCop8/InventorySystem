@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import sql from "@/lib/database"
+import { accountAccessError, filterAccessibleAccounts } from "@/lib/account-access"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
@@ -38,8 +39,11 @@ export async function GET(request: NextRequest) {
       sql`SELECT id,currency_code,currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       effectiveBranchIds.length ? sql`SELECT id,branch_code,branch_name FROM branches WHERE id=ANY(${effectiveBranchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name` : sql`SELECT id,branch_code,branch_name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
     ])
-    const meta = { accounts, currencies, branches }
+    // صلاحيات المستخدمين على الحسابات: الممنوع لا يظهر بالخيارات ولا يُستعلم عنه
+    const meta = { accounts: await filterAccessibleAccounts(request, accounts as any[]), currencies, branches }
     if (params.get("meta") === "1" || accountIds.length === 0) return NextResponse.json({ meta })
+    const accessError = await accountAccessError(request, accountIds)
+    if (accessError) return NextResponse.json({ error: accessError }, { status: 403 })
     if (branchIds.length && !effectiveBranchIds.length) return NextResponse.json({ error: "لا تملك صلاحية على الفروع المحددة" }, { status: 403 })
 
     const selectedCurrency = Number(params.get("report_currency_id") || currencies[0]?.id || 0)
