@@ -531,7 +531,7 @@ export default function AccountSearchDialog({
         hideCloseButton
         className={confined
           ? "h-[min(720px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(1000px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] gap-0 overflow-hidden rounded-2xl border-0 bg-slate-50 p-0 shadow-2xl ring-1 ring-slate-900/10"
-          : "h-[100dvh] max-h-[100dvh] w-full max-w-full gap-0 overflow-hidden rounded-none border-0 bg-slate-50 p-0 shadow-2xl sm:h-[min(80dvh,720px)] sm:max-w-[1000px] sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"}
+          : "!fixed !inset-0 !left-0 !top-0 !h-[100dvh] !max-h-[100dvh] !w-full !max-w-none !translate-x-0 !translate-y-0 gap-0 overflow-hidden rounded-none border-0 bg-slate-50 p-0 shadow-2xl sm:!left-1/2 sm:!top-1/2 sm:!h-[min(80dvh,720px)] sm:!max-h-[min(80dvh,720px)] sm:!w-[calc(100%-2rem)] sm:!max-w-[1000px] sm:!-translate-x-1/2 sm:!-translate-y-1/2 sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"}
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -745,7 +745,7 @@ export default function AccountSearchDialog({
             />
           </div>
 
-          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-2.5">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             <span className="hidden truncate text-[11px] text-slate-400 sm:block">
               {selectedAccount ? `${selectedAccount.code} — ${selectedAccount.name}` : "نقر مزدوج أو Enter للاختيار"}
             </span>
