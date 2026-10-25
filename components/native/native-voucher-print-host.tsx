@@ -18,5 +18,5 @@ export function NativeVoucherPrintHost() {
   }, [])
 
   if (!preview) return null
-  return <PosPrintPreview title={preview.title} html={preview.html} autoPrint={false} onClose={() => setPreview(null)} />
+  return <PosPrintPreview title={preview.title} html={preview.html} autoPrint={false} nativePrint onClose={() => setPreview(null)} />
 }
