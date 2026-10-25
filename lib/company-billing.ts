@@ -10,7 +10,7 @@ import { priceFor, type LicenseCounts, type Pricing } from "@/lib/company-pricin
 //   company_payments  — كل محاولة دفع عبر لحظة (reference فريد)، ونجاحها يزوّد قاعدة الشركة فوراً لسنة كاملة.
 // الشركة المنتظرة للدفع حالتها 'awaiting_payment' (ولا تظهر لمسؤول المنصة كطلب موافقة)، وأثناء التزويد 'provisioning'.
 
-const PLATFORM_ADMIN_EMAIL = "qais.sabbah@iscosoft.com"
+const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
 
 let ensured: Promise<void> | null = null
 export function ensureBillingTables() {

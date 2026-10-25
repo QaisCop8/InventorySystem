@@ -6,7 +6,7 @@ import { sendMail } from "@/lib/email"
 import { ensureLicenseTables } from "@/lib/company-license"
 import { ensureBillingTables, paymentsEnabled } from "@/lib/company-billing"
 
-const PLATFORM_ADMIN_EMAIL = "qais.sabbah@iscosoft.com"
+const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
 
 export async function GET() {
   try {

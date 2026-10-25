@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import { createLicenseRequest, LICENSE_RESOURCE_LABELS, type LicenseResource } from "@/lib/company-license"
 import { sendMail } from "@/lib/email"
 
-const PLATFORM_ADMIN_EMAIL = "qais.sabbah@iscosoft.com"
+const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
 
 // طلب زيادة عدد المستخدمين/الفروع المرخّص — يُعتمد أو يُرفض من لوحة تحكم المنصة.
 export async function POST(request: NextRequest) {
