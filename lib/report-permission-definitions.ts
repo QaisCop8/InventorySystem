@@ -82,10 +82,13 @@ export const reportPermissionName = (title: string) => `استعلام ${title}`
 export const reportPrintPermissionName = (title: string) => `طباعة التقرير ${title}`
 export const reportWhatsAppPermissionName = (title: string) => `إرسال التقرير عبر واتساب ${title}`
 
-export type ReportPermissionAction = "access" | "print" | "whatsapp"
+export const reportExportPermissionName = (title: string) => `تصدير التقرير ${title}`
+
+export type ReportPermissionAction = "access" | "print" | "whatsapp" | "export"
 export const reportPermissionNameForTitle = (title: string, action: ReportPermissionAction) => {
   if (action === "print") return reportPrintPermissionName(title)
   if (action === "whatsapp") return reportWhatsAppPermissionName(title)
+  if (action === "export") return reportExportPermissionName(title)
   return reportPermissionName(title)
 }
 

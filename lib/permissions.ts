@@ -410,7 +410,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 2
+const PERMISSION_SYNC_VERSION = 3
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -693,7 +693,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   ))[0]
   if (reportCategory?.id) {
     for (const [index, definition] of REPORT_DEFINITIONS.entries()) {
-      const actions: ReportPermissionAction[] = ["access", "print", "whatsapp"]
+      const actions: ReportPermissionAction[] = ["access", "print", "export", "whatsapp"]
       for (const [actionIndex, action] of actions.entries()) {
         const name = reportPermissionNameForTitle(definition.title, action)
         const inserted = await client.query(

@@ -51,6 +51,7 @@ const ACTIONS: { key: Action; label: string; tone: string }[] = [
 const REPORT_ACTIONS: { key: ReportPermissionAction; label: string; tone: string }[] = [
   { key: "access", label: "الدخول إلى التقرير", tone: "teal" },
   { key: "print", label: "طباعة", tone: "sky" },
+  { key: "export", label: "تصدير", tone: "amber" },
   { key: "whatsapp", label: "إرسال واتساب", tone: "emerald" },
 ]
 const FILE_ACTIONS: { key: FileAction; label: string; tone: string }[] = [

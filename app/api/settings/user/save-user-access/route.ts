@@ -29,13 +29,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // For each access, either insert or update
+    // Upsert the complete permission set in one database round trip. The old
+    // per-permission loop was especially slow for remote tenant databases.
+    const latestByAccessId = new Map<number, boolean>()
     for (const access of accesses) {
+      const accessId = Number(access.access_id)
+      if (!Number.isInteger(accessId) || accessId <= 0 || typeof access.is_granted !== "boolean") {
+        return NextResponse.json({ error: "Invalid access entry" }, { status: 400 })
+      }
+      latestByAccessId.set(accessId, access.is_granted)
+    }
+
+    const accessIds = [...latestByAccessId.keys()]
+    if (accessIds.length) {
+      const grantedValues = accessIds.map((accessId) => latestByAccessId.get(accessId)!)
       await sql`
         INSERT INTO user_branch_permissions (user_id, branch_id, access_id, is_granted)
-        VALUES (${userId}, ${branchId}, ${access.access_id}, ${access.is_granted})
+        SELECT ${userId}, ${branchId}, permission.access_id, permission.is_granted
+        FROM unnest(${accessIds}::int[], ${grantedValues}::boolean[]) AS permission(access_id, is_granted)
         ON CONFLICT (user_id, branch_id, access_id) DO UPDATE
         SET is_granted = EXCLUDED.is_granted
+        WHERE user_branch_permissions.is_granted IS DISTINCT FROM EXCLUDED.is_granted
       `
     }
 
