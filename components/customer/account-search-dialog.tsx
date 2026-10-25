@@ -543,7 +543,7 @@ export default function AccountSearchDialog({
           else (event.currentTarget as HTMLElement | null)?.focus?.()
         }}
       >
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="account-search-dialog-shell flex h-full min-h-0 flex-col">
           <SearchDialogHeader
             icon={<Wallet className="h-4 w-4" />}
             title="دليل الحسابات"
@@ -564,7 +564,7 @@ export default function AccountSearchDialog({
           />
 
           {/* الفلاتر */}
-          <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
+          <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-3">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
               <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.6fr_1fr_1fr_0.8fr]">
                 <SearchFilterField label="رقم الحساب">
@@ -663,7 +663,7 @@ export default function AccountSearchDialog({
                   // بعد رسم النتائج الجديدة ⇐ أول سطر
                   window.requestAnimationFrame(() => window.requestAnimationFrame(focusGridFirstRow))
                 }}
-                className="h-9 shrink-0 gap-1.5 rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white hover:bg-emerald-700"
+                className="h-9 w-full shrink-0 gap-1.5 rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white hover:bg-emerald-700"
               >
                 <Search className="h-3.5 w-3.5" />
                 بحث
@@ -745,20 +745,20 @@ export default function AccountSearchDialog({
             />
           </div>
 
-          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2.5">
             <span className="hidden truncate text-[11px] text-slate-400 sm:block">
               {selectedAccount ? `${selectedAccount.code} — ${selectedAccount.name}` : "نقر مزدوج أو Enter للاختيار"}
             </span>
-            <div className="flex flex-1 gap-2 sm:flex-none">
+            <div className="grid w-full flex-1 grid-cols-2 gap-2 sm:w-auto sm:flex-none sm:flex">
               <Button
                 onClick={handleConfirm}
                 disabled={!selectedAccount}
-                className="h-9 flex-1 rounded-lg bg-emerald-600 px-6 font-bold text-white hover:bg-emerald-700 sm:flex-none"
+                className="h-9 w-full min-w-0 rounded-lg bg-emerald-600 px-3 font-bold text-white hover:bg-emerald-700 sm:w-auto sm:px-6"
               >
                 موافق
               </Button>
-              <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 flex-1 rounded-lg border-slate-200 px-6 text-slate-600 sm:flex-none">
-                إغلاق
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 w-full min-w-0 rounded-lg border-2 border-slate-300 bg-white px-3 font-bold text-slate-700 hover:bg-slate-50 sm:w-auto sm:px-6">
+                إلغاء
               </Button>
             </div>
           </div>

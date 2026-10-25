@@ -736,6 +736,24 @@ td {
   container-type: inline-size;
 }
 
+@container (max-width: 459px) {
+  .account-search-dialog-shell input:not([type="checkbox"]):not([type="radio"]),
+  .account-search-dialog-shell .date-time-control-input {
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+
+  .account-search-dialog-shell .invoice-currency-dropdown {
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+
+  .account-search-dialog-shell .invoice-currency-dropdown .p-dropdown-label {
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+}
+
 .account-search-workspace {
   grid-template-columns: minmax(0, 1fr);
   overflow-y: auto;
