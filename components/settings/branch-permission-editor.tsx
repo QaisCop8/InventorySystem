@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import {
-  ArrowLeftRight, BookOpen, Boxes, Building2, Car, Check, CheckCheck, ChevronDown, CreditCard, FileText, FolderOpen, Info, Landmark, LayoutGrid, Minus, PackageMinus, PackagePlus,
+  ArrowLeftRight, BookOpen, Boxes, Building2, Car, Check, CheckCheck, ChevronDown, CreditCard, FileText, FolderOpen, Info, Landmark, LayoutGrid, Loader2, Minus, PackageMinus, PackagePlus,
   Receipt, RotateCcw, Search, ShieldCheck, ShoppingBag, ShoppingCart, TrendingUp, Truck, Undo2, Users, Wallet, WalletCards, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -381,7 +381,15 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
   const toggleCollapsed = (key: string) => setCollapsed((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next })
 
   return (
-    <div className={cn("space-y-4", loading && "pointer-events-none opacity-55")} dir="rtl">
+    <div className={cn("relative space-y-4", loading && "pointer-events-none opacity-55")} dir="rtl" aria-busy={loading}>
+      {loading && (
+        <div role="status" className="absolute inset-0 z-20 flex min-h-48 items-center justify-center rounded-2xl bg-background/75 backdrop-blur-[1px]">
+          <span className="flex items-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-sm">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            جاري تحميل الصلاحيات
+          </span>
+        </div>
+      )}
       {/* شريط الأدوات */}
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
@@ -675,9 +683,17 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                       {REPORT_ACTIONS.map((action) => {
                         const list = row.cells[action.key] || []
                         if (!list.length) return <td key={action.key} className="p-2 text-center text-muted-foreground/40">—</td>
-                        const on = isOn(list)
+                        const on = isOn(list), partial = isPartial(list)
                         return <td key={action.key} className="p-2 text-center">
-                          <Switch checked={on} onCheckedChange={() => toggleReportCell(row, action.key)} aria-label={`${action.label}: ${row.definition.title}`} />
+                          <button type="button" onClick={() => toggleReportCell(row, action.key)}
+                            aria-pressed={partial ? "mixed" : on} aria-label={`${action.label}: ${row.definition.title}`}
+                            title={`${action.label}: ${row.definition.title}`}
+                            className={cn(
+                              "mx-auto grid size-9 place-items-center rounded-xl border-2 transition-all hover:scale-105",
+                              on ? toneClasses[action.tone].on + " shadow-sm" : partial ? "border-dashed border-muted-foreground/50 bg-muted" : "border-muted-foreground/20 bg-background text-transparent hover:border-muted-foreground/50",
+                            )}>
+                            {on ? <Check className="h-4 w-4" strokeWidth={3} /> : partial ? <Minus className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4" />}
+                          </button>
                         </td>
                       })}
                       <td className="p-2 text-center"><Switch checked={isOn(all)} onCheckedChange={(value) => {
