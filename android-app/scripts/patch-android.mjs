@@ -142,11 +142,37 @@ public class NativePrintPlugin extends Plugin {
 mkdirSync(javaDir, { recursive: true })
 writeFileSync(join(javaDir, "NativePrintPlugin.java"), pluginSource)
 if (!activity.includes("registerPlugin(NativePrintPlugin.class)")) {
-  const patchedActivity = activity.replace(
-    /super\.onCreate\(savedInstanceState\);/,
-    "registerPlugin(NativePrintPlugin.class);\n        super.onCreate(savedInstanceState);",
-  )
-  if (patchedActivity === activity) throw new Error("Could not register NativePrintPlugin in MainActivity.java")
+  let patchedActivity
+  const superOnCreate = /super\.onCreate\(savedInstanceState\);/
+  const onCreateMethod = /public\s+void\s+onCreate\s*\(\s*Bundle\s+savedInstanceState\s*\)\s*\{/
+  if (superOnCreate.test(activity)) {
+    patchedActivity = activity.replace(
+      superOnCreate,
+      "registerPlugin(NativePrintPlugin.class);\n        super.onCreate(savedInstanceState);",
+    )
+  } else if (onCreateMethod.test(activity)) {
+    patchedActivity = activity.replace(
+      onCreateMethod,
+      "$&\n        registerPlugin(NativePrintPlugin.class);",
+    )
+  } else {
+    const bridgeActivityClass = /((?:public\s+)?class\s+MainActivity\s+extends\s+BridgeActivity\s*\{)/
+    const classMatch = activity.match(bridgeActivityClass)
+    if (!classMatch || classMatch.index === undefined) {
+      throw new Error("Could not find MainActivity class extending BridgeActivity")
+    }
+
+    let source = activity
+    if (!/^import\s+android\.os\.Bundle;/m.test(source)) {
+      source = source.replace(/^(package\s+[\w.]+;\s*)/m, "$1\nimport android.os.Bundle;\n")
+    }
+    const updatedClassMatch = source.match(bridgeActivityClass)
+    if (!updatedClassMatch || updatedClassMatch.index === undefined) {
+      throw new Error("Could not locate MainActivity class after adding Bundle import")
+    }
+    const insertionPoint = updatedClassMatch.index + updatedClassMatch[0].length
+    patchedActivity = `${source.slice(0, insertionPoint)}\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(NativePrintPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n${source.slice(insertionPoint)}`
+  }
   writeFileSync(activityPath, patchedActivity)
 }
 console.log("Android project patched")
