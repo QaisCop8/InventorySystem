@@ -14,6 +14,7 @@ import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 import { CompanyStatusGuard } from "@/components/auth/company-status-guard"
 import { ProductVariantProvider } from "@/components/products/product-variant-provider"
 import { NativeBackButton } from "@/components/native/native-back-button"
+import { NativeVoucherPrintHost } from "@/components/native/native-voucher-print-host"
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   // يُعبِّئ إعداد "عدد الخانات العشرية" (وأي إعداد نظام قديم آخر لاحقاً) بـlocalStorage عند بدء أي
@@ -74,6 +75,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
                 <ProductVariantProvider />
                 {/* زر الرجوع في تطبيق أندرويد: يغلق النافذة المفتوحة بدل مغادرة الصفحة */}
                 <NativeBackButton />
+                <NativeVoucherPrintHost />
                 {children}
                 <Toaster />
                 {/* بديل confirm/alert للمتصفح في كل النظام (components/ui/confirm-host.tsx) */}

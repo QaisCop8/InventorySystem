@@ -175,8 +175,15 @@ async function printVoucherWith(original: PrintDocument, resolve: () => Promise<
     const html = () => renderPrintHtml(document, settings, context)
 
     if (mobile) {
-      if (mobileWindow) printHtmlInWindow(mobileWindow, html())
-      else await printHtmlInIframe(html())
+      if (mobileWindow) {
+        printHtmlInWindow(mobileWindow, html())
+      } else if (isNativeApp()) {
+        window.dispatchEvent(new CustomEvent("native-voucher-print-preview", {
+          detail: { title: document.title, html: html() },
+        }))
+      } else {
+        await printHtmlInIframe(html())
+      }
       return { method: "browser" }
     }
 

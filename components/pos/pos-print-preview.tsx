@@ -5,7 +5,7 @@ import { Printer, X } from "lucide-react"
 import "./pos-workspace.css"
 
 /** معاينة الفاتورة داخل نفس الصفحة على الجوال (طباعة / إغلاق) — من كاشير نقطة البيع وشاشة المطعم */
-export function PosPrintPreview({title,html,onClose}:{title:string;html:string;onClose:()=>void}){
+export function PosPrintPreview({title,html,onClose,autoPrint=true}:{title:string;html:string;onClose:()=>void;autoPrint?:boolean}){
  const frameRef=useRef<HTMLIFrameElement>(null),autoPrinted=useRef(false)
  const printNow=()=>{try{const target=frameRef.current?.contentWindow;target?.focus();target?.print()}catch{window.print()}}
  // Esc (وزر الرجوع في تطبيق أندرويد — components/native/native-back-button.tsx) يغلق المعاينة
@@ -16,6 +16,6 @@ export function PosPrintPreview({title,html,onClose}:{title:string;html:string;o
    <b>{title}</b>
    <button type="button" className="pos-print-preview-print" onClick={printNow}><Printer size={18}/>طباعة</button>
   </div>
-  <iframe ref={frameRef} title={title} srcDoc={html} className="pos-print-preview-frame" onLoad={()=>{if(autoPrinted.current)return;autoPrinted.current=true;window.setTimeout(printNow,350)}}/>
+  <iframe ref={frameRef} title={title} srcDoc={html} className="pos-print-preview-frame" onLoad={()=>{if(!autoPrint||autoPrinted.current)return;autoPrinted.current=true;window.setTimeout(printNow,350)}}/>
  </div>
 }
