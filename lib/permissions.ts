@@ -22,7 +22,7 @@ import {
   type TransactionAction,
   type TransactionFamily,
 } from "@/lib/transaction-permission-definitions"
-import { REPORT_DEFINITIONS, REPORT_PERMISSION_CATEGORY, reportPermissionName } from "@/lib/report-permission-definitions"
+import { REPORT_DEFINITIONS, REPORT_PERMISSION_CATEGORY, reportPermissionNameForTitle, type ReportPermissionAction } from "@/lib/report-permission-definitions"
 import { seedFilePermissionDefinitions } from "@/lib/file-permission-seed"
 import { FILE_ACTIONS, FILE_FAMILY_KEYS } from "@/lib/file-permission-definitions"
 
@@ -410,7 +410,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 1
+const PERMISSION_SYNC_VERSION = 2
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -435,7 +435,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -693,23 +693,26 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   ))[0]
   if (reportCategory?.id) {
     for (const [index, definition] of REPORT_DEFINITIONS.entries()) {
-      const name = reportPermissionName(definition.title)
-      const inserted = await client.query(
-        `INSERT INTO access_list (name, category_id)
-         SELECT $1::varchar, $2::integer
-         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING
-         RETURNING id`,
-        [name, reportCategory.id],
-      )
-      if (inserted[0]?.id) {
-        await client.query(
-          `INSERT INTO role_permissions (role_id, access_id, is_granted)
-           SELECT id, $1::integer, TRUE FROM job_roles
-           ON CONFLICT (role_id, access_id) DO NOTHING`,
-          [inserted[0].id],
+      const actions: ReportPermissionAction[] = ["access", "print", "whatsapp"]
+      for (const [actionIndex, action] of actions.entries()) {
+        const name = reportPermissionNameForTitle(definition.title, action)
+        const inserted = await client.query(
+          `INSERT INTO access_list (name, category_id)
+           SELECT $1::varchar, $2::integer
+           WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING
+           RETURNING id`,
+          [name, reportCategory.id],
         )
+        if (inserted[0]?.id) {
+          await client.query(
+            `INSERT INTO role_permissions (role_id, access_id, is_granted)
+             SELECT id, $1::integer, TRUE FROM job_roles
+             ON CONFLICT (role_id, access_id) DO NOTHING`,
+            [inserted[0].id],
+          )
+        }
+        await client.query(`UPDATE access_list SET category_id = $2::integer, sort_order = $3::integer WHERE name = $1::varchar`, [name, reportCategory.id, index * actions.length + actionIndex + 1])
       }
-      await client.query(`UPDATE access_list SET category_id = $2::integer, sort_order = $3::integer WHERE name = $1::varchar`, [name, reportCategory.id, index + 1])
     }
   }
 

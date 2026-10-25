@@ -79,11 +79,20 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
 
 /** اسم الصلاحية كما يظهر في شاشة الصلاحيات. */
 export const reportPermissionName = (title: string) => `استعلام ${title}`
+export const reportPrintPermissionName = (title: string) => `طباعة التقرير ${title}`
+export const reportWhatsAppPermissionName = (title: string) => `إرسال التقرير عبر واتساب ${title}`
+
+export type ReportPermissionAction = "access" | "print" | "whatsapp"
+export const reportPermissionNameForTitle = (title: string, action: ReportPermissionAction) => {
+  if (action === "print") return reportPrintPermissionName(title)
+  if (action === "whatsapp") return reportWhatsAppPermissionName(title)
+  return reportPermissionName(title)
+}
 
 const BY_SECTION = new Map(REPORT_DEFINITIONS.map((definition) => [definition.section, definition]))
 export const reportDefinitionFor = (section: string | null | undefined) => (section ? BY_SECTION.get(section) : undefined)
 export const isReportSection = (section: string | null | undefined) => Boolean(reportDefinitionFor(section))
-export const reportPermissionNameFor = (section: string) => {
+export const reportPermissionNameFor = (section: string, action: ReportPermissionAction = "access") => {
   const definition = reportDefinitionFor(section)
-  return definition ? reportPermissionName(definition.title) : null
+  return definition ? reportPermissionNameForTitle(definition.title, action) : null
 }

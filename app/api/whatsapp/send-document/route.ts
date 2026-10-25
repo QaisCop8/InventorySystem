@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { isWhatsAppConfigured, sendDocumentFile } from "@/lib/whatsapp-service"
 import { getSessionUser } from "@/lib/tenant-auth"
+import sql from "@/lib/database"
+import { hasEffectivePermission } from "@/lib/permissions"
+import { reportDefinitionFor, reportPermissionNameForTitle } from "@/lib/report-permission-definitions"
 
 const MAX_BYTES = 15 * 1024 * 1024
 
@@ -17,6 +20,19 @@ export async function POST(request: NextRequest) {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const form = await request.formData()
+    const reportKey = String(form.get("report_key") || "").trim()
+    if (reportKey) {
+      const definition = reportDefinitionFor(reportKey)
+      if (!definition) return NextResponse.json({ error: "التقرير غير معروف" }, { status: 400 })
+      const names = [reportPermissionNameForTitle(definition.title, "access"), reportPermissionNameForTitle(definition.title, "whatsapp")]
+      const permissions = await sql`SELECT id, name FROM access_list WHERE name = ANY(${names}::text[])`
+      if (permissions.length !== names.length) return NextResponse.json({ error: "صلاحيات التقرير غير معرفة" }, { status: 403 })
+      for (const permission of permissions) {
+        if (!(await hasEffectivePermission(user.user_id, Number(permission.id), Number(request.headers.get("x-branch-id") || 0) || null))) {
+          return NextResponse.json({ error: "لا توجد لديك صلاحية إرسال هذا التقرير عبر واتساب" }, { status: 403 })
+        }
+      }
+    }
     const phone = String(form.get("phone") || "").trim()
     const file = form.get("file")
     if (!phone) return NextResponse.json({ error: "رقم الهاتف مطلوب" }, { status: 400 })

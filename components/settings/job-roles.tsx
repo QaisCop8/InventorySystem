@@ -125,16 +125,16 @@ export default function JobRoles() {
   }
 
   return (
-    <div className="w-full space-y-6 p-6" dir="rtl">
+    <div className="w-full min-w-0 space-y-4 overflow-x-hidden p-3 sm:space-y-6 sm:p-6" dir="rtl">
       <Card dir="rtl">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base sm:text-lg">
               <UserCog className="h-5 w-5 text-primary" />
-              الأدوار الوظيفية ({items.length})
+              <span className="break-words">الأدوار الوظيفية ({items.length})</span>
             </CardTitle>
             <Button
-              className="erp-btn-primary"
+              className="erp-btn-primary w-full whitespace-normal sm:w-auto"
               size="sm"
               onClick={() => {
                 setForm({ id: 0, name: "", status: 1 })
@@ -165,7 +165,7 @@ export default function JobRoles() {
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                   />
                 </div>
-                <div className="flex justify-start gap-2 pt-2">
+                <div className="flex flex-wrap justify-start gap-2 pt-2">
                   <Button type="submit" className="erp-btn-primary" size="sm">
                     حفظ الدور الوظيفي
                   </Button>
@@ -199,17 +199,17 @@ export default function JobRoles() {
                   onClick={() => setCurrentIndex(index)}
                   dir="rtl"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="space-y-1 text-right">
-                      <h4 className="font-heading font-semibold">{item.name}</h4>
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 space-y-1 text-right">
+                      <h4 className="break-words font-heading font-semibold">{item.name}</h4>
                       <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                       <Button variant="outline" size="sm" onClick={() => handleEdit(item)}>
                         <Edit className="h-3 w-3" />
                       </Button>
                       {item.status !== 3 && (
-                        <Button variant="outline" size="sm" onClick={() => void handleFreeze(item)}>
+                        <Button variant="outline" size="sm" className="whitespace-normal text-xs sm:text-sm" onClick={() => void handleFreeze(item)}>
                           {getToggleStatusLabel(item.status)}
                         </Button>
                       )}
@@ -222,7 +222,7 @@ export default function JobRoles() {
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
-                      <Badge variant={getStatusBadgeVariant(item.status)}>{getStatusLabel(item.status)}</Badge>
+                      <Badge className="shrink-0" variant={getStatusBadgeVariant(item.status)}>{getStatusLabel(item.status)}</Badge>
                     </div>
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import { logoSource } from "./html"
 import { normalizeReportSettings, reportPaper, type ReportPrintSettings } from "./report-settings"
 import { logReportAudit } from "@/lib/audit-client"
 import { collectReportFilters, reportContextOf } from "@/lib/report-filters-capture"
+import { canUseReportAction } from "@/components/auth/use-report-access"
 
 export type ReportPrintInput = {
   title: string
@@ -243,6 +244,10 @@ export async function buildReportFrom(from: HTMLElement | null, options: { forPd
 export async function printReportFrom(from: HTMLElement | null) {
   // تقرير ارشفة التقارير: من طبع التقرير ومتى وبأي فلاتر
   const context = reportContextOf(from)
+  if (!canUseReportAction(context.key, "print")) {
+    window.alert("لا توجد لديك صلاحية طباعة هذا التقرير")
+    return
+  }
   logReportAudit({ action: "print", report_key: context.key, report_title: context.title, filters: collectReportFilters(context.root) })
   let built: BuiltReport | null
   try {

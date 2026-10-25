@@ -14,6 +14,7 @@ import {
   FILE_ACTION_LABELS, FILE_FAMILIES, FILE_PERMISSION_CATEGORY, parseFilePermission,
   type FileAction, type FileFamily,
 } from "@/lib/file-permission-definitions"
+import { REPORT_DEFINITIONS, reportPermissionNameForTitle, type ReportPermissionAction } from "@/lib/report-permission-definitions"
 
 export interface PermissionItem {
   access_id: number
@@ -46,6 +47,11 @@ const ACTIONS: { key: Action; label: string; tone: string }[] = [
   { key: "update", label: "تعديل", tone: "amber" },
   { key: "delete", label: "حذف", tone: "rose" },
   { key: "post", label: "ترحيل", tone: "violet" },
+]
+const REPORT_ACTIONS: { key: ReportPermissionAction; label: string; tone: string }[] = [
+  { key: "access", label: "الدخول إلى التقرير", tone: "teal" },
+  { key: "print", label: "طباعة", tone: "sky" },
+  { key: "whatsapp", label: "إرسال واتساب", tone: "emerald" },
 ]
 const FILE_ACTIONS: { key: FileAction; label: string; tone: string }[] = [
   { key: "access", label: FILE_ACTION_LABELS.access, tone: "violet" },
@@ -163,7 +169,9 @@ const VOUCHER_MATCHERS = VOUCHER_SECTIONS.flatMap((section) => section.vouchers.
 
 type VoucherRow = { name: string; cells: Partial<Record<Action, PermissionItem[]>>; extras: { key: string; label: string; items: PermissionItem[] }[] }
 export type FileRow = { family: FileFamily; cells: Partial<Record<FileAction, PermissionItem[]>> }
+type ReportRow = { definition: (typeof REPORT_DEFINITIONS)[number]; cells: Partial<Record<ReportPermissionAction, PermissionItem[]>> }
 const fileRowAll = (row: FileRow) => Object.values(row.cells).flat() as PermissionItem[]
+const reportRowAll = (row: ReportRow) => Object.values(row.cells).flat() as PermissionItem[]
 
 export function setFilePermissionValues(rows: FileRow[], values: Record<number, boolean>, action: FileAction | "all", value: boolean) {
   const next = { ...values }
@@ -183,6 +191,7 @@ export function setFilePermissionValues(rows: FileRow[], values: Record<number, 
 export function classify(items: PermissionItem[]) {
   const rows = new Map<string, VoucherRow>()
   const fileRows = new Map<FileFamily, FileRow>()
+  const reportRows = new Map<string, ReportRow>()
   const others = new Map<string, PermissionItem[]>()
   const seen = new Set<number>()
   for (const item of items) {
@@ -197,6 +206,20 @@ export function classify(items: PermissionItem[]) {
     }
     const name = normalize(item.access_name || "")
     if (!name) continue
+    const reportDefinition = REPORT_DEFINITIONS.find((definition) =>
+      (["access", "print", "whatsapp"] as ReportPermissionAction[]).some((action) =>
+        item.access_name === reportPermissionNameForTitle(definition.title, action),
+      ),
+    )
+    if (reportDefinition) {
+      const row = reportRows.get(reportDefinition.section) ?? { definition: reportDefinition, cells: {} }
+      const action = (["access", "print", "whatsapp"] as ReportPermissionAction[]).find((candidate) =>
+        item.access_name === reportPermissionNameForTitle(reportDefinition.title, candidate),
+      )
+      if (action) (row.cells[action] ??= []).push(item)
+      reportRows.set(reportDefinition.section, row)
+      continue
+    }
     const voucher = VOUCHER_MATCHERS.find((matcher) => name.endsWith(matcher.key) || name.includes(` ${matcher.key}`))
     if (voucher) {
       const row = rows.get(voucher.name) ?? { name: voucher.name, cells: {}, extras: [] }
@@ -220,7 +243,7 @@ export function classify(items: PermissionItem[]) {
     const category = String(item.category_name || "أخرى")
     others.set(category, [...(others.get(category) || []), item])
   }
-  return { rows, fileRows, others }
+  return { rows, fileRows, reportRows, others }
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -234,11 +257,11 @@ const SOURCE_LABELS: Record<string, string> = {
 type Filter = "all" | "granted" | "denied"
 
 export function BranchPermissionEditor({ items, values, onChange, search, onSearchChange, loading, dirty }: Props) {
-  const [tab, setTab] = useState<"vouchers" | "files" | "general">("vouchers")
+  const [tab, setTab] = useState<"vouchers" | "files" | "reports" | "general">("vouchers")
   const [filter, setFilter] = useState<Filter>("all")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
-  const { rows, fileRows, others } = useMemo(() => classify(items), [items])
+  const { rows, fileRows, reportRows, others } = useMemo(() => classify(items), [items])
   const term = normalize(search)
   const isOn = (list: PermissionItem[] = []) => list.length > 0 && list.every((item) => values[item.access_id])
   const isPartial = (list: PermissionItem[] = []) => list.some((item) => values[item.access_id]) && !isOn(list)
@@ -298,6 +321,17 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
       }),
   })).filter((section) => section.rows.length > 0), [fileRows, filter, term, values])
 
+  const visibleReportRows = useMemo(() => REPORT_DEFINITIONS
+    .map((definition) => reportRows.get(definition.section))
+    .filter((row): row is ReportRow => Boolean(row))
+    .filter((row) => {
+      const all = reportRowAll(row)
+      if (term && !normalize(row.definition.title).includes(term) && !all.some((item) => normalize(item.access_name || "").includes(term))) return false
+      if (filter === "granted") return all.some((item) => values[item.access_id])
+      if (filter === "denied") return all.some((item) => !values[item.access_id])
+      return true
+    }), [filter, reportRows, term, values])
+
   const generalGroups = useMemo(() => Array.from(others.entries())
     .map(([category, list]) => {
       const unique = new Map<string, PermissionItem[]>()
@@ -314,6 +348,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
 
   const voucherItems = useMemo(() => Array.from(rows.values()).flatMap(rowAll), [rows]) // eslint-disable-line react-hooks/exhaustive-deps
   const fileItems = useMemo(() => Array.from(fileRows.values()).flatMap(fileRowAll), [fileRows])
+  const reportItems = useMemo(() => Array.from(reportRows.values()).flatMap(reportRowAll), [reportRows])
   const generalItems = useMemo(() => Array.from(others.values()).flat(), [others])
   const count = (list: PermissionItem[]) => list.filter((item) => values[item.access_id]).length
   const totalGranted = count(items)
@@ -322,10 +357,27 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
   const visibleItems = tab === "vouchers"
     ? sections.flatMap((section) => section.rows.flatMap((entry) => rowAll(entry.row)))
     : tab === "files" ? fileSections.flatMap((section) => section.rows.flatMap((entry) => fileRowAll(entry.row)))
+    : tab === "reports" ? visibleReportRows.flatMap(reportRowAll)
     : generalGroups.flatMap((group) => group.entries.flat())
   const setVisible = (value: boolean) => onChange(tab === "files"
     ? setFilePermissionValues(fileSections.flatMap((section) => section.rows.map((entry) => entry.row)), values, "all", value)
     : set(visibleItems, value))
+  const toggleReportCell = (row: ReportRow, action: ReportPermissionAction) => {
+    const value = !isOn(row.cells[action] || [])
+    let next = set(row.cells[action] || [], value)
+    if (action === "access" && !value) next = set(reportRowAll(row), false, next)
+    else if (action !== "access" && value) next = set(row.cells.access || [], true, next)
+    onChange(next)
+  }
+  const setReportColumn = (rowsToUpdate: ReportRow[], action: ReportPermissionAction, value: boolean) => {
+    let next = values
+    for (const row of rowsToUpdate) {
+      next = set(row.cells[action] || [], value, next)
+      if (action === "access" && !value) next = set(reportRowAll(row), false, next)
+      else if (action !== "access" && value) next = set(row.cells.access || [], true, next)
+    }
+    onChange(next)
+  }
   const toggleCollapsed = (key: string) => setCollapsed((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next })
 
   return (
@@ -356,9 +408,10 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             <Button type="button" variant="outline" size="sm" onClick={() => setVisible(false)} disabled={!visibleItems.length}><X className="ml-1.5 h-4 w-4" />تعطيل الظاهر</Button>
           </div>
         </div>
-        <div className="mt-4 grid gap-2 sm:w-fit sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <TabButton active={tab === "vouchers"} onClick={() => setTab("vouchers")} icon={Receipt} label="الحركات حسب نوع السند" granted={count(voucherItems)} total={voucherItems.length} />
           <TabButton active={tab === "files"} onClick={() => setTab("files")} icon={FolderOpen} label={FILE_PERMISSION_CATEGORY} granted={count(fileItems)} total={fileItems.length} />
+          <TabButton active={tab === "reports"} onClick={() => setTab("reports")} icon={FileText} label="صلاحيات التقارير" granted={count(reportItems)} total={reportItems.length} />
           <TabButton active={tab === "general"} onClick={() => setTab("general")} icon={LayoutGrid} label="الشاشات والصلاحيات العامة" granted={count(generalItems)} total={generalItems.length} />
         </div>
       </div>
@@ -588,6 +641,56 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
               )
             })}
           </>
+        )
+      ) : tab === "reports" ? (
+        visibleReportRows.length === 0 ? <Empty text="لا توجد تقارير مطابقة للبحث أو الفلتر." /> : (
+          <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <div className="border-b bg-muted/30 p-4 text-sm text-muted-foreground">حدد صلاحية الدخول إلى كل تقرير، والطباعة، والإرسال عبر واتساب. إلغاء الدخول يعطّل بقية صلاحيات التقرير تلقائياً.</div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-sm">
+                <caption className="sr-only">صلاحيات الدخول والطباعة والإرسال عبر واتساب لكل تقرير</caption>
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th scope="col" className="p-3 text-right text-xs font-semibold text-muted-foreground">التقرير</th>
+                    {REPORT_ACTIONS.map((action) => {
+                      const columnItems = visibleReportRows.flatMap((row) => row.cells[action.key] || [])
+                      const on = isOn(columnItems)
+                      return <th key={action.key} scope="col" className="w-40 p-2 text-center">
+                        <button type="button" disabled={!columnItems.length} aria-pressed={isPartial(columnItems) ? "mixed" : on}
+                          title={`${on ? "تعطيل" : "تفعيل"} ${action.label} لجميع التقارير الظاهرة`}
+                          onClick={() => setReportColumn(visibleReportRows, action.key, !on)}
+                          className={cn("w-full rounded-lg px-2 py-1.5 text-xs font-bold transition hover:opacity-80 disabled:opacity-40", toneClasses[action.tone].soft, toneClasses[action.tone].text)}>
+                          {action.label}
+                        </button>
+                      </th>
+                    })}
+                    <th scope="col" className="w-20 p-3 text-center text-xs font-semibold text-muted-foreground">الكل</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleReportRows.map((row) => {
+                    const all = reportRowAll(row)
+                    return <tr key={row.definition.section} className="border-b last:border-0 transition hover:bg-muted/30">
+                      <th scope="row" className="p-3 text-right font-semibold">{row.definition.title}</th>
+                      {REPORT_ACTIONS.map((action) => {
+                        const list = row.cells[action.key] || []
+                        if (!list.length) return <td key={action.key} className="p-2 text-center text-muted-foreground/40">—</td>
+                        const on = isOn(list)
+                        return <td key={action.key} className="p-2 text-center">
+                          <Switch checked={on} onCheckedChange={() => toggleReportCell(row, action.key)} aria-label={`${action.label}: ${row.definition.title}`} />
+                        </td>
+                      })}
+                      <td className="p-2 text-center"><Switch checked={isOn(all)} onCheckedChange={(value) => {
+                        let next = values
+                        for (const action of REPORT_ACTIONS) next = set(row.cells[action.key] || [], value, next)
+                        onChange(next)
+                      }} aria-label={`كل صلاحيات ${row.definition.title}`} /></td>
+                    </tr>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )
       ) : generalGroups.length === 0 ? (
         <Empty text="لا توجد صلاحيات مطابقة للبحث أو الفلتر." />

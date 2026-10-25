@@ -12,6 +12,7 @@ import { logReportAudit } from "@/lib/audit-client"
 import { collectReportFilters, reportContextOf } from "@/lib/report-filters-capture"
 import { pdfFileName, reportPdfBlob } from "@/lib/report-pdf"
 import { buildReportFrom } from "@/lib/voucher-print/report-print"
+import { useReportAccess } from "@/components/auth/use-report-access"
 
 type Contact = { name: string; phone: string }
 
@@ -38,6 +39,7 @@ const downloadBlob = (blob: Blob, filename: string) => {
 /** زر "واتساب": يحفظ التقرير الظاهر PDF ويرسله للعميل (إرسال مباشر/مشاركة/تنزيل + فتح واتساب). */
 export function ReportShareButton({ className = "" }: { className?: string }) {
   const anchorRef = useRef<HTMLButtonElement>(null)
+  const canAccessReport = useReportAccess()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<"" | "direct" | "share" | "wa" | "pdf">("")
@@ -47,6 +49,14 @@ export function ReportShareButton({ className = "" }: { className?: string }) {
   const [configured, setConfigured] = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [canShareFiles, setCanShareFiles] = useState(false)
+  const [canShareReport, setCanShareReport] = useState(true)
+  const [reportSection, setReportSection] = useState<string | null>(null)
+
+  useEffect(() => {
+    const section = reportSection || reportContextOf(anchorRef.current).key
+    if (section && section !== reportSection) setReportSection(section)
+    setCanShareReport(canAccessReport(section, "whatsapp"))
+  }, [canAccessReport, reportSection])
 
   useEffect(() => {
     if (!open) return
@@ -85,6 +95,11 @@ export function ReportShareButton({ className = "" }: { className?: string }) {
   }
 
   const run = async (mode: "direct" | "share" | "wa" | "pdf") => {
+    const section = reportSection || reportContextOf(anchorRef.current).key
+    if (!canAccessReport(section, "whatsapp")) {
+      setCanShareReport(false)
+      return
+    }
     if (mode !== "pdf" && mode !== "share" && !waNumber(phone)) {
       toast({ title: "أدخل رقم واتساب العميل", variant: "destructive" })
       return
@@ -104,6 +119,7 @@ export function ReportShareButton({ className = "" }: { className?: string }) {
         form.append("filename", filename)
         form.append("caption", message)
         form.append("recipient", recipient)
+        if (section) form.append("report_key", section)
         const response = await fetch("/api/whatsapp/send-document", { method: "POST", body: form })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data.error || "تعذر الإرسال عبر واتساب")
@@ -131,6 +147,7 @@ export function ReportShareButton({ className = "" }: { className?: string }) {
     }
   }
 
+  if (!canShareReport) return null
   return <>
     <Button ref={anchorRef} type="button" variant="outline" onClick={() => setOpen(true)} className={`gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 ${className}`} title="حفظ التقرير PDF وإرساله للعميل عبر واتساب">
       <MessageCircle className="h-4 w-4" />واتساب
