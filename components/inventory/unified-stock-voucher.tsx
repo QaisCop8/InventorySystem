@@ -2371,7 +2371,7 @@ export default function UnifiedStockVoucher({
       <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
       <DialogContent
         inline={fullscreenEnabled && dialogOpen}
-        className="stock-voucher-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
+        className="stock-voucher-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1500px] flex-col overflow-hidden p-0 sm:h-[92vh] sm:w-[96vw]"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -2407,14 +2407,14 @@ export default function UnifiedStockVoucher({
         />
 
         <div
-          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
+          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [scrollbar-color:#94a3b8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-track]:bg-transparent"
+          style={{ scrollbarWidth: "thin" }}
           onKeyDown={handleFormEnterAsTab}
         >
           <ProgressSpinner loading={isSaving} />
           <Messages innerRef={messagesRef} />
 
-          <DialogHeader className="mb-3 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 shadow-lg">
+          <DialogHeader className="mb-2 shrink-0 overflow-hidden rounded-xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-1.5 shadow-lg sm:rounded-2xl sm:px-5 sm:py-3">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
               <Package className="h-5 w-5" />
               {labels.title}
@@ -2441,7 +2441,7 @@ export default function UnifiedStockVoucher({
               disabled صريح على الحقل نفسه. لذا كل حقل هنا يحمل disabled={isLocked} صراحة عدا رقم السند. */}
           <>
             {/* تفاصيل السند (يضم أيضاً العميل/المستودعات ضمن نفس البطاقة) */}
-            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="stock-voucher-details-fields min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-2xl sm:p-5">
               <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                 <FileText className="h-3.5 w-3.5" />
                 تفاصيل السند
@@ -2449,7 +2449,7 @@ export default function UnifiedStockVoucher({
               <div className="grid gap-3">
                 {/* دفتر السندات ← رقم السند ← تاريخ السند ← العملة ← سعر الصرف: بصف واحد بالسطر
                     الأول من البطاقة (كانا سابقاً بصفَّين منفصلين: 3 حقول ثم 2) بناءً على طلب صريح. */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>دفتر السندات *</Label>
                     <PrimeDropdown
@@ -2528,7 +2528,7 @@ export default function UnifiedStockVoucher({
                 {/* العميل يظهر لكل أنواع سندات الحركة (بما فيها الإرسالية الداخلية) — حقل اختياري
                     دوماً (validateVoucher لا يفرضه)، بينما من/الى مستودع تبقى خاصة بالإرسالية
                     الداخلية والمستودع خاص بسند الاستعمال، تُعرَض إضافةً للعميل لا بدلاً عنه. */}
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label="العميل"
                     value={form.account_id != null ? String(form.account_id) : ""}
@@ -2603,7 +2603,7 @@ export default function UnifiedStockVoucher({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="grid gap-1.5">
                     <Label htmlFor="vch-manual-code">سند يدوي</Label>
                     <Input
@@ -2733,7 +2733,7 @@ export default function UnifiedStockVoucher({
               <Calculator className="h-3.5 w-3.5" />
               ملخص المبالغ
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                 <span className="text-muted-foreground">مجموع الكميات</span>
                 <span className="text-lg font-bold">{Util.formatNumber(chequesTotal, Util.getSystemSetting(17))}</span>

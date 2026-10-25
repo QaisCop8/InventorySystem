@@ -15,6 +15,9 @@ const CACHE_MS = 60_000
 export const isMobilePrintDevice = () =>
   typeof navigator !== "undefined" && (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1))
 
+const isNativeApp = () =>
+  typeof window !== "undefined" && Boolean((window as any).Capacitor?.isNativePlatform?.())
+
 export function loadVoucherPrintSettings(voucherTypeId: number, force = false): Promise<SettingsBundle> {
   const cached = cache.get(voucherTypeId)
   if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.promise
@@ -159,7 +162,10 @@ async function printVoucherWith(original: PrintDocument, resolve: () => Promise<
     return { method: "whatsapp" }
   }
   const mobile = isMobilePrintDevice()
-  const mobileWindow = mobile ? window.open("", "_blank") : null
+  // Capacitor's WebView does not reliably keep window.open() in the app's
+  // navigation stack. Print into a hidden frame there so dismissing Android's
+  // print UI returns to the voucher instead of leaving the app on the print page.
+  const mobileWindow = mobile && !isNativeApp() ? window.open("", "_blank") : null
   try {
     const { settings, company } = await withOriginalSnapshot(document, await resolve())
     document = await withPartyTaxNumber(document, settings)

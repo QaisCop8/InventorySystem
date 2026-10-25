@@ -1641,6 +1641,20 @@ td {
     container-type: inline-size;
   }
 
+  .stock-voucher-form {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 459px) {
+    .stock-voucher-form .stock-voucher-details-fields > .grid {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .stock-voucher-form .stock-voucher-details-fields > .grid > * {
+      min-width: 0 !important;
+    }
+  }
+
   .sales-delivery-form .sales-delivery-details-grid {
     grid-template-columns: minmax(0, 1fr);
   }

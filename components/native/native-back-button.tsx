@@ -30,8 +30,9 @@ export function NativeBackButton() {
     const onBack = () => {
       if (document.querySelector(OPEN_LAYER)) {
         // يغلق نوافذ Radix/PrimeReact ومعاينة طباعة الكاشير (كلها تستجيب لـ Escape)
-        const target = (document.activeElement as HTMLElement | null) || document.body
-        target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }))
+        // Dispatch on the parent document: when the print iframe is focused, an
+        // Escape event sent to that iframe does not reach the preview component.
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }))
         return
       }
       void app.minimizeApp?.()
