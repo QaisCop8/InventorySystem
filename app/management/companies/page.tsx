@@ -214,7 +214,9 @@ export default function ManagementCompaniesPage() {
   const provisioningActive = companies.some((company) => company.status === "provisioning" && !company.provisioning_stale)
   useEffect(() => {
     if (!provisioningActive) return
-    const timer = window.setInterval(() => void loadCompanies(), 4000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadCompanies()
+    }, 10000)
     return () => window.clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provisioningActive])

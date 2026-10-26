@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -91,6 +91,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const [dialogOpen, setDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("main")
   const [accounts, setAccounts] = useState<AccountItem[]>([])
+  const loadDataPromiseRef = useRef<Promise<any[]> | null>(null)
   const [types, setTypes] = useState<AccountType[]>([])
   // خيارات حقل "الفروع" (تقييد ظهور الحساب بالبحث) — انظر branch_ids بـFormState.
   const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([])
@@ -165,6 +166,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const fetchingNextCodeRef = useRef(false)
   const dialogWasOpenRef = useRef(false)
   const dirtySnapshotRef = useRef("")
+  const syncCleanSnapshotAfterRenderRef = useRef(false)
 
   const serializeAccountSnapshot = useCallback(
     (values: {
@@ -285,7 +287,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     [serializeAccountSnapshot, formData, financialListType, fatherAccountName, imagePreview, stopTransactionRows, costCenterTypes, accountClassifications],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (syncCleanSnapshotAfterRenderRef.current) {
+      dirtySnapshotRef.current = currentSnapshot
+      syncCleanSnapshotAfterRenderRef.current = false
+    }
     if (onDirtyChange) {
       onDirtyChange(currentSnapshot !== dirtySnapshotRef.current)
     }
@@ -314,10 +320,30 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     loadData()
   }, [])
 
-  const loadData = async () => {
+  const loadDataImpl = async () => {
     setError("")
     try {
-      const [typesRes, accountsRes] = await Promise.all([fetch("/api/account-classification-types"), fetch("/api/accounts")])
+      const optionalJson = async (url: string) => {
+        try {
+          const response = await fetch(url)
+          return response.ok ? await response.json() : null
+        } catch {
+          return null
+        }
+      }
+      const [typesRes, accountsRes, ratesJson, costCenterTypesJson, branchesJson, voucherTypesJson, costCentersJson, classificationsJson, assetsJson, liabilitiesJson, incomeJson] = await Promise.all([
+        fetch("/api/account-classification-types"),
+        fetch("/api/accounts"),
+        optionalJson("/api/exchange-rates"),
+        optionalJson("/api/cost-center-types"),
+        optionalJson("/api/branches"),
+        optionalJson("/api/vouchers/voucher-types"),
+        optionalJson("/api/cost-centers"),
+        optionalJson("/api/account-classifications"),
+        optionalJson("/api/balance-sheet-assets-items"),
+        optionalJson("/api/balance-sheet-liabilities-items"),
+        optionalJson("/api/income-statement-items"),
+      ])
 
       if (!typesRes.ok || !accountsRes.ok) {
         const statusMsg = !typesRes.ok ? `Types API (${typesRes.status})` : `Accounts API (${accountsRes.status})`
@@ -327,131 +353,22 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
       const typesData = await typesRes.json()
       const accountsData = await accountsRes.json()
-      let currenciesData: any[] = []
-      let companiesData: any[] = []
-      let voucherTypesData: any[] = []
-      let costCenterTypesData: any[] = []
-      let costCentersData: any[] = []
-      let classificationTypesData: any[] = []
-      let classificationsData: any[] = []
-      let balanceSheetAssetsData: any[] = []
-      let balanceSheetLiabilitiesData: any[] = []
-      let incomeStatementData: any[] = []
-
-      try {
-        const ratesRes = await fetch("/api/exchange-rates")
-        if (ratesRes.ok) {
-          const ratesJson = await ratesRes.json()
-          currenciesData = Array.isArray(ratesJson?.rates) ? ratesJson.rates : []
-        }
-      } catch (_) {
-        try {
-          const curRes = await fetch("/api/currencies")
-          if (curRes.ok) currenciesData = await curRes.json()
-        } catch (_) { }
-      }
-
-      try {
-        const typesRes = await fetch("/api/cost-center-types")
-        if (typesRes.ok) {
-          costCenterTypesData = await typesRes.json()
-        }
-      } catch (_) { }
-      try {
-        const branchesRes = await fetch("/api/branches")
-        if (branchesRes.ok) {
-          const branchesJson = await branchesRes.json()
-          setBranches(Array.isArray(branchesJson) ? branchesJson : [])
-        }
-      } catch (_) { }
-      try {
-        const voucherTypesRes = await fetch("/api/vouchers/voucher-types")
-        if (voucherTypesRes.ok) {
-          voucherTypesData = await voucherTypesRes.json()
-        }
-      } catch (_) { }
-      try {
-        const centersRes = await fetch("/api/cost-centers")
-        if (centersRes.ok) {
-          costCentersData = await centersRes.json()
-          // Sort by ID in ascending order
-          if (Array.isArray(costCentersData)) {
-            costCentersData.sort((a, b) => (a.id || 0) - (b.id || 0))
-          }
-        }
-      } catch (_) { }
-
-      try {
-        const classTypesRes = await fetch("/api/account-classification-types")
-        if (classTypesRes.ok) {
-          classificationTypesData = await classTypesRes.json()
-        }
-      } catch (_) { }
-
-      try {
-        const classificationsRes = await fetch("/api/account-classifications")
-        if (classificationsRes.ok) {
-          classificationsData = await classificationsRes.json()
-          // Sort by ID in ascending order
-          if (Array.isArray(classificationsData)) {
-            classificationsData.sort((a, b) => (a.id || 0) - (b.id || 0))
-          }
-        }
-      } catch (_) { }
-
-      try {
-        const assetsRes = await fetch("/api/balance-sheet-assets-items")
-
-        if (assetsRes.ok) {
-          const json = await assetsRes.json()
-          console.log("Fetched balance sheet assets:", json)
-          balanceSheetAssetsData = Array.isArray(json)
-            ? json.map((item: any) => ({
-              ...item,
-              id: item.id != null ? Number(item.id) : item.id,
-              name: item.name ?? item.asset_name ?? item.label ?? "",
-            }))
-            : []
-        } else {
-          console.warn(`Balance sheet assets API returned ${assetsRes.status}`)
-        }
-      } catch (err) {
-        console.warn("Error fetching balance sheet assets:", err)
-      }
-      try {
-        const liabilitiesRes = await fetch("/api/balance-sheet-liabilities-items")
-        if (liabilitiesRes.ok) {
-          const json = await liabilitiesRes.json()
-          balanceSheetLiabilitiesData = Array.isArray(json)
-            ? json.map((item: any) => ({
-              ...item,
-              id: item.id != null ? Number(item.id) : item.id,
-              name: item.name ?? item.asset_name ?? item.label ?? "",
-            }))
-            : []
-        } else {
-          console.warn(`Balance sheet liabilities API returned ${liabilitiesRes.status}`)
-        }
-      } catch (err) {
-        console.warn("Error fetching balance sheet liabilities:", err)
-      }
-      try {
-        const incomeRes = await fetch("/api/income-statement-items")
-        if (incomeRes.ok) {
-          const json = await incomeRes.json()
-          incomeStatementData = Array.isArray(json)
-            ? json.map((item: any) => ({
-              ...item,
-              id: item.id != null ? Number(item.id) : item.id,
-              name: item.name ?? item.asset_name ?? item.label ?? "",
-            }))
-            : []
-        } else {
-          console.warn(`Income statement API returned ${incomeRes.status}`)
-        }
-      } catch (err) {
-        console.warn("Error fetching income statement:", err)
-      }
+      const currenciesData = Array.isArray(ratesJson?.rates)
+        ? ratesJson.rates
+        : (ratesJson == null ? await optionalJson("/api/currencies") : [])
+      const companiesData: any[] = []
+      const voucherTypesData = Array.isArray(voucherTypesJson) ? voucherTypesJson : []
+      const costCenterTypesData = Array.isArray(costCenterTypesJson) ? costCenterTypesJson : []
+      const costCentersData = Array.isArray(costCentersJson) ? costCentersJson.sort((a: any, b: any) => (a.id || 0) - (b.id || 0)) : []
+      const classificationTypesData = Array.isArray(typesData) ? typesData : []
+      const classificationsData = Array.isArray(classificationsJson) ? classificationsJson.sort((a: any, b: any) => (a.id || 0) - (b.id || 0)) : []
+      const normalizeNames = (value: any) => Array.isArray(value)
+        ? value.map((item: any) => ({ ...item, id: item.id != null ? Number(item.id) : item.id, name: item.name ?? item.asset_name ?? item.label ?? "" }))
+        : []
+      const balanceSheetAssetsData = normalizeNames(assetsJson)
+      const balanceSheetLiabilitiesData = normalizeNames(liabilitiesJson)
+      const incomeStatementData = normalizeNames(incomeJson)
+      setBranches(Array.isArray(branchesJson) ? branchesJson : [])
 
       setTypes(Array.isArray(typesData) ? typesData : [])
       setAccounts(
@@ -510,6 +427,15 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     }
   }
 
+  const loadData = () => {
+    if (loadDataPromiseRef.current) return loadDataPromiseRef.current
+    const request = loadDataImpl().finally(() => {
+      if (loadDataPromiseRef.current === request) loadDataPromiseRef.current = null
+    })
+    loadDataPromiseRef.current = request
+    return request
+  }
+
   const activeAccounts = useMemo(
     () => accounts.filter((account) => Number(account.status ?? 1) !== 3),
     [accounts],
@@ -533,27 +459,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }, [activeAccounts])
 
   useEffect(() => {
-    setExpandedTreeAccountIds((previous) => {
-      const next = new Set(previous)
-      accountTree.forEach((account) => next.add(Number(account.id)))
-      return next
-    })
-  }, [accountTree])
-
-  useEffect(() => {
     if (focusedTreeAccountId == null) return
-
-    const ancestors = new Set<number>()
-    let account = activeAccounts.find((item) => Number(item.id) === focusedTreeAccountId)
-    while (account?.father_id) {
-      const parentId = Number(account.father_id)
-      if (ancestors.has(parentId)) break
-      ancestors.add(parentId)
-      account = activeAccounts.find((item) => Number(item.id) === parentId)
-    }
-    if (ancestors.size) {
-      setExpandedTreeAccountIds((previous) => new Set([...previous, ...ancestors]))
-    }
 
     const frame = requestAnimationFrame(() => {
       const row = treeAccountRefs.current.get(focusedTreeAccountId)
@@ -561,7 +467,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       row?.focus({ preventScroll: true })
     })
     return () => cancelAnimationFrame(frame)
-  }, [activeAccounts, focusedTreeAccountId])
+  }, [focusedTreeAccountId])
 
   const filteredAccountTree = useMemo(() => {
     const query = accountTreeSearch.trim().toLocaleLowerCase()
@@ -1105,6 +1011,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       costCenterTypes: nextCostCenterTypes,
       accountClassifications: nextAccountClassifications,
     })
+    syncCleanSnapshotAfterRenderRef.current = true
     // عرض حساب (فتح/تنقل): التركيز على اسم الحساب كما في الحساب الجديد
     setTimeout(() => { accountNameInputRef.current?.focus(); accountNameInputRef.current?.select() }, 120)
   }, [activeAccounts, resolveFatherAccountLabel, voucherTypes, buildStopTransactionRows, costCenters])
@@ -1341,6 +1248,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       })),
       accountClassifications: classificationTypesRef.current || [],
     })
+    syncCleanSnapshotAfterRenderRef.current = true
 
     setTimeout(() => {
       accountNameInputRef.current?.focus()
@@ -1456,6 +1364,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       costCenterTypes: resetCostCenterTypes,
       accountClassifications: classificationTypesRef.current || [],
     })
+    syncCleanSnapshotAfterRenderRef.current = true
   }
 
   // Search for account by code
