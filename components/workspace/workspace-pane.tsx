@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { Profiler, useEffect, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { useWorkspace, type PaneId, type WorkspaceTab } from "@/contexts/workspace-context"
 import { SECTION_TITLES } from "@/components/sidebar"
@@ -75,6 +75,15 @@ function MountedWorkspaceTab({
   renderSection: (section: string | null) => ReactNode
 }) {
   const [dialogContainer, setDialogContainer] = useState<HTMLDivElement | null>(null)
+  // Tabs used to mount every page as soon as it was opened, even when hidden.
+  // Defer the page component until its first activation, then keep it mounted
+  // so switching tabs still preserves unsaved form state.
+  const [hasBeenActive, setHasBeenActive] = useState(active)
+
+  useEffect(() => {
+    if (active && !hasBeenActive) setHasBeenActive(true)
+  }, [active, hasBeenActive])
+  const shouldRender = active || hasBeenActive
 
   return (
     <div
@@ -87,7 +96,23 @@ function MountedWorkspaceTab({
       <WorkspaceTabActiveProvider active={hotkeysActive}>
         <WorkspaceTabIdProvider tabId={tab.id}>
           <WorkspaceDialogProvider container={dialogContainer} confined>
-            <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
+            {shouldRender && (
+              <Profiler
+                id={`workspace:${tab.section || "empty"}`}
+                onRender={(id, phase, actualDuration, baseDuration) => {
+                  if (process.env.NODE_ENV !== "production" && actualDuration >= 50) {
+                    console.info("[perf] Slow page render", {
+                      page: id.replace("workspace:", ""),
+                      phase,
+                      actualDurationMs: Math.round(actualDuration),
+                      baseDurationMs: Math.round(baseDuration),
+                    })
+                  }
+                }}
+              >
+                <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
+              </Profiler>
+            )}
             <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
           </WorkspaceDialogProvider>
         </WorkspaceTabIdProvider>

@@ -58,7 +58,6 @@ export async function GET(request: NextRequest) {
         await ensureProductCostCentersTable(client)
         // These lookups normalize stored strings with TRIM; ordinary indexes on
         // the raw columns cannot accelerate those equality checks.
-        await client.query("CREATE INDEX IF NOT EXISTS idx_products_trimmed_code ON products (TRIM(product_code))")
         await client.query("CREATE INDEX IF NOT EXISTS idx_product_unit_barcodes_trimmed_barcode ON product_unit_barcodes (TRIM(barcode))")
         return hasDefaultStoreColumn(client)
       })()
@@ -73,16 +72,33 @@ export async function GET(request: NextRequest) {
       SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
       FROM products p
       LEFT JOIN warehouses w ON w.id = p.default_store
-      WHERE TRIM(p.product_code) = TRIM($1::text)
+      WHERE p.product_code = TRIM($1::text)
       LIMIT 1
     `
       : `
       SELECT p.*, 'بلا تحديد' AS default_store_name
       FROM products p
-      WHERE TRIM(p.product_code) = TRIM($1::text)
+      WHERE p.product_code = TRIM($1::text)
       LIMIT 1
     `;
     let productResult = await client.query(productQuery, [query]);
+
+    // Product codes have a regular btree index. Keep a trimmed fallback for
+    // older records that were stored with surrounding whitespace, so normal
+    // scans stay index-backed without changing legacy matching behavior.
+    if (!productResult.rows.length) {
+      const legacyProductQuery = canJoinDefaultStore
+        ? `SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+           FROM products p
+           LEFT JOIN warehouses w ON w.id = p.default_store
+           WHERE TRIM(p.product_code) = TRIM($1::text)
+           LIMIT 1`
+        : `SELECT p.*, 'بلا تحديد' AS default_store_name
+           FROM products p
+           WHERE TRIM(p.product_code) = TRIM($1::text)
+           LIMIT 1`
+      productResult = await client.query(legacyProductQuery, [query])
+    }
 
     if (!productResult.rows.length) {
 

@@ -87,7 +87,6 @@ export async function GET(request: NextRequest) {
     const requestedType = Number(request.nextUrl.searchParams.get("type")) || 1
     const permission = await authorizeCustomerType(request, requestedType, "lookup")
     if (!permission.ok) return permission.response
-    console.log("[v0] GET /api/customers - Fetching customers with portal info")
     await ensureCustomerCompatibilityColumns()
     await ensureCustomerBranchesTable()
 
@@ -189,18 +188,6 @@ export async function GET(request: NextRequest) {
           ORDER BY c.created_at DESC
         `
 
-    console.log("[v0] Customers fetched:", {
-      count: customers.length,
-      sample: customers[0]
-        ? {
-          id: customers[0].id,
-          name: customers[0].name,
-          userCount: customers[0].user_count,
-          portalEnabled: customers[0].portal_enabled,
-        }
-        : null,
-    })
-
     if (permission.lookupOnly) {
       return NextResponse.json({ customers: projectFileLookup(customerFileFamily(typeFilter) || "customers", customers) })
     }
@@ -210,8 +197,10 @@ export async function GET(request: NextRequest) {
       type_id: number;
     };
     const vouchersMap: Record<number, VoucherItem[]> = {};
+    let costCenters: any[] = []
+    let stopTransactions: any[] = []
     if (customerIds.length > 0) {
-      const vouchers = await sql`
+      const [vouchers, loadedCostCenters, loadedStopTransactions] = await Promise.all([sql`
         SELECT 
         cv.customer_id,
         cv.voucher_id as type_id ,
@@ -220,12 +209,30 @@ export async function GET(request: NextRequest) {
         LEFT JOIN voucher_books_tbl vb ON cv.book_id = vb.id
          WHERE cv.customer_id = ANY(${customerIds}::int[])
         ORDER BY cv.customer_id, cv.id ASC
-      `;
-
-
-
-
-
+      `, sql`
+        SELECT
+          c.id AS customer_id,
+          accct.cost_center_type_id,
+          accct.required_in_transactions,
+          accct.default_cost_center_id,
+          cc.name AS cost_center_name
+        FROM customers c
+        LEFT JOIN account_costcenters_tbl accct ON accct.account_id = c.account_id
+        LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
+        WHERE c.id = ANY(${customerIds}::int[])
+        ORDER BY c.id, accct.id ASC
+      `, sql`
+        SELECT
+          c.id AS customer_id,
+          ast.voucher_types_id,
+          ast.stop_date
+        FROM customers c
+        LEFT JOIN account_stop_transactions_tbl ast ON ast.account_id = c.account_id
+        WHERE c.id = ANY(${customerIds}::int[])
+        ORDER BY c.id, ast.id ASC
+      `])
+      costCenters = loadedCostCenters
+      stopTransactions = loadedStopTransactions
 
       // Group vouchers by customer_id
       vouchers.forEach((v: any) => {
@@ -244,20 +251,6 @@ export async function GET(request: NextRequest) {
     const stopTransactionMap: Record<number, any[]> = {}
 
     if (customerIds.length > 0) {
-      const costCenters = await sql`
-        SELECT
-          c.id AS customer_id,
-          accct.cost_center_type_id,
-          accct.required_in_transactions,
-          accct.default_cost_center_id,
-          cc.name AS cost_center_name
-        FROM customers c
-        LEFT JOIN account_costcenters_tbl accct ON accct.account_id = c.account_id
-        LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
-        WHERE c.id = ANY(${customerIds}::int[])
-        ORDER BY c.id, accct.id ASC
-      `
-
       costCenters.forEach((row: any) => {
         const customerId = Number(row.customer_id)
         if (!costCenterMap[customerId]) costCenterMap[customerId] = []
@@ -268,17 +261,6 @@ export async function GET(request: NextRequest) {
           cost_center_name: row.cost_center_name || "",
         })
       })
-
-      const stopTransactions = await sql`
-        SELECT
-          c.id AS customer_id,
-          ast.voucher_types_id,
-          ast.stop_date
-        FROM customers c
-        LEFT JOIN account_stop_transactions_tbl ast ON ast.account_id = c.account_id
-        WHERE c.id = ANY(${customerIds}::int[])
-        ORDER BY c.id, ast.id ASC
-      `
 
       stopTransactions.forEach((row: any) => {
         const customerId = Number(row.customer_id)
