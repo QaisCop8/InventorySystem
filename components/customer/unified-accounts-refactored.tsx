@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Plus, AlertCircle, Search, X, BookOpen } from "lucide-react"
+import { Plus, AlertCircle, Search, X, BookOpen, ChevronDown, ChevronLeft, FolderTree } from "lucide-react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
@@ -37,6 +37,10 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 interface AccountType {
   id: number
   name: string
+}
+
+interface AccountTreeNode extends AccountItem {
+  children: AccountTreeNode[]
 }
 
 interface FormState {
@@ -145,6 +149,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const [searchTarget, setSearchTarget] = useState<"father" | "code">("father")
   const [fatherAccountCode, setFatherAccountCode] = useState("")
   const [fatherAccountName, setFatherAccountName] = useState("")
+  const [selectedTreeAccountId, setSelectedTreeAccountId] = useState<number | null>(null)
+  const [expandedTreeAccountIds, setExpandedTreeAccountIds] = useState<Set<number>>(() => new Set())
+  const [accountTreeSearch, setAccountTreeSearch] = useState("")
 
   // Refs
   const costCenterTypeGridRef = useRef<any>(null)
@@ -502,6 +509,87 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     () => accounts.filter((account) => Number(account.status ?? 1) !== 3),
     [accounts],
   )
+
+  const accountTree = useMemo(() => {
+    const nodes = new Map<number, AccountTreeNode>()
+    activeAccounts.forEach((account) => nodes.set(Number(account.id), { ...account, children: [] }))
+    const roots: AccountTreeNode[] = []
+    nodes.forEach((node) => {
+      const parent = node.father_id ? nodes.get(Number(node.father_id)) : undefined
+      if (parent) parent.children.push(node)
+      else roots.push(node)
+    })
+    const sort = (items: AccountTreeNode[]) => {
+      items.sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }))
+      items.forEach((item) => sort(item.children))
+    }
+    sort(roots)
+    return roots
+  }, [activeAccounts])
+
+  useEffect(() => {
+    setExpandedTreeAccountIds((previous) => {
+      const next = new Set(previous)
+      accountTree.forEach((account) => next.add(Number(account.id)))
+      return next
+    })
+  }, [accountTree])
+
+  const filteredAccountTree = useMemo(() => {
+    const query = accountTreeSearch.trim().toLocaleLowerCase()
+    if (!query) return accountTree
+    const filterNodes = (nodes: AccountTreeNode[]): AccountTreeNode[] => nodes.flatMap((node) => {
+      const children = filterNodes(node.children)
+      const matches = `${node.code} ${node.name} ${node.name_lang2 || ""}`.toLocaleLowerCase().includes(query)
+      return matches || children.length ? [{ ...node, children }] : []
+    })
+    return filterNodes(accountTree)
+  }, [accountTree, accountTreeSearch])
+
+  const selectedTreeAccount = useMemo(
+    () => activeAccounts.find((account) => Number(account.id) === selectedTreeAccountId) ?? null,
+    [activeAccounts, selectedTreeAccountId],
+  )
+
+  const renderAccountTreeNode = (node: AccountTreeNode, depth = 0): React.ReactNode => {
+    const expanded = Boolean(accountTreeSearch.trim()) || expandedTreeAccountIds.has(Number(node.id))
+    const selected = selectedTreeAccountId === Number(node.id)
+    return (
+      <div key={node.id}>
+        <div className={`flex min-w-0 items-center rounded-lg ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : "hover:bg-slate-100"}`} style={{ paddingRight: `${depth * 12}px` }}>
+          <button
+            type="button"
+            className="flex h-8 w-7 shrink-0 items-center justify-center text-slate-500"
+            aria-label={expanded ? "طي الحسابات الفرعية" : "توسيع الحسابات الفرعية"}
+            onClick={() => setExpandedTreeAccountIds((previous) => {
+              const next = new Set(previous)
+              if (next.has(Number(node.id))) next.delete(Number(node.id))
+              else next.add(Number(node.id))
+              return next
+            })}
+          >
+            {node.children.length ? expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedTreeAccountId(Number(node.id))}
+            onDoubleClick={() => guardUnsaved(() => {
+              const index = activeAccounts.findIndex((account) => Number(account.id) === Number(node.id))
+              if (index >= 0) setCurrentIndex(index)
+              loadAccountToForm(node)
+              setSelectedTreeAccountId(Number(node.id))
+            })}
+            className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 text-right text-xs"
+            title={`${node.code} - ${node.name}`}
+          >
+            <span className="shrink-0 font-mono font-semibold" dir="ltr">{node.code}</span>
+            <span className="truncate">{node.name}</span>
+          </button>
+        </div>
+        {expanded && node.children.map((child) => renderAccountTreeNode(child, depth + 1))}
+      </div>
+    )
+  }
 
   const currentAccount = useMemo(() => activeAccounts[currentIndex] || null, [activeAccounts, currentIndex])
 
@@ -973,8 +1061,41 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setTimeout(() => { accountNameInputRef.current?.focus(); accountNameInputRef.current?.select() }, 120)
   }, [activeAccounts, resolveFatherAccountLabel, voucherTypes, buildStopTransactionRows, costCenters])
 
+  const nextChildAccountCode = (parent: AccountItem, additionalChildCodes: string[] = []) => {
+    const parentCode = String(parent.code || "").trim()
+    if (!/^\d+$/.test(parentCode)) return ""
+    let lastCode = Number(parentCode)
+    if (!Number.isSafeInteger(lastCode)) return ""
+    activeAccounts
+      .filter((account) => Number(account.father_id || 0) === Number(parent.id))
+      .forEach((account) => {
+        const code = String(account.code || "").trim()
+        const numericCode = Number(code)
+        if (/^\d+$/.test(code) && code.length === parentCode.length && Number.isSafeInteger(numericCode) && numericCode > lastCode) lastCode = numericCode
+      })
+    additionalChildCodes.forEach((codeValue) => {
+      const code = String(codeValue || "").trim()
+      const numericCode = Number(code)
+      if (/^\d+$/.test(code) && code.length === parentCode.length && Number.isSafeInteger(numericCode) && numericCode > lastCode) lastCode = numericCode
+    })
+    let nextValue = lastCode + 1
+    while (Number.isSafeInteger(nextValue) && String(nextValue).length <= parentCode.length) {
+      const candidate = String(nextValue).padStart(parentCode.length, "0")
+      if (!activeAccounts.some((account) => String(account.code || "").trim() === candidate) && !additionalChildCodes.includes(candidate)) return candidate
+      nextValue += 1
+    }
+    return ""
+  }
+
   const handleNew = async () => {
-    await reset_fields()
+    const parent = selectedTreeAccount
+    const childCode = parent ? nextChildAccountCode(parent) : undefined
+    if (parent && !childCode) {
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show?.({ severity: "error", summary: "", detail: "تعذر إنشاء رقم فرعي لهذا الحساب", sticky: false, life: 4000 })
+      return
+    }
+    await reset_fields(childCode, parent)
     setDialogOpen(true)
     setActiveTab("main")
 
@@ -1043,12 +1164,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }
 
   // Reset all fields to blank/default (for new account entry)
-  const reset_fields = useCallback(async () => {
+  const reset_fields = useCallback(async (codeOverride?: string, parentAccount?: AccountItem | null) => {
     const defaultCurrencyId = currencies && currencies.length > 0 ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : "1"
     messagesRef.current?.clear?.()
     // Fetch next account code from API - prevent concurrent calls
-    let nextCode = "A0000001"
-    if (!fetchingNextCodeRef.current) {
+    let nextCode = codeOverride || "A0000001"
+    if (!codeOverride && !fetchingNextCodeRef.current) {
       fetchingNextCodeRef.current = true
       try {
         const response = await fetch("/api/accounts/next-code")
@@ -1065,18 +1186,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       }
     }
     console.log("defaultCurrencyId:")
-    setFormData({
+    const initialFormData: FormState = {
       id: 0,
       code: nextCode,
       name: "",
       name_lang2: "",
       type: types && types.length > 0 ? String(types[0].id) : "",
-      father_id: "",
-      level_no: "1",
-      finanical_list_id: "1",
-      finanical_list_assests_id: "",
-      finanical_list_liabilities_id: "",
-      finanical_list_income_id: "",
+      father_id: parentAccount ? String(parentAccount.id) : "",
+      level_no: parentAccount ? String(Number(parentAccount.level_no || 1) + 1) : "1",
+      finanical_list_id: String(parentAccount?.finanical_list_id || 1),
+      finanical_list_assests_id: parentAccount?.finanical_list_assests_id ? String(parentAccount.finanical_list_assests_id) : "",
+      finanical_list_liabilities_id: parentAccount?.finanical_list_liabilities_id ? String(parentAccount.finanical_list_liabilities_id) : "",
+      finanical_list_income_id: parentAccount?.finanical_list_income_id ? String(parentAccount.finanical_list_income_id) : "",
       currency_id: defaultCurrencyId,
       allow_trans_with_diff_curr: "0",
       iscalc_curr_diff_rates: false,
@@ -1094,10 +1215,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       show_notes_in_transactions_soa: false,
       status: "نشط",
       branch_ids: [],
-    })
-    setFinancialListType("1")
-    setFatherAccountCode("")
-    setFatherAccountName("")
+    }
+    const nextFinancialListType = String(parentAccount?.finanical_list_id || 1)
+    const nextFatherAccountName = parentAccount ? formatAccountLabel(parentAccount) : ""
+    setFormData(initialFormData)
+    setFinancialListType(nextFinancialListType)
+    setFatherAccountCode(parentAccount?.code || "")
+    setFatherAccountName(nextFatherAccountName)
     setImagePreview(null)
     setImageFile(null)
     setStopTransactionRows(buildStopTransactionRows(voucherTypes, []))
@@ -1141,38 +1265,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setSearchAccountClassificationOpen(false)
 
     dirtySnapshotRef.current = serializeAccountSnapshot({
-      formData: {
-        id: 0,
-        code: nextCode,
-        name: "",
-        name_lang2: "",
-        type: types && types.length > 0 ? String(types[0].id) : "",
-        father_id: "",
-        level_no: "1",
-        finanical_list_id: "1",
-        finanical_list_assests_id: "",
-        finanical_list_liabilities_id: "",
-        finanical_list_income_id: "",
-        currency_id: defaultCurrencyId,
-        allow_trans_with_diff_curr: "0",
-        iscalc_curr_diff_rates: false,
-        transaction_type: "0",
-        transaction_type_action: "0",
-        max_transaction_amount: "0",
-        max_transaction_amount_action: "0",
-        max_balance_amount: "0",
-        max_balance_action: "",
-        budget_exceeding_perc: "",
-        budget_exceeding_action: "",
-        unified_report_account_no: "",
-        unified_report_group_code: "",
-        notes: "",
-        show_notes_in_transactions_soa: false,
-        status: "نشط",
-        branch_ids: [],
-      },
-      financialListType: "1",
-      fatherAccountName: "",
+      formData: initialFormData,
+      financialListType: nextFinancialListType,
+      fatherAccountName: nextFatherAccountName,
       stopTransactionRows: buildStopTransactionRows(voucherTypes, []),
       costCenterTypes: costCenterTypes.map((type) => ({
         ...type,
@@ -1186,7 +1281,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setTimeout(() => {
       accountNameInputRef.current?.focus()
     }, 100)
-  }, [currencies, types, voucherTypes, buildStopTransactionRows])
+  }, [currencies, types, voucherTypes, buildStopTransactionRows, formatAccountLabel])
 
   // Reset fields but keep the code (similar to handleNew but preserves code)
   const resetFieldsWithCode = (codeToKeep: string) => {
@@ -1719,7 +1814,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       } else {
         setDialogOpen(false)
       }*/
-      await reset_fields()
+      const nextParent = isNewAccount ? fatherAccount : null
+      const nextChildCode = nextParent ? nextChildAccountCode(nextParent, [String(savedCode)]) : undefined
+      await reset_fields(nextChildCode, nextParent)
       if (options?.closeAfterSave && closeWindow) {
         closeWindow()
       }
@@ -2227,7 +2324,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <Messages innerRef={messagesRef} />
         </div>
 
-        <div className="shrink-0 px-3 pt-3 sm:px-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-3 pt-2 sm:px-5 lg:flex-row">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="shrink-0">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-white shadow-lg">
             <BookOpen className="h-5 w-5" />
             <h2 className="text-lg font-extrabold tracking-tight sm:text-xl">{formData.id === 0 ? "حساب جديد" : "تعديل حساب"}</h2>
@@ -2885,6 +2984,42 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             </TabsContent>
           </Tabs>
+        </div>
+        </main>
+
+        <aside className="flex h-[min(34vh,260px)] min-h-40 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[290px] lg:shrink-0">
+          <div className="border-b border-slate-100 bg-slate-50 p-3">
+            <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
+              <FolderTree className="h-4 w-4 text-emerald-700" />
+              <span>شجرة الحسابات</span>
+              <span className="mr-auto text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
+            </div>
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={accountTreeSearch}
+                onChange={(event) => setAccountTreeSearch(event.target.value)}
+                placeholder="ابحث برقم أو اسم الحساب"
+                className="h-9 pr-9 text-sm"
+              />
+            </div>
+            {selectedTreeAccount && (
+              <div className="mt-2 flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs text-emerald-900">
+                <span className="shrink-0">الحساب الأب:</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{selectedTreeAccount.code} - {selectedTreeAccount.name}</span>
+                <button type="button" onClick={() => setSelectedTreeAccountId(null)} className="shrink-0 rounded p-0.5 hover:bg-emerald-100" aria-label="مسح اختيار الحساب الأب"><X className="h-3.5 w-3.5" /></button>
+              </div>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto p-2">
+            {filteredAccountTree.length ? filteredAccountTree.map((node) => renderAccountTreeNode(node)) : (
+              <p className="px-2 py-6 text-center text-xs text-slate-500">لا توجد حسابات مطابقة</p>
+            )}
+          </div>
+          <div className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+            اختر حساباً ثم اضغط «جديد» لإنشاء حساب فرعي.
+          </div>
+        </aside>
         </div>
 
         <AccountSearchDialog

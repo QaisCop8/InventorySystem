@@ -2556,7 +2556,7 @@ export function CompactProductForm({
   }), [formData.product_brands])
 
   return (
-    <div className="h-full min-h-[70vh] min-w-0 flex flex-col overflow-hidden text-lg compact-product-form-root" dir="rtl">
+    <div className={`h-full ${isService ? "min-h-0 text-sm compact-service-form-root" : "min-h-[70vh] text-lg"} min-w-0 flex flex-col overflow-hidden compact-product-form-root`} dir="rtl">
       {/* Keep the toolbar flush with the dialog, matching the sales-delivery form. */}
       <div className="relative flex flex-shrink-0 items-center" dir="rtl">
         <button
@@ -2641,8 +2641,8 @@ export function CompactProductForm({
 
       <Toast ref={toast} position="top-left" className="custom-toast" />
       <ProgressSpinner loading={loading} />
-      <div ref={formRootRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
-        <div className="mx-auto w-full max-w-full space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12">
+      <div ref={formRootRef} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${isService ? "compact-service-form-scroll" : ""}`}>
+        <div className={`mx-auto w-full max-w-full ${isService ? "space-y-2 p-2 pb-3 sm:space-y-3 sm:p-3" : "space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12"}`}>
           {/* Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -2653,18 +2653,18 @@ export function CompactProductForm({
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-foreground sm:text-xl">المعلومات الأساسية والتعريف</h2>
+          <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-6"}>
+            <div className={isService ? "mb-1" : "mb-4"}>
+              <h2 className={isService ? "text-sm font-semibold text-foreground" : "text-lg font-semibold text-foreground sm:text-xl"}>المعلومات الأساسية والتعريف</h2>
             </div>
             <Card>
-              <CardContent className="space-y-4 p-4 sm:p-6">
+              <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-4 p-4 sm:p-6"}>
                 {/* نفس تصميم components/products/unified-customers.tsx: الصورة يساراً، وأكواد
                     التعريف (الرقم/الاسم العربي/الاسم الإنجليزي) يميناً — الرقم في سطره الخاص،
                     ثم كل اسم بسطر كامل العرض تحته. */}
-                <div className="flex flex-col md:flex-row items-stretch gap-4">
-                  <div className="flex-1 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`flex flex-col items-stretch ${isService ? "gap-2 md:flex-row" : "gap-4 md:flex-row"}`}>
+                  <div className={`flex-1 ${isService ? "space-y-2" : "space-y-4"}`}>
+                    <div className={`grid grid-cols-1 md:grid-cols-3 ${isService ? "gap-2" : "gap-4"}`}>
                       <div>
                         <ProductCodeInput
                           formData={formData}
@@ -2692,7 +2692,7 @@ export function CompactProductForm({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={`grid grid-cols-1 md:grid-cols-2 ${isService ? "gap-2" : "gap-4"}`}>
                       <div>
                         <Label htmlFor="product_name" className="text-sm font-medium">
                           {isService ? "اسم الخدمة *" : "اسم الصنف *"}
@@ -2732,12 +2732,12 @@ export function CompactProductForm({
                     value={formData.product_image}
                     onChange={(value) => updateFormData("product_image", value)}
                     label={isService ? "صورة الخدمة" : "صورة الصنف"}
-                    size={160}
+                    size={isService ? 88 : 160}
                   />
                 </div>
 
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${isService ? "gap-2 sm:grid-cols-3" : "gap-4 xl:grid-cols-5"}`}>
                   {!isService && (
                     <>
                       <div>
@@ -2838,9 +2838,9 @@ export function CompactProductForm({
                   )}
 
                   {isService && (
-                    <div className="xl:col-span-2">
+                    <div className="sm:col-span-2">
                       <Label className="text-sm font-medium">نوع الخدمة</Label>
-                      <div className="mt-2 flex flex-wrap items-center gap-4">
+                      <div className="mt-1 flex flex-wrap items-center gap-3">
                         <label className="flex items-center gap-2 text-sm">
                           <input
                             type="radio"
@@ -2870,7 +2870,7 @@ export function CompactProductForm({
             </Card>
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir="rtl" className="min-w-0">
-              <TabsList className="flex h-auto w-full min-w-0 flex-nowrap justify-start gap-2 overflow-x-auto rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md backdrop-blur-sm" style={{ direction: "rtl" }}>
+              <TabsList className={`flex h-auto w-full min-w-0 flex-nowrap justify-start overflow-x-auto rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 shadow-md backdrop-blur-sm ${isService ? "gap-1 p-1" : "gap-2 p-2"}`} style={{ direction: "rtl" }}>
                 <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
                 <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
                 <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? 'الحسابات المحاسبية' : 'الحسابات'}</TabsTrigger>
@@ -2915,7 +2915,7 @@ export function CompactProductForm({
                         <div className="w-full overflow-x-auto">
                           <DataGridView
                             key={`product-prices-${currentProductId}`}
-                            style={{ height: TABS_GRID_HEIGHT }}
+                            style={{ height: isService ? 190 : TABS_GRID_HEIGHT }}
                             dataSource={formData.units ?? []}
                             scheme={getScheme()}
                             selectionChanged={selectionChanged}
@@ -2964,7 +2964,7 @@ export function CompactProductForm({
                       <div className="col-span-12 md:col-span-12">
                         <div className="w-full overflow-x-auto">
                           <DataGridView
-                            style={{ height: TABS_GRID_HEIGHT }}
+                            style={{ height: isService ? 190 : TABS_GRID_HEIGHT }}
                             dataSource={formData.prices ?? []}
                             scheme={getPricesScheme()}
                             onKeyDownCapture={moveGridOnEnter}

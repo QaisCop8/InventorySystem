@@ -605,7 +605,7 @@ export function Services() {
       />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open, error: null, ...(open ? {} : { editingProduct: null, formData: initialFormData }) }))}>
-        <DialogContent inline={fullscreenEnabled && state.showDialog} className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
+        <DialogContent inline={fullscreenEnabled && state.showDialog} className="h-[92vh] max-h-[760px] w-[96vw] max-w-[1100px] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
           <CompactServiceForm
             visible={state.showDialog}
             editingProduct={state.editingProduct}
