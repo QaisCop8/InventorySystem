@@ -166,17 +166,30 @@ export default function AutoCompleteAccount({
   const [isFocused, setIsFocused] = useState(false)
   const [displayValue, setDisplayValue] = useState(value)
   const onValueChangeRef = useRef(onValueChange)
+  const typedTextRef = useRef<string | null>(null)
+  const searchOpeningRef = useRef(false)
   // كل الحسابات قبل استبعاد الرئيسية — لتمييز "كود حساب رئيسي" عن "كود غير موجود" عند الكتابة
   const allAccountsRef = useRef<AccountItem[]>([])
 
   const normalizedValue = useMemo(() => (valueMode === "id" ? String(value).trim() : normalizeAccountCode(value)), [value, valueMode])
   const resolvedDisplayValue = useMemo(() => {
     if (selectedAccount) return formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly)
-    if (isFocused) return value
+    if (isFocused) return displayValue
     // When using id mode, avoid showing the raw numeric id while async resolving
     if (valueMode === "id") return ""
     return value
-  }, [displayIdOnly, displayNameFirst, isFocused, selectedAccount, value])
+  }, [displayIdOnly, displayNameFirst, displayValue, isFocused, selectedAccount, value])
+
+  const matchingAccounts = useMemo(() => {
+    const query = displayValue.trim().toLocaleLowerCase()
+    if (!isFocused || !query || selectedAccount) return []
+    const words = query.split(/\s+/).filter(Boolean)
+    return accounts.filter((account) => {
+      if (requiredTypeValues?.length && !requiredTypeValues.includes(Number(account.type ?? 0))) return false
+      const searchable = `${account.code} ${account.name} ${account.name_lang2 || ""}`.toLocaleLowerCase()
+      return words.every((word) => searchable.includes(word))
+    }).slice(0, 8)
+  }, [accounts, displayValue, isFocused, requiredTypeValues, selectedAccount])
 
   // يُطبَّق عند اختيار المستخدم حساباً (لا عند تحميل حساب محفوظ مسبقاً)
   const currencyAllows = (account: AccountItem) => {
@@ -298,8 +311,9 @@ export default function AutoCompleteAccount({
   }, [normalizedValue, resolveAccountByCode, resolveAccountById, value, valueMode])
 
   useEffect(() => {
+    if (isFocused && typedTextRef.current !== null) return
     setDisplayValue(resolvedDisplayValue)
-  }, [resolvedDisplayValue])
+  }, [resolvedDisplayValue, isFocused])
 
   useEffect(() => {
     void loadAccounts().catch((error) => console.error("Failed to load accounts:", error))
@@ -309,11 +323,8 @@ export default function AutoCompleteAccount({
   // لا تخزّن كل حرف (تتجاهل onValueChange أو تخزّن معرّفاً بوضع id)، فكان Enter يرى الحقل "فارغاً"
   // ويفتح البحث دائماً، وكان blur يبحث بنص قديم. في وضع id لا يُمرَّر النص المكتوب للصفحة كمعرّف
   // (كتابة 11 كانت تختار الحساب ذا المعرّف 11 بدل الكود 0000000011).
-  const typedTextRef = useRef<string | null>(null)
-  const searchOpeningRef = useRef(false)
-
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const text = normalizeAccountCode(event.target.value)
+    const text = event.target.value.slice(0, 100)
     typedTextRef.current = text
     setDisplayValue(text)
     if (valueMode === "code") onValueChange(text)
@@ -339,6 +350,18 @@ export default function AutoCompleteAccount({
       onValueChange("")
       notifySelection(null)
       if (fromEnter && showSearchButton && !disabled) void handleOpenSearch()
+      return
+    }
+
+    // Name searches (including Arabic and multiword names) should stay intact
+    // and be selected from the suggestions or the full search dialog.
+    if (!/^[a-z\d]+$/i.test(typed.trim())) {
+      const matches = matchingAccounts
+      if (matches.length === 1) {
+        handleSelectFromSearch(matches[0])
+      } else if (fromEnter && showSearchButton && !disabled) {
+        void handleOpenSearch()
+      }
       return
     }
 
@@ -440,6 +463,7 @@ export default function AutoCompleteAccount({
     <div className={className} dir="rtl">
       {label && <Label className="mb-2 block text-sm font-medium">{label}</Label>}
       <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
         <Input
           ref={inputRef}
           value={displayValue}
@@ -461,13 +485,32 @@ export default function AutoCompleteAccount({
               void handleOpenSearch()
             }
           }}
-          maxLength={10}
+          maxLength={100}
           placeholder={placeholder}
-          className={`text-right uppercase ${inputClassName}`}
+          className={`text-right ${inputClassName}`}
           disabled={disabled}
           autoComplete="off"
           inputMode="text"
         />
+        {matchingAccounts.length > 0 && (
+          <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border bg-white p-1 shadow-lg" role="listbox">
+            {matchingAccounts.map((account) => (
+              <button
+                key={account.id}
+                type="button"
+                role="option"
+                aria-selected="false"
+                className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-right text-sm hover:bg-slate-100 focus:bg-slate-100"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => handleSelectFromSearch(account)}
+              >
+                <span>{account.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{account.code}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        </div>
         {showAnyAction && (
           <div className="flex items-center gap-2 shrink-0">
             {showSearchAction && (
