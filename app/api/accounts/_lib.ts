@@ -9,6 +9,26 @@ export const accountFileFamilyForType = (type: unknown): FileFamily => {
   return "accounts"
 }
 
+export const validateAccountParentForChild = async (parentId: number): Promise<string | null> => {
+  const parent = (await sql`
+    SELECT a.id, a.type, a.code, a.name,
+      (
+        EXISTS (SELECT 1 FROM voucher_journal_detail_tbl d WHERE d.account_id = a.id)
+        OR EXISTS (SELECT 1 FROM voucher_header_tbl h WHERE h.account_id = a.id)
+      ) AS has_transactions
+    FROM account_tbl a
+    WHERE a.id = ${parentId}
+    LIMIT 1
+  `)[0] as any
+
+  if (!parent) return "الحساب الأب غير موجود"
+  if (Number(parent.type) !== 1) return "لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي (1)"
+  if (parent.has_transactions) {
+    return `لا يمكن إضافة حساب فرعي للحساب ${parent.code} - ${parent.name} لوجود حركات عليه؛ انقل الحركات إلى حساب فرعي أولاً`
+  }
+  return null
+}
+
 export const statusLabelToCode = (status: string): number => {
   if (status === "موقوف") return 2
   if (status === "محذوف") return 3

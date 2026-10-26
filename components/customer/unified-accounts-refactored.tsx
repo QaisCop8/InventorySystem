@@ -298,7 +298,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }, [accounts, formData.father_id])
 
   useEffect(() => {
-    if (!selectedParentAccount) return
+    if (!selectedParentAccount || formData.id !== 0) return
 
     setFormData((prev) => ({
       ...prev,
@@ -308,7 +308,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       finanical_list_income_id: selectedParentAccount.finanical_list_income_id ? String(selectedParentAccount.finanical_list_income_id) : "",
     }))
     setFinancialListType(String(selectedParentAccount.finanical_list_id || 1))
-  }, [selectedParentAccount])
+  }, [selectedParentAccount, formData.id])
 
   useEffect(() => {
     loadData()
@@ -619,11 +619,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               setSelectedTreeAccountId(Number(node.id))
               setFocusedTreeAccountId(Number(node.id))
             })}
-            className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-xs"
+            className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-right text-xs"
             title={`${node.code} - ${node.name}`}
             dir="rtl"
           >
-            <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
+            <span className="min-w-0 flex-1 truncate text-right font-medium">{node.name}</span>
             <span className="shrink-0 font-mono text-[10px] text-slate-500" dir="ltr">{node.code}</span>
           </button>
         </div>
@@ -637,6 +637,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }
 
   const currentAccount = useMemo(() => activeAccounts[currentIndex] || null, [activeAccounts, currentIndex])
+  const isNonLedgerAccount = formData.id !== 0 && Number(formData.type) !== 1
 
   const buildStopTransactionRows = useCallback((voucherTypesList: any[], stopRows: any[] = []) => {
     const stopByVoucherType = new Map<number, any>()
@@ -1134,13 +1135,28 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     return ""
   }
 
+  const showValidationMessage = (detail: string) => {
+    messagesRef.current?.clear?.()
+    messagesRef.current?.show({
+      severity: "error",
+      summary: "",
+      detail,
+      sticky: false,
+      life: 3000,
+    })
+  }
+
   const handleNew = async () => {
-    const parent = selectedTreeAccount
-    const childCode = parent ? nextChildAccountCode(parent) : undefined
-    if (parent && !childCode) {
-      messagesRef.current?.clear?.()
-      messagesRef.current?.show?.({ severity: "error", summary: "", detail: "تعذر إنشاء رقم فرعي لهذا الحساب", sticky: false, life: 4000 })
+    let parent = selectedTreeAccount
+    if (parent && Number(parent.type) !== 1) {
+      showValidationMessage("لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي")
       return
+    }
+    let childCode = parent ? nextChildAccountCode(parent) : undefined
+    if (parent && !childCode) {
+      parent = null
+      childCode = undefined
+      setSelectedTreeAccountId(null)
     }
     await reset_fields(childCode, parent)
     setDialogOpen(true)
@@ -1642,20 +1658,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }, [costCenterTypes])
 
   const handleSave = async (options?: { closeAfterSave?: boolean }): Promise<boolean> => {
+    if (isNonLedgerAccount) {
+      showValidationMessage("هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف، ويتم تعديله من صفحته المخصصة")
+      return false
+    }
     setError("")
     setMessage("")
     messagesRef.current?.clear?.()
-
-    const showValidationMessage = (detail: string) => {
-      messagesRef.current?.clear?.()
-      messagesRef.current?.show({
-        severity: "error",
-        summary: "",
-        detail,
-        sticky: false,
-        life: 3000,
-      })
-    }
 
     // Get and clean the form data
     const trimmedCode = formData.code.trim().toUpperCase()
@@ -1757,6 +1766,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
     const fatherAccount = resolveFatherAccount()
     if (fatherAccount) {
+      if (Number(fatherAccount.type) !== 1) {
+        showValidationMessage("لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي")
+        return false
+      }
       const sameFatherId = Number(fatherAccount.id) === Number(formData.id) && Number(formData.id) !== 0
       const sameFatherCode = String(fatherAccount.code ?? "").toUpperCase() === finalCode
 
@@ -1905,6 +1918,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   const handleDelete = async () => {
     if (!currentAccount) return
+    if (Number(currentAccount.type) !== 1) {
+      showValidationMessage("لا يمكن حذف هذا الحساب من دليل الحسابات؛ استخدم صفحة تعريفه المخصصة")
+      return
+    }
 
     const isParentAccount = accounts.some((account) => Number(account.father_id ?? 0) === Number(currentAccount.id))
     if (isParentAccount) {
@@ -2376,7 +2393,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             onPrevious={() => guardUnsaved(handlePrevious)}
             onNext={() => guardUnsaved(handleNext)}
             onLast={() => guardUnsaved(handleLast)}
-            canDelete={formData.id !== 0}
+            canSave={!isNonLedgerAccount}
+            canDelete={formData.id !== 0 && !isNonLedgerAccount}
             isSaving={saving}
             showUtilityLabels
             labels={{
@@ -2409,6 +2427,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
         {/* نفس التصميم الناعم لنموذج العملاء (globals.css: .unified-customers-compact / .customer-definition-form) */}
         <div ref={formRootRef} className="customer-definition-form min-h-0 flex-1 overflow-y-auto px-3 py-4 space-y-4 sm:px-5">
+          {isNonLedgerAccount && (
+            <Alert className="border-amber-300 bg-amber-50 text-amber-950" role="status">
+              <AlertDescription>هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف. اعرضه وعدّله من صفحته المخصصة.</AlertDescription>
+            </Alert>
+          )}
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -2417,6 +2440,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           {statusMessage && null}
 
           <ProgressSpinner loading={loading} />
+          <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
           <div className="space-y-4 border-b pb-4">
             <div className="grid gap-4 md:grid-cols-2 items-end">
               <div>
@@ -2478,6 +2502,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             </div>
           </div>
+          </fieldset>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList dir="rtl" className="customer-tabs">
@@ -2489,6 +2514,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             </TabsList>
 
             <TabsContent value="main" className="space-y-6">
+              <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               {/* Currency and Financial Settings */}
               <div className="space-y-4 border-b pb-6">
                 <h4 className="font-semibold text-base">الإعدادات المالية</h4>
@@ -2786,8 +2812,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 </div>
               </div>
 
+              </fieldset>
             </TabsContent>
             <TabsContent value="constraints" className="space-y-4" dir="rtl">
+              <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 <h4 className="font-semibold text-base">الحدود المالية والإجراءات</h4>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -2863,8 +2891,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   </div>
                 </div>
               </div>
+              </fieldset>
             </TabsContent>
             <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
+              <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
                   <Checkbox
@@ -2896,8 +2926,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   )}
                 </div>
               </div>
+              </fieldset>
             </TabsContent>
             <TabsContent value="cost-centers" className="space-y-4" dir="rtl">
+              <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 {/* Header Section */}
                 <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
@@ -2946,9 +2978,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 </div>
 
               </div>
+              </fieldset>
             </TabsContent>
 
             <TabsContent value="classification" className="space-y-4" dir="rtl">
+              <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 {/* Unified Classification Section */}
 
@@ -3054,6 +3088,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   )}
                 </div>
               </div>
+              </fieldset>
             </TabsContent>
           </Tabs>
         </div>

@@ -12,6 +12,7 @@ import {
   ensureAccountRelatedTables,
   mapAccountRow,
   accountFileFamilyForType,
+  validateAccountParentForChild,
 } from "./_lib"
 
 const ensureAccountLookupTables = () => runSchemaOnce("app/api/accounts/route.ts#ensureAccountLookupTables", async () => {
@@ -447,10 +448,8 @@ export async function POST(request: NextRequest) {
     }*/
 
     if (parentAccountId !== null) {
-      const parentExists = await sql`SELECT id FROM account_tbl WHERE id = ${parentAccountId}`
-      if (parentExists.length === 0) {
-        return NextResponse.json({ error: "الحساب الرئيسي غير موجود" }, { status: 400 })
-      }
+      const parentError = await validateAccountParentForChild(parentAccountId)
+      if (parentError) return NextResponse.json({ error: parentError }, { status: 400 })
     }
 
     const inserted = await sql`

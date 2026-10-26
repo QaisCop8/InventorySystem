@@ -11,6 +11,7 @@ import {
   ensureAccountRelatedTables,
   mapAccountRow,
   accountFileFamilyForType,
+  validateAccountParentForChild,
 } from "../_lib"
 
 export async function GET(request: NextRequest) {
@@ -182,11 +183,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const data = await request.json()
     const id = Number(params.id)
     if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "معرف الحساب غير صالح" }, { status: 400 })
-    const storedAccount = (await sql`SELECT id, type FROM account_tbl WHERE id = ${id} LIMIT 1`)[0]
+    const storedAccount = (await sql`SELECT id, type, father_id FROM account_tbl WHERE id = ${id} LIMIT 1`)[0]
     if (!storedAccount) return NextResponse.json({ error: "الحساب غير موجود" }, { status: 404 })
     const action = Number(data.status) === 3 || statusLabelToCode(String(data.status ?? "")) === 3 ? "delete" : "update"
     const authorization = await authorizeFile(request, accountFileFamilyForType(storedAccount.type), action)
     if (!authorization.ok) return authorization.response
+    if (Number(storedAccount.type) !== 1) {
+      return NextResponse.json({ error: "هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف، ويتم تعديله من صفحته المخصصة" }, { status: 400 })
+    }
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
     await sql`
@@ -270,9 +274,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       if (parentAccountId === id) {
         return NextResponse.json({ error: "لا يمكن ان يكون الحساب اب لنفسه" }, { status: 400 })
       }
-      const parentExists = await sql`SELECT id FROM account_tbl WHERE id = ${parentAccountId}`
-      if (parentExists.length === 0) {
-        return NextResponse.json({ error: "الحساب الرئيسي غير موجود" }, { status: 400 })
+      const storedFatherId = storedAccount.father_id == null ? null : Number(storedAccount.father_id)
+      if (parentAccountId !== storedFatherId) {
+        const parentError = await validateAccountParentForChild(parentAccountId)
+        if (parentError) return NextResponse.json({ error: parentError }, { status: 400 })
       }
     }
 
