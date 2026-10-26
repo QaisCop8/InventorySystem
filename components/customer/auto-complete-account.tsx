@@ -180,16 +180,17 @@ export default function AutoCompleteAccount({
     return value
   }, [displayIdOnly, displayNameFirst, displayValue, isFocused, selectedAccount, value])
 
+  const suggestionTypeValues = requiredTypeValues?.length ? requiredTypeValues : searchAllowedTypeValues
   const matchingAccounts = useMemo(() => {
     const query = displayValue.trim().toLocaleLowerCase()
     if (!isFocused || !query || selectedAccount) return []
     const words = query.split(/\s+/).filter(Boolean)
     return accounts.filter((account) => {
-      if (requiredTypeValues?.length && !requiredTypeValues.includes(Number(account.type ?? 0))) return false
+      if (suggestionTypeValues?.length && !suggestionTypeValues.includes(Number(account.type ?? 0))) return false
       const searchable = `${account.code} ${account.name} ${account.name_lang2 || ""}`.toLocaleLowerCase()
       return words.every((word) => searchable.includes(word))
     }).slice(0, 8)
-  }, [accounts, displayValue, isFocused, requiredTypeValues, selectedAccount])
+  }, [accounts, displayValue, isFocused, selectedAccount, suggestionTypeValues])
 
   // يُطبَّق عند اختيار المستخدم حساباً (لا عند تحميل حساب محفوظ مسبقاً)
   const currencyAllows = (account: AccountItem) => {
