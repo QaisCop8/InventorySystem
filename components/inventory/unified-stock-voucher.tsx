@@ -2770,7 +2770,10 @@ export default function UnifiedStockVoucher({
         />
         <UnitsSearchPopup
           visible={unitsSearchOpen}
-          product={{ name: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_name || "" : "" }}
+          product={{
+            id: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_id ?? null : null,
+            name: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_name || "" : "",
+          }}
           priceCategoryId={0}
           units={unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.units || [] : []}
           onClose={() => {

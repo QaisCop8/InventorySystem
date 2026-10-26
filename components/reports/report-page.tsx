@@ -6,12 +6,13 @@ import "./report-theme.css"
 import { ReportShareButton } from "./report-share-button"
 import { usePathname } from "next/navigation"
 import { useReportAccess } from "@/components/auth/use-report-access"
-import { reportDefinitionFor } from "@/lib/report-permission-definitions"
+import { REPORT_DEFINITIONS, reportDefinitionFor } from "@/lib/report-permission-definitions"
 
 export function ReportPage({ children, loading = false }: { children: ReactNode; loading?: boolean }) {
   const pathname = usePathname()
   const routeSection = pathname.split("/").filter(Boolean).at(-1) || ""
-  const section = reportDefinitionFor(routeSection) ? routeSection : undefined
+  const section = reportDefinitionFor(routeSection)?.section
+    || REPORT_DEFINITIONS.find((definition) => definition.section.replace(/-report$/, "") === routeSection)?.section
   return <main dir="rtl" className="report-page" data-report-section={section} aria-busy={loading}>
     {/* تحميل بيانات أي تقرير: طبقة فوق التقرير بالكامل (تبقى ظاهرة مهما كان موضع التمرير) */}
     {loading && <div role="status" aria-live="polite" className="report-loading print:hidden"><div className="report-loading-box"><Loader2 className="h-6 w-6 animate-spin" aria-hidden="true"/>جاري تحميل البيانات...</div></div>}
@@ -35,7 +36,10 @@ export function ReportHeader({ title, description, category = "التقارير"
       for (const button of Array.from(container.querySelectorAll<HTMLButtonElement>("button"))) {
         const label = (button.getAttribute("aria-label") || button.textContent || "").replace(/\s+/g, " ").trim()
         const action = label.includes("طباعة") ? "print" : label.includes("تصدير") ? "export" : null
-        if (action) button.hidden = !canUseReportAction(section, action)
+        if (action) {
+          const shouldHide = !canUseReportAction(section, action)
+          if (button.hidden !== shouldHide) button.hidden = shouldHide
+        }
       }
     }
     update()

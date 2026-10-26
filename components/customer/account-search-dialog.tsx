@@ -565,8 +565,8 @@ export default function AccountSearchDialog({
 
           {/* الفلاتر */}
           <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-3">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
-              <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.6fr_1fr_1fr_0.8fr]">
+            <div className="flex min-w-0 flex-col gap-2">
+              <div ref={filterContainerRef} className="account-search-dialog-filters-grid grid min-w-0 gap-2">
                 <SearchFilterField label="رقم الحساب">
                   <Input
                     value={searchFilters.accountNumber}

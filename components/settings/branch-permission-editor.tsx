@@ -208,13 +208,13 @@ export function classify(items: PermissionItem[]) {
     const name = normalize(item.access_name || "")
     if (!name) continue
     const reportDefinition = REPORT_DEFINITIONS.find((definition) =>
-      (["access", "print", "whatsapp"] as ReportPermissionAction[]).some((action) =>
+      (["access", "print", "export", "whatsapp"] as ReportPermissionAction[]).some((action) =>
         item.access_name === reportPermissionNameForTitle(definition.title, action),
       ),
     )
     if (reportDefinition) {
       const row = reportRows.get(reportDefinition.section) ?? { definition: reportDefinition, cells: {} }
-      const action = (["access", "print", "whatsapp"] as ReportPermissionAction[]).find((candidate) =>
+      const action = (["access", "print", "export", "whatsapp"] as ReportPermissionAction[]).find((candidate) =>
         item.access_name === reportPermissionNameForTitle(reportDefinition.title, candidate),
       )
       if (action) (row.cells[action] ??= []).push(item)

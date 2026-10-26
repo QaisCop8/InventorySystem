@@ -236,6 +236,7 @@ export function Services() {
     const startIndex = (state.currentPage - 1) * state.itemsPerPage
     return filteredProducts.slice(startIndex, startIndex + state.itemsPerPage)
   }, [filteredProducts, state.currentPage, state.itemsPerPage])
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / state.itemsPerPage))
 
   useEffect(() => {
     fetchProducts()
@@ -399,7 +400,7 @@ export function Services() {
   }
 
   return (
-    <div className="voucher-list-page space-y-5 p-3 sm:p-5 bg-background min-h-screen" dir="rtl">
+    <div className="voucher-list-page min-h-screen space-y-4 bg-background p-3 sm:space-y-5 sm:p-5" dir="rtl">
       {state.error && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
@@ -444,8 +445,8 @@ export function Services() {
           <CardDescription>عرض {paginatedProducts.length} من أصل {filteredProducts.length} خدمة</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            <div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <div className="min-w-0 space-y-1.5">
               <Label>البحث</Label>
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -457,7 +458,7 @@ export function Services() {
                 />
               </div>
             </div>
-            <div>
+            <div className="min-w-0 space-y-1.5">
               <Label>الحالة</Label>
               <Select
                 value={state.filters.status}
@@ -479,12 +480,46 @@ export function Services() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle>الخدمات</CardTitle>
+          <Badge variant="secondary">{filteredProducts.length.toLocaleString("ar")} خدمة</Badge>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-right">
+        <CardContent className="space-y-3 px-3 sm:px-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:hidden">
+            {paginatedProducts.map((product) => {
+              const status = normalizedServiceStatus(product.status)
+              const active = status === "نشط"
+              return (
+                <article key={product.id} className="min-w-0 rounded-xl border bg-card p-3 shadow-sm sm:p-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <ImageThumbnail value={(product as any).product_image || product.image_url} size={44} alt={product.product_name} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="min-w-0 flex-1 break-words text-sm font-bold leading-6">{product.product_name}</h3>
+                        <Badge className={active ? "shrink-0 bg-green-100 text-green-800" : "shrink-0 bg-slate-100 text-slate-700"}>
+                          {status}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 text-xs font-medium text-muted-foreground" dir="ltr">{product.product_code}</p>
+                    </div>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-xs">
+                    <div className="min-w-0"><dt className="text-muted-foreground">التصنيف</dt><dd className="mt-0.5 truncate font-semibold">{product.category || "—"}</dd></div>
+                    <div className="min-w-0"><dt className="text-muted-foreground">آخر سعر شراء</dt><dd className="mt-0.5 font-semibold" dir="ltr">{Number(product.last_purchase_price || 0).toLocaleString()}</dd></div>
+                  </dl>
+                  {canUpdate && (
+                    <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+                      {canUpdate && <Button variant="outline" size="sm" className="min-h-9 gap-2" onClick={() => handleEditProduct(product)}><Edit className="h-4 w-4" />تعديل</Button>}
+                      {canUpdate && <Button variant="outline" size="sm" className="min-h-9 gap-2" onClick={() => handleToggleFreeze(product)} aria-label={active ? "تجميد الخدمة" : "إلغاء تجميد الخدمة"}><Warehouse className="h-4 w-4" />{active ? "تجميد" : "تفعيل"}</Button>}
+                    </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto xl:block">
+            <table className="w-full min-w-[900px] text-right text-sm">
               <thead>
                 <tr>
                   <th className="py-3 px-2 w-12"></th>
@@ -516,17 +551,18 @@ export function Services() {
                     </td>
                     <td className="py-3 px-2">
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+                        {canUpdate && <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} aria-label={`تعديل ${product.product_name}`}>
                           <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
+                        </Button>}
+                        {canUpdate && <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleToggleFreeze(product)}
                           title={product.status === "غير نشط" ? "إلغاء التجميد" : "تجميد"}
+                          aria-label={`${product.status === "غير نشط" ? "إلغاء تجميد" : "تجميد"} ${product.product_name}`}
                         >
                           <Warehouse className="h-4 w-4" />
-                        </Button>
+                        </Button>}
                       </div>
                     </td>
                   </tr>
@@ -538,6 +574,19 @@ export function Services() {
           {paginatedProducts.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">لا توجد خدمات مطابقة لبحثك.</p>
+            </div>
+          )}
+
+          {filteredProducts.length > 0 && (
+            <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-center text-xs text-muted-foreground sm:text-right">
+                عرض {((state.currentPage - 1) * state.itemsPerPage + 1).toLocaleString("ar")}–{Math.min(state.currentPage * state.itemsPerPage, filteredProducts.length).toLocaleString("ar")} من {filteredProducts.length.toLocaleString("ar")} خدمة
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage <= 1} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}>السابق</Button>
+                <span className="min-w-16 text-center text-xs font-semibold tabular-nums">{state.currentPage.toLocaleString("ar")} / {totalPages.toLocaleString("ar")}</span>
+                <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage >= totalPages} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}>التالي</Button>
+              </div>
             </div>
           )}
         </CardContent>
