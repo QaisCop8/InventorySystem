@@ -34,8 +34,13 @@ const downloadBlob = (blob: Blob, filename: string) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 
-const fileNameOf = (doc: PrintDocument) =>
-  `${`${doc.title || "سند"} ${doc.code || ""}`.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 80)}.pdf`
+// WhatsApp Desktop can decode Arabic filenames from shared/downloaded files as Latin-1,
+// showing mojibake. Keep the attachment filename ASCII-safe; the Arabic document title
+// and number are already included in the WhatsApp message and remain visible to recipients.
+const fileNameOf = (doc: PrintDocument) => {
+  const code = String(doc.code || "document").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 80)
+  return `${code || "document"}.pdf`
+}
 
 export default function VoucherWhatsAppHost() {
   const { toast } = useToast()

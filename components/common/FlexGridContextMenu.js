@@ -260,7 +260,8 @@ export default class FlexGridContextMenu {
                   let dateStr = date + ' ' + time;
                   fName = fileName + '_' + dateStr;
                 }
-                saveFile(csv, fName);
+                // Keep Arabic text readable when Excel opens the CSV on Windows.
+                saveFile(new Blob(["\uFEFF", csv], { type: 'text/csv;charset=utf-8' }), fName);
               }
               break;
             case 'X_XLSX':

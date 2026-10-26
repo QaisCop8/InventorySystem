@@ -1795,7 +1795,9 @@ createButtonTemplate = (col) => (ctx) => {
   exportCSV() {
     let rng = new wjGrid.CellRange(0, 0, this.flex.rows.length - 1, this.flex.columns.length - 1),
       csv = this.flex.getClipString(rng, wjGrid.ClipStringOptions.CSV, true, false);
-    saveFile(csv, this.props.exportFileName ? this.props.exportFileName + '.csv' : 'FlexGrid.csv');
+    // Excel on Windows may open UTF-8 CSV as a legacy code page without a BOM,
+    // which corrupts Arabic headers and cell values.
+    saveFile(new Blob(["\uFEFF", csv], { type: 'text/csv;charset=utf-8' }), this.props.exportFileName ? this.props.exportFileName + '.csv' : 'FlexGrid.csv');
   }
 
   formatItemXlsx = (args) => {
