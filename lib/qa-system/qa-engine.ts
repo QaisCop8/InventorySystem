@@ -271,7 +271,7 @@ export class QAEngine {
         if (issue.type === "error" && issue.fix) {
           // Apply simple text replacements
           if (issue.message.includes("toLocaleString")) {
-            content = content.replace(/(\w+)\.toLocaleString$$$$/g, "($1 || 0).toLocaleString("en-US")")
+            content = content.replace(/(\w+)\.toLocaleString$$$$/g, "($1 || 0).toLocaleString('en-US')")
             modified = true
             appliedFixes.push("Fixed toLocaleString null safety")
           }
