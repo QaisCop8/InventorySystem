@@ -150,6 +150,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const [fatherAccountCode, setFatherAccountCode] = useState("")
   const [fatherAccountName, setFatherAccountName] = useState("")
   const [selectedTreeAccountId, setSelectedTreeAccountId] = useState<number | null>(null)
+  const [focusedTreeAccountId, setFocusedTreeAccountId] = useState<number | null>(null)
   const [expandedTreeAccountIds, setExpandedTreeAccountIds] = useState<Set<number>>(() => new Set())
   const [accountTreeSearch, setAccountTreeSearch] = useState("")
 
@@ -157,6 +158,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const costCenterTypeGridRef = useRef<any>(null)
   const classificationTypeGridRef = useRef<any>(null)
   const accountClassificationGridRef = useRef<any>(null)
+  const treeAccountRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
   const accountCodeInputRef = useRef<HTMLInputElement>(null)
   const accountNameInputRef = useRef<HTMLInputElement>(null)
   const messagesRef = useRef<any>(null)
@@ -169,6 +171,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       formData: FormState
       financialListType: string
       fatherAccountName: string
+      imagePreview: string | null
       stopTransactionRows: any[]
       costCenterTypes: any[]
       accountClassifications: any[]
@@ -206,6 +209,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         },
         financialListType: values.financialListType,
         fatherAccountName: values.fatherAccountName,
+        imagePreview: values.imagePreview,
         stopTransactionRows: values.stopTransactionRows.map((row) => ({
           voucher_types_id: row.voucher_types_id,
           is_stopped: Boolean(row.is_stopped),
@@ -273,11 +277,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         formData,
         financialListType,
         fatherAccountName,
+        imagePreview,
         stopTransactionRows,
         costCenterTypes,
         accountClassifications,
       }),
-    [serializeAccountSnapshot, formData, financialListType, fatherAccountName, stopTransactionRows, costCenterTypes, accountClassifications],
+    [serializeAccountSnapshot, formData, financialListType, fatherAccountName, imagePreview, stopTransactionRows, costCenterTypes, accountClassifications],
   )
 
   useEffect(() => {
@@ -535,6 +540,29 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     })
   }, [accountTree])
 
+  useEffect(() => {
+    if (focusedTreeAccountId == null) return
+
+    const ancestors = new Set<number>()
+    let account = activeAccounts.find((item) => Number(item.id) === focusedTreeAccountId)
+    while (account?.father_id) {
+      const parentId = Number(account.father_id)
+      if (ancestors.has(parentId)) break
+      ancestors.add(parentId)
+      account = activeAccounts.find((item) => Number(item.id) === parentId)
+    }
+    if (ancestors.size) {
+      setExpandedTreeAccountIds((previous) => new Set([...previous, ...ancestors]))
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const row = treeAccountRefs.current.get(focusedTreeAccountId)
+      row?.scrollIntoView({ block: "nearest", inline: "nearest" })
+      row?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [activeAccounts, focusedTreeAccountId])
+
   const filteredAccountTree = useMemo(() => {
     const query = accountTreeSearch.trim().toLocaleLowerCase()
     if (!query) return accountTree
@@ -554,9 +582,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const renderAccountTreeNode = (node: AccountTreeNode, depth = 0): React.ReactNode => {
     const expanded = Boolean(accountTreeSearch.trim()) || expandedTreeAccountIds.has(Number(node.id))
     const selected = selectedTreeAccountId === Number(node.id)
+    const focused = focusedTreeAccountId === Number(node.id)
     return (
       <div key={node.id}>
-        <div className={`flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : "hover:bg-slate-100"}`} style={{ paddingLeft: `${depth * 13}px` }}>
+        <div className={`flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : focused ? "bg-sky-50 text-sky-900 ring-1 ring-sky-300" : "hover:bg-slate-100"}`} style={{ paddingLeft: `${depth * 13}px` }}>
           <button
             type="button"
             className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}
@@ -575,12 +604,20 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           ) : <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
           <button
             type="button"
-            onClick={() => setSelectedTreeAccountId(Number(node.id))}
+            ref={(element) => {
+              if (element) treeAccountRefs.current.set(Number(node.id), element)
+              else treeAccountRefs.current.delete(Number(node.id))
+            }}
+            onClick={() => {
+              setSelectedTreeAccountId(Number(node.id))
+              setFocusedTreeAccountId(Number(node.id))
+            }}
             onDoubleClick={() => guardUnsaved(() => {
               const index = activeAccounts.findIndex((account) => Number(account.id) === Number(node.id))
               if (index >= 0) setCurrentIndex(index)
               loadAccountToForm(node)
               setSelectedTreeAccountId(Number(node.id))
+              setFocusedTreeAccountId(Number(node.id))
             })}
             className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-xs"
             title={`${node.code} - ${node.name}`}
@@ -942,6 +979,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   )
 
   const loadAccountToForm = useCallback((account: AccountItem) => {
+    setFocusedTreeAccountId(Number(account.id))
     const assignedCostCenters = Array.isArray((account as any).cost_centers) ? (account as any).cost_centers : []
     const nextCostCenterTypes = costCenterTypes.map((type) => {
       const assignment = assignedCostCenters.find((row: any) => Number(row?.cost_center_type_id) === Number(type.id))
@@ -1037,10 +1075,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         type: String(account.type || ""),
         father_id: account.father_id ? String(account.father_id) : "",
         level_no: String(account.level_no || 1),
-        finanical_list_id: String(account.finanical_list_id || 1),
-        finanical_list_assests_id: account.finanical_list_assests_id ? String(account.finanical_list_assests_id) : "",
-        finanical_list_liabilities_id: account.finanical_list_liabilities_id ? String(account.finanical_list_liabilities_id) : "",
-        finanical_list_income_id: account.finanical_list_income_id ? String(account.finanical_list_income_id) : "",
+        finanical_list_id: String(safeFinancialListId),
+        finanical_list_assests_id: nextFinancialListAssetsId ? String(nextFinancialListAssetsId) : "",
+        finanical_list_liabilities_id: nextFinancialListLiabilitiesId ? String(nextFinancialListLiabilitiesId) : "",
+        finanical_list_income_id: nextFinancialListIncomeId ? String(nextFinancialListIncomeId) : "",
         currency_id: account.currency_id ? String(account.currency_id) : "",
         allow_trans_with_diff_curr: account.allow_trans_with_diff_curr != null ? String(account.allow_trans_with_diff_curr) : "0",
         iscalc_curr_diff_rates: Boolean(account.iscalc_curr_diff_rates),
@@ -1059,8 +1097,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         status: account.status || "نشط",
         branch_ids: Array.isArray((account as any).branch_ids) ? (account as any).branch_ids.map(Number) : [],
       },
-      financialListType: String(account.finanical_list_id || 1),
+      financialListType: String(safeFinancialListId),
       fatherAccountName: nextFatherName,
+      imagePreview: (account as any).image_url || null,
       stopTransactionRows: buildStopTransactionRows(voucherTypes, (account as any).stop_transactions || []),
       costCenterTypes: nextCostCenterTypes,
       accountClassifications: nextAccountClassifications,
@@ -1125,11 +1164,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       setFatherAccountCode(account.code)
       setFatherAccountName(formatAccountLabel(account))
     } else {
-      const foundIndex = activeAccounts.findIndex((item) => item.id === account.id)
-      if (foundIndex >= 0) {
-        setCurrentIndex(foundIndex)
-      }
-      loadAccountToForm(account)
+      guardUnsaved(() => {
+        const foundIndex = activeAccounts.findIndex((item) => item.id === account.id)
+        if (foundIndex >= 0) setCurrentIndex(foundIndex)
+        loadAccountToForm(account)
+      })
     }
     setSearchModalOpen(false)
   }
@@ -1276,6 +1315,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       formData: initialFormData,
       financialListType: nextFinancialListType,
       fatherAccountName: nextFatherAccountName,
+      imagePreview: null,
       stopTransactionRows: buildStopTransactionRows(voucherTypes, []),
       costCenterTypes: costCenterTypes.map((type) => ({
         ...type,
@@ -1395,6 +1435,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       },
       financialListType: "1",
       fatherAccountName: "",
+      imagePreview: null,
       stopTransactionRows: buildStopTransactionRows(voucherTypes, []),
       costCenterTypes: resetCostCenterTypes,
       accountClassifications: classificationTypesRef.current || [],
@@ -1440,9 +1481,32 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             return 'invalid-type'
           }
 
-          // Account found - load it
-          setCurrentIndex(activeAccounts.findIndex((a) => a.id === account.id))
-          loadAccountToForm(account)
+          // A code typed into the code field is a lookup key. Exclude that temporary
+          // value when checking other edits so it is never accidentally saved over
+          // the account currently being edited.
+          let originalCode = ""
+          try {
+            originalCode = JSON.parse(dirtySnapshotRef.current)?.formData?.code ?? ""
+          } catch {
+            originalCode = formData.code
+          }
+          const draftWithoutLookupCode = serializeAccountSnapshot({
+            formData: { ...formData, code: originalCode },
+            financialListType,
+            fatherAccountName,
+            imagePreview,
+            stopTransactionRows,
+            costCenterTypes,
+            accountClassifications,
+          })
+          setFormData((previous) => ({ ...previous, code: originalCode }))
+          const openFoundAccount = () => {
+            const foundIndex = activeAccounts.findIndex((item) => Number(item.id) === Number(account.id))
+            if (foundIndex >= 0) setCurrentIndex(foundIndex)
+            loadAccountToForm(account)
+          }
+          if (draftWithoutLookupCode !== dirtySnapshotRef.current) guardUnsaved(openFoundAccount)
+          else openFoundAccount()
           return 'found'
         }
       } else if (response.status === 404) {
@@ -2995,11 +3059,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         </div>
         </main>
 
-        <aside className="flex h-[min(34vh,260px)] min-h-40 min-w-0 flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[290px] lg:shrink-0">
+        <aside className="flex h-[min(34vh,260px)] min-h-40 min-w-0 flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[360px] lg:shrink-0 xl:w-[400px]">
           <div className="border-b border-slate-200 bg-white p-2">
             <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
               <FolderTree className="h-4 w-4 text-emerald-700" />
-              <span>Accounts Tree</span>
+              <span>شجرة الحسابات</span>
               <span className="mr-auto text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
             </div>
             <div className="relative">
