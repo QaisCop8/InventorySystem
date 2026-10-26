@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Plus, AlertCircle, Search, X, BookOpen, ChevronDown, ChevronLeft, FolderTree } from "lucide-react"
+import { Plus, AlertCircle, Search, X, BookOpen, Folder, FolderOpen, FolderTree, FileText, Minus } from "lucide-react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
@@ -556,10 +556,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     const selected = selectedTreeAccountId === Number(node.id)
     return (
       <div key={node.id}>
-        <div className={`flex min-w-0 items-center rounded-lg ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : "hover:bg-slate-100"}`} style={{ paddingRight: `${depth * 12}px` }}>
+        <div className={`flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : "hover:bg-slate-100"}`} style={{ paddingLeft: `${depth * 13}px` }}>
           <button
             type="button"
-            className="flex h-8 w-7 shrink-0 items-center justify-center text-slate-500"
+            className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}
             aria-label={expanded ? "طي الحسابات الفرعية" : "توسيع الحسابات الفرعية"}
             onClick={() => setExpandedTreeAccountIds((previous) => {
               const next = new Set(previous)
@@ -568,8 +568,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               return next
             })}
           >
-            {node.children.length ? expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" /> : <span className="w-3.5" />}
+            {expanded ? <Minus className="h-2.5 w-2.5" strokeWidth={2.5} /> : <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />}
           </button>
+          {node.children.length ? (
+            expanded ? <FolderOpen className="h-4 w-4 shrink-0 text-emerald-700" /> : <Folder className="h-4 w-4 shrink-0 text-emerald-700" />
+          ) : <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
           <button
             type="button"
             onClick={() => setSelectedTreeAccountId(Number(node.id))}
@@ -579,14 +582,19 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               loadAccountToForm(node)
               setSelectedTreeAccountId(Number(node.id))
             })}
-            className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2 text-right text-xs"
+            className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-xs"
             title={`${node.code} - ${node.name}`}
+            dir="rtl"
           >
-            <span className="shrink-0 font-mono font-semibold" dir="ltr">{node.code}</span>
-            <span className="truncate">{node.name}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
+            <span className="shrink-0 font-mono text-[10px] text-slate-500" dir="ltr">{node.code}</span>
           </button>
         </div>
-        {expanded && node.children.map((child) => renderAccountTreeNode(child, depth + 1))}
+        {expanded && node.children.length > 0 && (
+          <div className="ml-[7px] border-l border-slate-300 pl-0.5">
+            {node.children.map((child) => renderAccountTreeNode(child, depth + 1))}
+          </div>
+        )}
       </div>
     )
   }
@@ -2987,11 +2995,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         </div>
         </main>
 
-        <aside className="flex h-[min(34vh,260px)] min-h-40 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[290px] lg:shrink-0">
-          <div className="border-b border-slate-100 bg-slate-50 p-3">
+        <aside className="flex h-[min(34vh,260px)] min-h-40 min-w-0 flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[290px] lg:shrink-0">
+          <div className="border-b border-slate-200 bg-white p-2">
             <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
               <FolderTree className="h-4 w-4 text-emerald-700" />
-              <span>شجرة الحسابات</span>
+              <span>Accounts Tree</span>
               <span className="mr-auto text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
             </div>
             <div className="relative">
@@ -3011,7 +3019,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-2">
+          <div className="min-h-0 flex-1 overflow-auto p-1 font-sans text-[11px]" dir="ltr">
             {filteredAccountTree.length ? filteredAccountTree.map((node) => renderAccountTreeNode(node)) : (
               <p className="px-2 py-6 text-center text-xs text-slate-500">لا توجد حسابات مطابقة</p>
             )}
