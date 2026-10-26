@@ -3754,6 +3754,7 @@ export default function UnifiedSalesDelivery({
                           onFormChange("cash_account_code", account?.code ?? "")
                           onFormChange("cash_account_name", account?.name ?? "")
                         }}
+                        requiredTypeValues={[1]}
                         disabled={isLocked}
                       />
                       <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
@@ -3766,6 +3767,7 @@ export default function UnifiedSalesDelivery({
                           onFormChange("tax_account_code", account?.code ?? "")
                           onFormChange("tax_account_name", account?.name ?? "")
                         }}
+                        requiredTypeValues={[1]}
                         disabled={isLocked}
                       />
                     </div>
