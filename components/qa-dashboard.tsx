@@ -161,7 +161,7 @@ export default function QADashboard() {
             type: "error",
             message: "toLocaleString() called without null check",
             line: 103,
-            fix: "Use (value || 0).toLocaleString()",
+            fix: "Use (value || 0).toLocaleString("en-US")",
           },
         ],
         status: "error",

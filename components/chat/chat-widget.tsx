@@ -49,7 +49,7 @@ function initials(name: string): string {
 
 function timeLabel(iso: string): string {
   try {
-    return new Date(iso).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })
+    return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
   } catch {
     return ""
   }

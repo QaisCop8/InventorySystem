@@ -20,7 +20,7 @@ export type SubscriptionCompany = {
   number_of_restaurant_locations?: number
 }
 
-const formatDate = (date: Date) => date.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
+const formatDate = (date: Date) => date.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
 
 export function SubscriptionDialog({ company, purpose, pricing, testMode, onClose, onDone }: {
   company: SubscriptionCompany

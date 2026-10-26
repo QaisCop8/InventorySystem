@@ -292,7 +292,7 @@ export function MessageTemplates() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
                   <span>استخدم {template.usage_count} مرة</span>
                   {template.last_used_at && (
-                    <span>آخر استخدام: {new Date(template.last_used_at).toLocaleDateString("ar-SA")}</span>
+                    <span>آخر استخدام: {new Date(template.last_used_at).toLocaleDateString("en-GB")}</span>
                   )}
                 </div>
                 <div className="flex gap-2 pt-2">

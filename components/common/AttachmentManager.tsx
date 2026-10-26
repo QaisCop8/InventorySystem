@@ -170,7 +170,7 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{attachment.original_name}</p>
                   <p className="text-xs text-slate-400">
-                    {formatFileSize(attachment.file_size)} · {new Date(attachment.created_at).toLocaleDateString("ar")}
+                    {formatFileSize(attachment.file_size)} · {new Date(attachment.created_at).toLocaleDateString("en-GB")}
                   </p>
                 </div>
               </div>

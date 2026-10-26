@@ -125,7 +125,7 @@ export function ScheduledMessages() {
                     <CardDescription className="mt-1">
                       <div className="flex items-center gap-2 mt-2">
                         <Calendar className="h-4 w-4" />
-                        {new Date(message.scheduled_time).toLocaleString("ar-SA")}
+                        {new Date(message.scheduled_time).toLocaleString("en-GB")}
                       </div>
                     </CardDescription>
                   </div>

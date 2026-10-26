@@ -183,8 +183,8 @@ export function StockAdjustment() {
                     <td className="p-4 font-medium">{product.product_code}</td>
                     <td className="p-4">{product.product_name}</td>
                     <td className="p-4">{product.main_unit}</td>
-                    <td className="p-4 font-medium">{product.current_stock?.toLocaleString() || 0}</td>
-                    <td className="p-4">{product.reorder_level?.toLocaleString() || 0}</td>
+                    <td className="p-4 font-medium">{product.current_stock?.toLocaleString("en-US") || 0}</td>
+                    <td className="p-4">{product.reorder_level?.toLocaleString("en-US") || 0}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         {getStockIcon(product.stock_status, product.current_stock || 0, product.reorder_level || 0)}
@@ -221,7 +221,7 @@ export function StockAdjustment() {
                 <h4 className="font-medium">{selectedProduct.product_name}</h4>
                 <p className="text-sm text-gray-600">كود المنتج: {selectedProduct.product_code}</p>
                 <p className="text-sm text-gray-600">
-                  المخزون الحالي: {selectedProduct.current_stock?.toLocaleString() || 0} {selectedProduct.main_unit}
+                  المخزون الحالي: {selectedProduct.current_stock?.toLocaleString("en-US") || 0} {selectedProduct.main_unit}
                 </p>
               </div>
 
@@ -241,7 +241,7 @@ export function StockAdjustment() {
                   required
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  التغيير: {(adjustmentData.newQuantity - (selectedProduct.current_stock || 0)).toLocaleString()}
+                  التغيير: {(adjustmentData.newQuantity - (selectedProduct.current_stock || 0)).toLocaleString("en-US")}
                 </p>
               </div>
 

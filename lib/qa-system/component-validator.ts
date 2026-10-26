@@ -17,7 +17,7 @@ export class ComponentValidator {
     {
       pattern: /\.toLocaleString$$$$/g,
       message: "toLocaleString() called without null check",
-      fix: "Use (value || 0).toLocaleString() or value?.toLocaleString?.()",
+      fix: "Use (value || 0).toLocaleString("en-US") or value?.toLocaleString?.()",
       type: "error" as const,
     },
     {

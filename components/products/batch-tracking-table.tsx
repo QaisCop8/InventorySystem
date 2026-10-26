@@ -343,7 +343,7 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                         row.manufacturing_date && (
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(row.manufacturing_date).toLocaleDateString("ar-SA")}
+                            {new Date(row.manufacturing_date).toLocaleDateString("en-GB")}
                           </div>
                         )
                       )}
@@ -360,7 +360,7 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                         row.expiry_date && (
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(row.expiry_date).toLocaleDateString("ar-SA")}
+                            {new Date(row.expiry_date).toLocaleDateString("en-GB")}
                           </div>
                         )
                       )}

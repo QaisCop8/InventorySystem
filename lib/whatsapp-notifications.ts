@@ -103,7 +103,7 @@ export async function sendOrderConfirmation(orderId: number, orderType: "sales" 
             {
               customer_name: order.customer_name,
               order_number: order.order_number,
-              total_amount: Number(order.total_amount).toLocaleString("ar-SA", {
+              total_amount: Number(order.total_amount).toLocaleString("ar-SA-u-nu-latn", {
                 style: "currency",
                 currency: "SAR",
               }),
@@ -218,7 +218,7 @@ export async function sendInvoiceNotification(
           {
             customer_name: customer.customer_name,
             invoice_number: invoiceNumber,
-            total_amount: totalAmount.toLocaleString("ar-SA", {
+            total_amount: totalAmount.toLocaleString("ar-SA-u-nu-latn", {
               style: "currency",
               currency: "SAR",
             }),
@@ -259,11 +259,11 @@ export async function sendPaymentReminder(
           {
             customer_name: customer.customer_name,
             invoice_number: invoiceNumber,
-            total_amount: totalAmount.toLocaleString("ar-SA", {
+            total_amount: totalAmount.toLocaleString("ar-SA-u-nu-latn", {
               style: "currency",
               currency: "SAR",
             }),
-            due_date: dueDate.toLocaleDateString("ar-SA"),
+            due_date: dueDate.toLocaleDateString("en-GB"),
           },
           customer.customer_name,
         )
@@ -300,7 +300,7 @@ export async function sendPaymentReceivedNotification(
           {
             customer_name: customer.customer_name,
             invoice_number: invoiceNumber,
-            amount: amount.toLocaleString("ar-SA", {
+            amount: amount.toLocaleString("ar-SA-u-nu-latn", {
               style: "currency",
               currency: "SAR",
             }),

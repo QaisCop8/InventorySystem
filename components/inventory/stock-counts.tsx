@@ -50,8 +50,8 @@ const STATUS: Record<number, { label: string; className: string }> = {
 }
 const today = () => new Date().toISOString().slice(0, 10)
 const dateOnly = (value?: string | null) => (value ? String(value).slice(0, 10) : "-")
-const qty = (value: number | null | undefined) => (value == null ? "—" : Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 }))
-const money = (value: number) => value.toLocaleString(undefined, amountFractionOptions())
+const qty = (value: number | null | undefined) => (value == null ? "—" : Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 }))
+const money = (value: number) => value.toLocaleString("en-US", amountFractionOptions())
 const isMeasured = (line: CountLine) => isMeasuredProduct(line.measurment_id)
 const isLotProduct = (line: CountLine) => !line.has_serial && (line.has_expiry || line.has_batch || line.has_variants || isMeasured(line))
 const productOf = (line: CountLine) => ({ measurment_id: line.measurment_id, length: line.product_length, width: line.product_width, density: line.product_density })
@@ -166,7 +166,7 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
                   <td className="p-3 font-semibold">{row.warehouse_name}</td>
                   <td className="p-3 font-mono" dir="ltr">{dateOnly(row.count_date)}</td>
                   <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${STATUS[row.status]?.className}`}>{STATUS[row.status]?.label}</span></td>
-                  <td className="p-3">{row.lines.toLocaleString()}</td>
+                  <td className="p-3">{row.lines.toLocaleString("en-US")}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${row.lines ? Math.round((row.counted / row.lines) * 100) : 0}%` }} /></div>

@@ -169,7 +169,7 @@ export function ErrorLogsViewer() {
                           {getLevelIcon(log.level)}
                           <Badge variant={getLevelColor(log.level) as any}>{log.level}</Badge>
                           <span className="text-sm text-muted-foreground">
-                            {new Date(log.timestamp).toLocaleString("ar-SA")}
+                            {new Date(log.timestamp).toLocaleString("en-GB")}
                           </span>
                         </div>
                         {log.userId && <Badge variant="outline">المستخدم: {log.userId}</Badge>}

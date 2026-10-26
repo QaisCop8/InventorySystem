@@ -49,7 +49,7 @@ const localDate = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() +
 const today = () => localDate(new Date())
 const monthStart = () => { const d = new Date(); return localDate(new Date(d.getFullYear(), d.getMonth(), 1)) }
 const yearStart = () => `${new Date().getFullYear()}-01-01`
-const money = (value: number | null) => (value == null ? "—" : Number(value).toLocaleString(undefined, amountFractionOptions()))
+const money = (value: number | null) => (value == null ? "—" : Number(value).toLocaleString("en-US", amountFractionOptions()))
 
 const emptyFilters = () => ({
   fromDate: monthStart(),

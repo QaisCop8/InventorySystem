@@ -521,7 +521,7 @@ export default function ManagementAdminPage() {
                       {company.expiry_date && (
                         <div className={"mt-1 flex items-center gap-1 text-sm " + (expired ? "font-medium text-rose-600" : "text-slate-500")}>
                           <Clock className="h-3.5 w-3.5" />
-                          تاريخ انتهاء الاشتراك: {new Date(company.expiry_date).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                          تاريخ انتهاء الاشتراك: {new Date(company.expiry_date).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
                         </div>
                       )}
                     </div>

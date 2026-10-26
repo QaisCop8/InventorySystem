@@ -149,7 +149,7 @@ export function SerialMovementsReport() {
             <CardContent className="flex items-center justify-between p-5">
               <div>
                 <p className="text-sm text-muted-foreground">{label}</p>
-                <p className="mt-1 text-2xl font-bold">{Number(value).toLocaleString()}</p>
+                <p className="mt-1 text-2xl font-bold">{Number(value).toLocaleString("en-US")}</p>
               </div>
               <Icon className="h-7 w-7 text-emerald-600" />
             </CardContent>

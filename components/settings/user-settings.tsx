@@ -494,7 +494,7 @@ export function UserSettings() {
                     <td>{user.role}</td>
                     <td>{user.department}</td>
                     <td className="text-sm text-muted-foreground">
-                      {user.last_login ? new Date(user.last_login).toLocaleString("ar-US") : "-"}
+                      {user.last_login ? new Date(user.last_login).toLocaleString("en-GB") : "-"}
                     </td>
                     <td>{getStatusBadge(user.is_active)}</td>
                     <td>

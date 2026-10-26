@@ -52,7 +52,7 @@ export function StatisticsCard({ title, value, color, icon: Icon, subtitle }: St
           <div>
             <p className={`text-sm font-medium ${textColors[color]}`}>{title}</p>
             <p className={`text-3xl font-bold ${valueColors[color]}`}>
-              {typeof value === "number" ? value.toLocaleString() : value}
+              {typeof value === "number" ? value.toLocaleString("en-US") : value}
             </p>
             {subtitle && <p className={`text-xs ${textColors[color]} opacity-75 mt-1`}>{subtitle}</p>}
           </div>

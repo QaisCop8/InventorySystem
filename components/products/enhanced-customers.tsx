@@ -276,10 +276,10 @@ export function EnhancedCustomers() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">إجمالي الإيرادات</p>
-                <p className="text-3xl font-bold">{analytics.totalRevenue.toLocaleString()}</p>
+                <p className="text-3xl font-bold">{analytics.totalRevenue.toLocaleString("en-US")}</p>
                 <div className="flex items-center mt-2">
                   <DollarSign className="h-4 w-4 text-purple-200 ml-1" />
-                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString()} ريال</span>
+                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString("en-US")} ريال</span>
                 </div>
               </div>
               <div className="h-12 w-12 bg-purple-400 rounded-full flex items-center justify-center">
@@ -674,7 +674,7 @@ export function EnhancedCustomers() {
                     <div>
                       <p className="text-sm text-slate-600">متوسط قيمة الطلبية</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        {analytics.avgOrderValue.toLocaleString()} ريال
+                        {analytics.avgOrderValue.toLocaleString("en-US")} ريال
                       </p>
                     </div>
                     <DollarSign className="h-8 w-8 text-purple-500" />

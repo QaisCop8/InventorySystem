@@ -59,7 +59,7 @@ export const hm = (minutes: number) => {
   return value ? `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}` : "—"
 }
 const timeOnly = (value: string | null) => (value ? value.slice(11, 16) : "—")
-const dayName = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("ar", { weekday: "short", timeZone: "UTC" })
+const dayName = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })
 const card = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
 
 export function StatusBadge({ status }: { status: string }) {

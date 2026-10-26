@@ -393,7 +393,7 @@ export function WhatsAppNotificationSettings() {
                       <TableCell>{log.product_name}</TableCell>
                       <TableCell>{log.phone_number}</TableCell>
                       <TableCell>{getStatusBadge(log.status)}</TableCell>
-                      <TableCell>{new Date(log.created_at).toLocaleString("ar-SA")}</TableCell>
+                      <TableCell>{new Date(log.created_at).toLocaleString("en-GB")}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

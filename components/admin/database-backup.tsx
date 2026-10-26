@@ -39,7 +39,7 @@ export default function DatabaseBackup() {
 
       // إنشاء ملف للتحميل
       const schemaContent = `-- نسخة احتياطية من قاعدة البيانات
--- تاريخ الإنشاء: ${new Date().toLocaleString("ar-SA")}
+-- تاريخ الإنشاء: ${new Date().toLocaleString("en-GB")}
 -- عدد الجداول: ${stats.tables}
 -- إجمالي السجلات: ${stats.totalRecords}
 
@@ -77,7 +77,7 @@ export default function DatabaseBackup() {
       await new Promise((resolve) => setTimeout(resolve, 3000))
 
       const dataContent = `-- نسخة احتياطية من البيانات
--- تاريخ الإنشاء: ${new Date().toLocaleString("ar-SA")}
+-- تاريخ الإنشاء: ${new Date().toLocaleString("en-GB")}
 -- العملاء: ${stats.customers}
 -- الموردين: ${stats.suppliers}  
 -- المنتجات: ${stats.products}
@@ -127,7 +127,7 @@ export default function DatabaseBackup() {
               <Users className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-sm text-muted-foreground">العملاء</p>
-                <p className="text-2xl font-bold">{stats.customers.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{stats.customers.toLocaleString("en-US")}</p>
               </div>
             </div>
           </CardContent>
@@ -139,7 +139,7 @@ export default function DatabaseBackup() {
               <Truck className="h-5 w-5 text-green-500" />
               <div>
                 <p className="text-sm text-muted-foreground">الموردين</p>
-                <p className="text-2xl font-bold">{stats.suppliers.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{stats.suppliers.toLocaleString("en-US")}</p>
               </div>
             </div>
           </CardContent>
@@ -151,7 +151,7 @@ export default function DatabaseBackup() {
               <Package className="h-5 w-5 text-purple-500" />
               <div>
                 <p className="text-sm text-muted-foreground">المنتجات</p>
-                <p className="text-2xl font-bold">{stats.products.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{stats.products.toLocaleString("en-US")}</p>
               </div>
             </div>
           </CardContent>
@@ -163,7 +163,7 @@ export default function DatabaseBackup() {
               <ShoppingCart className="h-5 w-5 text-orange-500" />
               <div>
                 <p className="text-sm text-muted-foreground">الطلبيات</p>
-                <p className="text-2xl font-bold">{(stats.salesOrders + stats.purchaseOrders).toLocaleString()}</p>
+                <p className="text-2xl font-bold">{(stats.salesOrders + stats.purchaseOrders).toLocaleString("en-US")}</p>
               </div>
             </div>
           </CardContent>
@@ -186,7 +186,7 @@ export default function DatabaseBackup() {
               <p className="text-sm text-muted-foreground">جدول</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{stats.totalRecords.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.totalRecords.toLocaleString("en-US")}</p>
               <p className="text-sm text-muted-foreground">إجمالي السجلات</p>
             </div>
             <div className="text-center">
@@ -241,7 +241,7 @@ export default function DatabaseBackup() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Badge variant="outline">{stats.totalRecords.toLocaleString()} سجل</Badge>
+              <Badge variant="outline">{stats.totalRecords.toLocaleString("en-US")} سجل</Badge>
               <Badge variant="outline">جميع الجداول</Badge>
               <Badge variant="outline">البيانات المرجعية</Badge>
             </div>

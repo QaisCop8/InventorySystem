@@ -93,9 +93,9 @@ export class QAEngine {
   private generateMockFileContent(filePath: string): string {
     if (filePath.includes("dashboard")) {
       return `
-        const totalSales = data?.totalSales?.toLocaleString()
-        const totalOrders = orders?.length?.toLocaleString()
-        const revenue = stats?.revenue?.toLocaleString()
+        const totalSales = data?.totalSales?.toLocaleString("en-US")
+        const totalOrders = orders?.length?.toLocaleString("en-US")
+        const revenue = stats?.revenue?.toLocaleString("en-US")
       `
     } else if (filePath.includes("suppliers")) {
       return `
@@ -271,7 +271,7 @@ export class QAEngine {
         if (issue.type === "error" && issue.fix) {
           // Apply simple text replacements
           if (issue.message.includes("toLocaleString")) {
-            content = content.replace(/(\w+)\.toLocaleString$$$$/g, "($1 || 0).toLocaleString()")
+            content = content.replace(/(\w+)\.toLocaleString$$$$/g, "($1 || 0).toLocaleString("en-US")")
             modified = true
             appliedFixes.push("Fixed toLocaleString null safety")
           }

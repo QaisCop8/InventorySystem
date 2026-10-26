@@ -276,7 +276,7 @@ export function ReceivablesAgingReport() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div>
             <h2 className="font-bold">تعمير الذمم بتاريخ {filters.toDate}{currencyLabel ? ` · ${currencyLabel}` : ""}</h2>
-            <p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar")} ذمة</p>
+            <p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")} ذمة</p>
           </div>
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم أو اسم الذمة أو المندوب..." className="w-full rounded-xl sm:w-80" />
         </div>

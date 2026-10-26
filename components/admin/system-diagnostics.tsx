@@ -147,7 +147,7 @@ export function SystemDiagnostics() {
             تحديث تلقائي
           </label>
           {lastUpdate && (
-            <span className="text-sm text-muted-foreground">آخر تحديث: {lastUpdate.toLocaleTimeString("ar-SA")}</span>
+            <span className="text-sm text-muted-foreground">آخر تحديث: {lastUpdate.toLocaleTimeString("en-GB")}</span>
           )}
           <Button onClick={runDiagnostics} disabled={isLoading} size="sm">
             <RefreshCw className={`h-4 w-4 ml-2 ${isLoading ? "animate-spin" : ""}`} />

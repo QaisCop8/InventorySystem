@@ -694,7 +694,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     { key: "product_code", header: "رقم الصنف", width: "120px", className: "font-mono text-xs text-slate-600" },
     { key: "product_name", header: "اسم الصنف", className: "max-w-[340px] truncate font-semibold text-slate-800" },
     { key: "first_unit", header: "الوحدة", width: "80px", className: "text-slate-600" },
-    { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => displayPrice(product).toLocaleString() },
+    { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => displayPrice(product).toLocaleString("en-US") },
     numberType === "barcode"
       ? { key: "first_barcode", header: "الباركود", width: "140px", className: "font-mono text-xs text-slate-500" }
       : { key: "first_barcode", header: numberLabel, width: "160px", className: "font-mono text-xs text-slate-600", render: (product: Product) => numbersOf(product.id) || "—" },
@@ -736,7 +736,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
   const unitColumns = useMemo<SearchColumn<Unit>[]>(() => [
     { key: "unit_name", header: "الوحدة", className: "font-semibold text-slate-700" },
-    { key: "price", header: "السعر", width: "80px", align: "end", className: "tabular-nums", render: (unit) => Number(unit.price ?? 0).toLocaleString() },
+    { key: "price", header: "السعر", width: "80px", align: "end", className: "tabular-nums", render: (unit) => Number(unit.price ?? 0).toLocaleString("en-US") },
     { key: "barcode", header: "الباركود", className: "font-mono text-xs text-slate-500", render: (unit) => unit.barcode || "—" },
   ], []);
 
@@ -863,7 +863,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
               <span>نتائج البحث</span>
               <span>
-                {filteredProducts.length > 200 ? `عرض أول 200 من ${filteredProducts.length.toLocaleString()}` : `${filteredProducts.length.toLocaleString()} صنف`}
+                {filteredProducts.length > 200 ? `عرض أول 200 من ${filteredProducts.length.toLocaleString("en-US")}` : `${filteredProducts.length.toLocaleString("en-US")} صنف`}
                 {checkedCount > 0 && <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">مؤشَّر {checkedCount}</span>}
               </span>
             </div>

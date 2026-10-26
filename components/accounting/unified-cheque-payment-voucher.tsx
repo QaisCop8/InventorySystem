@@ -36,7 +36,7 @@ type Meta = { accounts: AccountItem[]; currencies: Array<{ id: number; currency_
 type VoucherBook = { id: number; name: string }
 
 const today = () => new Date().toISOString().slice(0, 10)
-const money = (value: unknown) => Number(value || 0).toLocaleString("ar", amountFractionOptions())
+const money = (value: unknown) => Number(value || 0).toLocaleString("ar-u-nu-latn", amountFractionOptions())
 const idOf = (row: Cheque) => Number(row.cheque_id || row.id)
 const emptyMeta: Meta = { accounts: [], currencies: [], branches: [] }
 const emptyForm: Voucher = { id: 0, vch_code: "", vch_date: today(), vch_book_id: null, amount: 0, status: 1, account_id: null, currency_id: null, branch_id: null, cheques: [] }

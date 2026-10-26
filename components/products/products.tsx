@@ -775,7 +775,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
         actions={<button type="button" disabled={!canCreate} onClick={() => { if (canCreate) setState((prev) => ({ ...prev, showExcelImport: true })) }} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"><FileSpreadsheet className="h-4 w-4" />استيراد من Excel</button>}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي الأصناف</>, value: <>{statistics.totalProducts}</> }, { label: <>المنتجات النشطة</>, value: <>{statistics.activeProducts}</> }, { label: <>مخزون منخفض</>, value: <>{statistics.lowStockProducts}</> }, { label: <>نفد المخزون</>, value: <>{statistics.outOfStockProducts}</> }, { label: <>قيمة المخزون</>, value: <>{statistics.totalValue.toLocaleString()}</> }]} />
+      <VoucherStats stats={[{ label: <>إجمالي الأصناف</>, value: <>{statistics.totalProducts}</> }, { label: <>المنتجات النشطة</>, value: <>{statistics.activeProducts}</> }, { label: <>مخزون منخفض</>, value: <>{statistics.lowStockProducts}</> }, { label: <>نفد المخزون</>, value: <>{statistics.outOfStockProducts}</> }, { label: <>قيمة المخزون</>, value: <>{statistics.totalValue.toLocaleString("en-US")}</> }]} />
 
       <Card>
         <CardHeader>

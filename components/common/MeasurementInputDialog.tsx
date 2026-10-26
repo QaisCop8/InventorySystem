@@ -243,7 +243,7 @@ export default function MeasurementInputDialog({
           )}
           <div className="flex items-center justify-between rounded-md bg-slate-50 p-2 text-sm">
             <span className="text-muted-foreground">الكمية المحتسبة</span>
-            <span className="font-bold">{quantity.toLocaleString()}</span>
+            <span className="font-bold">{quantity.toLocaleString("en-US")}</span>
           </div>
         </div>
         <div className="mt-2 flex justify-end gap-2">

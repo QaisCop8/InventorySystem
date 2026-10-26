@@ -451,7 +451,7 @@ export function AdvancedReportingDashboard() {
                         </div>
                       </div>
                       <div className="text-left">
-                        <p className="font-bold text-green-600">{product.revenue.toLocaleString()} شيكل</p>
+                        <p className="font-bold text-green-600">{product.revenue.toLocaleString("en-US")} شيكل</p>
                       </div>
                     </div>
                   ))}

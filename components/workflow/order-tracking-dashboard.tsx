@@ -532,7 +532,7 @@ export function OrderTrackingDashboard() {
 
                       <div className="text-left">
                         <p className="font-medium">
-                          {order.total_amount?.toLocaleString("ar-SA", {
+                          {order.total_amount?.toLocaleString("ar-SA-u-nu-latn", {
                             style: "currency",
                             currency: "SAR",
                           })}

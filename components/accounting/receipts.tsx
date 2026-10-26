@@ -944,7 +944,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       <VoucherListHero icon={Wallet} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={() => void openNewDialog()} />
 
       {/* Statistics */}
-      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString()}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</> }]} />
+      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
 
       {/* Advanced Search */}
       <Card>
@@ -1031,7 +1031,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
+              rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },

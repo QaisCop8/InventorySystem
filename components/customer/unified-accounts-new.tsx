@@ -526,15 +526,15 @@ export default function UnifiedAccounts() {
                     <div className="grid gap-4 md:grid-cols-3 p-4 bg-slate-50 rounded-lg">
                       <div>
                         <p className="text-xs text-slate-600">المدين</p>
-                        <p className="font-semibold">{currentAccount.debit_amount.toLocaleString()}</p>
+                        <p className="font-semibold">{currentAccount.debit_amount.toLocaleString("en-US")}</p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-600">الدائن</p>
-                        <p className="font-semibold">{currentAccount.credit_amount.toLocaleString()}</p>
+                        <p className="font-semibold">{currentAccount.credit_amount.toLocaleString("en-US")}</p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-600">الرصيد</p>
-                        <p className="font-semibold text-green-600">{currentAccount.balance.toLocaleString()}</p>
+                        <p className="font-semibold text-green-600">{currentAccount.balance.toLocaleString("en-US")}</p>
                       </div>
                     </div>
                   )}

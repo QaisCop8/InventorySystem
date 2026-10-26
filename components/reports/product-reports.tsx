@@ -446,8 +446,8 @@ export function ProductReports() {
                         <td className="p-3 font-bold text-blue-600">{product.actual}</td>
                         <td className="p-3">{product.minLevel}</td>
                         <td className="p-3">{product.maxLevel}</td>
-                        <td className="p-3">{product.avgCost.toLocaleString()}</td>
-                        <td className="p-3 font-semibold">{product.value.toLocaleString()}</td>
+                        <td className="p-3">{product.avgCost.toLocaleString("en-US")}</td>
+                        <td className="p-3 font-semibold">{product.value.toLocaleString("en-US")}</td>
                         <td className="p-3 text-center">
                           <Badge
                             variant={product.status === "متوفر" ? "default" : "destructive"}

@@ -222,7 +222,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
   }, [])
 
   const today = new Date()
-  const dateText = today.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const dateText = today.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
   const scopeLabel = data ? (data.scope.all ? "كل الفروع" : data.scope.branches[0]?.name ?? "") : ""
 
   return <div dir="rtl" className="min-h-full space-y-4 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950">

@@ -437,12 +437,12 @@ export function BatchPrintDialog() {
           
           <div class="info-row">
             <span class="info-label">الكمية الأصلية:</span>
-            <span class="info-value">${batchDetails.initial_quantity.toLocaleString()}</span>
+            <span class="info-value">${batchDetails.initial_quantity.toLocaleString("en-US")}</span>
           </div>
           
           <div class="info-row">
             <span class="info-label">الكمية الحالية:</span>
-            <span class="info-value">${batchDetails.current_quantity.toLocaleString()}</span>
+            <span class="info-value">${batchDetails.current_quantity.toLocaleString("en-US")}</span>
           </div>
           
           <div class="separator"></div>
@@ -483,7 +483,7 @@ export function BatchPrintDialog() {
           </div>
           
           <div style="text-align: center; font-size: 8px; margin-top: 2mm; color: #666;">
-            تاريخ الطباعة: ${new Date().toLocaleDateString("ar-SA")}
+            تاريخ الطباعة: ${new Date().toLocaleDateString("en-GB")}
           </div>
         </div>
       </body>
@@ -804,13 +804,13 @@ export function BatchPrintDialog() {
 
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">الكمية الأصلية</Label>
-                        <div className="font-medium">{batchDetails.initial_quantity.toLocaleString()}</div>
+                        <div className="font-medium">{batchDetails.initial_quantity.toLocaleString("en-US")}</div>
                       </div>
 
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">الكمية الحالية</Label>
                         <div className="font-medium text-green-600">
-                          {batchDetails.current_quantity.toLocaleString()}
+                          {batchDetails.current_quantity.toLocaleString("en-US")}
                         </div>
                       </div>
 
@@ -971,12 +971,12 @@ export function BatchPrintDialog() {
 
                     <div className="flex justify-between">
                       <span className="font-bold">الكمية الأصلية:</span>
-                      <span>{batchDetails.initial_quantity.toLocaleString()}</span>
+                      <span>{batchDetails.initial_quantity.toLocaleString("en-US")}</span>
                     </div>
 
                     <div className="flex justify-between">
                       <span className="font-bold">الكمية الحالية:</span>
-                      <span>{batchDetails.current_quantity.toLocaleString()}</span>
+                      <span>{batchDetails.current_quantity.toLocaleString("en-US")}</span>
                     </div>
 
                     <div className="border-t border-dashed border-gray-400 my-2"></div>
@@ -1019,7 +1019,7 @@ export function BatchPrintDialog() {
                     </div>
 
                     <div className="text-center text-xs text-gray-600 mt-2">
-                      تاريخ الطباعة: {new Date().toLocaleDateString("ar-SA")}
+                      تاريخ الطباعة: {new Date().toLocaleDateString("en-GB")}
                     </div>
                   </div>
                 </div>

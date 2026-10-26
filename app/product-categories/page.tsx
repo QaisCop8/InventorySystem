@@ -503,7 +503,7 @@ export default function ProductCategoriesPage() {
                         <span className="text-muted-foreground">:عدد الأصناف</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>{new Date(filteredCategories[currentIndex].created_at).toLocaleDateString("ar-SA")}</span>
+                        <span>{new Date(filteredCategories[currentIndex].created_at).toLocaleDateString("en-GB")}</span>
                         <span className="text-muted-foreground">:تاريخ الإنشاء</span>
                       </div>
                     </div>

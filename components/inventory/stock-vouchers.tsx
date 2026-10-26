@@ -758,7 +758,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
       <VoucherListHero icon={PackageOpen} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString()}</> }]} />
+      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }]} />
 
       <Card>
         <CardHeader>
@@ -810,7 +810,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },

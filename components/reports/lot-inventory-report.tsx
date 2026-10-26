@@ -435,10 +435,10 @@ export function LotInventoryReport() {
                       <td className="p-3">{item.manufacturing_date || "غير محدد"}</td>
                       <td className="p-3">{item.expiry_date || "غير محدد"}</td>
                       <td className="p-3">{getExpiryStatusBadge(item.expiry_status)}</td>
-                      <td className="p-3 font-medium">{item.current_quantity.toLocaleString()}</td>
-                      <td className="p-3 font-medium text-green-600">{item.available_quantity.toLocaleString()}</td>
+                      <td className="p-3 font-medium">{item.current_quantity.toLocaleString("en-US")}</td>
+                      <td className="p-3 font-medium text-green-600">{item.available_quantity.toLocaleString("en-US")}</td>
                       <td className="p-3">{item.unit_cost.toFixed(2)} ريال</td>
-                      <td className="p-3 font-medium">{item.total_value.toLocaleString()} ريال</td>
+                      <td className="p-3 font-medium">{item.total_value.toLocaleString("en-US")} ريال</td>
                     </tr>
                   ))}
                 </tbody>

@@ -964,7 +964,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       {!(useFullPageMode && dialogOpen) && <>
       <VoucherListHero icon={ReceiptText} title={<>{LIST_TITLE}</>} addLabel={<>{`إضافة ${TITLE}`}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{`إجمالي ${LIST_TITLE}`}</>, value: <>{totalVouchers}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString()}</> }]} />
+      <VoucherStats stats={[{ label: <>{`إجمالي ${LIST_TITLE}`}</>, value: <>{totalVouchers}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }]} />
 
       <Card>
         <CardHeader>
@@ -1016,7 +1016,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), invoice_display: voucher.has_linked_invoice ? "تم إصدار فاتورة" : "", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString("en-US"), invoice_display: voucher.has_linked_invoice ? "تم إصدار فاتورة" : "", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },

@@ -132,7 +132,7 @@ const QUICK_ACTIONS: { group: string; items: { icon: any; title: string; prompt:
 const STORAGE_KEY = "ai_assistant_conversation"
 
 const formatTime = (at?: number) =>
-  at ? new Date(at).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : ""
+  at ? new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""
 
 const formatAmount = (value: number) =>
   Number(value || 0).toLocaleString("en-US", amountFractionOptions())

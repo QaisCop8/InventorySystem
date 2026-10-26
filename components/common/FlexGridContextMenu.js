@@ -291,7 +291,7 @@ export default class FlexGridContextMenu {
             case 'X_PDF': {
               let fName = 'FlexGrid.pdf';
               if (fileName && fileName.length > 0) {
-                fName = fileName + '_' + new Date().toLocaleDateString();
+                fName = fileName + '_' + new Date().toLocaleDateString("en-GB-u-nu-latn");
               }
               FlexGridPdfConverter.export(grid, fName, {
                 maxPages: 10,

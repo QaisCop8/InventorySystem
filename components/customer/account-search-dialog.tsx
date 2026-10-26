@@ -730,8 +730,8 @@ export default function AccountSearchDialog({
               <span>نتائج البحث</span>
               <span>
                 {searchResults.length > MAX_VISIBLE_RESULTS
-                  ? `عرض أول ${MAX_VISIBLE_RESULTS} من ${searchResults.length.toLocaleString()} — ضيّق البحث`
-                  : `${searchResults.length.toLocaleString()} حساب`}
+                  ? `عرض أول ${MAX_VISIBLE_RESULTS} من ${searchResults.length.toLocaleString("en-US")} — ضيّق البحث`
+                  : `${searchResults.length.toLocaleString("en-US")} حساب`}
               </span>
             </div>
             {emptyActionLabel && !loading && visibleRows.length === 0 ? (

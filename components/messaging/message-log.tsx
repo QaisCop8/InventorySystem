@@ -199,8 +199,8 @@ export function MessageLog() {
                         <TableCell>
                           <div className="text-sm">
                             {log.sent_at
-                              ? new Date(log.sent_at).toLocaleString("ar-SA")
-                              : new Date(log.created_at).toLocaleString("ar-SA")}
+                              ? new Date(log.sent_at).toLocaleString("en-GB")
+                              : new Date(log.created_at).toLocaleString("en-GB")}
                           </div>
                         </TableCell>
                       </TableRow>

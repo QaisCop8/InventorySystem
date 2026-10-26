@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { showAlert } from "@/components/ui/confirm-host"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
@@ -617,7 +617,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   const formatDate = (date: string | null) => {
     if (!date) return "لم يسجل دخول بعد"
-    return new Date(date).toLocaleDateString("ar-SA", {
+    return new Date(date).toLocaleDateString("en-GB", {
       year: "numeric",
       month: "short",
       day: "numeric",

@@ -572,10 +572,10 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">إجمالي القيمة</p>
-                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString()}</p>
+                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString("en-US")}</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="h-4 w-4 text-purple-200" />
-                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString()} </span>
+                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString("en-US")} </span>
                 </div>
               </div>
               <div className="h-12 w-12 bg-purple-400 rounded-full flex items-center justify-center">
@@ -828,7 +828,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                               order.total_amount
                             )}`}
                           >
-                            {order.total_amount?.toLocaleString()}{" "}
+                            {order.total_amount?.toLocaleString("en-US")}{" "}
                             {order.currency_code || ""}
                           </span>
                         </div>
@@ -936,7 +936,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                               order.total_amount
                             )}`}
                           >
-                            {order.total_amount?.toLocaleString()}{" "}
+                            {order.total_amount?.toLocaleString("en-US")}{" "}
                             {order.currency_code || ""}
                           </span>
                         </td>

@@ -383,10 +383,10 @@ export function EnhancedSalesOrders() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-100 text-sm font-medium">إجمالي القيمة</p>
-                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString()}</p>
+                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString("en-US")}</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="h-4 w-4 text-purple-200" />
-                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString()} ريال</span>
+                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString("en-US")} ريال</span>
                 </div>
               </div>
               <div className="h-12 w-12 bg-purple-400 rounded-full flex items-center justify-center">
@@ -631,7 +631,7 @@ export function EnhancedSalesOrders() {
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-slate-500" />
                         <span className={`font-bold text-lg ${getPriorityColor(order.total_amount)}`}>
-                          {order.total_amount?.toLocaleString()} {order.currency_code || "ريال"}
+                          {order.total_amount?.toLocaleString("en-US")} {order.currency_code || "ريال"}
                         </span>
                       </div>
 
@@ -712,7 +712,7 @@ export function EnhancedSalesOrders() {
                       <td className="p-4">{order.priority_level && getPriorityBadge(order.priority_level)}</td>
                       <td className="p-4">
                         <span className={`font-bold ${getPriorityColor(order.total_amount)}`}>
-                          {order.total_amount?.toLocaleString()} {order.currency_code || "ريال"}
+                          {order.total_amount?.toLocaleString("en-US")} {order.currency_code || "ريال"}
                         </span>
                       </td>
                       <td className="p-4 text-slate-600">{order.salesman}</td>

@@ -48,7 +48,7 @@ export function SearchDialogHeader({
           {subtitle && <p className="hidden truncate text-[11px] text-emerald-50/85 sm:block">{subtitle}</p>}
         </div>
         {count != null && (
-          <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold ring-1 ring-white/25">{count.toLocaleString()}</span>
+          <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold ring-1 ring-white/25">{count.toLocaleString("en-US")}</span>
         )}
       </div>
       <div className="relative flex shrink-0 items-center gap-1.5">

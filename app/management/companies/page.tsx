@@ -68,7 +68,7 @@ function paletteFor(id: number) {
 // الانتهاء الفعلي المحفوظ يُحتسَب/يُعاد من الخادم نفسه عند الإنشاء الفعلي، هذا فقط لمعاينة المستخدم
 // قبل الضغط على "إنشاء").
 const TRIAL_EXPIRY_DAYS = 10
-const formatArabicDate = (date: Date) => date.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
+const formatArabicDate = (date: Date) => date.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
 
 const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof ShieldCheck; classes: string }> = {
   approved: { label: "جاهزة", icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
@@ -449,12 +449,12 @@ export default function ManagementCompaniesPage() {
                   <div className="space-y-1.5 border-t border-[#ece3d3] pt-3 text-xs">
                     <div className="flex items-center gap-1.5 text-stone-500">
                       <Calendar className="h-3.5 w-3.5" />
-                      أُنشئت {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                      أُنشئت {createdDate.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
                     </div>
                     {company.expiry_date && (
                       <div className={"flex items-center gap-1.5 " + (isExpired ? "font-bold text-rose-700" : "text-stone-500")}>
                         <Clock className="h-3.5 w-3.5" />
-                        ينتهي الاشتراك {new Date(company.expiry_date).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                        ينتهي الاشتراك {new Date(company.expiry_date).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
                       </div>
                     )}
                   </div>

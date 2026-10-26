@@ -141,7 +141,7 @@ export function MessagingStatistics() {
               {statistics.daily.map((day) => (
                 <div key={day.date} className="flex items-center gap-4">
                   <div className="w-24 text-sm text-muted-foreground">
-                    {new Date(day.date).toLocaleDateString("ar-SA", { month: "short", day: "numeric" })}
+                    {new Date(day.date).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">

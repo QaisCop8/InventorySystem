@@ -199,7 +199,7 @@ export async function createOrderAdvanceNotification(
           from_stage: fromStageName,
           to_stage: toStageName,
           stage_name: toStageName,
-          total_amount: totalAmount.toLocaleString("ar-SA", {
+          total_amount: totalAmount.toLocaleString("ar-SA-u-nu-latn", {
             style: "currency",
             currency: "SAR",
           }),
@@ -314,7 +314,7 @@ export async function checkOverdueOrdersAndNotify() {
           hours_overdue: Math.floor(order.hours_in_stage),
           partner_name: order.partner_name,
           total_amount:
-            order.total_amount?.toLocaleString("ar-SA", {
+            order.total_amount?.toLocaleString("ar-SA-u-nu-latn", {
               style: "currency",
               currency: "SAR",
             }) || "غير محدد",

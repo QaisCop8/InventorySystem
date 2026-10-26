@@ -1243,8 +1243,8 @@ export default function UnifiedJournal({
                   <div
                     className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}
                   >
-                    إجمالي المدين: {totalDebit.toLocaleString()} — إجمالي الدائن: {totalCredit.toLocaleString()}
-                    {journalDiff !== 0 && ` — الفرق: ${journalDiff.toLocaleString()}`}
+                    إجمالي المدين: {totalDebit.toLocaleString("en-US")} — إجمالي الدائن: {totalCredit.toLocaleString("en-US")}
+                    {journalDiff !== 0 && ` — الفرق: ${journalDiff.toLocaleString("en-US")}`}
                   </div>
                   <Button type="button" variant="outline" size="sm" disabled={isLocked} onClick={() => addJournalRow()}>
                     <Plus className="ml-1 h-4 w-4" />

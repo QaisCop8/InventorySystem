@@ -146,7 +146,7 @@ export function LicenseRequestsPanel({ onChanged }: { onChanged?: () => void }) 
                   <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">زيادة {RESOURCE_LABEL[row.resource]} +{row.quantity}</span>
                   {row.status !== "pending" && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${row.status === "approved" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200"}`}>{row.status === "approved" ? `معتمد (+${row.approved_quantity})` : "مرفوض"}</span>}
                 </div>
-                <div className="mt-1 text-sm text-slate-500">{row.requested_by_name || "-"}{row.requested_by_email ? ` · ${row.requested_by_email}` : ""} · {new Date(row.created_at).toLocaleString("ar-EG")}</div>
+                <div className="mt-1 text-sm text-slate-500">{row.requested_by_name || "-"}{row.requested_by_email ? ` · ${row.requested_by_email}` : ""} · {new Date(row.created_at).toLocaleString("en-GB")}</div>
                 <div className="mt-1 text-sm text-slate-600">الحد عند الطلب: <b>{row.limit_before ?? "-"}</b> · المستخدم فعلياً: <b>{row.used_at_request ?? "-"}</b> · الحد الحالي: <b>{currentLimit}</b></div>
                 {row.reason && <div className="mt-1 text-sm text-slate-600">السبب: {row.reason}</div>}
                 {row.decision_note && <div className="mt-1 text-sm text-slate-500">ملاحظة القرار: {row.decision_note}{row.decided_by_name ? ` — ${row.decided_by_name}` : ""}</div>}

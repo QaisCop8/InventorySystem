@@ -469,7 +469,7 @@ const exportDefault = {
 
     //return `${year}${separator}${month < 10 ? `0${month}` : `${month}`}${separator}${date < 10 ? `0${date}` : `${date}`}${' '}${hours}${':'}${minutes}${':'}${seconds} `
     let d = new Date(year, month - 1, date, hours, minutes, seconds, 0);
-    return d.toLocaleString();
+    return d.toLocaleString("en-US");
   },
   getCostCenterStatusList() {
     let result = [];
@@ -1508,7 +1508,7 @@ const exportDefault = {
   getDateAsShortDate(dt) {
     if (!dt) return null;
     let isDate = dt instanceof Date;
-    const formattedDate = !isDate ? dt.toString().split('T')[0] : dt.toLocaleDateString();
+    const formattedDate = !isDate ? dt.toString().split('T')[0] : dt.toLocaleDateString("en-GB-u-nu-latn");
     return formattedDate;
   },
   getMultiSelectDropdownFilterString(list, caption, columnCaption = 'name') {

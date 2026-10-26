@@ -700,7 +700,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
       <VoucherListHero icon={FileMinus} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString()}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</> }]} />
+      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
 
       <Card>
         <CardHeader>
@@ -785,7 +785,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
           <div className="min-h-0">
             <VoucherListTable
               loading={listSearch.loading}
-              rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
+              rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },

@@ -478,7 +478,7 @@ export default function TestNotificationsPage() {
                           {getStatusBadge(log.status)}
                         </div>
                         <div className="flex justify-between items-center text-xs text-slate-500 mt-2">
-                          <span>{new Date(log.sent_at).toLocaleString("ar-SA")}</span>
+                          <span>{new Date(log.sent_at).toLocaleString("en-GB")}</span>
                           {log.error_message && <span className="text-red-600">{log.error_message}</span>}
                         </div>
                       </div>

@@ -338,7 +338,7 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
                     <TableCell>
                       {product.last_purchase_price ? (
                         <div className="text-sm font-medium">
-                          {product.last_purchase_price.toLocaleString()} {product.currency || "ريال"}
+                          {product.last_purchase_price.toLocaleString("en-US")} {product.currency || "ريال"}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>

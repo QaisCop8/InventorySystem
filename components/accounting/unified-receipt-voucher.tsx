@@ -2443,7 +2443,7 @@ export default function UnifiedReceiptVoucher({
                   )}
                 </div>
                 <div className={`text-sm font-semibold ${chequesTotal === Number(form.check_amount || 0) ? "text-emerald-700" : "text-rose-600"}`}>
-                  إجمالي الشيكات: {chequesTotal.toLocaleString()}
+                  إجمالي الشيكات: {chequesTotal.toLocaleString("en-US")}
                 </div>
               </fieldset>
               </TabsContent>
@@ -2570,8 +2570,8 @@ export default function UnifiedReceiptVoucher({
                   />
                 </div>
                 <div className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                  إجمالي الحسابات: {journalTotal.toLocaleString()}
-                  {journalDiff !== 0 && journalTotal > 0 && ` — الفرق عن المبلغ الإجمالي: ${journalDiff.toLocaleString()}`}
+                  إجمالي الحسابات: {journalTotal.toLocaleString("en-US")}
+                  {journalDiff !== 0 && journalTotal > 0 && ` — الفرق عن المبلغ الإجمالي: ${journalDiff.toLocaleString("en-US")}`}
                 </div>
               </fieldset>
               </TabsContent>

@@ -646,7 +646,7 @@ export function BatchMovements() {
                               {movement.last_batch_date
                                 ? new Date(
                                   movement.last_batch_date
-                                ).toLocaleString()
+                                ).toLocaleString("en-US")
                                 : ""}
                             </td>
 
@@ -801,8 +801,8 @@ export function BatchMovements() {
                           </td>
                           <td className="p-4">{lot.expiry_date ? formatDateToBritish(lot.expiry_date) : "-"}</td>
                           <td className="p-4">{getExpiryBadge(lot.expiry_status)}</td>
-                          <td className="p-4 font-medium">{lot.current_quantity.toLocaleString()}</td>
-                          <td className="p-4 font-medium text-green-600">{lot.available_quantity.toLocaleString()}</td>
+                          <td className="p-4 font-medium">{lot.current_quantity.toLocaleString("en-US")}</td>
+                          <td className="p-4 font-medium text-green-600">{lot.available_quantity.toLocaleString("en-US")}</td>
                           <td className="p-4">{getStatusBadge(lot.status)}</td>
                           <td className="p-4">{lot.supplier_name || "-"}</td>
                           <td className="p-4">
@@ -905,12 +905,12 @@ export function BatchMovements() {
                     </div>
                     <div>
                       <span className="font-medium">الكمية الحالية:</span>
-                      <div>{selectedLot.current_quantity.toLocaleString()}</div>
+                      <div>{selectedLot.current_quantity.toLocaleString("en-US")}</div>
                     </div>
                     <div>
                       <span className="font-medium">الكمية المتاحة:</span>
                       <div className="text-green-600 font-medium">
-                        {selectedLot.available_quantity.toLocaleString()}
+                        {selectedLot.available_quantity.toLocaleString("en-US")}
                       </div>
                     </div>
                     <div>

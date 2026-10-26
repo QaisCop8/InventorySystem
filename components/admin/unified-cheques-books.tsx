@@ -648,7 +648,7 @@ export default function UnifiedChequesBooks({
                   dontConvertToCards={true}
                 />
               </div>
-              <div className="text-sm font-semibold text-slate-600">إجمالي الشيكات: {cheques.length.toLocaleString()}</div>
+              <div className="text-sm font-semibold text-slate-600">إجمالي الشيكات: {cheques.length.toLocaleString("en-US")}</div>
             </div>
           </div>
         </DialogContent>

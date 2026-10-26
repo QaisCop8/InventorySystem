@@ -155,7 +155,7 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{order.order_number}</TableCell>
-                      <TableCell>{new Date(order.order_date).toLocaleDateString("ar-SA")}</TableCell>
+                      <TableCell>{new Date(order.order_date).toLocaleDateString("en-GB")}</TableCell>
                       <TableCell>{order.customer_name || order.supplier_name}</TableCell>
                       <TableCell>
                         {order.total_amount.toFixed(2)} {order.currency_code}

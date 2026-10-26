@@ -42,7 +42,7 @@ const logColumns: Column[] = [
   { key: "sync_status", label: "المصدر", width: 100 },
 ]
 
-const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString("ar-EG") : "-"
+const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString("en-GB") : "-"
 
 export function AttendanceDevicesPage() {
   const [rows, setRows] = useState<Device[]>([])

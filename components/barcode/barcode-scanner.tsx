@@ -519,7 +519,7 @@ export function BarcodeScanner() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">الوقت:</span>
-                    <span className="text-sm">{state.lastScan.timestamp.toLocaleTimeString("ar-SA")}</span>
+                    <span className="text-sm">{state.lastScan.timestamp.toLocaleTimeString("en-GB")}</span>
                   </div>
                   <Button
                     variant="outline"
@@ -561,7 +561,7 @@ export function BarcodeScanner() {
                     <div>
                       <span className="text-green-600">آخر سعر شراء:</span>
                       <span className="font-medium text-green-900 mr-2">
-                        {state.foundProduct.last_purchase_price.toLocaleString()} ر.س
+                        {state.foundProduct.last_purchase_price.toLocaleString("en-US")} ر.س
                       </span>
                     </div>
                   </div>
@@ -597,7 +597,7 @@ export function BarcodeScanner() {
                           {scan.format}
                         </Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground">{scan.timestamp.toLocaleTimeString("ar-SA")}</div>
+                      <div className="text-xs text-muted-foreground">{scan.timestamp.toLocaleTimeString("en-GB")}</div>
                     </div>
                   ))}
                 </div>

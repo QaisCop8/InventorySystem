@@ -316,7 +316,7 @@ const TransactionSearch = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString("ar-SA", { year: "numeric", month: "2-digit", day: "2-digit" })
+    return date.toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" })
   }
 
   const getMovementIcon = (type: string) => {
@@ -382,7 +382,7 @@ const TransactionSearch = ({
             <div className="flex items-center gap-2">
               <DollarSign className="h-3 w-3 text-muted-foreground" />
               <span className="search-result-subtitle font-semibold text-green-600">
-                {order.total_amount?.toLocaleString()} {order.currency_code || "ريال"}
+                {order.total_amount?.toLocaleString("en-US")} {order.currency_code || "ريال"}
               </span>
             </div>
 
@@ -436,7 +436,7 @@ const TransactionSearch = ({
             <div className="flex items-center gap-2">
               <DollarSign className="h-3 w-3 text-muted-foreground" />
               <span className="search-result-subtitle font-semibold text-green-600">
-                {order.total_amount?.toLocaleString()} {order.currency_code || "ريال"}
+                {order.total_amount?.toLocaleString("en-US")} {order.currency_code || "ريال"}
               </span>
             </div>
 
@@ -490,14 +490,14 @@ const TransactionSearch = ({
             <div className="flex items-center gap-2">
               <Package className="h-3 w-3 text-muted-foreground" />
               <span className="search-result-subtitle font-semibold">
-                الكمية: {movement.quantity?.toLocaleString()}
+                الكمية: {movement.quantity?.toLocaleString("en-US")}
               </span>
             </div>
 
             {movement.unit_cost && (
               <div className="flex items-center gap-2">
                 <DollarSign className="h-3 w-3 text-muted-foreground" />
-                <span className="search-result-subtitle">السعر: {movement.unit_cost?.toLocaleString()}</span>
+                <span className="search-result-subtitle">السعر: {movement.unit_cost?.toLocaleString("en-US")}</span>
               </div>
             )}
 

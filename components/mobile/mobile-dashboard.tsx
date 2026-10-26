@@ -172,7 +172,7 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
                         <div className="text-xs text-muted-foreground">
                           {order.id.startsWith("SO") ? order.customer : order.supplier}
                         </div>
-                        <div className="text-sm font-medium">{order.amount.toLocaleString()} ر.س</div>
+                        <div className="text-sm font-medium">{order.amount.toLocaleString("en-US")} ر.س</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={order.status === "completed" ? "default" : "secondary"}>

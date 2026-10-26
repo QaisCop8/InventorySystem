@@ -29,7 +29,7 @@ export type Field = { key: string; label: string; type?: "text" | "number" | "ch
 export type Column = { key: string; label: string; width?: number | string; type?: "number" | "boolean"; format?: (value: any, row: any) => any; render?: (row: any) => React.ReactNode }
 export const inputClass = "h-10 rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-blue-500"
 export const selectClass = "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-export const money = (v: any) => Number(v || 0).toLocaleString("ar-EG", amountFractionOptions())
+export const money = (v: any) => Number(v || 0).toLocaleString("ar-EG-u-nu-latn", amountFractionOptions())
 export const englishMoney = (v: any) => Number(v || 0).toLocaleString("en-US", amountFractionOptions())
 
 export function HrPage({ title, subtitle = "نظام ادارة الموظفين", children, report = false, loading = false }: { title: string; subtitle?: string; children: React.ReactNode; report?: boolean; loading?: boolean }) {
@@ -433,7 +433,7 @@ export function SalaryPeriodsPage() {
   const load = useCallback(async () => { const r = await fetch("/api/hr/periods"); setRows(r.ok ? await r.json() : []) }, []); useEffect(() => { void load() }, [load])
   const open = async () => { await fetch("/api/hr/periods", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month }) }); await load() }
   const close = async () => { if (!selected || selected.status !== "open") return; await fetch("/api/hr/periods", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selected.id, action: "close" }) }); await load() }
-  const columns: Column[] = [{ key: "year", label: "السنة", width: 140 }, { key: "month", label: "الشهر", width: 140 }, { key: "status", label: "الحالة", format: v => v === "open" ? "مفتوح" : "مغلق" }, { key: "closed_at", label: "تاريخ الإغلاق", format: v => v ? new Date(v).toLocaleDateString("ar") : "-" }]
+  const columns: Column[] = [{ key: "year", label: "السنة", width: 140 }, { key: "month", label: "الشهر", width: 140 }, { key: "status", label: "الحالة", format: v => v === "open" ? "مفتوح" : "مغلق" }, { key: "closed_at", label: "تاريخ الإغلاق", format: v => v ? new Date(v).toLocaleDateString("en-GB") : "-" }]
   return <HrPage title="فتح وإغلاق راتب شهر" subtitle="إدارة الفترات الشهرية قبل احتساب الرواتب"><ListActions onRefresh={load} /><Card><CardContent className="flex flex-wrap items-end gap-4 p-5"><div><Label className="mb-2 block">السنة</Label><Input className={`${inputClass} w-36`} type="number" value={year} onChange={e => setYear(Number(e.target.value))} /></div><div><Label className="mb-2 block">الشهر</Label><select className={`${selectClass} w-44`} value={month} onChange={e => setMonth(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select></div><Button onClick={open} className="rounded-xl"><Unlock className="ml-2 h-4 w-4" />فتح الشهر</Button><Button variant="destructive" onClick={close} disabled={!selected || selected.status !== "open"} className="rounded-xl"><Lock className="ml-2 h-4 w-4" />إغلاق الشهر المحدد</Button></CardContent></Card><Grid rows={rows} columns={columns} onSelect={setSelected} /></HrPage>
 }
 

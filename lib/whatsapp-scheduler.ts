@@ -95,7 +95,7 @@ export function formatDailySummary(products: any[]): string {
     message += `... و ${products.length - 10} منتج آخر\n`
   }
 
-  message += `\n📅 التاريخ: ${new Date().toLocaleDateString("ar-SA")}`
+  message += `\n📅 التاريخ: ${new Date().toLocaleDateString("en-GB")}`
 
   return message
 }

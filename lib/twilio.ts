@@ -135,7 +135,7 @@ export function formatReorderNotificationMessage(data: {
     message += `🏢 *المورد:* ${supplier_name}\n`
   }
 
-  message += `\n⏰ *الوقت:* ${new Date().toLocaleString("ar-SA")}\n`
+  message += `\n⏰ *الوقت:* ${new Date().toLocaleString("en-GB")}\n`
   message += `\n✅ يرجى اتخاذ الإجراء اللازم لإعادة طلب هذا المنتج.`
 
   return message

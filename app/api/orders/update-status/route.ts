@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
           changed_by: changedBy,
           reason: reason || "لا يوجد سبب محدد",
           total_amount:
-            currentOrder.total_amount?.toLocaleString("ar-SA", {
+            currentOrder.total_amount?.toLocaleString("ar-SA-u-nu-latn", {
               style: "currency",
               currency: "SAR",
             }) || "غير محدد",

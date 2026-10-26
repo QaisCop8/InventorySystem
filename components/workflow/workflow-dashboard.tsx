@@ -369,8 +369,8 @@ export function WorkflowDashboard() {
                         <div className="text-lg font-semibold">{order.partner_name}</div>
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>المبلغ: {order.total_amount.toLocaleString()} ريال</span>
-                          <span>التاريخ: {new Date(order.order_date).toLocaleDateString("ar-SA")}</span>
+                          <span>المبلغ: {order.total_amount.toLocaleString("en-US")} ريال</span>
+                          <span>التاريخ: {new Date(order.order_date).toLocaleDateString("en-GB")}</span>
                           <span>في المرحلة: {Math.round(order.hours_in_stage)} ساعة</span>
                         </div>
                       </div>

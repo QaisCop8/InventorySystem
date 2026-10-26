@@ -186,7 +186,7 @@ export function InventoryAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-600">إجمالي المنتجات</p>
-                <p className="text-3xl font-bold text-gray-900">{metrics.totalProducts.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-gray-900">{metrics.totalProducts.toLocaleString("en-US")}</p>
                 <div className="flex items-center gap-1 text-sm">
                   <ArrowUp className="h-4 w-4 text-green-500" />
                   <span className="text-green-500 font-medium">+12%</span>
@@ -205,7 +205,7 @@ export function InventoryAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600">قيمة المخزون</p>
-                <p className="text-3xl font-bold text-gray-900">{metrics.totalValue.toLocaleString()} ر.س</p>
+                <p className="text-3xl font-bold text-gray-900">{metrics.totalValue.toLocaleString("en-US")} ر.س</p>
                 <div className="flex items-center gap-1 text-sm">
                   <ArrowUp className="h-4 w-4 text-green-500" />
                   <span className="text-green-500 font-medium">+8.5%</span>

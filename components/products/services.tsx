@@ -482,7 +482,7 @@ export function Services() {
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle>الخدمات</CardTitle>
-          <Badge variant="secondary">{filteredProducts.length.toLocaleString("ar")} خدمة</Badge>
+          <Badge variant="secondary">{filteredProducts.length.toLocaleString("ar-u-nu-latn")} خدمة</Badge>
         </CardHeader>
         <CardContent className="space-y-3 px-3 sm:px-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:hidden">
@@ -505,7 +505,7 @@ export function Services() {
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-xs">
                     <div className="min-w-0"><dt className="text-muted-foreground">التصنيف</dt><dd className="mt-0.5 truncate font-semibold">{product.category || "—"}</dd></div>
-                    <div className="min-w-0"><dt className="text-muted-foreground">آخر سعر شراء</dt><dd className="mt-0.5 font-semibold" dir="ltr">{Number(product.last_purchase_price || 0).toLocaleString()}</dd></div>
+                    <div className="min-w-0"><dt className="text-muted-foreground">آخر سعر شراء</dt><dd className="mt-0.5 font-semibold" dir="ltr">{Number(product.last_purchase_price || 0).toLocaleString("en-US")}</dd></div>
                   </dl>
                   {canUpdate && (
                     <div className="mt-3 flex justify-end gap-2 border-t pt-3">
@@ -540,7 +540,7 @@ export function Services() {
                     <td className="py-3 px-2">{product.product_code}</td>
                     <td className="py-3 px-2 font-medium">{product.product_name}</td>
                     <td className="py-3 px-2">{product.category}</td>
-                    <td className="py-3 px-2">{product.last_purchase_price?.toLocaleString()}</td>
+                    <td className="py-3 px-2">{product.last_purchase_price?.toLocaleString("en-US")}</td>
                     <td className="py-3 px-2">
                       <div className="flex items-center gap-2">
                         <span className={`h-2.5 w-2.5 rounded-full ${normalizedServiceStatus(product.status) === "نشط" ? "bg-green-500" : "bg-gray-400"}`} />
@@ -580,11 +580,11 @@ export function Services() {
           {filteredProducts.length > 0 && (
             <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-center text-xs text-muted-foreground sm:text-right">
-                عرض {((state.currentPage - 1) * state.itemsPerPage + 1).toLocaleString("ar")}–{Math.min(state.currentPage * state.itemsPerPage, filteredProducts.length).toLocaleString("ar")} من {filteredProducts.length.toLocaleString("ar")} خدمة
+                عرض {((state.currentPage - 1) * state.itemsPerPage + 1).toLocaleString("ar-u-nu-latn")}–{Math.min(state.currentPage * state.itemsPerPage, filteredProducts.length).toLocaleString("ar-u-nu-latn")} من {filteredProducts.length.toLocaleString("ar-u-nu-latn")} خدمة
               </p>
               <div className="flex items-center justify-center gap-2">
                 <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage <= 1} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}>السابق</Button>
-                <span className="min-w-16 text-center text-xs font-semibold tabular-nums">{state.currentPage.toLocaleString("ar")} / {totalPages.toLocaleString("ar")}</span>
+                <span className="min-w-16 text-center text-xs font-semibold tabular-nums">{state.currentPage.toLocaleString("ar-u-nu-latn")} / {totalPages.toLocaleString("ar-u-nu-latn")}</span>
                 <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage >= totalPages} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}>التالي</Button>
               </div>
             </div>

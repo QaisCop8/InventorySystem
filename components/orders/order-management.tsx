@@ -619,7 +619,7 @@ export const OrderManagement: React.FC = () => {
                       <td className="p-4 text-right">{order.reference_number}</td>
                       <td className="p-4 text-right">{order.customer_order_no}</td>
                       <td className="p-4 text-right font-bold">
-                        {order.total_amount?.toLocaleString()} {order.currency_code}
+                        {order.total_amount?.toLocaleString("en-US")} {order.currency_code}
                       </td>
                       <td className="p-4 text-right">{order.received_by}</td>
 

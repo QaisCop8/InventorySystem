@@ -273,10 +273,10 @@ export function ModernSalesOrders() {
             <div className="flex items-center justify-between">
               <div className="space-y-2">
                 <p className="text-purple-100 text-sm font-medium">إجمالي القيمة</p>
-                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString()}</p>
+                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString("en-US")}</p>
                 <div className="flex items-center text-purple-100 text-xs">
                   <DollarSign className="h-3 w-3 ml-1" />
-                  متوسط: {Math.round(analytics.avgOrderValue).toLocaleString()}
+                  متوسط: {Math.round(analytics.avgOrderValue).toLocaleString("en-US")}
                 </div>
               </div>
               <div className="bg-white/20 p-3 rounded-full">
@@ -479,7 +479,7 @@ export function ModernSalesOrders() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-600">المبلغ الإجمالي</span>
                         <span className="text-lg font-bold text-slate-800">
-                          {order.total_amount?.toLocaleString()} ريال
+                          {order.total_amount?.toLocaleString("en-US")} ريال
                         </span>
                       </div>
                     </div>
@@ -548,7 +548,7 @@ export function ModernSalesOrders() {
                               <span className="text-slate-400">-</span>
                             )}
                           </td>
-                          <td className="p-4 font-bold text-slate-800">{order.total_amount?.toLocaleString()} ريال</td>
+                          <td className="p-4 font-bold text-slate-800">{order.total_amount?.toLocaleString("en-US")} ريال</td>
                           <td className="p-4 text-slate-600">{order.salesman}</td>
                           <td className="p-4">
                             <div className="flex gap-2">
@@ -654,7 +654,7 @@ export function ModernSalesOrders() {
                     <div className="flex items-center justify-between">
                       <span className="text-purple-700 font-medium">متوسط قيمة الطلبية</span>
                       <span className="text-2xl font-bold text-purple-900">
-                        {Math.round(analytics.avgOrderValue).toLocaleString()}
+                        {Math.round(analytics.avgOrderValue).toLocaleString("en-US")}
                       </span>
                     </div>
                   </div>

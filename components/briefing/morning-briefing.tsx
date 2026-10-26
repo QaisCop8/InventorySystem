@@ -15,7 +15,7 @@ const localDay = (offset = 0) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 const dayLabel = (day: string) => {
-  try { return new Date(`${day}T00:00:00`).toLocaleDateString("ar", { weekday: "long", day: "numeric", month: "long" }) } catch { return day }
+  try { return new Date(`${day}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) } catch { return day }
 }
 
 function Card({ title, icon, tone, children, badge }: { title: string; icon: ReactNode; tone: string; children: ReactNode; badge?: ReactNode }) {
@@ -178,7 +178,7 @@ export default function MorningBriefing() {
                 <dt className="text-slate-500">الصافي</dt><dd className="text-left font-black tabular-nums" dir="ltr">{money(totals.net)}</dd>
                 <dt className="text-slate-500">المقبوضات</dt><dd className="text-left font-bold tabular-nums text-teal-700" dir="ltr">{money(totals.receipts)}</dd>
               </dl>
-              <p className="mt-3 flex items-center gap-1 text-[11px] text-slate-400"><FileWarning className="h-3 w-3" />المبالغ بعملة الأساس {data.currency.name} · حُدّثت {new Date(data.generated_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</p>
+              <p className="mt-3 flex items-center gap-1 text-[11px] text-slate-400"><FileWarning className="h-3 w-3" />المبالغ بعملة الأساس {data.currency.name} · حُدّثت {new Date(data.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p>
             </Card>
           </div>
         </>

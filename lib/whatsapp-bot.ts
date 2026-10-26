@@ -205,8 +205,8 @@ async function getCustomerOrders(phone: string, customerName?: string): Promise<
 📦 *طلبياتك الأخيرة:*\n\n`
 
     orders.forEach((order, index) => {
-      const orderDate = new Date(order.order_date).toLocaleDateString("ar-SA")
-      const amount = Number(order.total_amount).toLocaleString("ar-SA", {
+      const orderDate = new Date(order.order_date).toLocaleDateString("en-GB")
+      const amount = Number(order.total_amount).toLocaleString("ar-SA-u-nu-latn", {
         style: "currency",
         currency: "SAR",
       })
@@ -276,8 +276,8 @@ async function getOrderStatus(phone: string, orderNumber: string, customerName?:
     }
 
     const order = orders[0]
-    const orderDate = new Date(order.order_date).toLocaleDateString("ar-SA")
-    const amount = Number(order.total_amount).toLocaleString("ar-SA", {
+    const orderDate = new Date(order.order_date).toLocaleDateString("en-GB")
+    const amount = Number(order.total_amount).toLocaleString("ar-SA-u-nu-latn", {
       style: "currency",
       currency: "SAR",
     })
@@ -294,7 +294,7 @@ async function getOrderStatus(phone: string, orderNumber: string, customerName?:
     }
 
     if (order.estimated_completion_time) {
-      const estimatedDate = new Date(order.estimated_completion_time).toLocaleDateString("ar-SA")
+      const estimatedDate = new Date(order.estimated_completion_time).toLocaleDateString("en-GB")
       response += `⏰ الوقت المتوقع للإنجاز: ${estimatedDate}\n`
     }
 
@@ -337,7 +337,7 @@ async function getProductsList(customerName?: string): Promise<string> {
     let response = `🛍️ *المنتجات المتوفرة:*\n\n`
 
     products.forEach((product, index) => {
-      const price = Number(product.unit_price).toLocaleString("ar-SA", {
+      const price = Number(product.unit_price).toLocaleString("ar-SA-u-nu-latn", {
         style: "currency",
         currency: "SAR",
       })

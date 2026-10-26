@@ -316,9 +316,9 @@ export default function ChequesBooks() {
       />
 
       <VoucherStats stats={[
-        { label: "إجمالي دفاتر الشيكات", value: <>{visibleBooks.length} <small className="text-xs font-semibold text-slate-400">({totalCheques.toLocaleString()} شيك)</small></> },
-        { label: "الشيكات المتوفرة", value: availableCheques.toLocaleString() },
-        { label: "الشيكات المستخدمة", value: usedCheques.toLocaleString() },
+        { label: "إجمالي دفاتر الشيكات", value: <>{visibleBooks.length} <small className="text-xs font-semibold text-slate-400">({totalCheques.toLocaleString("en-US")} شيك)</small></> },
+        { label: "الشيكات المتوفرة", value: availableCheques.toLocaleString("en-US") },
+        { label: "الشيكات المستخدمة", value: usedCheques.toLocaleString("en-US") },
       ]} />
 
       <Card>

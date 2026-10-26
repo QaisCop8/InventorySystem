@@ -276,7 +276,7 @@ export function BatchReports() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">إجمالي الدفعات</p>
-                        <p className="text-2xl font-bold">{summary.statistics.totalLots.toLocaleString()}</p>
+                        <p className="text-2xl font-bold">{summary.statistics.totalLots.toLocaleString("en-US")}</p>
                       </div>
                       <Package className="h-8 w-8 text-blue-600" />
                     </div>
@@ -289,7 +289,7 @@ export function BatchReports() {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">الدفعات النشطة</p>
                         <p className="text-2xl font-bold text-green-600">
-                          {(summary.statistics.newLots + summary.statistics.inUseLots).toLocaleString()}
+                          {(summary.statistics.newLots + summary.statistics.inUseLots).toLocaleString("en-US")}
                         </p>
                       </div>
                       <CheckCircle className="h-8 w-8 text-green-600" />
@@ -303,7 +303,7 @@ export function BatchReports() {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">الدفعات التالفة</p>
                         <p className="text-2xl font-bold text-red-600">
-                          {summary.statistics.damagedLots.toLocaleString()}
+                          {summary.statistics.damagedLots.toLocaleString("en-US")}
                         </p>
                       </div>
                       <AlertTriangle className="h-8 w-8 text-red-600" />
@@ -317,7 +317,7 @@ export function BatchReports() {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">القيمة الإجمالية</p>
                         <p className="text-2xl font-bold text-blue-600">
-                          ${summary.statistics.totalValue.toLocaleString()}
+                          ${summary.statistics.totalValue.toLocaleString("en-US")}
                         </p>
                       </div>
                       <DollarSign className="h-8 w-8 text-blue-600" />
@@ -407,9 +407,9 @@ export function BatchReports() {
                               <Badge className="bg-red-100 text-red-800">{product.damaged_lots}</Badge>
                             </td>
                             <td className="p-4 font-medium text-green-600">
-                              {product.available_quantity.toLocaleString()}
+                              {product.available_quantity.toLocaleString("en-US")}
                             </td>
-                            <td className="p-4 font-medium">${product.total_value.toLocaleString()}</td>
+                            <td className="p-4 font-medium">${product.total_value.toLocaleString("en-US")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -540,10 +540,10 @@ export function BatchReports() {
                             {getMovementTypeDisplay(movement.transaction_type)}
                           </Badge>
                         </td>
-                        <td className="p-4 font-medium">{movement.quantity?.toLocaleString() || "-"}</td>
-                        <td className="p-4">${movement.unit_cost?.toLocaleString() || "-"}</td>
+                        <td className="p-4 font-medium">{movement.quantity?.toLocaleString("en-US") || "-"}</td>
+                        <td className="p-4">${movement.unit_cost?.toLocaleString("en-US") || "-"}</td>
                         <td className="p-4 font-medium text-green-600">
-                          ${movement.total_value?.toLocaleString() || "-"}
+                          ${movement.total_value?.toLocaleString("en-US") || "-"}
                         </td>
                         <td className="p-4">
                           {movement.reference_type && movement.reference_id
@@ -578,7 +578,7 @@ export function BatchReports() {
                         <Tooltip
                           labelFormatter={(value) => getExpiryStatusDisplay(value)}
                           formatter={(value: any, name: string) => [
-                            value.toLocaleString(),
+                            value.toLocaleString("en-US"),
                             name === "lot_count" ? "عدد الدفعات" : "القيمة الإجمالية",
                           ]}
                         />
@@ -623,9 +623,9 @@ export function BatchReports() {
                                   {getExpiryStatusDisplay(item.expiry_status)}
                                 </Badge>
                               </td>
-                              <td className="p-4 font-medium">{item.lot_count.toLocaleString()}</td>
-                              <td className="p-4">{item.total_quantity.toLocaleString()}</td>
-                              <td className="p-4 font-medium">${item.total_value.toLocaleString()}</td>
+                              <td className="p-4 font-medium">{item.lot_count.toLocaleString("en-US")}</td>
+                              <td className="p-4">{item.total_quantity.toLocaleString("en-US")}</td>
+                              <td className="p-4 font-medium">${item.total_value.toLocaleString("en-US")}</td>
                               <td className="p-4">
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 bg-gray-200 rounded-full h-2">
@@ -670,7 +670,7 @@ export function BatchReports() {
                         <Tooltip
                           labelFormatter={(value) => getMovementTypeDisplay(value)}
                           formatter={(value: any, name: string) => [
-                            value.toLocaleString(),
+                            value.toLocaleString("en-US"),
                             name === "movement_count" ? "عدد الحركات" : "إجمالي الكمية",
                           ]}
                         />
@@ -698,15 +698,15 @@ export function BatchReports() {
                         <div className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span>عدد الحركات:</span>
-                            <span className="font-medium">{movement.movement_count.toLocaleString()}</span>
+                            <span className="font-medium">{movement.movement_count.toLocaleString("en-US")}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>إجمالي الكمية:</span>
-                            <span className="font-medium">{movement.total_quantity.toLocaleString()}</span>
+                            <span className="font-medium">{movement.total_quantity.toLocaleString("en-US")}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>القيمة الإجمالية:</span>
-                            <span className="font-medium text-green-600">${movement.total_value.toLocaleString()}</span>
+                            <span className="font-medium text-green-600">${movement.total_value.toLocaleString("en-US")}</span>
                           </div>
                         </div>
                       </div>

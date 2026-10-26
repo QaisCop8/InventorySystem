@@ -251,11 +251,11 @@ export function LotStatusManager() {
                           {getLotStatusBadge(lot.status)}
                         </div>
                       </td>
-                      <td className="p-3 font-medium">{lot.current_quantity.toLocaleString()}</td>
+                      <td className="p-3 font-medium">{lot.current_quantity.toLocaleString("en-US")}</td>
                       <td className="p-3">
                         {lot.status_changed_at
-                          ? new Date(lot.status_changed_at).toLocaleDateString("ar-SA")
-                          : new Date(lot.created_at).toLocaleDateString("ar-SA")}
+                          ? new Date(lot.status_changed_at).toLocaleDateString("en-GB")
+                          : new Date(lot.created_at).toLocaleDateString("en-GB")}
                       </td>
                       <td className="p-3">
                         <Dialog open={isDialogOpen && selectedLot?.id === lot.id} onOpenChange={setIsDialogOpen}>

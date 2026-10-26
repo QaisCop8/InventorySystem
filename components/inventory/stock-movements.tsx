@@ -253,8 +253,8 @@ export function StockMovements() {
                         {getMovementBadge(movement.transaction_type)}
                       </div>
                     </td>
-                    <td className="p-4 font-medium text-gray-900">{movement.quantity.toLocaleString()}</td>
-                    <td className="p-4 text-green-600 font-medium">{movement.unit_cost?.toLocaleString() || "-"}</td>
+                    <td className="p-4 font-medium text-gray-900">{movement.quantity.toLocaleString("en-US")}</td>
+                    <td className="p-4 text-green-600 font-medium">{movement.unit_cost?.toLocaleString("en-US") || "-"}</td>
                     <td className="p-4">
                       {movement.reference_type && movement.reference_id
                         ? `${movement.reference_type} #${movement.reference_id}`

@@ -127,7 +127,7 @@ function RosterBoard() {
               {dates.map((date) => {
                 const d = new Date(`${date}T00:00:00Z`)
                 const weekend = [5, 6].includes(d.getUTCDay())
-                return <th key={date} className={`min-w-[52px] px-1 py-1.5 text-center text-[11px] font-bold ${weekend ? "bg-slate-700" : ""}`}><div>{d.toLocaleDateString("ar", { weekday: "short", timeZone: "UTC" })}</div><div className="font-mono">{date.slice(8)}/{date.slice(5, 7)}</div></th>
+                return <th key={date} className={`min-w-[52px] px-1 py-1.5 text-center text-[11px] font-bold ${weekend ? "bg-slate-700" : ""}`}><div>{d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div className="font-mono">{date.slice(8)}/{date.slice(5, 7)}</div></th>
               })}
               <th className="min-w-[64px] px-2 text-center text-xs">الساعات</th>
             </tr>

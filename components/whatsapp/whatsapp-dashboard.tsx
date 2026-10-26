@@ -363,7 +363,7 @@ export function WhatsAppDashboard() {
                 <TableBody>
                   {filteredMessages.map((message) => (
                     <TableRow key={message.id}>
-                      <TableCell>{new Date(message.sent_at).toLocaleString("ar-SA")}</TableCell>
+                      <TableCell>{new Date(message.sent_at).toLocaleString("en-GB")}</TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium">{message.recipient_name || "غير معروف"}</div>
@@ -476,7 +476,7 @@ export function WhatsAppDashboard() {
                 <TableBody>
                   {filteredInquiries.map((inquiry) => (
                     <TableRow key={inquiry.id}>
-                      <TableCell>{new Date(inquiry.created_at).toLocaleString("ar-SA")}</TableCell>
+                      <TableCell>{new Date(inquiry.created_at).toLocaleString("en-GB")}</TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium">{inquiry.customer_name || "غير معروف"}</div>
