@@ -73,6 +73,7 @@ export function DraftOrderForm({
     [message, setMessage] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -117,19 +118,41 @@ export function DraftOrderForm({
   });
   enterAsTabEnabledRef.current = !showProductSearch && !specification;
   const loadCustomers = async () => {
+    setCustomersLoading(true);
     try {
-      const response = await fetch("/api/accounts?type=2", {
-        cache: "no-store",
-      });
-      if (!response.ok)
-        throw new Error(`Account request failed: ${response.status}`);
-      const data = await response.json();
-      const nextCustomers = Array.isArray(data) ? data : [];
+      const [accountsResponse, customersResponse] = await Promise.all([
+        fetch("/api/accounts?type=2", { cache: "no-store" }),
+        fetch("/api/customers?type=1", { cache: "no-store" }),
+      ]);
+      if (!accountsResponse.ok)
+        throw new Error(`Account request failed: ${accountsResponse.status}`);
+      const accountData = await accountsResponse.json();
+      const customerData = customersResponse.ok ? await customersResponse.json() : [];
+      const accountRows = Array.isArray(accountData) ? accountData : [];
+      const customerRows = Array.isArray(customerData) ? customerData : customerData.customers || [];
+      const accountById = new Map<string, any>(accountRows.map((account: any) => [String(account.id), account]));
+      const nextCustomers = [
+        ...accountRows,
+        ...customerRows.map((customer: any) => {
+          const account = accountById.get(String(customer.account_id));
+          return {
+            ...account,
+            id: customer.account_id || account?.id || customer.id,
+            account_name: account?.account_name || account?.name || customer.name,
+            account_code: account?.account_code || account?.code || customer.customer_code,
+            customer_code: customer.customer_code,
+          };
+        }),
+      ].filter((customer: any, index: number, all: any[]) =>
+        all.findIndex((candidate) => String(candidate.id) === String(customer.id)) === index,
+      );
       setCustomers(nextCustomers);
       return nextCustomers;
     } catch (error) {
       console.error("Failed to load draft customer accounts:", error);
       return [];
+    } finally {
+      setCustomersLoading(false);
     }
   };
   useEffect(() => {
@@ -276,7 +299,8 @@ export function DraftOrderForm({
             .includes(term) ||
           String(customer.account_code || customer.code || "")
             .toLocaleLowerCase()
-            .includes(term),
+            .includes(term) ||
+          String(customer.customer_code || "").toLocaleLowerCase().includes(term),
       )
       .slice(0, 50);
   }, [customerSearch, customers]);
@@ -922,12 +946,15 @@ export function DraftOrderForm({
                       </span>
                     </button>
                   ))
+                ) : customersLoading ? (
+                  <div className="px-3 py-3 text-center text-sm text-muted-foreground">جاري تحميل العملاء...</div>
                 ) : (
                   <div className="space-y-2 px-3 py-3 text-center text-sm text-muted-foreground">
                     <div>لا توجد نتائج</div>
                     <Button
                       type="button"
                       size="sm"
+                      disabled={isCreatingCustomer}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setNewCustomer((current) => ({
@@ -938,7 +965,7 @@ export function DraftOrderForm({
                       }}
                     >
                       <Plus className="ml-2 h-4 w-4" />
-                      تعريف زبون
+                      {isCreatingCustomer ? "جاري إضافة الزبون..." : "إضافة زبون"}
                     </Button>
                   </div>
                 )}

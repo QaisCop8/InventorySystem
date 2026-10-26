@@ -324,6 +324,26 @@ export async function GET(request: NextRequest) {
     const requestedProductId = Number.parseInt(url.searchParams.get('productId') || url.searchParams.get('id') || '0', 10) || 0
     const activeOnly = url.searchParams.get('activeOnly') === 'true' || url.searchParams.get('activeOnly') === '1'
     const requestedProductIds = [...new Set(String(url.searchParams.get('ids') || '').split(',').map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 500)
+    const liteMode = url.searchParams.get("lite") === "1"
+    // بحث الأصناف يحتاج فقط حقول القائمة. اختيارها هنا يمنع جلب أعمدة الوصف والصور
+    // الكبيرة وبقية بيانات التعريف لكل صنف قبل تجهيز الرد الخفيف.
+    const productColumns = liteMode
+      ? "p.id, p.product_code, p.product_name, p.type, p.product_image, p.last_purchase_price, p.currency_id"
+      : "p.*"
+    const rowNumberColumn = liteMode ? "" : "ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,"
+    const stockColumns = liteMode
+      ? "COALESCE(ps.current_stock, 0) AS current_stock, COALESCE(ps.available_stock, 0) AS available_stock,"
+      : `COALESCE(ps.current_stock, 0) AS current_stock,
+        COALESCE(ps.reserved_stock, 0) AS reserved_stock,
+        COALESCE(ps.available_stock, 0) AS available_stock,
+        COALESCE(ps.reorder_level, 0) AS min_stock_level,
+        ps.max_stock_level,
+        ps.last_updated AS stock_last_updated,
+        CASE
+          WHEN COALESCE(ps.current_stock, 0) <= COALESCE(ps.reorder_level, 0) AND COALESCE(ps.current_stock, 0) > 0 THEN 'low'
+          WHEN COALESCE(ps.current_stock, 0) = 0 THEN 'out'
+          ELSE 'available'
+        END AS stock_status,`
     const organizationId = 1
 
     const resolvedType =
@@ -365,21 +385,9 @@ export async function GET(request: NextRequest) {
       typeParam !== 'NULL'
       ? `
       SELECT
-        p.*,
-        ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,
-        COALESCE(ps.current_stock, 0) AS current_stock,
-        COALESCE(ps.reserved_stock, 0) AS reserved_stock,
-        COALESCE(ps.available_stock, 0) AS available_stock,
-        COALESCE(ps.reorder_level, 0) AS min_stock_level,
-        ps.max_stock_level,
-        ps.last_updated AS stock_last_updated,
-        CASE
-          WHEN COALESCE(ps.current_stock, 0) <= COALESCE(ps.reorder_level, 0) AND COALESCE(ps.current_stock, 0) > 0
-            THEN 'low'
-          WHEN COALESCE(ps.current_stock, 0) = 0
-            THEN 'out'
-          ELSE 'available'
-        END AS stock_status,
+        ${productColumns},
+        ${rowNumberColumn}
+        ${stockColumns}
         u.unit_name AS first_unit,
         u.id AS unit_id,
         pu.first_barcode,
@@ -394,7 +402,7 @@ export async function GET(request: NextRequest) {
         ON p.id = ps.product_id
         AND ps.organization_id = ${organizationId}::int
       LEFT JOIN LATERAL (
-        SELECT pu.*, pub.barcode AS first_barcode
+        SELECT pu.unit_id, pub.barcode AS first_barcode
         FROM product_units pu
         LEFT JOIN product_unit_barcodes pub
           ON pub.product_id = pu.product_id
@@ -405,7 +413,7 @@ export async function GET(request: NextRequest) {
       ) pu ON TRUE
       LEFT JOIN units u ON pu.unit_id = u.id
       LEFT JOIN LATERAL (
-        SELECT pr.*
+        SELECT pr.price, pr.price_category_id, pr.currency_id
         FROM product_prices pr
         WHERE pr.product_id = p.id
         AND pr.price_category_id = ${priceCategoryId}::int
@@ -422,23 +430,11 @@ export async function GET(request: NextRequest) {
     `
       : `
       SELECT 
-        p.*,
+        ${productColumns},
         'المستودع الافتراضي' AS default_store_name,
         false as selected,
-        ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,
-        COALESCE(ps.current_stock, 0) AS current_stock,
-        COALESCE(ps.reserved_stock, 0) AS reserved_stock,
-        COALESCE(ps.available_stock, 0) AS available_stock,
-        COALESCE(ps.reorder_level, 0) AS min_stock_level,
-        ps.max_stock_level,
-        ps.last_updated AS stock_last_updated,
-        CASE 
-          WHEN COALESCE(ps.current_stock, 0) <= COALESCE(ps.reorder_level, 0) AND COALESCE(ps.current_stock, 0) > 0 
-            THEN 'low'
-          WHEN COALESCE(ps.current_stock, 0) = 0 
-            THEN 'out'
-          ELSE 'available'
-        END AS stock_status,
+        ${rowNumberColumn}
+        ${stockColumns}
         u.unit_name AS first_unit,
         u.id AS unit_id,
         pu.first_barcode,
@@ -453,7 +449,7 @@ export async function GET(request: NextRequest) {
         ON p.id = ps.product_id
         AND ps.organization_id = ${organizationId}::int
       LEFT JOIN LATERAL (
-        SELECT pu.*, pub.barcode AS first_barcode
+        SELECT pu.unit_id, pub.barcode AS first_barcode
         FROM product_units pu
         LEFT JOIN product_unit_barcodes pub
           ON pub.product_id = pu.product_id
@@ -464,7 +460,7 @@ export async function GET(request: NextRequest) {
       ) pu ON TRUE
       LEFT JOIN units u ON pu.unit_id = u.id
       LEFT JOIN LATERAL (
-        SELECT pr.*
+        SELECT pr.price, pr.price_category_id, pr.currency_id
         FROM product_prices pr
         WHERE pr.product_id = p.id
         AND pr.price_category_id = ${priceCategoryId}::int
@@ -483,7 +479,7 @@ export async function GET(request: NextRequest) {
     const productsResult = await (await getTenantPool()).query(productsQuery)
     const products = productsResult.rows
     const productIds = products.map((product: any) => Number(product.id)).filter((id: number) => Number.isInteger(id) && id > 0)
-    if (productIds.length) {
+    if (productIds.length && !liteMode) {
       const attributeLinks = await (await getTenantPool()).query(
         `SELECT pav.product_id, a.name AS attribute_name, v.name AS value_name, pav.image_url
          FROM product_atrributes_values_tbl pav
@@ -538,7 +534,7 @@ export async function GET(request: NextRequest) {
     }
     // lite=1 (نافذة بحث الأصناف): فقط حقول العرض والبحث — الصنف الكامل يُجلب للأصناف المختارة فقط (?ids=).
     // كان كل فتح للنافذة ينقل ~31MB (84 حقلاً × كل الأصناف).
-    if (url.searchParams.get("lite") === "1") {
+    if (liteMode) {
       return NextResponse.json(rows.map((product: any) => {
         const lite: Record<string, unknown> = {}
         for (const key of LITE_PRODUCT_FIELDS) if (product[key] !== undefined && product[key] !== null && product[key] !== "") lite[key] = product[key]

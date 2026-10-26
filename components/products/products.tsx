@@ -99,6 +99,8 @@ interface Product {
   updated_by?: string
 }
 
+const PRODUCTS_PRODUCT_HANDOFF_KEY = "products_product_id"
+
 interface ProductFormData {
   product_code: string
   product_name: string
@@ -559,6 +561,32 @@ export function Products({ entityType = "products" }: ProductsProps) {
       },
     }))
   }
+
+  useEffect(() => {
+    if (state.loading) return
+    let requested = ""
+    try {
+      requested = sessionStorage.getItem(PRODUCTS_PRODUCT_HANDOFF_KEY) || ""
+      if (requested) sessionStorage.removeItem(PRODUCTS_PRODUCT_HANDOFF_KEY)
+    } catch { /* ignore unavailable storage */ }
+    if (!requested) return
+
+    const productId = Number(requested)
+    const found = state.products.find((item) => Number(item.id) === productId)
+    if (found) {
+      handleEditProduct(found)
+      return
+    }
+    void fetch(`/api/inventory/products?activeOnly=false&ids=${productId}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : Array.isArray(data?.products) ? data.products : []
+        const product = list.find((item: any) => Number(item.id) === productId)
+        if (product) handleEditProduct(product)
+      })
+      .catch(() => undefined)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.loading, state.products])
 
   const handleToggleFreeze = (product: Product) => {
     if (!canUpdate) return

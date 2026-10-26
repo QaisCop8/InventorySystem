@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { filterAccessibleAccounts } from "@/lib/account-access"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { runSchemaOnce } from "@/lib/schema-once"
 import {
   statusLabelToCode,
   toBool,
@@ -13,30 +14,38 @@ import {
   accountFileFamilyForType,
 } from "./_lib"
 
-const ensureBranchesTable = () => sql`
-  CREATE TABLE IF NOT EXISTS branches (
-    id SERIAL PRIMARY KEY,
-    branch_code VARCHAR(20) UNIQUE NOT NULL,
-    branch_name VARCHAR(100) NOT NULL,
-    bank_id INTEGER,
-    address TEXT,
-    manager VARCHAR(100),
-    phone VARCHAR(20),
-    status INTEGER DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`
-
-const ensureAccountClassificationTypesTable = () => sql`
-  CREATE TABLE IF NOT EXISTS account_classification_types (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`
+const ensureAccountLookupTables = () => runSchemaOnce("app/api/accounts/route.ts#ensureAccountLookupTables", async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS branches (
+      id SERIAL PRIMARY KEY,
+      branch_code VARCHAR(20) UNIQUE NOT NULL,
+      branch_name VARCHAR(100) NOT NULL,
+      bank_id INTEGER,
+      address TEXT,
+      manager VARCHAR(100),
+      phone VARCHAR(20),
+      status INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS account_classification_types (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL UNIQUE,
+      status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS account_branches (
+      account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,
+      branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+      PRIMARY KEY (account_id, branch_id)
+    )
+  `
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,15 +55,7 @@ export async function GET(request: NextRequest) {
     if (!authorization.ok) return authorization.response
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
-    await ensureBranchesTable()
-    await ensureAccountClassificationTypesTable()
-    await sql`
-      CREATE TABLE IF NOT EXISTS account_branches (
-        account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,
-        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
-        PRIMARY KEY (account_id, branch_id)
-      )
-    `
+    await ensureAccountLookupTables()
 
     // تصفية حسب الفرع النشط (هيدر x-branch-id) — حساب بلا أي صف بـaccount_branches يبقى ظاهراً
     // للجميع، وحساب مقيَّد بفرع/فروع معيّنة لا يظهر إلا لمستخدم فرعه أحدها. activeBranchId مُتحقَّق
@@ -243,29 +244,15 @@ export async function GET(request: NextRequest) {
     // صلاحيات المستخدمين على الحسابات: الحسابات الممنوعة عن المستخدم (بالفرع النشط) لا تظهر في البحث والاختيار
     rows = await filterAccessibleAccounts(request, rows as any[], "id", activeBranchId)
 
-    const stopRows = await sql`
-      SELECT id, account_id, voucher_types_id, stop_date
-      FROM account_stop_transactions_tbl
-      ORDER BY id ASC
-    `
-
-    const costCenterRows = await sql`
-      SELECT id, account_id, cost_center_type_id, required_in_transactions, default_cost_center_id
-      FROM account_costcenters_tbl
-      ORDER BY id ASC
-    `
-
-    const classificationRows = await sql`
-      SELECT id, account_id, classification_id
-      FROM account_classifications_tbl
-      ORDER BY id ASC
-    `
-
-    const branchRows = await sql`
-      SELECT account_id, branch_id
-      FROM account_branches
-      ORDER BY account_id ASC
-    `
+    const accountIds = [...new Set((rows as any[]).map((row) => Number(row.id)).filter((id) => Number.isInteger(id) && id > 0))]
+    const [stopRows, costCenterRows, classificationRows, branchRows] = accountIds.length
+      ? await Promise.all([
+          sql`SELECT id, account_id, voucher_types_id, stop_date FROM account_stop_transactions_tbl WHERE account_id = ANY(${accountIds}::int[]) ORDER BY account_id, id`,
+          sql`SELECT id, account_id, cost_center_type_id, required_in_transactions, default_cost_center_id FROM account_costcenters_tbl WHERE account_id = ANY(${accountIds}::int[]) ORDER BY account_id, id`,
+          sql`SELECT id, account_id, classification_id FROM account_classifications_tbl WHERE account_id = ANY(${accountIds}::int[]) ORDER BY account_id, id`,
+          sql`SELECT account_id, branch_id FROM account_branches WHERE account_id = ANY(${accountIds}::int[]) ORDER BY account_id`,
+        ])
+      : [[], [], [], []]
 
     const stopByAccount = new Map<number, any[]>()
     for (const row of stopRows) {

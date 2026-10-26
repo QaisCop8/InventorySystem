@@ -4,6 +4,8 @@ import { projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
 
+const searchSchemaByPool = new WeakMap<object, Promise<boolean>>()
+
 async function ensureProductCostCentersTable(client: any) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS product_costcenters_tbl (
@@ -49,9 +51,21 @@ export async function GET(request: NextRequest) {
     // [navigationType]/route.ts.
     const pool = await getTenantPool();
     const client = await pool.connect();
-    await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)");
-    await ensureProductCostCentersTable(client)
-    const canJoinDefaultStore = await hasDefaultStoreColumn(client)
+    let schemaReady = searchSchemaByPool.get(pool as object)
+    if (!schemaReady) {
+      schemaReady = (async () => {
+        await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)")
+        await ensureProductCostCentersTable(client)
+        // These lookups normalize stored strings with TRIM; ordinary indexes on
+        // the raw columns cannot accelerate those equality checks.
+        await client.query("CREATE INDEX IF NOT EXISTS idx_products_trimmed_code ON products (TRIM(product_code))")
+        await client.query("CREATE INDEX IF NOT EXISTS idx_product_unit_barcodes_trimmed_barcode ON product_unit_barcodes (TRIM(barcode))")
+        return hasDefaultStoreColumn(client)
+      })()
+      searchSchemaByPool.set(pool as object, schemaReady)
+      void schemaReady.catch(() => searchSchemaByPool.delete(pool as object))
+    }
+    const canJoinDefaultStore = await schemaReady
 
     // 1️⃣ Get product by product_code OR first barcode (from product_unit_barcodes)
     const productQuery = canJoinDefaultStore

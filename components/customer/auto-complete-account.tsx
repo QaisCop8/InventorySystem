@@ -48,6 +48,8 @@ interface AutoCompleteAccountProps {
   // الحساب أصلاً أو كان موجوداً لكن نوعه خارج requiredTypeValues، تُمسح القيمة المدخلة وتُعرض
   // هذه الرسالة بدل قبول حساب لا يطابق النوع المطلوب بصمت.
   notFoundMessage?: string
+  emptyActionLabel?: string
+  emptyActionHref?: string
   /**
    * عملة الحركة: عند تمريرها يُطبَّق إعداد الحساب "السماح بعمل حركة على الحساب بغير عملته" (allow_trans_with_diff_curr)
    * عند اختيار حساب عملته مختلفة: 0 = بلا تنبيه، 1 = يُقبل مع تنبيه، 2 = يُرفض الاختيار. (الخادم يرفض 2 عند الحفظ أيضاً)
@@ -150,6 +152,8 @@ export default function AutoCompleteAccount({
   branchId = null,
   displayIdOnly = false,
   notFoundMessage,
+  emptyActionLabel,
+  emptyActionHref,
   voucherCurrencyId = null,
 }: AutoCompleteAccountProps) {
   const { toast } = useToast()
@@ -551,6 +555,8 @@ export default function AutoCompleteAccount({
         orderType={orderType}
         branchId={branchId}
         leafOnly={leafOnly}
+        emptyActionLabel={emptyActionLabel}
+        emptyActionHref={emptyActionHref}
       />
 
       {showCostCenterDialog && (

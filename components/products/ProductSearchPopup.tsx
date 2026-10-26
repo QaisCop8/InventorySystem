@@ -193,7 +193,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       if (selectedTypes.length === 1) {
         url += selectedTypes[0] === 2 ? `&type=services` : `&type=products`;
       }
-      const cached = productListCache.get(url);
+      let cacheKey = url;
+      try {
+        cacheKey = `${sessionStorage.getItem("active_company_id") || "default"}:${url}`;
+      } catch { /* use the URL key when storage is unavailable */ }
+      const cached = productListCache.get(cacheKey);
       if (cached) {
         setProducts(normalize(cached.data));
         setSelectedProduct(null);
@@ -205,7 +209,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         const res = await fetch(url);
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error("invalid products response");
-        productListCache.set(url, { at: Date.now(), data });
+        productListCache.set(cacheKey, { at: Date.now(), data });
         if (!cancelled) {
           setProducts((current) => {
             // تحديث بالخلفية: يُحافَظ على التأشير الحالي

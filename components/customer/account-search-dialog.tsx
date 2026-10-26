@@ -98,6 +98,8 @@ interface AccountSearchDialogProps {
   branchId?: number | null
   /** الحسابات الرئيسية (التي لها حسابات فرعية) لا تُعرض ولا تُختار — افتراضياً في كل الحركات والتعريفات */
   leafOnly?: boolean
+  emptyActionLabel?: string
+  emptyActionHref?: string
 }
 
 /** حساب رئيسي = له حساب فرعي واحد على الأقل (has_children من الخادم، أو father_id لحساب آخر في القائمة) */
@@ -160,6 +162,8 @@ export default function AccountSearchDialog({
   orderType = null,
   branchId = null,
   leafOnly = true,
+  emptyActionLabel,
+  emptyActionHref = "/?section=customers",
 }: AccountSearchDialogProps) {
   const { confined } = useWorkspaceDialog()
   const { toast } = useToast()
@@ -730,7 +734,20 @@ export default function AccountSearchDialog({
                   : `${searchResults.length.toLocaleString()} حساب`}
               </span>
             </div>
-            <SearchResultsTable<(typeof gridDataSource)[number]>
+            {emptyActionLabel && !loading && visibleRows.length === 0 ? (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
+                <Search className="h-8 w-8 text-slate-300" />
+                <p className="text-sm text-slate-500">لا توجد نتائج مطابقة</p>
+                <Button
+                  type="button"
+                  onClick={() => window.open(emptyActionHref, "_blank", "noopener,noreferrer")}
+                  className="h-9 gap-2 rounded-lg bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  {emptyActionLabel}
+                </Button>
+              </div>
+            ) : <SearchResultsTable<(typeof gridDataSource)[number]>
               ref={resultsRef}
               rows={visibleRows}
               columns={resultColumns}
@@ -742,7 +759,7 @@ export default function AccountSearchDialog({
               }}
               onActiveChange={(row) => setSelectedAccount(row ? searchResults.find((item) => item.id === row.id) ?? null : null)}
               emptyText={loading ? "جاري تحميل البيانات ..." : "لا توجد نتائج مطابقة"}
-            />
+            />}
           </div>
 
           <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2.5">

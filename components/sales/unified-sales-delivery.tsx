@@ -3519,6 +3519,8 @@ export default function UnifiedSalesDelivery({
                       if (account?.id && !isLocked) void fetchCustomerDefaultSalesman(account.id).then((salesmanId) => { if (salesmanId) onFormChange("salesman_id", salesmanId) })
                     }}
                     searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [2,3, 5] : [2,3, 5]}
+                    emptyActionLabel={isPurchaseDeliveryVoucher ? "إضافة مورد" : "إضافة عميل"}
+                    emptyActionHref={isPurchaseDeliveryVoucher ? "/?section=suppliers" : "/?section=customers"}
                     showOrderOnlyFilter={hasOrderSourceItems}
                     lockOrderOnlyFilter={hasOrderSourceItems}
                     showDeliveryOnlyFilter={hasDeliverySourceItems && !isFromConsignment}
