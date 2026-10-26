@@ -73,16 +73,25 @@ export function ensureLicenseTables() {
 }
 
 /** الاستخدام الفعلي داخل قاعدة الشركة: المستخدمون النشطون والفروع ونقاط البيع غير المحذوفة. */
-export async function countTenantUsage(dbName?: string): Promise<LicenseUsage> {
+export async function countTenantUsage(dbName?: string, includeStorage = false): Promise<LicenseUsage & { storage_bytes?: number | null }> {
   const query = async () => {
-    const [users] = await sql`SELECT COUNT(*)::int AS n FROM user_settings WHERE COALESCE(is_active, true) = true`
+    const [users, storage] = await Promise.all([
+      sql`SELECT COUNT(*)::int AS n FROM user_settings WHERE COALESCE(is_active, true) = true`,
+      includeStorage ? sql`SELECT pg_database_size(current_database())::bigint AS bytes` : Promise.resolve([]),
+    ])
     const branchTable = await sql`SELECT to_regclass('branches') IS NOT NULL AS ok`
     const branches = branchTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM branches WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
     const posTable = await sql`SELECT to_regclass('pos_points_tbl') IS NOT NULL AS ok`
     const posPoints = posTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM pos_points_tbl WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
     const restaurantTable = await sql`SELECT to_regclass('restaurant_locations_tbl') IS NOT NULL AS ok`
     const restaurantLocations = restaurantTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM restaurant_locations_tbl WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
-    return { users: Number(users?.n || 0), branches: Number(branches?.n || 0), pos_points: Number(posPoints?.n || 0), restaurant_locations: Number(restaurantLocations?.n || 0) }
+    return {
+      users: Number(users?.n || 0),
+      branches: Number(branches?.n || 0),
+      pos_points: Number(posPoints?.n || 0),
+      restaurant_locations: Number(restaurantLocations?.n || 0),
+      ...(includeStorage ? { storage_bytes: Number(storage[0]?.bytes || 0) } : {}),
+    }
   }
   return dbName ? withTenantDb(dbName, query) : query()
 }

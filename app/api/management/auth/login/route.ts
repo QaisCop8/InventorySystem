@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { loginManagementUser } from "@/lib/management-auth"
+import { recordManagementLogin } from "@/lib/management-login-audit"
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +9,21 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 401 })
+    }
+
+    if (result.user) {
+      try {
+        await recordManagementLogin({
+          managementUserId: result.user.id,
+          email: result.user.email,
+          name: result.user.full_name,
+          loginType: "management",
+          ipAddress: (request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown").split(",")[0].trim(),
+          userAgent: request.headers.get("user-agent") || "unknown",
+        })
+      } catch (auditError) {
+        console.error("[management/auth/login] Failed to write central login audit:", auditError)
+      }
     }
 
     return NextResponse.json({ success: true, user: result.user })

@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { authenticateUser } from "@/lib/auth"
 import { createTenantSession } from "@/lib/tenant-auth"
+import { resolveCurrentDbName } from "@/lib/database"
+import { recordManagementLogin } from "@/lib/management-login-audit"
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +25,22 @@ export async function POST(request: NextRequest) {
         await createTenantSession(String(result.user.id))
       } catch (sessionError) {
         console.error("[auth/login] Failed to create tenant session:", sessionError)
+      }
+    }
+
+    if (result.success && result.user) {
+      try {
+        await recordManagementLogin({
+          email: result.user.email,
+          name: result.user.fullName,
+          tenantUserId: result.user.id,
+          dbName: await resolveCurrentDbName(),
+          loginType: "tenant",
+          ipAddress: ip.split(",")[0].trim(),
+          userAgent,
+        })
+      } catch (auditError) {
+        console.error("[auth/login] Failed to write central login audit:", auditError)
       }
     }
 

@@ -132,6 +132,25 @@ export function ensureManagementTables(): Promise<void> {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `
+      await sql`
+        CREATE TABLE IF NOT EXISTS management_login_audit (
+          id BIGSERIAL PRIMARY KEY,
+          management_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          tenant_user_id INTEGER,
+          user_email VARCHAR(150) NOT NULL,
+          user_name VARCHAR(150),
+          company_id INTEGER REFERENCES companies(id) ON DELETE SET NULL,
+          company_name VARCHAR(150),
+          db_name VARCHAR(100),
+          login_type VARCHAR(30) NOT NULL DEFAULT 'tenant',
+          ip_address VARCHAR(64),
+          user_agent TEXT,
+          logged_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `
+      await sql`CREATE INDEX IF NOT EXISTS idx_management_login_audit_logged_at ON management_login_audit (logged_at DESC)`
+      await sql`CREATE INDEX IF NOT EXISTS idx_management_login_audit_company_date ON management_login_audit (company_id, logged_at DESC)`
+      await sql`CREATE INDEX IF NOT EXISTS idx_management_login_audit_email_date ON management_login_audit (LOWER(user_email), logged_at DESC)`
 
       // ارتباط موظف شركة بحساب إدارة عام (اختياري — يُضبَط فقط عبر مسار إنشاء المستخدم الجديد
       // ثنائي القاعدة، انظر lib/permissions.ts وخطة الصلاحيات) — نشِط/متوقف مقيَّد بهذه العلاقة

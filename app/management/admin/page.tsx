@@ -7,7 +7,8 @@ import { CompanyLicenseBar, LicenseRequestsPanel } from "@/components/management
 import { PricingPanel } from "@/components/management/pricing-panel"
 import { FeatureRequestsAdmin } from "@/components/management/feature-requests-admin"
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
-import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit, KeyRound } from "lucide-react"
+import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit, KeyRound, Database } from "lucide-react"
+import { UserLoginReport } from "@/components/management/user-login-report"
 
 interface PendingCompany {
   id: number
@@ -32,11 +33,25 @@ interface AllCompany {
   number_of_pos_points?: number
   number_of_restaurant_locations?: number
   usage?: { users: number; branches: number; pos_points?: number; restaurant_locations?: number } | null
+  storage_bytes?: number | null
   pending_license_requests?: number
 }
 
 const isCompanyExpired = (company: AllCompany) =>
   !!company.expiry_date && new Date(company.expiry_date).getTime() < Date.now()
+
+const formatDatabaseStorage = (bytes?: number | null) => {
+  if (bytes == null || !Number.isFinite(bytes)) return "غير متاح"
+  if (bytes < 1024) return `${bytes} B`
+  const units = ["KB", "MB", "GB", "TB"]
+  let value = bytes / 1024
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex++
+  }
+  return `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${units[unitIndex]}`
+}
 
 interface ManagedUser {
   id: number
@@ -61,7 +76,7 @@ interface AccessDefinition {
 }
 
 export default function ManagementAdminPage() {
-  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "permissions" | "pricing" | "feature-requests">("pending")
+  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "login-report" | "permissions" | "pricing" | "feature-requests">("pending")
   const [companies, setCompanies] = useState<PendingCompany[]>([])
   const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -387,31 +402,31 @@ export default function ManagementAdminPage() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 px-6 py-10">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
+    <div dir="rtl" className="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-bold text-slate-800">لوحة التحكم</h1>
           <Link href="/management/companies" className="flex items-center gap-1 text-sm text-slate-500 hover:underline">
             <ArrowRight className="h-4 w-4" /> شركاتي
           </Link>
         </div>
 
-        <div className="mb-6 flex gap-2 border-b border-slate-200">
+        <div className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
           <button
             onClick={() => setTab("pending")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "pending" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pending" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             الشركات بانتظار الموافقة
           </button>
           <button
             onClick={() => setTab("companies")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "companies" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "companies" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             الشركات
           </button>
           <button
             onClick={() => setTab("licenses")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "licenses" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "licenses" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             طلبات الترخيص
             {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0) > 0 && (
@@ -422,31 +437,38 @@ export default function ManagementAdminPage() {
           </button>
           <button
             onClick={() => setTab("users")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             المستخدمون
           </button>
           <button
+            onClick={() => setTab("login-report")}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "login-report" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+          >
+            سجل الدخول
+          </button>
+          <button
             onClick={() => setTab("permissions")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "permissions" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "permissions" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             تعريف الصلاحيات
           </button>
           <button
             onClick={() => setTab("pricing")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "pricing" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pricing" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             الأسعار
           </button>
           <button
             onClick={() => setTab("feature-requests")}
-            className={`px-4 py-2 text-sm font-medium ${tab === "feature-requests" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "feature-requests" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             بريد الرسائل والتحسينات
           </button>
         </div>
         {tab === "pricing" && <PricingPanel />}
         {tab === "feature-requests" && <FeatureRequestsAdmin />}
+        {tab === "login-report" && <UserLoginReport companies={allCompanies.map(({ id, name }) => ({ id, name }))} />}
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
@@ -502,9 +524,9 @@ export default function ManagementAdminPage() {
 
                 return (
                   <div key={company.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 font-semibold text-slate-800">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 font-semibold text-slate-800">
                         {company.name}
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses}`}>{statusLabel}</span>
                         {expired && (
@@ -518,6 +540,10 @@ export default function ManagementAdminPage() {
                           {company.requested_by_name} · {company.requested_by_email}
                         </div>
                       )}
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+                        <Database className="h-3.5 w-3.5 text-violet-600" />
+                        مساحة قاعدة البيانات: <span dir="ltr" className="font-semibold tabular-nums text-slate-800">{formatDatabaseStorage(company.storage_bytes)}</span>
+                      </div>
                       {company.expiry_date && (
                         <div className={"mt-1 flex items-center gap-1 text-sm " + (expired ? "font-medium text-rose-600" : "text-slate-500")}>
                           <Clock className="h-3.5 w-3.5" />
@@ -525,7 +551,7 @@ export default function ManagementAdminPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
                       {(company.status === "approved" || company.status === "stopped") && (
                         <Button
                           size="sm"
@@ -577,8 +603,8 @@ export default function ManagementAdminPage() {
           ) : (
             <div className="space-y-3">
               {users.map((user) => (
-                <div key={user.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div>
+                <div key={user.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 font-semibold text-slate-800">
                       {user.full_name}
                       {user.is_platform_admin && (
@@ -594,7 +620,7 @@ export default function ManagementAdminPage() {
                     </div>
                     <div className="text-sm text-slate-500">{user.email}</div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="outline" className="gap-1 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setPasswordUser(user)}>
                     <KeyRound className="h-4 w-4" /> تغيير كلمة المرور
                   </Button>

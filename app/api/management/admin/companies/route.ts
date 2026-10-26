@@ -30,7 +30,13 @@ export async function GET(request: NextRequest) {
     if (withUsage) {
       await Promise.all(rows.map(async (row: any) => {
         if (!row.db_name || row.status === "pending" || row.status === "rejected") return
-        try { row.usage = await countTenantUsage(row.db_name) } catch { row.usage = null }
+        try {
+          row.usage = await countTenantUsage(row.db_name, true)
+          row.storage_bytes = row.usage.storage_bytes ?? null
+        } catch {
+          row.usage = null
+          row.storage_bytes = null
+        }
       }))
     }
 

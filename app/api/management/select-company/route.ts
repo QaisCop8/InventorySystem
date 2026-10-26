@@ -6,6 +6,7 @@ import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { withTenantDb } from "@/lib/database"
 import { authenticateByEmail } from "@/lib/auth"
 import { createTenantSession } from "@/lib/tenant-auth"
+import { recordManagementLogin } from "@/lib/management-login-audit"
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,6 +68,22 @@ export async function POST(request: NextRequest) {
         { error: authResult.error || "لا يوجد مستخدم فعّال بهذا البريد في قاعدة بيانات الشركة" },
         { status: 403 },
       )
+    }
+
+    try {
+      await recordManagementLogin({
+        managementUserId: session.id,
+        tenantUserId: authResult.user.id,
+        email: authResult.user.email,
+        name: authResult.user.fullName,
+        companyId: Number(company.id),
+        dbName: company.db_name,
+        loginType: "company-switch",
+        ipAddress: ip.split(",")[0].trim(),
+        userAgent,
+      })
+    } catch (auditError) {
+      console.error("[management/select-company] Failed to write central login audit:", auditError)
     }
 
     // لا تُثبَّت قاعدة الشركة في الكوكي إلا بعد نجاح التحقق من وجود المستخدم داخلها. اسم القاعدة
