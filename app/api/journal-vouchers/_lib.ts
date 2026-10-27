@@ -100,13 +100,19 @@ export const buildJournalRows = (data: any): JournalRow[] => {
   const currencyId = data.currency_id || null
   const rate = Number(data.rate || 1)
 
-  const journalRows: any[] = (Array.isArray(data.journal) ? data.journal : []).filter(
-    (row: any) => row?.account_id && Number(row?.debit || 0) + Number(row?.credit || 0) > 0,
-  )
+  const journalRows: any[] = (Array.isArray(data.journal) ? data.journal : []).filter((row: any) => {
+    if (!row?.account_id) return false
+    const amount = Number(row?.amount || 0)
+    const debit = Number(row?.debit || (Number(row?.credit_debit) === 1 ? amount : 0))
+    const credit = Number(row?.credit || (Number(row?.credit_debit) === 2 ? amount : 0))
+    return debit + credit > 0
+  })
 
   return journalRows.map((row: any, index: number): JournalRow => {
-    const debit = Number(row.debit || 0)
-    const credit = Number(row.credit || 0)
+    // Editor rows use debit/credit; rows returned from the API use credit_debit + amount.
+    const storedAmount = Number(row.amount || 0)
+    const debit = Number(row.debit || (Number(row.credit_debit) === 1 ? storedAmount : 0))
+    const credit = Number(row.credit || (Number(row.credit_debit) === 2 ? storedAmount : 0))
     const amount = debit > 0 ? debit : credit
     return {
       journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT,

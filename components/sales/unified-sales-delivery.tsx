@@ -291,6 +291,7 @@ interface UnifiedSalesDeliveryProps {
   form: SalesDeliveryRecord
   onFormChange: <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => void
   onBookChange?: (bookId: number | null) => void
+  onInvoiceSourceTypeChange?: (value: number) => Promise<void>
   // يُستدعى عند كل تغيير للعملة (بما فيها تعيينها الأولي بسند جديد) — يُحدِّث حساب الصندوق الافتراضي
   // (تبويب "بيانات اضافية") وفق إعدادات المستخدم لتلك العملة. انظر handleCurrencyChange في
   // sales-delivery.tsx.
@@ -469,6 +470,7 @@ export default function UnifiedSalesDelivery({
   form,
   onFormChange,
   onBookChange,
+  onInvoiceSourceTypeChange,
   onCurrencyChange,
   onItemsChange,
   voucherBooks = [],
@@ -626,27 +628,30 @@ export default function UnifiedSalesDelivery({
     setShowCurrencyRecalcConfirm(true)
   }
 
-  const handleInvoiceSourceTypeChange = (value: number) => {
+  const handleInvoiceSourceTypeChange = async (value: number) => {
     const currentValue = Number(form.invoice_source_type || 1)
     if (value === currentValue) return
 
-    // Changing the invoice source invalidates the customer and rows inherited
-    // from the previous source. Reset them first so dirty checking observes the
-    // change and an order/delivery can never be saved with stale item links.
     setInvoiceFromDeliveryOpen(false)
     setInvoiceFromOrderOpen(false)
     setConsignmentPickerOpen(false)
-    onFormChange("invoice_source_type", value)
-    onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
-    onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
-    onFormChange("linked_order_id", null)
-    onFormChange("account_id", null)
-    onFormChange("customer_name", "")
-    onFormChange("discount_type", "percentage")
-    onFormChange("discount_value", 0)
-    const resetItems = [{ ...emptyItemRow }]
-    itemsRef.current = resetItems
-    onItemsChange(resetItems)
+    if (onInvoiceSourceTypeChange) {
+      await onInvoiceSourceTypeChange(value)
+    } else {
+      // Changing the invoice source invalidates the customer and rows inherited
+      // from the previous source. Clear those values so stale links cannot be saved.
+      onFormChange("invoice_source_type", value)
+      onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
+      onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
+      onFormChange("linked_order_id", null)
+      onFormChange("account_id", null)
+      onFormChange("customer_name", "")
+      onFormChange("discount_type", "percentage")
+      onFormChange("discount_value", 0)
+      const resetItems = [{ ...emptyItemRow }]
+      itemsRef.current = resetItems
+      onItemsChange(resetItems)
+    }
 
     if (value === 2 && dialogOpen) {
       setTimeout(() => setInvoiceFromDeliveryOpen(true), 0)
@@ -3460,7 +3465,7 @@ export default function UnifiedSalesDelivery({
                     panelStyle={{ zIndex: 10000 }}
                     onChange={(e: any) => {
                       const value = Number(e.value) || 1
-                      handleInvoiceSourceTypeChange(value)
+                      guardedAction(() => { void handleInvoiceSourceTypeChange(value) })
                     }}
                   />
                 </div>

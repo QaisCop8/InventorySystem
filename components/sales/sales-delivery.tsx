@@ -498,6 +498,36 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (requestId === bookChangeRequestRef.current) pendingBookChangeRef.current = null
   }
 
+  const handleInvoiceSourceTypeChange = async (invoiceSourceType: number) => {
+    const current = formRef.current
+    const requestId = ++bookChangeRequestRef.current
+    pendingBookChangeRef.current = null
+    setIsLoading(true)
+    setErrorMessages([])
+    try {
+      const nextForm: SalesDeliveryRecord = {
+        ...buildInitialForm(),
+        branch_id: current.branch_id,
+        vch_book_id: current.vch_book_id ?? defaultBookId,
+        currency_id: current.currency_id ?? baseCurrencyId,
+        rate: current.rate || 1,
+        invoice_source_type: invoiceSourceType,
+      }
+      const code = await generateCode(nextForm.vch_book_id, "", nextForm.branch_id)
+      if (requestId !== bookChangeRequestRef.current) return
+      if (!code) throw new Error("تعذر إنشاء رقم سند جديد. تحقق من دفتر السندات والفرع.")
+      nextForm.vch_code = code
+      setForm(nextForm)
+      setGridResetToken((value) => value + 1)
+    } catch (error) {
+      if (requestId === bookChangeRequestRef.current) {
+        setErrorMessages([error instanceof Error ? error.message : "تعذر إنشاء رقم سند جديد"])
+      }
+    } finally {
+      if (requestId === bookChangeRequestRef.current) setIsLoading(false)
+    }
+  }
+
   // تغيير الفرع لسند جديد لم يُحفظ بعد يعيد توليد الرقم (بادئة السند + رمز الفرع + رمز الدفتر + التسلسل).
   const regenerateCodeForBranch = async (branchId: number | null, initialSelection: boolean) => {
     const current = formRef.current
@@ -1046,6 +1076,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         form={form}
         onFormChange={onFormChange}
         onBookChange={handleBookChange}
+        onInvoiceSourceTypeChange={handleInvoiceSourceTypeChange}
         onItemsChange={(items) => editForm((f) => ({ ...f, items }))}
         hasUnsavedChanges={hasUnsavedChanges}
         gridResetToken={gridResetToken}
