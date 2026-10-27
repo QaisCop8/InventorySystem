@@ -256,6 +256,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const hasUnsavedChanges = (items = formRef.current.items) => copiedVoucherRef.current ||
     salesVoucherSnapshot({ ...formRef.current, items }) !== salesVoucherSnapshot(cleanFormRef.current)
   const bookChangeRequestRef = useRef(0)
+  const invoiceSourceChangeRequestRef = useRef(0)
   const pendingBookChangeRef = useRef<Promise<void> | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -500,7 +501,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   const handleInvoiceSourceTypeChange = async (invoiceSourceType: number) => {
     const current = formRef.current
-    const requestId = ++bookChangeRequestRef.current
+    const requestId = ++invoiceSourceChangeRequestRef.current
+    bookChangeRequestRef.current++
     pendingBookChangeRef.current = null
     setIsLoading(true)
     setErrorMessages([])
@@ -514,17 +516,17 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         invoice_source_type: invoiceSourceType,
       }
       const code = await generateCode(nextForm.vch_book_id, "", nextForm.branch_id)
-      if (requestId !== bookChangeRequestRef.current) return
+      if (requestId !== invoiceSourceChangeRequestRef.current) return
       if (!code) throw new Error("تعذر إنشاء رقم سند جديد. تحقق من دفتر السندات والفرع.")
       nextForm.vch_code = code
       setForm(nextForm)
       setGridResetToken((value) => value + 1)
     } catch (error) {
-      if (requestId === bookChangeRequestRef.current) {
+      if (requestId === invoiceSourceChangeRequestRef.current) {
         setErrorMessages([error instanceof Error ? error.message : "تعذر إنشاء رقم سند جديد"])
       }
     } finally {
-      if (requestId === bookChangeRequestRef.current) setIsLoading(false)
+      if (requestId === invoiceSourceChangeRequestRef.current) setIsLoading(false)
     }
   }
 
