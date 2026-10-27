@@ -316,6 +316,10 @@ interface OrderItem {
   // New fields for lot selection
   lot_id?: number | null
   lotAllocations?: any[] // To store detailed lot allocations
+  source_voucher_id?: number | null
+  source_voucher_type?: number | null
+  source_voucher_code?: string | null
+  delivery_item_id?: number | null
 }
 
 interface OrderFormData {
@@ -599,6 +603,12 @@ function UnifiedSaleInvoices({
     barcode: '', id: 0, code: '', price: 0, qnty: 0, bonus: 0, amount: 0, to_main_unit_qty: 0, store_id: 0, store_name: ''
   }]);
   const [CollectionView] = useState(() => new wjcCore.CollectionView(data));
+  const sourceDeliveryNumbers = Array.from(new Set(
+    ((CollectionView?.items as any[]) ?? [])
+      .filter((item) => Number(item.source_voucher_type) === 13 && item.source_voucher_code)
+      .map((item) => String(item.source_voucher_code).trim())
+      .filter(Boolean),
+  )).join(", ");
   const CollectionViewBackupRef = useRef(null as any);
   const createNewOrder = (): SalesOrder => ({
     id: 0,
@@ -3350,7 +3360,7 @@ function UnifiedSaleInvoices({
                 <CardContent className="space-y-10">
 
                   {/* الصف الأول */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${state.formData.invoice_source_type === "from_delivery" ? "xl:grid-cols-5" : ""}`}>
                     {/* دفتر السندات */}
                     <div className="invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات</Label>
@@ -3462,6 +3472,12 @@ function UnifiedSaleInvoices({
                         onHide={() => refocusDropdownInput("invoice_source_type")}
                       />
                     </div>
+                    {state.formData.invoice_source_type === "from_delivery" && (
+                      <div className="space-y-2">
+                        <Label>{"\u0631\u0642\u0645 \u0627\u0644\u0625\u0631\u0633\u0627\u0644\u064a\u0629"}</Label>
+                        <Input value={sourceDeliveryNumbers} readOnly placeholder="—" className="h-11 bg-slate-50 text-right" dir="rtl" />
+                      </div>
+                    )}
 
                   </div>
 
