@@ -11,6 +11,9 @@ const intersect = (left: number[], right: number[]) => left.filter((id) => right
 
 export async function GET(request: NextRequest) {
   try {
+    const screenAccess = await authorizeTransaction(request, "voucher_posting_tools", "access")
+    if (!screenAccess.ok) return screenAccess.response
+
     const params = request.nextUrl.searchParams
     const from = params.get("from_date")
     const to = params.get("to_date")

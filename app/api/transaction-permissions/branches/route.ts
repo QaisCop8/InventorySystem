@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   const family = new URL(request.url).searchParams.get("family") as TransactionFamily
   const action = (new URL(request.url).searchParams.get("action") || "view") as TransactionAction
-  if (!TRANSACTION_FAMILIES[family] || !["view", "create", "update", "delete", "post"].includes(action)) {
+  if (!TRANSACTION_FAMILIES[family] || !["access", "view", "create", "update", "delete", "post"].includes(action)) {
     return NextResponse.json({ error: "نوع الحركة أو الإجراء غير صالح" }, { status: 400 })
   }
 
