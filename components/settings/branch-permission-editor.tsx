@@ -15,6 +15,10 @@ import {
   type FileAction, type FileFamily,
 } from "@/lib/file-permission-definitions"
 import { REPORT_DEFINITIONS, reportPermissionNameForTitle, type ReportPermissionAction } from "@/lib/report-permission-definitions"
+import { POS_CASHIER_PERMISSION_CATEGORY, RESTAURANT_PERMISSION_CATEGORY } from "@/lib/transaction-permission-definitions"
+
+// فئات تبويب "كاشير نقطة البيع والمطاعم" (كانت ضمن الشاشات والصلاحيات العامة)
+const RETAIL_CATEGORIES = new Set<string>([POS_CASHIER_PERMISSION_CATEGORY, RESTAURANT_PERMISSION_CATEGORY])
 
 export interface PermissionItem {
   access_id: number
@@ -258,7 +262,7 @@ const SOURCE_LABELS: Record<string, string> = {
 type Filter = "all" | "granted" | "denied"
 
 export function BranchPermissionEditor({ items, values, onChange, search, onSearchChange, loading, dirty }: Props) {
-  const [tab, setTab] = useState<"vouchers" | "files" | "reports" | "general">("vouchers")
+  const [tab, setTab] = useState<"vouchers" | "files" | "reports" | "retail" | "general">("vouchers")
   const [filter, setFilter] = useState<Filter>("all")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -333,7 +337,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
       return true
     }), [filter, reportRows, term, values])
 
-  const generalGroups = useMemo(() => Array.from(others.entries())
+  const categoryGroups = useMemo(() => Array.from(others.entries())
     .map(([category, list]) => {
       const unique = new Map<string, PermissionItem[]>()
       list.forEach((item) => {
@@ -346,11 +350,15 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
       return { category, entries }
     })
     .filter((group) => group.entries.length > 0), [filter, others, term, values]) // eslint-disable-line react-hooks/exhaustive-deps
+  const generalGroups = useMemo(() => categoryGroups.filter((group) => !RETAIL_CATEGORIES.has(group.category)), [categoryGroups])
+  const retailGroups = useMemo(() => categoryGroups.filter((group) => RETAIL_CATEGORIES.has(group.category)), [categoryGroups])
+  const shownGroups = tab === "retail" ? retailGroups : generalGroups
 
   const voucherItems = useMemo(() => Array.from(rows.values()).flatMap(rowAll), [rows]) // eslint-disable-line react-hooks/exhaustive-deps
   const fileItems = useMemo(() => Array.from(fileRows.values()).flatMap(fileRowAll), [fileRows])
   const reportItems = useMemo(() => Array.from(reportRows.values()).flatMap(reportRowAll), [reportRows])
-  const generalItems = useMemo(() => Array.from(others.values()).flat(), [others])
+  const generalItems = useMemo(() => Array.from(others.entries()).filter(([category]) => !RETAIL_CATEGORIES.has(category)).flatMap(([, list]) => list), [others])
+  const retailItems = useMemo(() => Array.from(others.entries()).filter(([category]) => RETAIL_CATEGORIES.has(category)).flatMap(([, list]) => list), [others])
   const count = (list: PermissionItem[]) => list.filter((item) => values[item.access_id]).length
   const totalGranted = count(items)
   const percent = items.length ? Math.round((totalGranted / items.length) * 100) : 0
@@ -359,7 +367,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
     ? sections.flatMap((section) => section.rows.flatMap((entry) => rowAll(entry.row)))
     : tab === "files" ? fileSections.flatMap((section) => section.rows.flatMap((entry) => fileRowAll(entry.row)))
     : tab === "reports" ? visibleReportRows.flatMap(reportRowAll)
-    : generalGroups.flatMap((group) => group.entries.flat())
+    : shownGroups.flatMap((group) => group.entries.flat())
   const setVisible = (value: boolean) => onChange(tab === "files"
     ? setFilePermissionValues(fileSections.flatMap((section) => section.rows.map((entry) => entry.row)), values, "all", value)
     : set(visibleItems, value))
@@ -417,10 +425,11 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             <Button type="button" variant="outline" size="sm" onClick={() => setVisible(false)} disabled={!visibleItems.length}><X className="ml-1.5 h-4 w-4" />تعطيل الظاهر</Button>
           </div>
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <TabButton active={tab === "vouchers"} onClick={() => setTab("vouchers")} icon={Receipt} label="الحركات حسب نوع السند" granted={count(voucherItems)} total={voucherItems.length} />
           <TabButton active={tab === "files"} onClick={() => setTab("files")} icon={FolderOpen} label={FILE_PERMISSION_CATEGORY} granted={count(fileItems)} total={fileItems.length} />
           <TabButton active={tab === "reports"} onClick={() => setTab("reports")} icon={FileText} label="صلاحيات التقارير" granted={count(reportItems)} total={reportItems.length} />
+          <TabButton active={tab === "retail"} onClick={() => setTab("retail")} icon={ShoppingBag} label="كاشير نقطة البيع والمطاعم" granted={count(retailItems)} total={retailItems.length} />
           <TabButton active={tab === "general"} onClick={() => setTab("general")} icon={LayoutGrid} label="الشاشات والصلاحيات العامة" granted={count(generalItems)} total={generalItems.length} />
         </div>
       </div>
@@ -709,11 +718,11 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             </div>
           </section>
         )
-      ) : generalGroups.length === 0 ? (
+      ) : shownGroups.length === 0 ? (
         <Empty text="لا توجد صلاحيات مطابقة للبحث أو الفلتر." />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {generalGroups.map((group) => {
+          {shownGroups.map((group) => {
             const groupItems = group.entries.flat()
             const groupGranted = count(groupItems)
             const allOn = groupGranted === groupItems.length
