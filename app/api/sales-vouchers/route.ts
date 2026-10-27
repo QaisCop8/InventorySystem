@@ -263,14 +263,28 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     const deliveryItemIds = items.map((item: any) => Number(item.delivery_item_id || 0)).filter((id: number) => id > 0)
     // ارسالية برسم البيع لها نوع مصدر مستقل (4) — بلا عميل وتُفوتر جزئياً
     const allowedTypes = vchType === PURCHASE_INVOICE_VCH_TYPE ? [DELIVERY_PAY_VCH_TYPE] : [DELIVERY_SELL_VCH_TYPE]
-    const sourceItems = await sql`
-      SELECT vi.id,vi.voucher_id FROM voucher_items_tbl vi JOIN voucher_header_tbl source ON source.id=vi.voucher_id
-      WHERE vi.id=ANY(${deliveryItemIds}::int[]) AND source.vch_type=ANY(${allowedTypes}::int[])
-        AND source.status=2 AND source.account_id=${Number(data.account_id)} AND source.branch_id=${Number(data.branch_id)}
-    `
-    if (new Set(sourceItems.map((row: any) => Number(row.id))).size !== new Set(deliveryItemIds).size) {
-      return "الإرسالية المصدرية لا تطابق نوع الفاتورة أو الحساب أو الفرع"
-    }
+    // كل سطر مربوط بإرسالية يُفحص على حدة، والرسالة تذكر السبب الفعلي والإرسالية (بدل رسالة عامة):
+    // سطر إرسالية محذوف · نوع غير مطابق · إرسالية غير مرحّلة/ملغاة · عميل/مورد مختلف · فرع مختلف
+    const linked = (await sql`
+      SELECT vi.id, vi.voucher_id, source.vch_code, source.vch_type, COALESCE(source.status, 1) AS status, source.account_id, source.branch_id
+      FROM voucher_items_tbl vi JOIN voucher_header_tbl source ON source.id = vi.voucher_id
+      WHERE vi.id = ANY(${deliveryItemIds}::int[])
+    `) as any[]
+    const problem = (() => {
+      const found = new Set(linked.map((row) => Number(row.id)))
+      if (deliveryItemIds.some((id) => !found.has(id))) return "بعض أسطر الفاتورة مربوطة بأسطر إرسالية لم تعد موجودة — احذف هذه الأسطر وأعد اختيار الإرسالية"
+      for (const row of linked) {
+        const code = row.vch_code || `#${row.voucher_id}`
+        if (!allowedTypes.includes(Number(row.vch_type))) return `السند ${code} ليس ${vchType === PURCHASE_INVOICE_VCH_TYPE ? "إرسالية مشتريات" : "إرسالية مبيعات"} — لا يمكن الفوترة منه بهذا النوع من الفواتير`
+        if (Number(row.status) === 3) return `الإرسالية ${code} ملغاة — أعد اختيار إرسالية مرحّلة أو احذف أسطرها من الفاتورة`
+        if (Number(row.status) !== 2) return `الإرسالية ${code} غير مرحّلة — رحّلها أولاً ثم احفظ الفاتورة`
+        if (Number(row.account_id) !== Number(data.account_id)) return `الإرسالية ${code} لعميل/مورد آخر — حساب الفاتورة يجب أن يطابق حساب الإرسالية (لا تغيّر العميل بعد اختيار الإرسالية)`
+        if (Number(row.branch_id) !== Number(data.branch_id)) return `الإرسالية ${code} من فرع آخر — فرع الفاتورة يجب أن يطابق فرع الإرسالية`
+      }
+      return null
+    })()
+    if (problem) return problem
+    const sourceItems = linked
     const deliveryIds = [...new Set(sourceItems.map((row: any) => Number(row.voucher_id)))]
     if (!deliveryIds.includes(sourceVoucherId)) return "الإرسالية المصدرية غير صالحة"
     const existing = await sql`
@@ -657,6 +671,20 @@ async function putHandler(request: NextRequest) {
         if (Number(voucher.vch_type) === DELIVERY_CONSIGNMENT_SALE_VCH_TYPE) {
           const usage = await consignmentUsage(Number(voucher.id))
           if (usage.length) return NextResponse.json({ error: `لا يمكن إلغاء الارسالية: صدرت منها ${usage.map((row) => `${Number(row.vch_type) === 15 ? "مرتجع" : "فاتورة"} ${row.vch_code}`).join("، ")}` }, { status: 400 })
+        }
+        // إرسالية مبيعات/مشتريات صدرت منها فاتورة (أو مرتجع) غير ملغاة: إلغاؤها كان يُبقي الفاتورة مربوطة بإرسالية
+        // ملغاة فيفشل ترحيلها لاحقاً بـ"الإرسالية المصدرية لا تطابق نوع الفاتورة أو الحساب أو الفرع"
+        if ([DELIVERY_SELL_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(Number(voucher.vch_type))) {
+          const invoices = (await sql`
+            SELECT DISTINCT inv.vch_code, inv.vch_type
+            FROM voucher_items_tbl inv_item
+            JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id AND COALESCE(inv.status, 1) <> 3
+            WHERE inv_item.delivery_item_id IN (SELECT id FROM voucher_items_tbl WHERE voucher_id = ${Number(voucher.id)})
+            LIMIT 10
+          `) as any[]
+          if (invoices.length) {
+            return NextResponse.json({ error: `لا يمكن إلغاء الإرسالية: صدرت منها ${invoices.map((row) => `${[16, 19].includes(Number(row.vch_type)) ? "مرتجع" : "فاتورة"} ${row.vch_code}`).join("، ")} — ألغِ ${invoices.length > 1 ? "السندات المرتبطة" : "السند المرتبط"} أولاً` }, { status: 400 })
+          }
         }
         const returnBlock = await consignmentReturnBlocksDeletion(Number(voucher.id))
         if (returnBlock) return NextResponse.json({ error: returnBlock }, { status: 400 })

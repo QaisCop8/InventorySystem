@@ -1161,9 +1161,17 @@ export function CompactProductForm({
         .filter((_, i) => i !== index) // remove the unit at index
         .map((unit, i) => ({ ...unit, ser: i + 1 })); // reindex `ser`
 
+      // أسعار البيع المعرّفة على وحدة حُذفت (ولم تبقَ بسطر آخر) تُحذف معها — لا تبقى على وحدة غير موجودة بالصنف
+      const removedUnitId = Number(prev.units[index]?.unit_id) || 0
+      const stillUsed = updatedUnits.some((unit) => Number(unit.unit_id) === removedUnitId)
+      const prices = removedUnitId && !stillUsed
+        ? (prev.prices ?? []).filter((price) => Number(price.unit_id) !== removedUnitId).map((price, i) => ({ ...price, ser: i + 1 }))
+        : prev.prices
+
       return {
         ...prev,
         units: updatedUnits,
+        prices,
       };
     });
   };
@@ -1202,8 +1210,18 @@ export function CompactProductForm({
     setFormData((prev) => {
       const units = [...(prev.units ?? [])]
       if (!units[index]) return prev
+      const oldUnitId = Number(units[index].unit_id) || 0
       units[index] = { ...units[index], ...patch }
-      return { ...prev, units }
+      const newUnitId = Number(units[index].unit_id) || 0
+      // تغيير وحدة السطر (مثلاً قطعة ← كرتونة): أسطر "أسعار البيع" المعرّفة على الوحدة القديمة تنتقل للوحدة الجديدة —
+      // كانت تبقى على القديمة فيظهر بتبويب الأسعار اسم الوحدة السابق (ما لم تبقَ الوحدة القديمة مستخدمة بسطر آخر)
+      if (patch.unit_id === undefined || !oldUnitId || oldUnitId === newUnitId || units.some((unit) => Number(unit.unit_id) === oldUnitId)) {
+        return { ...prev, units }
+      }
+      const prices = (prev.prices ?? []).map((price) =>
+        Number(price.unit_id) === oldUnitId ? { ...price, unit_id: newUnitId, unit_name: String(units[index].unit_name || "") } : price,
+      )
+      return { ...prev, units, prices }
     })
   }
 

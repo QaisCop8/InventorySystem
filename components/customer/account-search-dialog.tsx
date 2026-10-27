@@ -165,7 +165,18 @@ export default function AccountSearchDialog({
   emptyActionLabel,
   emptyActionHref = "/?section=customers",
 }: AccountSearchDialogProps) {
-  const { confined } = useWorkspaceDialog()
+  const { confined: workspaceConfined } = useWorkspaceDialog()
+  // الجوال (والتطبيق APK): حجم "مساحة العمل" الثابت (~1000px) يُقصّ من اليسار ويُخفي زرَّي موافق/إلغاء —
+  // على الشاشات الصغيرة تُعرض النافذة دائماً بملء الشاشة
+  const [smallScreen, setSmallScreen] = useState(false)
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)")
+    const update = () => setSmallScreen(query.matches)
+    update()
+    query.addEventListener("change", update)
+    return () => query.removeEventListener("change", update)
+  }, [])
+  const confined = workspaceConfined && !smallScreen
   const { toast } = useToast()
   const [searchResults, setSearchResults] = useState<AccountItem[]>([])
   const [allAccounts, setAllAccounts] = useState<AccountItem[]>([])

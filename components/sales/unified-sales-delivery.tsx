@@ -906,6 +906,9 @@ export default function UnifiedSalesDelivery({
 
   const items = form.items || []
   const hasDeliverySourceItems = items.some((item) => Number(item.delivery_item_id || 0) > 0)
+  // فاتورة من إرسالية فيها أسطر مربوطة: العميل والفرع مثبّتان على الإرسالية (تغييرهما كان يُفشل الحفظ/الترحيل
+  // بـ"الإرسالية المصدرية لا تطابق ...") — لتغييرهما تُحذف أسطر الإرسالية أولاً
+  const deliveryPartyLocked = isFromDelivery && hasDeliverySourceItems && !isFromConsignment
   const hasOrderSourceItems = !hasDeliverySourceItems && items.some((item) => Number(item.order_item_id || 0) > 0)
   const itemsRef = useRef(items)
   itemsRef.current = items
@@ -3376,7 +3379,7 @@ export default function UnifiedSalesDelivery({
                     action={form.id ? "update" : "create"}
                     value={form.branch_id}
                     onChange={(id) => onFormChange("branch_id", id)}
-                    disabled={isLocked}
+                    disabled={isLocked || deliveryPartyLocked}
                   />
                 </div>
               </div>
@@ -3533,7 +3536,7 @@ export default function UnifiedSalesDelivery({
                     deliveryVchTypes={isFromConsignment ? [14] : isFromDelivery ? (isPurchaseDeliveryVoucher ? [18] : [13, 14]) : []}
                     orderType={isFromOrder ? (isPurchaseDeliveryVoucher ? 2 : 1) : null}
                     branchId={isFromOrder || isFromDelivery ? form.branch_id : null}
-                    disabled={isLocked}
+                    disabled={isLocked || deliveryPartyLocked}
                   />
                 </div>
                 <div className="col-span-1 grid gap-1.5">

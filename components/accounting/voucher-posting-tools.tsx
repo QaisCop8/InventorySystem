@@ -158,17 +158,23 @@ export default function VoucherPostingTools() {
     setPosting(true)
     setResults([])
     const completed: PostingResult[] = []
-    for (let offset = 0; offset < queue.length; offset += 4) {
-      const batch = queue.slice(offset, offset + 4)
-      setProgress(`جاري تجهيز بيانات السندات ${offset + 1} إلى ${offset + batch.length}...`)
-      const detailResults = await Promise.all(batch.map(async (voucher) => {
-        if ([20, 21].includes(voucher.vch_type)) return { key: voucherKey(voucher), details: undefined, error: undefined }
-        try {
-          return { key: voucherKey(voucher), details: await fetchVoucherDetails(voucher), error: undefined }
-        } catch (reason) {
-          return { key: voucherKey(voucher), details: undefined, error: reason instanceof Error ? reason.message : "تعذر تحميل بيانات السند" }
-        }
-      }))
+    // الترحيل نفسه تسلسلي (فحوص الرصيد تعتمد على الترتيب)، لكن بيانات الدفعة التالية تُحمَّل بالتوازي أثناء
+    // ترحيل الدفعة الحالية بدل انتظارها بعد انتهائها — كان التحميل والترحيل يتناوبان فيضيع نصف الوقت انتظاراً
+    const BATCH = 6
+    const loadBatch = (start: number) => Promise.all(queue.slice(start, start + BATCH).map(async (voucher) => {
+      if ([20, 21].includes(voucher.vch_type)) return { key: voucherKey(voucher), details: undefined, error: undefined }
+      try {
+        return { key: voucherKey(voucher), details: await fetchVoucherDetails(voucher), error: undefined }
+      } catch (reason) {
+        return { key: voucherKey(voucher), details: undefined, error: reason instanceof Error ? reason.message : "تعذر تحميل بيانات السند" }
+      }
+    }))
+    let nextBatch = loadBatch(0)
+    for (let offset = 0; offset < queue.length; offset += BATCH) {
+      const batch = queue.slice(offset, offset + BATCH)
+      if (offset === 0) setProgress(`جاري تجهيز بيانات السندات ${offset + 1} إلى ${offset + batch.length}...`)
+      const detailResults = await nextBatch
+      nextBatch = offset + BATCH < queue.length ? loadBatch(offset + BATCH) : Promise.resolve([])
       const detailsByKey = new Map(detailResults.map((detail) => [detail.key, detail]))
       for (let batchIndex = 0; batchIndex < batch.length; batchIndex += 1) {
         const voucher = batch[batchIndex]
