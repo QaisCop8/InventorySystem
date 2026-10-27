@@ -76,7 +76,8 @@ async function postHandler(request: NextRequest) {
     const totalDebit = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
     const totalCredit = journalRows.filter((r) => r.credit_debit === 2).reduce((s, r) => s + r.amount, 0)
     if (Math.round((totalDebit - totalCredit) * 100) / 100 !== 0) {
-      return NextResponse.json({ error: "القيد غير متوازن: مجموع المدين لا يساوي مجموع الدائن" }, { status: 400 })
+      const format = (value: number) => value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      return NextResponse.json({ error: `القيد غير متوازن: إجمالي المدين ${format(totalDebit)}، وإجمالي الدائن ${format(totalCredit)}. يجب أن يتساوى الطرفان قبل الترحيل.` }, { status: 400 })
     }
     const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
@@ -184,7 +185,8 @@ async function putHandler(request: NextRequest) {
       const totalDebit = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
       const totalCredit = journalRows.filter((r) => r.credit_debit === 2).reduce((s, r) => s + r.amount, 0)
       if (Math.round((totalDebit - totalCredit) * 100) / 100 !== 0) {
-        return NextResponse.json({ error: "القيد غير متوازن: مجموع المدين لا يساوي مجموع الدائن" }, { status: 400 })
+        const format = (value: number) => value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        return NextResponse.json({ error: `القيد غير متوازن: إجمالي المدين ${format(totalDebit)}، وإجمالي الدائن ${format(totalCredit)}. يجب أن يتساوى الطرفان قبل الترحيل.` }, { status: 400 })
       }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })

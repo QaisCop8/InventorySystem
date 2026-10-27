@@ -67,7 +67,8 @@ const validateBalance = (journalRows: JournalRow[]): string | null => {
   const totalDebit = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
   const totalCredit = journalRows.filter((r) => r.credit_debit === 2).reduce((s, r) => s + r.amount, 0)
   if (Math.round((totalDebit - totalCredit) * 100) / 100 !== 0) {
-    return "القيد غير متوازن: مجموع المدين لا يساوي مجموع الدائن"
+    const format = (value: number) => value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return `القيد غير متوازن: إجمالي المدين ${format(totalDebit)}، وإجمالي الدائن ${format(totalCredit)}. يجب أن يتساوى الطرفان قبل الترحيل.`
   }
   return null
 }

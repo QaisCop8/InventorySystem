@@ -32,7 +32,29 @@ async function responseData(response: Response) {
   return data
 }
 
-async function postVoucher(voucher: Voucher) {
+function voucherEndpoint(vchType: number) {
+  return vchType === 3
+    ? "journal-vouchers"
+    : [4, 5].includes(vchType)
+      ? "receipts"
+      : [6, 7].includes(vchType)
+        ? "credit-notes"
+        : [8, 9, 10, 11].includes(vchType)
+          ? "stock-vouchers"
+          : vchType >= 12 && vchType <= 19
+            ? "sales-vouchers"
+            : vchType === 21
+              ? "cheque-payment-vouchers"
+              : null
+}
+
+async function fetchVoucherDetails(voucher: Voucher) {
+  const endpoint = voucherEndpoint(voucher.vch_type)
+  if (!endpoint) throw new Error("نوع السند غير مدعوم للترحيل من هذه الشاشة")
+  return responseData(await fetch(`/api/${endpoint}/${voucher.id}`, { cache: "no-store" }))
+}
+
+async function postVoucher(voucher: Voucher, details?: any) {
   if (voucher.vch_type === 20) {
     const response = await fetch("/api/production-vouchers", {
       method: "PATCH",
@@ -43,19 +65,7 @@ async function postVoucher(voucher: Voucher) {
     return
   }
 
-  const endpoint = voucher.vch_type === 3
-    ? "journal-vouchers"
-    : [4, 5].includes(voucher.vch_type)
-      ? "receipts"
-      : [6, 7].includes(voucher.vch_type)
-        ? "credit-notes"
-        : [8, 9, 10, 11].includes(voucher.vch_type)
-          ? "stock-vouchers"
-          : voucher.vch_type >= 12 && voucher.vch_type <= 19
-            ? "sales-vouchers"
-            : voucher.vch_type === 21
-              ? "cheque-payment-vouchers"
-              : null
+  const endpoint = voucherEndpoint(voucher.vch_type)
   if (!endpoint) throw new Error("نوع السند غير مدعوم للترحيل من هذه الشاشة")
 
   if (voucher.vch_type === 21) {
@@ -68,11 +78,11 @@ async function postVoucher(voucher: Voucher) {
     return
   }
 
-  const details = await responseData(await fetch(`/api/${endpoint}/${voucher.id}`, { cache: "no-store" }))
+  const voucherDetails = details ?? await fetchVoucherDetails(voucher)
   await responseData(await fetch(`/api/${endpoint}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...details, status: 2 }),
+    body: JSON.stringify({ ...voucherDetails, status: 2 }),
   }))
 }
 
@@ -119,6 +129,7 @@ export default function VoucherPostingTools() {
   const allSelected = vouchers.length > 0 && vouchers.every((voucher) => selected.has(voucherKey(voucher)))
   const selectedCount = selected.size
   const typeName = useMemo(() => new Map(types.map((type) => [type.id, type.name])), [types])
+  const resultByKey = useMemo(() => new Map(results.map((result) => [`${result.vch_type}:${result.id}`, result])), [results])
 
   const toggleAll = () => {
     setSelected(allSelected ? new Set() : new Set(vouchers.map(voucherKey)))
@@ -147,16 +158,32 @@ export default function VoucherPostingTools() {
     setPosting(true)
     setResults([])
     const completed: PostingResult[] = []
-    for (let index = 0; index < queue.length; index += 1) {
-      const voucher = queue[index]
-      setProgress(`جاري ترحيل ${index + 1} من ${queue.length}: ${voucher.vch_code}`)
-      try {
-        await postVoucher(voucher)
-        completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: true })
-      } catch (reason) {
-        completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: false, error: reason instanceof Error ? reason.message : "تعذر الترحيل" })
+    for (let offset = 0; offset < queue.length; offset += 4) {
+      const batch = queue.slice(offset, offset + 4)
+      setProgress(`جاري تجهيز بيانات السندات ${offset + 1} إلى ${offset + batch.length}...`)
+      const detailResults = await Promise.all(batch.map(async (voucher) => {
+        if ([20, 21].includes(voucher.vch_type)) return { key: voucherKey(voucher), details: undefined, error: undefined }
+        try {
+          return { key: voucherKey(voucher), details: await fetchVoucherDetails(voucher), error: undefined }
+        } catch (reason) {
+          return { key: voucherKey(voucher), details: undefined, error: reason instanceof Error ? reason.message : "تعذر تحميل بيانات السند" }
+        }
+      }))
+      const detailsByKey = new Map(detailResults.map((detail) => [detail.key, detail]))
+      for (let batchIndex = 0; batchIndex < batch.length; batchIndex += 1) {
+        const voucher = batch[batchIndex]
+        const index = offset + batchIndex
+        setProgress(`جاري ترحيل السند رقم ${voucher.vch_code}، يرجى الانتظار (${index + 1} من ${queue.length})`)
+        try {
+          const detail = detailsByKey.get(voucherKey(voucher))
+          if (detail?.error) throw new Error(detail.error)
+          await postVoucher(voucher, detail?.details)
+          completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: true })
+        } catch (reason) {
+          completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: false, error: reason instanceof Error ? reason.message : "تعذر الترحيل" })
+        }
+        setResults([...completed])
       }
-      setResults([...completed])
     }
     setSelected(new Set())
     setPosting(false)
@@ -210,7 +237,7 @@ export default function VoucherPostingTools() {
               </thead>
               <tbody>
                 {vouchers.map((voucher) => {
-                  const result = results.find((entry) => entry.id === voucher.id && entry.vch_type === voucher.vch_type)
+                  const result = resultByKey.get(voucherKey(voucher))
                   return <tr key={voucherKey(voucher)} className="border-t hover:bg-slate-50">
                     <td className="p-3"><input type="checkbox" checked={selected.has(voucherKey(voucher))} onChange={() => toggleOne(voucher)} disabled={posting} aria-label={`تحديد ${voucher.vch_code}`} className="h-4 w-4 accent-emerald-600" /></td>
                     <td className="p-3">{typeName.get(voucher.vch_type) || `سند ${voucher.vch_type}`}</td>

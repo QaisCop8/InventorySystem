@@ -431,6 +431,24 @@ const initialFormData: OrderFormData = {
   invoice_source_type: "normal",
 }
 
+const invoiceLineFingerprint = (items: any[]) => JSON.stringify(
+  [...items].sort((a, b) => Number(a.ser || 0) - Number(b.ser || 0)).map((item) => ({
+    product_id: item.product_id ?? item.item_id ?? item.id ?? null,
+    product_name: item.product_name ?? item.name ?? "",
+    quantity: item.qnty ?? item.quantity ?? 0,
+    bonus: item.bonus ?? item.bonus_quantity ?? 0,
+    unit_id: item.unit_id ?? null,
+    unit: item.unit_name ?? item.unit ?? "",
+    price: item.price ?? item.unit_price ?? 0,
+    discount: item.discount ?? item.discount_amount ?? 0,
+    store_id: item.store_id ?? item.warehouse_id ?? null,
+    expiry_date: item.expiry_date ?? null,
+    batch_number: item.batch ?? item.batch_number ?? "",
+    notes: item.notes ?? item.note ?? "",
+    delivery_item_id: item.delivery_item_id ?? null,
+  })),
+)
+
 
 function UnifiedSaleInvoices({
   order,
@@ -478,6 +496,7 @@ function UnifiedSaleInvoices({
   })
   const isSaving = useRef(false)
   const isHandlingSave = useRef(false)
+  const saveSucceededRef = useRef(false)
   const isDeleting = useRef(false)
   const lastVchBook = useRef<string | null>(null)
   const doHotKeys = useRef(true)
@@ -588,6 +607,7 @@ function UnifiedSaleInvoices({
     [],
   )
   const [showUnsaved, setShowUnsaved] = useState(false);
+  const pendingInvoiceSourceTypeRef = useRef<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -603,6 +623,7 @@ function UnifiedSaleInvoices({
     barcode: '', id: 0, code: '', price: 0, qnty: 0, bonus: 0, amount: 0, to_main_unit_qty: 0, store_id: 0, store_name: ''
   }]);
   const [CollectionView] = useState(() => new wjcCore.CollectionView(data));
+  const invoiceLineBaselineRef = useRef(invoiceLineFingerprint(CollectionView.items as any[]));
   const sourceDeliveryNumbers = Array.from(new Set(
     ((CollectionView?.items as any[]) ?? [])
       .filter((item) => Number(item.source_voucher_type) === 13 && item.source_voucher_code)
@@ -2163,6 +2184,7 @@ function UnifiedSaleInvoices({
   async function handleSaveOrder(orderToSave: any, isNewRecord: boolean): Promise<void> {
 
     // ✅ HARD LOCK FIRST
+    saveSucceededRef.current = false;
     if (isSaving.current) return;
     isSaving.current = true;
 
@@ -2274,6 +2296,7 @@ function UnifiedSaleInvoices({
       }
 
       const result = await response.json();
+      saveSucceededRef.current = true;
 
       const id = result.id;
 
@@ -2419,15 +2442,16 @@ function UnifiedSaleInvoices({
 
 
   const handleSave = async () => {
-    if (isHandlingSave.current) return;
+    if (isHandlingSave.current) return false;
     isHandlingSave.current = true;
     message.current?.clear();
 
     if (state.formData.is_exported) {
       Util.showErrorMessage(message, "الفاتورة معتمدة الى النظام المحاسبي لن تتم عملية الحفظ");
+      isHandlingSave.current = false;
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
-      return;
+      return false;
     }
     setState((prev) => ({ ...prev, isSaving: true }))
     try {
@@ -2456,6 +2480,7 @@ function UnifiedSaleInvoices({
       }
 
       await handleSaveOrder(currentOrderForNavigation, isNewRecord)
+      return saveSucceededRef.current;
       //alert("تم حفظ الطلبية بنجاح")
 
       // After successful save, update the state with the latest data if it was a new record
@@ -2477,6 +2502,7 @@ function UnifiedSaleInvoices({
     } catch (err: any) {
       console.error("Error saving sales order:", err)
       showAlert(err.message || "حدث خطأ أثناء حفظ البيانات")
+      return false;
     } finally {
       setState((prev) => ({ ...prev, isSaving: false }))
       isHandlingSave.current = false;
@@ -2861,6 +2887,7 @@ function UnifiedSaleInvoices({
         CollectionView.sourceCollection = updatedItems;
         CollectionView.refresh();
       }
+      invoiceLineBaselineRef.current = invoiceLineFingerprint(CollectionView.items as any[]);
 
 
       let newFormData = {
@@ -2912,11 +2939,11 @@ function UnifiedSaleInvoices({
     reset_order()
   }
 
-  const reset_order = () => {
+  const reset_order = (invoiceSourceType = "normal") => {
     setLoading(true)
     setState((prev) => ({
       ...prev, // Keep existing states like customers, products etc.
-      formData: { ...initialFormData, vch_book: lastVchBook.current || initialFormData.vch_book },
+      formData: { ...initialFormData, invoice_source_type: invoiceSourceType, vch_book: lastVchBook.current || initialFormData.vch_book },
       customerSearch: "",
       activeTab: "basic", // Reset to basic tab
       showCustomerSearch: false,
@@ -2931,6 +2958,7 @@ function UnifiedSaleInvoices({
     const newRow = { ser: 1 };
     CollectionView.sourceCollection.push(newRow);
     CollectionView.refresh();
+    invoiceLineBaselineRef.current = invoiceLineFingerprint(CollectionView.items as any[]);
     setTimeout(() => {
       focusGrid()
     }, 10)
@@ -2969,7 +2997,30 @@ function UnifiedSaleInvoices({
       }
     }, 100);
   }
-  const isInvoiceDirty = () => Boolean(open && initialHash.current != 0 && getFormDataHash({ order_date: state.formData.order_date, customer_id: state.formData.customer_id, customer_name: state.formData.customer_name, delivery_date: state.formData.delivery_date, currency_id: state.formData.currency_id, exchange_rate: state.formData.exchange_rate }) !== initialHash.current)
+  const isInvoiceDirty = () => Boolean(open && (
+    (initialHash.current != 0 && getFormDataHash({ order_date: state.formData.order_date, customer_id: state.formData.customer_id, customer_name: state.formData.customer_name, delivery_date: state.formData.delivery_date, currency_id: state.formData.currency_id, exchange_rate: state.formData.exchange_rate }) !== initialHash.current)
+    || invoiceLineFingerprint(CollectionView.items as any[]) !== invoiceLineBaselineRef.current
+  ))
+  const handleInvoiceSourceTypeChange = (nextType: string) => {
+    if (nextType === (state.formData.invoice_source_type || "normal")) return
+
+    const startNewInvoice = () => {
+      setEditingOrder?.(null)
+      reset_order(nextType)
+    }
+    const hasDisplayedInvoice = Number(state.formData.id || currentOrderId) > 0
+    if (hasDisplayedInvoice && isInvoiceDirty()) {
+      pendingInvoiceSourceTypeRef.current = nextType
+      setNextFunction(() => startNewInvoice)
+      setShowUnsaved(true)
+      return
+    }
+    if (hasDisplayedInvoice) {
+      startNewInvoice()
+      return
+    }
+    setState((prev) => ({ ...prev, formData: { ...prev.formData, invoice_source_type: nextType } }))
+  }
   const requestCloseWithCheck = () => {
     const close = () => (onOpenChange ? onOpenChange(false) : handleCancel())
     if (!isInvoiceDirty()) { close(); return }
@@ -3200,7 +3251,22 @@ function UnifiedSaleInvoices({
             />
             <ConfirmDialogYesNo
               visible={showUnsaved}
-              onConfirm={() => { setShowUnsaved(false); handleSave() }}
+              onConfirm={async () => {
+                const pendingAction = nextFunction
+                setShowUnsaved(false)
+                const saved = await handleSave()
+                if (saved && pendingAction) {
+                  const pendingSourceType = pendingInvoiceSourceTypeRef.current
+                  if (pendingSourceType) {
+                    setState((prev) => ({ ...prev, formData: { ...prev.formData, invoice_source_type: pendingSourceType } }))
+                    setEditingOrder?.(null)
+                    pendingInvoiceSourceTypeRef.current = null
+                  } else {
+                    pendingAction()
+                  }
+                  setNextFunction(null)
+                }
+              }}
               onCancel={async () => {
                 setShowUnsaved(false); popupHasClosed();
                 if (nextFunction) {
@@ -3208,9 +3274,10 @@ function UnifiedSaleInvoices({
                   setNextFunction(null);
 
                 }
+                pendingInvoiceSourceTypeRef.current = null
               }}
               message="تم تعديل السجل هل تريد الحفظ؟"
-              onBack={() => { setShowUnsaved(false); popupHasClosed(); setLoading(false) }}
+              onBack={() => { setShowUnsaved(false); popupHasClosed(); setLoading(false); setNextFunction(null); pendingInvoiceSourceTypeRef.current = null }}
               showBack={true}
             />
             <ConfirmDialogYesNo
@@ -3463,12 +3530,7 @@ function UnifiedSaleInvoices({
                         appendTo="self"
                         baseZIndex={10000}
                         panelStyle={{ zIndex: 10000 }}
-                        onChange={(e: any) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: { ...prev.formData, invoice_source_type: e.value || "normal" },
-                          }))
-                        }
+                        onChange={(e: any) => handleInvoiceSourceTypeChange(String(e.value || "normal"))}
                         onHide={() => refocusDropdownInput("invoice_source_type")}
                       />
                     </div>
