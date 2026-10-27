@@ -568,6 +568,17 @@ export function CompactProductForm({
       product_name.current?.focus();
       return false;
     }
+    const primaryUnit = [...formData.units].sort((a, b) => Number(a.ser || 0) - Number(b.ser || 0))[0];
+    if (Number(primaryUnit?.to_main_qnty) !== 1) {
+      toast.current?.show({
+        severity: "error",
+        summary: "\u062e\u0637\u0623",
+        detail: "\u0627\u0644\u0639\u0644\u0627\u0642\u0629 \u0628\u0627\u0644\u0648\u062d\u062f\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629 \u0641\u064a \u0623\u0648\u0644 \u0648\u062d\u062f\u0629 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 1",
+        life: 3000,
+      });
+      setActiveTab("units");
+      return false;
+    }
     if (!formData.prices || formData.prices.length === 0) {
       toast.current?.show({
         severity: "error",
@@ -1687,10 +1698,19 @@ export function CompactProductForm({
     const editedItem = s.rows[e.row]?.dataItem;
     const colName = s.columns[e.col]?.name;
     if (!editedItem || colName !== "to_main_qnty") return;
+    const isPrimaryUnit = Number(editedItem.ser) === 1;
     const raw = Number(editedItem.to_main_qnty);
     const isValid = Number.isFinite(raw) && raw >= 0.000001 && raw <= 100000;
-    const value = isValid ? raw : 1;
-    if (!isValid) {
+    if (isPrimaryUnit && raw !== 1) {
+      toast.current?.show({
+        severity: "error",
+        summary: "\u062e\u0637\u0623",
+        detail: "\u0627\u0644\u0639\u0644\u0627\u0642\u0629 \u0628\u0627\u0644\u0648\u062d\u062f\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629 \u0641\u064a \u0623\u0648\u0644 \u0648\u062d\u062f\u0629 \u064a\u062c\u0628 \u0623\u0646 \u062a\u0643\u0648\u0646 1",
+        life: 3000,
+      });
+    }
+    const value = isPrimaryUnit ? 1 : isValid ? raw : 1;
+    if (!isValid && !isPrimaryUnit) {
       toast.current?.show({
         severity: "error",
         summary: "خطأ",
@@ -1701,8 +1721,10 @@ export function CompactProductForm({
     editedItem.to_main_qnty = value;
     setFormData((prev) => {
       const units = [...(prev.units || [])];
-      if (!units[e.row]) return prev;
-      units[e.row] = { ...units[e.row], to_main_qnty: value };
+      const unitIndex = units.findIndex((unit) => Number(unit.ser) === Number(editedItem.ser));
+      const targetIndex = unitIndex >= 0 ? unitIndex : e.row;
+      if (!units[targetIndex]) return prev;
+      units[targetIndex] = { ...units[targetIndex], to_main_qnty: value };
       return { ...prev, units };
     });
   };
