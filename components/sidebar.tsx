@@ -566,7 +566,7 @@ export const menuItems: MenuItem[] = [
       { title: "اختصارات الصفحات", section: "page-shortcuts", icon: Keyboard },
       { title: "إقفال الفترات", section: "period-locks", icon: Lock },
       { title: "إقفال السنة المالية", section: "year-end-closing", icon: CalendarCheck2 },
-      { title: "أدوات ترحيل السندات", section: "voucher-posting-tools", icon: ClipboardList },
+      { title: "ترحيل السندات", section: "voucher-posting-tools", icon: ClipboardList },
       { title: "صلاحيات المستخدمين على الحسابات", section: "account-access", icon: KeyRound },
       { title: "بريد الرسائل والتحسينات", section: "feature-requests", icon: Lightbulb },
     ],

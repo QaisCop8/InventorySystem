@@ -5,6 +5,8 @@ import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Send } from "lucide-reac
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { ReportMultiChoice } from "@/components/reports/account-statement-report"
 
 type VoucherType = { id: number; name: string }
 type Voucher = {
@@ -77,7 +79,7 @@ async function postVoucher(voucher: Voucher) {
 export default function VoucherPostingTools() {
   const [fromDate, setFromDate] = useState(monthStart)
   const [toDate, setToDate] = useState(todayValue)
-  const [voucherType, setVoucherType] = useState("")
+  const [voucherTypeIds, setVoucherTypeIds] = useState<number[]>([])
   const [types, setTypes] = useState<VoucherType[]>([])
   const [vouchers, setVouchers] = useState<Voucher[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -86,6 +88,7 @@ export default function VoucherPostingTools() {
   const [progress, setProgress] = useState("")
   const [error, setError] = useState("")
   const [results, setResults] = useState<PostingResult[]>([])
+  const [confirmPosting, setConfirmPosting] = useState(false)
 
   const load = useCallback(async () => {
     if (!fromDate || !toDate || fromDate > toDate) {
@@ -97,7 +100,7 @@ export default function VoucherPostingTools() {
     setResults([])
     try {
       const params = new URLSearchParams({ from_date: fromDate, to_date: toDate })
-      if (voucherType) params.set("vch_type", voucherType)
+      voucherTypeIds.forEach((id) => params.append("vch_type", String(id)))
       const data = await responseData(await fetch(`/api/voucher-posting-tools?${params}`, { cache: "no-store" }))
       setTypes(Array.isArray(data.types) ? data.types : [])
       setVouchers(Array.isArray(data.vouchers) ? data.vouchers : [])
@@ -109,7 +112,7 @@ export default function VoucherPostingTools() {
     } finally {
       setLoading(false)
     }
-  }, [fromDate, toDate, voucherType])
+  }, [fromDate, toDate, voucherTypeIds])
 
   useEffect(() => { void load() }, [load])
 
@@ -134,8 +137,13 @@ export default function VoucherPostingTools() {
   const postSelected = async () => {
     const queue = vouchers.filter((voucher) => selected.has(voucherKey(voucher)))
     if (!queue.length || posting) return
-    if (!window.confirm(`سيتم ترحيل ${queue.length} سند. هل تريد المتابعة؟`)) return
+    setConfirmPosting(true)
+  }
 
+  const confirmSelectedPosting = async () => {
+    const queue = vouchers.filter((voucher) => selected.has(voucherKey(voucher)))
+    if (!queue.length || posting) return
+    setConfirmPosting(false)
     setPosting(true)
     setResults([])
     const completed: PostingResult[] = []
@@ -161,7 +169,7 @@ export default function VoucherPostingTools() {
     <main dir="rtl" className="space-y-4 p-3 sm:p-5">
       <header className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">أدوات ترحيل السندات</h1>
+          <h1 className="text-xl font-bold text-slate-900">ترحيل السندات</h1>
           <p className="mt-1 text-sm text-slate-500">اختر الفترة ونوع السند، ثم حدد السندات المراد ترحيلها.</p>
         </div>
         <Button variant="outline" onClick={() => void load()} disabled={loading || posting}>
@@ -172,13 +180,7 @@ export default function VoucherPostingTools() {
       <section className="grid gap-3 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_auto] lg:items-end">
         <div className="space-y-1.5"><Label htmlFor="posting-from">من تاريخ</Label><Input id="posting-from" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div>
         <div className="space-y-1.5"><Label htmlFor="posting-to">إلى تاريخ</Label><Input id="posting-to" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div>
-        <div className="space-y-1.5">
-          <Label htmlFor="posting-type">نوع السند</Label>
-          <select id="posting-type" value={voucherType} onChange={(event) => setVoucherType(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-            <option value="">كل الأنواع المسموح بها</option>
-            {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-          </select>
-        </div>
+        <ReportMultiChoice label="نوع السند" options={types} selected={voucherTypeIds} onChange={setVoucherTypeIds} placeholder="كل الأنواع المسموح بها" />
         <Button onClick={() => void load()} disabled={loading || posting}>
           {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}بحث
         </Button>
@@ -229,6 +231,16 @@ export default function VoucherPostingTools() {
         <b>نتيجة الترحيل:</b> {results.filter((result) => result.ok).length} ناجح، {results.filter((result) => !result.ok).length} لم يترحل.
         {results.some((result) => !result.ok) && <ul className="mt-2 list-inside list-disc space-y-1 text-rose-700">{results.filter((result) => !result.ok).map((result) => <li key={`${result.vch_type}:${result.id}`}>{result.vch_code}: {result.error}</li>)}</ul>}
       </div>}
+      <ConfirmDialogYesNo
+        visible={confirmPosting}
+        useAppDialog
+        title="تأكيد ترحيل السندات"
+        message={`سيتم ترحيل ${selectedCount} سند. هل تريد المتابعة؟`}
+        confirmLabel="نعم، ترحيل"
+        cancelLabel="إلغاء"
+        onConfirm={() => void confirmSelectedPosting()}
+        onCancel={() => setConfirmPosting(false)}
+      />
     </main>
   )
 }

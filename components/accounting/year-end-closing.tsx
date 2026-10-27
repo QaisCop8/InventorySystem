@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 // القيد يصفّر الإيرادات والمصروفات إلى حساب الأرباح المدورة (لكل فرع)، ثم تُقفل السنة في إقفال الفترات.
 
 type Check = { key: string; level: "error" | "warning" | "ok"; title: string; detail?: string }
-type BranchPreview = { branch_id: number; branch_name: string; net: number; lines: { account_id: number; code: string; name: string; balance: number }[] }
+type BranchPreview = { branch_id: number; branch_name: string; net: number; revenue: number; expenses: number; net_result: number; lines: { account_id: number; code: string; name: string; balance: number }[] }
 type Preview = {
   year: number; from: string; to: string; checks: Check[]; can_close: boolean
   revenue: number; expenses: number; net_result: number; branches: BranchPreview[]
@@ -165,6 +165,18 @@ export default function YearEndClosing() {
               <Stat label="الإيرادات" value={money(preview.revenue)} tone="emerald" />
               <Stat label="المصروفات" value={money(preview.expenses)} tone="rose" />
               <Stat label={preview.net_result >= 0 ? "صافي الربح" : "صافي الخسارة"} value={money(Math.abs(preview.net_result))} tone={preview.net_result >= 0 ? "indigo" : "amber"} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {preview.branches.map((branch) => (
+                <div key={branch.branch_id} className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+                  <div className="mb-2 font-bold">{branch.branch_name}</div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div><span className="block text-muted-foreground">الإيرادات</span><b className="font-mono">{money(branch.revenue)}</b></div>
+                    <div><span className="block text-muted-foreground">المصروفات</span><b className="font-mono">{money(branch.expenses)}</b></div>
+                    <div><span className="block text-muted-foreground">الصافي</span><b className="font-mono">{money(Math.abs(branch.net_result))} {branch.net_result >= 0 ? "ربح" : "خسارة"}</b></div>
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="space-y-2">
               {preview.checks.map((check) => (

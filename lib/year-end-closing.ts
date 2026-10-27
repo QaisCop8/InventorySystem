@@ -123,10 +123,17 @@ export async function previewYearClosing(year: number, retainedAccountId: number
   for (const value of balanceSheetByAccount.values()) { if (value > 0) balanceSheetDebit += value; else balanceSheetCredit -= value }
 
   const branchesOut = [...perBranch.values()]
-    .map((bucket) => ({ ...bucket, lines: bucket.lines.map((line) => ({ ...line, balance: round2(line.balance) })).filter((line) => Math.abs(line.balance) >= 0.01).sort((a, b) => a.code.localeCompare(b.code, "en", { numeric: true })), net: round2(bucket.net) }))
+    .map((bucket) => {
+      const lines = bucket.lines.map((line) => ({ ...line, balance: round2(line.balance) }))
+        .filter((line) => Math.abs(line.balance) >= 0.01)
+        .sort((a, b) => a.code.localeCompare(b.code, "en", { numeric: true }))
+      const revenue = round2(lines.filter((line) => line.balance < 0).reduce((sum, line) => sum - line.balance, 0))
+      const expenses = round2(lines.filter((line) => line.balance > 0).reduce((sum, line) => sum + line.balance, 0))
+      return { ...bucket, lines, net: round2(expenses - revenue), revenue, expenses, net_result: round2(revenue - expenses) }
+    })
     .filter((bucket) => bucket.lines.length)
-  const revenue = round2(branchesOut.reduce((sum, bucket) => sum + bucket.lines.filter((line) => line.balance < 0).reduce((s, line) => s - line.balance, 0), 0))
-  const expenses = round2(branchesOut.reduce((sum, bucket) => sum + bucket.lines.filter((line) => line.balance > 0).reduce((s, line) => s + line.balance, 0), 0))
+  const revenue = round2(branchesOut.reduce((sum, bucket) => sum + bucket.revenue, 0))
+  const expenses = round2(branchesOut.reduce((sum, bucket) => sum + bucket.expenses, 0))
   // صافي النتيجة: موجب = ربح
   const netResult = round2(revenue - expenses)
 
@@ -216,7 +223,8 @@ export async function executeYearClosing(input: { year: number; retainedAccountI
         note: "إقفال حساب نتيجة",
       }))
       // ما يبقى بعد تقريب الأسطر يذهب كله لحساب الأرباح المدورة فيبقى القيد متوازناً.
-      const net = round2(bucket.lines.reduce((sum, line) => sum + line.balance, 0))
+      // كل قيد إقفال يحسب صافي نتيجته من حركة هذا الفرع فقط.
+      const net = round2(bucket.expenses - bucket.revenue)
       if (Math.abs(net) >= 0.01) {
         lines.push({ accountId: input.retainedAccountId, creditDebit: net > 0 ? 1 : 2, amount: Math.abs(net), currencyId: baseId, rate: 1, note: net > 0 ? "خسارة السنة" : "ربح السنة" })
       }

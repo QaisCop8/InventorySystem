@@ -57,11 +57,12 @@ export async function GET(request: NextRequest) {
       allowedBranchesByType.set(20, productionBranches)
     }
 
-    const selectedType = Number(params.get("vch_type")) || null
-    const selectedTypes = allowedTypes.filter((type) => !selectedType || type.id === selectedType)
-    if (selectedType && !selectedTypes.length) {
+    const requestedTypeIds = [...new Set(params.getAll("vch_type").map(Number).filter((id) => Number.isInteger(id) && id > 0))]
+    const allowedTypeIds = new Set(allowedTypes.map((type) => type.id))
+    if (requestedTypeIds.some((id) => !allowedTypeIds.has(id))) {
       return NextResponse.json({ error: "لا توجد صلاحية لترحيل هذا النوع من السندات" }, { status: 403 })
     }
+    const selectedTypes = allowedTypes.filter((type) => !requestedTypeIds.length || requestedTypeIds.includes(type.id))
 
     const headerTypes = selectedTypes.map((type) => type.id).filter((id) => id !== 20)
     let vouchers: any[] = []
