@@ -82,7 +82,7 @@ export async function previewYearClosing(year: number, retainedAccountId: number
     `,
     sql`SELECT id, created_at FROM fiscal_year_closings_tbl WHERE fiscal_year = ${year} AND status <> 3 LIMIT 1`,
     sql`SELECT COUNT(*)::int AS count FROM voucher_header_tbl vh
-        WHERE vh.status = 1 AND vh.vch_date >= ${from}::date AND vh.vch_date < (${to}::date + INTERVAL '1 day')`,
+        WHERE COALESCE(vh.status, 1) NOT IN (2, 3) AND vh.vch_date >= ${from}::date AND vh.vch_date < (${to}::date + INTERVAL '1 day')`,
     sql`
       SELECT vh.id, vh.vch_code, vh.vch_type, vh.vch_date::date::text AS vch_date,
         SUM(CASE WHEN vjd.credit_debit = 1 THEN ${amount} ELSE -${amount} END) AS difference
@@ -141,7 +141,7 @@ export async function previewYearClosing(year: number, retainedAccountId: number
   if (!branchesOut.length) checks.push({ key: "empty", level: "error", title: "لا توجد أرصدة لحسابات قائمة الدخل في هذه السنة", detail: "تأكد من تصنيف الحسابات (الإيرادات والمصروفات) على قائمة الدخل في دليل الحسابات" })
   const draftCount = Number((drafts as any[])[0]?.count || 0)
   checks.push(draftCount
-    ? { key: "drafts", level: "warning", title: `${draftCount} سند غير معتمد في السنة`, detail: "تدخل في الإقفال كما في التقارير المالية، وبعد الإقفال لن يمكن ترحيلها أو تعديلها — يُفضّل مراجعتها أولاً" }
+    ? { key: "drafts", level: "error", title: `${draftCount} سند غير مرحل في السنة`, detail: "يجب ترحيل جميع السندات أو إلغاؤها قبل إقفال السنة المالية" }
     : { key: "drafts", level: "ok", title: "كل سندات السنة معتمدة" })
   checks.push((unbalanced as any[]).length
     ? { key: "unbalanced", level: "warning", title: `${(unbalanced as any[]).length} سند قيده غير متوازن`, detail: (unbalanced as any[]).slice(0, 8).map((row) => `${row.vch_code} (${row.vch_date})`).join("، ") }

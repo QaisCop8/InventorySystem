@@ -173,6 +173,7 @@ const Promotions = lazyDefault(() => import("@/components/sales/promotions"))
 const PeriodLocks = lazyDefault(() => import("@/components/accounting/period-locks"))
 const LandedCosts = lazyDefault(() => import("@/components/accounting/landed-costs"))
 const YearEndClosing = lazyDefault(() => import("@/components/accounting/year-end-closing"))
+const VoucherPostingTools = lazyDefault(() => import("@/components/accounting/voucher-posting-tools"))
 const SmsSettings = lazyDefault(() => import("@/components/settings/sms-settings"))
 const VoucherWhatsAppHost = dynamic(() => import("@/components/common/voucher-whatsapp-host"), { ssr: false })
 const PageShortcutsListener = dynamic(() => import("@/components/page-shortcuts-listener").then((mod) => mod.PageShortcutsListener), { ssr: false })
@@ -399,6 +400,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "period-locks": PeriodLocks,
   "landed-costs": LandedCosts,
   "year-end-closing": YearEndClosing,
+  "voucher-posting-tools": VoucherPostingTools,
   "internal-manufacturing-dashboard": InternalManufacturingDashboardPage,
   "internal-manufacturing-settings": InternalManufacturingSettingsPage,
   "internal-manufacturing-request": InternalManufacturingRequestPage,
