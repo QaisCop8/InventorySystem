@@ -87,19 +87,22 @@ export function renderPrintHtml(document: PrintDocument, settings: VoucherPrintS
       ? `.head{border:0;border-bottom:1px solid #cbd5e1;padding:0 0 3mm}.lines th{background:transparent;color:#111;border-bottom:1.5px solid #111}.lines td{border-bottom:1px solid #e2e8f0}.totals{border:0;background:#f8fafc}`
       : ""
   const pdfExportCss = options.pdfExport
-    ? `.pdf-export .doc-title{display:inline-flex;align-items:center;justify-content:center;min-height:8mm;padding:1.5mm 4mm;line-height:1.5;overflow:visible}
-.pdf-export .copy-label{display:block;padding:0.5mm 0;line-height:1.5;overflow:visible}
-.pdf-export .lines th{padding-top:2mm;padding-bottom:2mm;line-height:1.5;vertical-align:middle}
+    ? `.pdf-export .doc-title{display:block;min-height:8mm;padding:1.5mm 4mm;line-height:1.8;overflow:visible}
+.pdf-export .copy-label{display:block;padding:0.8mm 0;line-height:1.8;overflow:visible}
+.pdf-export .lines th{padding-top:3mm;padding-bottom:3mm;line-height:1.8;vertical-align:middle}
 .pdf-export .lines td{line-height:1.5}
 .pdf-export .summary-side{gap:3mm}
 .pdf-export .notes{padding-bottom:2mm}
 .pdf-export .barcode{padding-top:1mm}
 .pdf-export .barcode svg{display:block}`
     : ""
+  const pdfFontLink = options.pdfExport
+    ? '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&family=Tajawal:wght@200;300;400;500;600;700;800;900&family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">'
+    : ""
   const copies = copyLabelsFor(settings, document.copyLabel)
   const body = copies.map(label => copyHtml(document, settings, context, label)).join("")
 
-  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(document.title)} ${escapeHtml(document.code)}</title>
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(document.title)} ${escapeHtml(document.code)}</title>${pdfFontLink}
 <style>
 @page{size:${pageSize};margin:${settings.margin_top_mm}mm ${settings.margin_right_mm}mm ${settings.margin_bottom_mm}mm ${settings.margin_left_mm}mm;${pageNumbers}}
 *{box-sizing:border-box;margin:0;padding:0}

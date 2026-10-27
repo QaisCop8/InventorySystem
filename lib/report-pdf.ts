@@ -25,7 +25,16 @@ export async function reportPdfBlob(report: BuiltReport): Promise<Blob> {
     doc.open()
     doc.write(report.html)
     doc.close()
+    await Promise.all(Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map((node) => new Promise<void>((resolve) => {
+      const link = node as HTMLLinkElement
+      if (link.sheet) { resolve(); return }
+      const finish = () => { window.clearTimeout(timeout); resolve() }
+      const timeout = window.setTimeout(finish, 4000)
+      link.addEventListener("load", finish, { once: true })
+      link.addEventListener("error", finish, { once: true })
+    })))
     await (doc.fonts?.ready ?? Promise.resolve())
+    await Promise.all(Array.from(doc.images).map((image) => image.decode?.().catch(() => undefined) ?? Promise.resolve()))
     await new Promise(resolve => setTimeout(resolve, 250))
 
     const body = doc.body
