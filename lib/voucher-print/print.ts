@@ -210,7 +210,7 @@ async function printVoucherWith(original: PrintDocument, resolve: () => Promise<
 export async function voucherPdfBlob(original: PrintDocument): Promise<Blob> {
   const { settings, company } = await withOriginalSnapshot(original, await loadVoucherPrintSettings(original.voucherTypeId))
   const document = await withPartyTaxNumber(original, settings)
-  const html = renderPrintHtml(document, settings, buildPrintContext(document, company, settings))
+  const html = renderPrintHtml(document, settings, buildPrintContext(document, company, settings), { pdfExport: true })
   const paper = paperDimensions(settings)
   const { reportPdfBlob } = await import("@/lib/report-pdf")
   return reportPdfBlob({

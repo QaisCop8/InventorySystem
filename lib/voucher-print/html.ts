@@ -74,7 +74,7 @@ function copyHtml(document: PrintDocument, settings: VoucherPrintSettings, conte
 </section>`
 }
 
-export function renderPrintHtml(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext, options: { preview?: boolean; previewScale?: number } = {}) {
+export function renderPrintHtml(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext, options: { preview?: boolean; previewScale?: number; pdfExport?: boolean } = {}) {
   const paper = paperDimensions(settings)
   const accent = settings.accent_color
   const base = settings.font_size
@@ -86,6 +86,16 @@ export function renderPrintHtml(document: PrintDocument, settings: VoucherPrintS
     : settings.template === "minimal"
       ? `.head{border:0;border-bottom:1px solid #cbd5e1;padding:0 0 3mm}.lines th{background:transparent;color:#111;border-bottom:1.5px solid #111}.lines td{border-bottom:1px solid #e2e8f0}.totals{border:0;background:#f8fafc}`
       : ""
+  const pdfExportCss = options.pdfExport
+    ? `.pdf-export .doc-title{display:inline-flex;align-items:center;justify-content:center;min-height:8mm;padding:1.5mm 4mm;line-height:1.5;overflow:visible}
+.pdf-export .copy-label{display:block;padding:0.5mm 0;line-height:1.5;overflow:visible}
+.pdf-export .lines th{padding-top:2mm;padding-bottom:2mm;line-height:1.5;vertical-align:middle}
+.pdf-export .lines td{line-height:1.5}
+.pdf-export .summary-side{gap:3mm}
+.pdf-export .notes{padding-bottom:2mm}
+.pdf-export .barcode{padding-top:1mm}
+.pdf-export .barcode svg{display:block}`
+    : ""
   const copies = copyLabelsFor(settings, document.copyLabel)
   const body = copies.map(label => copyHtml(document, settings, context, label)).join("")
 
@@ -143,5 +153,6 @@ ${options.preview ? `.copy{width:${paper.widthMm}mm;min-height:${paper.receipt ?
 .signatures small{color:#475569;font-weight:700}
 .foot{margin-top:auto;padding-top:2mm;border-top:1px solid #e2e8f0;text-align:center;color:#475569;font-size:${base * 0.8}px}
 ${templateCss}
-</style></head><body>${body}</body></html>`
+${pdfExportCss}
+</style></head><body${options.pdfExport ? ' class="pdf-export"' : ""}>${body}</body></html>`
 }
