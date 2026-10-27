@@ -5,7 +5,7 @@ import { ReportAccessGate } from "@/components/auth/report-access-gate"
 import { FileAccessGate } from "@/components/auth/file-access-gate"
 import { fileFamilyForSection } from "@/lib/file-permission-definitions"
 import { TransactionAccessGate } from "@/components/auth/transaction-access-gate"
-import { transactionFamilyForSection } from "@/lib/transaction-permission-definitions"
+import { isUserAdminSection, transactionFamilyForSection } from "@/lib/transaction-permission-definitions"
 import { isReportSection } from "@/lib/report-permission-definitions"
 import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -462,6 +462,8 @@ function resolveSectionNode(section: string | null, onOpenSection: (section: str
     }
     if (fileFamilyForSection(section)) return <FileAccessGate section={section}><Component /></FileAccessGate>
     if (transactionFamilyForSection(section)) return <TransactionAccessGate section={section}><Component /></TransactionAccessGate>
+    // إعدادات المستخدمين والصلاحيات: للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+    if (isUserAdminSection(section)) return <TransactionAccessGate section={section}><Component /></TransactionAccessGate>
     return <Component />
   }
 

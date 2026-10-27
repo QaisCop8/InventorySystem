@@ -400,16 +400,20 @@ function Definitions() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
 
+  // كانت الشاشة تنتظر 18 طلباً معاً قبل عرض أي شيء ("جاري تحميل التعريفات" بطول أبطأ طلب). الآن: بيانات التبويب
+  // الافتراضي (التعريفات الأساسية) أولاً ثم تُعرض الشاشة، وبقية التبويبات تُحمَّل بالخلفية دون انتظار.
   const fetchAllData = async () => {
     setLoading(true)
     try {
-      await Promise.all([fetchCities(), fetchWarehouses(), fetchBranches(), fetchDepartments(), fetchCurrencies(), fetchCustomerCategories(),
-      fetchsupplierCategories(), fetchUnits(), fetchProductCategories(), fetchLicenseTypes(), fetchPrices(), fetchIncomeStatementItems(), fetchBalanceSheetAssetItems(), fetchBalanceSheetLiabilityItems(), fetchCostCenterTypes(), fetchCostCenters(), fetchAccountClassificationTypes(), fetchAccountClassifications()])
+      await Promise.all([fetchCities(), fetchCustomerCategories(), fetchsupplierCategories(), fetchProductCategories(), fetchLicenseTypes(), fetchPrices()])
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
       setLoading(false)
     }
+    void Promise.all([fetchWarehouses(), fetchBranches(), fetchDepartments(), fetchCurrencies(), fetchUnits(), fetchIncomeStatementItems(), fetchBalanceSheetAssetItems(),
+      fetchBalanceSheetLiabilityItems(), fetchCostCenterTypes(), fetchCostCenters(), fetchAccountClassificationTypes(), fetchAccountClassifications()])
+      .catch((error) => console.error("Error fetching data:", error))
   }
 
   useEffect(() => {

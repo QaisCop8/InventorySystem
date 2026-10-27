@@ -168,16 +168,13 @@ export const getStockVoucherNumberSettings = async (
 }
 
 export const nextVoucherSequence = async (vchType: number, codePrefix: string, startNumber: number): Promise<number> => {
+  // أعلى رقم تسلسلي يُحسب داخل قاعدة البيانات (صف واحد) بدل جلب كل أكواد النوع/البادئة للخادم مع كل حفظ —
+  // نفس القاعدة: ما بعد البادئة = حرف اختياري ثم أرقام
   const rows = await sql`
-    SELECT vch_code FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code LIKE ${codePrefix + "%"}
+    SELECT COALESCE(MAX((regexp_match(substr(vch_code, ${codePrefix.length + 1}::int), '^[A-Za-z]?([0-9]+)$'))[1]::numeric), 0) AS max_number
+    FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code LIKE ${codePrefix + "%"}
   `
-  let maxNumber = 0
-  for (const row of rows) {
-    const suffix = String(row.vch_code || "").slice(codePrefix.length)
-    const match = suffix.match(/^[A-Za-z]?([0-9]+)$/)
-    const value = Number(match?.[1] ?? suffix)
-    if (Number.isFinite(value) && value > maxNumber) maxNumber = value
-  }
+  const maxNumber = Number((rows as any[])[0]?.max_number || 0)
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber
 }
 

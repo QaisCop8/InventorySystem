@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensurePermissionTables } from "@/lib/permissions"
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 interface AccessPayload {
   userId: number
@@ -11,6 +12,9 @@ interface AccessPayload {
 }
 
 export async function POST(req: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(req as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     if (!(await getSessionUser(req))) {
       return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

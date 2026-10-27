@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccounts } from "@/lib/leaf-accounts"
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 const ensureTables = async () => { return runSchemaOnce("app/api/settings/users-currencies-default/route.ts#ensureTables", async () => {
   await sql`
@@ -84,6 +85,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     const data = await request.json()
     const { user_id, rows } = data

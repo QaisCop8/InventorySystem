@@ -292,6 +292,9 @@ function normalizeProductPayload(productData: any) {
 }
 
 // حقول نافذة بحث الأصناف (lite=1)
+// قائمة الأصناف (?list=1، شاشة الأصناف/الخدمات): حقول العرض والفلترة فقط — النموذج يحمّل الصنف كاملاً بمعرّفه عند فتحه.
+// كانت القائمة تنقل كل أعمدة كل الأصناف (~28MB لـ16,600 صنف) فيطول "جاري تحميل الأصناف".
+const LIST_PRODUCT_FIELDS = ["id", "ser", "product_code", "product_name", "barcode", "type", "product_type", "category", "category_id", "status", "current_stock", "available_stock", "min_stock_level", "reorder_point", "main_unit", "first_unit", "unit_id", "default_store_name", "image_url", "product_image", "last_purchase_price", "purchase_price_hidden", "currency_name", "last_purchase_currency_code"] as const
 const LITE_PRODUCT_FIELDS = ["id", "product_code", "product_name", "base_product_name", "type", "product_type", "first_unit", "unit_id", "first_barcode", "barcode", "first_price", "first_price_name", "currency_name", "last_purchase_price", "product_image", "image_url", "current_stock", "available_stock", "has_colors"] as const
 
 async function ensureProductsGetSchema() { return runSchemaOnce("app/api/inventory/products/route.ts#ensureProductsGetSchema", async () => {
@@ -479,7 +482,8 @@ export async function GET(request: NextRequest) {
     const productsResult = await (await getTenantPool()).query(productsQuery)
     const products = productsResult.rows
     const productIds = products.map((product: any) => Number(product.id)).filter((id: number) => Number.isInteger(id) && id > 0)
-    if (productIds.length && !liteMode) {
+    const listMode = url.searchParams.get("list") === "1"
+    if (productIds.length && !liteMode && !listMode) {
       const attributeLinks = await (await getTenantPool()).query(
         `SELECT pav.product_id, a.name AS attribute_name, v.name AS value_name, pav.image_url
          FROM product_atrributes_values_tbl pav
@@ -540,6 +544,13 @@ export async function GET(request: NextRequest) {
         for (const key of LITE_PRODUCT_FIELDS) if (product[key] !== undefined && product[key] !== null && product[key] !== "") lite[key] = product[key]
         if (Array.isArray(product.attributes) && product.attributes.length) lite.attributes = product.attributes
         return lite
+      }))
+    }
+    if (listMode) {
+      return NextResponse.json(rows.map((product: any) => {
+        const item: Record<string, unknown> = {}
+        for (const key of LIST_PRODUCT_FIELDS) if (product[key] !== undefined && product[key] !== null && product[key] !== "") item[key] = product[key]
+        return item
       }))
     }
     return NextResponse.json(rows);

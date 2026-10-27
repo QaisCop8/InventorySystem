@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureTables, fetchPermissionsForUser } from "./_lib"
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     await ensureTables()
     const data = await request.json()

@@ -30,6 +30,8 @@ const localDate = () => {
 // يُستدعى داخل withTenantTransaction بعد فحص الصلاحيات من المستدعي.
 export async function savePosSaleCore(request: NextRequest, data: any, ctx: { userId: string; point: any; session: any | null; clientSaleId: string }) {
       const {userId,point,session,clientSaleId}=ctx
+      // قياس زمن مراحل الحفظ (Server-Timing + سجل الخادم عند البطء) لتحديد المرحلة البطيئة فعلياً
+      const timing=saleTimer()
       const pointId=Number(point.id)||null
       const systemSettings=await loadStoredSettings()
       const taxRate=Math.max(0,Number(systemSettings.tax_rate||0))
@@ -249,6 +251,7 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       // المردودات: حساب مردودات المبيعات من تعريف الصنف، وإن كان فارغاً فمن حسابات الأصناف في إعدادات النظام
       const returnAccountByProduct=new Map<number,number>()
       if(isReturn){const productIds=[...new Set(invoiceItems.map((item:any)=>Number(item.item_id||item.product_id)).filter((id:number)=>id>0))];if(productIds.length)for(const row of await sql`SELECT id,selling_returns_account_id FROM products WHERE id=ANY(${productIds}::int[])`)if(Number(row.selling_returns_account_id)>0)returnAccountByProduct.set(Number(row.id),Number(row.selling_returns_account_id))}
+      timing.mark("prepare")
       const vchCode = await generateSalesVoucherCode(request.url, vchType, vchBookId, Number(point.branch_id) || null)
       if (!vchCode) return NextResponse.json({ error: "تعذر توليد رقم فاتورة المبيعات" }, { status: 400 })
 
@@ -265,8 +268,10 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       const response=await createSalesVoucher(forwarded)
       if(!response.ok){const failure=await response.json();throw Object.assign(new Error(String(failure.error||"تعذر حفظ الفاتورة")),{status:response.status})}
       const saved=await response.clone().json()
+      timing.mark("invoice")
       const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
       const returnPayment=isReturn?await createPosReturnPayment(request,saved,point,userId,payments):null
+      timing.mark(isReturn?"payment_voucher":"receipt")
       // دفعات النقد في سجل الكاشير بعملاتها الفعلية: المستلم بكل عملة + الباقي المُرجَع بعملة النقطة (قد يكون سالباً)،
       // ومجموعها المقيّم = صافي النقد في الفاتورة؛ عكس الإلغاء (_session-payments) يعكسها كما هي
       if(drawerCash){
@@ -306,5 +311,21 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
           ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+${delta}`
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
-      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[],pos_payment_voucher_id:returnPayment?Number(returnPayment.id):null,payment_vch_code:returnPayment?.vch_code||null,pos_payment_vouchers:returnPayment?.payments?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[]},{status:201})
+      timing.mark("finalize")
+      const result=NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[],pos_payment_voucher_id:returnPayment?Number(returnPayment.id):null,payment_vch_code:returnPayment?.vch_code||null,pos_payment_vouchers:returnPayment?.payments?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[]},{status:201})
+      timing.report(result,String(saved.vch_code||""),pointId)
+      return result
+}
+
+/** مراحل حفظ البيع بالمللي ثانية: ترويسة Server-Timing (تبويب Network بالمتصفح) + سجل الخادم إن تجاوز الحفظ 1.5 ثانية. */
+function saleTimer(){
+  const start=Date.now();let last=start;const stages:[string,number][]=[]
+  return {
+    mark(name:string){const now=Date.now();stages.push([name,now-last]);last=now},
+    report(response:Response,code:string,pointId:number|null){
+      const total=Date.now()-start
+      try{response.headers.set("Server-Timing",[...stages.map(([name,ms])=>`${name};dur=${ms}`),`total;dur=${total}`].join(", "))}catch{/* ignore */}
+      if(total>1500)console.warn(`[pos-sale] slow save ${code} (point ${pointId}): ${total}ms — ${stages.map(([name,ms])=>`${name} ${ms}ms`).join(", ")}`)
+    },
+  }
 }

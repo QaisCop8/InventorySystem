@@ -358,7 +358,8 @@ export interface CompactProductFormProps {
   visible?: any,
   editingProduct?: any
   onHideDialog: (e: any) => void
-  onSuccess?: () => void
+  /** بعد الحفظ: معرّف الصنف المحفوظ — القائمة تحدّث سطره فقط بدل إعادة تحميل كل الأصناف */
+  onSuccess?: (productId?: number) => void
   isSubmitting?: boolean
   entityType?: "products" | "services"
 }
@@ -785,8 +786,8 @@ export function CompactProductForm({
         throw new Error(responseData.error || responseData.message || "فشل في حفظ المنتج")
       }
       const savedProductId = Number(responseData.id || responseData.productId || responseData.product?.id || formData.id)
-      if (savedProductId > 0 && formData.id > 0 && canUpdate) await saveRelatedProducts(savedProductId)
-      if (savedProductId > 0 && formData.id > 0 && canUpdate) await saveManufacturingComponents(savedProductId)
+      // الأصناف التابعة ومكونات التصنيع مستقلتان — تُحفظان معاً بدل واحدة بعد الأخرى
+      if (savedProductId > 0 && formData.id > 0 && canUpdate) await Promise.all([saveRelatedProducts(savedProductId), saveManufacturingComponents(savedProductId)])
 
       setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
       toast.current?.show({
@@ -795,7 +796,7 @@ export function CompactProductForm({
         detail: 'تمت العملية بنجاح ✅',
         life: 3000
       });
-      onSuccess?.()
+      onSuccess?.(savedProductId > 0 ? savedProductId : undefined)
       // بعد الحفظ (إضافة أو تعديل): تفريغ الحقول وفتح سجل جديد برقم صنف جديد — مثل زر "جديد"
       if (canCreate) await reset_fields()
       else onHideDialog(true)

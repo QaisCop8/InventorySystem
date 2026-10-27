@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 // المستودعات الافتراضية للمستخدم (تُحفَظ في user_settings) — تُستعمَل عند اختيار صنف في
 // سندات الحركات: إن لم يكن للصنف نفسه مستودع افتراضي (products.default_store)، يُرجَع لهذه
@@ -53,6 +54,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     await ensureColumns()
     const data = await request.json()

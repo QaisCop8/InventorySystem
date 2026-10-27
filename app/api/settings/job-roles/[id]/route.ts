@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     const id = Number(params.id)
     if (!Number.isInteger(id) || id <= 0) {
@@ -45,6 +49,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     const id = Number(params.id)
     if (!Number.isInteger(id) || id <= 0) {

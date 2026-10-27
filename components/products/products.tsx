@@ -360,6 +360,27 @@ export function Products({ entityType = "products" }: ProductsProps) {
     }
   }
 
+  // سطر صنف واحد بعد حفظه (إضافة أو تعديل) — نفس حقول القائمة (list=1)
+  const refreshProductRow = async (productId: number) => {
+    try {
+      const response = await fetch(`/api/inventory/products?type=${isService ? "services" : "products"}&list=1&ids=${productId}`, { cache: "no-store" })
+      const data = await response.json().catch(() => null)
+      if (!response.ok || !Array.isArray(data)) throw new Error("refresh failed")
+      const row = data.find((item: any) => Number(item.id) === Number(productId))
+      setState((prev) => {
+        const exists = prev.products.some((item) => Number(item.id) === Number(productId))
+        const products = !row
+          ? prev.products.filter((item) => Number(item.id) !== Number(productId))
+          : exists
+            ? prev.products.map((item) => (Number(item.id) === Number(productId) ? row : item))
+            : [...prev.products, row].sort((a: any, b: any) => String(a.product_code || "").localeCompare(String(b.product_code || ""), "en", { numeric: true }))
+        return { ...prev, products }
+      })
+    } catch {
+      void fetchProducts(true)
+    }
+  }
+
   const fetchDefinitions = async () => {
     try {
       const categoriesResponse = await fetch("/api/item-groups")
@@ -1106,8 +1127,10 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
             editingProduct={state.editingProduct}
             onHideDialog={(close) => { if (close) { setState((prev) => ({ ...prev, showDialog: false, error: null })) } }}
-            onSuccess={() => {
-              void fetchProducts(true)
+            onSuccess={(productId) => {
+              // تحديث سطر الصنف المحفوظ فقط (كان كل حفظ يعيد تحميل كل الأصناف)
+              if (productId) void refreshProductRow(productId)
+              else void fetchProducts(true)
             }}
             isSubmitting={state.isSubmitting}
 

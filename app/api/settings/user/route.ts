@@ -9,6 +9,7 @@ import { ensurePermissionTables } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import managementSql from "@/lib/management-db"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { authorizeUserAdmin, isSelfServiceUpdate } from "@/lib/user-admin-access"
 
 // أعمدة user_settings — مرة لكل قاعدة شركة (runSchemaOnce) لا مرة لكل الخادم: متغير وحيد على مستوى الوحدة كان
 // يُعلِّم أول شركة فقط فتبقى قواعد بقية الشركات بلا branch_id… فيفشل الاستعلام بـ500.
@@ -145,6 +146,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     console.log("[v0] User API POST request started")
     if (!(await getSessionUser(request))) {
@@ -238,6 +242,11 @@ export async function PUT(request: NextRequest) {
     await ensureBranchColumn()
     await ensurePermissionTables(await resolveCurrentDbName())
     const data = await request.json()
+    // تعديل مستخدم (أو صلاحياته) للمسؤول فقط؛ المستخدم يعدّل لنفسه الصورة والخطوط وشكل الجداول فقط
+    if (!isSelfServiceUpdate(data, sessionUser.user_id)) {
+      const userAdmin = await authorizeUserAdmin(request)
+      if (!userAdmin.ok) return userAdmin.response
+    }
     // كلمة المرور لا تُغيَّر من تعريف المستخدم — يعيّنها المستخدم من شاشة الدخول عبر "نسيت كلمة المرور" (رمز بالبريد)
     if ((typeof data?.password === "string" && data.password.trim()) || (typeof data?.password_hash === "string" && data.password_hash.trim())) {
       return NextResponse.json({ error: "لا يمكن تغيير كلمة المرور من تعريف المستخدم؛ يستخدم المستخدم \"نسيت كلمة المرور\" من شاشة الدخول" }, { status: 400 })
@@ -515,6 +524,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     if (!(await getSessionUser(request))) {
       return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

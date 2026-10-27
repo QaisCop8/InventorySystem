@@ -109,6 +109,26 @@ export const ACCOUNT_BALANCE_VIEW_PERMISSION = "السماح بمشاهدة رص
 export const PURCHASE_PRICE_PERMISSION_CATEGORY = "الأصناف"
 export const PURCHASE_PRICE_VIEW_PERMISSION = "السماح بمشاهدة أسعار الشراء"
 
+// إعدادات المستخدمين والصلاحيات (الإعدادات ← اعدادات المستخدمين): تُفتح فقط لمسؤول (دور "مدير"/admin أو "جميع
+// الصلاحيات") أو لمن مُنح صراحةً هذه الصلاحية — خلافاً لباقي الشاشات، غياب الصلاحية من القائمة يعني المنع.
+export const USER_ADMIN_PERMISSION_CATEGORY = "الإعدادات"
+export const USER_ADMIN_PERMISSION = "إدارة المستخدمين والصلاحيات"
+export const USER_ADMIN_SECTIONS = [
+  "user-settings", "permissions", "job-roles", "role-permissions", "user-default-accounts", "voucher-book-permissions", "user-branch-access-matrix",
+] as const
+const ADMIN_ROLE_NAMES = new Set(["admin", "administrator", "مدير", "مدير النظام", "مسؤول النظام"])
+export const isAdminRoleName = (name: unknown) => ADMIN_ROLE_NAMES.has(String(name ?? "").trim().toLowerCase())
+export const isUserAdminSection = (section: string | null | undefined) => Boolean(section && (USER_ADMIN_SECTIONS as readonly string[]).includes(section))
+
+/** الدخول لشاشات المستخدمين والصلاحيات من جهة الواجهة (الخادم يفرضها أيضاً على عمليات الحفظ). */
+export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | null, user: { role?: string | null; permissions?: Record<string, unknown> | null } | null): boolean {
+  if (!user) return false
+  const permissions = user.permissions || {}
+  if (permissions["all"] || permissions["جميع الصلاحيات"] || isAdminRoleName(user.role)) return true
+  if (!entries) return false
+  return entries.some((entry) => String(entry.access_name || "").trim() === USER_ADMIN_PERMISSION && (entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true"))
+}
+
 export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
 }

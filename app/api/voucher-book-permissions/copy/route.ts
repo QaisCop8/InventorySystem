@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureTables, fetchPermissionsForUser } from "../_lib"
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 // Copies all دفاتر السندات permissions (across every voucher type) from one user to another —
 // convenient for provisioning a new user from an existing "template" user.
 export async function POST(request: NextRequest) {
+  // إعدادات المستخدمين والصلاحيات: الحفظ للمسؤول أو لمن يملك صلاحية إدارة المستخدمين والصلاحيات
+  const userAdmin = await authorizeUserAdmin(request as any)
+  if (!userAdmin.ok) return userAdmin.response
   try {
     await ensureTables()
     const data = await request.json()
