@@ -41,7 +41,28 @@ interface AccountType {
 
 interface AccountTreeNode extends AccountItem {
   children: AccountTreeNode[]
+  /** عقدة عنوان (قائمة مالية/بند) وليست حساباً — معرّفها سالب */
+  virtual?: boolean
+  accountCount?: number
 }
+
+// معرّفات عقد العناوين في شجرة "حسب القوائم المالية" (سالبة حتى لا تتعارض مع معرّفات الحسابات)
+const TREE_BALANCE_SHEET = -1, TREE_ASSETS = -2, TREE_LIABILITIES = -3, TREE_INCOME = -4, TREE_MERCHANDISE = -5
+const TREE_DEFAULT_EXPANDED = [TREE_BALANCE_SHEET, TREE_ASSETS, TREE_LIABILITIES, TREE_INCOME, TREE_MERCHANDISE]
+
+// ألوان الشجرة: لكل فرع لون (الميزانية أزرق، الأصول أخضر، الخصوم أحمر، قائمة الدخل بنفسجي، تقييم بضاعة كهرماني)
+// يرثه ما تحته — العناوين بلون قوي، الحسابات الأب بدرجة أفتح، والحسابات الفرعية محايدة
+type TreeTone = { heading: string; parent: string; icon: string; badge: string; line: string }
+const TREE_TONES: Record<string, TreeTone> = {
+  sky: { heading: "text-sky-800 dark:text-sky-300", parent: "text-sky-700 dark:text-sky-300", icon: "text-sky-600 dark:text-sky-400", badge: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", line: "border-sky-300 dark:border-sky-800" },
+  emerald: { heading: "text-emerald-800 dark:text-emerald-300", parent: "text-emerald-700 dark:text-emerald-300", icon: "text-emerald-600 dark:text-emerald-400", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300", line: "border-emerald-300 dark:border-emerald-800" },
+  rose: { heading: "text-rose-800 dark:text-rose-300", parent: "text-rose-700 dark:text-rose-300", icon: "text-rose-600 dark:text-rose-400", badge: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300", line: "border-rose-300 dark:border-rose-800" },
+  violet: { heading: "text-violet-800 dark:text-violet-300", parent: "text-violet-700 dark:text-violet-300", icon: "text-violet-600 dark:text-violet-400", badge: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", line: "border-violet-300 dark:border-violet-800" },
+  amber: { heading: "text-amber-800 dark:text-amber-300", parent: "text-amber-700 dark:text-amber-300", icon: "text-amber-600 dark:text-amber-400", badge: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300", line: "border-amber-300 dark:border-amber-800" },
+}
+const TREE_TONE_BY_HEADER: Record<number, string> = { [TREE_BALANCE_SHEET]: "sky", [TREE_ASSETS]: "emerald", [TREE_LIABILITIES]: "rose", [TREE_INCOME]: "violet", [TREE_MERCHANDISE]: "amber" }
+// وضع "الحسابات الأب": الحسابات الرئيسية (المستوى الأول) بألوان متناوبة
+const TREE_ROOT_ROTATION = ["sky", "emerald", "violet", "amber", "rose"]
 
 interface FormState {
   id: number
@@ -152,7 +173,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const [fatherAccountName, setFatherAccountName] = useState("")
   const [selectedTreeAccountId, setSelectedTreeAccountId] = useState<number | null>(null)
   const [focusedTreeAccountId, setFocusedTreeAccountId] = useState<number | null>(null)
-  const [expandedTreeAccountIds, setExpandedTreeAccountIds] = useState<Set<number>>(() => new Set())
+  const [expandedTreeAccountIds, setExpandedTreeAccountIds] = useState<Set<number>>(() => new Set(TREE_DEFAULT_EXPANDED))
+  // "lists" = حسب القوائم المالية (الميزانية ← الأصول/الخصوم ← البند، قائمة الدخل ← البند) كما في الشامل، "parents" = حسب الحساب الأب
+  const [accountTreeMode, setAccountTreeMode] = useState<"lists" | "parents">(() => {
+    try { return localStorage.getItem("accounts-tree-mode") === "parents" ? "parents" : "lists" } catch { return "lists" }
+  })
   const [accountTreeSearch, setAccountTreeSearch] = useState("")
 
   // Refs
@@ -455,8 +480,53 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       items.forEach((item) => sort(item.children))
     }
     sort(roots)
-    return roots
-  }, [activeAccounts])
+    if (accountTreeMode === "parents") return roots
+
+    // حسب القوائم المالية: كل حساب في بنده (أصول ثم خصوم للميزانية، بند قائمة الدخل، تقييم بضاعة)، ومتداخل تحت
+    // أبيه إن كان في نفس البند — وإلا يصبح رأساً في بنده
+    const groupOf = (account: AccountItem): string => {
+      const list = Number(account.finanical_list_id || 1)
+      if (list === 2) return Number(account.finanical_list_income_id) ? `income:${account.finanical_list_income_id}` : "income:0"
+      if (list === 3) return "merchandise"
+      if (Number(account.finanical_list_assests_id)) return `assets:${account.finanical_list_assests_id}`
+      if (Number(account.finanical_list_liabilities_id)) return `liabilities:${account.finanical_list_liabilities_id}`
+      return "assets:0"
+    }
+    const groupRoots = new Map<string, AccountTreeNode[]>()
+    const collect = (node: AccountTreeNode, parentGroup: string | null) => {
+      const group = groupOf(node)
+      const own = { ...node, children: [] as AccountTreeNode[] }
+      if (group !== parentGroup) groupRoots.set(group, [...(groupRoots.get(group) || []), own])
+      for (const child of node.children) {
+        const childNode = collect(child, group)
+        if (childNode) own.children.push(childNode)
+      }
+      return group === parentGroup ? own : null
+    }
+    roots.forEach((root) => collect(root, null))
+    const countOf = (nodes: AccountTreeNode[]): number => nodes.reduce((sum, node) => sum + (node.virtual ? Number(node.accountCount || 0) : 1 + countOf(node.children)), 0)
+    const header = (id: number, name: string, children: AccountTreeNode[]): AccountTreeNode =>
+      ({ id, code: "", name, children, virtual: true, accountCount: countOf(children) } as unknown as AccountTreeNode)
+    const itemNodes = (prefix: string, items: any[], baseId: number, unassigned: string) => {
+      const sorted = [...items].sort((a, b) => Number(a.id) - Number(b.id))
+      const nodes = sorted.map((item) => header(baseId - Number(item.id), String(item.name || item.label || ""), groupRoots.get(`${prefix}:${item.id}`) || []))
+      const known = new Set(sorted.map((item) => `${prefix}:${item.id}`))
+      // بنود محذوفة/غير معرّفة أو حسابات بلا بند
+      const orphan = [...groupRoots.entries()].filter(([key]) => key.startsWith(`${prefix}:`) && !known.has(key)).flatMap(([, list]) => list)
+      if (orphan.length) nodes.push(header(baseId - 999_999, unassigned, orphan))
+      return nodes
+    }
+    const result: AccountTreeNode[] = [
+      header(TREE_BALANCE_SHEET, "الميزانية العمومية", [
+        header(TREE_ASSETS, "الأصول", itemNodes("assets", balanceSheetAssets, -1_000_000, "بلا بند أصول")),
+        header(TREE_LIABILITIES, "الخصوم", itemNodes("liabilities", balanceSheetLiabilities, -2_000_000, "بلا بند خصوم")),
+      ]),
+      header(TREE_INCOME, "قائمة الدخل", itemNodes("income", incomeStatementAccounts, -3_000_000, "بلا بند قائمة دخل")),
+    ]
+    const merchandise = groupRoots.get("merchandise") || []
+    if (merchandise.length) result.push(header(TREE_MERCHANDISE, "تقييم بضاعة", merchandise))
+    return result
+  }, [activeAccounts, accountTreeMode, balanceSheetAssets, balanceSheetLiabilities, incomeStatementAccounts])
 
   useEffect(() => {
     if (focusedTreeAccountId == null) return
@@ -474,7 +544,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     if (!query) return accountTree
     const filterNodes = (nodes: AccountTreeNode[]): AccountTreeNode[] => nodes.flatMap((node) => {
       const children = filterNodes(node.children)
-      const matches = `${node.code} ${node.name} ${node.name_lang2 || ""}`.toLocaleLowerCase().includes(query)
+      // عنوان القائمة/البند لا يُطابَق بنفسه — يبقى فقط إن احتوى حسابات مطابقة
+      const matches = !node.virtual && `${node.code} ${node.name} ${node.name_lang2 || ""}`.toLocaleLowerCase().includes(query)
       return matches || children.length ? [{ ...node, children }] : []
     })
     return filterNodes(accountTree)
@@ -485,8 +556,43 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     [activeAccounts, selectedTreeAccountId],
   )
 
-  const renderAccountTreeNode = (node: AccountTreeNode, depth = 0): React.ReactNode => {
+  const toggleTreeNode = (id: number) => setExpandedTreeAccountIds((previous) => {
+    const next = new Set(previous)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
+
+  const renderAccountTreeNode = (node: AccountTreeNode, depth = 0, toneKey?: string, rootIndex = 0): React.ReactNode => {
     const expanded = Boolean(accountTreeSearch.trim()) || expandedTreeAccountIds.has(Number(node.id))
+    const ownTone = TREE_TONE_BY_HEADER[Number(node.id)] || toneKey || TREE_ROOT_ROTATION[rootIndex % TREE_ROOT_ROTATION.length]
+    const tone = TREE_TONES[ownTone] || TREE_TONES.emerald
+    if (node.virtual) {
+      const top = depth === 0
+      return (
+        <div key={node.id}>
+          <div className="flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 hover:bg-slate-100" style={{ paddingLeft: `${depth * 13}px` }}>
+            <button
+              type="button"
+              className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}
+              aria-label={expanded ? "طي" : "توسيع"}
+              onClick={() => toggleTreeNode(Number(node.id))}
+            >
+              {expanded ? <Minus className="h-2.5 w-2.5" strokeWidth={2.5} /> : <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />}
+            </button>
+            <button type="button" onClick={() => toggleTreeNode(Number(node.id))} className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-right text-xs" dir="rtl">
+              <span className={`min-w-0 flex-1 truncate text-right ${tone.heading} ${top ? "font-black underline decoration-current/30 underline-offset-4" : "font-bold"}`}>{node.name}</span>
+              <span className={`shrink-0 rounded px-1 text-[10px] font-semibold ${tone.badge}`}>{node.accountCount}</span>
+            </button>
+          </div>
+          {expanded && node.children.length > 0 && (
+            <div className={`ml-[7px] border-l border-dotted pl-0.5 ${tone.line}`}>
+              {node.children.map((child) => renderAccountTreeNode(child, depth + 1, ownTone))}
+            </div>
+          )}
+        </div>
+      )
+    }
     const selected = selectedTreeAccountId === Number(node.id)
     const focused = focusedTreeAccountId === Number(node.id)
     return (
@@ -506,7 +612,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             {expanded ? <Minus className="h-2.5 w-2.5" strokeWidth={2.5} /> : <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />}
           </button>
           {node.children.length ? (
-            expanded ? <FolderOpen className="h-4 w-4 shrink-0 text-emerald-700" /> : <Folder className="h-4 w-4 shrink-0 text-emerald-700" />
+            expanded ? <FolderOpen className={`h-4 w-4 shrink-0 ${tone.icon}`} /> : <Folder className={`h-4 w-4 shrink-0 ${tone.icon}`} />
           ) : <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
           <button
             type="button"
@@ -529,13 +635,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             title={`${node.code} - ${node.name}`}
             dir="rtl"
           >
-            <span className="min-w-0 flex-1 truncate text-right font-medium">{node.name}</span>
+            <span className={`min-w-0 flex-1 truncate text-right ${node.children.length ? `font-bold ${tone.parent}` : "font-medium"}`}>{node.name}</span>
             <span className="shrink-0 font-mono text-[10px] text-slate-500" dir="ltr">{node.code}</span>
           </button>
         </div>
         {expanded && node.children.length > 0 && (
-          <div className="ml-[7px] border-l border-slate-300 pl-0.5">
-            {node.children.map((child) => renderAccountTreeNode(child, depth + 1))}
+          <div className={`ml-[7px] border-l pl-0.5 ${tone.line}`}>
+            {node.children.map((child) => renderAccountTreeNode(child, depth + 1, ownTone))}
           </div>
         )}
       </div>
@@ -3008,7 +3114,19 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
               <FolderTree className="h-4 w-4 text-emerald-700" />
               <span>شجرة الحسابات</span>
-              <span className="mr-auto text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
+              <span className="text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
+              <div className="mr-auto flex overflow-hidden rounded-md border border-slate-200 text-[11px] font-medium">
+                {([["lists", "القوائم المالية"], ["parents", "الحسابات الأب"]] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => { setAccountTreeMode(mode); try { localStorage.setItem("accounts-tree-mode", mode) } catch { /* ignore */ } }}
+                    className={`px-2 py-1 ${accountTreeMode === mode ? "bg-emerald-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="relative">
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -3028,7 +3146,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto p-1 font-sans text-[11px]" dir="ltr">
-            {filteredAccountTree.length ? filteredAccountTree.map((node) => renderAccountTreeNode(node)) : (
+            {filteredAccountTree.length ? filteredAccountTree.map((node, index) => renderAccountTreeNode(node, 0, undefined, index)) : (
               <p className="px-2 py-6 text-center text-xs text-slate-500">لا توجد حسابات مطابقة</p>
             )}
           </div>

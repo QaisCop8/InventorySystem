@@ -65,6 +65,7 @@ const ProductionVouchers = lazyDefault(() => import("@/components/inventory/prod
 const AccountAccess = lazyDefault(() => import("@/components/tools/account-access"))
 const ManagerAttachments = lazyDefault(() => import("@/components/tools/manager-attachments"))
 const ManagerInbox = lazyDefault(() => import("@/components/tools/manager-inbox"))
+const BulkItems = lazyDefault(() => import("@/components/tools/bulk-items"))
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
 const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
@@ -334,6 +335,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "account-access": AccountAccess,
   "manager-attachments": ManagerAttachments,
   "manager-inbox": ManagerInbox,
+  "bulk-items": BulkItems,
   "production-detailed-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionDetailedReport"),
   "production-produced-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionProducedReport"),
   "production-raw-report": lazyNamed(() => import("@/components/reports/production-report"), "ProductionRawReport"),

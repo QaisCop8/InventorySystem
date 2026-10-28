@@ -35,6 +35,7 @@ export const TRANSACTION_FAMILIES = {
   // أدوات: إرسال مرفقات (فاتورة مشتريات / سند قبض) للمدير، وبريد الرسائل لاستلامها ومعالجتها
   manager_attachment: "إرسال مرفقات للمدير",
   manager_inbox: "بريد الرسائل",
+  bulk_items: "تعديل الأصناف",
 } as const
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
@@ -175,6 +176,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "account-access": "account_access",
   "manager-attachments": "manager_attachment",
   "manager-inbox": "manager_inbox",
+  "bulk-items": "bulk_items",
   "salesman-commissions": "salesman_commission",
 }
 
