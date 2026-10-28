@@ -56,6 +56,9 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
   const allowed = workflow.permissions?.[step.permission] === true
   const canEditRequest = stageKey === "requestAudit" && (allowed || workflow.permissions?.edit === true)
   const enabled = isStepEnabled(step, workflow.settings)
+  // "استلام البضاعة تلقائي": اعتماد التجهيز ينشئ الارسالية الداخلية ويغلق الطلب
+  const autoReceive = stageKey === "preparation" && workflow.settings?.autoReceive === true
+  const approveLabel = autoReceive ? "تجهيز واستلام تلقائي" : step.verb
 
   const load = async () => {
     const branchId = Number(activeBranchId || 0)
@@ -157,7 +160,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
       const next = INTERNAL_STATUS_LABELS[Number(data.status)] || ""
       setSelected(null)
       pageMessagesRef.current?.clear?.()
-      pageMessagesRef.current?.show?.([{ severity: "success", summary: "", detail: `${step.done} ${selected.vch_code}${next ? ` — الحالة الآن: ${next}` : ""}`, life: 5000 }])
+      pageMessagesRef.current?.show?.([{ severity: "success", summary: "", detail: `${autoReceive ? "تم تجهيز الطلب وإنشاء الارسالية الداخلية" : step.done} ${selected.vch_code}${next ? ` — الحالة الآن: ${next}` : ""}`, life: 5000 }])
       await Promise.all([load(), workflow.reload()])
     } catch (error: any) {
       showDialogMessage(error.message || "تعذر اعتماد المرحلة")
@@ -174,9 +177,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
     branchLabel={workflow.branchId ? workflow.branchName(workflow.branchId) : undefined}
     sideLabel={`تُنفَّذ من: ${SIDE_LABELS[step.side]}`}
     actions={<RefreshButton loading={loading} onClick={() => { void load(); void workflow.reload() }} />}
-  >
-    <InternalStepper settings={workflow.settings} counts={workflow.counts} permissions={workflow.permissions} current={stageKey} />
-  </InternalPageHeader>
+  />
 
   if (!workflow.loading && !allowed) {
     return <div dir="rtl" className="space-y-4 p-3 md:p-5">{header}<InternalLockedState title="لا توجد صلاحية" message={workflow.branchId ? `لا يوجد لديك صلاحية "${step.title}" في فرع ${workflow.branchName(workflow.branchId)}. اختر فرعاً آخر أو اطلب منحك الصلاحية على هذا الفرع.` : "اختر الفرع أولاً."} /></div>
@@ -185,6 +186,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
   return <div dir="rtl" className="space-y-4 p-3 md:p-5">
     {header}
     <Messages innerRef={pageMessagesRef} />
+    {autoReceive && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">"استلام البضاعة تلقائي" مفعّل: اعتماد التجهيز ينشئ الارسالية الداخلية بالكميات المجهزة ويُغلق الطلب — لا مراحل بعد التجهيز.</div>}
     {!enabled && <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">هذه المرحلة معطلة في إعدادات طلب بضاعة داخلي؛ تظهر هنا فقط الطلبات التي وصلتها قبل تعطيلها.</div>}
     {listError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{listError}</div>}
 
@@ -195,7 +197,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
     </div>
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      {visible.map((request) => <InternalRequestCard key={request.id} request={request} branchName={workflow.branchName} warehouseName={workflow.warehouseName} actionLabel={step.verb || "فتح الطلب"} onOpen={() => openRequest(request)} highlightBranchId={workflow.branchId} />)}
+      {visible.map((request) => <InternalRequestCard key={request.id} request={request} branchName={workflow.branchName} warehouseName={workflow.warehouseName} actionLabel={approveLabel || "فتح الطلب"} onOpen={() => openRequest(request)} highlightBranchId={workflow.branchId} />)}
     </div>
     {!loading && !listError && visible.length === 0 && <div className="rounded-xl border-2 border-dashed py-14 text-center text-muted-foreground"><FileText className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><div className="font-semibold text-foreground">لا توجد طلبات في هذه المرحلة</div><div className="mt-1 text-sm">{search ? "لا توجد نتائج مطابقة للبحث." : "ستظهر هنا الطلبات فور وصولها لهذه المرحلة."}</div></div>}
 
@@ -254,7 +256,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setSelected(null)} disabled={saving}>إغلاق</Button>
             {stageKey === "requestAudit" && canEditRequest && <Button variant="outline" onClick={() => void saveOnly()} disabled={saving || !dirty}><Save className="ml-2 h-4 w-4" />حفظ التعديلات</Button>}
-            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void approve()} disabled={saving || !allowed}><CheckCircle2 className="ml-2 h-4 w-4" />{saving ? "جارٍ الحفظ..." : step.verb}</Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void approve()} disabled={saving || !allowed}><CheckCircle2 className="ml-2 h-4 w-4" />{saving ? "جارٍ الحفظ..." : approveLabel}</Button>
           </div>
         </div>}
       </DialogContent>

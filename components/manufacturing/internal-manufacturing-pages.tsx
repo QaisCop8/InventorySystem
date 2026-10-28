@@ -15,7 +15,7 @@ import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import InternalStagePage from "./internal-stage-page"
-import { INTERNAL_STEPS, InternalLockedState, InternalPageHeader, InternalStepper, SIDE_LABELS, useInternalWorkflow, type InternalSettings } from "./internal-workflow-shared"
+import { INTERNAL_STEPS, isAfterAutoReceive, InternalLockedState, InternalPageHeader, SIDE_LABELS, useInternalWorkflow, type InternalSettings } from "./internal-workflow-shared"
 
 function LegacyInternalManufacturingOldRequestPage() {
   const { activeBranchId, user, hasPermission } = useAuth()
@@ -192,7 +192,7 @@ function LegacyInternalManufacturingRequestPage() {
 const MANDATORY_STEPS = new Set(["request", "preparation", "receive"])
 export function InternalManufacturingSettingsPage() {
   const workflow = useInternalWorkflow()
-  const [settings, setSettings] = useState<InternalSettings>({ requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true })
+  const [settings, setSettings] = useState<InternalSettings>({ requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true, autoReceive: false })
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
   const canSave = workflow.permissions?.settings === true
@@ -212,20 +212,27 @@ export function InternalManufacturingSettingsPage() {
   return <div dir="rtl" className="space-y-4 p-3 md:p-5">
     <InternalPageHeader title="إعدادات طلب بضاعة داخلي" description="حدد المراحل الاختيارية التي يمر بها كل طلب. الصلاحيات تُمنح لكل مرحلة على مستوى الفرع من شاشة الصلاحيات." icon={Settings2}
       branchLabel={workflow.branchId ? workflow.branchName(workflow.branchId) : undefined}
-      actions={<Button onClick={() => void saveSettings()} disabled={!canSave || saving}><Save className="ml-2 h-4 w-4" />{saving ? "جارٍ الحفظ..." : "حفظ الإعدادات"}</Button>}>
-      <InternalStepper settings={settings} permissions={workflow.permissions} />
-    </InternalPageHeader>
+      actions={<Button onClick={() => void saveSettings()} disabled={!canSave || saving}><Save className="ml-2 h-4 w-4" />{saving ? "جارٍ الحفظ..." : "حفظ الإعدادات"}</Button>} />
     {!workflow.loading && !canSave && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">عرض فقط — لا يوجد لديك صلاحية "إعدادات طلب بضاعة داخلي" في هذا الفرع، لذلك لا يمكنك تعديل المراحل.</div>}
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {INTERNAL_STEPS.map((step) => {
-        const mandatory = MANDATORY_STEPS.has(step.key)
-        const checked = !step.setting || settings[step.setting] !== false
+        // "استلام البضاعة تلقائي": التجهيز آخر مرحلة — المراحل بعده خارج السير
+        const skipped = isAfterAutoReceive(step, settings)
+        const mandatory = MANDATORY_STEPS.has(step.key) && !skipped
+        const checked = !skipped && (!step.setting || settings[step.setting] !== false)
         return <div key={step.key} className={`flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm dark:bg-slate-950 ${checked ? "" : "opacity-70"}`}>
           <div className="flex items-start justify-between gap-2">
             <span className="flex items-center gap-2 font-bold"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><step.icon className="h-5 w-5" /></span>{step.title}</span>
-            {mandatory ? <Badge>إجباري</Badge> : <Switch checked={checked} disabled={!canSave} onCheckedChange={(value) => step.setting && setSettings((current) => ({ ...current, [step.setting!]: value }))} aria-label={step.title} />}
+            {skipped ? <Badge variant="outline">غير مستخدمة</Badge> : mandatory ? <Badge>إجباري</Badge> : <Switch checked={checked} disabled={!canSave} onCheckedChange={(value) => step.setting && setSettings((current) => ({ ...current, [step.setting!]: value }))} aria-label={step.title} />}
           </div>
-          <p className="text-sm text-muted-foreground">{step.description}</p>
+          <p className="text-sm text-muted-foreground">{skipped ? "لا تُستخدم — \"استلام البضاعة تلقائي\" مفعّل في مرحلة التجهيز، فيُغلق الطلب عند التجهيز." : step.description}</p>
+          {step.key === "preparation" && <label className={`flex items-start gap-3 rounded-lg border p-3 ${settings.autoReceive ? "border-emerald-300 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-950/30" : "bg-muted/30"}`}>
+            <Switch checked={settings.autoReceive === true} disabled={!canSave} onCheckedChange={(value) => setSettings((current) => ({ ...current, autoReceive: value }))} aria-label="استلام البضاعة تلقائي" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">استلام البضاعة تلقائي</span>
+              <span className="block text-xs text-muted-foreground">التجهيز آخر مرحلة: اعتماده ينشئ الارسالية الداخلية بالكميات المجهزة ويُغلق الطلب، دون تدقيق الجاهز أو الإرسال أو الاستلام.</span>
+            </span>
+          </label>}
           <div className="mt-auto flex flex-wrap gap-1.5 text-[11px]">
             <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">{SIDE_LABELS[step.side]}</span>
             <span className={`rounded-full px-2 py-0.5 ${workflow.permissions?.[step.permission] ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{workflow.permissions?.[step.permission] ? "لديك صلاحية في هذا الفرع" : "لا صلاحية في هذا الفرع"}</span>

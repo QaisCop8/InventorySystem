@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Building2, CheckCircle2, Cl
 import { useAuth } from "@/components/auth/auth-context"
 import InternalItemImage from "./internal-item-image"
 import {
-  INTERNAL_ACTION_LABELS, INTERNAL_STATUS_LABELS, INTERNAL_STEPS, InternalLockedState, InternalPageHeader, InternalStepper, RefreshButton, SIDE_LABELS,
+  INTERNAL_ACTION_LABELS, INTERNAL_STATUS_LABELS, INTERNAL_STEPS, InternalLockedState, InternalPageHeader, RefreshButton, SIDE_LABELS,
   ageLabel, formatQuantity, isStepEnabled, openInternalSection, useInternalWorkflow,
 } from "./internal-workflow-shared"
 
@@ -56,9 +56,7 @@ export default function InternalDashboardPage() {
     icon={LayoutDashboard}
     branchLabel={workflow.branchId ? workflow.branchName(workflow.branchId) : undefined}
     actions={<RefreshButton loading={loading} onClick={() => { void load(); void workflow.reload() }} />}
-  >
-    <InternalStepper settings={workflow.settings} counts={workflow.counts} permissions={workflow.permissions} current="dashboard" />
-  </InternalPageHeader>
+  />
 
   if (!workflow.loading && !allowed) {
     return <div dir="rtl" className="space-y-4 p-3 md:p-5">{header}<InternalLockedState title="لا توجد صلاحية" message={`لا يوجد لديك صلاحية "لوحة متابعة طلبات البضاعة" في فرع ${workflow.branchName(workflow.branchId)}.`} /></div>

@@ -7,7 +7,8 @@ import { useAuth } from "@/components/auth/auth-context"
 import InternalItemImage from "./internal-item-image"
 
 export type InternalPermissionKey = "dashboard" | "create" | "edit" | "delete" | "requestAudit" | "prepare" | "readyAudit" | "send" | "receive" | "receivedAudit" | "archive" | "settings"
-export type InternalSettings = { requestAudit: boolean; preparation: boolean; readyAudit: boolean; send: boolean; receive: boolean; receivedAudit: boolean }
+// autoReceive = "استلام البضاعة تلقائي": التجهيز آخر مرحلة (ينشئ الارسالية الداخلية ويغلق الطلب)
+export type InternalSettings = { requestAudit: boolean; preparation: boolean; readyAudit: boolean; send: boolean; receive: boolean; receivedAudit: boolean; autoReceive?: boolean }
 export type InternalStepKey = "request" | "requestAudit" | "preparation" | "readyAudit" | "send" | "receive" | "receivedAudit"
 export type InternalStageAction = "requestAudit" | "prepare" | "readyAudit" | "send" | "receive" | "receivedAudit"
 
@@ -42,7 +43,9 @@ export const INTERNAL_STATUS_LABELS: Record<number, string> = { 1: "مسودة",
 export const INTERNAL_ACTION_LABELS: Record<string, string> = { create: "إنشاء الطلب", update: "تعديل الطلب", delete: "حذف الطلب", requestAudit: "تدقيق الطلب", prepare: "تجهيز الطلب", readyAudit: "تدقيق الجاهز", send: "إرسال الطلب", receive: "استلام الطلب", receivedAudit: "إغلاق الطلب" }
 export const SIDE_LABELS = { requester: "فرع مقدم الطلب", supplier: "الفرع المطلوب منه البضاعة" } as const
 
-export const isStepEnabled = (step: InternalStep, settings: InternalSettings | null) => !step.setting || !settings || settings[step.setting] !== false
+/** هل المرحلة ضمن السير؟ مع "استلام البضاعة تلقائي" لا مراحل بعد التجهيز. */
+export const isAfterAutoReceive = (step: InternalStep, settings: InternalSettings | null) => Boolean(settings?.autoReceive) && step.status > 3
+export const isStepEnabled = (step: InternalStep, settings: InternalSettings | null) => !isAfterAutoReceive(step, settings) && (!step.setting || !settings || settings[step.setting] !== false)
 export const openInternalSection = (section: string) => window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section } }))
 
 export const formatQuantity = (value: unknown) => {

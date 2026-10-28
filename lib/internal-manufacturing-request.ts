@@ -39,9 +39,11 @@ export type InternalManufacturingSettings = {
   send: boolean
   receive: boolean
   receivedAudit: boolean
+  /** استلام البضاعة تلقائي: اعتماد التجهيز ينشئ الارسالية الداخلية ويغلق الطلب — لا مراحل بعده */
+  autoReceive: boolean
 }
 
-const DEFAULT_SETTINGS: InternalManufacturingSettings = { requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true }
+const DEFAULT_SETTINGS: InternalManufacturingSettings = { requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true, autoReceive: false }
 const ACTION_PERMISSIONS: Record<InternalManufacturingPermission, string> = {
   create: "إنشاء طلب بضاعة داخلي",
   requestAudit: "تدقيق طلب البضاعة",
@@ -212,6 +214,7 @@ export async function saveInternalManufacturingSettings(value: Partial<InternalM
 export function nextInternalManufacturingStatus(current: InternalManufacturingStatus, settings: InternalManufacturingSettings, action: InternalManufacturingAction): InternalManufacturingStatus {
   if (action === "create") return settings.requestAudit ? INTERNAL_MANUFACTURING_STATUS.RequestAudit : INTERNAL_MANUFACTURING_STATUS.Preparation
   if (action === "requestAudit") return INTERNAL_MANUFACTURING_STATUS.Preparation
+  if (action === "prepare" && settings.autoReceive) return INTERNAL_MANUFACTURING_STATUS.Completed
   if (action === "prepare") return settings.readyAudit ? INTERNAL_MANUFACTURING_STATUS.ReadyAudit : settings.send ? INTERNAL_MANUFACTURING_STATUS.Send : INTERNAL_MANUFACTURING_STATUS.Receive
   if (action === "readyAudit") return settings.send ? INTERNAL_MANUFACTURING_STATUS.Send : INTERNAL_MANUFACTURING_STATUS.Receive
   if (action === "send") return INTERNAL_MANUFACTURING_STATUS.Receive
@@ -430,6 +433,15 @@ export async function processInternalManufacturingAction(id: number, action: Exc
         const value = Number(preparedItems.find((candidate: any) => Number(candidate.id) === Number(item.id))?.prepared_quantity)
         if (!Number.isFinite(value) || value < 0 || value > 100000) throw new Error("الكمية المجهزة يجب أن تكون بين 0 و100000")
         await client.query(`UPDATE voucher_items_tbl SET prepared_quantity=$1 WHERE id=$2`, [value, item.id])
+        item.prepared_quantity = value
+      }
+    }
+    // استلام البضاعة تلقائي: الكمية المستلمة = المجهزة، والارسالية الداخلية تُنشأ مع التجهيز
+    const autoReceive = action === "prepare" && settings.autoReceive
+    if (autoReceive) {
+      for (const item of items) {
+        await client.query(`UPDATE voucher_items_tbl SET received_quantity=$1 WHERE id=$2`, [item.prepared_quantity, item.id])
+        item.received_quantity = item.prepared_quantity
       }
     }
     if (action === "receive") {
@@ -446,59 +458,62 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     if (!updated.rowCount) throw new Error("تمت معالجة الطلب من مستخدم آخر")
     const afterItems = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 ORDER BY id`, [id])).rows
     await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,from_status,to_status,user_id,before_snapshot,after_snapshot,request_snapshot) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [id, action, request.internal_status, next, userId, JSON.stringify(beforeSnapshot), JSON.stringify(itemSnapshot(afterItems)), JSON.stringify(requestSnapshot(request))])
-    if (action === "receive") {
-      const currencyResult = await client.query("SELECT id FROM currency ORDER BY id ASC LIMIT 1")
-      if (!currencyResult.rowCount) throw new Error("يجب تعريف عملة قبل اعتماد الارسالية الداخلية")
-      const priceCategoryResult = await client.query("SELECT id FROM pricecategory ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id ASC LIMIT 1")
-      if (!priceCategoryResult.rowCount) throw new Error("يجب تعريف فئة سعر قبل اعتماد الارسالية الداخلية")
-      // دفتر السندات الافتراضي للمستخدم المنفِّذ على نوع "ارسالية داخلية" (10) — وإن لم يوجد يُحفظ على الدفتر 0.
-      const hasBookPermissions = (await client.query("SELECT to_regclass('voucher_book_user_permissions_tbl') IS NOT NULL AND to_regclass('voucher_books_tbl') IS NOT NULL AS ok")).rows[0]?.ok
-      const defaultBook = !hasBookPermissions ? null : (await client.query(
-        `SELECT p.vch_book_id, b.name FROM voucher_book_user_permissions_tbl p JOIN voucher_books_tbl b ON b.id = p.vch_book_id
-         WHERE p.user_id = $1 AND p.voucher_type_id = $2 AND COALESCE(p.is_default, 0) = 1
-         ORDER BY p.vch_book_id LIMIT 1`,
-        [userId, INTERNAL_DELIVERY_VCH_TYPE],
-      )).rows[0]
-      const voucherBookId = Number(defaultBook?.vch_book_id || 0)
-      let transferCode: string
-      if (voucherBookId) {
-        // نفس صيغة ترقيم سندات المخزون: بادئة الإعدادات + رمز الدفتر + تسلسل.
-        const { prefix, startNumber } = await getStockVoucherNumberSettings("", INTERNAL_DELIVERY_VCH_TYPE)
-        // الكود = بادئة + رمز الفرع + رمز الدفتر + التسلسل
-        const hasSymbolColumn = (await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'branches' AND column_name = 'branch_symbol' LIMIT 1")).rowCount
-        const branchSymbol = hasSymbolColumn && Number(request.branch_id) > 0
-          ? String((await client.query("SELECT branch_symbol FROM branches WHERE id = $1", [Number(request.branch_id)])).rows[0]?.branch_symbol || "").trim().toUpperCase()
-          : ""
-        const bookSegment = `${branchSymbol}${String(defaultBook?.name || "").trim().toUpperCase()}`
-        const codePrefix = `${prefix}${bookSegment}`
-        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`stock-voucher:${INTERNAL_DELIVERY_VCH_TYPE}:${codePrefix}`])
-        const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = $1 AND vch_code LIKE $2", [INTERNAL_DELIVERY_VCH_TYPE, `${codePrefix}%`])
-        const lastSerial = codeResult.rows.reduce((highest: number, row: any) => {
-          const match = String(row.vch_code || "").slice(codePrefix.length).match(/^[A-Za-z]?([0-9]+)$/)
-          return match ? Math.max(highest, Number(match[1])) : highest
-        }, 0)
-        transferCode = buildVoucherCode(prefix, bookSegment, lastSerial >= startNumber ? lastSerial + 1 : startNumber)
-      } else {
-        const codePrefix = "T0"
-        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [codePrefix])
-        const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = 10 AND vch_code LIKE $1", [`${codePrefix}%`])
-        const lastSerial = codeResult.rows.reduce((highest: number, row: any) => { const match = String(row.vch_code).match(/^T0(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest }, 0)
-        const nextSerial = lastSerial + 1
-        if (nextSerial > 99999999) throw new Error("تم تجاوز الحد الأقصى لأرقام الارساليات الداخلية")
-        transferCode = `${codePrefix}${String(nextSerial).padStart(8, "0")}`
-      }
-      for (const item of items) {
-        const priceResult = await client.query(`SELECT pu.unit_id, COALESCE(pp_selected.price, pp_fallback.price, 0) AS price FROM product_units pu LEFT JOIN product_prices pp_selected ON pp_selected.product_id=pu.product_id AND pp_selected.unit_id=pu.unit_id AND pp_selected.price_category_id=$3 LEFT JOIN product_prices pp_fallback ON pp_fallback.product_id=pu.product_id AND pp_fallback.unit_id=pu.unit_id AND pp_fallback.price_category_id=1 WHERE pu.product_id=$1 AND ($2::int IS NULL OR pu.unit_id=$2) ORDER BY CASE WHEN $2::int IS NOT NULL AND pu.unit_id=$2 THEN 0 ELSE 1 END, pu.id LIMIT 1`, [item.item_id, Number(item.unit_id ?? item.unitId ?? 0) || null, priceCategoryResult.rows[0].id])
-        item.unit_id = Number(priceResult.rows[0]?.unit_id || item.unit_id || item.unitId || 0) || null
-        item.price = Number(priceResult.rows[0]?.price || 0)
-      }
-      const transferTotal = items.reduce((total: number, item: any) => total + Number(item.received_quantity || 0) * Number(item.price || 0), 0)
-      const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_TIMESTAMP,$2,$3,1,$4,$5,$6,$7,1,1,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
-      for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,price,barcode,item_properties) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [transfer.rows[0].id, item.item_id, item.item_name, Number(item.unit_id ?? item.unitId ?? 0) || null, request.to_store_id || null, Number(item.received_quantity), Number(item.price || 0), item.barcode, item.item_properties ? JSON.stringify(item.item_properties) : null])
-    }
+    if (action === "receive" || autoReceive) await createInternalTransferVoucher(client, request, items, id, userId)
     await client.query("COMMIT")
     return { status: next }
   } catch (error) { await client.query("ROLLBACK"); throw error } finally { client.release() }
+}
+
+/** الارسالية الداخلية (10) بالكميات المستلمة — عند الاستلام، أو مع التجهيز إذا كان "استلام البضاعة تلقائي" مفعلاً. */
+async function createInternalTransferVoucher(client: any, request: any, items: any[], id: number, userId: number) {
+  const currencyResult = await client.query("SELECT id FROM currency ORDER BY id ASC LIMIT 1")
+  if (!currencyResult.rowCount) throw new Error("يجب تعريف عملة قبل اعتماد الارسالية الداخلية")
+  const priceCategoryResult = await client.query("SELECT id FROM pricecategory ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id ASC LIMIT 1")
+  if (!priceCategoryResult.rowCount) throw new Error("يجب تعريف فئة سعر قبل اعتماد الارسالية الداخلية")
+  // دفتر السندات الافتراضي للمستخدم المنفِّذ على نوع "ارسالية داخلية" (10) — وإن لم يوجد يُحفظ على الدفتر 0.
+  const hasBookPermissions = (await client.query("SELECT to_regclass('voucher_book_user_permissions_tbl') IS NOT NULL AND to_regclass('voucher_books_tbl') IS NOT NULL AS ok")).rows[0]?.ok
+  const defaultBook = !hasBookPermissions ? null : (await client.query(
+    `SELECT p.vch_book_id, b.name FROM voucher_book_user_permissions_tbl p JOIN voucher_books_tbl b ON b.id = p.vch_book_id
+     WHERE p.user_id = $1 AND p.voucher_type_id = $2 AND COALESCE(p.is_default, 0) = 1
+     ORDER BY p.vch_book_id LIMIT 1`,
+    [userId, INTERNAL_DELIVERY_VCH_TYPE],
+  )).rows[0]
+  const voucherBookId = Number(defaultBook?.vch_book_id || 0)
+  let transferCode: string
+  if (voucherBookId) {
+    // نفس صيغة ترقيم سندات المخزون: بادئة الإعدادات + رمز الدفتر + تسلسل.
+    const { prefix, startNumber } = await getStockVoucherNumberSettings("", INTERNAL_DELIVERY_VCH_TYPE)
+    // الكود = بادئة + رمز الفرع + رمز الدفتر + التسلسل
+    const hasSymbolColumn = (await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'branches' AND column_name = 'branch_symbol' LIMIT 1")).rowCount
+    const branchSymbol = hasSymbolColumn && Number(request.branch_id) > 0
+      ? String((await client.query("SELECT branch_symbol FROM branches WHERE id = $1", [Number(request.branch_id)])).rows[0]?.branch_symbol || "").trim().toUpperCase()
+      : ""
+    const bookSegment = `${branchSymbol}${String(defaultBook?.name || "").trim().toUpperCase()}`
+    const codePrefix = `${prefix}${bookSegment}`
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`stock-voucher:${INTERNAL_DELIVERY_VCH_TYPE}:${codePrefix}`])
+    const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = $1 AND vch_code LIKE $2", [INTERNAL_DELIVERY_VCH_TYPE, `${codePrefix}%`])
+    const lastSerial = codeResult.rows.reduce((highest: number, row: any) => {
+      const match = String(row.vch_code || "").slice(codePrefix.length).match(/^[A-Za-z]?([0-9]+)$/)
+      return match ? Math.max(highest, Number(match[1])) : highest
+    }, 0)
+    transferCode = buildVoucherCode(prefix, bookSegment, lastSerial >= startNumber ? lastSerial + 1 : startNumber)
+  } else {
+    const codePrefix = "T0"
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [codePrefix])
+    const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = 10 AND vch_code LIKE $1", [`${codePrefix}%`])
+    const lastSerial = codeResult.rows.reduce((highest: number, row: any) => { const match = String(row.vch_code).match(/^T0(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest }, 0)
+    const nextSerial = lastSerial + 1
+    if (nextSerial > 99999999) throw new Error("تم تجاوز الحد الأقصى لأرقام الارساليات الداخلية")
+    transferCode = `${codePrefix}${String(nextSerial).padStart(8, "0")}`
+  }
+  for (const item of items) {
+    const priceResult = await client.query(`SELECT pu.unit_id, COALESCE(pp_selected.price, pp_fallback.price, 0) AS price FROM product_units pu LEFT JOIN product_prices pp_selected ON pp_selected.product_id=pu.product_id AND pp_selected.unit_id=pu.unit_id AND pp_selected.price_category_id=$3 LEFT JOIN product_prices pp_fallback ON pp_fallback.product_id=pu.product_id AND pp_fallback.unit_id=pu.unit_id AND pp_fallback.price_category_id=1 WHERE pu.product_id=$1 AND ($2::int IS NULL OR pu.unit_id=$2) ORDER BY CASE WHEN $2::int IS NOT NULL AND pu.unit_id=$2 THEN 0 ELSE 1 END, pu.id LIMIT 1`, [item.item_id, Number(item.unit_id ?? item.unitId ?? 0) || null, priceCategoryResult.rows[0].id])
+    item.unit_id = Number(priceResult.rows[0]?.unit_id || item.unit_id || item.unitId || 0) || null
+    item.price = Number(priceResult.rows[0]?.price || 0)
+  }
+  const transferTotal = items.reduce((total: number, item: any) => total + Number(item.received_quantity || 0) * Number(item.price || 0), 0)
+  const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_TIMESTAMP,$2,$3,1,$4,$5,$6,$7,1,1,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
+  for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,price,barcode,item_properties) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [transfer.rows[0].id, item.item_id, item.item_name, Number(item.unit_id ?? item.unitId ?? 0) || null, request.to_store_id || null, Number(item.received_quantity), Number(item.price || 0), item.barcode, item.item_properties ? JSON.stringify(item.item_properties) : null])
 }
 
 export function canEditInternalManufacturingRequest(status: number, settings: InternalManufacturingSettings) {
