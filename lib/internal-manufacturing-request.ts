@@ -1,6 +1,6 @@
 import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
 import { ensureTables as ensureReceiptTables } from "@/app/api/receipts/_lib"
-import { INTERNAL_DELIVERY_VCH_TYPE, buildVoucherCode, ensureTables as ensureStockTables, getStockVoucherNumberSettings } from "@/app/api/stock-vouchers/_lib"
+import { INTERNAL_DELIVERY_VCH_TYPE, applyVoucherStockEffect, buildVoucherCode,ensureTables as ensureStockTables, getStockVoucherNumberSettings } from "@/app/api/stock-vouchers/_lib"
 import { ensurePermissionTables, hasEffectivePermission } from "@/lib/permissions"
 
 export const INTERNAL_MANUFACTURING_VOUCHER_TYPE = 20
@@ -458,8 +458,17 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     if (!updated.rowCount) throw new Error("تمت معالجة الطلب من مستخدم آخر")
     const afterItems = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 ORDER BY id`, [id])).rows
     await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,from_status,to_status,user_id,before_snapshot,after_snapshot,request_snapshot) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [id, action, request.internal_status, next, userId, JSON.stringify(beforeSnapshot), JSON.stringify(itemSnapshot(afterItems)), JSON.stringify(requestSnapshot(request))])
-    if (action === "receive" || autoReceive) await createInternalTransferVoucher(client, request, items, id, userId)
+    const transfer = action === "receive" || autoReceive ? await createInternalTransferVoucher(client, request, items, id, userId) : null
     await client.query("COMMIT")
+    // الارسالية الداخلية تُنشأ معتمدة (status=2) ⇐ أثر المخزون كسند مخزون مرحّل (applyStockMovement يعمل
+    // عبر sql خارج اتصال هذه المعاملة، لذا يُطبَّق بعد COMMIT؛ صافيه صفر على product_stock)
+    if (transfer) {
+      try {
+        await applyVoucherStockEffect(INTERNAL_DELIVERY_VCH_TYPE, transfer.voucherId, transfer.items, transfer.fromStoreId, transfer.toStoreId)
+      } catch (stockError) {
+        console.error("internal transfer stock effect", transfer.voucherId, stockError)
+      }
+    }
     return { status: next }
   } catch (error) { await client.query("ROLLBACK"); throw error } finally { client.release() }
 }
@@ -511,8 +520,14 @@ async function createInternalTransferVoucher(client: any, request: any, items: a
     item.price = Number(priceResult.rows[0]?.price || 0)
   }
   const transferTotal = items.reduce((total: number, item: any) => total + Number(item.received_quantity || 0) * Number(item.price || 0), 0)
-  const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_TIMESTAMP,$2,$3,1,$4,$5,$6,$7,1,1,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
+  const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_TIMESTAMP,$2,$3,1,$4,$5,$6,$7,2,2,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
   for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,price,barcode,item_properties) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [transfer.rows[0].id, item.item_id, item.item_name, Number(item.unit_id ?? item.unitId ?? 0) || null, request.to_store_id || null, Number(item.received_quantity), Number(item.price || 0), item.barcode, item.item_properties ? JSON.stringify(item.item_properties) : null])
+  return {
+    voucherId: Number(transfer.rows[0].id),
+    fromStoreId: Number(request.destination_warehouse_id || 0) || null,
+    toStoreId: Number(request.to_store_id || 0) || null,
+    items: items.map((item: any) => ({ product_id: Number(item.item_id), quantity: Number(item.received_quantity || 0) })),
+  }
 }
 
 export function canEditInternalManufacturingRequest(status: number, settings: InternalManufacturingSettings) {

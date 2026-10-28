@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { UNIT_ROLE_COLUMNS, UNIT_ROLE_LABELS } from "@/lib/product-unit-roles"
+import { notifyProductsChanged } from "@/lib/products-changed"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
@@ -770,11 +771,23 @@ export function CompactProductForm({
           componentIds.add(Number(component.component_id))
         }
 
+      // وحدة الجرد/الشراء/التقارير غير محددة لأي وحدة ⇐ تُسند للوحدة الأولى (والخادم يطبق نفس القاعدة)
+      const savedUnits = (() => {
+        const list = (formData.units || []).map((unit) => ({ ...unit }))
+        const first = list.find((unit) => Number(unit.unit_id || 0) > 0)
+        if (first) for (const column of Object.values(UNIT_ROLE_COLUMNS)) {
+          if (!list.some((unit) => Number(unit.unit_id || 0) > 0 && (unit as any)[column] === true)) (first as any)[column] = true
+        }
+        return list
+      })()
+      setFormData((prev) => ({ ...prev, units: savedUnits }))
+
       const response = await fetch("/api/inventory/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          units: savedUnits,
           product_name_en: productNameEn,
           type: isService ? 2 : 1,
           service_type: isService ? 1 : 0,
@@ -805,6 +818,7 @@ export function CompactProductForm({
         life: 3000
       });
       onSuccess?.(savedProductId > 0 ? savedProductId : undefined)
+      notifyProductsChanged() // نوافذ بحث الأصناف المفتوحة (في أي تبويب) تُحدّث قائمتها
       // بعد الحفظ (إضافة أو تعديل): تفريغ الحقول وفتح سجل جديد برقم صنف جديد — مثل زر "جديد"
       if (canCreate) await reset_fields()
       else onHideDialog(true)
@@ -893,6 +907,7 @@ export function CompactProductForm({
         detail: 'تم حذف الصنف بنجاح ✅',
         life: 3000
       });
+      notifyProductsChanged()
 
       await reset_fields(); // clear form
 
@@ -1331,7 +1346,8 @@ export function CompactProductForm({
       to_main_qnty: 1,
       ser: 1,
       barcode_list: [],
-      is_stock_count_unit: false, is_purchase_unit: false, is_report_unit: false,
+      // الوحدة الأولى للصنف الجديد: وحدة الجرد والشراء والتقارير افتراضياً
+      is_stock_count_unit: true, is_purchase_unit: true, is_report_unit: true,
     };
 
     // --- Prices ---
@@ -1649,7 +1665,11 @@ export function CompactProductForm({
         to_main_qnty: 1,                  // default value
         ser: maxSer + 1,
         barcode_list: [],
-        is_stock_count_unit: false, is_purchase_unit: false, is_report_unit: false,
+        // أول وحدة تُضاف ⇐ الأدوار الثلاثة محددة؛ ما بعدها بلا أدوار (وحدة واحدة لكل دور)
+        ...(() => {
+          const first = !units.some((row) => Number(row.unit_id || 0) > 0)
+          return { is_stock_count_unit: first, is_purchase_unit: first, is_report_unit: first }
+        })(),
       };
       return {
         ...prev,

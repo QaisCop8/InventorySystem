@@ -1438,6 +1438,13 @@ export async function POST(request: NextRequest) {
       for (const [role, column] of Object.entries(UNIT_ROLE_COLUMNS) as [UnitRole, string][]) {
         if (productData.units.filter((unit: any) => unit?.[column] === true).length > 1) throw new Error(`يجب اختيار ${UNIT_ROLE_LABELS[role]} لوحدة واحدة فقط`)
       }
+      // دور بلا وحدة محددة ⇐ يُسند للوحدة الأولى
+      const firstRoleUnit = productData.units.find((unit: any) => Number(unit?.unit_id || 0) > 0)
+      if (firstRoleUnit) {
+        for (const column of Object.values(UNIT_ROLE_COLUMNS)) {
+          if (!productData.units.some((unit: any) => Number(unit?.unit_id || 0) > 0 && unit?.[column] === true)) firstRoleUnit[column] = true
+        }
+      }
       for (const unit of productData.units) {
         const realUnitId = Number(unit.unit_id || 0)
         if (!realUnitId) continue

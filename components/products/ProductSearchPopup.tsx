@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredVa
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { onProductsChanged } from "@/lib/products-changed";
 import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report";
 
 const PRODUCT_TYPE_OPTIONS: ReportOption[] = [
@@ -141,6 +142,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const forceRefreshRef = useRef(false);
+  const selectedProductRef = useRef<Product | null>(null);
+  selectedProductRef.current = selectedProduct;
+  const loadUnitsRef = useRef<(product: Product) => Promise<Unit[]>>(async () => []);
   const [productsLoading, setProductsLoading] = useState(false);
   // "من نموذج": قصر النتائج على أصناف نماذج العميل الفعّالة بتاريخ الحركة
   const [templateFilter, setTemplateFilter] = useState<{ ids: Set<number>; label: string } | null>(null);
@@ -190,6 +195,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       _name: String(p.product_name || "").toLowerCase(),
       _barcodes: [p.first_barcode, p.barcode].filter(Boolean).join(" ").toLowerCase(),
     }));
+    // تحديث تلقائي (عودة من تبويب إضافة/تعديل صنف أو حفظ صنف في تبويب آخر): يتجاوز الذاكرة المؤقتة ويُبقي الفلاتر
+    const forceRefresh = forceRefreshRef.current;
+    forceRefreshRef.current = false;
     const fetchProducts = async () => {
       // lite=1: حقول العرض والبحث فقط (~عُشر الحجم)؛ الصنف الكامل يُجلب عند الاختيار (hydrateSelection)
       let url = `/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=true&lite=1`;
@@ -201,15 +209,15 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         cacheKey = `${sessionStorage.getItem("active_company_id") || "default"}:${url}`;
       } catch { /* use the URL key when storage is unavailable */ }
       const cached = productListCache.get(cacheKey);
-      if (cached) {
+      if (cached && !forceRefresh) {
         setProducts(normalize(cached.data));
         setSelectedProduct(null);
         if (Date.now() - cached.at < LIST_CACHE_MS) return;
-      } else {
+      } else if (!cached) {
         setProductsLoading(true);
       }
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, forceRefresh ? { cache: "no-store" } : undefined);
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error("invalid products response");
         productListCache.set(cacheKey, { at: Date.now(), data });
@@ -220,6 +228,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             return normalize(data).map((item: Product) => selectedKeys.has(item._variant_key) ? { ...item, selected: true } : item);
           });
           if (!cached) setSelectedProduct(null);
+          // الصنف المحدد: بياناته ووحداته من جديد (مثلاً بعد إضافة وحدة له)
+          const current = selectedProductRef.current;
+          if (forceRefresh && current) {
+            const fresh = normalize(data).find((item: Product) => item._variant_key === current._variant_key || Number(item.id) === Number(current.id));
+            if (!fresh) setSelectedProduct(null);
+            else void loadUnitsRef.current(fresh).then((units) => { if (!cancelled && selectedProductRef.current?.id === current.id) setSelectedProduct({ ...fresh, units }); });
+          }
         }
       } catch (err) {
         console.error("Failed to fetch products:", err);
@@ -230,11 +245,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     };
 
     fetchProducts();
-    setSearchCode("");
-    setSearchName(searchText || "");
-    setSearchBarcode("");
-    setSearchPrice("");
-    let focusAttemptCancelled = false
+    if (!forceRefresh) {
+      setSearchCode("");
+      setSearchName(searchText || "");
+      setSearchBarcode("");
+      setSearchPrice("");
+    }
+    let focusAttemptCancelled = forceRefresh
     const tryFocus = () => {
       if (focusAttemptCancelled) return
       if (window.matchMedia("(max-width: 639px)").matches) return
@@ -285,9 +302,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
   useEffect(() => {
     if (!visible) return;
-    const refreshAfterReturn = () => setRefreshVersion((value) => value + 1);
+    const refreshAfterReturn = () => {
+      forceRefreshRef.current = true;
+      productListCache.clear();
+      unitsCacheRef.current.clear();
+      fullCacheRef.current.clear();
+      setRefreshVersion((value) => value + 1);
+    };
+    // حفظ صنف (إضافة/تعديل/وحدة جديدة) في أي تبويب ⇐ تحديث فوري، والعودة للتبويب ⇐ تحديث أيضاً
+    const unsubscribe = onProductsChanged(refreshAfterReturn);
     window.addEventListener("focus", refreshAfterReturn);
-    return () => window.removeEventListener("focus", refreshAfterReturn);
+    return () => { unsubscribe(); window.removeEventListener("focus", refreshAfterReturn); };
   }, [visible]);
 
   useEffect(() => {
@@ -443,6 +468,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }
     return priceUnits(product, await pending);
   }, [priceCategoryId, priceUnits]);
+  loadUnitsRef.current = loadUnits;
 
   // البيانات الكاملة للأصناف (?ids=) — طلب واحد لكل الأصناف غير المخزّنة، ووعد لكل صنف في الذاكرة
   const fetchFullProducts = useCallback((ids: number[]) => {
@@ -667,11 +693,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       // Escape داخل قائمة منسدلة مفتوحة يغلقها هي فقط
       if ((e.target as HTMLElement | null)?.closest?.(".p-dropdown-panel, .p-multiselect-panel")) return;
       e.preventDefault();
-      e.stopPropagation();
+      e.stopImmediatePropagation();
       onClose();
     };
-    document.addEventListener("keydown", handleEscape, true);
-    return () => document.removeEventListener("keydown", handleEscape, true);
+    // window (التقاط) يسبق document: نافذة Radix الأم (مثل طلب بضاعة داخلي) تستمع لـESC على document
+    // فكانت تُغلق مع هذه النافذة. هنا يُستهلك ESC قبل وصوله إليها فتُغلق نافذة البحث وحدها.
+    window.addEventListener("keydown", handleEscape, true);
+    return () => window.removeEventListener("keydown", handleEscape, true);
   }, [visible, onClose]);
 
   const resultColumns = useMemo<SearchColumn<Product>[]>(() => [
