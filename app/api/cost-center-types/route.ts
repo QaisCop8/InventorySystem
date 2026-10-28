@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { runSchemaOnce } from "@/lib/schema-once"
+import { costCenterNameTaken, ensureCostCenterTables } from "@/lib/cost-centers-schema"
 
-const ensureCostCenterTypesTable = async () => { return runSchemaOnce("app/api/cost-center-types/route.ts#ensureCostCenterTypesTable", async () => {
-  await sql`
-    CREATE TABLE IF NOT EXISTS cost_center_types (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `
-}) }
+// الجدول وتفرّد الاسم (غير المحذوف فقط) في lib/cost-centers-schema.ts
+const ensureCostCenterTypesTable = ensureCostCenterTables
 
 export async function GET() {
   try {
@@ -47,11 +38,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "الحالة يجب أن تكون 1 أو 2 أو 3" }, { status: 400 })
     }
 
-    const existing = await sql`
-      SELECT id FROM cost_center_types WHERE LOWER(name) = LOWER(${String(data.name).trim()})
-    `
-
-    if (existing.length > 0) {
+    // الأنواع المحذوفة (status = 3) لا تمنع إعادة استخدام الاسم
+    if (await costCenterNameTaken("cost_center_types", String(data.name).trim())) {
       return NextResponse.json({ error: "اسم النوع موجود مسبقاً" }, { status: 400 })
     }
 

@@ -8,7 +8,7 @@ import { applyBulkItems, ensureBulkItemSchema, previewBulkItems } from "@/lib/bu
 // POST {action: "preview", filters, price_category_id} = الأصناف المطابقة، {action: "apply", ...} = تطبيق التعديل
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authorizeTransaction(request, "bulk_items", "view", "")
+    const auth = await authorizeTransaction(request, "bulk_items", "access", "")
     if (!auth.ok) return auth.response
     await ensureBulkItemSchema()
     const safe = async (query: Promise<any>) => { try { return await query } catch { return [] } }
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       const result = await applyBulkItems({ filters: body.filters || {}, productIds: body.product_ids || [], changes: body.changes || {}, price: body.price || null })
       return NextResponse.json(result)
     }
-    const auth = await authorizeTransaction(request, "bulk_items", "view", "")
+    const auth = await authorizeTransaction(request, "bulk_items", "access", "")
     if (!auth.ok) return auth.response
     return NextResponse.json(await previewBulkItems(body.filters || {}, Number(body.price_category_id) || null))
   } catch (error: any) {

@@ -108,6 +108,29 @@ export const resolveAccountType = (entityType: unknown) => {
   return 2
 }
 
+/**
+ * القائمة المالية وبند الأصول/الخصوم/قائمة الدخل لحساب العميل/المورد/المشترك تُورَث من الحساب الأب
+ * (كان مثبتاً: الميزانية + بند أصول رقم 2 لكل الجهات، فيظهر حساب المورد مثلاً تحت بند أصول خاطئ).
+ * بلا أب: الميزانية العمومية بلا بند.
+ */
+export const financialListFromFather = async (fatherId: number | null) => {
+  if (fatherId) {
+    const father = (await sql`
+      SELECT finanical_list_id, finanical_list_assests_id, finanical_list_liabilities_id, finanical_list_income_id
+      FROM account_tbl WHERE id = ${fatherId} LIMIT 1
+    `)[0] as any
+    if (father) {
+      return {
+        listId: Number(father.finanical_list_id) || 1,
+        assetsId: father.finanical_list_assests_id == null ? null : Number(father.finanical_list_assests_id),
+        liabilitiesId: father.finanical_list_liabilities_id == null ? null : Number(father.finanical_list_liabilities_id),
+        incomeId: father.finanical_list_income_id == null ? null : Number(father.finanical_list_income_id),
+      }
+    }
+  }
+  return { listId: 1, assetsId: null as number | null, liabilitiesId: null as number | null, incomeId: null as number | null }
+}
+
 export const ensureCustomerAccount = async ({
   accountId,
   code,
@@ -145,6 +168,7 @@ export const ensureCustomerAccount = async ({
   const finalFatherId = fatherId ? Number(fatherId) : null
   const finalLevelNo = Number(levelNo || 1) || 1
   const finalCreditLimit = creditLimit == null || !Number.isFinite(Number(creditLimit)) ? null : Math.max(0, Number(creditLimit))
+  const financial = await financialListFromFather(finalFatherId)
 
   if (accountId) {
     await sql`
@@ -153,10 +177,10 @@ export const ensureCustomerAccount = async ({
         code = ${normalizedCode},
         name = ${normalizedName},
         type = ${accountType},
-        finanical_list_id = 1,
-        finanical_list_assests_id = 2,
-        finanical_list_liabilities_id = NULL,
-        finanical_list_income_id = NULL,
+        finanical_list_id = ${financial.listId},
+        finanical_list_assests_id = ${financial.assetsId},
+        finanical_list_liabilities_id = ${financial.liabilitiesId},
+        finanical_list_income_id = ${financial.incomeId},
         father_id = ${finalFatherId},
         level_no = ${finalLevelNo},
         currency_id = ${finalCurrencyId},
@@ -195,10 +219,10 @@ export const ensureCustomerAccount = async ({
       SET
         name = ${normalizedName},
         type = ${accountType},
-        finanical_list_id = 1,
-        finanical_list_assests_id = 2,
-        finanical_list_liabilities_id = NULL,
-        finanical_list_income_id = NULL,
+        finanical_list_id = ${financial.listId},
+        finanical_list_assests_id = ${financial.assetsId},
+        finanical_list_liabilities_id = ${financial.liabilitiesId},
+        finanical_list_income_id = ${financial.incomeId},
         father_id = ${finalFatherId},
         level_no = ${finalLevelNo},
         currency_id = ${finalCurrencyId},
@@ -251,10 +275,10 @@ export const ensureCustomerAccount = async ({
       NULL,
       ${finalFatherId},
       ${finalLevelNo},
-      1,
-      2,
-      NULL,
-      NULL,
+      ${financial.listId},
+      ${financial.assetsId},
+      ${financial.liabilitiesId},
+      ${financial.incomeId},
       ${finalCurrencyId},
       ${finalAllowTransWithDiffCurr},
       ${finalIsCalcCurrDiffRates},

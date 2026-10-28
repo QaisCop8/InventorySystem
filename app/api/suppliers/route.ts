@@ -1,6 +1,7 @@
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { financialListFromFather } from "@/app/api/customers/_lib"
 
 const toNullableInt = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null
@@ -78,6 +79,7 @@ const ensureSupplierAccount = async ({
   const finalIsCalcCurrDiffRates = toBool(isCalcCurrDiffRates, false)
   const finalFatherId = fatherId ? Number(fatherId) : null
   const finalLevelNo = Number(levelNo || 1) || 1
+  const financial = await financialListFromFather(finalFatherId)
 
   if (accountId) {
     await sql`
@@ -86,10 +88,10 @@ const ensureSupplierAccount = async ({
         code = ${normalizedCode},
         name = ${normalizedName},
         type = ${accountType},
-        finanical_list_id = 1,
-        finanical_list_assests_id = 2,
-        finanical_list_liabilities_id = NULL,
-        finanical_list_income_id = NULL,
+        finanical_list_id = ${financial.listId},
+        finanical_list_assests_id = ${financial.assetsId},
+        finanical_list_liabilities_id = ${financial.liabilitiesId},
+        finanical_list_income_id = ${financial.incomeId},
         father_id = ${finalFatherId},
         level_no = ${finalLevelNo},
         currency_id = ${finalCurrencyId},
@@ -129,10 +131,10 @@ const ensureSupplierAccount = async ({
       SET
         name = ${normalizedName},
         type = ${accountType},
-        finanical_list_id = 1,
-        finanical_list_assests_id = 2,
-        finanical_list_liabilities_id = NULL,
-        finanical_list_income_id = NULL,
+        finanical_list_id = ${financial.listId},
+        finanical_list_assests_id = ${financial.assetsId},
+        finanical_list_liabilities_id = ${financial.liabilitiesId},
+        finanical_list_income_id = ${financial.incomeId},
         father_id = ${finalFatherId},
         level_no = ${finalLevelNo},
         currency_id = ${finalCurrencyId},
@@ -179,15 +181,15 @@ const ensureSupplierAccount = async ({
     ) VALUES (
       3,
       ${normalizedCode},
-      1,
+      ${accountType},
       ${normalizedName},
       NULL,
       ${finalFatherId},
       ${finalLevelNo},
-      1,
-      2,
-      NULL,
-      NULL,
+      ${financial.listId},
+      ${financial.assetsId},
+      ${financial.liabilitiesId},
+      ${financial.incomeId},
       ${finalCurrencyId},
       ${finalAllowTransWithDiffCurr},
       ${finalIsCalcCurrDiffRates},
