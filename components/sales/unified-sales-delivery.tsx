@@ -1017,6 +1017,8 @@ export default function UnifiedSalesDelivery({
   }
 
   const handleRequestSaveRef = useRef<() => void>(() => {})
+  // أحدث نسخة من مسار إغلاق النافذة (مع التحقق من التغييرات) لمعالج المفاتيح العام
+  const requestCloseRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
@@ -1074,6 +1076,16 @@ export default function UnifiedSalesDelivery({
           return
         }
         // If none of the inner popups are open, allow Dialog to handle closing (it will run guardedAction)
+        // وضع الصفحة الكاملة (DialogContent inline) بلا طبقة Radix فلا يصله ESC ⇐ نُغلق من هنا بنفس مسار
+        // الإغلاق (التحقق من التغييرات غير المحفوظة). نافذة داخلية مفتوحة تُغلق نفسها فقط.
+        if (openFullscreen && !event.defaultPrevented) {
+          const nestedOpen = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], .p-dialog'))
+            .some((element) => element.getClientRects().length > 0)
+          if (nestedOpen || keepDialogOpenOnEscape(event)) return
+          event.preventDefault()
+          requestCloseRef.current()
+          return
+        }
       }
       // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
@@ -3190,16 +3202,7 @@ export default function UnifiedSalesDelivery({
 
   // Inline page mode is not managed by Radix Presence, so do not mount the
   // form until the user opens a record/new voucher.
-  if (openFullscreen && !dialogOpen) return null
-
-  return (
-    <Dialog
-      open={dialogOpen}
-      onOpenChange={(open) => {
-        if (open) {
-          onOpenChange(true)
-          return
-        }
+  const requestClose = () => {
         // Prevent closing while saving or when any inner popup is open. If the form changed,
         // route the explicit X command through the existing confirmation dialog.
         if (isSaving) {
@@ -3217,6 +3220,20 @@ export default function UnifiedSalesDelivery({
           setPostDialogOpen(false)
         }
         guardedAction(() => onOpenChange(false))
+  }
+  requestCloseRef.current = requestClose
+
+  if (openFullscreen && !dialogOpen) return null
+
+  return (
+    <Dialog
+      open={dialogOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          onOpenChange(true)
+          return
+        }
+        requestClose()
       }}
     >
       <DialogContent

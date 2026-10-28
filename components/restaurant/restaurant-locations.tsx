@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { CreditCard, Edit, LayoutGrid, Loader2, MapPin, Package, Plus, RefreshCw, Search, Store, Trash2 } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { CreditCard, Edit, LayoutGrid, Loader2, MapPin, Package, Plus, Printer, RefreshCw, Save, Search, StickyNote, Store, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useFileAccess } from "@/components/auth/use-file-access"
@@ -59,6 +59,34 @@ function OptionSelect({ value, onChange, options, placeholder, disabled }: { val
   )
 }
 
+function FormSection({ icon, title, hint, children }: { icon: ReactNode; title: string; hint?: string; children: ReactNode }) {
+  return (
+    <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold">
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">{icon}</span>
+        {title}
+      </h3>
+      {hint ? <p className="mb-3 mt-1 text-xs text-muted-foreground">{hint}</p> : <div className="mb-3" />}
+      {children}
+    </section>
+  )
+}
+
+function SwitchRow({ checked, disabled, onChange, title, hint }: { checked: boolean; disabled?: boolean; onChange: (value: boolean) => void; title: string; hint?: string }) {
+  return (
+    <label className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition ${checked ? "border-emerald-300 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-950/30" : "bg-background"}`}>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{title}</span>
+        {hint && <span className="block text-[11px] text-muted-foreground">{hint}</span>}
+      </span>
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
+    </label>
+  )
+}
+
+// Enter كـTab داخل نموذج الموقع: حقول الإدخال + قوائم الاختيار (Radix Select) + المفاتيح، والأخير ⇐ زر الحفظ
+const NAV_SELECTOR = 'input:not([disabled]):not([readonly]):not([type="hidden"]), button[role="combobox"]:not([disabled]), button[role="switch"]:not([disabled]), textarea:not([disabled])'
+
 export default function RestaurantLocations() {
   const can = useFileAccess("restaurant-locations")
   const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
@@ -75,6 +103,8 @@ export default function RestaurantLocations() {
   const [saving, setSaving] = useState(false)
   const initialRef = useRef("")
   const nextCodeRef = useRef("")
+  const formBodyRef = useRef<HTMLDivElement | null>(null)
+  const saveButtonRef = useRef<HTMLButtonElement | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError("")
@@ -173,6 +203,37 @@ export default function RestaurantLocations() {
     await load()
   }
 
+  const focusNextField = (current: HTMLElement) => {
+    const root = formBodyRef.current
+    if (!root) return
+    const fields = Array.from(root.querySelectorAll<HTMLElement>(NAV_SELECTOR))
+      .filter((el) => !el.closest('[role="listbox"]') && (el.offsetWidth || el.offsetHeight || el.getClientRects().length))
+    const index = fields.indexOf(current)
+    if (index === -1) return
+    const next = fields[index + 1]
+    if (next) next.focus()
+    else saveButtonRef.current?.focus()
+  }
+  // القوائم والمفاتيح تتعامل مع Enter داخلياً (فتح/تبديل) ⇐ تُعترض في مرحلة الالتقاط
+  const onFormKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+    const target = event.target as HTMLElement
+    const role = target.getAttribute("role")
+    if (target.tagName !== "BUTTON" || (role !== "combobox" && role !== "switch")) return
+    if (role === "combobox" && target.getAttribute("aria-expanded") === "true") return
+    event.preventDefault()
+    event.stopPropagation()
+    focusNextField(target)
+  }
+  // الحقول النصية: بعد معالجها الخاص (حقل الحساب يفتح البحث عند كود غير موجود ويستهلك Enter)
+  const onFormKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" || event.defaultPrevented || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+    const target = event.target as HTMLElement
+    if (target.tagName !== "INPUT" || target.closest('[role="listbox"]')) return
+    event.preventDefault()
+    focusNextField(target)
+  }
+
   const readOnly = form.id ? !canUpdate : !canCreate
   const configured = (row: Location) => row.warehouse_id && row.currency_id && row.price_category_id && row.sales_book_id
 
@@ -197,7 +258,7 @@ export default function RestaurantLocations() {
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pr-9" placeholder="بحث بالاسم أو الرمز" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pr-9" placeholder="بحث بالاسم أو الرقم" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={branchFilter} onValueChange={setBranchFilter}>
           <SelectTrigger className="sm:w-56"><SelectValue placeholder="الفرع" /></SelectTrigger>
@@ -242,21 +303,42 @@ export default function RestaurantLocations() {
       )}
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void closeForm() }}>
-        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col overflow-hidden p-0">
-          <DialogHeader className="border-b px-5 py-3"><DialogTitle>{form.id ? "تعديل موقع" : "إضافة موقع"}</DialogTitle></DialogHeader>
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1"><Label>الرمز</Label><Input value={form.code} disabled={readOnly} onChange={(e) => set({ code: e.target.value })} placeholder="تلقائي" /></div>
-              <div className="space-y-1"><Label>اسم الموقع *</Label><Input value={form.name} disabled={readOnly} onChange={(e) => set({ name: e.target.value })} placeholder="الصالة الرئيسية" autoFocus /></div>
-              <div className="space-y-1"><Label>الفرع *</Label><OptionSelect value={form.branch_id} disabled={readOnly} onChange={(value) => set({ branch_id: value })} options={options.branches} placeholder="اختر الفرع" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1"><Label>الترتيب</Label><Input type="number" min={0} value={form.sort_order} disabled={readOnly} onChange={(e) => set({ sort_order: e.target.value })} /></div>
-                <div className="space-y-1"><Label>اللون</Label><Input type="color" className="h-10 p-1" value={form.color} disabled={readOnly} onChange={(e) => set({ color: e.target.value })} /></div>
+        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+          <div className="bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><MapPin className="h-5 w-5" /></span>
+              <div className="min-w-0 flex-1 text-right">
+                <DialogTitle className="truncate text-lg font-bold text-white">{form.id ? `تعديل موقع — ${form.name || ""}` : "إضافة موقع جديد"}</DialogTitle>
+                <DialogDescription className="text-xs text-emerald-50/90">الصالة أو الطابق وإعدادات البيع الخاصة به · Enter للانتقال للحقل التالي</DialogDescription>
               </div>
-            </section>
+              <div className="ml-8 flex shrink-0 items-center gap-2">
+                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">الرقم: {form.code || "تلقائي"}</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${form.active ? "bg-white text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{form.active ? "نشط" : "موقوف"}</span>
+              </div>
+            </div>
+          </div>
 
-            <section className="rounded-xl border bg-muted/30 p-3 sm:p-4">
-              <h3 className="mb-3 flex items-center gap-2 font-bold"><Package className="h-5 w-5 text-teal-600" />إعدادات البيع</h3>
+          <div ref={formBodyRef} onKeyDownCapture={onFormKeyDownCapture} onKeyDown={onFormKeyDown} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-muted/20 px-4 py-4 sm:px-5">
+            <FormSection icon={<Store className="h-4 w-4" />} title="البيانات الأساسية">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <Label>الرقم</Label>
+                  <Input value={form.code || "تلقائي"} readOnly tabIndex={-1} className="cursor-not-allowed bg-muted font-mono text-muted-foreground" title="يُولَّد تلقائياً ولا يمكن تعديله" />
+                </div>
+                <div className="space-y-1 lg:col-span-3"><Label>اسم الموقع *</Label><Input value={form.name} disabled={readOnly} onChange={(e) => set({ name: e.target.value })} placeholder="الصالة الرئيسية" autoFocus /></div>
+                <div className="space-y-1 sm:col-span-2"><Label>الفرع *</Label><OptionSelect value={form.branch_id} disabled={readOnly} onChange={(value) => set({ branch_id: value })} options={options.branches} placeholder="اختر الفرع" /></div>
+                <div className="space-y-1"><Label>الترتيب</Label><Input type="number" min={0} value={form.sort_order} disabled={readOnly} onChange={(e) => set({ sort_order: e.target.value })} /></div>
+                <div className="space-y-1">
+                  <Label>اللون</Label>
+                  <div className="flex h-10 items-center gap-2 rounded-md border bg-background px-2">
+                    <input type="color" className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0" value={form.color} disabled={readOnly} onChange={(e) => set({ color: e.target.value })} />
+                    <span className="font-mono text-xs text-muted-foreground">{form.color}</span>
+                  </div>
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection icon={<Package className="h-4 w-4" />} title="إعدادات البيع">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>المستودع *</Label><OptionSelect value={form.warehouse_id} disabled={readOnly} onChange={(value) => set({ warehouse_id: value })} options={options.warehouses} placeholder="اختر المستودع" /></div>
                 <div className="space-y-1"><Label>العملة *</Label><OptionSelect value={form.currency_id} disabled={readOnly} onChange={(value) => set({ currency_id: value })} options={options.currencies} placeholder="اختر العملة" /></div>
@@ -267,14 +349,18 @@ export default function RestaurantLocations() {
                   <Label>طباعة الفاتورة بعد الدفع</Label>
                   <OptionSelect value={form.invoice_print_mode} disabled={readOnly} onChange={(value) => set({ invoice_print_mode: value })} options={PRINT_MODES.map((mode) => ({ id: Number(mode.id), name: mode.name }))} placeholder="اختر" />
                 </div>
-                <div className="flex items-center gap-2 sm:col-span-2"><Switch checked={form.print_by_item_group} disabled={readOnly} onCheckedChange={(value) => set({ print_by_item_group: value })} /><Label>طباعة قسائم المطبخ حسب طابعة مجموعة الصنف</Label></div>
-                <div className="flex items-center gap-2 sm:col-span-2"><Switch checked={form.kitchen_print_confirm} disabled={readOnly} onCheckedChange={(value) => set({ kitchen_print_confirm: value })} /><Label>اظهار رسالة طباعة عند ارسال الطلب الى المطبخ</Label></div>
               </div>
-            </section>
+            </FormSection>
 
-            <section className="rounded-xl border bg-muted/30 p-3 sm:p-4">
-              <h3 className="mb-1 flex items-center gap-2 font-bold"><CreditCard className="h-5 w-5 text-teal-600" />حسابات الدفع</h3>
-              <p className="mb-3 text-xs text-muted-foreground">اختيارية: عند تركها فارغة تُستخدم حسابات المستخدم الافتراضية لعملة الموقع ثم حسابات النظام (كما في الكاشير).</p>
+            <FormSection icon={<Printer className="h-4 w-4" />} title="خيارات المطبخ والحالة">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <SwitchRow checked={form.print_by_item_group} disabled={readOnly} onChange={(value) => set({ print_by_item_group: value })} title="طباعة قسائم المطبخ حسب طابعة مجموعة الصنف" hint="كل مجموعة أصناف تُطبع على طابعتها" />
+                <SwitchRow checked={form.kitchen_print_confirm} disabled={readOnly} onChange={(value) => set({ kitchen_print_confirm: value })} title="اظهار رسالة طباعة عند ارسال الطلب الى المطبخ" hint="سؤال قبل الطباعة عند ارسال الى المطبخ" />
+                <SwitchRow checked={form.active} disabled={readOnly} onChange={(value) => set({ active: value })} title="نشط" hint="الموقع الموقوف لا يظهر في شاشة المطعم" />
+              </div>
+            </FormSection>
+
+            <FormSection icon={<CreditCard className="h-4 w-4" />} title="حسابات الدفع" hint="اختيارية: عند تركها فارغة تُستخدم حسابات المستخدم الافتراضية لعملة الموقع ثم حسابات النظام (كما في الكاشير).">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {ACCOUNT_FIELDS.map(([key, label]) => (
                   <AutoCompleteAccount key={key} label={label} value={form[key]} valueMode="id" disabled={readOnly}
@@ -282,18 +368,21 @@ export default function RestaurantLocations() {
                     leafOnly showCostCenterButton={false} showCostCenterDialog={false} />
                 ))}
               </div>
-            </section>
+            </FormSection>
 
-            <section className="space-y-3">
-              <div className="space-y-1"><Label>ملاحظات</Label><Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => set({ notes: e.target.value })} /></div>
-              <div className="flex items-center gap-2"><Switch checked={form.active} disabled={readOnly} onCheckedChange={(value) => set({ active: value })} /><Label>نشط</Label></div>
-            </section>
-            {formError && <div className="rounded-md bg-red-50 p-2 text-sm text-red-700">{formError}</div>}
+            <FormSection icon={<StickyNote className="h-4 w-4" />} title="ملاحظات">
+              <Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => set({ notes: e.target.value })} placeholder="ملاحظات اختيارية" />
+            </FormSection>
+            {formError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{formError}</div>}
           </div>
-          <DialogFooter className="gap-2 border-t px-5 py-3">
-            <Button variant="outline" onClick={() => void closeForm()}>إغلاق</Button>
-            {!readOnly && <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}حفظ</Button>}
-          </DialogFooter>
+
+          <div className="flex items-center justify-between gap-2 border-t bg-background px-5 py-3">
+            <span className="hidden text-xs text-muted-foreground sm:inline"><kbd className="rounded border px-1">Enter</kbd> التالي · <kbd className="rounded border px-1">Esc</kbd> إغلاق</span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => void closeForm()}>إغلاق</Button>
+              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}حفظ</Button>}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

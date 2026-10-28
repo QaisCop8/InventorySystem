@@ -33,7 +33,7 @@ async function validate(data: any, id: number | null, userId: string) {
   const code = text(data.code, 20)
   const branchId = Number(data.branch_id)
   if (!name) return { error: "اسم الموقع مطلوب" }
-  if (!code) return { error: "رمز الموقع مطلوب" }
+  if (!code) return { error: "رقم الموقع مطلوب" }
   if (!Number.isInteger(branchId) || branchId <= 0) return { error: "الفرع مطلوب" }
   if (!(await userBranches(userId)).some((row: any) => Number(row.id) === branchId)) return { error: "الفرع غير صالح أو غير مسموح لك" }
 
@@ -70,7 +70,7 @@ async function validate(data: any, id: number | null, userId: string) {
       AND (LOWER(code) = LOWER(${code}) OR (branch_id = ${branchId} AND LOWER(BTRIM(name)) = LOWER(${name})))
     LIMIT 1
   `)[0]
-  if (duplicate) return { error: "يوجد موقع بنفس الرمز أو بنفس الاسم في هذا الفرع" }
+  if (duplicate) return { error: "يوجد موقع بنفس الرقم أو بنفس الاسم في هذا الفرع" }
   return {
     value: {
       name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode,
@@ -142,8 +142,11 @@ async function save(request: NextRequest, mode: "create" | "update") {
       if (body) return NextResponse.json(body, { status: 409 })
       throw licenseError
     }
-    if (!text(data.code, 20)) data.code = await nextCode()
+    // رقم الموقع تلقائي دائماً — لا يُقبل من العميل
+    data.code = await nextCode()
   }
+  // رقم الموقع غير قابل للتعديل
+  if (current) data.code = current.code
   const checked = await validate(data, id, permission.userId)
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 })
   const v = checked.value
