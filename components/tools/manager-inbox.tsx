@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Messages from "@/components/common/Messages"
 import { confirmYesNo } from "@/components/ui/confirm-host"
-import { openSectionWith } from "@/lib/section-intents"
+import { openSectionInNewTab } from "@/lib/new-tab-handoff"
 import { MANAGER_ATTACHMENT_TYPES, type ManagerAttachmentType } from "@/lib/manager-attachments-shared"
 
 // أدوات ⇐ بريد الرسائل: المرفقات المرسلة للمدير (فاتورة مشتريات / سند قبض). تحديد متعدد لتنزيلها كملف مضغوط،
@@ -163,8 +163,9 @@ export default function ManagerInbox() {
     setBusyId(row.id)
     try {
       const hint = [MANAGER_ATTACHMENT_TYPES[row.doc_type], row.supplier_name ? `الحساب: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
-      // الخادم يقرأ المرفق من قاعدة البيانات بمعرّفه — لا تنزيل ثم رفع من المتصفح
-      openSectionWith("ai-assistant", { attachment: { attachmentId: row.id, name: row.file_name }, hint })
+      // المساعد الذكي في تبويب متصفح جديد (يبقى بريد الرسائل مفتوحاً) — يستلم معرّف المرفق عبر sessionStorage
+      // (ai_process_attachment) ويقرؤه الخادم من قاعدة البيانات مباشرة. يُفتح قبل أي await حتى لا يحجبه المتصفح.
+      openSectionInNewTab("ai-assistant", { ai_process_attachment: JSON.stringify({ attachmentId: row.id, name: row.file_name, hint }) })
       await fetch(`/api/manager-attachments/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "processed" }) })
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, processed_at: new Date().toISOString(), read_at: item.read_at || new Date().toISOString() } : item))
     } catch (error) {

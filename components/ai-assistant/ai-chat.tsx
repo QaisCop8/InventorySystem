@@ -358,6 +358,17 @@ export function AIChat() {
     if (source) void handleAttachRef.current(source, data.hint || "")
   }, !isLoading)
 
+  // نفس المعالجة عند الفتح في تبويب جديد من بريد الرسائل (openSectionInNewTab ⇐ sessionStorage) — مرة واحدة
+  useEffect(() => {
+    const stored = sessionStorage.getItem("ai_process_attachment")
+    if (!stored) return
+    sessionStorage.removeItem("ai_process_attachment")
+    try {
+      const data = JSON.parse(stored) as { attachmentId?: number; name?: string; hint?: string }
+      if (Number(data.attachmentId) > 0) void handleAttachRef.current({ attachmentId: Number(data.attachmentId), name: String(data.name || "مرفق") }, data.hint || "")
+    } catch { /* ignore */ }
+  }, [])
+
   // الفاتورة المعبّأة تُفتح في تبويب متصفح جديد (تبقى المحادثة كما هي) — شاشة الفاتورة تقرأ المعبّأ عند فتحها
   const openInvoicePrefill = (prefill: VoucherPrefill) =>
     openSectionInNewTab(prefill.vch_type === 17 ? "purchase-invoices" : "sales-invoices", voucherPrefillSessionItems(prefill))
