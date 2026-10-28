@@ -139,8 +139,55 @@ public class NativePrintPlugin extends Plugin {
 }
 `
 
+// روابط خادم النظام تبقى داخل التطبيق دائماً — بما فيها زر "إعادة المحاولة" في صفحة عدم الاتصال
+// (offline.html تُحمَّل من https://localhost فكان الانتقال منها للخادم يُحوَّل أحياناً للمتصفح الخارجي).
+// أي رابط آخر (واتساب، خرائط...) يبقى بسلوك Capacitor الافتراضي (يفتح خارج التطبيق).
+const serverHost = new URL(String(config.server?.url || "https://localhost")).host.toLowerCase()
+if (!/^[a-z0-9.-]+(:\d+)?$/.test(serverHost)) throw new Error(`Invalid server host: ${serverHost}`)
+const webViewClientSource = `package ${packageMatch[1]};
+
+import android.net.Uri;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+
+import com.getcapacitor.Bridge;
+import com.getcapacitor.BridgeWebViewClient;
+
+public class ServerWebViewClient extends BridgeWebViewClient {
+    private static final String SERVER_HOST = "${serverHost}";
+
+    public ServerWebViewClient(Bridge bridge) {
+        super(bridge);
+    }
+
+    private static boolean isAppUrl(Uri url) {
+        if (url == null) return false;
+        String scheme = url.getScheme();
+        String authority = url.getAuthority();
+        if (authority == null || !("https".equals(scheme) || "http".equals(scheme))) return false;
+        String host = authority.toLowerCase();
+        return host.equals(SERVER_HOST) || host.equals("localhost");
+    }
+
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        if (request != null && request.isForMainFrame() && isAppUrl(request.getUrl())) return false;
+        return super.shouldOverrideUrlLoading(view, request);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+        if (url != null && isAppUrl(Uri.parse(url))) return false;
+        return super.shouldOverrideUrlLoading(view, url);
+    }
+}
+`
+
 mkdirSync(javaDir, { recursive: true })
 writeFileSync(join(javaDir, "NativePrintPlugin.java"), pluginSource)
+writeFileSync(join(javaDir, "ServerWebViewClient.java"), webViewClientSource)
+let activitySource = activity
 if (!activity.includes("registerPlugin(NativePrintPlugin.class)")) {
   let patchedActivity
   const superOnCreate = /super\.onCreate\(savedInstanceState\);/
@@ -173,6 +220,16 @@ if (!activity.includes("registerPlugin(NativePrintPlugin.class)")) {
     const insertionPoint = updatedClassMatch.index + updatedClassMatch[0].length
     patchedActivity = `${source.slice(0, insertionPoint)}\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(NativePrintPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n${source.slice(insertionPoint)}`
   }
-  writeFileSync(activityPath, patchedActivity)
+  activitySource = patchedActivity
 }
+// بعد super.onCreate يكون bridge قد أُنشئ — يُستبدل عميل WebView بالنسخة التي تُبقي روابط الخادم داخل التطبيق
+if (!activitySource.includes("ServerWebViewClient")) {
+  const superOnCreateLine = /super\.onCreate\(savedInstanceState\);/
+  if (!superOnCreateLine.test(activitySource)) throw new Error("Could not find super.onCreate in MainActivity to attach ServerWebViewClient")
+  activitySource = activitySource.replace(
+    superOnCreateLine,
+    "$&\n        if (this.bridge != null) this.bridge.setWebViewClient(new ServerWebViewClient(this.bridge));",
+  )
+}
+writeFileSync(activityPath, activitySource)
 console.log("Android project patched")

@@ -11,14 +11,84 @@
     .card { max-width: 360px; padding: 28px 22px; border-radius: 24px; background: #fff; box-shadow: 0 18px 40px -24px rgb(16 92 72 / 45%); }
     h1 { margin: 0 0 8px; font-size: 20px; }
     p { margin: 0 0 20px; color: #5b7069; font-size: 14px; line-height: 1.7; }
-    button { width: 100%; height: 48px; border: 0; border-radius: 999px; color: #fff; background: #0b7f63; font-size: 15px; font-weight: 800; }
+    button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 48px; border: 0; border-radius: 999px; color: #fff; background: #0b7f63; font-size: 15px; font-weight: 800; }
+    button:disabled { opacity: .75; }
+    .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgb(255 255 255 / 45%); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+    button.busy .spinner { display: inline-block; }
+    .status { min-height: 20px; margin: 14px 0 0; font-size: 13px; color: #8a5a00; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>تعذر الوصول إلى الخادم</h1>
     <p>تحقق من اتصال الإنترنت ثم أعد المحاولة. كاشير نقطة البيع يعمل بدون اتصال بعد فتحه مرة واحدة على الأقل.</p>
-    <button type="button" onclick="location.href = window.NOON_SERVER_URL || '/'">إعادة المحاولة</button>
+    <button type="button" id="retry"><span class="spinner"></span><span id="retry-label">إعادة المحاولة</span></button>
+    <div class="status" id="status"></div>
   </div>
+  <script>
+    // إعادة المحاولة داخل التطبيق: يُفحص الخادم أولاً، ولا يُنتقل إليه إلا إن استجاب — فيبقى المستخدم
+    // في هذه الصفحة (مع محاولة تلقائية دورية) بدل التنقل إلى صفحة فاشلة أو فتح المتصفح.
+    (function () {
+      var serverUrl = String(window.NOON_SERVER_URL || "").replace(/\/+$/, "")
+      var button = document.getElementById("retry")
+      var label = document.getElementById("retry-label")
+      var status = document.getElementById("status")
+      var busy = false
+      var autoTimer = null
+      var AUTO_RETRY_SECONDS = 15
+
+      function setBusy(value) {
+        busy = value
+        button.disabled = value
+        button.classList.toggle("busy", value)
+        label.textContent = value ? "جاري الاتصال..." : "إعادة المحاولة"
+      }
+
+      function probe() {
+        if (!serverUrl) return Promise.resolve(true)
+        var controller = typeof AbortController !== "undefined" ? new AbortController() : null
+        var timer = setTimeout(function () { if (controller) controller.abort() }, 20000)
+        // no-cors: يكفي أن يرد الخادم بأي استجابة؛ خطأ الشبكة يعني أنه ما زال غير متاح
+        return fetch(serverUrl + "/favicon.ico?_=" + Date.now(), { mode: "no-cors", cache: "no-store", signal: controller ? controller.signal : undefined })
+          .then(function () { return true }, function () { return false })
+          .then(function (ok) { clearTimeout(timer); return ok })
+      }
+
+      function scheduleAuto() {
+        clearTimeout(autoTimer)
+        autoTimer = setTimeout(function () { retry(true) }, AUTO_RETRY_SECONDS * 1000)
+      }
+
+      function retry(automatic) {
+        if (busy) return
+        if (navigator.onLine === false) {
+          status.textContent = "لا يوجد اتصال بالإنترنت — ستتم المحاولة تلقائياً عند عودته"
+          scheduleAuto()
+          return
+        }
+        setBusy(true)
+        status.textContent = ""
+        probe().then(function (ok) {
+          if (ok) {
+            status.textContent = ""
+            label.textContent = "جاري فتح النظام..."
+            // replace: لا تبقى صفحة الخطأ في سجل الرجوع
+            window.location.replace(serverUrl ? serverUrl + "/" : "/")
+            return
+          }
+          setBusy(false)
+          status.textContent = automatic
+            ? "الخادم غير متاح بعد — محاولة تلقائية كل " + AUTO_RETRY_SECONDS + " ثانية"
+            : "الخادم غير متاح حالياً — ستتم المحاولة تلقائياً كل " + AUTO_RETRY_SECONDS + " ثانية"
+          scheduleAuto()
+        })
+      }
+
+      button.addEventListener("click", function () { retry(false) })
+      window.addEventListener("online", function () { retry(true) })
+      scheduleAuto()
+    })()
+  </script>
 </body>
 </html>
