@@ -75,6 +75,7 @@ async function validate(data: any, id: number | null, userId: string) {
     value: {
       name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode,
       printByGroup: data.print_by_item_group !== false,
+      kitchenPrintConfirm: data.kitchen_print_confirm === true,
       status: Number(data.status) === 2 ? 2 : 1,
       sortOrder: Math.max(0, Math.trunc(Number(data.sort_order) || 0)),
       color: text(data.color, 20) || null,
@@ -158,19 +159,19 @@ async function save(request: NextRequest, mode: "create" | "update") {
           price_category_id = ${v.priceCategoryId}, sales_book_id = ${v.salesBookId}, cash_account_id = ${a.cash_account_id},
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
-          print_by_item_group = ${v.printByGroup}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status}, updated_at = NOW()
+          print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status}, updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `
     : await sql`
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
-          card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group,
+          card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
           sort_order, color, notes, status, created_by
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}
         )
         RETURNING *
       `

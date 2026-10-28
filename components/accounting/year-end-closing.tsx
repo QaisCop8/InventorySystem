@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 // القيد يصفّر الإيرادات والمصروفات إلى حساب الأرباح المدورة (لكل فرع)، ثم تُقفل السنة في إقفال الفترات.
 
 type Check = { key: string; level: "error" | "warning" | "ok"; title: string; detail?: string }
-type BranchPreview = { branch_id: number; branch_name: string; net: number; revenue: number; expenses: number; net_result: number; lines: { account_id: number; code: string; name: string; balance: number }[] }
+type BranchPreview = { branch_id: number; branch_name: string; net: number; revenue: number; expenses: number; net_result: number; lines: { key: string; account_id: number; code: string; name: string; balance: number; cost_center_ids: number[]; cost_center_names: string[] }[] }
 type Preview = {
   year: number; from: string; to: string; checks: Check[]; can_close: boolean
   revenue: number; expenses: number; net_result: number; branches: BranchPreview[]
@@ -211,11 +211,12 @@ export default function YearEndClosing() {
                 </div>
                 <div className="max-h-72 overflow-auto">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-white text-xs text-slate-500"><tr><th className="p-2 text-right">الحساب</th><th className="p-2 text-left">مدين</th><th className="p-2 text-left">دائن</th></tr></thead>
+                    <thead className="sticky top-0 bg-white text-xs text-slate-500"><tr><th className="p-2 text-right">الحساب</th><th className="p-2 text-right">مراكز التكلفة</th><th className="p-2 text-left">مدين</th><th className="p-2 text-left">دائن</th></tr></thead>
                     <tbody>
                       {bucket.lines.map((line) => (
-                        <tr key={line.account_id} className="border-t">
+                        <tr key={line.key} className="border-t">
                           <td className="p-2"><span className="font-mono text-xs text-muted-foreground">{line.code}</span> {line.name}</td>
+                          <td className="p-2 text-xs">{line.cost_center_names.length ? line.cost_center_names.map((name) => <span key={name} className="ml-1 inline-block rounded bg-sky-50 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">{name}</span>) : <span className="text-muted-foreground">—</span>}</td>
                           <td className="p-2 text-left font-mono">{line.balance < 0 ? money(-line.balance) : ""}</td>
                           <td className="p-2 text-left font-mono">{line.balance > 0 ? money(line.balance) : ""}</td>
                         </tr>

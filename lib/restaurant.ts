@@ -39,7 +39,7 @@ export async function ensureRestaurantTables() {
     for (const column of [
       "warehouse_id INTEGER", "currency_id INTEGER", "price_category_id INTEGER", "sales_book_id INTEGER",
       "cash_account_id INTEGER", "walk_in_account_id INTEGER", "card_account_id INTEGER", "cheque_account_id INTEGER", "tax_account_id INTEGER",
-      "max_discount_percent NUMERIC(7,3) NOT NULL DEFAULT 100", "invoice_print_mode INTEGER NOT NULL DEFAULT 1", "print_by_item_group BOOLEAN NOT NULL DEFAULT TRUE",
+      "max_discount_percent NUMERIC(7,3) NOT NULL DEFAULT 100", "invoice_print_mode INTEGER NOT NULL DEFAULT 1", "print_by_item_group BOOLEAN NOT NULL DEFAULT TRUE", "kitchen_print_confirm BOOLEAN NOT NULL DEFAULT FALSE",
     ]) await sql.unsafe(`ALTER TABLE restaurant_locations_tbl ADD COLUMN IF NOT EXISTS ${column}`)
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS restaurant_locations_code_uq ON restaurant_locations_tbl (LOWER(code)) WHERE status <> 3`
     await sql`CREATE INDEX IF NOT EXISTS restaurant_locations_branch_idx ON restaurant_locations_tbl (branch_id)`
@@ -327,6 +327,8 @@ export async function locationSalePoint(location: any, userId: string) {
     invoice_print_mode: printMode,
     print_invoices: printMode > 0,
     print_by_item_group: location.print_by_item_group !== false,
+    // "اظهار رسالة طباعة عند ارسال الطلب الى المطبخ" — يسأل قبل طباعة قسائم المطبخ
+    kitchen_print_confirm: location.kitchen_print_confirm === true,
   }, userId)
 }
 

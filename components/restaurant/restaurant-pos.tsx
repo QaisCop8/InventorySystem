@@ -493,6 +493,8 @@ export default function RestaurantPos() {
     }, "تم إرسال الأصناف للطاولة")
     if (!data) return
     setPending([])
+    // خيار الموقع "اظهار رسالة طباعة عند ارسال الطلب الى المطبخ": يسأل قبل طباعة القسائم (لا = إرسال بلا طباعة)
+    if (catalog?.point?.kitchen_print_confirm && !(await confirmYesNo("تم إرسال الطلب إلى المطبخ. هل تريد طباعة قسائم المطبخ؟"))) return
     void printKitchen(lines)
   }
 

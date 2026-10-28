@@ -1,6 +1,6 @@
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
-import { INTERNAL_VOUCHER, createAutoJournal, getBaseCurrencyId, resolveJournalContext, round2 } from "@/lib/auto-journals"
+import { INTERNAL_VOUCHER, createAutoJournal, getBaseCurrencyId, resolveJournalContext, round2, type AutoJournalLine } from "@/lib/auto-journals"
 import { ensureWorkingPeriodGuard } from "@/lib/working-period"
 import { reportAmountSql } from "@/lib/report-currency"
 
@@ -71,14 +71,19 @@ export async function previewYearClosing(year: number, retainedAccountId: number
     sql`SELECT a.id, a.code, a.name, a.father_id, a.finanical_list_id,
           EXISTS(SELECT 1 FROM account_tbl c WHERE c.father_id = a.id) AS has_children
         FROM account_tbl a`,
+    // الرصيد لكل (حساب، فرع، تركيبة مراكز التكلفة على السطر) — الحساب نفسه قد يُقفل بأكثر من سطر حسب مراكز التكلفة
     sql`
-      SELECT vjd.account_id, vh.branch_id,
+      SELECT vjd.account_id, vh.branch_id, COALESCE(cc.ids, '') AS cost_center_key,
         SUM(CASE WHEN vjd.credit_debit = 1 THEN ${amount} ELSE -${amount} END) AS balance
       FROM voucher_journal_detail_tbl vjd
       JOIN voucher_header_tbl vh ON vh.id = vjd.voucher_id
+      LEFT JOIN LATERAL (
+        SELECT string_agg(DISTINCT vcc.cost_center_id::text, ',' ORDER BY vcc.cost_center_id::text) AS ids
+        FROM voucher_costcenter_tbl vcc WHERE vcc.voucher_journal_id = vjd.id AND vcc.cost_center_id IS NOT NULL
+      ) cc ON true
       WHERE vh.status <> 3 AND vh.vch_date >= ${from}::date AND vh.vch_date < (${to}::date + INTERVAL '1 day')
         AND COALESCE(vh.internal_voucher_id, 0) <> ${YEAR_CLOSING_INTERNAL_VOUCHER}
-      GROUP BY vjd.account_id, vh.branch_id
+      GROUP BY vjd.account_id, vh.branch_id, COALESCE(cc.ids, '')
     `,
     sql`SELECT id, created_at FROM fiscal_year_closings_tbl WHERE fiscal_year = ${year} AND status <> 3 LIMIT 1`,
     sql`SELECT COUNT(*)::int AS count FROM voucher_header_tbl vh
@@ -96,12 +101,17 @@ export async function previewYearClosing(year: number, retainedAccountId: number
     sql`SELECT COUNT(*)::int AS count FROM period_locks_tbl WHERE is_active AND branch_id IS NULL AND from_date <= ${from}::date AND to_date >= ${to}::date`,
     sql`SELECT id, branch_name FROM branches`,
   ])
+  const costCenterIds = [...new Set((balanceRows as any[]).flatMap((row) => String(row.cost_center_key || "").split(",").filter(Boolean).map(Number)))]
+  const costCenterNames = new Map<number, string>(costCenterIds.length
+    ? ((await sql`SELECT id, name FROM cost_centers WHERE id = ANY(${costCenterIds}::int[])`) as any[]).map((row) => [Number(row.id), String(row.name || "")])
+    : [])
 
   const { byId, isIncome, isBalanceSheet } = classify(accounts as any[])
   const branchName = new Map((branches as any[]).map((branch) => [Number(branch.id), String(branch.branch_name || "")]))
 
   // أسطر الإقفال لكل فرع: رصيد مدين موجب (مصروف) يُقفل دائناً، والعكس.
-  const perBranch = new Map<number, { branch_id: number; branch_name: string; lines: { account_id: number; code: string; name: string; balance: number }[]; net: number }>()
+  type ClosingLine = { key: string; account_id: number; code: string; name: string; balance: number; cost_center_ids: number[]; cost_center_names: string[] }
+  const perBranch = new Map<number, { branch_id: number; branch_name: string; lines: ClosingLine[]; net: number }>()
   let balanceSheetDebit = 0, balanceSheetCredit = 0
   const balanceSheetByAccount = new Map<number, number>()
   for (const row of balanceRows as any[]) {
@@ -111,9 +121,14 @@ export async function previewYearClosing(year: number, retainedAccountId: number
       const branchId = Number(row.branch_id) || 0
       const bucket = perBranch.get(branchId) || { branch_id: branchId, branch_name: branchName.get(branchId) || "بدون فرع", lines: [], net: 0 }
       const account = byId.get(accountId)
-      const existingLine = bucket.lines.find((line) => line.account_id === accountId)
+      const costCenterKey = String(row.cost_center_key || "")
+      const key = `${accountId}|${costCenterKey}`
+      const existingLine = bucket.lines.find((line) => line.key === key)
       if (existingLine) existingLine.balance += balance
-      else bucket.lines.push({ account_id: accountId, code: account?.code || "", name: account?.name || "", balance })
+      else {
+        const ids = costCenterKey.split(",").filter(Boolean).map(Number)
+        bucket.lines.push({ key, account_id: accountId, code: account?.code || "", name: account?.name || "", balance, cost_center_ids: ids, cost_center_names: ids.map((id) => costCenterNames.get(id) || `#${id}`) })
+      }
       bucket.net += balance
       perBranch.set(branchId, bucket)
     } else if (isBalanceSheet(accountId)) {
@@ -126,7 +141,7 @@ export async function previewYearClosing(year: number, retainedAccountId: number
     .map((bucket) => {
       const lines = bucket.lines.map((line) => ({ ...line, balance: round2(line.balance) }))
         .filter((line) => Math.abs(line.balance) >= 0.01)
-        .sort((a, b) => a.code.localeCompare(b.code, "en", { numeric: true }))
+        .sort((a, b) => a.code.localeCompare(b.code, "en", { numeric: true }) || a.cost_center_names.join("، ").localeCompare(b.cost_center_names.join("، "), "ar"))
       const revenue = round2(lines.filter((line) => line.balance < 0).reduce((sum, line) => sum - line.balance, 0))
       const expenses = round2(lines.filter((line) => line.balance > 0).reduce((sum, line) => sum + line.balance, 0))
       return { ...bucket, lines, net: round2(expenses - revenue), revenue, expenses, net_result: round2(revenue - expenses) }
@@ -221,12 +236,14 @@ export async function executeYearClosing(input: { year: number; retainedAccountI
       const lines = bucket.lines.map((line) => ({
         accountId: line.account_id, creditDebit: (line.balance > 0 ? 2 : 1) as 1 | 2, amount: Math.abs(line.balance), currencyId: baseId, rate: 1,
         note: "إقفال حساب نتيجة",
-      }))
+        // نفس تركيبة مراكز التكلفة التي تراكم عليها الرصيد (أو بلا مراكز) — دون افتراضيات الحساب
+        costCenterIds: line.cost_center_ids, exactCostCenters: true,
+      } as AutoJournalLine))
       // ما يبقى بعد تقريب الأسطر يذهب كله لحساب الأرباح المدورة فيبقى القيد متوازناً.
       // كل قيد إقفال يحسب صافي نتيجته من حركة هذا الفرع فقط.
       const net = round2(bucket.expenses - bucket.revenue)
       if (Math.abs(net) >= 0.01) {
-        lines.push({ accountId: input.retainedAccountId, creditDebit: net > 0 ? 1 : 2, amount: Math.abs(net), currencyId: baseId, rate: 1, note: net > 0 ? "خسارة السنة" : "ربح السنة" })
+        lines.push({ accountId: input.retainedAccountId, creditDebit: net > 0 ? 1 : 2, amount: Math.abs(net), currencyId: baseId, rate: 1, note: net > 0 ? "خسارة السنة" : "ربح السنة", exactCostCenters: true })
       }
       if (lines.length < 2) continue
       const journal = await createAutoJournal({

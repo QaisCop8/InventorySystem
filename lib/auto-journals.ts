@@ -78,6 +78,8 @@ export type AutoJournalLine = {
   note?: string
   // مراكز تكلفة صريحة (تتقدّم على افتراضي الحساب من نفس النوع)؛ بقية الأنواع من افتراضيات الحساب.
   costCenterIds?: number[]
+  // true = مراكز التكلفة الصريحة فقط بلا افتراضيات الحساب (قيد إقفال السنة يقفل كل تركيبة مراكز كما هي، وبلا مراكز إن لم يكن لها)
+  exactCostCenters?: boolean
   // مبلغ الحساب بعملته بدل الاحتساب التلقائي — قيد فرق العملة يغيّر قيمة الرصيد بعملة الأساس فقط
   // دون أي أثر على رصيد الحساب بعملته (0).
   accountAmountOverride?: number
@@ -184,7 +186,7 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
     `)[0]
 
     // الصريحة (كمركز تكلفة الأصل) تتقدّم على افتراضي الحساب من نفس النوع؛ بقية الأنواع من افتراضيات الحساب
-    const costCenters = await mergeLineCostCenters(line.costCenterIds || [], defaultCostCenters.get(line.accountId) || [])
+    const costCenters = await mergeLineCostCenters(line.costCenterIds || [], line.exactCostCenters ? [] : defaultCostCenters.get(line.accountId) || [])
     for (const { cost_center_id: costCenterId } of costCenters) {
       await sql`INSERT INTO voucher_costcenter_tbl (voucher_journal_id, cost_center_id) VALUES (${Number(inserted.id)}, ${costCenterId})`
     }

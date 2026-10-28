@@ -32,20 +32,20 @@ const PRINT_MODES = [{ id: "0", name: "عدم الطباعة" }, { id: "1", name
 type Form = {
   id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; sales_book_id: string
   cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
-  max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; sort_order: string; color: string; notes: string; active: boolean
+  max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; sort_order: string; color: string; notes: string; active: boolean
 }
 const str = (value: unknown) => (value == null || value === "" ? "" : String(value))
 const emptyForm = (branchId: number | null, code = ""): Form => ({
   id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", sales_book_id: "",
   cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
-  max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, sort_order: "0", color: "#0f766e", notes: "", active: true,
+  max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
 })
 const toForm = (row: Location): Form => ({
   id: row.id, code: row.code, name: row.name, branch_id: str(row.branch_id), warehouse_id: str(row.warehouse_id), currency_id: str(row.currency_id),
   price_category_id: str(row.price_category_id), sales_book_id: str(row.sales_book_id), cash_account_id: str(row.cash_account_id),
   walk_in_account_id: str(row.walk_in_account_id), card_account_id: str(row.card_account_id), cheque_account_id: str(row.cheque_account_id),
   tax_account_id: str(row.tax_account_id), max_discount_percent: str(row.max_discount_percent ?? 100), invoice_print_mode: str(row.invoice_print_mode ?? 1),
-  print_by_item_group: row.print_by_item_group !== false, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
+  print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
   active: Number(row.status) !== 2,
 })
 const errorText = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
@@ -268,6 +268,7 @@ export default function RestaurantLocations() {
                   <OptionSelect value={form.invoice_print_mode} disabled={readOnly} onChange={(value) => set({ invoice_print_mode: value })} options={PRINT_MODES.map((mode) => ({ id: Number(mode.id), name: mode.name }))} placeholder="اختر" />
                 </div>
                 <div className="flex items-center gap-2 sm:col-span-2"><Switch checked={form.print_by_item_group} disabled={readOnly} onCheckedChange={(value) => set({ print_by_item_group: value })} /><Label>طباعة قسائم المطبخ حسب طابعة مجموعة الصنف</Label></div>
+                <div className="flex items-center gap-2 sm:col-span-2"><Switch checked={form.kitchen_print_confirm} disabled={readOnly} onCheckedChange={(value) => set({ kitchen_print_confirm: value })} /><Label>اظهار رسالة طباعة عند ارسال الطلب الى المطبخ</Label></div>
               </div>
             </section>
 
