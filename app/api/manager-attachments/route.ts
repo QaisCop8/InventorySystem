@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST (multipart): doc_type + supplier_id (إلزامي) + note + files[] (صورة/PDF، إلزامي) ⇐ سطر لكل مرفق
+// POST (multipart): doc_type + supplier_id = حساب مورد/عميل/مشترك (إلزامي) + note + files[] (صورة/PDF، إلزامي) ⇐ سطر لكل مرفق
 export async function POST(request: NextRequest) {
   try {
     const auth = await authorizeTransaction(request, "manager_attachment", "create")
@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
     const docType = String(form.get("doc_type") || "")
     if (!(docType in MANAGER_ATTACHMENT_TYPES)) return NextResponse.json({ error: "اختر نوع المستند (فاتورة مشتريات أو سند قبض)" }, { status: 400 })
     const supplierId = Number(form.get("supplier_id") || 0)
-    if (!supplierId) return NextResponse.json({ error: "المورد مطلوب" }, { status: 400 })
-    const supplier = (await sql`SELECT id FROM account_tbl WHERE id = ${supplierId} AND type = 3 AND COALESCE(status, 1) <> 3 LIMIT 1`)[0]
-    if (!supplier) return NextResponse.json({ error: "المورد غير موجود" }, { status: 400 })
+    if (!supplierId) return NextResponse.json({ error: "الحساب مطلوب (مورد أو عميل أو مشترك)" }, { status: 400 })
+    const supplier = (await sql`SELECT id FROM account_tbl WHERE id = ${supplierId} AND type IN (2, 3, 5) AND COALESCE(status, 1) <> 3 LIMIT 1`)[0]
+    if (!supplier) return NextResponse.json({ error: "الحساب غير موجود أو ليس مورداً/عميلاً/مشتركاً" }, { status: 400 })
     const note = String(form.get("note") || "").trim().slice(0, 500)
     const files = form.getAll("files").filter((value): value is File => typeof value === "object" && value !== null && "arrayBuffer" in value)
     if (!files.length) return NextResponse.json({ error: "المرفق مطلوب — أرفق صورة المستند" }, { status: 400 })

@@ -9,7 +9,7 @@ import Messages from "@/components/common/Messages"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { MANAGER_ATTACHMENT_TYPES, MAX_MANAGER_ATTACHMENT_FILES, type ManagerAttachmentType } from "@/lib/manager-attachments-shared"
 
-// أدوات ⇐ إرسال مرفقات للمدير: صورة فاتورة مشتريات أو سند قبض + المورد (إلزاميان) ⇐ تصل إلى "بريد الرسائل".
+// أدوات ⇐ إرسال مرفقات للمدير: صورة فاتورة مشتريات أو سند قبض + الحساب: مورد/عميل/مشترك (إلزاميان) ⇐ تصل إلى "بريد الرسائل".
 
 type Sent = { id: number; doc_type: string; supplier_name: string | null; file_name: string; created_at: string; processed_at: string | null }
 
@@ -67,7 +67,7 @@ export default function ManagerAttachments() {
   })
 
   const send = async () => {
-    if (!supplierId) return show("error", "المورد مطلوب")
+    if (!supplierId) return show("error", "الحساب مطلوب")
     if (!files.length) return show("error", "المرفق مطلوب — أرفق صورة المستند")
     setSending(true)
     try {
@@ -94,13 +94,16 @@ export default function ManagerAttachments() {
 
   return (
     <div className="space-y-4 p-4" dir="rtl">
-      <header className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-indigo-700 via-blue-600 to-sky-500 p-6 text-white shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/25"><Send /></div>
+      <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
+        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+        <div className="relative flex items-center gap-4">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Send /></div>
           <div>
-            <p className="text-xs font-bold text-sky-100">أدوات</p>
-            <h1 className="text-2xl font-black">إرسال مرفقات للمدير</h1>
-            <p className="mt-1 text-sm text-sky-50/85">أرسل صورة فاتورة مشتريات أو سند قبض مع المورد — تصل إلى بريد الرسائل للمراجعة والمعالجة</p>
+            <p className="text-xs font-semibold text-emerald-50/90">أدوات</p>
+            <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">إرسال مرفقات للمدير</h1>
+            <p className="mt-1 text-sm text-emerald-50/85">أرسل صورة فاتورة مشتريات أو سند قبض مع الحساب (مورد، عميل أو مشترك) — تصل إلى بريد الرسائل للمراجعة والمعالجة</p>
           </div>
         </div>
       </header>
@@ -119,13 +122,13 @@ export default function ManagerAttachments() {
           </div>
 
           <AutoCompleteAccount
-            label="المورد *"
+            label="الحساب (مورد / عميل / مشترك) *"
             valueMode="id"
             value={supplierId}
             onValueChange={setSupplierId}
             showCostCenterButton={false}
-            requiredTypeValues={[3]}
-            notFoundMessage="الحساب المدخل ليس مورداً"
+            requiredTypeValues={[3, 2, 5]}
+            notFoundMessage="الحساب يجب أن يكون مورداً أو عميلاً أو مشتركاً"
           />
 
           <div className="grid gap-1.5">

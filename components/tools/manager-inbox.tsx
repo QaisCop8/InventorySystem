@@ -164,7 +164,7 @@ export default function ManagerInbox() {
     try {
       const blob = await fetchFile(row)
       const file = new File([blob], row.file_name, { type: row.mime_type || blob.type })
-      const hint = [MANAGER_ATTACHMENT_TYPES[row.doc_type], row.supplier_name ? `المورد: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
+      const hint = [MANAGER_ATTACHMENT_TYPES[row.doc_type], row.supplier_name ? `الحساب: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
       openSectionWith("ai-assistant", { file, hint })
       await fetch(`/api/manager-attachments/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "processed" }) })
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, processed_at: new Date().toISOString(), read_at: item.read_at || new Date().toISOString() } : item))
@@ -180,19 +180,22 @@ export default function ManagerInbox() {
 
   return (
     <div className="space-y-4 p-4" dir="rtl">
-      <header className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-violet-700 via-indigo-600 to-blue-600 p-6 text-white shadow-xl">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
+        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/25"><Inbox /></div>
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Inbox /></div>
             <div>
-              <p className="text-xs font-bold text-indigo-100">أدوات</p>
-              <h1 className="text-2xl font-black">بريد الرسائل</h1>
-              <p className="mt-1 text-sm text-indigo-50/85">مرفقات فواتير المشتريات وسندات القبض المرسلة للمدير — نزّلها أو عالجها بالمساعد الذكي أو احذفها</p>
+              <p className="text-xs font-semibold text-emerald-50/90">أدوات</p>
+              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">بريد الرسائل</h1>
+              <p className="mt-1 text-sm text-emerald-50/85">مرفقات فواتير المشتريات وسندات القبض المرسلة للمدير — نزّلها أو عالجها بالمساعد الذكي أو احذفها</p>
             </div>
           </div>
           <div className="flex gap-3 text-center text-xs">
-            <div className="rounded-xl bg-white/15 px-3 py-2"><div className="text-lg font-black">{rows.filter((row) => !row.processed_at).length}</div>بانتظار المعالجة</div>
-            <div className="rounded-xl bg-white/15 px-3 py-2"><div className="text-lg font-black">{sizeText(totalSize)}</div>حجم المرفقات</div>
+            <div className="rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur"><div className="text-lg font-black">{rows.filter((row) => !row.processed_at).length}</div>بانتظار المعالجة</div>
+            <div className="rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur"><div className="text-lg font-black">{sizeText(totalSize)}</div>حجم المرفقات</div>
           </div>
         </div>
       </header>
@@ -220,7 +223,7 @@ export default function ManagerInbox() {
         <div className="grid gap-1.5 sm:col-span-2">
           <Label>بحث</Label>
           <div className="flex gap-2">
-            <div className="relative flex-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="المورد، الملف، المرسل، الملاحظة..." /></div>
+            <div className="relative flex-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="الحساب، الملف، المرسل، الملاحظة..." /></div>
             <Button variant="outline" onClick={() => void load()} disabled={loading} data-report-apply><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
           </div>
         </div>
@@ -239,7 +242,7 @@ export default function ManagerInbox() {
               <tr>
                 <th className="w-10 p-2 text-center"><Checkbox checked={allChecked} onCheckedChange={(value) => toggleAll(value === true)} aria-label="تحديد الكل" /></th>
                 <th className="p-2 text-right">المستند</th>
-                <th className="p-2 text-right">المورد</th>
+                <th className="p-2 text-right">الحساب</th>
                 <th className="p-2 text-right">المرفق</th>
                 <th className="p-2 text-right">ملاحظة</th>
                 <th className="p-2 text-right">المرسل / الفرع</th>
@@ -286,7 +289,7 @@ export default function ManagerInbox() {
             </tbody>
           </table>
         </div>
-        {!loading && visible.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground"><Inbox className="mx-auto mb-2 h-10 w-10 text-indigo-400" />لا توجد رسائل</div>}
+        {!loading && visible.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground"><Inbox className="mx-auto mb-2 h-10 w-10 text-emerald-500" />لا توجد رسائل</div>}
         {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
       </section>
     </div>
