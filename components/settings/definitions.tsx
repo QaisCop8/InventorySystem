@@ -18,7 +18,7 @@ import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Set
 import "./definitions-theme.css"
 import { BranchUsersDialog } from "./branch-users-dialog"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { confirmYesNo } from "@/components/ui/confirm-host"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingCard } from "@/components/ui/loading-spinner"
@@ -350,26 +350,10 @@ function Definitions() {
   const [currentAccountClassificationIndex, setCurrentAccountClassificationIndex] = useState(0)
   const [editingUnitId, setEditingUnitId] = useState<number | null>(null)
   const [editingPriceId, setEditingPriceId] = useState<number | null>(null)
-  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false)
-  const [confirmDeleteMessage, setConfirmDeleteMessage] = useState("هل أنت متأكد من حذف هذا العنصر؟")
-  const [confirmDeleteAction, setConfirmDeleteAction] = useState<(() => void) | null>(null)
-
-  const openDeleteConfirm = (message: string, action: () => void) => {
-    setConfirmDeleteMessage(message)
-    setConfirmDeleteAction(() => action)
-    setConfirmDeleteVisible(true)
-  }
-
-  const handleCancelDeleteConfirm = () => {
-    setConfirmDeleteVisible(false)
-    setConfirmDeleteAction(null)
-  }
-
-  const handleConfirmDelete = () => {
-    if (confirmDeleteAction) {
-      confirmDeleteAction()
-    }
-    handleCancelDeleteConfirm()
+  // تأكيد الحذف عبر confirmYesNo الموحّد (نافذة التطبيق) — نافذة PrimeReact السابقة لم تكن تظهر فلا يحدث الحذف.
+  // الخادم يرفض حذف ما هو مرتبط (حسابات على البند، مراكز تابعة للنوع، فروع أو حركات على المركز) ويعرض السبب.
+  const openDeleteConfirm = async (message: string, action: () => void | Promise<void>) => {
+    if (await confirmYesNo(message)) await action()
   }
 
   const [incomeStatementItems, setIncomeStatementItems] = useState<IncomeStatementItem[]>([])
@@ -4448,13 +4432,6 @@ function Definitions() {
 
       </Tabs>
       {branchUsersFor && <BranchUsersDialog branch={branchUsersFor} onClose={() => setBranchUsersFor(null)} />}
-
-      <ConfirmDialogYesNo
-        visible={confirmDeleteVisible}
-        message={confirmDeleteMessage}
-        onConfirm={handleConfirmDelete}
-        onCancel={handleCancelDeleteConfirm}
-      />
     </div>
   )
 }
