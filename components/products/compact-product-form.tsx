@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
@@ -154,6 +155,10 @@ interface RelatedProductItem {
   related_id: number
   related_code?: string
   related_name?: string
+  /** اضافة السعر عند الاختيار — لا = يُضاف التابع بسعر صفر */
+  add_price?: boolean
+  /** عدم الطباعة في فواتير المطبخ والمطعم */
+  no_kitchen_print?: boolean
   ser?: number
 }
 
@@ -476,6 +481,8 @@ export function CompactProductForm({
   const [relatedProducts, setRelatedProducts] = useState<RelatedProductItem[]>([])
   const [relatedProductSearchOpen, setRelatedProductSearchOpen] = useState(false)
   const [relatedProductRow, setRelatedProductRow] = useState<number | null>(null)
+  // نافذة خيارات الصنف التابع بعد اختياره من البحث
+  const [relatedOptionsDraft, setRelatedOptionsDraft] = useState<RelatedProductItem | null>(null)
   const [manufacturingComponents, setManufacturingComponents] = useState<ManufacturingComponentItem[]>([])
   const [manufacturingComponentSearchOpen, setManufacturingComponentSearchOpen] = useState(false)
   // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
@@ -1005,7 +1012,7 @@ export function CompactProductForm({
     setFormData(newFormData);
     setRelatedProducts([])
     setManufacturingComponents([])
-    if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/related-items`).then((r) => r.ok ? r.json() : []).then((rows) => setRelatedProducts(Array.isArray(rows) ? rows.map((row: RelatedProductItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setRelatedProducts([]))
+    if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/related-items`).then((r) => r.ok ? r.json() : []).then((rows) => setRelatedProducts(Array.isArray(rows) ? rows.map((row: RelatedProductItem, index: number) => ({ ...row, add_price: row.add_price !== false, no_kitchen_print: row.no_kitchen_print === true, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setRelatedProducts([]))
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/manufacturing-components`).then((r) => r.ok ? r.json() : []).then((rows) => setManufacturingComponents(Array.isArray(rows) ? rows.map((row: ManufacturingComponentItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setManufacturingComponents([]))
     initialHash.current = getFormDataHash(newFormData);
     baselineCodeRef.current = String(newFormData.product_code || "");
@@ -1967,7 +1974,10 @@ export function CompactProductForm({
       { header: "##", name: "ser", width: 55 },
       { header: "رقم الصنف", name: "related_code", width: 180, isReadOnly: true },
       { header: "اسم الصنف", name: "related_name", width: "*", minWidth: 220, isReadOnly: true },
-      { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteRelatedProduct(Number(ctx.row.dataItem?.ser || 0) - 1) },
+      { header: "اضافة السعر عند الاختيار", name: "add_price", width: 170, dataType: 3, align: "center" },
+      { header: "عدم الطباعة في فواتير المطبخ والمطعم", name: "no_kitchen_print", width: 240, dataType: 3, align: "center" },
+      // ترويسة فارغة (مسافة) — النص الفارغ يجعل الشبكة تعرض اسم الحقل "delete"
+      { header: " ", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteRelatedProduct(Number(ctx.row.dataItem?.ser || 0) - 1) },
     ],
   }), [])
 
@@ -1981,8 +1991,22 @@ export function CompactProductForm({
       toast.current?.show({ severity: "error", summary: "", detail: "الصنف التابع مضاف مسبقاً", life: 3000 })
       return
     }
-    setRelatedProducts((current) => [...current, { product_id: Number(formData.id), related_id: relatedId, related_code: product.product_code, related_name: product.product_name, ser: current.length + 1 }])
     setRelatedProductSearchOpen(false)
+    setRelatedOptionsDraft({ product_id: Number(formData.id), related_id: relatedId, related_code: product.product_code, related_name: product.product_name, add_price: true, no_kitchen_print: false })
+  }
+
+  const confirmRelatedOptions = () => {
+    const draft = relatedOptionsDraft
+    if (!draft) return
+    setRelatedProducts((current) => current.some((row) => Number(row.related_id) === Number(draft.related_id)) ? current : [...current, { ...draft, ser: current.length + 1 }])
+    setRelatedOptionsDraft(null)
+  }
+
+  // تعديل خانتي الخيارات مباشرة في الشبكة
+  const onRelatedCellEditEnded = (grid: wjGrid.FlexGrid, event: wjGrid.CellRangeEventArgs) => {
+    const item = grid.rows[event.row]?.dataItem as RelatedProductItem | undefined
+    if (!item) return
+    setRelatedProducts((current) => current.map((row) => row.ser === item.ser ? { ...row, add_price: item.add_price !== false, no_kitchen_print: item.no_kitchen_print === true } : row))
   }
 
   const deleteRelatedProduct = (index: number) => {
@@ -1992,7 +2016,7 @@ export function CompactProductForm({
   }
 
   const saveRelatedProducts = async (productId: number) => {
-    const response = await fetch(`/api/inventory/products/${productId}/related-items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ related_ids: relatedProducts.map((row) => row.related_id) }) })
+    const response = await fetch(`/api/inventory/products/${productId}/related-items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ related_items: relatedProducts.map((row) => ({ related_id: row.related_id, add_price: row.add_price !== false, no_kitchen_print: row.no_kitchen_print === true })) }) })
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ الأصناف التابعة") }
   }
   const calculateManufacturingComponentQuantity = (row: ManufacturingComponentItem) => {
@@ -3654,7 +3678,7 @@ export function CompactProductForm({
                   {!isService && <TabsContent value="related">
                     <Card>
                       <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">الأصناف التابعة</CardTitle><Button type="button" onClick={() => setRelatedProductSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div></CardHeader>
-                      <CardContent><div className="mb-4 max-w-xl"><Label>إضافة الأصناف التابعة في طلبية المبيعات</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>عدم المعالجة</option><option value={2}>إضافة الأصناف التابعة فقط</option><option value={3}>إضافة الصنف والاصناف التابعة</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة أصناف تابعة.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">F7: حذف الصف المحدد</p></CardContent>
+                      <CardContent><div className="mb-4 max-w-xl"><Label>إضافة الأصناف التابعة</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>عدم المعالجة</option><option value={2}>إضافة الأصناف التابعة فقط</option><option value={3}>إضافة الصنف والاصناف التابعة</option><option value={4}>اختيار يدوي من الاصناف التابعة</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة أصناف تابعة.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} cellEditEnded={onRelatedCellEditEnded} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">F7: حذف الصف المحدد</p></CardContent>
                     </Card>
                   </TabsContent>}
                   {!isService && <TabsContent value="manufacturing-components">
@@ -3693,6 +3717,17 @@ export function CompactProductForm({
         searchText=""
         productTypes={[1]}
       />
+      <Dialog open={Boolean(relatedOptionsDraft)} onOpenChange={(open) => { if (!open) setRelatedOptionsDraft(null) }}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader><DialogTitle>خيارات الصنف التابع</DialogTitle></DialogHeader>
+          {relatedOptionsDraft && <div className="space-y-4">
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm"><span className="font-mono">{relatedOptionsDraft.related_code}</span> — {relatedOptionsDraft.related_name}</div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={relatedOptionsDraft.add_price !== false} onCheckedChange={(checked) => setRelatedOptionsDraft((draft) => draft && { ...draft, add_price: checked === true })} />اضافة السعر عند الاختيار</label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={relatedOptionsDraft.no_kitchen_print === true} onCheckedChange={(checked) => setRelatedOptionsDraft((draft) => draft && { ...draft, no_kitchen_print: checked === true })} />عدم الطباعة في فواتير المطبخ والمطعم</label>
+          </div>}
+          <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => setRelatedOptionsDraft(null)}>إلغاء</Button><Button type="button" onClick={confirmRelatedOptions}>موافق</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ProductSearchPopup
         visible={manufacturingComponentSearchOpen && canView && canUpdate}
         onClose={() => setManufacturingComponentSearchOpen(false)}

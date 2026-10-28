@@ -13,24 +13,28 @@ function ensureProductExtrasSchema() {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
     await sql`CREATE TABLE IF NOT EXISTS product_related_items (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, related_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, UNIQUE(product_id, related_id), CHECK (product_id <> related_id))`
+    await sql`ALTER TABLE product_related_items ADD COLUMN IF NOT EXISTS add_price BOOLEAN NOT NULL DEFAULT TRUE`
+    await sql`ALTER TABLE product_related_items ADD COLUMN IF NOT EXISTS no_kitchen_print BOOLEAN NOT NULL DEFAULT FALSE`
   })
 }
 
+export type RelatedItemOption = { related_id: number; add_price: boolean; no_kitchen_print: boolean }
+
 /**
  * لكل صنف: addon_groups = "المتغيرات والخصائص" (المجموعات وقيمها تصاعدياً)، و related_items_mode / related_ids =
- * التوابع (1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع) — مشتركة بين كاشير نقطة البيع وشاشة المطعم.
+ * التوابع (1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع، 4 اختيار يدوي من التوابع) و related_items = خيارات كل تابع — مشتركة بين كاشير نقطة البيع وشاشة المطعم.
  */
 export async function attachProductExtras<T extends { id: number | string }>(products: T[]) {
   const ids = products.map((product) => Number(product.id)).filter((id) => id > 0)
-  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[] }))
+  if (!ids.length) return products.map((product) => ({ ...product, addon_groups: [], related_items_mode: 1, related_ids: [] as number[], related_items: [] as RelatedItemOption[] }))
   await ensureProductExtrasSchema()
   const [extras, relations] = await Promise.all([
     sql`SELECT id, attributes, related_items_mode FROM products WHERE id = ANY(${ids}::int[]) AND (CASE WHEN jsonb_typeof(attributes) = 'array' THEN jsonb_array_length(attributes) ELSE 0 END > 0 OR COALESCE(related_items_mode, 1) > 1)`,
-    sql`SELECT product_id, related_id FROM product_related_items WHERE product_id = ANY(${ids}::int[]) ORDER BY id`,
+    sql`SELECT product_id, related_id, add_price, no_kitchen_print FROM product_related_items WHERE product_id = ANY(${ids}::int[]) ORDER BY id`,
   ])
   const extraById = new Map<number, any>((extras as any[]).map((row) => [Number(row.id), row]))
-  const relatedById = new Map<number, number[]>()
-  for (const row of relations as any[]) relatedById.set(Number(row.product_id), [...(relatedById.get(Number(row.product_id)) || []), Number(row.related_id)])
+  const relatedById = new Map<number, RelatedItemOption[]>()
+  for (const row of relations as any[]) relatedById.set(Number(row.product_id), [...(relatedById.get(Number(row.product_id)) || []), { related_id: Number(row.related_id), add_price: row.add_price !== false, no_kitchen_print: row.no_kitchen_print === true }])
   return products.map((product) => {
     const extra = extraById.get(Number(product.id))
     const groups = (Array.isArray(extra?.attributes) ? extra.attributes : [])
@@ -43,8 +47,9 @@ export async function attachProductExtras<T extends { id: number | string }>(pro
     return {
       ...product,
       addon_groups: groups as { name: string; values: string[] }[],
-      related_items_mode: Math.min(3, Math.max(1, Number(extra?.related_items_mode || 1))),
-      related_ids: relatedById.get(Number(product.id)) || [],
+      related_items_mode: Math.min(4, Math.max(1, Number(extra?.related_items_mode || 1))),
+      related_ids: (relatedById.get(Number(product.id)) || []).map((row) => row.related_id),
+      related_items: relatedById.get(Number(product.id)) || [],
     }
   })
 }

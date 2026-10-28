@@ -20,10 +20,12 @@ export type Product = {
   id: number; code: string; name: string; price: number; unitId: number | null; unitName: string; category: string
   groupPrinter: string; itemPrinter: string; imageUrl: string | null; hasImage: boolean; search: string; unitPrices: { unitId: number | null; unitName: string; price: number }[]
   addonGroups: AddonGroup[]; relatedMode: number; relatedIds: number[]
+  /** خيارات كل تابع: addPrice = اضافة السعر عند الاختيار، noKitchenPrint = عدم الطباعة في فواتير المطبخ */
+  relatedItems: { id: number; addPrice: boolean; noKitchenPrint: boolean }[]
 }
 export type Pending = {
   key: string; productId: number; name: string; unitId: number | null; unitName: string; price: number; quantity: number; discount: number
-  note: string; addons: Addon[]; groupPrinter: string; category: string; relatedOf?: string
+  note: string; addons: Addon[]; groupPrinter: string; category: string; relatedOf?: string; noKitchenPrint?: boolean
 }
 export type OrderAction = { key: string; label: string; icon: typeof Users; show: boolean; onClick: () => void; tone?: string; disabled?: boolean }
 

@@ -65,6 +65,7 @@ function normalizeCatalog(data: any): Catalog {
       addonGroups: (Array.isArray(row.addon_groups) ? row.addon_groups : []).map((group: any) => ({ name: String(group.name || ""), values: (group.values || []).map(String) })),
       relatedMode: Number(row.related_items_mode || 1),
       relatedIds: (Array.isArray(row.related_ids) ? row.related_ids : []).map(Number),
+      relatedItems: (Array.isArray(row.related_items) ? row.related_items : []).map((option: any) => ({ id: Number(option.related_id), addPrice: option.add_price !== false, noKitchenPrint: option.no_kitchen_print === true })),
     })),
     customers: (data.customers || []).map((row: any) => ({ id: Number(row.id), name: String(row.name || ""), code: String(row.code || ""), accountId: Number(row.account_id) || null })),
     currencies: (data.currencies || []).map((row: any) => ({ currency_id: Number(row.currency_id), currency_code: String(row.currency_code || ""), currency_name: String(row.currency_name || ""), rate_to_point: Number(row.rate_to_point || 1) })),
@@ -109,6 +110,8 @@ export default function RestaurantPos() {
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
   const [valueDialog, setValueDialog] = useState<null | "discount" | "takeaway_name">(null)
+  // اختيار يدوي من الأصناف التابعة (related_items_mode = 4): الصنف الأب + التوابع المؤشَّرة
+  const [relatedPick, setRelatedPick] = useState<{ product: Product; options: Product[]; selected: number[] } | null>(null)
   const [addonsTarget, setAddonsTarget] = useState<{ kind: "pending"; key: string } | { kind: "item"; item: OrderItem } | null>(null)
   const [editing, setEditing] = useState<{ kind: "item"; item: OrderItem } | { kind: "pending"; key: string } | null>(null)
   const [scopeOpen, setScopeOpen] = useState(false)
@@ -383,29 +386,45 @@ export default function RestaurantPos() {
   }, [products, category, deferredQuery])
 
   /**
-   * إضافة صنف حسب "إضافة الأصناف التابعة" في تعريفه (كما في طلبية المبيعات): 1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع.
+   * إضافة صنف حسب "إضافة الأصناف التابعة" في تعريفه: 1 الصنف فقط، 2 التوابع فقط، 3 الصنف والتوابع، 4 اختيار يدوي من التوابع.
+   * خيارات كل تابع: "اضافة السعر عند الاختيار" (لا = بسعر صفر) و"عدم الطباعة في فواتير المطبخ والمطعم".
    * التوابع غير الموجودة في قائمة الموقع (مستودع/فئة سعر مختلفة) تُتخطّى مع تنبيه.
    */
   const addProduct = (product: Product) => {
     if (!can("addItems")) { setMessage({ type: "error", text: "لا توجد لديك صلاحية إضافة أصناف للطاولة" }); return }
     const related = product.relatedMode > 1 ? product.relatedIds.map((id) => productById.get(id)).filter((row): row is Product => Boolean(row)) : []
     const missing = product.relatedMode > 1 ? product.relatedIds.length - related.length : 0
+    if (missing > 0) setMessage({ type: "error", text: `${missing} من توابع ${product.name} غير متاحة في قائمة هذا الموقع وتم تخطيها` })
+    if (product.relatedMode === 4 && related.length) { setRelatedPick({ product, options: related, selected: [] }); return }
+    addLines(product, product.relatedMode === 2 || product.relatedMode === 3 ? related : [], product.relatedMode !== 2 || !related.length)
+  }
+
+  const addLines = (product: Product, related: Product[], includeParent: boolean) => {
     const parentKey = `${product.id}-${Date.now()}-${Math.random()}`
-    const lines: { product: Product; key: string; relatedOf?: string }[] =
-      product.relatedMode === 2 && related.length ? related.map((row) => ({ product: row, key: `${parentKey}-${row.id}`, relatedOf: product.name }))
-        : product.relatedMode === 3 ? [{ product, key: parentKey }, ...related.map((row) => ({ product: row, key: `${parentKey}-${row.id}`, relatedOf: product.name }))]
-          : [{ product, key: parentKey }]
+    const optionOf = (id: number) => product.relatedItems?.find((option) => option.id === id)
+    const lines: { product: Product; key: string; price: number; relatedOf?: string; noKitchenPrint?: boolean }[] = [
+      ...(includeParent ? [{ product, key: parentKey, price: product.price }] : []),
+      ...related.map((row) => {
+        const option = optionOf(row.id)
+        return { product: row, key: `${parentKey}-${row.id}`, price: option?.addPrice === false ? 0 : row.price, relatedOf: product.name, noKitchenPrint: option?.noKitchenPrint === true }
+      }),
+    ]
     setPending((rows) => {
       let next = rows
       for (const line of lines) {
-        const index = next.findIndex((row) => row.productId === line.product.id && row.unitId === line.product.unitId && !row.note && !row.discount && !row.addons.length && row.relatedOf === line.relatedOf)
+        const index = next.findIndex((row) => row.productId === line.product.id && row.unitId === line.product.unitId && row.price === line.price && !row.note && !row.discount && !row.addons.length && row.relatedOf === line.relatedOf && Boolean(row.noKitchenPrint) === Boolean(line.noKitchenPrint))
         next = index >= 0
           ? next.map((row, i) => i === index ? { ...row, quantity: round4(row.quantity + 1) } : row)
-          : [...next, { key: line.key, productId: line.product.id, name: line.product.name, unitId: line.product.unitId, unitName: line.product.unitName, price: line.product.price, quantity: 1, discount: 0, note: "", addons: [], groupPrinter: line.product.groupPrinter, category: line.product.category, relatedOf: line.relatedOf }]
+          : [...next, { key: line.key, productId: line.product.id, name: line.product.name, unitId: line.product.unitId, unitName: line.product.unitName, price: line.price, quantity: 1, discount: 0, note: "", addons: [], groupPrinter: line.product.groupPrinter, category: line.product.category, relatedOf: line.relatedOf, noKitchenPrint: line.noKitchenPrint }]
       }
       return next
     })
-    if (missing > 0) setMessage({ type: "error", text: `${missing} من توابع ${product.name} غير متاحة في قائمة هذا الموقع وتم تخطيها` })
+  }
+
+  const confirmRelatedPick = () => {
+    if (!relatedPick) return
+    addLines(relatedPick.product, relatedPick.options.filter((row) => relatedPick.selected.includes(row.id)), true)
+    setRelatedPick(null)
   }
 
   // مرجع ثابت لشبكة الأصناف (memo) — الضغط على صنف لا يعيد رسم الشبكة
@@ -422,6 +441,8 @@ export default function RestaurantPos() {
     const groups = new Map<string, { name: string; printer: string; lines: Pending[] }>()
     const products = new Map((catalog?.products || []).map((product) => [product.id, product]))
     for (const line of lines) {
+      // تابع معرَّف بـ "عدم الطباعة في فواتير المطبخ والمطعم"
+      if (line.noKitchenPrint) continue
       const itemPrinter = products.get(line.productId)?.itemPrinter || ""
       const printer = itemPrinter || line.groupPrinter
       if (!printer) continue
@@ -714,6 +735,28 @@ export default function RestaurantPos() {
     <>
       {custodyDialogs}
       {printPreview && <PosPrintPreview title={printPreview.title} html={printPreview.html} onClose={() => setPrintPreview(null)} />}
+      <Dialog open={relatedPick !== null} onOpenChange={(value) => { if (!value) setRelatedPick(null) }}>
+        <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-md">
+          <DialogHeader><DialogTitle>الأصناف التابعة — {relatedPick?.product.name}</DialogTitle></DialogHeader>
+          <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
+            {relatedPick?.options.map((row) => {
+              const checked = relatedPick.selected.includes(row.id)
+              const option = relatedPick.product.relatedItems?.find((item) => item.id === row.id)
+              return (
+                <button key={row.id} type="button" onClick={() => setRelatedPick((pick) => pick && { ...pick, selected: checked ? pick.selected.filter((id) => id !== row.id) : [...pick.selected, row.id] })}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-right text-sm transition-colors ${checked ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40" : "hover:bg-muted"}`}>
+                  <span className="flex items-center gap-2"><input type="checkbox" readOnly tabIndex={-1} checked={checked} className="h-4 w-4 accent-emerald-600" />{row.name}{row.unitName ? ` (${row.unitName})` : ""}</span>
+                  <span className="text-xs text-muted-foreground">{option?.addPrice === false ? "بدون سعر" : row.price.toFixed(2)}</span>
+                </button>
+              )
+            })}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRelatedPick(null)}>إلغاء</Button>
+            <Button className="h-11" onClick={confirmRelatedPick}>إضافة</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {toast}
     </>
   )

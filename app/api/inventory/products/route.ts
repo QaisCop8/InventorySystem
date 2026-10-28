@@ -1212,7 +1212,7 @@ export async function POST(request: NextRequest) {
       }
 
       await client.query(updateQuery, updateValues)
-      await client.query("UPDATE products SET related_items_mode = $1 WHERE id = $2", [Math.min(3, Math.max(1, Number(productData.related_items_mode || 1))), productId])
+      await client.query("UPDATE products SET related_items_mode = $1 WHERE id = $2", [Math.min(4, Math.max(1, Number(productData.related_items_mode || 1))), productId])
       await client.query(`DELETE FROM product_units WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_prices WHERE product_id=$1`, [productId]);
@@ -1423,7 +1423,7 @@ export async function POST(request: NextRequest) {
 
 
       productId = result.rows[0].id;
-      await client.query("UPDATE products SET related_items_mode = $1 WHERE id = $2", [Math.min(3, Math.max(1, Number(productData.related_items_mode || 1))), productId])
+      await client.query("UPDATE products SET related_items_mode = $1 WHERE id = $2", [Math.min(4, Math.max(1, Number(productData.related_items_mode || 1))), productId])
 
     }
 

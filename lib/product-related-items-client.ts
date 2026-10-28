@@ -8,9 +8,10 @@ export async function expandProductWithRelatedItems(product: any, cachedProducts
   const response = await fetch(`/api/inventory/products/${productId}/related-items?includeMode=1`, { cache: "no-store" })
   const payload = await response.json()
   if (!response.ok) throw new Error(payload?.error || `تعذر تحميل توابع الصنف ${canonical.product_name || canonical.name || ""}`)
-  const mode = Math.min(3, Math.max(1, Number(payload?.related_items_mode || 1)))
+  const mode = Math.min(4, Math.max(1, Number(payload?.related_items_mode || 1)))
   const relations = Array.isArray(payload?.related_items) ? payload.related_items : []
-  if (mode === 1) return [product]
+  // 4 = اختيار يدوي من التوابع (مطبّق في شاشة المطعم) — هنا يُضاف الصنف وحده
+  if (mode === 1 || mode === 4) return [product]
 
   const related = await Promise.all(relations.map(async (row: any) => {
     const cached = cachedProducts.find((item) => Number(item.id) === Number(row.related_id))

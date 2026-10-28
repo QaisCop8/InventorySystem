@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         id: Number(product.id), product_code: product.product_code, product_name: product.product_name, unit_id: product.unit_id, unit_name: product.unit_name,
         first_price: product.first_price, category_name: product.category_name, group_printer: product.group_printer, item_printer: product.item_printer, unit_prices: product.unit_prices,
         image_url: /^(https?:|\/)/i.test(image) ? image : null, has_image: Boolean(image) && !/^(https?:|\/)/i.test(image),
-        addon_groups: product.addon_groups, related_items_mode: product.related_items_mode, related_ids: product.related_ids,
+        addon_groups: product.addon_groups, related_items_mode: product.related_items_mode, related_ids: product.related_ids, related_items: product.related_items,
       }
     })
     return NextResponse.json({ ...catalog, products, session: null, can_pay: auth.permissions.pay })
