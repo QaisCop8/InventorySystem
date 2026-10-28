@@ -162,10 +162,9 @@ export default function ManagerInbox() {
   const processRow = async (row: Row) => {
     setBusyId(row.id)
     try {
-      const blob = await fetchFile(row)
-      const file = new File([blob], row.file_name, { type: row.mime_type || blob.type })
       const hint = [MANAGER_ATTACHMENT_TYPES[row.doc_type], row.supplier_name ? `الحساب: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
-      openSectionWith("ai-assistant", { file, hint })
+      // الخادم يقرأ المرفق من قاعدة البيانات بمعرّفه — لا تنزيل ثم رفع من المتصفح
+      openSectionWith("ai-assistant", { attachment: { attachmentId: row.id, name: row.file_name }, hint })
       await fetch(`/api/manager-attachments/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "processed" }) })
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, processed_at: new Date().toISOString(), read_at: item.read_at || new Date().toISOString() } : item))
     } catch (error) {

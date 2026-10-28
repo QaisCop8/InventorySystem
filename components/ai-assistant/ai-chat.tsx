@@ -245,7 +245,8 @@ export function AIChat() {
   // ── مرفق: صورة/PDF لفاتورة مبيعات أو مشتريات أو سند قبض/صرف ──────────────────────
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   // hintOverride: مرفق مُمرَّر من شاشة أخرى (بريد الرسائل ⇐ معالجة) مع وصفه بدل نص خانة الكتابة
-  const handleAttach = async (file: File | null, hintOverride?: string) => {
+  // file = ملف مرفق هنا، أو { attachmentId } = مرفق محفوظ في بريد الرسائل يقرؤه الخادم من قاعدة البيانات مباشرة
+  const handleAttach = async (file: File | { attachmentId: number; name: string } | null, hintOverride?: string) => {
     if (!file || isLoading) return
     const hint = (hintOverride ?? input).trim()
     setMessages((prev) => [...prev, { role: "user", content: `📎 ${file.name}${hint ? `\n${hint}` : ""}`, at: Date.now() }])
@@ -254,10 +255,11 @@ export function AIChat() {
     let continueWith: string | null = null
     try {
       const body = new FormData()
-      body.append("file", file)
+      if ("attachmentId" in file) body.append("attachment_id", String(file.attachmentId))
+      else body.append("file", file)
       if (hint) body.append("hint", hint)
-      // الخادم يعيد المحاولة تلقائياً عند انشغال الخدمة حتى ~100 ثانية ⇐ مهلة أطول قليلاً هنا
-      const response = await fetch("/api/ai-assistant/document-extract", { method: "POST", body, signal: AbortSignal.timeout(115_000) })
+      // الخادم يعيد المحاولة تلقائياً عند انشغال الخدمة حتى ~130 ثانية ⇐ مهلة أطول قليلاً هنا
+      const response = await fetch("/api/ai-assistant/document-extract", { method: "POST", body, signal: AbortSignal.timeout(145_000) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذر قراءة المرفق")
       if ((data.document_type === "receipt" || data.document_type === "payment") && data.receipt_command) {
@@ -351,7 +353,10 @@ export function AIChat() {
   // بريد الرسائل ⇐ "معالجة": يفتح المساعد ويعالج المرفق كأنه أُرفق هنا (openSectionWith("ai-assistant", { file, hint }))
   const handleAttachRef = useRef(handleAttach)
   handleAttachRef.current = handleAttach
-  useSectionIntent<{ file: File; hint?: string }>("ai-assistant", (data) => { if (data?.file) void handleAttachRef.current(data.file, data.hint || "") }, !isLoading)
+  useSectionIntent<{ file?: File; attachment?: { attachmentId: number; name: string }; hint?: string }>("ai-assistant", (data) => {
+    const source = data?.attachment || data?.file
+    if (source) void handleAttachRef.current(source, data.hint || "")
+  }, !isLoading)
 
   // الفاتورة المعبّأة تُفتح في تبويب متصفح جديد (تبقى المحادثة كما هي) — شاشة الفاتورة تقرأ المعبّأ عند فتحها
   const openInvoicePrefill = (prefill: VoucherPrefill) =>

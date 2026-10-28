@@ -5,9 +5,11 @@ import { z } from "zod"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { aiCallOptions, aiFailureMessage, isTemporaryAiError, runWithAiRetry } from "@/lib/ai-model"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { ensureManagerAttachmentsTable } from "@/lib/manager-attachments"
 
 // إعادة المحاولة التلقائية عند انشغال الخدمة قد تتجاوز مهلة المسار الافتراضية
-export const maxDuration = 120
+export const maxDuration = 150
 
 // مرفق في المساعد الذكي (صورة/PDF لفاتورة مبيعات أو مشتريات أو سند قبض/صرف): Gemini يقرأ المستند ويعيد بيانات
 // منظّمة، ثم يُطابَق الطرف (عميل/مورد) والأصناف مع النظام. السندات تُحوَّل لنص أمر يمرّ بمسار سند القبض/الصرف
@@ -80,18 +82,62 @@ const nameScore = (candidate: string, wanted: string) => {
   return hits === words.length ? 80 - Math.min(20, Math.abs(a.length - b.length) / 2) : Math.round((hits / words.length) * 60)
 }
 
+/**
+ * مطابقة اسم صنف في المستند مع اسم صنف في النظام (أوسع من nameScore): المستند يضيف غالباً الوحدة "(حبة)" أو
+ * خاصية "+ حار" أو "غم" — فيُقبل الاحتواء بالاتجاهين (LIKE)، ثم تغطية كلمات اسم الصنف داخل سطر المستند.
+ * الأطول تطابقاً يفوز (صنف "ريما 250" أدق من "ريما") عبر مكافأة الطول.
+ */
+const cleanItemName = (value: string) => String(value || "").replace(/\([^)]*\)|\[[^\]]*\]/g, " ").split(/\s\+\s|\s-\s/)[0]
+const itemScore = (productName: string, lineName: string) => {
+  const product = normalize(productName)
+  if (!product) return 0
+  let best = 0
+  for (const candidate of [...new Set([normalize(lineName), normalize(cleanItemName(lineName))])]) {
+    if (!candidate) continue
+    const lengthBonus = Math.min(9, product.length / 6)
+    if (candidate === product) return 100
+    // اسم الصنف كاملاً داخل سطر المستند (أو العكس) — بحدود كلمات حتى لا يطابق "ريما 25" داخل "ريما 250"
+    const padded = ` ${candidate} `
+    if (product.length >= 4 && padded.includes(` ${product} `)) best = Math.max(best, 88 + lengthBonus)
+    else if (candidate.length >= 4 && ` ${product} `.includes(padded)) best = Math.max(best, 84 + lengthBonus)
+    // كل كلمات اسم الصنف موجودة في السطر (بأي ترتيب) — الأرقام يجب أن تتطابق تماماً
+    const productWords = product.split(" ").filter(Boolean)
+    const lineWords = new Set(candidate.split(" "))
+    const hits = productWords.filter((word) => lineWords.has(word) || (!/^\d+$/.test(word) && word.length > 2 && [...lineWords].some((other) => other.startsWith(word) || (word.startsWith(other) && other.length > 2)))).length
+    if (productWords.length >= 2 && hits === productWords.length) best = Math.max(best, 78 + lengthBonus)
+    else best = Math.max(best, nameScore(productName, cleanItemName(lineName)))
+  }
+  return best
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return NextResponse.json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة على الخادم" }, { status: 503 })
     const form = await request.formData()
-    const file = form.get("file")
     const hint = String(form.get("hint") || "").slice(0, 500)
-    if (!(file instanceof File)) return NextResponse.json({ error: "أرفق ملف صورة أو PDF" }, { status: 400 })
+    // attachment_id: مرفق من "بريد الرسائل" يُقرأ من قاعدة البيانات مباشرة (بلا تنزيله للمتصفح ثم رفعه مجدداً)
+    const attachmentId = Number(form.get("attachment_id") || 0)
+    let file: { type: string; size: number; bytes: Uint8Array }
+    if (attachmentId > 0) {
+      await ensureManagerAttachmentsTable()
+      const row = (await sql`SELECT branch_id, mime_type, file_data FROM manager_attachments_tbl WHERE id = ${attachmentId} LIMIT 1`)[0] as any
+      if (!row) return NextResponse.json({ error: "المرفق غير موجود (ربما حُذف)" }, { status: 404 })
+      const auth = await authorizeTransaction(request, "manager_inbox", "view", row.branch_id)
+      if (!auth.ok) return auth.response
+      const bytes = new Uint8Array(row.file_data as Buffer)
+      // نوع "image/jpg" غير القياسي يُصحَّح حتى يقبله النموذج
+      file = { type: String(row.mime_type || "").replace(/^image\/jpg$/i, "image/jpeg"), size: bytes.byteLength, bytes }
+    } else {
+      const upload = form.get("file")
+      if (!(upload instanceof File)) return NextResponse.json({ error: "أرفق ملف صورة أو PDF" }, { status: 400 })
+      file = { type: upload.type, size: upload.size, bytes: new Uint8Array(await upload.arrayBuffer()) }
+    }
     if (!ALLOWED.test(file.type)) return NextResponse.json({ error: "نوع الملف غير مدعوم — صورة (JPG/PNG/WEBP) أو PDF فقط" }, { status: 400 })
     if (file.size > MAX_BYTES) return NextResponse.json({ error: "حجم الملف أكبر من 10MB" }, { status: 400 })
-    const bytes = new Uint8Array(await file.arrayBuffer())
+    if (!file.size) return NextResponse.json({ error: "الملف فارغ" }, { status: 400 })
+    const bytes = file.bytes
 
     let extracted: z.infer<typeof schema> | null = null
     let lastError: unknown = null
@@ -104,9 +150,13 @@ export async function POST(request: NextRequest) {
     }]
     // الانشغال المؤقت ("high demand"/503/429) يُعاد تلقائياً على النموذج الأساسي والاحتياطية بانتظار متزايد
     // (runWithAiRetry) بدل إظهار "مشغولة" من أول محاولة.
+    // المحاولة الأولى بتفكير "low" (أدق) حتى 75ث؛ إن تأخرت أو انشغلت الخدمة فالمحاولات التالية بتفكير "minimal" (أسرع بكثير)
+    // بدل تكرار نفس الاستدعاء البطيء حتى تنتهي المهلة كلها
+    let attempt = 0
     try {
       extracted = await runWithAiRetry(async (modelName, remainingMs) => {
-        const callOptions = () => aiCallOptions(modelName, { timeoutMs: Math.min(60_000, remainingMs), thinking: "low" })
+        const thinking = attempt++ === 0 ? "low" as const : "minimal" as const
+        const callOptions = () => aiCallOptions(modelName, { timeoutMs: Math.min(thinking === "low" ? 75_000 : 50_000, remainingMs), thinking })
         try {
           const { output } = await generateText({
             ...callOptions(),
@@ -129,7 +179,7 @@ export async function POST(request: NextRequest) {
           const clean = String(generated.text || "").replace(/```(?:json)?/gi, "").trim()
           return schema.parse(JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)))
         }
-      }, { deadlineMs: 100_000 })
+      }, { deadlineMs: 130_000 })
     } catch (error) {
       lastError = error
     }
@@ -190,7 +240,7 @@ export async function POST(request: NextRequest) {
       }
       if (!product && line.name) {
         let best: any = null, bestScore = 0
-        for (const row of catalog) { const score = nameScore(row.product_name, line.name); if (score > bestScore) { best = row; bestScore = score } }
+        for (const row of catalog) { const score = itemScore(row.product_name, line.name); if (score > bestScore) { best = row; bestScore = score } }
         if (best && bestScore >= 70) { product = best; matchedBy = "name" }
       }
       return {
