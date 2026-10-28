@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, Search } from "lucide-react"
+import { ChevronDown, Loader2, Search, Settings, Wand2 } from "lucide-react"
+import BankAccountsAutoSettings from "@/components/admin/bank-accounts-auto-settings"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,7 +41,12 @@ export interface BankAccountRecord {
   checks_deposit_period: number | null
   notes: string
   status: number
+  /** انشاء آلي: الحسابات المحاسبية تُنشأ عند الحفظ تحت الحسابات الاب المحددة في "اعدادات" */
+  auto_generate?: boolean
 }
+
+type AutoPlanItem = { kind: string; label: string; father?: { code: string; name: string; exists: boolean }; account: { code: string; name: string; exists: boolean } }
+type AutoRow = { key: string; bankId: number; bankCode: string; bankName: string; branchId: number; branchCode: string; branchName: string; currencyId: number; currencyName: string }
 
 interface BranchOption {
   id: number
@@ -121,6 +127,17 @@ export default function UnifiedBankAccounts({
   const [commissionsOpen, setCommissionsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [navLoading, setNavLoading] = useState(false)
+  // انشاء آلي (كما في الشامل): بنك + فرع + عملات ← "اختيار" يملأ جدول الحسابات ← "تنفيذ" يعبّئ النموذج
+  const [autoMode, setAutoMode] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [autoBankId, setAutoBankId] = useState<number | null>(null)
+  const [autoBranchId, setAutoBranchId] = useState<number | null>(null)
+  const [autoCurrencyIds, setAutoCurrencyIds] = useState<number[]>([])
+  const [autoRows, setAutoRows] = useState<AutoRow[]>([])
+  const [autoError, setAutoError] = useState("")
+  const [autoPlan, setAutoPlan] = useState<AutoPlanItem[]>([])
+  const [autoPlanError, setAutoPlanError] = useState("")
+  const [autoPlanLoading, setAutoPlanLoading] = useState(false)
 
   const selectedBranch = useMemo(
     () => branches.find((b) => b.id === form.branch_id) || null,
@@ -191,6 +208,69 @@ export default function UnifiedBankAccounts({
     [currencies],
   )
 
+  // الانشاء الآلي متاح للسجل الجديد فقط
+  useEffect(() => {
+    if (form.id > 0 || !dialogOpen) setAutoMode(false)
+  }, [form.id, dialogOpen])
+
+  const autoBranches = useMemo(() => (autoBankId ? branches.filter((b) => b.bank_id === autoBankId) : []), [branches, autoBankId])
+
+  const chooseAutoRows = () => {
+    const bank = banks.find((b) => b.id === autoBankId)
+    const branch = branches.find((b) => b.id === autoBranchId)
+    if (!bank) return setAutoError("يجب اختيار البنك")
+    if (!branch) return setAutoError("يجب اختيار الفرع")
+    if (!autoCurrencyIds.length) return setAutoError("يجب اختيار عملة واحدة على الأقل")
+    setAutoError("")
+    setAutoRows(autoCurrencyIds.map((currencyId) => {
+      const currency = currencies.find((c) => Number(c.currency_id ?? c.id) === currencyId)
+      return {
+        key: `${branch.id}-${currencyId}`, bankId: bank.id, bankCode: bank.bank_code || "", bankName: bank.bank_name,
+        branchId: branch.id, branchCode: branch.branch_code, branchName: branch.branch_name,
+        currencyId, currencyName: currency?.currency_name || currency?.currency_code || "",
+      }
+    }))
+  }
+
+  const executeAutoRow = (row: AutoRow) => {
+    onFormChange("branch_id", row.branchId)
+    onFormChange("currency_id", row.currencyId)
+    onFormChange("returned_checks_commission_currency_id", row.currencyId)
+    onFormChange("tahsil_checks_commission_currency_id", row.currencyId)
+    for (const field of ["jary_account_id", "tahsil_account_id", "tahsil_commission_account_id", "payed_checks_account_id", "returned_checks_account_id"]) onFormChange(field, null)
+    if (!form.name.trim()) onFormChange("name", `جاري ${row.bankName} ${row.currencyName}`.trim())
+    if (!form.name_lang2.trim()) {
+      const bank = banks.find((b) => b.id === row.bankId) as (BankOption & { bank_name_en?: string }) | undefined
+      const currency = currencies.find((c) => Number(c.currency_id ?? c.id) === row.currencyId)
+      onFormChange("name_lang2", `Current ${bank?.bank_name_en || row.bankName} ${currency?.currency_code || ""}`.trim())
+    }
+    onFormChange("auto_generate", true)
+  }
+
+  // عرض الحسابات التي ستُنشأ — يتحدّث مع الفرع/العملة/رقم الحساب الفعلي (نفس منطق الحفظ في الخادم)
+  useEffect(() => {
+    if (!form.auto_generate || form.id > 0) { setAutoPlan([]); setAutoPlanError(""); return }
+    if (!form.branch_id || !form.currency_id) { setAutoPlan([]); setAutoPlanError("اختر البنك والفرع والعملة"); return }
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      setAutoPlanLoading(true)
+      try {
+        const query = new URLSearchParams({ preview: "1", branch_id: String(form.branch_id), currency_id: String(form.currency_id), actual_bank_code: form.actual_bank_code || "" })
+        const response = await fetch(`/api/bank-accounts/auto-generate?${query}`, { cache: "no-store" })
+        const data = await response.json().catch(() => ({}))
+        if (cancelled) return
+        if (!response.ok) { setAutoPlan([]); setAutoPlanError(data?.error || "تعذر تجهيز الحسابات"); return }
+        setAutoPlan(Array.isArray(data.items) ? data.items : [])
+        setAutoPlanError("")
+      } catch {
+        if (!cancelled) { setAutoPlan([]); setAutoPlanError("تعذر تجهيز الحسابات") }
+      } finally {
+        if (!cancelled) setAutoPlanLoading(false)
+      }
+    }, 300)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [form.auto_generate, form.id, form.branch_id, form.currency_id, form.actual_bank_code, settingsOpen])
+
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
     setNavLoading(true)
     try {
@@ -236,16 +316,16 @@ export default function UnifiedBankAccounts({
         onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}
       >
         <DialogContent
-          className="w-full max-w-6xl p-0 overflow-hidden max-h-[90vh] overflow-y-auto"
+          className={`w-full ${autoMode ? "max-w-[96vw] 2xl:max-w-[1500px]" : "max-w-6xl"} p-0 overflow-hidden max-h-[90vh] overflow-y-auto`}
           dir="rtl"
           onPointerDownOutside={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || searchOpen) event.preventDefault()
+            if (showUnsavedConfirm || showDeleteConfirm || searchOpen || settingsOpen) event.preventDefault()
           }}
           onInteractOutside={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || searchOpen) event.preventDefault()
+            if (showUnsavedConfirm || showDeleteConfirm || searchOpen || settingsOpen) event.preventDefault()
           }}
           onEscapeKeyDown={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || searchOpen) event.preventDefault()
+            if (showUnsavedConfirm || showDeleteConfirm || searchOpen || settingsOpen) event.preventDefault()
           }}
         >
           <UniversalToolbar
@@ -276,6 +356,24 @@ export default function UnifiedBankAccounts({
 
             <Messages innerRef={messagesRef} />
 
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-muted/40 px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                {form.id > 0 ? "اعدادات الحسابات الاب المستخدمة في الانشاء الآلي للحسابات البنكية" : "سيتم استخدام الحسابات الاب المحددة في الاعدادات لانشاء الحسابات المحاسبية للحساب البنكي آلياً"}
+              </p>
+              <div className="flex gap-2">
+                {form.id <= 0 && (
+                  <Button type="button" size="sm" variant={autoMode ? "secondary" : "default"} onClick={() => setAutoMode((value) => !value)}>
+                    <Wand2 className="ml-1 h-4 w-4" />{autoMode ? "إخفاء الانشاء الآلي" : "انشاء آلي"}
+                  </Button>
+                )}
+                <Button type="button" size="sm" variant="outline" onClick={() => setSettingsOpen(true)}>
+                  <Settings className="ml-1 h-4 w-4" />اعدادات
+                </Button>
+              </div>
+            </div>
+
+            <div className={autoMode ? "grid items-start gap-5 xl:grid-cols-2" : ""}>
+            <div>
             <div className="space-y-4 border-b pb-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
@@ -426,7 +524,26 @@ export default function UnifiedBankAccounts({
             </div>
 
             <div className="space-y-4 border-b py-6">
-              <h4 className="font-semibold text-base">الحسابات المحاسبية</h4>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-semibold text-base">الحسابات المحاسبية</h4>
+                {form.auto_generate && form.id <= 0 && (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => onFormChange("auto_generate", false)}>اختيار الحسابات يدوياً</Button>
+                )}
+              </div>
+              {form.auto_generate && form.id <= 0 ? (
+                <div className="space-y-2 rounded-xl border bg-emerald-50/60 p-3 dark:bg-emerald-950/20">
+                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">انشاء آلي — تُنشأ الحسابات التالية عند الحفظ:</p>
+                  {autoPlanLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />جاري تجهيز الحسابات...</div>}
+                  {autoPlanError && !autoPlanLoading && <p className="text-sm text-red-600 dark:text-red-400">{autoPlanError}</p>}
+                  {!autoPlanError && autoPlan.map((item) => (
+                    <div key={item.kind} className="rounded-lg border bg-background px-3 py-2 text-sm">
+                      <div className="font-semibold">{item.label}</div>
+                      {item.father && <div className="text-xs text-muted-foreground">تحت: <span className="font-mono">{item.father.code}</span> {item.father.name} {item.father.exists ? "(موجود)" : "(جديد)"}</div>}
+                      <div><span className="font-mono">{item.account.code}</span> — {item.account.name} <span className={item.account.exists ? "text-sky-700 dark:text-sky-300" : "text-emerald-700 dark:text-emerald-300"}>{item.account.exists ? "(موجود)" : "(جديد)"}</span></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 <AutoCompleteAccount
                   label="الحساب المحاسبي *"
@@ -469,6 +586,7 @@ export default function UnifiedBankAccounts({
                   searchAllowedTypeValues={[1]}
                 />
               </div>
+              )}
             </div>
 
             <Collapsible open={commissionsOpen} onOpenChange={setCommissionsOpen} className="py-4">
@@ -544,9 +662,115 @@ export default function UnifiedBankAccounts({
                 </label>
               </CollapsibleContent>
             </Collapsible>
+            </div>
+
+            {autoMode && (
+              <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm">
+                <div className="grid gap-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+                  <div className="space-y-3">
+                    <div className="grid gap-1.5">
+                      <Label>البنك *</Label>
+                      <select
+                        value={autoBankId != null ? String(autoBankId) : ""}
+                        onChange={(e) => { setAutoBankId(e.target.value ? Number(e.target.value) : null); setAutoBranchId(null) }}
+                        className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                      >
+                        <option value="">اختر البنك</option>
+                        {banks.map((bank) => <option key={bank.id} value={bank.id}>{bank.bank_name}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>الفرع *</Label>
+                      <select
+                        value={autoBranchId != null ? String(autoBranchId) : ""}
+                        onChange={(e) => setAutoBranchId(e.target.value ? Number(e.target.value) : null)}
+                        disabled={!autoBankId}
+                        className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="">{autoBankId ? "اختر الفرع" : "اختر البنك أولاً"}</option>
+                        {autoBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_code} / {branch.branch_name}</option>)}
+                      </select>
+                    </div>
+                    <Button type="button" className="w-full" onClick={chooseAutoRows}>اختيار</Button>
+                    {autoError && <p className="text-sm text-red-600 dark:text-red-400">{autoError}</p>}
+                  </div>
+                  <div className="max-h-56 overflow-auto rounded-lg border">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-muted text-xs">
+                        <tr>
+                          <th className="w-10 px-2 py-2 text-center">
+                            <Checkbox
+                              checked={currencies.length > 0 && autoCurrencyIds.length === currencies.length}
+                              onCheckedChange={(checked) => setAutoCurrencyIds(checked === true ? currencies.map((c) => Number(c.currency_id ?? c.id)) : [])}
+                            />
+                          </th>
+                          <th className="px-2 py-2 text-right">رمز العملة</th>
+                          <th className="px-2 py-2 text-right">اسم العملة</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currencies.map((currency) => {
+                          const id = Number(currency.currency_id ?? currency.id)
+                          const checked = autoCurrencyIds.includes(id)
+                          return (
+                            <tr key={id} className="cursor-pointer border-t hover:bg-muted/50" onClick={() => setAutoCurrencyIds((ids) => checked ? ids.filter((value) => value !== id) : [...ids, id])}>
+                              <td className="px-2 py-1.5 text-center"><Checkbox checked={checked} tabIndex={-1} className="pointer-events-none" /></td>
+                              <td className="px-2 py-1.5 font-mono">{currency.currency_code}</td>
+                              <td className="px-2 py-1.5">{currency.currency_name}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead className="bg-muted text-xs">
+                      <tr>
+                        <th className="w-10 px-2 py-2 text-center">#</th>
+                        <th className="w-24 px-2 py-2 text-center">تنفيذ</th>
+                        <th className="px-2 py-2 text-right">رقم البنك</th>
+                        <th className="px-2 py-2 text-right">اسم البنك</th>
+                        <th className="px-2 py-2 text-right">رقم الفرع</th>
+                        <th className="px-2 py-2 text-right">اسم الفرع</th>
+                        <th className="px-2 py-2 text-right">العملة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {autoRows.length === 0 && (
+                        <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">اختر البنك والفرع والعملات ثم اضغط "اختيار"</td></tr>
+                      )}
+                      {autoRows.map((row, index) => {
+                        const active = form.auto_generate && form.branch_id === row.branchId && form.currency_id === row.currencyId
+                        const exists = allBankAccounts.some((account) => account.status !== 3 && account.branch_id === row.branchId && Number(account.currency_id) === row.currencyId)
+                        return (
+                          <tr key={row.key} className={`border-t ${active ? "bg-emerald-50 dark:bg-emerald-950/30" : ""}`}>
+                            <td className="px-2 py-1.5 text-center">{index + 1}</td>
+                            <td className="px-2 py-1.5 text-center">
+                              <Button type="button" size="sm" variant={active ? "secondary" : "default"} className="h-7 px-3" onClick={() => executeAutoRow(row)}>تنفيذ</Button>
+                            </td>
+                            <td className="px-2 py-1.5 font-mono">{row.bankCode}</td>
+                            <td className="px-2 py-1.5">{row.bankName}</td>
+                            <td className="px-2 py-1.5 font-mono">{row.branchCode}</td>
+                            <td className="px-2 py-1.5">{row.branchName}</td>
+                            <td className="px-2 py-1.5">{row.currencyName}{exists && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">يوجد حساب بنكي</span>}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-muted-foreground">"تنفيذ" يعبّئ الفرع والعملة والاسم في النموذج؛ أدخل رقم الحساب ورقم الحساب الفعلي ثم احفظ — تُنشأ الحسابات المحاسبية مع الحفظ.</p>
+              </div>
+            )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      <BankAccountsAutoSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       <BankAccountsSearch
         open={searchOpen}

@@ -174,12 +174,14 @@ export default function BankAccounts() {
 
     if (!data.branch_id) return "يجب اختيار البنك والفرع"
 
+    // انشاء آلي: الحسابات تُنشأ في الخادم مع الحفظ
     if (
-      !data.jary_account_id ||
+      !data.auto_generate &&
+      (!data.jary_account_id ||
       !data.tahsil_account_id ||
       !data.tahsil_commission_account_id ||
       !data.payed_checks_account_id ||
-      !data.returned_checks_account_id
+      !data.returned_checks_account_id)
     ) {
       return "يجب تعبئة جميع الحسابات المحاسبية"
     }

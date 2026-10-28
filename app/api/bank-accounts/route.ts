@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { withTenantTransaction } from "@/lib/database"
+import { BankAutoGenerateError, createBankAccountAccounts } from "@/lib/bank-account-autogen"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
@@ -62,8 +63,11 @@ export async function POST(request: NextRequest) {
     if (!authorization.ok) return authorization.response
     await ensureTable()
     const data = await request.json()
-    const leafAccountsError = await validateLeafAccountFields({ "الحساب الجاري": data.jary_account_id, "حساب التحصيل": data.tahsil_account_id, "حساب عمولة التحصيل": data.tahsil_commission_account_id, "حساب الشيكات المدفوعة": data.payed_checks_account_id, "حساب الشيكات المرتجعة": data.returned_checks_account_id })
-    if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
+    const autoGenerate = data.auto_generate === true
+    if (!autoGenerate) {
+      const leafAccountsError = await validateLeafAccountFields({ "الحساب الجاري": data.jary_account_id, "حساب التحصيل": data.tahsil_account_id, "حساب عمولة التحصيل": data.tahsil_commission_account_id, "حساب الشيكات المدفوعة": data.payed_checks_account_id, "حساب الشيكات المرتجعة": data.returned_checks_account_id })
+      if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
+    }
 
     if (!data.code || !data.name) {
       return NextResponse.json({ error: "رقم الحساب واسم الحساب مطلوبان" }, { status: 400 })
@@ -74,6 +78,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "رقم الحساب موجود مسبقاً" }, { status: 400 })
     }
 
+    if (autoGenerate) {
+      // انشاء آلي: الحسابات المحاسبية تُنشأ مع الحساب البنكي في معاملة واحدة — فشل أي خطوة لا يترك حسابات يتيمة
+      const accountsPermission = await authorizeFile(request, "accounts", "create")
+      if (!accountsPermission.ok) return accountsPermission.response
+      if (!data.branch_id || !data.currency_id) return NextResponse.json({ error: "يجب اختيار البنك والفرع والعملة" }, { status: 400 })
+      try {
+        const created = await withTenantTransaction(async () => {
+          const ids = await createBankAccountAccounts({ branchId: Number(data.branch_id), currencyId: Number(data.currency_id), actualCode: String(data.actual_bank_code || "") })
+          return insertBankAccount({ ...data, ...ids })
+        })
+        return NextResponse.json(created, { status: 201 })
+      } catch (error) {
+        if (error instanceof BankAutoGenerateError) return NextResponse.json({ error: error.message }, { status: 400 })
+        throw error
+      }
+    }
+
+    return NextResponse.json(await insertBankAccount(data), { status: 201 })
+  } catch (error) {
+    console.error("Error creating bank account:", error)
+    return NextResponse.json({ error: "Failed to create bank account" }, { status: 500 })
+  }
+}
+
+// يُستدعى داخل معاملة الإنشاء الآلي أو مباشرة
+async function insertBankAccount(data: any) {
     const lastOrder = await sql`SELECT COALESCE(MAX(order_no), 0) AS max_order FROM bank_accounts`
     const nextOrder = Number(lastOrder[0]?.max_order || 0) + 1
 
@@ -98,11 +128,7 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `
 
-    return NextResponse.json(result[0], { status: 201 })
-  } catch (error) {
-    console.error("Error creating bank account:", error)
-    return NextResponse.json({ error: "Failed to create bank account" }, { status: 500 })
-  }
+    return result[0]
 }
 
 export async function PUT(request: NextRequest) {
