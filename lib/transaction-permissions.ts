@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import {
   legacyTransactionPermissionName,
   TRANSACTION_ACTION_LABELS,
+  transactionActionsFor,
   TRANSACTION_FAMILIES,
   TRANSACTION_PERMISSION_CATEGORY,
   transactionPermissionName,
@@ -173,7 +174,7 @@ export async function authorizeStoredVoucher(request: NextRequest, voucherId: nu
 
 export async function ensureAllTransactionPermissions() {
   for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
-    for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+    for (const action of transactionActionsFor(family)) {
       await ensureTransactionPermission(family, action)
     }
   }

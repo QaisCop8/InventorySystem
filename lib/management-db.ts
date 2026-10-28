@@ -286,6 +286,9 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
     TRANSACTION_PERMISSION_CATEGORY,
     legacyTransactionPermissionName,
     transactionPermissionName,
+    transactionActionsFor,
+    RENAMED_TRANSACTION_PERMISSIONS,
+    REMOVED_TRANSACTION_PERMISSION_NAMES,
   } = await import("@/lib/transaction-permission-definitions")
 
   await sql`
@@ -320,7 +323,7 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
   const legacyFrom: string[] = []
   const legacyTo: string[] = []
   for (const family of Object.keys(TRANSACTION_FAMILIES) as Array<keyof typeof TRANSACTION_FAMILIES>) {
-    for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as Array<keyof typeof TRANSACTION_ACTION_LABELS>) {
+    for (const action of transactionActionsFor(family)) {
       const name = transactionPermissionName(family, action)
       const legacyName = legacyTransactionPermissionName(family, action)
       names.push(name)
@@ -329,6 +332,15 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
         legacyTo.push(name)
       }
     }
+  }
+  // أسماء أوضح لبعض الصلاحيات (TRANSACTION_PERMISSION_NAME_OVERRIDES): الصف القديم يُعاد تسميته فيبقى معرّفه ومنحه
+  for (const rename of RENAMED_TRANSACTION_PERMISSIONS) {
+    legacyFrom.push(rename.from)
+    legacyTo.push(rename.to)
+  }
+  // إجراءات لم تعد مستخدمة لبعض الحركات — تُحذف من قاعدة الإدارة حتى لا تُنسخ للشركات مجدداً
+  if (REMOVED_TRANSACTION_PERMISSION_NAMES.length) {
+    await sql`DELETE FROM access_list WHERE name = ANY(${REMOVED_TRANSACTION_PERMISSION_NAMES}::text[])`
   }
   if (legacyFrom.length) {
     // صف واحد فقط لكل اسم جديد (أقدم صف بالاسم القديم) — وإلا قد يُعاد تسمية صفّين لنفس الاسم بأمر واحد فيتعارضان

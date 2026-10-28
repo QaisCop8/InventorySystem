@@ -133,9 +133,43 @@ export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | nul
   return entries.some((entry) => String(entry.access_name || "").trim() === USER_ADMIN_PERMISSION && (entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true"))
 }
 
-export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
-  return `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
+/**
+ * الإجراءات الفعلية لكل حركة — الافتراضي كل الإجراءات الستة؛ شاشات الأدوات تحتاج بعضها فقط
+ * (لا معنى لـ"ترحيل تعديل الأصناف" أو "إدخال بريد الرسائل"). ما يُحذف من هنا يُزال من شاشة الصلاحيات ومن قاعدة البيانات.
+ */
+export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, TransactionAction[]>> = {
+  bulk_items: ["access", "update"],
+  manager_attachment: ["access", "create"],
+  manager_inbox: ["access", "view", "delete"],
 }
+
+/** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
+export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFamily, Partial<Record<TransactionAction, string>>>> = {
+  bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
+  manager_attachment: { create: "إرسال مرفقات للمدير" },
+  manager_inbox: { view: "استعلام ومعالجة بريد الرسائل", delete: "حذف مرفقات بريد الرسائل" },
+}
+
+export const transactionActionsFor = (family: TransactionFamily): TransactionAction[] =>
+  TRANSACTION_FAMILY_ACTIONS[family] ?? (Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[])
+
+const defaultTransactionPermissionName = (family: TransactionFamily, action: TransactionAction) =>
+  `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
+
+export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
+  return TRANSACTION_PERMISSION_NAME_OVERRIDES[family]?.[action] ?? defaultTransactionPermissionName(family, action)
+}
+
+/** صلاحيات تُعاد تسميتها (الاسم الافتراضي القديم ← الاسم الجديد) مع الإبقاء على المنح */
+export const RENAMED_TRANSACTION_PERMISSIONS: { from: string; to: string }[] = (Object.keys(TRANSACTION_PERMISSION_NAME_OVERRIDES) as TransactionFamily[])
+  .flatMap((family) => (Object.keys(TRANSACTION_PERMISSION_NAME_OVERRIDES[family] || {}) as TransactionAction[])
+    .map((action) => ({ from: defaultTransactionPermissionName(family, action), to: transactionPermissionName(family, action) })))
+
+/** صلاحيات حركات لم تعد مستخدمة (إجراءات خارج TRANSACTION_FAMILY_ACTIONS) — تُحذف مع منحها */
+export const REMOVED_TRANSACTION_PERMISSION_NAMES: string[] = (Object.keys(TRANSACTION_FAMILY_ACTIONS) as TransactionFamily[])
+  .flatMap((family) => (Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[])
+    .filter((action) => !transactionActionsFor(family).includes(action))
+    .map((action) => defaultTransactionPermissionName(family, action)))
 
 export function legacyTransactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return action === "view" ? `عرض ${TRANSACTION_FAMILIES[family]}` : null
@@ -197,7 +231,7 @@ export function canAccessTransactionScreen(entries: TransactionAccessEntry[] | n
 export const ALL_TRANSACTION_PERMISSION_NAMES = (
   Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]
 ).flatMap((family) =>
-  (Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]).map((action) =>
+  transactionActionsFor(family).map((action) =>
     transactionPermissionName(family, action),
   ),
 )

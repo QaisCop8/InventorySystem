@@ -6,6 +6,11 @@ import managementSql, {
 import {
   legacyTransactionPermissionName,
   TRANSACTION_ACTION_LABELS,
+  TRANSACTION_FAMILY_ACTIONS,
+  TRANSACTION_PERMISSION_NAME_OVERRIDES,
+  RENAMED_TRANSACTION_PERMISSIONS,
+  REMOVED_TRANSACTION_PERMISSION_NAMES,
+  transactionActionsFor,
   TRANSACTION_FAMILIES,
   TRANSACTION_PERMISSION_CATEGORY,
   POS_CASHIER_PERMISSION_CATEGORY,
@@ -437,7 +442,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, USER_ADMIN_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, USER_ADMIN_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -498,7 +503,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   // Keep the existing access id so all role/user/branch grants survive the
   // terminology change from "عرض" to "استعلام".
   for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
-    for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+    for (const action of transactionActionsFor(family)) {
       const legacyName = legacyTransactionPermissionName(family, action)
       if (!legacyName) continue
       await client.query(
@@ -599,9 +604,27 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     (await client.query(`SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`, [
       TRANSACTION_PERMISSION_CATEGORY,
     ]))[0]
+  // أسماء أوضح لبعض الصلاحيات: يُعاد تسمية الصف القديم قبل الإدراج فيبقى معرّفه ومنح المستخدمين/الأدوار عليه
+  for (const rename of RENAMED_TRANSACTION_PERMISSIONS) {
+    await client.query(
+      `UPDATE access_list SET name = $1::varchar, updated_at = CURRENT_TIMESTAMP
+       WHERE name = $2::varchar AND NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar)))`,
+      [rename.to, rename.from],
+    )
+  }
+  // إجراءات لم تعد مستخدمة (TRANSACTION_FAMILY_ACTIONS) والأسماء القديمة المتبقية بعد إعادة التسمية: تُحذف مع منحها
+  const obsoletePermissionNames = [...REMOVED_TRANSACTION_PERMISSION_NAMES, ...RENAMED_TRANSACTION_PERMISSIONS.map((rename) => rename.from)]
+  if (obsoletePermissionNames.length) {
+    const obsolete = `SELECT id FROM access_list WHERE name = ANY($1::text[])`
+    for (const table of ["user_access", "role_permissions", "user_branch_permissions", "role_branch_permissions"]) {
+      await client.query(`DELETE FROM ${table} WHERE access_id IN (${obsolete})`, [obsoletePermissionNames]).catch(() => undefined)
+    }
+    await client.query(`DELETE FROM access_list WHERE name = ANY($1::text[])`, [obsoletePermissionNames])
+  }
+
   if (transactionCategory?.id) {
     for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
-      for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+      for (const action of transactionActionsFor(family)) {
         const name = transactionPermissionName(family, action)
         await client.query(
           `INSERT INTO access_list (name, category_id)
@@ -654,7 +677,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     const accessNames: string[] = []
     const sourceNames: string[] = []
     for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
-      for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+      for (const action of transactionActionsFor(family)) {
         if (action === "access") continue
         accessNames.push(transactionPermissionName(family, "access"))
         sourceNames.push(transactionPermissionName(family, action))
