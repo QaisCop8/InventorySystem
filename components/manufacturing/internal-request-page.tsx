@@ -15,6 +15,7 @@ import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { useAuth } from "@/components/auth/auth-context"
 import MultiSelect from "@/components/common/MultiSelect"
 import { expandProductWithRelatedItems } from "@/lib/product-related-items-client"
+import { attachEnterAsTab } from "@/components/common/enterAsTab"
 import { INTERNAL_STATUS_LABELS, INTERNAL_STEPS, InternalLockedState, InternalPageHeader, RefreshButton, useInternalWorkflow } from "./internal-workflow-shared"
 
 const SELECT_CLASS = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 dark:focus:ring-emerald-900"
@@ -68,6 +69,16 @@ export default function InternalRequestPage() {
   const [barcodeInput, setBarcodeInput] = useState("")
   const [barcodeSearching, setBarcodeSearching] = useState(false)
   const unitsCacheRef = useRef(new Map<number, Promise<any[]>>())
+  // Enter كـTab داخل نموذج الطلب (التاريخ ⇐ المستودعات ⇐ الباركود ⇐ وحدة/كمية كل صنف)؛ الباركود يُبقي Enter للإضافة.
+  // يتوقف أثناء فتح نافذة بحث الأصناف حتى تبقى مفاتيحها لها.
+  const [formBodyElement, setFormBodyElement] = useState<HTMLDivElement | null>(null)
+  const enterAsTabEnabledRef = useRef(true)
+
+  enterAsTabEnabledRef.current = !productOpen
+  useEffect(() => {
+    if (!formBodyElement) return
+    return attachEnterAsTab(formBodyElement, enterAsTabEnabledRef)
+  }, [formBodyElement])
 
   const showMessage = (detail: string, severity: "success" | "error") => {
     messagesRef.current?.clear?.()
@@ -285,7 +296,7 @@ export default function InternalRequestPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-muted/20 p-4 sm:p-5">
+        <div ref={setFormBodyElement} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-muted/20 p-4 sm:p-5">
           <Messages innerRef={messagesRef} />
           {selectedRequest ? <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -332,7 +343,7 @@ export default function InternalRequestPage() {
               </div>
               <div className="relative mb-3">
                 <ScanBarcode className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input ref={barcodeInputRef} className="h-11 pl-24 pr-9 text-base" value={barcodeInput} disabled={barcodeSearching} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addProductByBarcode() } }} placeholder="امسح أو أدخل الباركود ثم Enter" />
+                <Input ref={barcodeInputRef} data-enter-action className="h-11 pl-24 pr-9 text-base" value={barcodeInput} disabled={barcodeSearching} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addProductByBarcode() } }} placeholder="امسح أو أدخل الباركود ثم Enter" />
                 <Button type="button" size="sm" className="absolute left-1.5 top-1/2 -translate-y-1/2" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addProductByBarcode()}>{barcodeSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="ml-1 h-4 w-4" />}إضافة</Button>
               </div>
               {items.length === 0 ? (
