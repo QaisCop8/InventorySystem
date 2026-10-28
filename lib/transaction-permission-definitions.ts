@@ -32,6 +32,9 @@ export const TRANSACTION_FAMILIES = {
   year_end_closing: "إقفال السنة المالية",
   voucher_posting_tools: "ترحيل السندات",
   account_access: "صلاحيات المستخدمين على الحسابات",
+  // أدوات: إرسال مرفقات (فاتورة مشتريات / سند قبض) للمدير، وبريد الرسائل لاستلامها ومعالجتها
+  manager_attachment: "إرسال مرفقات للمدير",
+  manager_inbox: "بريد الرسائل",
 } as const
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
@@ -170,6 +173,8 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "year-end-closing": "year_end_closing",
   "voucher-posting-tools": "voucher_posting_tools",
   "account-access": "account_access",
+  "manager-attachments": "manager_attachment",
+  "manager-inbox": "manager_inbox",
   "salesman-commissions": "salesman_commission",
 }
 

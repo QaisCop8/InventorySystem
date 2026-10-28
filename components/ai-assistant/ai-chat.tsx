@@ -9,6 +9,7 @@ import { voucherHref } from "@/lib/voucher-links"
 import { cn } from "@/lib/utils"
 import { voucherPrefillSessionItems, type VoucherPrefill } from "@/lib/ai-voucher-prefill"
 import { openSectionInNewTab } from "@/lib/new-tab-handoff"
+import { useSectionIntent } from "@/lib/section-intents"
 import { saveAIJournalDraft } from "@/lib/ai-journal-direct-save"
 import {
   Paperclip,
@@ -243,9 +244,10 @@ export function AIChat() {
 
   // ── مرفق: صورة/PDF لفاتورة مبيعات أو مشتريات أو سند قبض/صرف ──────────────────────
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const handleAttach = async (file: File | null) => {
+  // hintOverride: مرفق مُمرَّر من شاشة أخرى (بريد الرسائل ⇐ معالجة) مع وصفه بدل نص خانة الكتابة
+  const handleAttach = async (file: File | null, hintOverride?: string) => {
     if (!file || isLoading) return
-    const hint = input.trim()
+    const hint = (hintOverride ?? input).trim()
     setMessages((prev) => [...prev, { role: "user", content: `📎 ${file.name}${hint ? `\n${hint}` : ""}`, at: Date.now() }])
     setInput("")
     setIsLoading(true)
@@ -345,6 +347,11 @@ export function AIChat() {
     }
     if (continueWith) void handleSubmit(continueWith, { appendUser: false, command: continueWith })
   }
+
+  // بريد الرسائل ⇐ "معالجة": يفتح المساعد ويعالج المرفق كأنه أُرفق هنا (openSectionWith("ai-assistant", { file, hint }))
+  const handleAttachRef = useRef(handleAttach)
+  handleAttachRef.current = handleAttach
+  useSectionIntent<{ file: File; hint?: string }>("ai-assistant", (data) => { if (data?.file) void handleAttachRef.current(data.file, data.hint || "") }, !isLoading)
 
   // الفاتورة المعبّأة تُفتح في تبويب متصفح جديد (تبقى المحادثة كما هي) — شاشة الفاتورة تقرأ المعبّأ عند فتحها
   const openInvoicePrefill = (prefill: VoucherPrefill) =>
