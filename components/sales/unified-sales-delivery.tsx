@@ -62,6 +62,7 @@ import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
+import { pickRoleUnit } from "@/lib/product-unit-roles"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -2019,7 +2020,8 @@ export default function UnifiedSalesDelivery({
     previousRow?: SalesVoucherItemRow,
   ) => {
     try {
-      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1`)
+      // فواتير/إرساليات المشتريات: الوحدة الافتراضية = وحدة الشراء في تعريف الصنف
+      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1${isPurchaseDeliveryVoucher ? "&unitRole=purchase" : ""}`)
       if (!isMountedRef.current) return
       let product = await res.json()
       if (!res.ok) throw new Error("not found")
@@ -2334,7 +2336,7 @@ export default function UnifiedSalesDelivery({
       }
       const targetRow = index === 0 ? row : nextRows.length
       const currentRow = index === 0 ? nextRows[targetRow] : { ...emptyItemRow }
-      const unit = product.selected_unit || product.units?.[0]
+      const unit = product.selected_unit || pickRoleUnit(product.units, isPurchaseDeliveryVoucher ? "purchase" : null)
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
@@ -4008,6 +4010,7 @@ export default function UnifiedSalesDelivery({
           customerAccountId={Number(form.account_id) || null}
           transactionDate={form.vch_date || null}
           priceSource={isPurchaseDeliveryVoucher ? "purchase" : "sale"}
+          defaultUnitRole={isPurchaseDeliveryVoucher ? "purchase" : undefined}
           productTypes={searchProductTypes}
         />
         {showAccountsTab && (

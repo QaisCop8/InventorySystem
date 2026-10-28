@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { UNIT_ROLE_COLUMNS, UNIT_ROLE_LABELS } from "@/lib/product-unit-roles"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
@@ -955,7 +956,7 @@ export function CompactProductForm({
     // costCenterRows/brandRows.
     const unitsWithNames = (product.units ?? []).map((unit: any, index: number) => {
       const unitDef = definitionsRef.current.units.find((u: any) => u.id === unit.unit_id);
-      return { ...unit, ser: index + 1, unit_name: unitDef?.unit_name || "" };
+      return { ...unit, ser: index + 1, unit_name: unitDef?.unit_name || "", is_stock_count_unit: unit.is_stock_count_unit === true, is_purchase_unit: unit.is_purchase_unit === true, is_report_unit: unit.is_report_unit === true };
     });
 
     const pricesWithNames = (product.prices ?? []).map((price: any, index: number) => {
@@ -1330,6 +1331,7 @@ export function CompactProductForm({
       to_main_qnty: 1,
       ser: 1,
       barcode_list: [],
+      is_stock_count_unit: false, is_purchase_unit: false, is_report_unit: false,
     };
 
     // --- Prices ---
@@ -1647,6 +1649,7 @@ export function CompactProductForm({
         to_main_qnty: 1,                  // default value
         ser: maxSer + 1,
         barcode_list: [],
+        is_stock_count_unit: false, is_purchase_unit: false, is_report_unit: false,
       };
       return {
         ...prev,
@@ -1723,6 +1726,15 @@ export function CompactProductForm({
   const cellEditEnded = (s: wjGrid.FlexGrid, e: wjGrid.CellRangeEventArgs) => {
     const editedItem = s.rows[e.row]?.dataItem;
     const colName = s.columns[e.col]?.name;
+    // وحدة الجرد/الشراء/التقارير: وحدة واحدة فقط لكل دور — تأشير وحدة يلغي تأشير البقية
+    if (editedItem && colName && (Object.values(UNIT_ROLE_COLUMNS) as string[]).includes(colName)) {
+      const checked = editedItem[colName] === true;
+      setFormData((prev) => ({
+        ...prev,
+        units: (prev.units || []).map((unit) => Number(unit.ser) === Number(editedItem.ser) ? { ...unit, [colName]: checked } : checked ? { ...unit, [colName]: false } : unit),
+      }));
+      return;
+    }
     if (!editedItem || colName !== "to_main_qnty") return;
     const isPrimaryUnit = Number(editedItem.ser) === 1;
     const raw = Number(editedItem.to_main_qnty);
@@ -1791,6 +1803,9 @@ export function CompactProductForm({
           visibleInColumnChooser: true,
         },
         { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 150, dataType: "Number", visible: true },
+        { header: UNIT_ROLE_LABELS.stock_count, name: UNIT_ROLE_COLUMNS.stock_count, width: 110, dataType: 3, align: "center" as const },
+        { header: UNIT_ROLE_LABELS.purchase, name: UNIT_ROLE_COLUMNS.purchase, width: 110, dataType: 3, align: "center" as const },
+        { header: UNIT_ROLE_LABELS.report, name: UNIT_ROLE_COLUMNS.report, width: 120, dataType: 3, align: "center" as const },
         {
           header: "الباركود",
           name: "barcode",

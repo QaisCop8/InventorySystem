@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { applyReportUnits } from "@/lib/report-units"
 import { getInventoryReportProducts, getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
 export async function GET(request: NextRequest) {
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest) {
       const price = Number(priceWay === "last" ? row.last_incoming_cost : priceWay === "fifo" ? row.fifo_cost : row.average_cost) || 0
       return { ...row, valuation_price: price, valuation_amount: Number(row.balance || 0) * price }
     })
-    return NextResponse.json({ report: "item-valuation", to_date: toDate, products, rows })
+    // الكمية وسعر التقييم بوحدة التقارير (قيمة التقييم لا تتغير)
+    const reportRows = await applyReportUnits(rows, { quantityFields: ["balance", "received_quantity", "issued_quantity", "cost_quantity"], unitPriceFields: [...["average_cost", "last_incoming_cost", "fifo_cost"], "valuation_price"] })
+    return NextResponse.json({ report: "item-valuation", to_date: toDate, products, rows: reportRows })
   } catch (error) {
     console.error("Item valuation report error:", error)
     return NextResponse.json({ error: "تعذر تحميل تقييم البضاعة" }, { status: 500 })

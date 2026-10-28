@@ -1,14 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronDown, Loader2, Search, Settings, Wand2 } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { BookOpen, Building2, CalendarClock, ChevronDown, Hash, Landmark, Loader2, Percent, Search, Settings, Wand2, type LucideIcon } from "lucide-react"
 import BankAccountsAutoSettings from "@/components/admin/bank-accounts-auto-settings"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
@@ -68,6 +67,24 @@ interface CurrencyOption {
   currency_code?: string
 }
 
+const SELECT_CLASS = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-blue-900"
+
+// بطاقة قسم في نافذة الحساب البنكي: أيقونة + عنوان (+ إجراء اختياري) ثم المحتوى
+function FormSection({ icon: Icon, title, action, className = "", children }: { icon: LucideIcon; title: string; action?: ReactNode; className?: string; children: ReactNode }) {
+  return (
+    <section className={`rounded-2xl border bg-background p-4 shadow-sm ${className}`}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="flex items-center gap-2 text-sm font-bold">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"><Icon className="h-4 w-4" /></span>
+          {title}
+        </h4>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
 interface UnifiedBankAccountsProps {
   dialogOpen: boolean
   currentIndex: number
@@ -92,6 +109,8 @@ interface UnifiedBankAccountsProps {
   isLastRecord?: boolean
   isNewMode?: boolean
   errorMessages?: string[]
+  /** رسالة نجاح بعد الحفظ (at يتغير مع كل حفظ لإعادة عرضها) */
+  successMessage?: { text: string; at: number } | null
   allBankAccounts?: BankAccountRecord[]
 }
 
@@ -119,6 +138,7 @@ export default function UnifiedBankAccounts({
   isLastRecord,
   isNewMode,
   errorMessages = [],
+  successMessage = null,
   allBankAccounts = [],
 }: UnifiedBankAccountsProps) {
   const workspaceTabActive = useWorkspaceTabActive()
@@ -157,6 +177,12 @@ export default function UnifiedBankAccounts({
       )
     }
   }, [errorMessages])
+
+  useEffect(() => {
+    if (!successMessage) return
+    messagesRef.current?.clear?.()
+    messagesRef.current?.show({ severity: "success", summary: "", detail: successMessage.text, sticky: false, life: 4000 })
+  }, [successMessage])
 
   const filteredBranches = useMemo(
     () => (bankFilterId ? branches.filter((b) => b.bank_id === bankFilterId) : []),
@@ -345,323 +371,306 @@ export default function UnifiedBankAccounts({
             isLastRecord={isLastRecord}
           />
 
-          <div className="relative rounded-b-3xl bg-background px-6 py-6">
+          <div className="relative bg-slate-50/70 px-4 py-5 sm:px-6 dark:bg-slate-950/40">
             <ProgressSpinner loading={isSaving || navLoading} />
 
-            <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">
-                {form.id > 0 ? "تعديل حساب البنك" : "إضافة حساب بنك جديد"}
-              </DialogTitle>
+            <DialogHeader className="mb-4 space-y-0">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-sky-500 text-white shadow-sm"><Landmark className="h-5 w-5" /></span>
+                  <div className="min-w-0 text-right">
+                    <DialogTitle className="text-lg font-bold">{form.id > 0 ? "تعديل حساب البنك" : "إضافة حساب بنك جديد"}</DialogTitle>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {form.id > 0 ? `${form.code}${form.name ? ` — ${form.name}` : ""}` : "أدخل بيانات الحساب البنكي وحساباته المحاسبية"}
+                    </p>
+                  </div>
+                  {form.id > 0 && (
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${form.status === 1 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
+                      {form.status === 1 ? "نشط" : "متوقف"}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {form.id <= 0 && (
+                    <Button type="button" size="sm" variant={autoMode ? "secondary" : "default"} onClick={() => setAutoMode((value) => !value)}>
+                      <Wand2 className="ml-1 h-4 w-4" />{autoMode ? "إخفاء الانشاء الآلي" : "انشاء آلي"}
+                    </Button>
+                  )}
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSettingsOpen(true)} title="الحسابات الاب المستخدمة في الانشاء الآلي">
+                    <Settings className="ml-1 h-4 w-4" />اعدادات
+                  </Button>
+                </div>
+              </div>
             </DialogHeader>
 
             <Messages innerRef={messagesRef} />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed bg-muted/40 px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                {form.id > 0 ? "اعدادات الحسابات الاب المستخدمة في الانشاء الآلي للحسابات البنكية" : "سيتم استخدام الحسابات الاب المحددة في الاعدادات لانشاء الحسابات المحاسبية للحساب البنكي آلياً"}
-              </p>
-              <div className="flex gap-2">
-                {form.id <= 0 && (
-                  <Button type="button" size="sm" variant={autoMode ? "secondary" : "default"} onClick={() => setAutoMode((value) => !value)}>
-                    <Wand2 className="ml-1 h-4 w-4" />{autoMode ? "إخفاء الانشاء الآلي" : "انشاء آلي"}
-                  </Button>
-                )}
-                <Button type="button" size="sm" variant="outline" onClick={() => setSettingsOpen(true)}>
-                  <Settings className="ml-1 h-4 w-4" />اعدادات
-                </Button>
-              </div>
-            </div>
-
             <div className={autoMode ? "grid items-start gap-5 xl:grid-cols-2" : ""}>
-            <div>
-            <div className="space-y-4 border-b pb-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="bank-account-code">رقم الحساب *</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="bank-account-code"
-                      ref={codeInputRef}
-                      value={form.code}
-                      onChange={(e) => onFormChange("code", normalizeBankAccountCode(e.target.value))}
-                      onBlur={() => onCodeBlur?.(form.code)}
-                      onKeyDown={(e) => {
-                        if (e.key === "F10") {
-                          e.preventDefault()
-                          guardedAction(() => setSearchOpen(true))
-                        }
-                      }}
-                      maxLength={20}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 px-3 shrink-0"
-                      onClick={() => guardedAction(() => setSearchOpen(true))}
-                      title="بحث عن حساب بنك (F10)"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid gap-2 invoice-currency-dropdown-wrap">
-                  <Label>العملة</Label>
-                  <PrimeDropdown
-                    value={form.currency_id}
-                    options={currencyOptions}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر العملة"
-                    filter
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    panelStyle={{ zIndex: 10000 }}
-                    onChange={(e: any) => onFormChange("currency_id", e.value ?? null)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="bank-account-actual-code">رقم الحساب الفعلي</Label>
-                <Input
-                  id="bank-account-actual-code"
-                  value={form.actual_bank_code}
-                  onChange={(e) => onFormChange("actual_bank_code", e.target.value)}
-                  maxLength={20}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="bank-account-name">اسم الحساب (ar) *</Label>
-                  <Input
-                    id="bank-account-name"
-                    value={form.name}
-                    onChange={(e) => onFormChange("name", e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="bank-account-name-en">اسم الحساب (en)</Label>
-                  <Input
-                    id="bank-account-name-en"
-                    value={form.name_lang2}
-                    onChange={(e) => onFormChange("name_lang2", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>البنك *</Label>
-                  <select
-                    value={bankFilterId != null ? String(bankFilterId) : ""}
-                    onChange={(e) => {
-                      const nextBankId = e.target.value ? Number(e.target.value) : null
-                      setBankFilterId(nextBankId)
-                      if (nextBankId !== selectedBranch?.bank_id) {
-                        onFormChange("branch_id", null)
-                      }
-                    }}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  >
-                    <option value="">اختر البنك</option>
-                    {banks.map((bank) => (
-                      <option key={bank.id} value={bank.id}>
-                        {bank.bank_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>الفرع *</Label>
-                  <select
-                    value={form.branch_id != null ? String(form.branch_id) : ""}
-                    onChange={(e) => onFormChange("branch_id", e.target.value ? Number(e.target.value) : null)}
-                    disabled={!bankFilterId}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                  >
-                    <option value="">{bankFilterId ? "اختر الفرع" : "اختر البنك أولاً"}</option>
-                    {filteredBranches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.branch_code} / {branch.branch_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="bank-account-notes">ملاحظات</Label>
-                <Input
-                  id="bank-account-notes"
-                  value={form.notes}
-                  onChange={(e) => onFormChange("notes", e.target.value)}
-                  maxLength={70}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>مدة الاستحقاق المسموحة لايداع الشيكات الآجلة - يوم</Label>
-                  <Input
-                    type="number"
-                    value={numberValue(form.check_value_period)}
-                    onChange={(e) => onFormChange("check_value_period", e.target.value ? Number(e.target.value) : null)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>مدة ايداع الشيكات الآجلة - يوم</Label>
-                  <Input
-                    type="number"
-                    value={numberValue(form.checks_deposit_period)}
-                    onChange={(e) => onFormChange("checks_deposit_period", e.target.value ? Number(e.target.value) : null)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 border-b py-6">
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="font-semibold text-base">الحسابات المحاسبية</h4>
-                {form.auto_generate && form.id <= 0 && (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => onFormChange("auto_generate", false)}>اختيار الحسابات يدوياً</Button>
-                )}
-              </div>
-              {form.auto_generate && form.id <= 0 ? (
-                <div className="space-y-2 rounded-xl border bg-emerald-50/60 p-3 dark:bg-emerald-950/20">
-                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">انشاء آلي — تُنشأ الحسابات التالية عند الحفظ:</p>
-                  {autoPlanLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />جاري تجهيز الحسابات...</div>}
-                  {autoPlanError && !autoPlanLoading && <p className="text-sm text-red-600 dark:text-red-400">{autoPlanError}</p>}
-                  {!autoPlanError && autoPlan.map((item) => (
-                    <div key={item.kind} className="rounded-lg border bg-background px-3 py-2 text-sm">
-                      <div className="font-semibold">{item.label}</div>
-                      {item.father && <div className="text-xs text-muted-foreground">تحت: <span className="font-mono">{item.father.code}</span> {item.father.name} {item.father.exists ? "(موجود)" : "(جديد)"}</div>}
-                      <div><span className="font-mono">{item.account.code}</span> — {item.account.name} <span className={item.account.exists ? "text-sky-700 dark:text-sky-300" : "text-emerald-700 dark:text-emerald-300"}>{item.account.exists ? "(موجود)" : "(جديد)"}</span></div>
+            <div className={autoMode ? "space-y-4" : "grid items-start gap-4 lg:grid-cols-2"}>
+              <FormSection icon={Hash} title="بيانات الحساب">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="bank-account-code">رقم الحساب *</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="bank-account-code"
+                        ref={codeInputRef}
+                        value={form.code}
+                        onChange={(e) => onFormChange("code", normalizeBankAccountCode(e.target.value))}
+                        onBlur={() => onCodeBlur?.(form.code)}
+                        onKeyDown={(e) => {
+                          if (e.key === "F10") {
+                            e.preventDefault()
+                            guardedAction(() => setSearchOpen(true))
+                          }
+                        }}
+                        maxLength={20}
+                        className="flex-1 font-mono"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0"
+                        onClick={() => guardedAction(() => setSearchOpen(true))}
+                        title="بحث عن حساب بنك (F10)"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>العملة *</Label>
+                    <PrimeDropdown
+                      value={form.currency_id}
+                      options={currencyOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر العملة"
+                      filter
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => onFormChange("currency_id", e.value ?? null)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label htmlFor="bank-account-actual-code">رقم الحساب الفعلي</Label>
+                    <Input
+                      id="bank-account-actual-code"
+                      value={form.actual_bank_code}
+                      onChange={(e) => onFormChange("actual_bank_code", e.target.value)}
+                      maxLength={20}
+                      className="font-mono"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="bank-account-name">اسم الحساب (ar) *</Label>
+                    <Input id="bank-account-name" value={form.name} onChange={(e) => onFormChange("name", e.target.value)} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="bank-account-name-en">اسم الحساب (en)</Label>
+                    <Input id="bank-account-name-en" dir="ltr" value={form.name_lang2} onChange={(e) => onFormChange("name_lang2", e.target.value)} />
+                  </div>
                 </div>
-              ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                <AutoCompleteAccount
-                  label="الحساب المحاسبي *"
-                  valueMode="id"
-                  value={numberValue(form.jary_account_id)}
-                  onValueChange={(v) => onFormChange("jary_account_id", v ? Number(v) : null)}
-                  showCostCenterButton={false}
-                  searchAllowedTypeValues={[1]}
-                />
-                <AutoCompleteAccount
-                  label="حساب شيكات برسم التحصيل *"
-                  valueMode="id"
-                  value={numberValue(form.tahsil_account_id)}
-                  onValueChange={(v) => onFormChange("tahsil_account_id", v ? Number(v) : null)}
-                  showCostCenterButton={false}
-                  searchAllowedTypeValues={[1]}
-                />
-                <AutoCompleteAccount
-                  label="حساب عمولة التحصيل *"
-                  valueMode="id"
-                  value={numberValue(form.tahsil_commission_account_id)}
-                  onValueChange={(v) => onFormChange("tahsil_commission_account_id", v ? Number(v) : null)}
-                  showCostCenterButton={false}
-                  searchAllowedTypeValues={[1]}
-                />
-                <AutoCompleteAccount
-                  label="حساب الشيكات الصادرة المؤجلة *"
-                  valueMode="id"
-                  value={numberValue(form.payed_checks_account_id)}
-                  onValueChange={(v) => onFormChange("payed_checks_account_id", v ? Number(v) : null)}
-                  showCostCenterButton={false}
-                  searchAllowedTypeValues={[1]}
-                />
-                <AutoCompleteAccount
-                  label="حساب الشيكات المرتجعة *"
-                  valueMode="id"
-                  value={numberValue(form.returned_checks_account_id)}
-                  onValueChange={(v) => onFormChange("returned_checks_account_id", v ? Number(v) : null)}
-                  showCostCenterButton={false}
-                  searchAllowedTypeValues={[1]}
-                />
-              </div>
-              )}
-            </div>
+              </FormSection>
 
-            <Collapsible open={commissionsOpen} onOpenChange={setCommissionsOpen} className="py-4">
-              <CollapsibleTrigger className="flex w-full items-center justify-between text-base font-semibold">
-                <span>العمولات</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${commissionsOpen ? "-rotate-180" : ""}`} />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-4 pt-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2 invoice-currency-dropdown-wrap">
-                    <Label>عملة الشيكات الراجعة</Label>
-                    <PrimeDropdown
-                      value={form.returned_checks_commission_currency_id}
-                      options={currencyOptions}
-                      optionLabel="label"
-                      optionValue="value"
-                      placeholder="اختر العملة"
-                      filter
-                      className="invoice-currency-dropdown w-full"
-                      panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
-                      panelStyle={{ zIndex: 10000 }}
-                      onChange={(e: any) => onFormChange("returned_checks_commission_currency_id", e.value ?? null)}
+              <div className="space-y-4">
+                <FormSection icon={Building2} title="البنك والفرع">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label>البنك *</Label>
+                      <select
+                        value={bankFilterId != null ? String(bankFilterId) : ""}
+                        onChange={(e) => {
+                          const nextBankId = e.target.value ? Number(e.target.value) : null
+                          setBankFilterId(nextBankId)
+                          if (nextBankId !== selectedBranch?.bank_id) {
+                            onFormChange("branch_id", null)
+                          }
+                        }}
+                        className={SELECT_CLASS}
+                      >
+                        <option value="">اختر البنك</option>
+                        {banks.map((bank) => (
+                          <option key={bank.id} value={bank.id}>
+                            {bank.bank_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>الفرع *</Label>
+                      <select
+                        value={form.branch_id != null ? String(form.branch_id) : ""}
+                        onChange={(e) => onFormChange("branch_id", e.target.value ? Number(e.target.value) : null)}
+                        disabled={!bankFilterId}
+                        className={SELECT_CLASS}
+                      >
+                        <option value="">{bankFilterId ? "اختر الفرع" : "اختر البنك أولاً"}</option>
+                        {filteredBranches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.branch_code} / {branch.branch_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid gap-1.5 sm:col-span-2">
+                      <Label htmlFor="bank-account-notes">ملاحظات</Label>
+                      <Input id="bank-account-notes" value={form.notes} onChange={(e) => onFormChange("notes", e.target.value)} maxLength={70} />
+                    </div>
+                  </div>
+                </FormSection>
+
+                <FormSection icon={CalendarClock} title="مدد الشيكات الآجلة">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label>مدة الاستحقاق المسموحة للإيداع (يوم)</Label>
+                      <Input type="number" min={0} value={numberValue(form.check_value_period)} onChange={(e) => onFormChange("check_value_period", e.target.value ? Number(e.target.value) : null)} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>مدة إيداع الشيكات الآجلة (يوم)</Label>
+                      <Input type="number" min={0} value={numberValue(form.checks_deposit_period)} onChange={(e) => onFormChange("checks_deposit_period", e.target.value ? Number(e.target.value) : null)} />
+                    </div>
+                  </div>
+                </FormSection>
+              </div>
+
+              <FormSection
+                icon={BookOpen}
+                title="الحسابات المحاسبية"
+                className={autoMode ? "" : "lg:col-span-2"}
+                action={form.auto_generate && form.id <= 0 ? (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => onFormChange("auto_generate", false)}>اختيار الحسابات يدوياً</Button>
+                ) : undefined}
+              >
+                {form.auto_generate && form.id <= 0 ? (
+                  <div className="space-y-2 rounded-xl border bg-emerald-50/60 p-3 dark:bg-emerald-950/20">
+                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">انشاء آلي — تُنشأ الحسابات التالية عند الحفظ:</p>
+                    {autoPlanLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />جاري تجهيز الحسابات...</div>}
+                    {autoPlanError && !autoPlanLoading && <p className="text-sm text-red-600 dark:text-red-400">{autoPlanError}</p>}
+                    {!autoPlanError && autoPlan.map((item) => (
+                      <div key={item.kind} className="rounded-lg border bg-background px-3 py-2 text-sm">
+                        <div className="font-semibold">{item.label}</div>
+                        {item.father && <div className="text-xs text-muted-foreground">تحت: <span className="font-mono">{item.father.code}</span> {item.father.name} {item.father.exists ? "(موجود)" : "(جديد)"}</div>}
+                        <div><span className="font-mono">{item.account.code}</span> — {item.account.name} <span className={item.account.exists ? "text-sky-700 dark:text-sky-300" : "text-emerald-700 dark:text-emerald-300"}>{item.account.exists ? "(موجود)" : "(جديد)"}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`grid gap-3 ${autoMode ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+                    <AutoCompleteAccount
+                      label="الحساب المحاسبي *"
+                      valueMode="id"
+                      value={numberValue(form.jary_account_id)}
+                      onValueChange={(v) => onFormChange("jary_account_id", v ? Number(v) : null)}
+                      showCostCenterButton={false}
+                      searchAllowedTypeValues={[1]}
+                    />
+                    <AutoCompleteAccount
+                      label="حساب شيكات برسم التحصيل *"
+                      valueMode="id"
+                      value={numberValue(form.tahsil_account_id)}
+                      onValueChange={(v) => onFormChange("tahsil_account_id", v ? Number(v) : null)}
+                      showCostCenterButton={false}
+                      searchAllowedTypeValues={[1]}
+                    />
+                    <AutoCompleteAccount
+                      label="حساب عمولة التحصيل *"
+                      valueMode="id"
+                      value={numberValue(form.tahsil_commission_account_id)}
+                      onValueChange={(v) => onFormChange("tahsil_commission_account_id", v ? Number(v) : null)}
+                      showCostCenterButton={false}
+                      searchAllowedTypeValues={[1]}
+                    />
+                    <AutoCompleteAccount
+                      label="حساب الشيكات الصادرة المؤجلة *"
+                      valueMode="id"
+                      value={numberValue(form.payed_checks_account_id)}
+                      onValueChange={(v) => onFormChange("payed_checks_account_id", v ? Number(v) : null)}
+                      showCostCenterButton={false}
+                      searchAllowedTypeValues={[1]}
+                    />
+                    <AutoCompleteAccount
+                      label="حساب الشيكات المرتجعة *"
+                      valueMode="id"
+                      value={numberValue(form.returned_checks_account_id)}
+                      onValueChange={(v) => onFormChange("returned_checks_account_id", v ? Number(v) : null)}
+                      showCostCenterButton={false}
+                      searchAllowedTypeValues={[1]}
                     />
                   </div>
-                  <div className="grid gap-2">
-                    <Label>قيمة عمولة الشيكات الراجعة</Label>
-                    <Input
-                      type="number"
-                      value={numberValue(form.returned_checks_commission)}
-                      onChange={(e) =>
-                        onFormChange("returned_checks_commission", e.target.value ? Number(e.target.value) : null)
-                      }
-                    />
+                )}
+              </FormSection>
+
+              <FormSection
+                icon={Percent}
+                title="العمولات"
+                className={autoMode ? "" : "lg:col-span-2"}
+                action={
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setCommissionsOpen((value) => !value)} aria-expanded={commissionsOpen}>
+                    {commissionsOpen ? "إخفاء" : "عرض"}
+                    <ChevronDown className={`mr-1 h-4 w-4 transition-transform ${commissionsOpen ? "-rotate-180" : ""}`} />
+                  </Button>
+                }
+              >
+                {commissionsOpen ? (
+                  <div className="space-y-3">
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                        <Label>عملة الشيكات الراجعة</Label>
+                        <PrimeDropdown
+                          value={form.returned_checks_commission_currency_id}
+                          options={currencyOptions}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر العملة"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          panelStyle={{ zIndex: 10000 }}
+                          onChange={(e: any) => onFormChange("returned_checks_commission_currency_id", e.value ?? null)}
+                        />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>قيمة عمولة الشيكات الراجعة</Label>
+                        <Input type="number" value={numberValue(form.returned_checks_commission)} onChange={(e) => onFormChange("returned_checks_commission", e.target.value ? Number(e.target.value) : null)} />
+                      </div>
+                      <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                        <Label>عملة شيكات التحصيل</Label>
+                        <PrimeDropdown
+                          value={form.tahsil_checks_commission_currency_id}
+                          options={currencyOptions}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر العملة"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          panelStyle={{ zIndex: 10000 }}
+                          onChange={(e: any) => onFormChange("tahsil_checks_commission_currency_id", e.value ?? null)}
+                        />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>قيمة عمولة شيكات التحصيل</Label>
+                        <Input type="number" value={numberValue(form.tahsil_checks_commission)} onChange={(e) => onFormChange("tahsil_checks_commission", e.target.value ? Number(e.target.value) : null)} />
+                      </div>
+                    </div>
+                    <label className="flex w-fit cursor-pointer items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={form.add_returned_check_commision_on_customer}
+                        onCheckedChange={(checked) => onFormChange("add_returned_check_commision_on_customer", checked === true)}
+                      />
+                      <span>إضافة عمولة الشيكات المرتجعة على العميل</span>
+                    </label>
                   </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2 invoice-currency-dropdown-wrap">
-                    <Label>عملة شيكات التحصيل</Label>
-                    <PrimeDropdown
-                      value={form.tahsil_checks_commission_currency_id}
-                      options={currencyOptions}
-                      optionLabel="label"
-                      optionValue="value"
-                      placeholder="اختر العملة"
-                      filter
-                      className="invoice-currency-dropdown w-full"
-                      panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
-                      panelStyle={{ zIndex: 10000 }}
-                      onChange={(e: any) => onFormChange("tahsil_checks_commission_currency_id", e.value ?? null)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>قيمة عمولة شيكات التحصيل</Label>
-                    <Input
-                      type="number"
-                      value={numberValue(form.tahsil_checks_commission)}
-                      onChange={(e) =>
-                        onFormChange("tahsil_checks_commission", e.target.value ? Number(e.target.value) : null)
-                      }
-                    />
-                  </div>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.add_returned_check_commision_on_customer}
-                    onCheckedChange={(checked) =>
-                      onFormChange("add_returned_check_commision_on_customer", checked === true)
-                    }
-                  />
-                  <span>إضافة عمولة الشيكات المرتجعة على العميل</span>
-                </label>
-              </CollapsibleContent>
-            </Collapsible>
+                ) : (
+                  <p className="text-xs text-muted-foreground">عمولة الشيكات الراجعة وعمولة شيكات التحصيل وعملاتهما.</p>
+                )}
+              </FormSection>
             </div>
 
             {autoMode && (

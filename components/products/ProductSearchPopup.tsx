@@ -1,5 +1,6 @@
 "use client";
 
+import { pickRoleUnit, type UnitRole } from "@/lib/product-unit-roles";
 import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,8 @@ interface ProductSearchPopupProps {
   transactionDate?: string | null;
   // "purchase": من حركات المشتريات — عمود السعر وأسعار الوحدات = آخر سعر شراء (بدل سعر البيع)
   priceSource?: "sale" | "purchase";
+  /** الوحدة الافتراضية عند الاختيار بلا تحديد وحدة: وحدة الشراء/الجرد/التقارير من تعريف الصنف (وإلا أول وحدة) */
+  defaultUnitRole?: UnitRole;
 }
 
 // قائمة الأصناف المخففة (lite) لكل رابط — فتح النافذة مجدداً فوري من الذاكرة ثم تحديث بالخلفية
@@ -91,7 +94,7 @@ const productThumb = (image?: string | null, alt = "") =>
     ? <img src={image} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
     : <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Package className="h-3.5 w-3.5" /></div>
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null, priceSource = "sale" }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null, priceSource = "sale", defaultUnitRole }) => {
   const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -473,13 +476,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     if (priceSource === "purchase") {
       merged = merged.map((item) => {
         const units = priceUnits(item, item.units || []);
-        const selectedUnit = item.selected_unit ? priceUnits(item, [item.selected_unit])[0] : units[0];
+        const selectedUnit = item.selected_unit ? priceUnits(item, [item.selected_unit])[0] : pickRoleUnit(units, defaultUnitRole);
         return { ...item, units, selected_unit: selectedUnit, first_price: selectedUnit?.price ?? roundPrice(Number(item.last_purchase_price ?? 0)) };
       });
     }
     onSelect(merged);
     onClose();
-  }, [fetchFullProducts, priceSource, priceUnits, onSelect, onClose]);
+  }, [fetchFullProducts, priceSource, priceUnits, onSelect, onClose, defaultUnitRole]);
   // المعالجات المحفوظة (useCallback) تستدعي آخر نسخة دائماً
   const emitSelectRef = useRef(emitSelect);
   emitSelectRef.current = emitSelect;
@@ -493,7 +496,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     void fetchFullProducts([Number(product.id)]);
     let units = product.units;
     if (!units || units.length === 0) units = await loadUnits(product);
-    const selectedUnit = units?.[0];
+    const selectedUnit = pickRoleUnit(units, defaultUnitRole);
     const updatedProduct: Product = { ...product, units, selected_unit: selectedUnit, selected: true };
 
     setProducts(prev =>
@@ -523,7 +526,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }
 
     finishOrConfigureProduct(updatedProduct);
-  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose, selectBaseProduct, fetchFullProducts, loadUnits]);
+  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose, selectBaseProduct, fetchFullProducts, loadUnits, defaultUnitRole]);
   // -----------------------
   // Fetch units when product selected
   // -----------------------

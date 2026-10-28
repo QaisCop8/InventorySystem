@@ -1100,7 +1100,7 @@ function UnifiedSalesOrder({
       selectedIndexL = firstEmpty;
     }
     for (let i = 0; i < items.length; i++) {
-      const ii = items[i];
+      let ii = items[i];
       if (ii.transaction_notes?.trim()) {
         toast.current?.show({ severity: "info", summary: "ملاحظات الصنف", detail: ii.transaction_notes, life: 5000 });
       }
@@ -1111,6 +1111,11 @@ function UnifiedSalesOrder({
       const response = await fetch(`/api/products/${ii.id}/units`);
       if (!response.ok) throw new Error("Failed to fetch units");
       const units: Unit[] = await response.json();
+      // طلبية المشتريات: الوحدة المختارة في نافذة البحث (افتراضياً وحدة الشراء في تعريف الصنف) بدل الوحدة الأولى
+      if (vch_type === 2 && !setFromExcelRef.current && ii.selected_unit?.unit_id) {
+        const unit = ii.selected_unit;
+        ii = { ...ii, unit_id: unit.unit_id, unit_name: unit.unit_name, first_unit: unit.unit_name, main_unit: unit.unit_name, to_main_unit_qty: Number(unit.to_main_qnty) || 1, price: Number(unit.price) > 0 ? Number(unit.price) : ii.price };
+      }
 
       // Validate price
       const resolvedStore = resolveProductStore(ii);
@@ -1279,7 +1284,7 @@ function UnifiedSalesOrder({
     try {
       console.log("priceCategoryId priceCategoryId ", priceCategoryIdRef.current)
       const res = await fetch(
-        `/api/inventory/products/search?query=${encodeURIComponent(value)}&priceCategoryId=${priceCategoryIdRef.current}`
+        `/api/inventory/products/search?query=${encodeURIComponent(value)}&priceCategoryId=${priceCategoryIdRef.current}${vch_type === 2 ? "&unitRole=purchase" : ""}`
       );
       console.log("res res res res res ", res)
       if (!res.ok) throw new Error('Failed to fetch product');
@@ -3460,6 +3465,7 @@ function UnifiedSalesOrder({
               searchText={searchTextRef.current}
               customerAccountId={Number(state.formData?.customer_id) || null}
               transactionDate={state.formData?.order_date || null}
+              defaultUnitRole={vch_type === 2 ? "purchase" : undefined}
             />
             <UnitsSearchPopup
               visible={showUnitsSearch}

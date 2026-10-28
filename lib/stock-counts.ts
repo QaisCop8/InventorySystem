@@ -7,6 +7,7 @@ import { ensureItemSerialTables } from "@/lib/item-serials"
 import { lotBalances, lotKey, normalizeExpiry } from "@/lib/stock-lots"
 import { dimensionsLabel, isMeasuredProduct, quantityFromMeasurement } from "@/lib/measurement-formula"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { ensureProductUnitRoleColumns } from "@/lib/product-unit-roles-schema"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // جرد المخازن (Physical inventory count) — على نمط أنظمة ERP العالمية (SAP Physical Inventory،
@@ -90,6 +91,8 @@ export async function ensureStockCountTables() { return runSchemaOnce("lib/stock
   `
   // تفصيل الدفعة/المقاس/المتغير — سطر لكل (صنف، lot_key) بدل سطر لكل صنف
   await sql`ALTER TABLE stock_count_items ADD COLUMN IF NOT EXISTS lot_key TEXT NOT NULL DEFAULT ''`
+  // معامل وحدة الجرد (الكمية الدفترية/التكلفة محفوظة بها) — 1 = الوحدة الرئيسية
+  await sql`ALTER TABLE stock_count_items ADD COLUMN IF NOT EXISTS unit_factor DOUBLE PRECISION NOT NULL DEFAULT 1`
   await sql`ALTER TABLE stock_count_items ADD COLUMN IF NOT EXISTS expiry_date DATE`
   await sql`ALTER TABLE stock_count_items ADD COLUMN IF NOT EXISTS batch_no VARCHAR(60)`
   await sql`ALTER TABLE stock_count_items ADD COLUMN IF NOT EXISTS attribute_value_ids INTEGER[] NOT NULL DEFAULT '{}'`
@@ -173,6 +176,8 @@ export async function warehouseBalancesAt(scope: CountScope, productIds: number[
 
 export type ProductMeta = {
   id: number; product_code: string; product_name: string; barcode: string; unit_id: number | null; unit_name: string
+  /** معامل وحدة الجرد إلى الوحدة الرئيسية (1 إن لم تُحدَّد وحدة جرد) */
+  unit_factor: number
   has_serial: boolean; has_expiry: boolean; has_batch: boolean; has_variants: boolean
   measurment_id: number; length: number; width: number; density: number
 }
@@ -182,8 +187,10 @@ export async function loadProductMeta(filter: { productIds?: number[]; categoryI
   const categoryIds = filter.categoryIds || []
   const code = String(filter.code || "").trim()
   const variantsTable = Boolean(((await sql`SELECT to_regclass('product_atrributes_values_tbl') IS NOT NULL AS ok`) as any[])[0]?.ok)
+  await ensureProductUnitRoleColumns()
   const rows = await sql`
     SELECT p.id, p.product_code, p.product_name, p.barcode, p.measurment_unit AS unit_id, u.unit_name,
+      cu.unit_id AS count_unit_id, cuu.unit_name AS count_unit_name, cu.to_main_qnty AS count_unit_factor,
       COALESCE(p.serial_tracking, false) AS has_serial,
       COALESCE((to_jsonb(p)->>'has_expiry_date')::boolean, false) AS has_expiry,
       COALESCE((to_jsonb(p)->>'has_batch_number')::boolean, false) AS has_batch,
@@ -193,6 +200,9 @@ export async function loadProductMeta(filter: { productIds?: number[]; categoryI
       COALESCE(NULLIF(to_jsonb(p)->>'density', '')::numeric, 0) AS density
     FROM products p
     LEFT JOIN units u ON u.id = p.measurment_unit
+    -- وحدة الجرد المؤشَّرة في تعريف الصنف (تبويب الوحدات)
+    LEFT JOIN LATERAL (SELECT pu.unit_id, pu.to_main_qnty FROM product_units pu WHERE pu.product_id = p.id AND pu.is_stock_count_unit ORDER BY pu.id LIMIT 1) cu ON true
+    LEFT JOIN units cuu ON cuu.id = cu.unit_id
     WHERE COALESCE(p.deleted, false) = false AND COALESCE(p.status, 1) <> 3 AND COALESCE(p.type, 1) = 1
       AND (${productIds.length} = 0 OR p.id = ANY(${productIds}::int[]))
       AND (${categoryIds.length} = 0 OR p.category_id = ANY(${categoryIds}::int[]))
@@ -207,13 +217,18 @@ export async function loadProductMeta(filter: { productIds?: number[]; categoryI
       withVariants.add(Number(row.product_id))
     }
   }
-  return (rows as any[]).map((row) => ({
+  return (rows as any[]).map((row) => {
+    // وحدة الجرد: للأصناف العادية/الدفعات فقط — السيريال يُعدّ بالقطعة والمقاسات بمعادلة القياس (الوحدة الرئيسية)
+    const factor = Number(row.count_unit_factor)
+    const useCountUnit = row.count_unit_id != null && factor > 0 && !row.has_serial && !isMeasuredProduct(Number(row.measurment_id || 1))
+    return {
     id: Number(row.id),
     product_code: row.product_code || "",
     product_name: row.product_name || "",
     barcode: row.barcode || "",
-    unit_id: row.unit_id == null ? null : Number(row.unit_id),
-    unit_name: row.unit_name || "",
+    unit_id: useCountUnit ? Number(row.count_unit_id) : row.unit_id == null ? null : Number(row.unit_id),
+    unit_name: (useCountUnit ? row.count_unit_name : row.unit_name) || "",
+    unit_factor: useCountUnit ? factor : 1,
     has_serial: Boolean(row.has_serial),
     has_expiry: Boolean(row.has_expiry),
     has_batch: Boolean(row.has_batch),
@@ -222,7 +237,7 @@ export async function loadProductMeta(filter: { productIds?: number[]; categoryI
     length: Number(row.length || 0),
     width: Number(row.width || 0),
     density: Number(row.density || 0),
-  }))
+  }})
 }
 
 /** الأصناف التي تُعدّ بتفصيل دفعات (صلاحية/رقم تشغيلي/متغيرات/مقاسات) — السيريال له مسار خاص. */
@@ -296,12 +311,14 @@ type LineInput = {
 
 export async function insertCountLine(countId: number, line: LineInput) {
   const product = line.product
+  // system_qty/unit_cost تصل بالوحدة الرئيسية ⇐ تُحفظ بوحدة الجرد
+  const factor = product.unit_factor > 0 ? product.unit_factor : 1
   const rows = await sql`
-    INSERT INTO stock_count_items (count_id, item_id, product_code, product_name, barcode, unit_id, unit_name,
+    INSERT INTO stock_count_items (count_id, item_id, product_code, product_name, barcode, unit_id, unit_name, unit_factor,
       system_qty, unit_cost, has_serial, has_expiry, has_batch, has_variants, measurment_id,
       lot_key, expiry_date, batch_no, attribute_value_ids, variant_label, length, width, height, system_pieces, manual)
     VALUES (${countId}, ${product.id}, ${product.product_code}, ${product.product_name}, ${product.barcode},
-      ${product.unit_id}, ${product.unit_name}, ${round6(line.system_qty)}, ${round6(line.unit_cost)},
+      ${product.unit_id}, ${product.unit_name}, ${factor}, ${round6(line.system_qty / factor)}, ${round6(line.unit_cost * factor)},
       ${product.has_serial}, ${product.has_expiry}, ${product.has_batch}, ${product.has_variants}, ${product.measurment_id},
       ${line.lot_key}, ${line.expiry_date || null}, ${line.batch_no || null}, ${line.attribute_value_ids || []}::int[], ${line.variant_label || null},
       ${line.length ?? null}, ${line.width ?? null}, ${line.height ?? null}, ${line.system_pieces ?? null}, ${Boolean(line.manual)})
@@ -394,7 +411,7 @@ export async function generateCountLines(countId: number, scope: CountScope, inc
  * دفعات جديدة ظهرت دفترياً تُضاف كأسطر، ودفعات اختفت تصبح دفتريتها صفراً، وسيريالات دفترية تُحدَّث.
  */
 export async function refreshSystemQuantities(countId: number, scope: CountScope) {
-  const lines = (await sql`SELECT id, item_id, lot_key FROM stock_count_items WHERE count_id = ${countId}`) as any[]
+  const lines = (await sql`SELECT id, item_id, lot_key, unit_factor FROM stock_count_items WHERE count_id = ${countId}`) as any[]
   if (!lines.length) return
   const productIds = [...new Set(lines.map((line) => Number(line.item_id)))]
   const products = await loadProductMeta({ productIds })
@@ -406,10 +423,11 @@ export async function refreshSystemQuantities(countId: number, scope: CountScope
     const match = expectedByKey.get(key)
     expectedByKey.delete(key)
     const product = products.find((entry) => entry.id === Number(line.item_id))
+    const factor = Number(line.unit_factor) > 0 ? Number(line.unit_factor) : 1
     await sql`
       UPDATE stock_count_items
-      SET system_qty = ${round6(match?.system_qty ?? 0)}, system_pieces = ${match?.system_pieces ?? (product && isMeasuredProduct(product.measurment_id) ? 0 : null)},
-        unit_cost = ${round6(match?.unit_cost ?? 0)}
+      SET system_qty = ${round6((match?.system_qty ?? 0) / factor)}, system_pieces = ${match?.system_pieces ?? (product && isMeasuredProduct(product.measurment_id) ? 0 : null)},
+        unit_cost = ${round6((match?.unit_cost ?? 0) * factor)}
       WHERE id = ${Number(line.id)}
     `
     if (product?.has_serial) {

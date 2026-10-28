@@ -9,6 +9,7 @@ import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupSco
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 import { ensureLastPurchaseColumns } from "@/lib/last-purchase"
+import { UNIT_ROLE_COLUMNS, UNIT_ROLE_LABELS, type UnitRole } from "@/lib/product-unit-roles"
 
 
 
@@ -692,6 +693,10 @@ async function ensureProductUnitLinkTables(client: any) {
     )
   `)
 
+  // أدوار الوحدات: وحدة الجرد / الشراء / التقارير (lib/product-unit-roles.ts)
+  await client.query(`ALTER TABLE product_units ADD COLUMN IF NOT EXISTS is_stock_count_unit BOOLEAN NOT NULL DEFAULT FALSE`, [])
+  await client.query(`ALTER TABLE product_units ADD COLUMN IF NOT EXISTS is_purchase_unit BOOLEAN NOT NULL DEFAULT FALSE`, [])
+  await client.query(`ALTER TABLE product_units ADD COLUMN IF NOT EXISTS is_report_unit BOOLEAN NOT NULL DEFAULT FALSE`, [])
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_units_product_unit_unique ON product_units(product_id, unit_id)`, [])
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_unit_barcodes_product_unit_barcode_unique ON product_unit_barcodes(product_id, unit_id, barcode)`, [])
   await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_prices_product_price_unique ON product_prices(product_id, price_category_id, unit_id)`, [])
@@ -1429,15 +1434,20 @@ export async function POST(request: NextRequest) {
 
     // 3ï¸ڈâƒ£ Insert product units
     if (Array.isArray(productData.units)) {
+      // وحدة الجرد/الشراء/التقارير: وحدة واحدة على الأكثر لكل دور
+      for (const [role, column] of Object.entries(UNIT_ROLE_COLUMNS) as [UnitRole, string][]) {
+        if (productData.units.filter((unit: any) => unit?.[column] === true).length > 1) throw new Error(`يجب اختيار ${UNIT_ROLE_LABELS[role]} لوحدة واحدة فقط`)
+      }
       for (const unit of productData.units) {
         const realUnitId = Number(unit.unit_id || 0)
         if (!realUnitId) continue
 
         await client.query(
-          `INSERT INTO product_units (product_id, unit_id, to_main_qnty)
-           VALUES ($1::int, $2::int, $3::int)
-           ON CONFLICT (product_id, unit_id) DO UPDATE SET to_main_qnty = EXCLUDED.to_main_qnty`,
-          [productId, realUnitId, Number(unit.to_main_qnty || 1)]
+          `INSERT INTO product_units (product_id, unit_id, to_main_qnty, is_stock_count_unit, is_purchase_unit, is_report_unit)
+           VALUES ($1::int, $2::int, $3::int, $4, $5, $6)
+           ON CONFLICT (product_id, unit_id) DO UPDATE SET to_main_qnty = EXCLUDED.to_main_qnty,
+             is_stock_count_unit = EXCLUDED.is_stock_count_unit, is_purchase_unit = EXCLUDED.is_purchase_unit, is_report_unit = EXCLUDED.is_report_unit`,
+          [productId, realUnitId, Number(unit.to_main_qnty || 1), unit.is_stock_count_unit === true, unit.is_purchase_unit === true, unit.is_report_unit === true]
         )
 
         const barcodeList = Array.isArray(unit.barcode_list) ? unit.barcode_list : []

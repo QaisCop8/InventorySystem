@@ -65,6 +65,7 @@ export default function BankAccounts() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
+  const [successMessage, setSuccessMessage] = useState<{ text: string; at: number } | null>(null)
 
   const visibleBankAccounts = useMemo(() => bankAccounts.filter((b) => b.status !== 3), [bankAccounts])
 
@@ -214,6 +215,7 @@ export default function BankAccounts() {
       setForm(initialForm)
       setIsNewMode(true)
       setDialogOpen(true)
+      setSuccessMessage({ text: "تمت العملية بنجاح", at: Date.now() })
     } catch (error) {
       console.error(error)
       setErrorMessages(["فشل في حفظ حساب البنك"])
@@ -396,6 +398,7 @@ export default function BankAccounts() {
         isLastRecord={form.id > 0 ? (visibleBankAccounts.length === 0 ? true : currentIndex >= visibleBankAccounts.length - 1) : visibleBankAccounts.length === 0}
         isNewMode={isNewMode}
         errorMessages={errorMessages}
+        successMessage={successMessage}
         allBankAccounts={bankAccounts}
       />
     </div>

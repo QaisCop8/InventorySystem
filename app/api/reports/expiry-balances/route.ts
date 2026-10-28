@@ -4,6 +4,7 @@ import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { reportDate } from "@/lib/item-inventory-reports"
 import { lotBalances } from "@/lib/stock-lots"
+import { applyReportUnits } from "@/lib/report-units"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // تقرير أرصدة الأصناف حسب تاريخ الصلاحية: رصيد كل صنف مفصَّلاً حسب (المستودع، تاريخ الصلاحية، الرقم
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
     const result = [...merged.values()]
       .filter((row) => Math.abs(row.quantity) > 1e-6)
       .sort((a, b) => (a.expiry_date || "9999").localeCompare(b.expiry_date || "9999") || String(a.product_code).localeCompare(String(b.product_code)))
-    return NextResponse.json({ to_date: toDate, near_days: nearDays, rows: result })
+    return NextResponse.json({ to_date: toDate, near_days: nearDays, rows: await applyReportUnits(result, { idField: "product_id", quantityFields: ["quantity"] }) })
   } catch (error) {
     console.error("Expiry balances report error:", error)
     return NextResponse.json({ error: "تعذر تحميل أرصدة الأصناف حسب الصلاحية" }, { status: 500 })

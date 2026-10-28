@@ -1,6 +1,7 @@
 import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
+import { ensureProductUnitRoleColumns } from "@/lib/product-unit-roles-schema"
 
 // وحدات صنف واحد بمعرّفه — يستدعيه ProductSearchPopup (عند اختيار صنف بالنقر المزدوج/Enter) وشاشتا
 // فاتورة/طلبية المبيعات، بنفس الشكل الذي يعيده /api/inventory/products/search لتوحيد التعامل مع
@@ -16,10 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const { searchParams } = new URL(request.url)
     const priceCategoryId = Number(searchParams.get("price_category_id") || 1)
 
+    await ensureProductUnitRoleColumns()
     const client = await (await getTenantPool()).connect()
     try {
       const result = await client.query(
-        `SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty,
+        `SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty, pu.is_stock_count_unit, pu.is_purchase_unit, pu.is_report_unit,
                 pub.barcode AS primary_barcode, pub.barcode_list AS barcode, COALESCE(pub.barcodes, '[]'::json) AS barcodes,
                 COALESCE(pp_selected.price, pp_fallback.price, 0) AS price
          FROM product_units pu

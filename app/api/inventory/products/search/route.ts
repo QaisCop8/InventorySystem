@@ -3,6 +3,8 @@ import { projectFileLookup } from "@/lib/file-permissions"
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
+import { pickRoleUnit, type UnitRole } from "@/lib/product-unit-roles"
+import { ensureProductUnitRoleColumns } from "@/lib/product-unit-roles-schema"
 
 const searchSchemaByPool = new WeakMap<object, Promise<boolean>>()
 
@@ -42,6 +44,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("query") || searchParams.get("code");
     const priceCategoryId = Number(searchParams.get("priceCategoryId") || 1);
+    const unitRoleParam = searchParams.get("unitRole");
+    const unitRole: UnitRole | null = unitRoleParam === "purchase" || unitRoleParam === "stock_count" || unitRoleParam === "report" ? unitRoleParam : null;
+    await ensureProductUnitRoleColumns();
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
@@ -142,7 +147,7 @@ export async function GET(request: NextRequest) {
 
     // 2️⃣ Get units for this product
     const unitsQuery = `
-  SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty,
+  SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty, pu.is_stock_count_unit, pu.is_purchase_unit, pu.is_report_unit,
          pub.barcode,
          COALESCE(pp_selected.price, pp_fallback.price, 0) AS unit_price
   FROM product_units pu
@@ -164,11 +169,13 @@ export async function GET(request: NextRequest) {
     product.units = unitsResult.rows;
     product.price = 0;
     if (!is_barcode) {
-      product.unit_id = product.units[0].unit_id;
-      product.unit_name = product.units[0].unit_name;
-      product.price = product.units[0].unit_price;
-      product.to_main_unit_qty = product.units[0].to_main_qty?? 1
-      product.barcode = product.units[0].barcode
+      // ?unitRole=purchase|stock_count|report: الوحدة المؤشَّرة لهذا الدور في تعريف الصنف (وإلا أول وحدة)
+      const defaultUnit = pickRoleUnit(product.units, unitRole) ?? product.units[0];
+      product.unit_id = defaultUnit.unit_id;
+      product.unit_name = defaultUnit.unit_name;
+      product.price = defaultUnit.unit_price;
+      product.to_main_unit_qty = Number(defaultUnit.to_main_qnty) || 1
+      product.barcode = defaultUnit.barcode
     }
     else {
       const barcodeUnit = product.units.find(
