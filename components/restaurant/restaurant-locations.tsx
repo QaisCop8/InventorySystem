@@ -196,6 +196,9 @@ export default function RestaurantLocations() {
     }
   }
 
+  const saveRef = useRef(save)
+  saveRef.current = save
+
   const remove = async (row: Location) => {
     if (!(await confirmYesNo(`حذف الموقع "${row.name}"؟`))) return
     const response = await fetch(`/api/restaurant/locations?id=${row.id}`, { method: "DELETE" })
@@ -232,6 +235,17 @@ export default function RestaurantLocations() {
     if (target.tagName !== "INPUT" || target.closest('[role="listbox"]')) return
     event.preventDefault()
     focusNextField(target)
+  }
+
+  // F3 = حفظ — فقط من داخل النموذج نفسه (نافذة بحث الحساب المنبثقة تصل أحداثها عبر شجرة React فتُستثنى)
+  const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "F3" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+    if (!event.currentTarget.contains(event.target as Node)) return
+    event.preventDefault()
+    event.stopPropagation()
+    const active = document.activeElement as HTMLElement | null
+    active?.blur?.()
+    if (!readOnly && !saving) window.setTimeout(() => void saveRef.current(), 0)
   }
 
   const readOnly = form.id ? !canUpdate : !canCreate
@@ -303,7 +317,7 @@ export default function RestaurantLocations() {
       )}
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void closeForm() }}>
-        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0" onKeyDown={onDialogKeyDown}>
           <div className="bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><MapPin className="h-5 w-5" /></span>
@@ -377,10 +391,10 @@ export default function RestaurantLocations() {
           </div>
 
           <div className="flex items-center justify-between gap-2 border-t bg-background px-5 py-3">
-            <span className="hidden text-xs text-muted-foreground sm:inline"><kbd className="rounded border px-1">Enter</kbd> التالي · <kbd className="rounded border px-1">Esc</kbd> إغلاق</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline"><kbd className="rounded border px-1">F3</kbd> حفظ · <kbd className="rounded border px-1">Enter</kbd> التالي ·<kbd className="rounded border px-1">Esc</kbd> إغلاق</span>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => void closeForm()}>إغلاق</Button>
-              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}حفظ</Button>}
+              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}حفظ (F3)</Button>}
             </div>
           </div>
         </DialogContent>
