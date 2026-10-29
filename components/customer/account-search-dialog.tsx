@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState, useRef } from "react"
-import { Search, Wallet, Plus } from "lucide-react"
+import { Search, Wallet, Plus, UserPlus } from "lucide-react"
+import { newRecordHref } from "@/lib/new-record-param"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -566,15 +567,29 @@ export default function AccountSearchDialog({
             count={searchResults.length}
             onClose={() => onOpenChange(false)}
             actions={
-              <Button
-                type="button"
-                tabIndex={-1}
-                onClick={() => window.open("/admin/accounts?new=1", "_blank", "noopener,noreferrer")}
-                className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">إضافة حساب</span>
-              </Button>
+              // تبويب جديد بالنظام كاملاً (القائمة والتنقل) على سجل جديد — بدل صفحة /admin/accounts المنفصلة بملء الشاشة
+              <>
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => window.open(newRecordHref("accounts"), "_blank", "noopener,noreferrer")}
+                  className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                  title="تعريف حساب"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">تعريف حساب</span>
+                </Button>
+                <Button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => window.open(newRecordHref("customers"), "_blank", "noopener,noreferrer")}
+                  className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-sky-700 hover:bg-sky-50"
+                  title="تعريف عميل"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">تعريف عميل</span>
+                </Button>
+              </>
             }
           />
 

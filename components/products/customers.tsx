@@ -49,6 +49,7 @@ import UnifiedCustomers from "./unified-customers"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { openReceivablesStatement } from "@/lib/statement-prefill"
+import { consumeNewRecordParam } from "@/lib/new-record-param"
 interface CustomersProps {
   isSupplier?: boolean;
   isSubscriber?: boolean;
@@ -1490,6 +1491,15 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     if (checkUnsaved) runAfterUnsavedCheck(startNew)
     else await startNew()
   }
+
+  // /?section=customers&new=1 (زر "تعريف عميل" في بحث الحسابات): سجل عميل جديد بعد تحميل الصلاحيات
+  const newFromUrlHandledRef = useRef(false)
+  useEffect(() => {
+    if (newFromUrlHandledRef.current || !canCreate || entityTypeCode !== 1) return
+    newFromUrlHandledRef.current = true
+    if (consumeNewRecordParam("customers")) void handleNewCustomer(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canCreate])
 
   // نسخ: سجل جديد برقم جديد يحمل بيانات السجل الحالي (بلا معرّف/حساب) — يُعدّ تعديلاً غير محفوظ.
   const handleCloneCustomer = () => {

@@ -1,10 +1,12 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { useReliableTextChange } from "./use-reliable-text-change"
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, value, onChange, onInput, onCompositionEnd, ...props }, ref) => {
+  const handlers = useReliableTextChange<HTMLTextAreaElement>(value, onChange, onInput, onCompositionEnd)
   return (
     <textarea
       className={cn(
@@ -12,6 +14,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ classNa
         className,
       )}
       ref={ref}
+      value={value}
+      {...handlers}
       {...props}
     />
   )

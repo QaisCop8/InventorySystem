@@ -4,14 +4,19 @@ import * as React from "react"
 
 import DateTimeControl from "@/components/common/date-time-control"
 import { cn } from "@/lib/utils"
+import { useReliableTextChange } from "./use-reliable-text-change"
+
+const TEXT_INPUT_TYPES = new Set(["text", "search", "email", "tel", "url", "password"])
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, value, defaultValue, onChange, onBlur, min, max, ...props }, ref) => {
+  ({ className, type, value, defaultValue, onChange, onBlur, onInput, onCompositionEnd, min, max, ...props }, ref) => {
     const [uncontrolledDateValue, setUncontrolledDateValue] = React.useState(() =>
       typeof defaultValue === "string" ? defaultValue : "",
     )
+    // حقول النص فقط (لا checkbox/radio/number/file...): نص من طرق الإدخال (العربية/الاقتراحات) لا يضيع
+    const handlers = useReliableTextChange<HTMLInputElement>(value, onChange, onInput, onCompositionEnd, TEXT_INPUT_TYPES.has(type || "text"))
 
     if (type === "date" || type === "datetime-local") {
       const isControlled = value !== undefined
@@ -49,7 +54,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         ref={ref}
         value={value}
         defaultValue={defaultValue}
-        onChange={onChange}
+        {...handlers}
         onBlur={onBlur}
         min={min}
         max={max}

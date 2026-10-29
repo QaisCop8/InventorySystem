@@ -1,6 +1,7 @@
 "use client"
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
+import { consumeNewRecordParam } from "@/lib/new-record-param"
 import { useEffect, useMemo, useState } from "react"
 import { BookOpen as BookOpenIcon, CheckCircle, FileSpreadsheet, Plus, RefreshCw } from "lucide-react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
@@ -290,6 +291,12 @@ export default function Accounts() {
     setSelectedUnifiedAccountId(null)
     setShowUnifiedPopup(true)
   }
+
+  // /?section=accounts&new=1 (زر "تعريف حساب" في بحث الحسابات): يفتح نافذة حساب جديد داخل النظام
+  useEffect(() => {
+    if (consumeNewRecordParam("accounts")) handleNew()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleOpenUnifiedAccount = (account: Account) => {
     setSelectedUnifiedAccountId(account.id)
