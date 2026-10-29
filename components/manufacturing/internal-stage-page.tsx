@@ -224,7 +224,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
     {!loading && !listError && visible.length === 0 && <div className="rounded-xl border-2 border-dashed py-14 text-center text-muted-foreground"><FileText className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><div className="font-semibold text-foreground">لا توجد طلبات في هذه المرحلة</div><div className="mt-1 text-sm">{search ? "لا توجد نتائج مطابقة للبحث." : "ستظهر هنا الطلبات فور وصولها لهذه المرحلة."}</div></div>}
 
     <Dialog open={!!selected} onOpenChange={(open) => { if (!open && !saving) setSelected(null) }}>
-      <DialogContent dir="rtl" className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[94dvh]">
+      <DialogContent dir="rtl" className="flex h-[min(calc(100%-1.5rem),calc(100dvh-1rem))] max-h-[min(calc(100%-1.5rem),calc(100dvh-1rem))] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[min(calc(100%-1.5rem),94dvh)]">
         <DialogHeader className="shrink-0 border-b py-3 pl-14 pr-4 sm:pr-5"><DialogTitle className="flex items-center gap-2 text-right"><step.icon className="h-5 w-5 text-emerald-600" />{step.title}: <span className="font-mono">{selected?.vch_code}</span></DialogTitle></DialogHeader>
         {selected && <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3 sm:px-5 sm:py-4">
           <Messages innerRef={dialogMessagesRef} />

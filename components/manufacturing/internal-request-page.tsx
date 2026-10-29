@@ -284,7 +284,7 @@ export default function InternalRequestPage() {
     {!loading && filteredRequests.length === 0 && <div className="rounded-xl border-2 border-dashed py-16 text-center"><ClipboardCheck className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><h2 className="font-bold">لا توجد طلبات مطابقة للفلاتر</h2></div>}
     <ConfirmDialogYesNo visible={deleteRequestId !== null} message="هل أنت متأكد من حذف الطلب؟" onConfirm={() => { const requestId = deleteRequestId; setDeleteRequestId(null); if (requestId !== null) void performDeleteRequest(requestId) }} onCancel={() => setDeleteRequestId(null)} />
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent dir="rtl" className="flex max-h-[94vh] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+      <DialogContent dir="rtl" className="flex max-h-[min(calc(100%-1.5rem),94dvh)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
         <div className="bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><ClipboardCheck className="h-5 w-5" /></span>

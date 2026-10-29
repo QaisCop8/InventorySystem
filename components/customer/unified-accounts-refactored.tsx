@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Plus, AlertCircle, Search, X, BookOpen, Folder, FolderOpen, FolderTree, FileText, Minus } from "lucide-react"
+import { Plus, AlertCircle, Search, X, BookOpen, Folder, FolderOpen, FolderTree, FileText, Minus, ChevronDown } from "lucide-react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
@@ -175,6 +175,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const [focusedTreeAccountId, setFocusedTreeAccountId] = useState<number | null>(null)
   const [expandedTreeAccountIds, setExpandedTreeAccountIds] = useState<Set<number>>(() => new Set(TREE_DEFAULT_EXPANDED))
   // "lists" = حسب القوائم المالية (الميزانية ← الأصول/الخصوم ← البند، قائمة الدخل ← البند) كما في الشامل، "parents" = حسب الحساب الأب
+  // الجوال (أقل من lg): الشجرة لوحة قابلة للطي أسفل النموذج — مطوية افتراضياً حتى تبقى الحقول ظاهرة
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false)
   const [accountTreeMode, setAccountTreeMode] = useState<"lists" | "parents">(() => {
     try { return localStorage.getItem("accounts-tree-mode") === "parents" ? "parents" : "lists" } catch { return "lists" }
   })
@@ -2429,8 +2431,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <Messages innerRef={messagesRef} />
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pb-3 pt-2 sm:px-5 lg:flex-row">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3 pt-2 sm:px-5 lg:flex-row lg:overflow-hidden">
+        <main className="flex min-w-0 shrink-0 flex-col lg:min-h-0 lg:flex-1 lg:shrink">
         <div className="shrink-0">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-white shadow-lg">
             <BookOpen className="h-5 w-5" />
@@ -2441,7 +2443,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         </div>
 
         {/* نفس التصميم الناعم لنموذج العملاء (globals.css: .unified-customers-compact / .customer-definition-form) */}
-        <div ref={formRootRef} className="customer-definition-form min-h-0 flex-1 overflow-y-auto px-3 py-4 space-y-4 sm:px-5">
+        <div ref={formRootRef} className="customer-definition-form px-1 py-4 space-y-4 sm:px-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {isNonLedgerAccount && (
             <Alert className="border-amber-300 bg-amber-50 text-amber-950" role="status">
               <AlertDescription>هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف. اعرضه وعدّله من صفحته المخصصة.</AlertDescription>
@@ -3109,11 +3111,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         </div>
         </main>
 
-        <aside className="flex h-[min(34vh,260px)] min-h-40 min-w-0 flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[360px] lg:shrink-0 xl:w-[400px]">
+        <aside className={`flex min-w-0 shrink-0 flex-col overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm lg:h-auto lg:min-h-0 lg:w-[360px] xl:w-[400px] ${mobileTreeOpen ? "h-[70dvh]" : ""}`}>
           <div className="border-b border-slate-200 bg-white p-2">
             <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
-              <FolderTree className="h-4 w-4 text-emerald-700" />
-              <span>شجرة الحسابات</span>
+              <button type="button" onClick={() => setMobileTreeOpen((value) => !value)} className="flex items-center gap-2 lg:pointer-events-none" aria-expanded={mobileTreeOpen}>
+                <FolderTree className="h-4 w-4 text-emerald-700" />
+                <span>شجرة الحسابات</span>
+                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform lg:hidden ${mobileTreeOpen ? "rotate-180" : ""}`} />
+              </button>
               <span className="text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
               <div className="mr-auto flex overflow-hidden rounded-md border border-slate-200 text-[11px] font-medium">
                 {([["lists", "القوائم المالية"], ["parents", "الحسابات الأب"]] as const).map(([mode, label]) => (
@@ -3128,7 +3133,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 ))}
               </div>
             </div>
-            <div className="relative">
+            <div className={`relative ${mobileTreeOpen ? "" : "hidden lg:block"}`}>
               <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={accountTreeSearch}
@@ -3145,12 +3150,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-auto p-1 font-sans text-[11px]" dir="ltr">
+          <div className={`min-h-0 flex-1 overflow-auto p-1 font-sans text-[11px] lg:block ${mobileTreeOpen ? "" : "hidden"}`} dir="ltr">
             {filteredAccountTree.length ? filteredAccountTree.map((node, index) => renderAccountTreeNode(node, 0, undefined, index)) : (
               <p className="px-2 py-6 text-center text-xs text-slate-500">لا توجد حسابات مطابقة</p>
             )}
           </div>
-          <div className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+          <div className={`border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500 lg:block ${mobileTreeOpen ? "" : "hidden"}`}>
             اختر حساباً ثم اضغط «جديد» لإنشاء حساب فرعي.
           </div>
         </aside>
