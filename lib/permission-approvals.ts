@@ -11,6 +11,8 @@ import { POS_CASHIER_PERMISSIONS, RESTAURANT_PERMISSIONS } from "@/lib/transacti
 
 export type ApprovalScope = "pos" | "restaurant"
 export const APPROVAL_HEADER = "x-permission-approval"
+// معرّف لكل طلب من المتصفح: الموافقة تُستهلك بأول طلب يستخدمها، وتبقى صالحة لفحوص نفس الطلب فقط (لمرة واحدة)
+export const APPROVAL_REQUEST_HEADER = "x-approval-request"
 const CODE_MINUTES = 10
 const TOKEN_MINUTES = 10
 const MAX_ATTEMPTS = 5
@@ -56,6 +58,8 @@ async function ensureApprovalTable() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`
       await sql`CREATE INDEX IF NOT EXISTS permission_approvals_token_idx ON permission_approvals_tbl (token_hash)`
+      await sql`ALTER TABLE permission_approvals_tbl ADD COLUMN IF NOT EXISTS used_request VARCHAR(64)`
+      await sql`ALTER TABLE permission_approvals_tbl ADD COLUMN IF NOT EXISTS used_at TIMESTAMP`
     })()
     pending.catch(() => ensuredDbs.delete(db))
     ensuredDbs.set(db, pending)
@@ -114,21 +118,38 @@ export async function verifyPermissionApproval(input: { userId: string; id: numb
   return { token, scope: row.scope as ApprovalScope, permission: String(row.permission_key), minutes: TOKEN_MINUTES }
 }
 
-/** هل يحمل الطلب الحالي موافقة سارية لهذه الصلاحية؟ (ترويسة x-permission-approval: رموز مفصولة بفواصل) */
-export async function hasPermissionApproval(userId: string, scope: ApprovalScope, permission: string, headerValue?: string | null): Promise<boolean> {
+/**
+ * هل يحمل الطلب الحالي موافقة سارية لهذه الصلاحية؟ (ترويسة x-permission-approval: رموز مفصولة بفواصل)
+ * لمرة واحدة: أول طلب يستخدم الموافقة يستهلكها (used_request)؛ فحوص أخرى داخل نفس الطلب تنجح، وأي طلب لاحق يُرفض
+ * فتظهر نافذة رمز التفعيل من جديد في كل مرة.
+ */
+export async function hasPermissionApproval(userId: string, scope: ApprovalScope, permission: string, headerValue?: string | null, requestIdValue?: string | null): Promise<boolean> {
   let raw = headerValue ?? null
-  if (raw == null) {
-    try { raw = (await headers()).get(APPROVAL_HEADER) } catch { raw = null }
+  let requestId = requestIdValue ?? null
+  if (raw == null || requestId == null) {
+    try {
+      const store = await headers()
+      raw = raw ?? store.get(APPROVAL_HEADER)
+      requestId = requestId ?? store.get(APPROVAL_REQUEST_HEADER)
+    } catch { /* خارج سياق طلب */ }
   }
+  // بلا معرّف طلب صالح ⇐ معرّف عشوائي فيُستهلك بهذا الفحص وحده
+  const usedBy = /^[A-Za-z0-9-]{8,64}$/.test(String(requestId || "")) ? String(requestId) : crypto.randomUUID()
   const tokens = String(raw || "").split(",").map((token) => token.trim()).filter((token) => /^[a-f0-9]{48}$/.test(token)).slice(0, 20)
   if (!tokens.length || !userId) return false
   try {
     await ensureApprovalTable()
+    // استهلاك ذرّي: يُعلَّم الصف بمعرّف هذا الطلب إن لم يُستخدم بعد، أو يُقبل إن كان هذا الطلب نفسه من استخدمه
     const rows = await sql`
-      SELECT 1 FROM permission_approvals_tbl
-      WHERE token_hash = ANY(${tokens.map(digest)}::text[]) AND user_id = ${String(userId)} AND scope = ${scope}
-        AND permission_key = ${permission} AND token_expires_at > CURRENT_TIMESTAMP
-      LIMIT 1`
+      UPDATE permission_approvals_tbl SET used_request = COALESCE(used_request, ${usedBy}), used_at = COALESCE(used_at, CURRENT_TIMESTAMP)
+      WHERE id = (
+        SELECT id FROM permission_approvals_tbl
+        WHERE token_hash = ANY(${tokens.map(digest)}::text[]) AND user_id = ${String(userId)} AND scope = ${scope}
+          AND permission_key = ${permission} AND token_expires_at > CURRENT_TIMESTAMP
+          AND (used_request IS NULL OR used_request = ${usedBy})
+        ORDER BY id DESC LIMIT 1
+      ) AND (used_request IS NULL OR used_request = ${usedBy})
+      RETURNING id`
     return rows.length > 0
   } catch {
     return false

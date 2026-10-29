@@ -455,7 +455,7 @@ async function handlePay(ctx: Ctx, order: any) {
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${body.pos_client_sale_id}`}))`
   const response = await savePosSaleCore(ctx.request, body, {
     userId: ctx.userId, point, session: null, clientSaleId: body.pos_client_sale_id,
-    discountOverride: { scope: "restaurant", allowed: async () => ctx.permissions.overrideDiscount === true },
+    discountOverride: { scope: "restaurant", allowed: async () => ctx.permissions.overrideDiscount === true || hasPermissionApproval(ctx.userId, "restaurant", "overrideDiscount", ctx.request.headers.get(APPROVAL_HEADER)) },
   })
   const saved = await response.json().catch(() => ({}))
   if (!response.ok) throw Object.assign(fail(String(saved?.error || "تعذر حفظ فاتورة الطاولة"), response.status), saved?.permission_required ? { permission_required: saved.permission_required } : {})
@@ -522,10 +522,9 @@ export async function POST(request: NextRequest) {
     }
     const auth = await authorizeRestaurant(request, required, branchId)
     if (!auth.ok) return auth.response
-    // موافقات برمز تفعيل (خصم، تجاوز نسبة الخصم...) تُحتسب كصلاحيات ممنوحة لهذا الطلب
-    for (const key of Object.keys(auth.permissions) as RestaurantPermission[]) {
-      if (!auth.permissions[key] && await hasPermissionApproval(auth.userId, "restaurant", key, request.headers.get(APPROVAL_HEADER))) auth.permissions[key] = true
-    }
+    // موافقة برمز تفعيل على "إدخال خصم" تُحتسب لهذا الطلب فقط حين يحمل خصماً (الموافقة لمرة واحدة فلا تُستهلك بلا داعٍ)
+    const carriesDiscount = action === "pay" || data?.discount_percent !== undefined || data?.discount !== undefined || (Array.isArray(data?.items) && data.items.some((item: any) => Number(item?.discount) > 0))
+    if (!auth.permissions.discount && carriesDiscount && await hasPermissionApproval(auth.userId, "restaurant", "discount", request.headers.get(APPROVAL_HEADER))) auth.permissions.discount = true
     const ctx: Ctx = { userId: auth.userId, branchId, permissions: auth.permissions, data, request }
 
     if (action === "pay") {

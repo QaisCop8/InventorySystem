@@ -118,12 +118,21 @@ async function mergeDuplicateAccessDefinitions(client: ReturnType<typeof getPool
 }
 
 const ensuredTenants = new Map<string, Promise<void>>()
+// ~20 أمر CREATE/ALTER كانت تُنفَّذ مع أول طلب في كل نسخة خادم جديدة (Cloudflare) قبل حفظ الصلاحيات وغيره —
+// ثوانٍ مع قاعدة بعيدة. تُسجَّل الآن في app_schema_state (نفس جدول lib/schema-once.ts) فتتخطاها النسخ اللاحقة
+// باستعلامين. ارفع هذا الرقم عند تعديل الجداول أدناه لإعادة تطبيقها مرة واحدة على كل شركة.
+const PERMISSION_TABLES_VERSION = "permission-tables:1"
 
 export function ensurePermissionTables(dbName: string): Promise<void> {
   let promise = ensuredTenants.get(dbName)
   if (!promise) {
     const client = getPoolForDb(dbName)
     promise = (async () => {
+      const [stateTable] = await client.query(`SELECT to_regclass('public.app_schema_state') IS NOT NULL AS ok`, [])
+      if (stateTable?.ok) {
+        const [applied] = await client.query(`SELECT version FROM app_schema_state WHERE key = 'permission-tables'`, [])
+        if (applied?.version === PERMISSION_TABLES_VERSION) return
+      }
       // Create permission definitions before tables whose foreign keys reference them.
       // This also repairs older tenant databases that do not yet have access_list.
       await client.query(
@@ -221,6 +230,12 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
         [],
+      )
+      await client.query(`CREATE TABLE IF NOT EXISTS app_schema_state (key TEXT PRIMARY KEY, version TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`, [])
+      await client.query(
+        `INSERT INTO app_schema_state (key, version, applied_at) VALUES ('permission-tables', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET version = EXCLUDED.version, applied_at = NOW()`,
+        [PERMISSION_TABLES_VERSION],
       )
     })().catch((error) => {
       ensuredTenants.delete(dbName)

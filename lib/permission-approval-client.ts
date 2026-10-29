@@ -8,6 +8,7 @@ export type ApprovalScope = "pos" | "restaurant"
 export type PermissionRequest = { scope: ApprovalScope; key: string; name: string; scopeId: number | null; message?: string }
 
 export const APPROVAL_HEADER = "x-permission-approval"
+const APPROVAL_REQUEST_HEADER = "x-approval-request"
 const tokens = new Map<string, { token: string; expires: number }>()
 const scopeProviders = new Map<ApprovalScope, () => number | null>()
 let asker: ((request: PermissionRequest) => Promise<boolean>) | null = null
@@ -68,20 +69,34 @@ export function installPermissionApprovalFetch() {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
     if (!/\/api\/(pos|restaurant)\//.test(url)) return original(input, init)
+    const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase()
+    let sentTokens: string[] = []
     const send = () => {
       const list = activeTokens()
+      sentTokens = list
       if (!list.length) return original(input, init)
       const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined))
       headers.set(APPROVAL_HEADER, list.join(","))
+      // الخادم يستهلك الموافقة بأول طلب يستخدمها (لمرة واحدة) — معرّف فريد لكل طلب
+      headers.set(APPROVAL_REQUEST_HEADER, typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`)
       return original(input, { ...init, headers })
     }
+    // عملية حفظ نجحت وهي تحمل موافقات ⇐ استُهلكت؛ تُنسى فتظهر النافذة في المرة القادمة
+    const forgetSent = (response: Response) => {
+      if (response.ok && method !== "GET" && sentTokens.length) {
+        for (const [key, entry] of tokens) if (sentTokens.includes(entry.token)) tokens.delete(key)
+      }
+      return response
+    }
     const response = await send()
-    if (response.status !== 403) return response
+    if (response.status !== 403) return forgetSent(response)
     const body = await response.clone().json().catch(() => null)
     const required = body?.permission_required
     if (!required?.scope || !required?.key) return response
+    // رفض الخادم ⇐ أي موافقة محفوظة لهذه الصلاحية استُهلكت أو انتهت: تُحذف لتُطلب من جديد
+    tokens.delete(tokenKey(String(required.scope), String(required.key)))
     const approved = await askPermissionApproval({ scope: required.scope, key: String(required.key), name: String(required.name || ""), message: String(body?.error || "") })
     // إلغاء ⇐ يعود الرفض الأصلي للشاشة فتعرض رسالتها كالمعتاد
-    return approved ? send() : response
+    return approved ? forgetSent(await send()) : response
   }
 }

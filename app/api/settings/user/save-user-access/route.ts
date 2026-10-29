@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql, { resolveCurrentDbName } from "@/lib/database"
-import { getSessionUser } from "@/lib/tenant-auth"
-import { ensurePermissionTables } from "@/lib/permissions"
+import sql from "@/lib/database"
 import { authorizeUserAdmin } from "@/lib/user-admin-access"
 
 interface AccessPayload {
@@ -16,11 +14,9 @@ export async function POST(req: NextRequest) {
   const userAdmin = await authorizeUserAdmin(req as any)
   if (!userAdmin.ok) return userAdmin.response
   try {
-    if (!(await getSessionUser(req))) {
-      return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
-    }
+    // authorizeUserAdmin تحقّق من الجلسة أعلاه، والجداول موجودة (شاشة الصلاحيات حمّلتها عبر user-access) —
+    // كان يُعاد التحقق من الجلسة وتشغيل ensurePermissionTables (~20 أمر DDL في كل نسخة خادم جديدة) قبل الحفظ.
     const body: AccessPayload = await req.json()
-    await ensurePermissionTables(await resolveCurrentDbName())
 
     if (!body.userId || !Number.isInteger(Number(body.branchId)) || Number(body.branchId) <= 0 || !Array.isArray(body.accesses)) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
