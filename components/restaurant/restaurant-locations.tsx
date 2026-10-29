@@ -171,7 +171,7 @@ export default function RestaurantLocations() {
   }
 
   const save = async () => {
-    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"]]
+    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"], [form.admin_email.trim(), "ايميل مدير النظام"], [form.manager_email.trim(), "ايميل المسؤول"]]
     const missing = required.filter(([value]) => !value).map(([, label]) => label)
     if (missing.length) { setFormError(`الحقول المطلوبة: ${missing.join("، ")}`); return }
     setSaving(true); setFormError("")
@@ -390,8 +390,8 @@ export default function RestaurantLocations() {
             <FormSection icon={<Mail className="h-4 w-4" />} title="ايميلات الموافقة على الصلاحيات">
               <p className="mb-2 text-xs text-muted-foreground">عند طلب صلاحية غير ممنوحة في شاشة المطعم يُرسل رمز التفعيل إلى هذين الايميلين.</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>ايميل مدير النظام</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
-                <div className="space-y-1"><Label>ايميل المسؤول</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
+                <div className="space-y-1"><Label>ايميل مدير النظام *</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
+                <div className="space-y-1"><Label>ايميل المسؤول *</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
               </div>
             </FormSection>
 

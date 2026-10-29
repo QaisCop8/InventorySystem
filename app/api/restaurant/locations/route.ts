@@ -67,7 +67,8 @@ async function validate(data: any, id: number | null, userId: string) {
   const emails: { admin: string | null; manager: string | null } = { admin: null, manager: null }
   for (const [field, key, label] of [["admin_email", "admin", "ايميل مدير النظام"], ["manager_email", "manager", "ايميل المسؤول"]] as const) {
     const value = String(data[field] ?? "").trim().toLowerCase().slice(0, 150)
-    if (value && !/^[^s@]+@[^s@]+.[^s@]+$/.test(value)) return { error: `${label} غير صالح` }
+    if (!value) return { error: `${label} مطلوب` }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return { error: `${label} غير صالح` }
     emails[key] = value || null
   }
 
