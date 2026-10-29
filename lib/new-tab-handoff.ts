@@ -8,14 +8,25 @@
 const PREFIX = "new-tab-handoff:"
 const TTL_MS = 5 * 60_000
 
+// شركة/جلسة هذا التبويب تُنقل مع البيانات: بدونها يرى التبويب الجديد ?company= لا يطابق sessionStorage فيعيد
+// اختيار الشركة ويُحدّث الصفحة (app/page.tsx) — بعد أن تكون الشاشة قرأت بيانات المرة الواحدة وحذفتها فتضيع
+// (مثل معالجة مرفق من بريد الرسائل: يفتح المساعد ثم يُحدّث ويختفي الطلب).
+const SESSION_KEYS = ["active_company_id", "active_tenant_db", "erp_user", "erp_token", "erp_session", "erp_active_branch", "erp_active_department"]
+
 export function openSectionInNewTab(section: string, sessionItems: Record<string, string> = {}) {
   const params = new URLSearchParams({ section })
   const company = sessionStorage.getItem("active_company_id")
   if (company) params.set("company", company)
   if (Object.keys(sessionItems).length) {
     const token = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+    const items: Record<string, string> = {}
+    for (const key of SESSION_KEYS) {
+      const value = sessionStorage.getItem(key)
+      if (value != null) items[key] = value
+    }
+    Object.assign(items, sessionItems)
     try {
-      localStorage.setItem(PREFIX + token, JSON.stringify({ items: sessionItems, created_at: Date.now() }))
+      localStorage.setItem(PREFIX + token, JSON.stringify({ items, created_at: Date.now() }))
       params.set("handoff", token)
     } catch { /* التخزين غير متاح ⇐ تُفتح الشاشة بلا البيانات */ }
   }

@@ -362,6 +362,9 @@ export function AIChat() {
   useEffect(() => {
     const stored = sessionStorage.getItem("ai_process_attachment")
     if (!stored) return
+    // الصفحة ستُعيد اختيار الشركة وتُحدّث نفسها (?company= لا يطابق التبويب) ⇐ نترك الطلب لما بعد التحديث
+    const companyParam = new URLSearchParams(window.location.search).get("company")
+    if (companyParam && sessionStorage.getItem("active_company_id") !== companyParam) return
     sessionStorage.removeItem("ai_process_attachment")
     try {
       const data = JSON.parse(stored) as { attachmentId?: number; name?: string; hint?: string }
