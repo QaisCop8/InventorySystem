@@ -117,6 +117,10 @@ export async function POST(request: NextRequest) {
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return NextResponse.json({ error: "خدمة الذكاء الاصطناعي غير مفعّلة على الخادم" }, { status: 503 })
     const form = await request.formData()
     const hint = String(form.get("hint") || "").slice(0, 500)
+    // نوع مفروض من المصدر (بريد الرسائل: "سند قبض" المُرسَل للمدير يُعالَج كسند صرف) — يتقدّم على قراءة النموذج
+    const forcedType = ["sales_invoice", "purchase_invoice", "receipt", "payment", "journal_voucher"].includes(String(form.get("document_type") || ""))
+      ? (String(form.get("document_type")) as "sales_invoice" | "purchase_invoice" | "receipt" | "payment" | "journal_voucher")
+      : null
     // attachment_id: مرفق من "بريد الرسائل" يُقرأ من قاعدة البيانات مباشرة (بلا تنزيله للمتصفح ثم رفعه مجدداً)
     const attachmentId = Number(form.get("attachment_id") || 0)
     let file: { type: string; size: number; bytes: Uint8Array }
@@ -188,6 +192,8 @@ export async function POST(request: NextRequest) {
       const reason = lastError instanceof Error ? lastError.message : String(lastError || "")
       return NextResponse.json({ error: aiFailureMessage(lastError, `تعذر قراءة المستند${reason ? `: ${reason.slice(0, 300)}` : ""}`) }, { status: 502 })
     }
+
+    if (forcedType) extracted.document_type = forcedType
 
     // الطرف: عملاء (2/5) للمبيعات والقبض، موردون (3) للمشتريات والصرف — مع الرجوع لكل الأنواع
     const partyTypes = extracted.document_type === "purchase_invoice" || extracted.document_type === "payment" ? [3, 2, 5] : [2, 5, 3]

@@ -246,7 +246,7 @@ export function AIChat() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   // hintOverride: مرفق مُمرَّر من شاشة أخرى (بريد الرسائل ⇐ معالجة) مع وصفه بدل نص خانة الكتابة
   // file = ملف مرفق هنا، أو { attachmentId } = مرفق محفوظ في بريد الرسائل يقرؤه الخادم من قاعدة البيانات مباشرة
-  const handleAttach = async (file: File | { attachmentId: number; name: string } | null, hintOverride?: string) => {
+  const handleAttach = async (file: File | { attachmentId: number; name: string; documentType?: string } | null, hintOverride?: string) => {
     if (!file || isLoading) return
     const hint = (hintOverride ?? input).trim()
     setMessages((prev) => [...prev, { role: "user", content: `📎 ${file.name}${hint ? `\n${hint}` : ""}`, at: Date.now() }])
@@ -255,7 +255,10 @@ export function AIChat() {
     let continueWith: string | null = null
     try {
       const body = new FormData()
-      if ("attachmentId" in file) body.append("attachment_id", String(file.attachmentId))
+      if ("attachmentId" in file) {
+        body.append("attachment_id", String(file.attachmentId))
+        if (file.documentType) body.append("document_type", file.documentType)
+      }
       else body.append("file", file)
       if (hint) body.append("hint", hint)
       // الخادم يعيد المحاولة تلقائياً عند انشغال الخدمة حتى ~130 ثانية ⇐ مهلة أطول قليلاً هنا
@@ -367,8 +370,8 @@ export function AIChat() {
     if (companyParam && sessionStorage.getItem("active_company_id") !== companyParam) return
     sessionStorage.removeItem("ai_process_attachment")
     try {
-      const data = JSON.parse(stored) as { attachmentId?: number; name?: string; hint?: string }
-      if (Number(data.attachmentId) > 0) void handleAttachRef.current({ attachmentId: Number(data.attachmentId), name: String(data.name || "مرفق") }, data.hint || "")
+      const data = JSON.parse(stored) as { attachmentId?: number; name?: string; hint?: string; documentType?: string }
+      if (Number(data.attachmentId) > 0) void handleAttachRef.current({ attachmentId: Number(data.attachmentId), name: String(data.name || "مرفق"), documentType: data.documentType }, data.hint || "")
     } catch { /* ignore */ }
   }, [])
 

@@ -11,7 +11,7 @@ import { confirmYesNo } from "@/components/ui/confirm-host"
 import { openSectionInNewTab } from "@/lib/new-tab-handoff"
 import { MANAGER_ATTACHMENT_TYPES, type ManagerAttachmentType } from "@/lib/manager-attachments-shared"
 
-// أدوات ⇐ بريد الرسائل: المرفقات المرسلة للمدير (فاتورة مشتريات / سند قبض). تحديد متعدد لتنزيلها كملف مضغوط،
+// أدوات ⇐ بريد رسائل الموظفين: المرفقات المرسلة للمدير (فاتورة مشتريات / سند قبض). تحديد متعدد لتنزيلها كملف مضغوط،
 // ولكل سطر: تنزيل، حذف (من قاعدة البيانات نهائياً لتقليل حجمها)، معالجة (المساعد الذكي يقرأ المرفق وينشئ السند).
 
 type Row = {
@@ -45,6 +45,7 @@ export default function ManagerInbox() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [zipping, setZipping] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [from, setFrom] = useState(monthStart())
@@ -132,7 +133,7 @@ export default function ManagerInbox() {
         used.set(base, count + 1)
         zip.file(count ? base.replace(/(\.[^.]+)?$/, ` (${count})$1`) : base, await fetchFile(row))
       }
-      saveBlob(await zip.generateAsync({ type: "blob" }), `بريد الرسائل ${new Date().toISOString().slice(0, 10)}.zip`)
+      saveBlob(await zip.generateAsync({ type: "blob" }), `بريد رسائل الموظفين ${new Date().toISOString().slice(0, 10)}.zip`)
       setRows((current) => current.map((row) => selected.has(row.id) && !row.read_at ? { ...row, read_at: new Date().toISOString() } : row))
     } catch (error) {
       show("error", error instanceof Error ? error.message : "تعذر تنزيل المرفقات")
@@ -158,14 +159,46 @@ export default function ManagerInbox() {
     }
   }
 
+  // حذف المحدد: كل مرفق بطلب مستقل (الخادم يتحقق من صلاحية الحذف على فرع كل رسالة) — ما فشل يبقى محدداً مع السبب
+  const removeSelected = async () => {
+    const chosen = visible.filter((row) => selected.has(row.id))
+    if (!chosen.length) return
+    if (!(await confirmYesNo(`حذف ${chosen.length} مرفق محدد نهائياً من قاعدة البيانات؟`))) return
+    setDeleting(true)
+    const removed: number[] = []
+    let lastError = ""
+    try {
+      for (const row of chosen) {
+        try {
+          const response = await fetch(`/api/manager-attachments/${row.id}`, { method: "DELETE" })
+          const data = await response.json().catch(() => ({}))
+          if (!response.ok) throw new Error(data.error || "تعذر حذف المرفق")
+          removed.push(row.id)
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : "تعذر حذف المرفق"
+        }
+      }
+      const gone = new Set(removed)
+      setRows((current) => current.filter((item) => !gone.has(item.id)))
+      setSelected((current) => new Set([...current].filter((id) => !gone.has(id))))
+      if (removed.length === chosen.length) show("success", `تمت العملية بنجاح — حُذف ${removed.length} مرفق من قاعدة البيانات`)
+      else show("error", `حُذف ${removed.length} من ${chosen.length} — ${lastError}`)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   // معالجة: يُسلَّم المرفق للمساعد الذكي (ai-chat) مع نوعه والمورد، فيقرأه وينشئ السند للمراجعة
   const processRow = async (row: Row) => {
     setBusyId(row.id)
     try {
-      const hint = [MANAGER_ATTACHMENT_TYPES[row.doc_type], row.supplier_name ? `الحساب: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
-      // المساعد الذكي في تبويب متصفح جديد (يبقى بريد الرسائل مفتوحاً) — يستلم معرّف المرفق عبر sessionStorage
+      // "سند قبض" المُرسَل للمدير يعني مستند دفعٍ يجب صرفه ⇐ يُعالَج كسند صرف (لا قبض)
+      const documentType = row.doc_type === "receipt_voucher" ? "payment" : "purchase_invoice"
+      const typeLabel = documentType === "payment" ? "سند صرف" : MANAGER_ATTACHMENT_TYPES[row.doc_type]
+      const hint = [typeLabel, row.supplier_name ? `الحساب: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
+      // المساعد الذكي في تبويب متصفح جديد (يبقى بريد رسائل الموظفين مفتوحاً) — يستلم معرّف المرفق عبر sessionStorage
       // (ai_process_attachment) ويقرؤه الخادم من قاعدة البيانات مباشرة. يُفتح قبل أي await حتى لا يحجبه المتصفح.
-      openSectionInNewTab("ai-assistant", { ai_process_attachment: JSON.stringify({ attachmentId: row.id, name: row.file_name, hint }) })
+      openSectionInNewTab("ai-assistant", { ai_process_attachment: JSON.stringify({ attachmentId: row.id, name: row.file_name, hint, documentType }) })
       await fetch(`/api/manager-attachments/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "processed" }) })
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, processed_at: new Date().toISOString(), read_at: item.read_at || new Date().toISOString() } : item))
     } catch (error) {
@@ -189,7 +222,7 @@ export default function ManagerInbox() {
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Inbox /></div>
             <div>
               <p className="text-xs font-semibold text-emerald-50/90">أدوات</p>
-              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">بريد الرسائل</h1>
+              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">بريد رسائل الموظفين</h1>
               <p className="mt-1 text-sm text-emerald-50/85">مرفقات فواتير المشتريات وسندات القبض المرسلة للمدير — نزّلها أو عالجها بالمساعد الذكي أو احذفها</p>
             </div>
           </div>
@@ -232,9 +265,14 @@ export default function ManagerInbox() {
       <section className="overflow-hidden rounded-2xl border bg-background shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2.5">
           <span className="text-sm">{selected.size ? <>محدد <b>{selected.size}</b> ({sizeText(selectedSize)})</> : <>{visible.length} مرفق</>}</span>
+          <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void downloadSelected()} disabled={!selected.size || zipping}>
             {zipping ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Download className="ml-1 h-4 w-4" />}تنزيل المحدد
           </Button>
+          <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => void removeSelected()} disabled={!selected.size || deleting}>
+            {deleting ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Trash2 className="ml-1 h-4 w-4" />}حذف المحدد
+          </Button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">

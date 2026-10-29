@@ -32,9 +32,9 @@ export const TRANSACTION_FAMILIES = {
   year_end_closing: "إقفال السنة المالية",
   voucher_posting_tools: "ترحيل السندات",
   account_access: "صلاحيات المستخدمين على الحسابات",
-  // أدوات: إرسال مرفقات (فاتورة مشتريات / سند قبض) للمدير، وبريد الرسائل لاستلامها ومعالجتها
-  manager_attachment: "إرسال مرفقات للمدير",
-  manager_inbox: "بريد الرسائل",
+  // أدوات: إرسال مرفقات (فاتورة مشتريات / سند قبض) للمدير، وبريد رسائل الموظفين لاستلامها ومعالجتها
+  manager_attachment: "التواصل مع الإدارة",
+  manager_inbox: "بريد رسائل الموظفين",
   bulk_items: "تعديل الأصناف",
 } as const
 
@@ -135,7 +135,7 @@ export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | nul
 
 /**
  * الإجراءات الفعلية لكل حركة — الافتراضي كل الإجراءات الستة؛ شاشات الأدوات تحتاج بعضها فقط
- * (لا معنى لـ"ترحيل تعديل الأصناف" أو "إدخال بريد الرسائل"). ما يُحذف من هنا يُزال من شاشة الصلاحيات ومن قاعدة البيانات.
+ * (لا معنى لـ"ترحيل تعديل الأصناف" أو "إدخال بريد رسائل الموظفين"). ما يُحذف من هنا يُزال من شاشة الصلاحيات ومن قاعدة البيانات.
  */
 export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, TransactionAction[]>> = {
   bulk_items: ["access", "update"],
@@ -146,8 +146,8 @@ export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, Trans
 /** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
 export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFamily, Partial<Record<TransactionAction, string>>>> = {
   bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
-  manager_attachment: { create: "إرسال مرفقات للمدير" },
-  manager_inbox: { view: "استعلام ومعالجة بريد الرسائل", delete: "حذف مرفقات بريد الرسائل" },
+  manager_attachment: { create: "التواصل مع الإدارة" },
+  manager_inbox: { view: "استعلام ومعالجة بريد رسائل الموظفين", delete: "حذف مرفقات بريد رسائل الموظفين" },
 }
 
 export const transactionActionsFor = (family: TransactionFamily): TransactionAction[] =>

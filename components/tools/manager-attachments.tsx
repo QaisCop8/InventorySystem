@@ -9,7 +9,7 @@ import Messages from "@/components/common/Messages"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { MANAGER_ATTACHMENT_TYPES, MAX_MANAGER_ATTACHMENT_FILES, type ManagerAttachmentType } from "@/lib/manager-attachments-shared"
 
-// أدوات ⇐ إرسال مرفقات للمدير: صورة فاتورة مشتريات أو سند قبض + الحساب: مورد/عميل/مشترك (إلزاميان) ⇐ تصل إلى "بريد الرسائل".
+// أدوات ⇐ التواصل مع الإدارة: صورة فاتورة مشتريات أو سند قبض + الحساب: مورد/عميل/مشترك (إلزاميان) ⇐ تصل إلى "بريد رسائل الموظفين".
 
 type Sent = { id: number; doc_type: string; supplier_name: string | null; file_name: string; created_at: string; processed_at: string | null }
 
@@ -83,7 +83,7 @@ export default function ManagerAttachments() {
       setFiles([])
       setNote("")
       setSupplierId("")
-      show("success", "تمت العملية بنجاح — أُرسلت المرفقات إلى بريد الرسائل")
+      show("success", "تمت العملية بنجاح — أُرسلت المرفقات إلى بريد رسائل الموظفين")
       void loadSent()
     } catch (error) {
       show("error", error instanceof Error ? error.message : "تعذر إرسال المرفقات")
@@ -102,8 +102,8 @@ export default function ManagerAttachments() {
           <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Send /></div>
           <div>
             <p className="text-xs font-semibold text-emerald-50/90">أدوات</p>
-            <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">إرسال مرفقات للمدير</h1>
-            <p className="mt-1 text-sm text-emerald-50/85">أرسل صورة فاتورة مشتريات أو سند قبض مع الحساب (مورد، عميل أو مشترك) — تصل إلى بريد الرسائل للمراجعة والمعالجة</p>
+            <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">التواصل مع الإدارة</h1>
+            <p className="mt-1 text-sm text-emerald-50/85">أرسل صورة فاتورة مشتريات أو سند قبض مع الحساب (مورد، عميل أو مشترك) — تصل إلى بريد رسائل الموظفين للمراجعة والمعالجة</p>
           </div>
         </div>
       </header>
