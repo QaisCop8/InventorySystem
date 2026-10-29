@@ -1,6 +1,6 @@
 "use client"
 
-import { confirmYesNo } from "@/components/ui/confirm-host"
+import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { repricePosCart } from "@/lib/pos-customer-prices"
 import { applyPosCampaigns, type PosCampaign, type PosCampaignLine, type PosCampaignUsage } from "@/lib/pos-campaigns"
@@ -295,7 +295,7 @@ export default function PosCashier(){
   const option=product?.barcodeOptions.find(row=>row.barcode===resolved?.barcode)
   const match=product&&option?{...product,barcode:option.barcode,price:option.price,unitId:option.unitId,unitName:option.unitName}:product
   if(match&&resolved)add(match,resolved.quantity)
-  else{playPosBeep("notFound");setMessage({type:"error",text:"لا يوجد صنف بهذا الباركود"});searchRef.current?.select()}
+  else{playPosBeep("notFound");void showAlert("الباركود المدخل غير صحيح",{title:"خطأ"}).then(()=>window.setTimeout(()=>{searchRef.current?.focus();searchRef.current?.select()},0))}
  }
  const setPay=(method:PaymentKey,value:number,reference?:string,dueDate?:string)=>setPayments(rows=>{const exists=rows.find(p=>p.method===method),next={...exists,method,amount:Math.max(0,round(value)),reference:reference??exists?.reference??"",due_date:dueDate??exists?.due_date};return exists?rows.map(p=>p.method===method?next:p):[...rows,next]})
  const applyCustomerPrices=async(customer:Customer)=>{

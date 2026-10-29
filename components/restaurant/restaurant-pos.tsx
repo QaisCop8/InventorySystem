@@ -328,6 +328,27 @@ export default function RestaurantPos() {
     }
   }
   const canCustody = can("receiveCustody") || can("handoverCustody")
+  // عند فتح الشاشة بلا عهدة مفتوحة للمستخدم على أي موقع: افتح نافذة العهدة مباشرة (مرة واحدة)
+  const custodyAutoChecked = useRef(false)
+  useEffect(() => {
+    if (custodyAutoChecked.current || !floor || !can("receiveCustody")) return
+    const locations = floor.locations || []
+    if (!locations.length) return
+    custodyAutoChecked.current = true
+    void (async () => {
+      const results = await Promise.all(locations.map(async (location) => {
+        const response = await fetch(`/api/restaurant/custody?location_id=${location.id}`, { cache: "no-store" }).catch(() => null)
+        const data = response?.ok ? await response.json().catch(() => null) : null
+        return data ? { id: location.id, session: data.session, pending: (data.pending || []).length } : null
+      }))
+      const valid = results.filter(Boolean) as { id: number; session: any; pending: number }[]
+      if (!valid.length || valid.some((row) => row.session)) return
+      const target = locations.length === 1 ? valid[0] : valid.find((row) => row.pending > 0)
+      if (target) void openCustody(target.id)
+      else setCustodyPicker(true)
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floor])
   const custodyDialogs = (
     <>
       <Dialog open={custodyPicker} onOpenChange={setCustodyPicker}>
