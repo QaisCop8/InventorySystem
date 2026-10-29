@@ -118,6 +118,18 @@ export async function verifyPermissionApproval(input: { userId: string; id: numb
   return { token, scope: row.scope as ApprovalScope, permission: String(row.permission_key), minutes: TOKEN_MINUTES }
 }
 
+/** الرموز (من المتصفح) التي ما زالت صالحة ولم تُستهلك — قبل فتح نافذة الإجراء دون طلب رمز جديد */
+export async function unusedApprovalTokens(userId: string, list: unknown): Promise<string[]> {
+  const tokens = (Array.isArray(list) ? list : []).map((token) => String(token || "").trim()).filter((token) => /^[a-f0-9]{48}$/.test(token)).slice(0, 20)
+  if (!tokens.length) return []
+  await ensureApprovalTable()
+  const rows = (await sql`
+    SELECT token_hash FROM permission_approvals_tbl
+    WHERE token_hash = ANY(${tokens.map(digest)}::text[]) AND user_id = ${String(userId)} AND used_request IS NULL AND token_expires_at > CURRENT_TIMESTAMP`) as Array<{ token_hash: string }>
+  const valid = new Set(rows.map((row) => row.token_hash))
+  return tokens.filter((token) => valid.has(digest(token)))
+}
+
 /**
  * هل يحمل الطلب الحالي موافقة سارية لهذه الصلاحية؟ (ترويسة x-permission-approval: رموز مفصولة بفواصل)
  * لمرة واحدة: أول طلب يستخدم الموافقة يستهلكها (used_request)؛ فحوص أخرى داخل نفس الطلب تنجح، وأي طلب لاحق يُرفض

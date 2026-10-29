@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { requestPermissionApproval, verifyPermissionApproval, type ApprovalScope } from "@/lib/permission-approvals"
+import { requestPermissionApproval, unusedApprovalTokens, verifyPermissionApproval, type ApprovalScope } from "@/lib/permission-approvals"
 
 // رمز تفعيل صلاحية غير ممنوحة في الكاشير/المطعم (lib/permission-approvals.ts):
 // action=request ⇐ يرسل الرمز لايميلي مدير النظام والمسؤول؛ action=verify ⇐ يتحقق ويعيد رمز موافقة مؤقتاً.
@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
     if (action === "verify") {
       const result = await verifyPermissionApproval({ userId: String(user.user_id), id: Number(data.id) || 0, code: String(data.code || "") })
       return NextResponse.json({ token: result.token, scope: result.scope, permission: result.permission, minutes: result.minutes })
+    }
+    if (action === "status") {
+      return NextResponse.json({ valid: await unusedApprovalTokens(String(user.user_id), data.tokens) })
     }
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 })
   } catch (error: any) {

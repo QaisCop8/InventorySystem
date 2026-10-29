@@ -141,6 +141,10 @@ export default function RestaurantPos() {
   // صلاحية غير ممنوحة ⇐ نافذة "لا يوجد لديك صلاحية" مع رمز تفعيل لايميلي مدير النظام والمسؤول على الموقع
   const ensurePermission = async (key: RestaurantPermission, locationId?: number | null) =>
     can(key) || askPermissionApproval({ scope: "restaurant", key, name: RESTAURANT_PERMISSIONS[key], scopeId: locationId ?? null })
+  // قبل فتح نافذة إجراء أو تنفيذه: الأزرار تبقى ظاهرة، والنقر بلا صلاحية يفتح نافذة رمز التفعيل أولاً
+  const gated = (key: RestaurantPermission, fn: () => void, locationId?: number | null) => () => { void ensurePermission(key, locationId).then((ok) => { if (ok) fn() }) }
+  // لوحة الطلب تُظهر كل أدواتها مفعّلة؛ الصلاحية تُفحص (أو تُطلب موافقتها) عند النقر في المعالجات أدناه
+  const showAll = (_key: RestaurantPermission) => true
 
   const loadFloor = useCallback(async (silent = false) => {
     if (!silent) setLoadingFloor(true)
@@ -293,6 +297,7 @@ export default function RestaurantPos() {
       for (const row of session?.currencies || []) amounts[Number(row.currency_id)] = Number(row.expected_amount || 0)
       setCustodyAmounts(amounts)
       setCustodyCurrencyId(Number(info.currencies[0]?.currency_id || 0))
+      if (!(await ensurePermission(session ? "handoverCustody" : "receiveCustody", resolved))) return
       setCustodyOpen(true)
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذر تحميل العهدة" })
@@ -331,7 +336,8 @@ export default function RestaurantPos() {
       setCustodyBusy(false)
     }
   }
-  const canCustody = can("receiveCustody") || can("handoverCustody")
+  // زر العهدة ظاهر دائماً؛ بلا صلاحية تظهر نافذة رمز التفعيل قبل نافذة العهدة (openCustody)
+  const canCustody = true
   // الموقع الحالي (الطلب المفتوح، ثم العهدة، ثم فلتر الموقع أو الموقع الوحيد) — إليه يُرسل رمز تفعيل الصلاحية
   const approvalLocationRef = useRef<number | null>(null)
   approvalLocationRef.current = order?.location_id ?? custodyLocation ?? (locationFilter !== "all" ? locationFilter : floor?.locations.length === 1 ? floor.locations[0].id : null)
@@ -386,8 +392,8 @@ export default function RestaurantPos() {
     </>
   )
 
-  const startTakeaway = () => {
-    if (!can("takeaway")) return
+  const startTakeaway = async () => {
+    if (!(await ensurePermission("takeaway", locationFilter !== "all" ? locationFilter : null))) return
     const first = locationFilter !== "all" ? locationFilter : floor?.locations.find((l) => l.configured)?.id ?? floor?.locations[0]?.id ?? null
     setTakeawayLocation(first); setTakeawayName(""); setTakeawayOpen(true)
   }
@@ -582,7 +588,7 @@ export default function RestaurantPos() {
     if (!info?.session) {
       setScopeOpen(false)
       setMessage({ type: "error", text: "يجب فتح أو استلام العهدة على هذا الموقع قبل الدفع" })
-      if (can("receiveCustody")) void openCustody(order.location_id)
+      void openCustody(order.location_id)
       return
     }
     setScopeOpen(false)
@@ -691,6 +697,8 @@ export default function RestaurantPos() {
 
   const saveEdit = async (value: { quantity: number; discount: number; note: string; unitId?: number | null }) => {
     if (!editing || !order) return
+    const currentDiscount = editing.kind === "pending" ? Number(pending.find((row) => row.key === editing.key)?.discount || 0) : Number(editing.item.discount || 0)
+    if (Number(value.discount || 0) !== currentDiscount && Number(value.discount || 0) > 0 && !(await ensurePermission("discount", order.location_id))) return
     if (editing.kind === "pending") {
       setPending((rows) => rows.map((row) => {
         if (row.key !== editing.key) return row
@@ -706,6 +714,7 @@ export default function RestaurantPos() {
   const deleteEdit = async () => {
     if (!editing || !order) return
     if (editing.kind === "pending") { setPending((rows) => rows.filter((row) => row.key !== editing.key)); setEditing(null); return }
+    if (!(await ensurePermission("deleteItems", order.location_id))) return
     if (!(await confirmYesNo(`حذف ${editing.item.product_name} من الطاولة؟`))) return
     const data = await act("remove_item", { order_id: order.id, item_id: editing.item.id })
     if (data) setEditing(null)
@@ -719,7 +728,7 @@ export default function RestaurantPos() {
     if (data) setValueDialog(null)
   }
   const changeGuests = async (delta: number) => {
-    if (!order || !can("openTable")) return
+    if (!order || !(await ensurePermission("openTable", order.location_id))) return
     await act("update_order", { order_id: order.id, guests: Math.max(1, order.guests + delta) })
   }
 
@@ -799,7 +808,7 @@ export default function RestaurantPos() {
         <RestaurantFloor
           locations={locations} tables={tables} takeaways={floor?.takeaways || []} now={now} loading={loadingFloor} busy={busy} error={floorError}
           locationFilter={locationFilter} onLocationFilter={setLocationFilter} statusFilter={statusFilter} onStatusFilter={setStatusFilter}
-          canTakeaway={can("takeaway")} canCustody={canCustody}
+          canTakeaway canCustody={canCustody}
           onRefresh={() => void loadFloor()} onCustody={() => void openCustody()} onNewTakeaway={startTakeaway}
           onTable={clickTable} onOrder={(orderId) => void showOrder(orderId)} />
 
@@ -852,28 +861,28 @@ export default function RestaurantPos() {
   // ---------------- شاشة الطلب ----------------
   const hasRemaining = remainingLines.length > 0
   const actions: OrderAction[] = [
-    { key: "transfer", label: isTakeaway ? "إلى طاولة" : "نقل", icon: ArrowRightLeft, show: can("transfer"), onClick: () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") } },
-    { key: "merge", label: "دمج", icon: Combine, show: can("merge") && !isTakeaway, onClick: () => setPicker("merge") },
-    { key: "split", label: "فصل", icon: Split, show: can("split"), disabled: !hasRemaining, onClick: () => { setSplitQty({}); setSplitOpen(true) } },
-    { key: "print", label: "طباعة الحساب", icon: Printer, show: can("printBill"), disabled: !hasRemaining, onClick: () => void printBill() },
-    { key: "cancel", label: order.payments.length ? "إغلاق" : "إلغاء", icon: Ban, show: order.payments.length ? can("pay") && !hasRemaining : can("cancelOrder"), tone: "text-red-600",
-      onClick: () => { if (order.payments.length) void act("close", { order_id: order.id }, "تم إغلاق الطاولة"); else { setCancelReason(""); setCancelOpen(true) } } },
+    { key: "transfer", label: isTakeaway ? "إلى طاولة" : "نقل", icon: ArrowRightLeft, show: true, onClick: gated("transfer", () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") }, order.location_id) },
+    { key: "merge", label: "دمج", icon: Combine, show: !isTakeaway, onClick: gated("merge", () => setPicker("merge"), order.location_id) },
+    { key: "split", label: "فصل", icon: Split, show: true, disabled: !hasRemaining, onClick: gated("split", () => { setSplitQty({}); setSplitOpen(true) }, order.location_id) },
+    { key: "print", label: "طباعة الحساب", icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
+    { key: "cancel", label: order.payments.length ? "إغلاق" : "إلغاء", icon: Ban, show: order.payments.length ? !hasRemaining : true, tone: "text-red-600",
+      onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, "تم إغلاق الطاولة"); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
     { key: "custody", label: "العهدة", icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
   ]
 
   return (
     <>
       <RestaurantOrder
-        order={order} now={now} busy={busy} currency={currency} can={can}
+        order={order} now={now} busy={busy} currency={currency} can={showAll}
         products={shown} productById={productById} categories={categories} totalProducts={products.length}
         query={query} onQuery={setQuery} category={category} onCategory={setCategory} catalogLoading={catalogLoading} catalogError={catalogError}
         pending={pending} pendingTotal={pendingTotal} remainingTotal={remainingTotal} mobileTab={mobileTab} onMobileTab={setMobileTab} actions={actions}
         onBack={() => void backToFloor()} onAddProduct={onAddProduct}
         onPendingQty={(key, delta) => setPending((rows) => rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : []))}
         onPendingRemove={(key) => setPending((rows) => rows.filter((row) => row.key !== key))}
-        onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => setEditing({ kind: "item", item })}
-        onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => setAddonsTarget({ kind: "item", item })}
-        onSend={() => void sendPending()} onPay={() => {
+        onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => gated("editItems", () => setEditing({ kind: "item", item }), order.location_id)()}
+        onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => gated("editItems", () => setAddonsTarget({ kind: "item", item }), order.location_id)()}
+        onSend={() => void sendPending()} onPay={gated("pay", () => {
           // ولا دفع قبل اكتمال إضافات الأصناف غير المدفوعة
           const incomplete = order.items.find((item) => item.remaining_quantity > 0 && missingGroups(item.product_id, item.addons).length)
           if (incomplete) {
@@ -883,9 +892,9 @@ export default function RestaurantPos() {
             return
           }
           setScopeOpen(true)
-        }} onDiscount={() => setValueDialog("discount")} onGuests={(delta) => void changeGuests(delta)}
-        onUnmerge={(tableId, name) => void confirmYesNo(`فك الطاولة ${name} من الطلب؟`).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, `تم فك الطاولة ${name}`) })}
-        onRenameTakeaway={() => setValueDialog("takeaway_name")} />
+        }, order.location_id)} onDiscount={gated("discount", () => setValueDialog("discount"), order.location_id)} onGuests={(delta) => void changeGuests(delta)}
+        onUnmerge={(tableId, name) => gated("split", () => void confirmYesNo(`فك الطاولة ${name} من الطلب؟`).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, `تم فك الطاولة ${name}`) }), order.location_id)()}
+        onRenameTakeaway={gated("takeaway", () => setValueDialog("takeaway_name"), order.location_id)} />
 
       <ValueDialog open={valueDialog !== null} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
         {...(valueDialog === "discount"
@@ -893,7 +902,7 @@ export default function RestaurantPos() {
           : { title: "اسم الطلب السفري", label: "اسم/رقم الزبون", value: order.takeaway_name || "", placeholder: "اختياري" })} />
 
       <ItemEditDialog open={editing !== null} onOpenChange={(value) => { if (!value) setEditing(null) }} line={editLine} busy={busy}
-        canDiscount={can("discount")} canDelete={editing?.kind === "pending" || can("deleteItems")} canReduce={editing?.kind === "pending" || can("deleteItems")}
+        canDiscount canDelete canReduce
         onSave={(value) => void saveEdit(value)} onDelete={() => void deleteEdit()} />
 
       <AddonsDialog open={addonsLine !== null} onOpenChange={(value) => { if (!value) setAddonsTarget(null) }} title={addonsLine?.title || ""}
