@@ -90,6 +90,11 @@ function liveCondition(table: string, columns: ColumnMeta[]) {
     const col = own.find((c) => c.column_name === flag)
     if (col?.data_type === "boolean") parts.push(`COALESCE("${flag}", false) = false`)
   }
+  // أسطر السندات (قيود/أصناف/شيكات…) لا حالة لها — سطر في سند محذوف (status = 3) لا يمنع الحذف
+  const hasVoucherHeader = table !== "voucher_header_tbl" && columns.some((c) => c.table_name === "voucher_header_tbl" && c.column_name === "status")
+  if (hasVoucherHeader && own.some((c) => c.column_name === "voucher_id" && ["integer", "bigint"].includes(c.data_type))) {
+    parts.push(`NOT EXISTS (SELECT 1 FROM voucher_header_tbl vh_guard WHERE vh_guard.id = "${table}"."voucher_id" AND COALESCE(vh_guard.status, 1) = 3)`)
+  }
   return parts.length ? ` AND ${parts.join(" AND ")}` : ""
 }
 

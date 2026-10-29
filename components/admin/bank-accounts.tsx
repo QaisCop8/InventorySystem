@@ -1,5 +1,6 @@
 "use client"
 
+import { onDefinitionsChanged } from "@/lib/definitions-changed"
 import { useEffect, useMemo, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Wallet as WalletIcon } from "lucide-react"
@@ -78,6 +79,17 @@ export default function BankAccounts() {
     fetchBranches()
     fetchCurrencies()
     fetchBankAccounts()
+    // بنك/فرع عُرّف في تبويب آخر ⇐ حدّث القوائم دون إعادة فتح الشاشة؛ وأيضاً عند العودة للنافذة
+    const refreshLists = () => { void fetchBanks(); void fetchBranches() }
+    const onVisible = () => { if (document.visibilityState === "visible") refreshLists() }
+    const unsubscribe = onDefinitionsChanged(["banks", "bank-branches"], refreshLists)
+    window.addEventListener("focus", refreshLists)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      unsubscribe()
+      window.removeEventListener("focus", refreshLists)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
   }, [])
 
   const fetchBanks = async () => {

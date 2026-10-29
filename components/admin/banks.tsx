@@ -1,5 +1,6 @@
 "use client"
 
+import { notifyDefinitionsChanged } from "@/lib/definitions-changed"
 import { useEffect, useMemo, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Landmark as LandmarkIcon } from "lucide-react"
@@ -173,6 +174,7 @@ export default function Banks() {
         throw new Error(error.error || "فشل في حفظ البنك")
       }
       const updated = await fetchBanks()
+      notifyDefinitionsChanged("banks")
       // After saving, keep the dialog open and switch to 'new' mode with a blank form
       setForm(initialForm)
       setIsNewMode(true)
@@ -211,6 +213,7 @@ export default function Banks() {
         throw new Error(error.error || "فشل في حذف البنك")
       }
       const updatedBanks = await fetchBanks()
+      notifyDefinitionsChanged("banks")
       const visibleUpdatedBanks = updatedBanks.filter((bank) => bank.status !== 3)
       const nextIndex = Math.min(currentIndex, Math.max(0, visibleUpdatedBanks.length - 1))
       if (visibleUpdatedBanks.length > 0) {

@@ -1,5 +1,6 @@
 "use client"
 
+import { notifyDefinitionsChanged, onDefinitionsChanged } from "@/lib/definitions-changed"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Building2 as Building2Icon } from "lucide-react"
@@ -75,6 +76,7 @@ export default function Branches() {
   useEffect(() => {
     fetchBanks()
     fetchBranches()
+    return onDefinitionsChanged(["banks"], () => { void fetchBanks() })
   }, [])
 
   useEffect(() => {
@@ -198,6 +200,7 @@ export default function Branches() {
         throw new Error(error.error || "فشل في حفظ الفرع")
       }
       await fetchBranches()
+      notifyDefinitionsChanged("bank-branches")
       // keep dialog open and switch to new blank form after successful save
       setForm(initialForm)
       setIsNewMode(true)
@@ -223,6 +226,7 @@ export default function Branches() {
         throw new Error(error.error || "فشل في حذف الفرع")
       }
       await fetchBranches()
+      notifyDefinitionsChanged("bank-branches")
       setShowDeleteConfirm(false)
       setShowBankValidationError(false)
       setShowBranchCodeValidationError(false)
