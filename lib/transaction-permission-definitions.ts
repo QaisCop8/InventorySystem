@@ -69,6 +69,16 @@ export const POS_CASHIER_PERMISSIONS = {
   itemDiscount: "ادخال خصم صنف - كاشير",
   createPoint: "اضافة تعريف نقطة بيع",
   editPoint: "تعديل تعريف نقطة بيع",
+  // مجموع خصم الأصناف + خصم الفاتورة فوق "أعلى نسبة خصم" في إعدادات النقطة (بلا بطاقات الخصم والحملات)
+  overrideDiscount: "السماح بتجاوز نسبة الخصم في الاعدادات - كاشير",
+  // حملات نقاط البيع وبطاقات الخصم (تُفحص في api/campaigns و api/pos/discount-cards)
+  createCampaign: "اضافة حملة",
+  editCampaign: "تعديل حملة",
+  deleteCampaign: "حذف حملة",
+  stopCampaign: "ايقاف حملة",
+  createDiscountCard: "ادخال بطاقة خصم",
+  editDiscountCard: "تعديل بطاقة خصم",
+  deleteDiscountCard: "حذف بطاقة خصم",
 } as const
 
 export type PosCashierPermission = keyof typeof POS_CASHIER_PERMISSIONS
@@ -91,6 +101,7 @@ export const RESTAURANT_PERMISSIONS = {
   cancelOrder: "إلغاء طلب الطاولة - مطاعم",
   receiveCustody: "استلام عهدة - مطاعم",
   handoverCustody: "تسليم عهدة - مطاعم",
+  overrideDiscount: "السماح بتجاوز نسبة الخصم في الاعدادات - مطاعم",
 } as const
 
 export type RestaurantPermission = keyof typeof RESTAURANT_PERMISSIONS
@@ -164,6 +175,14 @@ export function transactionPermissionName(family: TransactionFamily, action: Tra
 export const RENAMED_TRANSACTION_PERMISSIONS: { from: string; to: string }[] = (Object.keys(TRANSACTION_PERMISSION_NAME_OVERRIDES) as TransactionFamily[])
   .flatMap((family) => (Object.keys(TRANSACTION_PERMISSION_NAME_OVERRIDES[family] || {}) as TransactionAction[])
     .map((action) => ({ from: defaultTransactionPermissionName(family, action), to: transactionPermissionName(family, action) })))
+  // شاشات أُعيدت تسميتها (2026-10-29): الأسماء الكاملة القديمة ← الجديدة — الصلاحيات تُطابَق بالاسم، فبدون هذا يفقد المستخدمون منحهم
+  .concat([
+    { from: "الدخول لشاشة إرسال مرفقات للمدير", to: transactionPermissionName("manager_attachment", "access") },
+    { from: "إرسال مرفقات للمدير", to: transactionPermissionName("manager_attachment", "create") },
+    { from: "الدخول لشاشة بريد الرسائل", to: transactionPermissionName("manager_inbox", "access") },
+    { from: "استعلام ومعالجة بريد الرسائل", to: transactionPermissionName("manager_inbox", "view") },
+    { from: "حذف مرفقات بريد الرسائل", to: transactionPermissionName("manager_inbox", "delete") },
+  ])
 
 /** صلاحيات حركات لم تعد مستخدمة (إجراءات خارج TRANSACTION_FAMILY_ACTIONS) — تُحذف مع منحها */
 export const REMOVED_TRANSACTION_PERMISSION_NAMES: string[] = (Object.keys(TRANSACTION_FAMILY_ACTIONS) as TransactionFamily[])

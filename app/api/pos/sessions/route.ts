@@ -1,7 +1,7 @@
 import { NextRequest,NextResponse } from "next/server"
 import sql,{withTenantTransaction} from "@/lib/database"
 import {ensureTables as ensureSalesTables} from "@/app/api/sales-vouchers/_lib"
-import {canUsePosCashierPermission,ensurePosTables,getOpenPosSession,getPosPoint,requestUserId} from "../_lib"
+import {canUsePosCashierPermission, posPermissionDenied,ensurePosTables,getOpenPosSession,getPosPoint,requestUserId} from "../_lib"
 import {getPosCurrencies, type PosCurrency} from "@/lib/pos-currencies"
 import {reconcileCancelledPosPayments} from "../_session-payments"
 
@@ -46,7 +46,7 @@ export async function GET(request:NextRequest){
     if(!pointId||!userId)return NextResponse.json({error:"بيانات الجلسة غير مكتملة"},{status:400})
     const point=await getPosPoint(pointId,userId)
     if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403})
-    if(!await canUsePosCashierPermission(userId,Number(point.branch_id),"access"))return NextResponse.json({error:"لا توجد لديك صلاحية استخدام الكاشير على هذا الفرع"},{status:403})
+    if(!await canUsePosCashierPermission(userId,Number(point.branch_id),"access"))return posPermissionDenied("access","لا توجد لديك صلاحية استخدام الكاشير على هذا الفرع")
     const session=await sessionDetails(pointId,userId)
     const activeShift=(await sql`SELECT s.id,s.user_id,s.shift_guid,COALESCE(NULLIF(us.full_name,''),NULLIF(us.username,''),s.user_id::text) user_name FROM pos_sessions_tbl s LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='open' ORDER BY s.id DESC LIMIT 1`)[0]||null
     const pending=await sql`SELECT s.*,p.name point_name,c.currency_name,c.currency_code,us.full_name from_user_name,
@@ -60,7 +60,7 @@ export async function GET(request:NextRequest){
 }
 
 export async function POST(request:NextRequest){
-  try{await ensureSalesTables();await ensurePosTables();const data=await request.json(),action=String(data.action||""),pointId=Number(data.point_id||0),userId=requestUserId(request);if(!pointId||!userId)return NextResponse.json({error:"بيانات نقطة البيع غير مكتملة"},{status:400});const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403});const custodyPermission=["handover","cash_in","cash_out","close"].includes(action)?"handover":"receiveHandover";if(!await canUsePosCashierPermission(userId,Number(point.branch_id),custodyPermission))return NextResponse.json({error:custodyPermission==="handover"?"لا توجد لديك صلاحية تسليم العهدة":"لا توجد لديك صلاحية استلام العهدة"},{status:403})
+  try{await ensureSalesTables();await ensurePosTables();const data=await request.json(),action=String(data.action||""),pointId=Number(data.point_id||0),userId=requestUserId(request);if(!pointId||!userId)return NextResponse.json({error:"بيانات نقطة البيع غير مكتملة"},{status:400});const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403});const custodyPermission=["handover","cash_in","cash_out","close"].includes(action)?"handover":"receiveHandover";if(!await canUsePosCashierPermission(userId,Number(point.branch_id),custodyPermission))return posPermissionDenied(custodyPermission,custodyPermission==="handover"?"لا توجد لديك صلاحية تسليم العهدة":"لا توجد لديك صلاحية استلام العهدة")
     const shiftGuid=String(data.shift_guid||"").trim()
     if(shiftGuid&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(shiftGuid))return NextResponse.json({error:"رقم الوردية GUID غير صالح"},{status:400})
     return await withTenantTransaction(async()=>{

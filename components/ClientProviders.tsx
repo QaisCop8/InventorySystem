@@ -10,6 +10,7 @@ import { GlobalSearchProvider } from "@/components/global-search-provider"
 import { GlobalShortcuts } from "@/components/global-shortcuts"
 import { Toaster } from "@/components/ui/toaster"
 import { ConfirmHost } from "@/components/ui/confirm-host"
+import { PermissionApprovalHost } from "@/components/common/permission-approval-host"
 import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 import { CompanyStatusGuard } from "@/components/auth/company-status-guard"
 import { ProductVariantProvider } from "@/components/products/product-variant-provider"
@@ -80,6 +81,8 @@ export default function ClientProviders({ children }: { children: React.ReactNod
                 <Toaster />
                 {/* بديل confirm/alert للمتصفح في كل النظام (components/ui/confirm-host.tsx) */}
                 <ConfirmHost />
+                {/* لا يوجد لديك صلاحية ⇐ رمز تفعيل من المدير ومسؤول النظام (الكاشير والمطعم) */}
+                <PermissionApprovalHost />
               </GlobalSearchProvider>
             </WorkspaceProvider>
           </WindowManagerProvider>

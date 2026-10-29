@@ -417,7 +417,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 3
+const PERMISSION_SYNC_VERSION = 4
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -606,6 +606,19 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     ]))[0]
   // أسماء أوضح لبعض الصلاحيات: يُعاد تسمية الصف القديم قبل الإدراج فيبقى معرّفه ومنح المستخدمين/الأدوار عليه
   for (const rename of RENAMED_TRANSACTION_PERMISSIONS) {
+    // أُنشئ صف الاسم الجديد (بلا منح غالباً) قبل أن تُعرَّف إعادة التسمية والصف القديم ما زال موجوداً بمنحه ⇐ يُحذف
+    // الجديد ليُعاد تسمية القديم؛ وإلا يُحذف القديم لاحقاً كاسم متروك ويفقد المستخدمون صلاحياتهم (مثل بريد الرسائل)
+    const fresh = await client.query(
+      `SELECT n.id FROM access_list n
+       WHERE LOWER(BTRIM(n.name)) = LOWER(BTRIM($1::varchar)) AND EXISTS (SELECT 1 FROM access_list o WHERE o.name = $2::varchar)`,
+      [rename.to, rename.from],
+    )
+    for (const row of fresh as Array<{ id: number }>) {
+      for (const table of ["user_access", "role_permissions", "user_branch_permissions", "role_branch_permissions"]) {
+        await client.query(`DELETE FROM ${table} WHERE access_id = $1`, [row.id]).catch(() => undefined)
+      }
+      await client.query(`DELETE FROM access_list WHERE id = $1`, [row.id])
+    }
     await client.query(
       `UPDATE access_list SET name = $1::varchar, updated_at = CURRENT_TIMESTAMP
        WHERE name = $2::varchar AND NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar)))`,

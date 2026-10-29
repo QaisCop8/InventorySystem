@@ -86,7 +86,7 @@ export async function countTenantUsage(dbName?: string, includeStorage = false):
     const restaurantTable = await sql`SELECT to_regclass('restaurant_locations_tbl') IS NOT NULL AS ok`
     const restaurantLocations = restaurantTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM restaurant_locations_tbl WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
     return {
-      users: Number(users?.n || 0),
+      users: Number(users[0]?.n || 0),
       branches: Number(branches?.n || 0),
       pos_points: Number(posPoints?.n || 0),
       restaurant_locations: Number(restaurantLocations?.n || 0),

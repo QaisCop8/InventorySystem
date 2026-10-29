@@ -343,6 +343,14 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
     await sql`DELETE FROM access_list WHERE name = ANY(${REMOVED_TRANSACTION_PERMISSION_NAMES}::text[])`
   }
   if (legacyFrom.length) {
+    // الاسم الجديد أُنشئ قبل تعريف إعادة التسمية والقديم ما زال موجوداً ⇐ يُحذف الجديد ليُعاد تسمية القديم (يبقى معرّفه)
+    await sql`
+      DELETE FROM access_list fresh
+      USING unnest(${RENAMED_TRANSACTION_PERMISSIONS.map((r) => r.from)}::text[], ${RENAMED_TRANSACTION_PERMISSIONS.map((r) => r.to)}::text[]) AS u(legacy_name, name)
+      WHERE LOWER(BTRIM(fresh.name)) = LOWER(BTRIM(u.name))
+        AND LOWER(BTRIM(u.name)) <> LOWER(BTRIM(u.legacy_name))
+        AND EXISTS (SELECT 1 FROM access_list old WHERE LOWER(BTRIM(old.name)) = LOWER(BTRIM(u.legacy_name)))
+    `
     // صف واحد فقط لكل اسم جديد (أقدم صف بالاسم القديم) — وإلا قد يُعاد تسمية صفّين لنفس الاسم بأمر واحد فيتعارضان
     // مع الفهرس الفريد idx_access_list_normalized_name ("duplicate key value violates unique constraint").
     await sql`

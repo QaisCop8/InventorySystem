@@ -1,7 +1,9 @@
+import { NextResponse } from "next/server"
 import { resolvePosAccounts } from "@/lib/pos-accounts"
 import sql from "@/lib/database"
 import { hasPosCashierPermission } from "@/lib/permissions"
-import type { PosCashierPermission } from "@/lib/transaction-permission-definitions"
+import { hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
+import { POS_CASHIER_PERMISSIONS, type PosCashierPermission } from "@/lib/transaction-permission-definitions"
 import { runSchemaOnce } from "@/lib/schema-once"
 
 export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card"] as const
@@ -147,6 +149,9 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   `
   await sql`ALTER TABLE pos_points_tbl ALTER COLUMN cash_account_id DROP NOT NULL`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS return_account_id INTEGER`
+  // ايميل مدير النظام + ايميل المسؤول: يستلمان رمز التفعيل عند طلب صلاحية غير ممنوحة (lib/permission-approvals.ts)
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS admin_email VARCHAR(150)`
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS manager_email VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
   // عهدة الدخان (lib/pos-tobacco.ts): كميات أصناف الدخان تُستلم عند فتح العهدة وتُسلَّم قبل تسليمها
@@ -211,8 +216,25 @@ export function requestBranchId(request: Request) {
   return Number.isInteger(value) && value > 0 ? value : null
 }
 
-export function canUsePosCashierPermission(userId: string, branchId: number, permission: PosCashierPermission) {
-  return hasPosCashierPermission(userId, permission, branchId)
+// صلاحية ممنوحة، أو موافقة لمرة برمز تفعيل من مدير النظام/المسؤول (ترويسة x-permission-approval — lib/permission-approvals.ts)
+export async function canUsePosCashierPermission(userId: string, branchId: number, permission: PosCashierPermission) {
+  if (await hasPosCashierPermission(userId, permission, branchId)) return true
+  return hasPermissionApproval(userId, "pos", permission)
+}
+
+/** صلاحيات شاشات تعريف الكاشير (الحملات، بطاقات الخصم): مستخدم الجلسة على الفرع النشط (x-branch-id) أو فرعه الافتراضي. null = مسموح */
+export async function requirePosDefinitionPermission(request: Request, permission: PosCashierPermission): Promise<NextResponse | null> {
+  const { getSessionUser } = await import("@/lib/tenant-auth")
+  const user = await getSessionUser(request as any)
+  if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+  const branchId = requestBranchId(request) || Number((await sql`SELECT branch_id FROM user_settings WHERE user_id = ${user.user_id} LIMIT 1`)[0]?.branch_id) || 0
+  if (await hasPosCashierPermission(String(user.user_id), permission, branchId)) return null
+  return NextResponse.json({ error: `لا توجد لديك صلاحية ${POS_CASHIER_PERMISSIONS[permission]}` }, { status: 403 })
+}
+
+/** رد 403 لصلاحية كاشير غير ممنوحة — يحمل permission_required ليعرض المتصفح نافذة طلب رمز التفعيل */
+export function posPermissionDenied(permission: PosCashierPermission, error?: string) {
+  return NextResponse.json(permissionRequiredBody("pos", permission, error), { status: 403 })
 }
 
 export async function getPosPoint(pointId: number, userId: string, branchId?: number | null) {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { CreditCard, Edit, LayoutGrid, Loader2, MapPin, Package, Plus, Printer, RefreshCw, Save, Search, StickyNote, Store, Trash2 } from "lucide-react"
+import { CreditCard, Edit, LayoutGrid, Loader2, Mail, MapPin, Package, Plus, Printer, RefreshCw, Save, Search, StickyNote, Store, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,12 +33,14 @@ type Form = {
   id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; sales_book_id: string
   cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
   max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; sort_order: string; color: string; notes: string; active: boolean
+  admin_email: string; manager_email: string
 }
 const str = (value: unknown) => (value == null || value === "" ? "" : String(value))
 const emptyForm = (branchId: number | null, code = ""): Form => ({
   id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", sales_book_id: "",
   cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
   max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
+  admin_email: "", manager_email: "",
 })
 const toForm = (row: Location): Form => ({
   id: row.id, code: row.code, name: row.name, branch_id: str(row.branch_id), warehouse_id: str(row.warehouse_id), currency_id: str(row.currency_id),
@@ -47,6 +49,7 @@ const toForm = (row: Location): Form => ({
   tax_account_id: str(row.tax_account_id), max_discount_percent: str(row.max_discount_percent ?? 100), invoice_print_mode: str(row.invoice_print_mode ?? 1),
   print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
   active: Number(row.status) !== 2,
+  admin_email: row.admin_email || "", manager_email: row.manager_email || "",
 })
 const errorText = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
 
@@ -381,6 +384,14 @@ export default function RestaurantLocations() {
                     onValueChange={(value: string) => set({ [key]: value } as Partial<Form>)} placeholder="اختياري — الحساب الافتراضي"
                     leafOnly showCostCenterButton={false} showCostCenterDialog={false} />
                 ))}
+              </div>
+            </FormSection>
+
+            <FormSection icon={<Mail className="h-4 w-4" />} title="ايميلات الموافقة على الصلاحيات">
+              <p className="mb-2 text-xs text-muted-foreground">عند طلب صلاحية غير ممنوحة في شاشة المطعم يُرسل رمز التفعيل إلى هذين الايميلين.</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><Label>ايميل مدير النظام</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
+                <div className="space-y-1"><Label>ايميل المسؤول</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
               </div>
             </FormSection>
 

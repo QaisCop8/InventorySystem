@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
-import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, posPermissionDenied, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { saveTobaccoHandover, saveTobaccoOpening, suggestedOpeningFor, tobaccoLines } from "@/lib/pos-tobacco"
 
 // عهدة الدخان للكاشير (lib/pos-tobacco.ts) — GET ?point_id: حالة العهدة وأسطرها للوردية المفتوحة.
@@ -14,7 +14,7 @@ async function context(request: NextRequest, pointId: number, permission: "acces
   const point = await getPosPoint(pointId, userId)
   if (!point) return { error: NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 }) }
   if (!await canUsePosCashierPermission(userId, Number(point.branch_id), permission)) {
-    return { error: NextResponse.json({ error: permission === "handover" ? "لا توجد لديك صلاحية تسليم العهدة" : "لا توجد لديك صلاحية استلام العهدة" }, { status: 403 }) }
+    return { error: posPermissionDenied(permission, permission === "handover" ? "لا توجد لديك صلاحية تسليم العهدة" : "لا توجد لديك صلاحية استلام العهدة") }
   }
   return { userId, point }
 }

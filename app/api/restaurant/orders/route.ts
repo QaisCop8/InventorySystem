@@ -1,3 +1,4 @@
+import { APPROVAL_HEADER, hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import {
@@ -29,6 +30,8 @@ import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { getSessionUser } from "@/lib/tenant-auth"
 
 const fail = (message: string, status = 400) => Object.assign(new Error(message), { status })
+// رفض صلاحية مطعم يحمل permission_required (نافذة طلب رمز التفعيل في المتصفح)
+const permissionFail = (key: RestaurantPermission, message: string) => Object.assign(new Error(message), { status: 403, permission_required: permissionRequiredBody("restaurant", key).permission_required })
 const num = (value: unknown) => Number(value) || 0
 const qty = (value: unknown) => Math.round(num(value) * 10000) / 10000
 const positiveId = (value: unknown) => {
@@ -109,7 +112,7 @@ async function createOrder(table: any, ctx: Ctx, guests: number, note: string | 
 }
 
 function requireDiscountPermission(ctx: Ctx, discount: number) {
-  if (discount > 0 && !ctx.permissions.discount) throw fail("لا توجد لديك صلاحية إدخال خصم - مطاعم", 403)
+  if (discount > 0 && !ctx.permissions.discount) throw permissionFail("discount", "لا توجد لديك صلاحية إدخال خصم - مطاعم")
 }
 
 async function handleOpen(ctx: Ctx) {
@@ -402,7 +405,7 @@ async function handlePay(ctx: Ctx, order: any) {
   await assertAddonsComplete(selected.map(({ item }) => ({ product_id: Number(item.product_id), product_name: item.product_name, addons: item.addons })))
 
   const discountPercent = num(order.discount_percent)
-  if (discountPercent > 0 && !ctx.permissions.discount) throw fail("لا توجد لديك صلاحية إدخال خصم - مطاعم", 403)
+  if (discountPercent > 0 && !ctx.permissions.discount) throw permissionFail("discount", "لا توجد لديك صلاحية إدخال خصم - مطاعم")
   const productIds = [...new Set(selected.map(({ item }) => Number(item.product_id)))]
   const accounts = new Map<number, number>((await sql`SELECT id, selling_account_id FROM products WHERE id = ANY(${productIds}::int[])`)
     .map((row: any) => [Number(row.id), Number(row.selling_account_id) || 0] as [number, number]))
@@ -450,9 +453,12 @@ async function handlePay(ctx: Ctx, order: any) {
   }
   // نفس محرك فاتورة الكاشير (فاتورة + سند قبض + شيكات) بلا عهدة كاشير
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${body.pos_client_sale_id}`}))`
-  const response = await savePosSaleCore(ctx.request, body, { userId: ctx.userId, point, session: null, clientSaleId: body.pos_client_sale_id })
+  const response = await savePosSaleCore(ctx.request, body, {
+    userId: ctx.userId, point, session: null, clientSaleId: body.pos_client_sale_id,
+    discountOverride: { scope: "restaurant", allowed: async () => ctx.permissions.overrideDiscount === true },
+  })
   const saved = await response.json().catch(() => ({}))
-  if (!response.ok) throw fail(String(saved?.error || "تعذر حفظ فاتورة الطاولة"), response.status)
+  if (!response.ok) throw Object.assign(fail(String(saved?.error || "تعذر حفظ فاتورة الطاولة"), response.status), saved?.permission_required ? { permission_required: saved.permission_required } : {})
   if (saved?.duplicate) throw fail("هذه الدفعة سُجّلت مسبقاً؛ حدّث الشاشة", 409)
   const voucher = (await sql`SELECT id, vch_code, amount FROM voucher_header_tbl WHERE id = ${Number(saved.id)}`)[0]
   await recordRestaurantSaleCash(session, point, body, String(voucher?.vch_code || ""), ctx.userId)
@@ -516,6 +522,10 @@ export async function POST(request: NextRequest) {
     }
     const auth = await authorizeRestaurant(request, required, branchId)
     if (!auth.ok) return auth.response
+    // موافقات برمز تفعيل (خصم، تجاوز نسبة الخصم...) تُحتسب كصلاحيات ممنوحة لهذا الطلب
+    for (const key of Object.keys(auth.permissions) as RestaurantPermission[]) {
+      if (!auth.permissions[key] && await hasPermissionApproval(auth.userId, "restaurant", key, request.headers.get(APPROVAL_HEADER))) auth.permissions[key] = true
+    }
     const ctx: Ctx = { userId: auth.userId, branchId, permissions: auth.permissions, data, request }
 
     if (action === "pay") {
@@ -537,6 +547,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const status = errorStatus(error)
     if (status >= 500) console.error("restaurant order POST", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تنفيذ العملية" }, { status })
+    const permissionRequired = (error as { permission_required?: unknown })?.permission_required
+    return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تنفيذ العملية", ...(permissionRequired ? { permission_required: permissionRequired } : {}) }, { status })
   }
 }

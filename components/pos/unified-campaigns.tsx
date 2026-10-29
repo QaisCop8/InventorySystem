@@ -82,7 +82,9 @@ const addedConditionOptions: Option[] = [
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function campaignStatus(record: Pick<CampaignRecord, "start_date" | "end_date">) {
+export function campaignStatus(record: Pick<CampaignRecord, "start_date" | "end_date"> & { status?: number | string | null }) {
+  // موقوفة يدوياً (ايقاف حملة) — لا يطبّقها الكاشير مهما كانت فترتها
+  if (Number(record.status) === 2) return { label: "موقوفة", tone: "bg-amber-100 text-amber-800" }
   const now = today()
   const start = String(record.start_date || "").slice(0, 10)
   const end = String(record.end_date || "").slice(0, 10)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
+import { requirePosDefinitionPermission } from "@/app/api/pos/_lib"
 import { runSchemaOnce } from "@/lib/schema-once"
 
 async function ensureTables() { return runSchemaOnce("app/api/campaigns/route.ts#ensureTables", async () => {
@@ -148,6 +149,8 @@ export async function PUT(request: NextRequest) {
 
 async function save(request: NextRequest, updating: boolean) {
   try {
+    const denied = await requirePosDefinitionPermission(request, updating ? "editCampaign" : "createCampaign")
+    if (denied) return denied
     await ensureTables()
     const data = await request.json()
     if (!String(data.name || "").trim()) return NextResponse.json({ error: "اسم الحملة مطلوب" }, { status: 400 })
@@ -215,8 +218,28 @@ async function save(request: NextRequest, updating: boolean) {
   }
 }
 
+// ايقاف/تفعيل حملة (status 2/1) — صلاحية "ايقاف حملة"؛ الكاشير يطبّق الحملات ذات status = 1 فقط
+export async function PATCH(request: NextRequest) {
+  try {
+    const denied = await requirePosDefinitionPermission(request, "stopCampaign")
+    if (denied) return denied
+    await ensureTables()
+    const data = await request.json().catch(() => ({}))
+    const id = number(data.id)
+    if (!id) return NextResponse.json({ error: "معرف الحملة مطلوب" }, { status: 400 })
+    const status = data.action === "resume" ? 1 : 2
+    const rows = await sql`UPDATE pos_campaign_header_tbl SET status=${status},last_modify_date=NOW() WHERE id=${id} AND COALESCE(status,1)<>3 RETURNING id, status`
+    if (!rows[0]) return NextResponse.json({ error: "الحملة غير موجودة" }, { status: 404 })
+    return NextResponse.json({ success: true, status })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تحديث حالة الحملة" }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
+    const denied = await requirePosDefinitionPermission(request, "deleteCampaign")
+    if (denied) return denied
     await ensureTables()
     const id = number(request.nextUrl.searchParams.get("id"))
     if (!id) return NextResponse.json({ error: "معرف الحملة مطلوب" }, { status: 400 })

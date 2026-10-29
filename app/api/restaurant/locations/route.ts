@@ -63,6 +63,13 @@ async function validate(data: any, id: number | null, userId: string) {
   const maxDiscount = Number(data.max_discount_percent ?? 100)
   if (!Number.isFinite(maxDiscount) || maxDiscount < 0 || maxDiscount > 100) return { error: "أعلى نسبة خصم يجب أن تكون بين 0 و100" }
   const printMode = [0, 1, 2].includes(Number(data.invoice_print_mode)) ? Number(data.invoice_print_mode) : 1
+  // ايميل مدير النظام + ايميل المسؤول: رمز تفعيل الصلاحيات غير الممنوحة في شاشة المطعم (lib/permission-approvals.ts)
+  const emails: { admin: string | null; manager: string | null } = { admin: null, manager: null }
+  for (const [field, key, label] of [["admin_email", "admin", "ايميل مدير النظام"], ["manager_email", "manager", "ايميل المسؤول"]] as const) {
+    const value = String(data[field] ?? "").trim().toLowerCase().slice(0, 150)
+    if (value && !/^[^s@]+@[^s@]+.[^s@]+$/.test(value)) return { error: `${label} غير صالح` }
+    emails[key] = value || null
+  }
 
   const duplicate = (await sql`
     SELECT id FROM restaurant_locations_tbl
@@ -73,7 +80,7 @@ async function validate(data: any, id: number | null, userId: string) {
   if (duplicate) return { error: "يوجد موقع بنفس الرقم أو بنفس الاسم في هذا الفرع" }
   return {
     value: {
-      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode,
+      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails,
       printByGroup: data.print_by_item_group !== false,
       kitchenPrintConfirm: data.kitchen_print_confirm === true,
       status: Number(data.status) === 2 ? 2 : 1,
@@ -162,7 +169,8 @@ async function save(request: NextRequest, mode: "create" | "update") {
           price_category_id = ${v.priceCategoryId}, sales_book_id = ${v.salesBookId}, cash_account_id = ${a.cash_account_id},
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
-          print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status}, updated_at = NOW()
+          print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
+          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `
@@ -170,11 +178,11 @@ async function save(request: NextRequest, mode: "create" | "update") {
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
           card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
-          sort_order, color, notes, status, created_by
+          sort_order, color, notes, status, created_by, admin_email, manager_email
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}
         )
         RETURNING *
       `

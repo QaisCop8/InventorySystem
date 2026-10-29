@@ -13,7 +13,8 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 import { applyPosCampaigns, type PosCampaign, type PosCampaignLine, type PosCampaignUsage } from "@/lib/pos-campaigns"
 import { loadVoucherPrintSettings, printVoucherWithSettings } from "@/lib/voucher-print/print"
 import type { PrintDocument } from "@/lib/voucher-print/document"
-import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
+import { RESTAURANT_PERMISSIONS, type RestaurantPermission } from "@/lib/transaction-permission-definitions"
+import { askPermissionApproval, setApprovalScopeProvider } from "@/lib/permission-approval-client"
 import { printPosReceipt, type PosReceipt } from "@/lib/pos-receipt-print"
 import { PosPrintPreview } from "@/components/pos/pos-print-preview"
 import { useAuth } from "@/components/auth/auth-context"
@@ -137,6 +138,9 @@ export default function RestaurantPos() {
 
   const perms = floor?.permissions
   const can = (key: RestaurantPermission) => Boolean(perms?.[key])
+  // صلاحية غير ممنوحة ⇐ نافذة "لا يوجد لديك صلاحية" مع رمز تفعيل لايميلي مدير النظام والمسؤول على الموقع
+  const ensurePermission = async (key: RestaurantPermission, locationId?: number | null) =>
+    can(key) || askPermissionApproval({ scope: "restaurant", key, name: RESTAURANT_PERMISSIONS[key], scopeId: locationId ?? null })
 
   const loadFloor = useCallback(async (silent = false) => {
     if (!silent) setLoadingFloor(true)
@@ -251,9 +255,9 @@ export default function RestaurantPos() {
     setOrder(null); setPending([]); setPayLines(null); void loadFloor(true)
   }
 
-  const clickTable = (table: FloorTable) => {
+  const clickTable = async (table: FloorTable) => {
     if (table.order_id) { void showOrder(table.order_id); return }
-    if (!can("openTable")) { setMessage({ type: "error", text: "لا توجد لديك صلاحية فتح طاولة" }); return }
+    if (!(await ensurePermission("openTable", table.location_id))) { setMessage({ type: "error", text: "لا توجد لديك صلاحية فتح طاولة" }); return }
     setGuests(Math.min(table.seats || 2, 2) || 1); setOpenTable(table)
   }
   const confirmOpenTable = async () => {
@@ -328,6 +332,10 @@ export default function RestaurantPos() {
     }
   }
   const canCustody = can("receiveCustody") || can("handoverCustody")
+  // الموقع الحالي (الطلب المفتوح، ثم العهدة، ثم فلتر الموقع أو الموقع الوحيد) — إليه يُرسل رمز تفعيل الصلاحية
+  const approvalLocationRef = useRef<number | null>(null)
+  approvalLocationRef.current = order?.location_id ?? custodyLocation ?? (locationFilter !== "all" ? locationFilter : floor?.locations.length === 1 ? floor.locations[0].id : null)
+  useEffect(() => setApprovalScopeProvider("restaurant", () => approvalLocationRef.current), [])
   // عند فتح الشاشة بلا عهدة مفتوحة للمستخدم على أي موقع: افتح نافذة العهدة مباشرة (مرة واحدة)
   const custodyAutoChecked = useRef(false)
   useEffect(() => {
@@ -411,8 +419,8 @@ export default function RestaurantPos() {
    * خيارات كل تابع: "اضافة السعر عند الاختيار" (لا = بسعر صفر) و"عدم الطباعة في فواتير المطبخ والمطعم".
    * التوابع غير الموجودة في قائمة الموقع (مستودع/فئة سعر مختلفة) تُتخطّى مع تنبيه.
    */
-  const addProduct = (product: Product) => {
-    if (!can("addItems")) { setMessage({ type: "error", text: "لا توجد لديك صلاحية إضافة أصناف للطاولة" }); return }
+  const addProduct = async (product: Product) => {
+    if (!(await ensurePermission("addItems", order?.location_id))) { setMessage({ type: "error", text: "لا توجد لديك صلاحية إضافة أصناف للطاولة" }); return }
     const related = product.relatedMode > 1 ? product.relatedIds.map((id) => productById.get(id)).filter((row): row is Product => Boolean(row)) : []
     const missing = product.relatedMode > 1 ? product.relatedIds.length - related.length : 0
     if (missing > 0) setMessage({ type: "error", text: `${missing} من توابع ${product.name} غير متاحة في قائمة هذا الموقع وتم تخطيها` })
@@ -567,7 +575,8 @@ export default function RestaurantPos() {
   }
 
   const startPayment = async (lines: Line[], partial: boolean) => {
-    if (!order || !catalog?.canPay) { setMessage({ type: "error", text: "لا توجد لديك صلاحية دفع حساب الطاولة" }); return }
+    if (!order) return
+    if (!catalog?.canPay && !(await ensurePermission("pay", order.location_id))) { setMessage({ type: "error", text: "لا توجد لديك صلاحية دفع حساب الطاولة" }); return }
     // مثل الكاشير: لا دفع بلا عهدة مفتوحة على موقع الطلب
     const info = await loadCustody(order.location_id).catch(() => null)
     if (!info?.session) {

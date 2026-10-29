@@ -4,7 +4,7 @@ import { ensureTables as ensureSalesTables, fetchSalesVoucherItems, SALES_INVOIC
 import { fetchVoucherItems as fetchStockVoucherItems } from "@/app/api/stock-vouchers/_lib"
 import { PUT as updateSalesVoucher } from "@/app/api/sales-vouchers/route"
 import { PUT as updateStockVoucher } from "@/app/api/stock-vouchers/route"
-import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, posPermissionDenied, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
     if (!await canUsePosCashierPermission(userId, Number(point.branch_id), "history"))
-      return NextResponse.json({ error: "لا توجد لديك صلاحية استعلام فواتير الكاشير على هذا الفرع" }, { status: 403 })
+      return posPermissionDenied("history", "لا توجد لديك صلاحية استعلام فواتير الكاشير على هذا الفرع")
     const q = String(request.nextUrl.searchParams.get("q") || "").trim()
     const sourceInvoicesOnly = request.nextUrl.searchParams.get("source_invoices") === "1"
     const sessionId = Number(request.nextUrl.searchParams.get("session_id") || 0)
@@ -78,7 +78,7 @@ export async function DELETE(request: NextRequest) {
       const editRequest = request.nextUrl.searchParams.get("action") === "edit"
       const requiredPermission = editRequest ? "editInvoice" : "deleteInvoice"
       if (!await canUsePosCashierPermission(userId, Number(point.branch_id), requiredPermission))
-        return NextResponse.json({ error: editRequest ? "لا توجد لديك صلاحية تعديل فاتورة كاشير على هذا الفرع" : "لا توجد لديك صلاحية حذف فاتورة كاشير على هذا الفرع" }, { status: 403 })
+        return posPermissionDenied(requiredPermission, editRequest ? "لا توجد لديك صلاحية تعديل فاتورة كاشير على هذا الفرع" : "لا توجد لديك صلاحية حذف فاتورة كاشير على هذا الفرع")
       const session = await getOpenPosSession(pointId, userId)
       if (!session) return NextResponse.json({ error: "يجب فتح الوردية لحذف فاتورة" }, { status: 400 })
       const rows = await sql`SELECT * FROM voucher_header_tbl WHERE id = ${id} AND (pos_point_id = ${pointId} OR EXISTS (SELECT 1 FROM pos_sale_payments_tbl p WHERE p.voucher_id = ${id} AND p.pos_point_id = ${pointId})) FOR UPDATE`

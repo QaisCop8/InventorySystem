@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { requirePosDefinitionPermission } from "@/app/api/pos/_lib"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureDiscountCardTables, findDiscountCard, listDiscountCards } from "@/lib/pos-discount-cards"
 
@@ -68,6 +69,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = await getSessionUser(request)
   if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+  const denied = await requirePosDefinitionPermission(request, "createDiscountCard")
+  if (denied) return denied
   try {
     await ensureDiscountCardTables()
     const data = await request.json()
@@ -90,6 +93,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const user = await getSessionUser(request)
   if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+  const denied = await requirePosDefinitionPermission(request, "editDiscountCard")
+  if (denied) return denied
   try {
     await ensureDiscountCardTables()
     const data = await request.json()
@@ -117,6 +122,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await getSessionUser(request)
   if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+  const denied = await requirePosDefinitionPermission(request, "deleteDiscountCard")
+  if (denied) return denied
   try {
     await ensureDiscountCardTables()
     const id = Number(request.nextUrl.searchParams.get("id"))

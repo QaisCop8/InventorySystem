@@ -1,3 +1,4 @@
+import { APPROVAL_HEADER, hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
@@ -40,6 +41,8 @@ export async function ensureRestaurantTables() {
       "warehouse_id INTEGER", "currency_id INTEGER", "price_category_id INTEGER", "sales_book_id INTEGER",
       "cash_account_id INTEGER", "walk_in_account_id INTEGER", "card_account_id INTEGER", "cheque_account_id INTEGER", "tax_account_id INTEGER",
       "max_discount_percent NUMERIC(7,3) NOT NULL DEFAULT 100", "invoice_print_mode INTEGER NOT NULL DEFAULT 1", "print_by_item_group BOOLEAN NOT NULL DEFAULT TRUE", "kitchen_print_confirm BOOLEAN NOT NULL DEFAULT FALSE",
+      // ايميل مدير النظام + ايميل المسؤول: رمز التفعيل عند طلب صلاحية غير ممنوحة (lib/permission-approvals.ts)
+      "admin_email VARCHAR(150)", "manager_email VARCHAR(150)",
     ]) await sql.unsafe(`ALTER TABLE restaurant_locations_tbl ADD COLUMN IF NOT EXISTS ${column}`)
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS restaurant_locations_code_uq ON restaurant_locations_tbl (LOWER(code)) WHERE status <> 3`
     await sql`CREATE INDEX IF NOT EXISTS restaurant_locations_branch_idx ON restaurant_locations_tbl (branch_id)`
@@ -195,8 +198,11 @@ export async function authorizeRestaurant(
     return deny("المستخدم غير مخول للعمل على هذا الفرع", 403)
   }
   const permissions = await restaurantPermissionsFor(user.user_id, branchId)
+  // غير ممنوحة ⇐ موافقة لمرة برمز تفعيل من مدير النظام/المسؤول (lib/permission-approvals.ts)، وإلا رفض يحمل permission_required
   for (const key of ["access", ...required] as RestaurantPermission[]) {
-    if (!permissions[key]) return deny(`لا توجد لديك صلاحية ${RESTAURANT_PERMISSIONS[key]} على هذا الفرع`, 403)
+    if (permissions[key]) continue
+    if (await hasPermissionApproval(user.user_id, "restaurant", key, request.headers.get(APPROVAL_HEADER))) { permissions[key] = true; continue }
+    return { ok: false, response: NextResponse.json(permissionRequiredBody("restaurant", key, `لا توجد لديك صلاحية ${RESTAURANT_PERMISSIONS[key]} على هذا الفرع`), { status: 403 }) }
   }
   return { ok: true, userId: user.user_id, branchId, permissions }
 }
