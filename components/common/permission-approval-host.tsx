@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { KeyRound, Loader2, Lock, MailCheck, Send, ShieldCheck } from "lucide-react"
+import { ArrowRight, KeyRound, Loader2, Lock, Mail, MailCheck, RotateCw, ShieldCheck, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -9,8 +9,9 @@ import { installPermissionApprovalFetch, registerApprovalAsker, storeApprovalTok
 
 // نافذة "لا يوجد لديك صلاحية - اسم الصلاحية" للكاشير والمطعم (lib/permission-approval-client.ts يفتحها قبل الإجراء أو
 // عند رفض الخادم ثم يعيد الطلب بعد الموافقة). طريقتان:
-//  • البريد: رمز تفعيل يُرسل لايميلي مدير النظام والمسؤول ثم يُدخله المستخدم.
-//  • رمز المدير (PIN): مدير النظام/المسؤول يكتب رمزه الشخصي على هذه الشاشة مباشرة — لا رسائل يراها المستخدم.
+//  • البريد (F5): رمز تفعيل يُرسل لايميلي مدير النظام والمسؤول ثم يُدخله المستخدم.
+//  • رمز المدير PIN (F6): مدير النظام/المسؤول يكتب رمزه الشخصي على هذه الشاشة مباشرة — لا رسائل يراها المستخدم.
+// المفاتيح تُلتقط في مرحلة capture وتُوقف فلا تصل لاختصارات الكاشير (F5 = خصم الفاتورة) ولا لتحديث المتصفح.
 type State = { request: PermissionRequest; resolve: (approved: boolean) => void }
 type Mode = "choose" | "email" | "pin"
 
@@ -65,6 +66,12 @@ export function PermissionApprovalHost() {
     }
   }
 
+  const openPin = () => {
+    if (busy) return
+    setMode("pin"); setError("")
+    window.setTimeout(() => pinRef.current?.focus(), 30)
+  }
+
   const finish = (data: any) => {
     if (!state) return
     storeApprovalToken(state.request.scope, state.request.key, String(data.token), Number(data.minutes) || 10)
@@ -101,36 +108,80 @@ export function PermissionApprovalHost() {
     }
   }
 
+  // F5 = إرسال رمز بالبريد (أو إعادة الإرسال)، F6 = رمز المدير PIN — طالما النافذة مفتوحة
+  const keysRef = useRef({ sendCode, openPin })
+  keysRef.current = { sendCode, openPin }
+  const open = Boolean(state)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "F5" && event.key !== "F6") return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      if (event.repeat) return
+      if (event.key === "F5") void keysRef.current.sendCode()
+      else keysRef.current.openPin()
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [open])
+
   const request = state?.request
   const placeLabel = request?.scope === "restaurant" ? "موقع المطعم" : "نقطة البيع"
+  const Kbd = ({ children, light }: { children: string; light?: boolean }) => (
+    <kbd className={`rounded-md border px-1.5 py-0.5 font-mono text-[11px] font-bold leading-none ${light ? "border-white/50 bg-white/15 text-white" : "border-slate-300 bg-white text-slate-600 shadow-[0_1px_0_#cbd5e1]"}`}>{children}</kbd>
+  )
   return (
-    <Dialog open={Boolean(state)} onOpenChange={(open) => { if (!open) close(false) }}>
+    <Dialog open={open} onOpenChange={(value) => { if (!value && !busy) close(false) }}>
       <DialogContent
         dir="rtl"
         hideCloseButton
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
-        className="z-[3000] w-[calc(100vw-1.5rem)] max-w-md gap-0 overflow-hidden rounded-2xl border-0 p-0 ring-0"
+        className="z-[3000] w-[calc(100vw-1.5rem)] max-w-lg gap-0 overflow-hidden rounded-3xl border-0 p-0 shadow-2xl ring-0"
       >
-        <div className="flex items-center gap-3 bg-gradient-to-l from-amber-500 to-orange-500 px-4 py-3 text-white">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20"><Lock className="h-5 w-5" /></div>
-          <DialogTitle className="min-w-0 text-base font-bold leading-snug">لا يوجد لديك صلاحية - {request?.name}</DialogTitle>
+        {/* الرأس: القفل + اسم الصلاحية المطلوبة */}
+        <div className="relative overflow-hidden bg-gradient-to-l from-amber-500 via-orange-500 to-rose-500 px-5 pb-5 pt-4 text-white">
+          <div className="pointer-events-none absolute -left-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
+          <div className="relative flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/30"><Lock className="h-6 w-6" /></div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-white/80">لا يوجد لديك صلاحية</p>
+              <DialogTitle className="mt-0.5 text-lg font-black leading-snug">{request?.name}</DialogTitle>
+              <p className="mt-1 text-xs text-white/85">تحتاج موافقة لمرة واحدة من مدير النظام أو المسؤول على {placeLabel}</p>
+            </div>
+            <button type="button" onClick={() => close(false)} disabled={busy} aria-label="إلغاء" className="rounded-full p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white disabled:opacity-50"><X className="h-5 w-5" /></button>
+          </div>
         </div>
-        <div className="space-y-3 p-4 text-sm">
-          {request?.message && <p className="rounded-lg bg-amber-50 p-2.5 text-amber-900 ring-1 ring-amber-200">{request.message}</p>}
-          {request?.context?.max_percent !== undefined && <p className="rounded-lg bg-slate-100 p-2.5 text-center text-slate-700">الموافقة على خصم حتى <b dir="ltr" className="text-base">{request.context.max_percent}%</b> — أي زيادة بعدها تتطلب موافقة جديدة</p>}
+
+        <div className="space-y-3 p-4 text-sm sm:p-5">
+          {request?.message && <p className="rounded-xl bg-amber-50 p-3 text-amber-900 ring-1 ring-amber-200">{request.message}</p>}
+          {request?.context?.max_percent !== undefined && <p className="rounded-xl bg-slate-100 p-3 text-center text-slate-700">الموافقة على خصم حتى <b dir="ltr" className="text-base">{request.context.max_percent}%</b> — أي زيادة بعدها تتطلب موافقة جديدة</p>}
 
           {mode === "choose" && (
-            <p className="text-slate-600">موافقة لمرة واحدة: إما أن يكتب مدير النظام أو المسؤول <b>رمز PIN</b> الخاص به على هذه الشاشة، أو يُرسل <b>رمز تفعيل بالبريد</b> لهما المعرّفين على {placeLabel}.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={openPin} disabled={busy} className="group flex flex-col items-start gap-2 rounded-2xl border-2 border-sky-200 bg-sky-50 p-4 text-start transition hover:-translate-y-0.5 hover:border-sky-400 hover:shadow-lg disabled:opacity-50">
+                <div className="flex w-full items-center justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-600 text-white shadow-md shadow-sky-600/30"><ShieldCheck className="h-5 w-5" /></span>
+                  <Kbd>F6</Kbd>
+                </div>
+                <b className="text-base text-sky-900">رمز المدير (PIN)</b>
+                <span className="text-xs leading-5 text-sky-800/80">يكتب المدير أو المسؤول رمزه الشخصي على هذه الشاشة الآن</span>
+              </button>
+              <button type="button" onClick={() => void sendCode()} disabled={busy} className="group flex flex-col items-start gap-2 rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-start transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg disabled:opacity-50">
+                <div className="flex w-full items-center justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-white shadow-md shadow-amber-500/30"><Mail className="h-5 w-5" /></span>
+                  <Kbd>F5</Kbd>
+                </div>
+                <b className="text-base text-amber-900">رمز تفعيل بالبريد</b>
+                <span className="text-xs leading-5 text-amber-800/80">إرسال رمز للمدير ومسؤول النظام ثم إدخاله هنا</span>
+              </button>
+            </div>
           )}
 
           {mode === "pin" && (
-            <div className="space-y-2">
-              <p className="flex items-start gap-2 rounded-lg bg-sky-50 p-2.5 text-sky-800 ring-1 ring-sky-200">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>يكتب مدير النظام أو المسؤول رمز PIN الخاص به (المعرّف على {placeLabel}).</span>
-              </p>
-              <label className="block text-xs font-semibold text-slate-600">رمز المدير (PIN)</label>
+            <div className="space-y-2 rounded-2xl border-2 border-sky-200 bg-sky-50/60 p-4">
+              <label className="flex items-center gap-2 text-sm font-bold text-sky-900"><ShieldCheck className="h-4 w-4" />رمز المدير (PIN)</label>
               <div className="relative">
                 <KeyRound className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -144,19 +195,19 @@ export function PermissionApprovalHost() {
                   placeholder="••••"
                   onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void verifyPin() } }}
-                  className="h-11 pr-9 text-center text-lg font-bold tracking-[0.5em]"
+                  className="h-12 bg-white pr-9 text-center text-xl font-bold tracking-[0.5em]"
                 />
               </div>
+              <p className="text-xs text-sky-800/80">يكتبه مدير النظام أو المسؤول المعرّف على {placeLabel} ثم Enter</p>
             </div>
           )}
 
           {mode === "email" && (approvalId ? (
-            <div className="space-y-2">
-              <p className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-emerald-800 ring-1 ring-emerald-200">
+            <div className="space-y-2 rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-4">
+              <p className="flex items-start gap-2 text-emerald-800">
                 <MailCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>تم إرسال رمز التفعيل بالبريد إلى: <span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
+                <span>تم إرسال رمز التفعيل إلى: <span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
               </p>
-              <label className="block text-xs font-semibold text-slate-600">رمز التفعيل</label>
               <div className="relative">
                 <KeyRound className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -169,48 +220,42 @@ export function PermissionApprovalHost() {
                   placeholder="______"
                   onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void verifyCode() } }}
-                  className="h-11 pr-9 text-center text-lg font-bold tracking-[0.5em]"
+                  className="h-12 bg-white pr-9 text-center text-xl font-bold tracking-[0.5em]"
                 />
               </div>
             </div>
           ) : busy ? (
-            <p className="flex items-center gap-2 text-slate-600"><Loader2 className="h-4 w-4 animate-spin" />جاري إرسال رمز التفعيل...</p>
+            <p className="flex items-center justify-center gap-2 rounded-2xl bg-amber-50 p-5 text-amber-800"><Loader2 className="h-5 w-5 animate-spin" />جاري إرسال رمز التفعيل...</p>
           ) : null)}
 
-          {error && <p className="rounded-lg bg-rose-50 p-2.5 text-rose-700 ring-1 ring-rose-200">{error}</p>}
+          {error && <p className="rounded-xl bg-rose-50 p-3 text-rose-700 ring-1 ring-rose-200">{error}</p>}
         </div>
-        <div className="flex flex-wrap justify-center gap-2 border-t bg-slate-50 px-4 py-3">
-          {mode === "choose" && (
-            <>
-              <Button onClick={() => { setMode("pin"); setError("") }} disabled={busy} className="gap-1 bg-sky-600 text-white hover:bg-sky-700">
-                <ShieldCheck className="h-4 w-4" />رمز المدير (PIN)
-              </Button>
-              <Button onClick={() => void sendCode()} disabled={busy} className="gap-1 bg-amber-600 text-white hover:bg-amber-700">
-                <Send className="h-4 w-4" />ارسال رمز تفعيل للمدير ومسؤول النظام
-              </Button>
-            </>
-          )}
+
+        <div className="flex flex-wrap items-center justify-center gap-2 border-t bg-slate-50 px-4 py-3">
           {mode === "pin" && (
             <>
-              <Button onClick={() => void verifyPin()} disabled={busy || pin.length < 4} className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}موافقة ومتابعة
+              <Button onClick={() => void verifyPin()} disabled={busy || pin.length < 4} className="h-10 gap-1.5 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}موافقة ومتابعة <Kbd light>Enter</Kbd>
               </Button>
-              <Button variant="outline" onClick={() => void sendCode()} disabled={busy}>إرسال رمز بالبريد بدلاً من ذلك</Button>
+              <Button variant="outline" onClick={() => void sendCode()} disabled={busy} className="h-10 gap-1.5 rounded-xl"><Mail className="h-4 w-4" />بالبريد <Kbd>F5</Kbd></Button>
             </>
           )}
           {mode === "email" && approvalId && (
             <>
-              <Button onClick={() => void verifyCode()} disabled={busy || code.length !== 6} className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}تحقق ومتابعة
+              <Button onClick={() => void verifyCode()} disabled={busy || code.length !== 6} className="h-10 gap-1.5 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}تحقق ومتابعة <Kbd light>Enter</Kbd>
               </Button>
-              <Button variant="outline" onClick={() => void sendCode()} disabled={busy}>إعادة الإرسال</Button>
-              <Button variant="outline" onClick={() => { setMode("pin"); setError("") }} disabled={busy}>رمز المدير (PIN)</Button>
+              <Button variant="outline" onClick={() => void sendCode()} disabled={busy} className="h-10 gap-1.5 rounded-xl"><RotateCw className="h-4 w-4" />إعادة الإرسال <Kbd>F5</Kbd></Button>
+              <Button variant="outline" onClick={openPin} disabled={busy} className="h-10 gap-1.5 rounded-xl"><ShieldCheck className="h-4 w-4" />PIN <Kbd>F6</Kbd></Button>
             </>
           )}
           {mode === "email" && !approvalId && !busy && (
-            <Button variant="outline" onClick={() => void sendCode()}>إعادة المحاولة</Button>
+            <Button variant="outline" onClick={() => void sendCode()} className="h-10 gap-1.5 rounded-xl"><RotateCw className="h-4 w-4" />إعادة المحاولة <Kbd>F5</Kbd></Button>
           )}
-          <Button variant="outline" onClick={() => close(false)} disabled={busy}>إلغاء</Button>
+          {mode !== "choose" && (
+            <Button variant="ghost" onClick={() => { setMode("choose"); setError("") }} disabled={busy} className="h-10 gap-1 rounded-xl text-slate-600"><ArrowRight className="h-4 w-4" />رجوع</Button>
+          )}
+          <Button variant="outline" onClick={() => close(false)} disabled={busy} className="h-10 gap-1.5 rounded-xl">إلغاء <Kbd>Esc</Kbd></Button>
         </div>
       </DialogContent>
     </Dialog>
