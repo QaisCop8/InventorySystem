@@ -8,6 +8,7 @@ import {
   archiveAndDeleteVoucher,
   markVoucherPrinted,
   validateJournalAccountCurrencies,
+  validateJournalCostCenters,
   JOURNAL_TYPE_COUNTER_ACCOUNT,
 } from "../receipts/_lib"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
@@ -32,6 +33,7 @@ export {
   archiveAndDeleteVoucher,
   markVoucherPrinted,
   validateJournalAccountCurrencies,
+  validateJournalCostCenters,
   JOURNAL_TYPE_COUNTER_ACCOUNT,
 }
 

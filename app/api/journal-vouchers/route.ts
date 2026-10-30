@@ -14,6 +14,7 @@ import {
   saveNoteRows,
   fetchDetails,
   validateJournalAccountCurrencies,
+  validateJournalCostCenters,
   type JournalRow,
   getVoucherNumberSettings,
   buildVoucherCode,
@@ -96,6 +97,8 @@ async function postHandler(request: NextRequest) {
     if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
     const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+    const costCenterError = await validateJournalCostCenters(journalRows)
+    if (costCenterError) return NextResponse.json({ error: costCenterError }, { status: 400 })
     const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), JOURNAL_VCH_TYPE, data.vch_date)
     if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     const amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
@@ -198,6 +201,8 @@ async function putHandler(request: NextRequest) {
       if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      const costCenterError = await validateJournalCostCenters(journalRows)
+      if (costCenterError) return NextResponse.json({ error: costCenterError }, { status: 400 })
       const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), JOURNAL_VCH_TYPE, data.vch_date)
       if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
       amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)

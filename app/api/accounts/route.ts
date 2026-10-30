@@ -325,8 +325,7 @@ export async function POST(request: NextRequest) {
     if (!authorization.ok) return authorization.response
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
-    await ensureBranchesTable()
-    await ensureAccountClassificationTypesTable()
+    await ensureAccountLookupTables()
     await sql`
       CREATE TABLE IF NOT EXISTS account_branches (
         account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,

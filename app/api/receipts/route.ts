@@ -11,6 +11,7 @@ import {
   saveNoteRows,
   fetchDetails,
   validateJournalAccountCurrencies,
+  validateJournalCostCenters,
   validateChequeDuplicates,
   validateManualChequeEntry,
   validateChequeBankAccounts,
@@ -92,6 +93,8 @@ async function postHandler(request: NextRequest) {
     }
     const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+    const costCenterError = await validateJournalCostCenters(journalRows)
+    if (costCenterError) return NextResponse.json({ error: costCenterError }, { status: 400 })
     const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), vchType, data.vch_date)
     if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
     const checkAccountError = validateCheckAccount(checkAmount, data.check_account_id || null)
@@ -230,6 +233,8 @@ async function putHandler(request: NextRequest) {
       }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      const costCenterError = await validateJournalCostCenters(journalRows)
+      if (costCenterError) return NextResponse.json({ error: costCenterError }, { status: 400 })
       const stopError = await validateAccountStops(journalRows.map((row: any) => row.account_id), vchType, data.vch_date)
       if (stopError) return NextResponse.json({ error: stopError }, { status: 400 })
       const checkAccountError = validateCheckAccount(checkAmount, data.check_account_id || null)

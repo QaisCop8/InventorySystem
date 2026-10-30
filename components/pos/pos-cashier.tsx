@@ -479,7 +479,7 @@ export default function PosCashier(){
  const discountCampaignAmount=discountLine?Number(campaignItems.find(line=>posCartLineKey(line)===posCartLineKey(discountLine))?.campaign_discount||0):0
  const discountLineGross=discountLine?discountLine.price*discountLine.quantity:0
  const discountLineRemaining=Math.max(0,discountLineGross-discountCampaignAmount)
- const discountLineInitialPercent=discountLineRemaining>0?Math.min(100,discountLineGross*discountLine.discount/discountLineRemaining*100):0
+ const discountLineInitialPercent=discountLine&&discountLineRemaining>0?Math.min(100,Math.round(discountLineGross*Number(discountLine.discount||0)/discountLineRemaining*100)/100):0
  return <div dir="rtl" className="pos-workspace pos-cashier" data-mode={mode}>
   {printPreview&&<PosPrintPreview title={printPreview.title} html={printPreview.html} onClose={()=>{setPrintPreview(null);requestAnimationFrame(()=>searchRef.current?.focus())}}/>}
   {pricingBusy && <div role="status" className="fixed inset-x-0 top-0 z-[1300] bg-teal-700 p-2 text-center text-sm text-white">جاري تحميل أسعار فئة العميل…</div>}

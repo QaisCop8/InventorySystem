@@ -801,6 +801,45 @@ export const validateJournalAccountCurrencies = async (
   return null
 }
 
+// مركز التكلفة الإجباري: حساب له نوع مركز تكلفة "اجباري" (account_costcenters_tbl.required_in_transactions = 2)
+// لا يُقبل سطره في السند إلا بمركز من ذلك النوع — من السطر نفسه، أو مركز الحساب الافتراضي الذي يُضاف آلياً
+// عند الحفظ إن لم يُحدد للسطر أي مركز (saveJournalRows).
+export const validateJournalCostCenters = async (journalRows: { account_id: number; cost_centers?: any[] }[]): Promise<string | null> => {
+  const accountIds = Array.from(new Set(journalRows.map((row) => Number(row.account_id)).filter((id) => id > 0)))
+  if (accountIds.length === 0) return null
+  const ready = await sql`SELECT to_regclass('account_costcenters_tbl') IS NOT NULL AS ok`
+  if (!(ready as any[])[0]?.ok) return null
+  const settings = (await sql`
+    SELECT acc.account_id, acc.cost_center_type_id, acc.required_in_transactions, acc.default_cost_center_id, a.code, a.name
+    FROM account_costcenters_tbl acc
+    JOIN account_tbl a ON a.id = acc.account_id
+    WHERE acc.account_id = ANY(${accountIds}::int[])
+      AND (acc.required_in_transactions = 2 OR acc.default_cost_center_id IS NOT NULL)
+  `) as any[]
+  if (!settings.some((row) => Number(row.required_in_transactions) === 2)) return null
+  const ownIds = Array.from(new Set(journalRows.flatMap((row) => (Array.isArray(row.cost_centers) ? row.cost_centers : [])
+    .map((item: any) => Number(item?.cost_center_id)).filter((id: number) => id > 0))))
+  const centerTypes = new Map<number, number>()
+  if (ownIds.length) {
+    const centers = await sql`SELECT id, cost_type_id FROM cost_centers WHERE id = ANY(${ownIds}::int[]) AND COALESCE(status, 1) <> 3`
+    for (const center of centers as any[]) centerTypes.set(Number(center.id), Number(center.cost_type_id))
+  }
+  for (const row of journalRows) {
+    const accountSettings = settings.filter((item) => Number(item.account_id) === Number(row.account_id))
+    const required = accountSettings.filter((item) => Number(item.required_in_transactions) === 2)
+    if (!required.length) continue
+    const own = (Array.isArray(row.cost_centers) ? row.cost_centers : []).map((item: any) => Number(item?.cost_center_id)).filter((id: number) => id > 0)
+    // نفس قاعدة الحفظ: مراكز السطر تحل محل الافتراضية كلياً، وبدونها تُستخدم مراكز الحساب الافتراضية
+    const types = new Set<number>(own.length
+      ? own.map((id: number) => centerTypes.get(id)).filter((type: number | undefined): type is number => type !== undefined)
+      : accountSettings.filter((item) => item.default_cost_center_id != null).map((item) => Number(item.cost_center_type_id)))
+    if (required.some((item) => !types.has(Number(item.cost_center_type_id)))) {
+      return `الحساب ${required[0].code} - ${required[0].name} بحاجة الى مركز تكلفة لا يمكن حفظ السند`
+    }
+  }
+  return null
+}
+
 export const saveJournalRows = async (voucherId: number, journalRows: any[]) => {
   await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`
 

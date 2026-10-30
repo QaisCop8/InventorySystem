@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import sql, { getTenantPool } from "@/lib/database"
+import { changeLotStatus, createLotTransaction } from "@/lib/lot-management"
 
 
 
