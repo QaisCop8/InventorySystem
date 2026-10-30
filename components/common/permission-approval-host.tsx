@@ -1,89 +1,82 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { KeyRound, Loader2, Lock, MailCheck, MessageCircle, Send } from "lucide-react"
+import { KeyRound, Loader2, Lock, MailCheck, Send, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { installPermissionApprovalFetch, registerApprovalAsker, storeApprovalToken, type PermissionRequest } from "@/lib/permission-approval-client"
 
-// نافذة "لا يوجد لديك صلاحية - اسم الصلاحية" للكاشير والمطعم: إرسال رمز تفعيل لايميلي مدير النظام والمسؤول ثم إدخاله
-// (lib/permission-approval-client.ts يفتحها عند رفض الخادم ويعيد الطلب بعد التحقق).
+// نافذة "لا يوجد لديك صلاحية - اسم الصلاحية" للكاشير والمطعم (lib/permission-approval-client.ts يفتحها قبل الإجراء أو
+// عند رفض الخادم ثم يعيد الطلب بعد الموافقة). طريقتان:
+//  • البريد: رمز تفعيل يُرسل لايميلي مدير النظام والمسؤول ثم يُدخله المستخدم.
+//  • رمز المدير (PIN): مدير النظام/المسؤول يكتب رمزه الشخصي على هذه الشاشة مباشرة — لا رسائل يراها المستخدم.
 type State = { request: PermissionRequest; resolve: (approved: boolean) => void }
+type Mode = "choose" | "email" | "pin"
 
 export function PermissionApprovalHost() {
   const [state, setState] = useState<State | null>(null)
+  const [mode, setMode] = useState<Mode>("choose")
   const [approvalId, setApprovalId] = useState<number | null>(null)
   const [sentTo, setSentTo] = useState<string[]>([])
-  // قناة الإرسال: البريد (الايميلين) أو واتساب (جوالي مدير النظام والمسؤول المعرّفين على النقطة/الموقع فقط)
-  const [channel, setChannel] = useState<"email" | "whatsapp">("email")
-  // روابط wa.me لكل رقم (مدير النظام، المسؤول) — الأول يُفتح تلقائياً، والباقي بالأزرار
-  const [waLinks, setWaLinks] = useState<{ role: string; url: string }[]>([])
   const [code, setCode] = useState("")
+  const [pin, setPin] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const codeRef = useRef<HTMLInputElement | null>(null)
+  const pinRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     installPermissionApprovalFetch()
     return registerApprovalAsker((request) => new Promise<boolean>((resolve) => {
-      setApprovalId(null); setSentTo([]); setCode(""); setError(""); setBusy(false); setChannel("email"); setWaLinks([])
+      setMode("choose"); setApprovalId(null); setSentTo([]); setCode(""); setPin(""); setError(""); setBusy(false)
       setState({ request, resolve })
     }))
   }, [])
 
   useEffect(() => {
-    if (approvalId) window.setTimeout(() => codeRef.current?.focus(), 60)
-  }, [approvalId])
+    if (mode === "email" && approvalId) window.setTimeout(() => codeRef.current?.focus(), 60)
+    if (mode === "pin") window.setTimeout(() => pinRef.current?.focus(), 60)
+  }, [mode, approvalId])
 
   const close = (approved: boolean) => {
     state?.resolve(approved)
     setState(null)
   }
 
-  const sendCode = async (via: "email" | "whatsapp" = channel) => {
+  const post = async (body: Record<string, unknown>) => {
+    const response = await fetch("/api/permission-approvals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data?.error || "تعذر تنفيذ الطلب")
+    return data
+  }
+
+  const sendCode = async () => {
     if (!state || busy) return
-    setChannel(via)
     if (!state.request.scopeId) { setError("تعذر تحديد نقطة البيع/الموقع لإرسال الرمز"); return }
-    // واتساب كباقي الشاشات: تبويب يُفتح الآن (ضمن النقر حتى لا يحجبه المتصفح) ثم يُوجَّه لرابط wa.me — تطبيق واتساب أو واتساب ويب
-    const waWindow = via === "whatsapp" ? window.open("about:blank", "_blank") : null
-    setBusy(true); setError(""); setWaLinks([])
+    setMode("email"); setBusy(true); setError("")
     try {
-      const response = await fetch("/api/permission-approvals", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, channel: via }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data?.error || "تعذر إرسال رمز التفعيل")
+      const data = await post({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key })
       setApprovalId(Number(data.id)); setSentTo(Array.isArray(data.sent_to) ? data.sent_to : []); setCode("")
-      const links: { role: string; url: string }[] = Array.isArray(data.links) ? data.links : []
-      setWaLinks(links)
-      if (via === "whatsapp") {
-        if (links[0] && waWindow) waWindow.location.href = links[0].url
-        else if (links[0]) window.open(links[0].url, "_blank")
-        else waWindow?.close()
-      }
     } catch (sendError) {
-      waWindow?.close()
       setError(sendError instanceof Error ? sendError.message : "تعذر إرسال رمز التفعيل")
     } finally {
       setBusy(false)
     }
   }
 
-  const verify = async () => {
+  const finish = (data: any) => {
+    if (!state) return
+    storeApprovalToken(state.request.scope, state.request.key, String(data.token), Number(data.minutes) || 10)
+    close(true)
+  }
+
+  const verifyCode = async () => {
     if (!state || !approvalId || busy) return
     if (!/^\d{6}$/.test(code.trim())) { setError("أدخل رمز التفعيل المكوّن من 6 أرقام"); return }
     setBusy(true); setError("")
     try {
-      const response = await fetch("/api/permission-approvals", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify", id: approvalId, code: code.trim() }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data?.error || "رمز التفعيل غير صحيح")
-      storeApprovalToken(state.request.scope, state.request.key, String(data.token), Number(data.minutes) || 10)
-      close(true)
+      finish(await post({ action: "verify", id: approvalId, code: code.trim() }))
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : "رمز التفعيل غير صحيح")
       codeRef.current?.select()
@@ -92,7 +85,24 @@ export function PermissionApprovalHost() {
     }
   }
 
+  const verifyPin = async () => {
+    if (!state || busy) return
+    if (!state.request.scopeId) { setError("تعذر تحديد نقطة البيع/الموقع"); return }
+    if (!/^\d{4,8}$/.test(pin)) { setError("رمز المدير من 4 إلى 8 أرقام"); return }
+    setBusy(true); setError("")
+    try {
+      finish(await post({ action: "pin", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, pin }))
+    } catch (pinError) {
+      setError(pinError instanceof Error ? pinError.message : "رمز المدير غير صحيح")
+      setPin("")
+      pinRef.current?.focus()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const request = state?.request
+  const placeLabel = request?.scope === "restaurant" ? "موقع المطعم" : "نقطة البيع"
   return (
     <Dialog open={Boolean(state)} onOpenChange={(open) => { if (!open) close(false) }}>
       <DialogContent
@@ -108,23 +118,43 @@ export function PermissionApprovalHost() {
         </div>
         <div className="space-y-3 p-4 text-sm">
           {request?.message && <p className="rounded-lg bg-amber-50 p-2.5 text-amber-900 ring-1 ring-amber-200">{request.message}</p>}
-          {!approvalId ? (
-            <p className="text-slate-600">يمكنك طلب موافقة لمرة واحدة: يُرسل رمز تفعيل إلى مدير النظام والمسؤول المعرّفين على {request?.scope === "restaurant" ? "موقع المطعم" : "نقطة البيع"} — بالبريد أو عبر واتساب — ثم تُدخل الرمز للمتابعة.</p>
-          ) : (
+
+          {mode === "choose" && (
+            <p className="text-slate-600">موافقة لمرة واحدة: إما أن يكتب مدير النظام أو المسؤول <b>رمز PIN</b> الخاص به على هذه الشاشة، أو يُرسل <b>رمز تفعيل بالبريد</b> لهما المعرّفين على {placeLabel}.</p>
+          )}
+
+          {mode === "pin" && (
+            <div className="space-y-2">
+              <p className="flex items-start gap-2 rounded-lg bg-sky-50 p-2.5 text-sky-800 ring-1 ring-sky-200">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>يكتب مدير النظام أو المسؤول رمز PIN الخاص به (المعرّف على {placeLabel}).</span>
+              </p>
+              <label className="block text-xs font-semibold text-slate-600">رمز المدير (PIN)</label>
+              <div className="relative">
+                <KeyRound className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  ref={pinRef}
+                  type="password"
+                  value={pin}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={8}
+                  dir="ltr"
+                  placeholder="••••"
+                  onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void verifyPin() } }}
+                  className="h-11 pr-9 text-center text-lg font-bold tracking-[0.5em]"
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === "email" && (approvalId ? (
             <div className="space-y-2">
               <p className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-emerald-800 ring-1 ring-emerald-200">
                 <MailCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{channel === "whatsapp" ? "فُتحت محادثة واتساب — أرسل الرسالة إلى: " : "تم إرسال رمز التفعيل بالبريد إلى: "}<span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
+                <span>تم إرسال رمز التفعيل بالبريد إلى: <span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
               </p>
-              {channel === "whatsapp" && waLinks.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {waLinks.map((link) => (
-                    <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1ebe5b]">
-                      <MessageCircle className="h-3.5 w-3.5" />فتح واتساب — {link.role}
-                    </a>
-                  ))}
-                </div>
-              )}
               <label className="block text-xs font-semibold text-slate-600">رمز التفعيل</label>
               <div className="relative">
                 <KeyRound className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -137,32 +167,47 @@ export function PermissionApprovalHost() {
                   dir="ltr"
                   placeholder="______"
                   onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void verify() } }}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void verifyCode() } }}
                   className="h-11 pr-9 text-center text-lg font-bold tracking-[0.5em]"
                 />
               </div>
             </div>
-          )}
+          ) : busy ? (
+            <p className="flex items-center gap-2 text-slate-600"><Loader2 className="h-4 w-4 animate-spin" />جاري إرسال رمز التفعيل...</p>
+          ) : null)}
+
           {error && <p className="rounded-lg bg-rose-50 p-2.5 text-rose-700 ring-1 ring-rose-200">{error}</p>}
         </div>
-        <div className="flex flex-wrap justify-end gap-2 border-t bg-slate-50 px-4 py-3">
-          {!approvalId ? (
+        <div className="flex flex-wrap justify-center gap-2 border-t bg-slate-50 px-4 py-3">
+          {mode === "choose" && (
             <>
-              <Button onClick={() => void sendCode("email")} disabled={busy} className="gap-1 bg-amber-600 text-white hover:bg-amber-700">
-                {busy && channel === "email" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}ارسال رمز تفعيل للمدير ومسؤول النظام
+              <Button onClick={() => { setMode("pin"); setError("") }} disabled={busy} className="gap-1 bg-sky-600 text-white hover:bg-sky-700">
+                <ShieldCheck className="h-4 w-4" />رمز المدير (PIN)
               </Button>
-              <Button onClick={() => void sendCode("whatsapp")} disabled={busy} className="gap-1 bg-[#25D366] text-white hover:bg-[#1ebe5b]">
-                {busy && channel === "whatsapp" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}ارسال عبر واتساب
+              <Button onClick={() => void sendCode()} disabled={busy} className="gap-1 bg-amber-600 text-white hover:bg-amber-700">
+                <Send className="h-4 w-4" />ارسال رمز تفعيل للمدير ومسؤول النظام
               </Button>
             </>
-          ) : (
+          )}
+          {mode === "pin" && (
             <>
-              <Button onClick={() => void verify()} disabled={busy || code.length !== 6} className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+              <Button onClick={() => void verifyPin()} disabled={busy || pin.length < 4} className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}موافقة ومتابعة
+              </Button>
+              <Button variant="outline" onClick={() => void sendCode()} disabled={busy}>إرسال رمز بالبريد بدلاً من ذلك</Button>
+            </>
+          )}
+          {mode === "email" && approvalId && (
+            <>
+              <Button onClick={() => void verifyCode()} disabled={busy || code.length !== 6} className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}تحقق ومتابعة
               </Button>
-              <Button variant="outline" onClick={() => void sendCode(channel)} disabled={busy}>إعادة الإرسال</Button>
-              <Button variant="outline" onClick={() => void sendCode(channel === "email" ? "whatsapp" : "email")} disabled={busy}>{channel === "email" ? "إرسال عبر واتساب" : "إرسال بالبريد"}</Button>
+              <Button variant="outline" onClick={() => void sendCode()} disabled={busy}>إعادة الإرسال</Button>
+              <Button variant="outline" onClick={() => { setMode("pin"); setError("") }} disabled={busy}>رمز المدير (PIN)</Button>
             </>
+          )}
+          {mode === "email" && !approvalId && !busy && (
+            <Button variant="outline" onClick={() => void sendCode()}>إعادة المحاولة</Button>
           )}
           <Button variant="outline" onClick={() => close(false)} disabled={busy}>إلغاء</Button>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { ensureTables as ensureVoucherTables } from "@/app/api/sales-vouchers/_lib"
 import { canUsePosCashierPermission, posPermissionDenied, ensurePosTables, requestBranchId, requestUserId } from "../_lib"
+import { managerPinChanges, stripPinHashes } from "@/lib/permission-approvals"
 import { normalizePosPointUsers } from "@/lib/pos-point-users"
 import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
@@ -20,6 +21,8 @@ async function nextPosPointCode() {
 }
 
 async function validate(data: any) {
+  const pinError = managerPinChanges(data).error
+  if (pinError) return pinError
   for (const [field, label] of [["admin_email", "ايميل مدير النظام"], ["manager_email", "ايميل المسؤول"]]) {
     const value = String(data[field] ?? "").trim()
     if (!value) return `${label} مطلوب`
@@ -80,6 +83,7 @@ export async function GET(request: NextRequest) {
         AND (${request.nextUrl.searchParams.get("meta") === "1"} OR NOT EXISTS(SELECT 1 FROM pos_point_users_tbl x WHERE x.pos_point_id=p.id) OR EXISTS(SELECT 1 FROM pos_point_users_tbl x WHERE x.pos_point_id=p.id AND x.user_id=${userId}))
       ORDER BY p.name
     `
+    for (let index = 0; index < points.length; index++) points[index] = stripPinHashes(points[index])
     if (request.nextUrl.searchParams.get("meta") !== "1") {
       const allowedPoints = await Promise.all(points.map(async (point: any) =>
         await canUsePosCashierPermission(userId, Number(point.branch_id), "access") ? point : null,
@@ -109,11 +113,15 @@ async function saveUsers(pointId:number, users:any[]) {
   }
 }
 
-// ايميل مدير النظام + ايميل المسؤول: يستلمان رمز تفعيل الصلاحيات غير الممنوحة في الكاشير (lib/permission-approvals.ts)
+// ايميل مدير النظام + ايميل المسؤول (رمز تفعيل بالبريد) و رمز PIN لكل منهما (يُكتب على شاشة الكاشير) — lib/permission-approvals.ts
 async function saveApprovalEmails(pointId:number,data:any){
   const clean=(value:unknown)=>String(value??"").trim().toLowerCase().slice(0,150)||null
-  const mobile=(value:unknown)=>String(value??"").replace(/[^\d+]/g,"").slice(0,30)||null
-  return (await sql`UPDATE pos_points_tbl SET admin_email=${clean(data.admin_email)},manager_email=${clean(data.manager_email)},admin_mobile=${mobile(data.admin_mobile)},manager_mobile=${mobile(data.manager_mobile)} WHERE id=${pointId} RETURNING *`)[0]
+  const pins=managerPinChanges(data)
+  const row=(await sql`UPDATE pos_points_tbl SET admin_email=${clean(data.admin_email)},manager_email=${clean(data.manager_email)},
+    admin_pin_hash=CASE WHEN ${pins.admin!==undefined} THEN ${pins.admin??null} ELSE admin_pin_hash END,
+    manager_pin_hash=CASE WHEN ${pins.manager!==undefined} THEN ${pins.manager??null} ELSE manager_pin_hash END
+    WHERE id=${pointId} RETURNING *`)[0]
+  return row?stripPinHashes(row):row
 }
 
 export async function POST(request:NextRequest) {
@@ -124,7 +132,7 @@ export async function POST(request:NextRequest) {
     try { await assertLicenseAllows("pos_points") } catch (licenseError) { const body=licenseErrorResponseBody(licenseError); if(body)return NextResponse.json(body,{status:409}); throw licenseError }
     const code=await nextPosPointCode()
     const rows=await sql`INSERT INTO pos_points_tbl(code,name,branch_id,main_warehouse_id,currency_id,sales_book_id,return_book_id,cash_account_id,card_account_id,cheque_account_id,receivable_account_id,gift_account_id,walk_in_account_id,tax_account_id,return_account_id,price_category_id,max_discount_percent,allow_offline,allow_returns,allow_gifts,item_grouping_mode,print_by_item_group,tobacco_custody,print_invoices,invoice_print_mode,status) VALUES(${code},${String(data.name).trim()},${Number(data.branch_id)},${Number(data.main_warehouse_id)},${Number(data.currency_id)},${Number(data.sales_book_id)},${optionalId(data.return_book_id)},${optionalId(data.cash_account_id)},${optionalId(data.card_account_id)},${optionalId(data.cheque_account_id)},${null},${optionalId(data.gift_account_id)},${optionalId(data.walk_in_account_id)},${optionalId(data.tax_account_id)},${null},${Number(data.price_category_id||1)},${Number(data.max_discount_percent??100)},${bool(data.allow_offline,true)},${bool(data.allow_returns,true)},${bool(data.allow_gifts,true)},${data.item_grouping_mode??"on_entry"},${bool(data.print_by_item_group)},${bool(data.tobacco_custody)},${printMode(data)>0},${printMode(data)},1) RETURNING *`
-    await saveUsers(Number(rows[0].id),data.users); const saved=await saveApprovalEmails(Number(rows[0].id),data); return NextResponse.json(saved||rows[0],{status:201})
+    await saveUsers(Number(rows[0].id),data.users); const saved=await saveApprovalEmails(Number(rows[0].id),data); return NextResponse.json(saved||stripPinHashes(rows[0]),{status:201})
     })
   } catch(error){return NextResponse.json({error:error instanceof Error?error.message:"تعذر حفظ نقطة البيع"},{status:500})}
 }
@@ -132,6 +140,6 @@ export async function POST(request:NextRequest) {
 export async function PUT(request:NextRequest) {
   try { await ensureVoucherTables(); await ensurePosTables(); const data=await request.json(),id=Number(data.id),userId=requestUserId(request); if(!userId)return NextResponse.json({error:"تعذر تحديد المستخدم"},{status:401}); if(!id)return NextResponse.json({error:"معرف نقطة البيع مطلوب"},{status:400}); const existing=(await sql`SELECT branch_id FROM pos_points_tbl WHERE id=${id} AND status<>3`)[0];if(!existing)return NextResponse.json({error:"نقطة البيع غير موجودة"},{status:404});if(!await canUsePosCashierPermission(userId,Number(existing.branch_id),"editPoint"))return posPermissionDenied("editPoint","لا توجد لديك صلاحية تعديل تعريف نقطة البيع لهذا الفرع"); if(Number(data.status)===3){await sql`UPDATE pos_points_tbl SET status=3,updated_at=NOW() WHERE id=${id}`;return NextResponse.json({success:true})}
     const error=await validate(data); if(error)return NextResponse.json({error},{status:400}); if(Number(data.branch_id)!==Number(existing.branch_id)&&!await canUsePosCashierPermission(userId,Number(data.branch_id),"editPoint"))return posPermissionDenied("editPoint","لا توجد لديك صلاحية تعديل تعريف نقطة البيع للفرع المحدد")
-    const rows=await sql`UPDATE pos_points_tbl SET name=${String(data.name).trim()},branch_id=${Number(data.branch_id)},main_warehouse_id=${Number(data.main_warehouse_id)},currency_id=${Number(data.currency_id)},sales_book_id=${Number(data.sales_book_id)},return_book_id=${optionalId(data.return_book_id)},cash_account_id=${optionalId(data.cash_account_id)},card_account_id=${optionalId(data.card_account_id)},cheque_account_id=${optionalId(data.cheque_account_id)},receivable_account_id=${null},gift_account_id=${optionalId(data.gift_account_id)},walk_in_account_id=${optionalId(data.walk_in_account_id)},tax_account_id=${optionalId(data.tax_account_id)},return_account_id=${null},price_category_id=${Number(data.price_category_id||1)},max_discount_percent=${Number(data.max_discount_percent??100)},allow_offline=${bool(data.allow_offline,true)},allow_returns=${bool(data.allow_returns,true)},allow_gifts=${bool(data.allow_gifts,true)},item_grouping_mode=${data.item_grouping_mode??"on_entry"},print_by_item_group=${bool(data.print_by_item_group)},tobacco_custody=${bool(data.tobacco_custody)},print_invoices=${printMode(data)>0},invoice_print_mode=${printMode(data)},updated_at=NOW() WHERE id=${id} AND status<>3 RETURNING *`;if(!rows[0])return NextResponse.json({error:"نقطة البيع غير موجودة"},{status:404});await saveUsers(id,data.users);const saved=await saveApprovalEmails(id,data);return NextResponse.json(saved||rows[0])
+    const rows=await sql`UPDATE pos_points_tbl SET name=${String(data.name).trim()},branch_id=${Number(data.branch_id)},main_warehouse_id=${Number(data.main_warehouse_id)},currency_id=${Number(data.currency_id)},sales_book_id=${Number(data.sales_book_id)},return_book_id=${optionalId(data.return_book_id)},cash_account_id=${optionalId(data.cash_account_id)},card_account_id=${optionalId(data.card_account_id)},cheque_account_id=${optionalId(data.cheque_account_id)},receivable_account_id=${null},gift_account_id=${optionalId(data.gift_account_id)},walk_in_account_id=${optionalId(data.walk_in_account_id)},tax_account_id=${optionalId(data.tax_account_id)},return_account_id=${null},price_category_id=${Number(data.price_category_id||1)},max_discount_percent=${Number(data.max_discount_percent??100)},allow_offline=${bool(data.allow_offline,true)},allow_returns=${bool(data.allow_returns,true)},allow_gifts=${bool(data.allow_gifts,true)},item_grouping_mode=${data.item_grouping_mode??"on_entry"},print_by_item_group=${bool(data.print_by_item_group)},tobacco_custody=${bool(data.tobacco_custody)},print_invoices=${printMode(data)>0},invoice_print_mode=${printMode(data)},updated_at=NOW() WHERE id=${id} AND status<>3 RETURNING *`;if(!rows[0])return NextResponse.json({error:"نقطة البيع غير موجودة"},{status:404});await saveUsers(id,data.users);const saved=await saveApprovalEmails(id,data);return NextResponse.json(saved||stripPinHashes(rows[0]))
   } catch(error){return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحديث نقطة البيع"},{status:500})}
 }

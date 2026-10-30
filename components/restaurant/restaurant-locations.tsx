@@ -33,14 +33,16 @@ type Form = {
   id: number; code: string; name: string; branch_id: string; warehouse_id: string; currency_id: string; price_category_id: string; sales_book_id: string
   cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
   max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; sort_order: string; color: string; notes: string; active: boolean
-  admin_email: string; manager_email: string; admin_mobile: string; manager_mobile: string
+  admin_email: string; manager_email: string
+  // رمز PIN جديد (فارغ = إبقاء المحفوظ)، هل يوجد رمز محفوظ، وحذفه
+  admin_pin: string; manager_pin: string; has_admin_pin: boolean; has_manager_pin: boolean; clear_admin_pin: boolean; clear_manager_pin: boolean
 }
 const str = (value: unknown) => (value == null || value === "" ? "" : String(value))
 const emptyForm = (branchId: number | null, code = ""): Form => ({
   id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", sales_book_id: "",
   cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
   max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
-  admin_email: "", manager_email: "", admin_mobile: "", manager_mobile: "",
+  admin_email: "", manager_email: "", admin_pin: "", manager_pin: "", has_admin_pin: false, has_manager_pin: false, clear_admin_pin: false, clear_manager_pin: false,
 })
 const toForm = (row: Location): Form => ({
   id: row.id, code: row.code, name: row.name, branch_id: str(row.branch_id), warehouse_id: str(row.warehouse_id), currency_id: str(row.currency_id),
@@ -50,7 +52,7 @@ const toForm = (row: Location): Form => ({
   print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
   active: Number(row.status) !== 2,
   admin_email: row.admin_email || "", manager_email: row.manager_email || "",
-  admin_mobile: row.admin_mobile || "", manager_mobile: row.manager_mobile || "",
+  admin_pin: "", manager_pin: "", has_admin_pin: row.has_admin_pin === true, has_manager_pin: row.has_manager_pin === true, clear_admin_pin: false, clear_manager_pin: false,
 })
 const errorText = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
 
@@ -389,12 +391,12 @@ export default function RestaurantLocations() {
             </FormSection>
 
             <FormSection icon={<Mail className="h-4 w-4" />} title="ايميلات الموافقة على الصلاحيات">
-              <p className="mb-2 text-xs text-muted-foreground">عند طلب صلاحية غير ممنوحة في شاشة المطعم يُرسل رمز التفعيل إلى هذين الايميلين.</p>
+              <p className="mb-2 text-xs text-muted-foreground">عند طلب صلاحية غير ممنوحة في شاشة المطعم: يُرسل رمز تفعيل لهذين الايميلين، أو يكتب مدير النظام/المسؤول رمز PIN الخاص به على الشاشة مباشرة.</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>ايميل مدير النظام *</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
                 <div className="space-y-1"><Label>ايميل المسؤول *</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
-                <div className="space-y-1"><Label>جوال مدير النظام (واتساب)</Label><Input type="tel" dir="ltr" value={form.admin_mobile} disabled={readOnly} onChange={(e) => set({ admin_mobile: e.target.value })} placeholder="9705XXXXXXXX" /></div>
-                <div className="space-y-1"><Label>جوال المسؤول (واتساب)</Label><Input type="tel" dir="ltr" value={form.manager_mobile} disabled={readOnly} onChange={(e) => set({ manager_mobile: e.target.value })} placeholder="9705XXXXXXXX" /></div>
+                <div className="space-y-1"><Label>PIN مدير النظام</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.admin_pin} disabled={readOnly} onChange={(e) => set({ admin_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_admin_pin: false })} placeholder={form.has_admin_pin && !form.clear_admin_pin ? "محفوظ — اتركه فارغاً للإبقاء" : "4 إلى 8 أرقام"} />{form.has_admin_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ admin_pin: "", clear_admin_pin: !form.clear_admin_pin })}>{form.clear_admin_pin ? "تراجع عن الحذف" : "حذف الرمز المحفوظ"}</button>}</div>
+                <div className="space-y-1"><Label>PIN المسؤول</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.manager_pin} disabled={readOnly} onChange={(e) => set({ manager_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_manager_pin: false })} placeholder={form.has_manager_pin && !form.clear_manager_pin ? "محفوظ — اتركه فارغاً للإبقاء" : "4 إلى 8 أرقام"} />{form.has_manager_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ manager_pin: "", clear_manager_pin: !form.clear_manager_pin })}>{form.clear_manager_pin ? "تراجع عن الحذف" : "حذف الرمز المحفوظ"}</button>}</div>
               </div>
             </FormSection>
 

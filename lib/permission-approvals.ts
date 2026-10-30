@@ -60,6 +60,8 @@ async function ensureApprovalTable() {
       await sql`CREATE INDEX IF NOT EXISTS permission_approvals_token_idx ON permission_approvals_tbl (token_hash)`
       await sql`ALTER TABLE permission_approvals_tbl ADD COLUMN IF NOT EXISTS used_request VARCHAR(64)`
       await sql`ALTER TABLE permission_approvals_tbl ADD COLUMN IF NOT EXISTS used_at TIMESTAMP`
+      // من وافق (رمز المدير) وبيانات الطلب
+      await sql`ALTER TABLE permission_approvals_tbl ADD COLUMN IF NOT EXISTS request_info JSONB`
     })()
     pending.catch(() => ensuredDbs.delete(db))
     ensuredDbs.set(db, pending)
@@ -67,19 +69,15 @@ async function ensureApprovalTable() {
   await pending
 }
 
-export type ApprovalChannel = "email" | "whatsapp"
-
-/** ينشئ رمزاً من 6 أرقام ويرسله لمدير النظام والمسؤول على نقطة البيع/الموقع — بالبريد أو عبر واتساب. */
-export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; channel?: ApprovalChannel }) {
+/** ينشئ رمزاً من 6 أرقام ويرسله بالبريد لمدير النظام والمسؤول على نقطة البيع/الموقع. */
+export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string }) {
   const config = SCOPES[input.scope]
   if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
   const name = approvalPermissionName(input.scope, input.permission)
   if (!name) throw Object.assign(new Error("الصلاحية غير معروفة"), { status: 400 })
-  const channel: ApprovalChannel = input.channel === "whatsapp" ? "whatsapp" : "email"
   await ensureApprovalTable()
-  const place = (await sql.unsafe(`SELECT name, admin_email, manager_email, admin_mobile, manager_mobile FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
+  const place = (await sql.unsafe(`SELECT name, admin_email, manager_email FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
   if (!place) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
-  if (channel === "whatsapp") return requestByWhatsApp(input, name, config, place)
   const recipients = [...new Set([place.admin_email, place.manager_email].map((value: unknown) => String(value || "").trim().toLowerCase()).filter(validEmail))]
   if (!recipients.length) throw Object.assign(new Error(`لم يُعرَّف ايميل مدير النظام أو ايميل المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
 
@@ -101,31 +99,83 @@ export async function requestPermissionApproval(input: { userId: string; userNam
   return { id: Number(row.id), sentTo: recipients.filter((_, index) => results[index]).map(maskEmail), minutes: CODE_MINUTES }
 }
 
-/** نفس الرمز عبر واتساب (WhatsApp Business API من الإعدادات) إلى جوال مدير النظام وجوال المسؤول. */
-async function requestByWhatsApp(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string }, name: string, config: { label: string }, place: any) {
-  // واتساب كباقي الشاشات (رابط wa.me يفتح تطبيق واتساب أو واتساب ويب على جهاز المستخدم) — لا WhatsApp Business API.
-  // الأرقام فقط من تعريف النقطة/الموقع: جوال مدير النظام وجوال المسؤول (لا إرسال لأي رقم آخر).
-  const digits = (value: unknown) => String(value || "").replace(/\D/g, "").replace(/^00/, "")
-  const recipients = [{ role: "مدير النظام", phone: digits(place.admin_mobile) }, { role: "المسؤول", phone: digits(place.manager_mobile) }]
-    .filter((row) => row.phone.length >= 8)
-    .filter((row, index, rows) => rows.findIndex((other) => other.phone === row.phone) === index)
-  if (!recipients.length) throw Object.assign(new Error(`لم يُعرَّف جوال مدير النظام أو جوال المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
-  const phones = recipients.map((row) => row.phone)
+// ---------------- رمز المدير (PIN) على شاشة الكاشير ----------------
+// مدير النظام/المسؤول يكتب رمزه الشخصي (4-8 أرقام) على جهاز المستخدم — لا رسائل ولا روابط فلا يرى المستخدم شيئاً.
+// الرموز محفوظة مجزّأة (scrypt + ملح) في تعريف نقطة البيع/الموقع: admin_pin_hash / manager_pin_hash.
+const PIN_MAX_FAILURES = 5
+const PIN_LOCK_MINUTES = 15
 
-  const code = String(crypto.randomInt(100000, 1000000))
-  await sql`UPDATE permission_approvals_tbl SET expires_at = CURRENT_TIMESTAMP WHERE user_id = ${input.userId} AND scope = ${input.scope} AND permission_key = ${input.permission} AND verified_at IS NULL AND expires_at > CURRENT_TIMESTAMP`
-  const row = (await sql`
-    INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to)
-    VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, ${digest(code)}, CURRENT_TIMESTAMP + (${CODE_MINUTES} * INTERVAL '1 minute'), ${`whatsapp: ${phones.join(", ")}`})
-    RETURNING id`)[0] as any
+export function hashManagerPin(pin: string) {
+  const salt = crypto.randomBytes(16).toString("hex")
+  return `scrypt:${salt}:${crypto.scryptSync(pin, salt, 32).toString("hex")}`
+}
 
-  const text = `طلب المستخدم ${input.userName} تفعيل صلاحية "${name}" على ${config.label} "${String(place.name || "")}".\nرمز التفعيل: ${code}\n(صالح لمدة ${CODE_MINUTES} دقائق ولمرة واحدة — إن لم توافق فتجاهل الرسالة)`
-  // المتصفح يفتح محادثة واتساب لكل رقم بهذه الروابط
-  return {
-    id: Number(row.id), minutes: CODE_MINUTES,
-    sentTo: recipients.map((row) => `${row.role}: ${row.phone}`),
-    links: recipients.map((row) => ({ role: row.role, url: `https://wa.me/${row.phone}?text=${encodeURIComponent(text)}` })),
+function pinMatches(pin: string, stored: unknown) {
+  const [kind, salt, hash] = String(stored || "").split(":")
+  if (kind !== "scrypt" || !salt || !hash) return false
+  const actual = crypto.scryptSync(pin, salt, 32)
+  const expected = Buffer.from(hash, "hex")
+  return expected.length === actual.length && crypto.timingSafeEqual(actual, expected)
+}
+
+export const validManagerPin = (pin: string) => /^\d{4,8}$/.test(pin)
+
+/** لا تُرسل تجزئة رموز PIN للمتصفح أبداً — فقط هل الرمز معرّف */
+export function stripPinHashes<T extends Record<string, any>>(row: T): T {
+  if (!row || typeof row !== "object") return row
+  const { admin_pin_hash, manager_pin_hash, ...rest } = row as any
+  return { ...rest, has_admin_pin: Boolean(admin_pin_hash), has_manager_pin: Boolean(manager_pin_hash) } as T
+}
+
+/**
+ * تغييرات رموز PIN من نموذج التعريف: admin_pin/manager_pin (جديد ⇐ يُجزّأ)، clear_admin_pin/clear_manager_pin (حذف).
+ * فارغ = إبقاء الرمز الحالي. يعيد error عند رمز غير صالح.
+ */
+export function managerPinChanges(data: any): { error?: string; admin?: string | null; manager?: string | null } {
+  const result: { error?: string; admin?: string | null; manager?: string | null } = {}
+  for (const [key, label] of [["admin", "PIN مدير النظام"], ["manager", "PIN المسؤول"]] as const) {
+    const pin = String(data?.[`${key}_pin`] ?? "").trim()
+    if (pin) {
+      if (!validManagerPin(pin)) return { error: `${label} يجب أن يكون من 4 إلى 8 أرقام` }
+      result[key] = hashManagerPin(pin)
+    } else if (data?.[`clear_${key}_pin`] === true) {
+      result[key] = null
+    }
   }
+  return result
+}
+
+/** يتحقق من رمز مدير النظام أو المسؤول ويعيد رمز موافقة لمرة واحدة (نفس ما يعيده التحقق من رمز البريد). */
+export async function verifyManagerPin(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; pin: string }) {
+  const config = SCOPES[input.scope]
+  if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
+  const name = approvalPermissionName(input.scope, input.permission)
+  if (!name) throw Object.assign(new Error("الصلاحية غير معروفة"), { status: 400 })
+  await ensureApprovalTable()
+  const place = (await sql.unsafe(`SELECT name, admin_pin_hash, manager_pin_hash FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
+  if (!place) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
+  if (!place.admin_pin_hash && !place.manager_pin_hash) throw Object.assign(new Error(`لم يُعرَّف رمز PIN لمدير النظام أو المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
+  // قفل بعد 5 محاولات خاطئة خلال 15 دقيقة لنفس المستخدم (منع التخمين)
+  const failures = Number(((await sql`
+    SELECT COUNT(*)::int AS n FROM permission_approvals_tbl
+    WHERE user_id = ${input.userId} AND sent_to = 'pin-failed' AND created_at > CURRENT_TIMESTAMP - (${PIN_LOCK_MINUTES} * INTERVAL '1 minute')`)[0] as any)?.n || 0)
+  if (failures >= PIN_MAX_FAILURES) throw Object.assign(new Error(`تم تجاوز عدد المحاولات — حاول بعد ${PIN_LOCK_MINUTES} دقيقة`), { status: 429 })
+  const pin = String(input.pin || "").trim()
+  const approver = validManagerPin(pin) ? (pinMatches(pin, place.admin_pin_hash) ? "مدير النظام" : pinMatches(pin, place.manager_pin_hash) ? "المسؤول" : "") : ""
+  if (!approver) {
+    await sql`
+      INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to)
+      VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, '', CURRENT_TIMESTAMP, 'pin-failed')`
+    const left = PIN_MAX_FAILURES - failures - 1
+    throw Object.assign(new Error(left > 0 ? `رمز المدير غير صحيح — متبقٍ ${left} محاولة` : `رمز المدير غير صحيح — تم قفل الإدخال ${PIN_LOCK_MINUTES} دقيقة`), { status: 400 })
+  }
+  // موافقة مسجّلة (من وافق ومتى) — رمز الموافقة لمرة واحدة كما في رمز البريد
+  const token = crypto.randomBytes(24).toString("hex")
+  await sql`
+    INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to, verified_at, token_hash, token_expires_at, request_info)
+    VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, '', CURRENT_TIMESTAMP, ${`pin: ${approver}`}, CURRENT_TIMESTAMP,
+            ${digest(token)}, CURRENT_TIMESTAMP + (${TOKEN_MINUTES} * INTERVAL '1 minute'), ${JSON.stringify({ user_name: input.userName, permission_name: name, approver })}::jsonb)`
+  return { token, scope: input.scope, permission: input.permission, minutes: TOKEN_MINUTES, approver }
 }
 
 /** يتحقق من الرمز (5 محاولات) ويعيد رمز موافقة صالحاً لـ TOKEN_MINUTES دقائق. */

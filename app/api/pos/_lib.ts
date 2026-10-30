@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { resolvePosAccounts } from "@/lib/pos-accounts"
 import sql from "@/lib/database"
 import { hasPosCashierPermission } from "@/lib/permissions"
-import { hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
+import { hasPermissionApproval, permissionRequiredBody, stripPinHashes } from "@/lib/permission-approvals"
 import { POS_CASHIER_PERMISSIONS, type PosCashierPermission } from "@/lib/transaction-permission-definitions"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -152,9 +152,9 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   // ايميل مدير النظام + ايميل المسؤول: يستلمان رمز التفعيل عند طلب صلاحية غير ممنوحة (lib/permission-approvals.ts)
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS admin_email VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS manager_email VARCHAR(150)`
-  // جوال مدير النظام + جوال المسؤول: إرسال رمز التفعيل عبر واتساب
-  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS admin_mobile VARCHAR(30)`
-  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS manager_mobile VARCHAR(30)`
+  // رمز PIN لمدير النظام والمسؤول (مجزّأ scrypt): يُكتب على شاشة الكاشير للموافقة على صلاحية غير ممنوحة
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS admin_pin_hash VARCHAR(200)`
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS manager_pin_hash VARCHAR(200)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
   // عهدة الدخان (lib/pos-tobacco.ts): كميات أصناف الدخان تُستلم عند فتح العهدة وتُسلَّم قبل تسليمها
@@ -256,7 +256,8 @@ export async function getPosPoint(pointId: number, userId: string, branchId?: nu
            OR EXISTS (SELECT 1 FROM pos_point_users_tbl x WHERE x.pos_point_id=p.id AND x.user_id=${userId}))
     LIMIT 1
   `
-  return rows[0] ? resolvePosAccounts(rows[0], userId) : null
+  // تجزئة رموز PIN لا تخرج من الخادم (النقطة تُرسل للمتصفح في كتالوج الكاشير)
+  return rows[0] ? resolvePosAccounts(stripPinHashes(rows[0]), userId) : null
 }
 
 export async function getOpenPosSession(pointId: number, userId: string) {

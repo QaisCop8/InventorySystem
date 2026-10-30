@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { ensureRestaurantTables, errorStatus } from "@/lib/restaurant"
 import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
+import { managerPinChanges, stripPinHashes } from "@/lib/permission-approvals"
 
 const text = (value: unknown, max: number) => String(value ?? "").trim().slice(0, max)
 const optionalId = (value: unknown) => {
@@ -71,9 +72,9 @@ async function validate(data: any, id: number | null, userId: string) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return { error: `${label} غير صالح` }
     emails[key] = value || null
   }
-  // جوال مدير النظام + جوال المسؤول (اختياريان): إرسال رمز التفعيل عبر واتساب
-  const mobile = (value: unknown) => String(value ?? "").replace(/[^\d+]/g, "").slice(0, 30) || null
-  const mobiles = { admin: mobile(data.admin_mobile), manager: mobile(data.manager_mobile) }
+  // رمز PIN لمدير النظام والمسؤول (يُكتب على شاشة المطعم للموافقة) — فارغ = إبقاء الحالي
+  const pins = managerPinChanges(data)
+  if (pins.error) return { error: pins.error }
 
   const duplicate = (await sql`
     SELECT id FROM restaurant_locations_tbl
@@ -84,7 +85,7 @@ async function validate(data: any, id: number | null, userId: string) {
   if (duplicate) return { error: "يوجد موقع بنفس الرقم أو بنفس الاسم في هذا الفرع" }
   return {
     value: {
-      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, mobiles,
+      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, pins,
       printByGroup: data.print_by_item_group !== false,
       kitchenPrintConfirm: data.kitchen_print_confirm === true,
       status: Number(data.status) === 2 ? 2 : 1,
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
       WHERE l.status <> 3 AND (${branchId} = 0 OR l.branch_id = ${branchId})
       ORDER BY l.branch_id, l.sort_order, l.id
     `
-    return NextResponse.json(permission.lookupOnly ? projectFileLookup("restaurant-locations", rows) : rows)
+    return NextResponse.json(permission.lookupOnly ? projectFileLookup("restaurant-locations", rows) : rows.map(stripPinHashes))
   } catch (error) {
     console.error("restaurant locations GET", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تحميل المواقع" }, { status: errorStatus(error) })
@@ -174,7 +175,9 @@ async function save(request: NextRequest, mode: "create" | "update") {
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
           print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
-          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, admin_mobile = ${v.mobiles.admin}, manager_mobile = ${v.mobiles.manager}, updated_at = NOW()
+          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, updated_at = NOW(),
+          admin_pin_hash = CASE WHEN ${v.pins.admin !== undefined} THEN ${v.pins.admin ?? null} ELSE admin_pin_hash END,
+          manager_pin_hash = CASE WHEN ${v.pins.manager !== undefined} THEN ${v.pins.manager ?? null} ELSE manager_pin_hash END
         WHERE id = ${id}
         RETURNING *
       `
@@ -182,15 +185,15 @@ async function save(request: NextRequest, mode: "create" | "update") {
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
           card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
-          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_mobile, manager_mobile
+          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_pin_hash, manager_pin_hash
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.mobiles.admin}, ${v.mobiles.manager}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}
         )
         RETURNING *
       `
-  return NextResponse.json(rows[0], { status: current ? 200 : 201 })
+  return NextResponse.json(stripPinHashes(rows[0]), { status: current ? 200 : 201 })
 }
 
 export async function POST(request: NextRequest) {
