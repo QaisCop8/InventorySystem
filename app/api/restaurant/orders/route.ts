@@ -1,4 +1,4 @@
-import { APPROVAL_HEADER, hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
+import { APPROVAL_HEADER, discountWithinApproval, hasPermissionApproval, permissionRequiredBody } from "@/lib/permission-approvals"
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import {
@@ -455,7 +455,7 @@ async function handlePay(ctx: Ctx, order: any) {
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${body.pos_client_sale_id}`}))`
   const response = await savePosSaleCore(ctx.request, body, {
     userId: ctx.userId, point, session: null, clientSaleId: body.pos_client_sale_id,
-    discountOverride: { scope: "restaurant", allowed: async () => ctx.permissions.overrideDiscount === true || hasPermissionApproval(ctx.userId, "restaurant", "overrideDiscount", ctx.request.headers.get(APPROVAL_HEADER)) },
+    discountOverride: { scope: "restaurant", allowed: async (percent) => ctx.permissions.overrideDiscount === true || hasPermissionApproval(ctx.userId, "restaurant", "overrideDiscount", ctx.request.headers.get(APPROVAL_HEADER), undefined, discountWithinApproval(percent)) },
   })
   const saved = await response.json().catch(() => ({}))
   if (!response.ok) throw Object.assign(fail(String(saved?.error || "تعذر حفظ فاتورة الطاولة"), response.status), saved?.permission_required ? { permission_required: saved.permission_required } : {})

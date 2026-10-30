@@ -106,9 +106,11 @@ export default function PosCustodyReport() {
             <ReportSummaryCard label="فرق الدخان (كمية)">{qty(totals.tobaccoDiff)}</ReportSummaryCard>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
+          {/* مثل باقي التقارير: الصفحة بارتفاع ثابت، والجدول وحده يتمرّر عمودياً وأفقياً (كان يُقصّ بلا تمرير) */}
+          <section className="report-results">
+          <div className="report-table-scroll">
             <table className="w-full min-w-[1180px] text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="p-2" />
                   <th className="p-2 text-right">الوردية</th><th className="p-2 text-right">النقطة</th><th className="p-2 text-right">الكاشير</th>
@@ -182,6 +184,7 @@ export default function PosCustodyReport() {
               </tbody>
             </table>
           </div>
+          </section>
         </>
       )}
     </ReportPage>

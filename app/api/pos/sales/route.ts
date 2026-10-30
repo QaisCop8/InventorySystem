@@ -1,3 +1,5 @@
+import { hasPosCashierPermission } from "@/lib/permissions"
+import { discountWithinApproval, hasPermissionApproval } from "@/lib/permission-approvals"
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { POST as createSalesVoucher } from "@/app/api/sales-vouchers/route"
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
       if(data.items.some((item:any)=>item.quantity_adjusted===true)&&!await canUsePosCashierPermission(userId,Number(point.branch_id),"editQuantity"))return posPermissionDenied("editQuantity","لا توجد لديك صلاحية تعديل كمية الصنف من الكاشير")
       const session=await getOpenPosSession(pointId,userId);if(!session)return NextResponse.json({error:"يجب فتح أو استلام عهدة قبل البيع"},{status:400})
       if(Number(data.pos_session_id)!==Number(session.id))return NextResponse.json({error:"جلسة العهدة تغيرت؛ حدّث الشاشة وحاول مرة أخرى"},{status:409})
-      return savePosSaleCore(request,data,{userId,point,session,clientSaleId,discountOverride:{scope:"pos",allowed:()=>canUsePosCashierPermission(userId,Number(point.branch_id),"overrideDiscount")}})
+      return savePosSaleCore(request,data,{userId,point,session,clientSaleId,discountOverride:{scope:"pos",allowed:async(percent)=>await hasPosCashierPermission(userId,"overrideDiscount",Number(point.branch_id))||hasPermissionApproval(userId,"pos","overrideDiscount",undefined,undefined,discountWithinApproval(percent))}})
     })
   } catch (error) {
     console.error("Error creating POS sale:", error)

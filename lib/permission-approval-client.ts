@@ -5,7 +5,9 @@
 // التحقق من الرمز يُعاد نفس الطلب تلقائياً مع رمز الموافقة في الترويسة x-permission-approval فتكمل العملية كما هي.
 
 export type ApprovalScope = "pos" | "restaurant"
-export type PermissionRequest = { scope: ApprovalScope; key: string; name: string; scopeId: number | null; message?: string }
+// context: ما يُعتمد بالضبط (مثل max_percent لنسبة الخصم) — الموافقة لا تغطي أكثر منه في الخادم
+export type ApprovalContext = { max_percent?: number }
+export type PermissionRequest = { scope: ApprovalScope; key: string; name: string; scopeId: number | null; message?: string; context?: ApprovalContext | null }
 
 export const APPROVAL_HEADER = "x-permission-approval"
 const APPROVAL_REQUEST_HEADER = "x-approval-request"
@@ -62,9 +64,14 @@ async function storedApprovalStillValid(scope: ApprovalScope, key: string) {
   return false
 }
 
-/** يفتح نافذة طلب رمز التفعيل؛ true عند التحقق من الرمز (رمز الموافقة محفوظ للطلب التالي الذي يحتاجه). */
-export async function askPermissionApproval(request: Omit<PermissionRequest, "scopeId"> & { scopeId?: number | null }): Promise<boolean> {
-  if (await storedApprovalStillValid(request.scope, request.key)) return true
+/**
+ * يفتح نافذة طلب رمز التفعيل/PIN؛ true عند الموافقة (رمز الموافقة محفوظ للطلب التالي الذي يحتاجه).
+ * fresh: يُطلب دائماً من جديد (تُنسى أي موافقة سابقة) — قبل فتح نافذة إجراء أو تنفيذه، فلا تُعاد موافقة قديمة لإجراء جديد
+ * (مثلاً: موافقة على خصم ثم إغلاق نافذة الدفع وزيادة الخصم ثم فتحها مجدداً ⇐ تُطلب موافقة جديدة).
+ */
+export async function askPermissionApproval(request: Omit<PermissionRequest, "scopeId"> & { scopeId?: number | null }, options: { fresh?: boolean } = {}): Promise<boolean> {
+  if (options.fresh) tokens.delete(tokenKey(request.scope, request.key))
+  else if (await storedApprovalStillValid(request.scope, request.key)) return true
   if (!asker) return false
   const id = tokenKey(request.scope, request.key)
   const existing = pendingAsks.get(id)
@@ -96,7 +103,7 @@ export function storedPermissionGranted(userId: string | number | null | undefin
  */
 export async function ensurePermissionBefore(request: Omit<PermissionRequest, "scopeId"> & { scopeId?: number | null }, granted: boolean | null): Promise<boolean> {
   if (granted !== false) return true
-  return askPermissionApproval(request)
+  return askPermissionApproval(request, { fresh: true })
 }
 
 let installed = false
@@ -126,7 +133,7 @@ export function installPermissionApprovalFetch() {
     if (!required?.scope || !required?.key) return response
     // رفض الخادم ⇐ أي موافقة محفوظة لهذه الصلاحية استُهلكت أو انتهت: تُحذف لتُطلب من جديد
     tokens.delete(tokenKey(String(required.scope), String(required.key)))
-    const approved = await askPermissionApproval({ scope: required.scope, key: String(required.key), name: String(required.name || ""), message: String(body?.error || "") })
+    const approved = await askPermissionApproval({ scope: required.scope, key: String(required.key), name: String(required.name || ""), message: String(body?.error || ""), context: required.context ?? null })
     // إلغاء ⇐ يعود الرفض الأصلي للشاشة فتعرض رسالتها كالمعتاد
     return approved ? send() : response
   }

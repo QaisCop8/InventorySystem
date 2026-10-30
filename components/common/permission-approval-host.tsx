@@ -56,7 +56,7 @@ export function PermissionApprovalHost() {
     if (!state.request.scopeId) { setError("تعذر تحديد نقطة البيع/الموقع لإرسال الرمز"); return }
     setMode("email"); setBusy(true); setError("")
     try {
-      const data = await post({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key })
+      const data = await post({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, context: state.request.context ?? null })
       setApprovalId(Number(data.id)); setSentTo(Array.isArray(data.sent_to) ? data.sent_to : []); setCode("")
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "تعذر إرسال رمز التفعيل")
@@ -91,7 +91,7 @@ export function PermissionApprovalHost() {
     if (!/^\d{4,8}$/.test(pin)) { setError("رمز المدير من 4 إلى 8 أرقام"); return }
     setBusy(true); setError("")
     try {
-      finish(await post({ action: "pin", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, pin }))
+      finish(await post({ action: "pin", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, pin, context: state.request.context ?? null }))
     } catch (pinError) {
       setError(pinError instanceof Error ? pinError.message : "رمز المدير غير صحيح")
       setPin("")
@@ -118,6 +118,7 @@ export function PermissionApprovalHost() {
         </div>
         <div className="space-y-3 p-4 text-sm">
           {request?.message && <p className="rounded-lg bg-amber-50 p-2.5 text-amber-900 ring-1 ring-amber-200">{request.message}</p>}
+          {request?.context?.max_percent !== undefined && <p className="rounded-lg bg-slate-100 p-2.5 text-center text-slate-700">الموافقة على خصم حتى <b dir="ltr" className="text-base">{request.context.max_percent}%</b> — أي زيادة بعدها تتطلب موافقة جديدة</p>}
 
           {mode === "choose" && (
             <p className="text-slate-600">موافقة لمرة واحدة: إما أن يكتب مدير النظام أو المسؤول <b>رمز PIN</b> الخاص به على هذه الشاشة، أو يُرسل <b>رمز تفعيل بالبريد</b> لهما المعرّفين على {placeLabel}.</p>

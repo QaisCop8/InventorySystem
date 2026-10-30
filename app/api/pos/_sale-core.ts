@@ -31,7 +31,7 @@ const localDate = () => {
 // يُستدعى داخل withTenantTransaction بعد فحص الصلاحيات من المستدعي.
 // discountOverride: صلاحية "السماح بتجاوز نسبة الخصم في الاعدادات" (أو موافقة برمز تفعيل) — بدونها يُرفض تجاوز أعلى نسبة خصم
 // برد 403 يحمل permission_required فيعرض المتصفح نافذة إرسال رمز التفعيل للمدير ومسؤول النظام.
-export async function savePosSaleCore(request: NextRequest, data: any, ctx: { userId: string; point: any; session: any | null; clientSaleId: string; discountOverride?: { scope: ApprovalScope; allowed: () => Promise<boolean> } }) {
+export async function savePosSaleCore(request: NextRequest, data: any, ctx: { userId: string; point: any; session: any | null; clientSaleId: string; discountOverride?: { scope: ApprovalScope; allowed: (percent: number) => Promise<boolean> } }) {
       const {userId,point,session,clientSaleId}=ctx
       // قياس زمن مراحل الحفظ (Server-Timing + سجل الخادم عند البطء) لتحديد المرحلة البطيئة فعلياً
       const timing=saleTimer()
@@ -39,17 +39,18 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       const systemSettings=await loadStoredSettings()
       const taxRate=Math.max(0,Number(systemSettings.tax_rate||0))
       const discountLimit=Math.min(100,Math.max(0,Number(point.max_discount_percent??100)))
-      let discountOverrideAllowed:boolean|null=null
-      const canExceedDiscount=async()=>{if(discountOverrideAllowed===null)discountOverrideAllowed=ctx.discountOverride?await ctx.discountOverride.allowed():false;return discountOverrideAllowed}
-      const discountLimitDenied=(message:string)=>NextResponse.json(permissionRequiredBody(ctx.discountOverride?.scope||"pos","overrideDiscount",message),{status:403})
+      // الموافقة على التجاوز مرتبطة بالنسبة التي وافق عليها المدير: نسبة أعلى منها تتطلب موافقة جديدة
+      const requiredPercent=(percent:number)=>Math.ceil(percent*100-0.0001)/100
+      const canExceedDiscount=async(percent:number)=>ctx.discountOverride?ctx.discountOverride.allowed(requiredPercent(percent)):false
+      const discountLimitDenied=(message:string,percent:number)=>NextResponse.json(permissionRequiredBody(ctx.discountOverride?.scope||"pos","overrideDiscount",message,{max_percent:requiredPercent(percent)}),{status:403})
       for(const item of data.items){
         const gross=Number(item.price??item.unit_price)*Number(item.quantity??item.qnty)
         const discount=Number(item.discount_percent??item.discount??0)
         if(!Number.isFinite(gross)||gross<0||!Number.isFinite(discount)||discount<0||discount>100||gross*discount/100>gross+0.009){
           return NextResponse.json({error:`خصم الصنف ${String(item.product_name||item.item_name||"")} يجب ألا يتجاوز قيمته أو 100%`},{status:400})
         }
-        if(discount>discountLimit+0.001&&!await canExceedDiscount()){
-          return discountLimitDenied(`خصم الصنف ${String(item.product_name||item.item_name||"")} (${discount}%) يتجاوز أعلى نسبة خصم مسموحة (${discountLimit}%) — يلزم صلاحية السماح بتجاوز نسبة الخصم في الاعدادات`)
+        if(discount>discountLimit+0.001&&!await canExceedDiscount(discount)){
+          return discountLimitDenied(`خصم الصنف ${String(item.product_name||item.item_name||"")} (${discount}%) يتجاوز أعلى نسبة خصم مسموحة (${discountLimit}%) — يلزم صلاحية السماح بتجاوز نسبة الخصم في الاعدادات`,discount)
         }
       }
       if(!["sale","return","gift"].includes(String(data.pos_mode)))return NextResponse.json({error:"نوع حركة نقطة البيع غير صالح"},{status:400})
@@ -113,7 +114,7 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       const grossBeforeDiscounts=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity),0)
       const itemDiscountAmount=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity)*Number(item.discount_percent??0)/100,0)
       const manualDiscountPercent=grossBeforeDiscounts>0?(itemDiscountAmount+manualInvoiceDiscount)/grossBeforeDiscounts*100:0
-      if(manualDiscountPercent>discountLimit+0.01&&!await canExceedDiscount())return discountLimitDenied(`مجموع خصم الفاتورة وخصم الأصناف (${manualDiscountPercent.toFixed(2)}%) يتجاوز أعلى نسبة خصم مسموحة (${discountLimit}%) — يلزم صلاحية السماح بتجاوز نسبة الخصم في الاعدادات`)
+      if(manualDiscountPercent>discountLimit+0.01&&!await canExceedDiscount(manualDiscountPercent))return discountLimitDenied(`مجموع خصم الفاتورة وخصم الأصناف (${manualDiscountPercent.toFixed(2)}%) يتجاوز أعلى نسبة خصم مسموحة (${discountLimit}%) — يلزم صلاحية السماح بتجاوز نسبة الخصم في الاعدادات`,manualDiscountPercent)
       let totalInvoiceDiscount=manualInvoiceDiscount+campaignResult.invoiceDiscount/campaignTaxFactor
       let payments=(Array.isArray(data.pos_payments)?data.pos_payments:[]).map((payment:any)=>{
         const method=String(payment.payment_method||payment.method||"cash")

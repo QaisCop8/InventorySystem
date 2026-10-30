@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { requestPermissionApproval, unusedApprovalTokens, verifyManagerPin, verifyPermissionApproval, type ApprovalScope } from "@/lib/permission-approvals"
+import { cleanApprovalContext, requestPermissionApproval, unusedApprovalTokens, verifyManagerPin, verifyPermissionApproval, type ApprovalScope } from "@/lib/permission-approvals"
 
 // موافقة على صلاحية غير ممنوحة في الكاشير/المطعم (lib/permission-approvals.ts):
 // action=request ⇐ يرسل رمز تفعيل لايميلي مدير النظام والمسؤول؛ action=verify ⇐ يتحقق منه ويعيد رمز موافقة مؤقتاً؛
@@ -13,12 +13,14 @@ export async function POST(request: NextRequest) {
     const action = String(data?.action || "")
     const userName = user.full_name || user.username || String(user.user_id)
     const scope = String(data.scope || "") as ApprovalScope
+    // ما يُطلب اعتماده بالضبط (مثل نسبة الخصم) — الموافقة لا تغطي أكثر منه
+    const context = cleanApprovalContext(data.context)
     if (action === "request" || action === "pin") {
       if (scope !== "pos" && scope !== "restaurant") return NextResponse.json({ error: "نوع الطلب غير صالح" }, { status: 400 })
     }
     if (action === "request") {
       const result = await requestPermissionApproval({
-        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""),
+        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""), context,
       })
       return NextResponse.json({ id: result.id, sent_to: result.sentTo, minutes: result.minutes })
     }
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
     if (action === "pin") {
       const result = await verifyManagerPin({
-        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""), pin: String(data.pin || ""),
+        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""), pin: String(data.pin || ""), context,
       })
       return NextResponse.json({ token: result.token, scope: result.scope, permission: result.permission, minutes: result.minutes, approver: result.approver })
     }

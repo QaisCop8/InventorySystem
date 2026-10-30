@@ -30,10 +30,23 @@ export function approvalPermissionName(scope: ApprovalScope, key: string) {
 }
 
 /** جسم رد 403 موحّد: الرسالة + ما يلزم المتصفح لعرض نافذة طلب رمز التفعيل */
-export function permissionRequiredBody(scope: ApprovalScope, key: string, error?: string) {
+/** سياق الموافقة: ما وافق عليه المدير بالضبط (مثل أعلى نسبة خصم max_percent) — لا تُقبل الموافقة لما يتجاوزه */
+export type ApprovalContext = { max_percent?: number }
+
+export function permissionRequiredBody(scope: ApprovalScope, key: string, error?: string, context?: ApprovalContext) {
   const name = approvalPermissionName(scope, key)
-  return { error: error || `لا توجد لديك صلاحية ${name}`, permission_required: { scope, key, name } }
+  return { error: error || `لا توجد لديك صلاحية ${name}`, permission_required: { scope, key, name, ...(context ? { context } : {}) } }
 }
+
+/** سياق من المتصفح — أرقام فقط (لا يُخزَّن أي نص حر) */
+export function cleanApprovalContext(value: unknown): ApprovalContext | null {
+  const percent = Number((value as any)?.max_percent)
+  return Number.isFinite(percent) && percent >= 0 && percent <= 100 ? { max_percent: Math.round(percent * 100) / 100 } : null
+}
+
+/** تجاوز نسبة الخصم: الموافقة مقبولة فقط إن كانت النسبة المطلوبة ضمن ما وافق عليه المدير */
+export const discountWithinApproval = (percent: number) => (context: ApprovalContext | null) =>
+  Number.isFinite(Number(context?.max_percent)) && Number(context!.max_percent) + 0.01 >= percent
 
 const ensuredDbs = new Map<string, Promise<void>>()
 async function ensureApprovalTable() {
@@ -70,7 +83,7 @@ async function ensureApprovalTable() {
 }
 
 /** ينشئ رمزاً من 6 أرقام ويرسله بالبريد لمدير النظام والمسؤول على نقطة البيع/الموقع. */
-export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string }) {
+export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; context?: ApprovalContext | null }) {
   const config = SCOPES[input.scope]
   if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
   const name = approvalPermissionName(input.scope, input.permission)
@@ -85,12 +98,13 @@ export async function requestPermissionApproval(input: { userId: string; userNam
   // طلب جديد يُلغي الرموز السابقة غير المستخدمة لنفس المستخدم والصلاحية
   await sql`UPDATE permission_approvals_tbl SET expires_at = CURRENT_TIMESTAMP WHERE user_id = ${input.userId} AND scope = ${input.scope} AND permission_key = ${input.permission} AND verified_at IS NULL AND expires_at > CURRENT_TIMESTAMP`
   const row = (await sql`
-    INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to)
-    VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, ${digest(code)}, CURRENT_TIMESTAMP + (${CODE_MINUTES} * INTERVAL '1 minute'), ${recipients.join(", ")})
+    INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to, request_info)
+    VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, ${digest(code)}, CURRENT_TIMESTAMP + (${CODE_MINUTES} * INTERVAL '1 minute'), ${recipients.join(", ")},
+            ${JSON.stringify({ user_name: input.userName, permission_name: name, context: input.context ?? null })}::jsonb)
     RETURNING id`)[0] as any
 
   const when = new Date().toLocaleString("en-GB", { hour12: false })
-  const html = `<div dir="rtl" style="font-family:Arial,sans-serif"><p>مرحباً،</p><p>طلب المستخدم <b>${escapeHtml(input.userName)}</b> تفعيل صلاحية <b>${escapeHtml(name)}</b> على ${config.label} <b>${escapeHtml(String(place.name || ""))}</b> (${when}).</p><p>إن كنت توافق، أعطه رمز التفعيل التالي (صالح لمدة ${CODE_MINUTES} دقائق ولمرة واحدة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p><p>إن لم توافق فتجاهل هذه الرسالة.</p></div>`
+  const html = `<div dir="rtl" style="font-family:Arial,sans-serif"><p>مرحباً،</p><p>طلب المستخدم <b>${escapeHtml(input.userName)}</b> تفعيل صلاحية <b>${escapeHtml(name)}</b> على ${config.label} <b>${escapeHtml(String(place.name || ""))}</b> (${when}).</p>${input.context?.max_percent !== undefined ? `<p>نسبة الخصم المطلوبة: <b>${input.context.max_percent}%</b></p>` : ""}<p>إن كنت توافق، أعطه رمز التفعيل التالي (صالح لمدة ${CODE_MINUTES} دقائق ولمرة واحدة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p><p>إن لم توافق فتجاهل هذه الرسالة.</p></div>`
   const results = await Promise.all(recipients.map((to) => sendMail({ to, subject: `رمز تفعيل صلاحية "${name}" — Noon ERP`, html })))
   if (!results.some(Boolean)) {
     console.log(`[permission-approvals] email not sent; code for approval ${row.id} was generated (check email settings)`)
@@ -146,7 +160,7 @@ export function managerPinChanges(data: any): { error?: string; admin?: string |
 }
 
 /** يتحقق من رمز مدير النظام أو المسؤول ويعيد رمز موافقة لمرة واحدة (نفس ما يعيده التحقق من رمز البريد). */
-export async function verifyManagerPin(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; pin: string }) {
+export async function verifyManagerPin(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; pin: string; context?: ApprovalContext | null }) {
   const config = SCOPES[input.scope]
   if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
   const name = approvalPermissionName(input.scope, input.permission)
@@ -174,7 +188,7 @@ export async function verifyManagerPin(input: { userId: string; userName: string
   await sql`
     INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to, verified_at, token_hash, token_expires_at, request_info)
     VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, '', CURRENT_TIMESTAMP, ${`pin: ${approver}`}, CURRENT_TIMESTAMP,
-            ${digest(token)}, CURRENT_TIMESTAMP + (${TOKEN_MINUTES} * INTERVAL '1 minute'), ${JSON.stringify({ user_name: input.userName, permission_name: name, approver })}::jsonb)`
+            ${digest(token)}, CURRENT_TIMESTAMP + (${TOKEN_MINUTES} * INTERVAL '1 minute'), ${JSON.stringify({ user_name: input.userName, permission_name: name, approver, context: input.context ?? null })}::jsonb)`
   return { token, scope: input.scope, permission: input.permission, minutes: TOKEN_MINUTES, approver }
 }
 
@@ -216,7 +230,7 @@ export async function unusedApprovalTokens(userId: string, list: unknown): Promi
  * لمرة واحدة: أول طلب يستخدم الموافقة يستهلكها (used_request)؛ فحوص أخرى داخل نفس الطلب تنجح، وأي طلب لاحق يُرفض
  * فتظهر نافذة رمز التفعيل من جديد في كل مرة.
  */
-export async function hasPermissionApproval(userId: string, scope: ApprovalScope, permission: string, headerValue?: string | null, requestIdValue?: string | null): Promise<boolean> {
+export async function hasPermissionApproval(userId: string, scope: ApprovalScope, permission: string, headerValue?: string | null, requestIdValue?: string | null, accept?: (context: ApprovalContext | null) => boolean): Promise<boolean> {
   let raw = headerValue ?? null
   let requestId = requestIdValue ?? null
   if (raw == null || requestId == null) {
@@ -232,16 +246,19 @@ export async function hasPermissionApproval(userId: string, scope: ApprovalScope
   if (!tokens.length || !userId) return false
   try {
     await ensureApprovalTable()
+    // الموافقات المرشّحة؛ مع accept تُستبعد التي لا يغطي سياقها المطلوب (مثل خصم أعلى مما وافق عليه المدير)
+    const candidates = (await sql`
+      SELECT id, request_info FROM permission_approvals_tbl
+      WHERE token_hash = ANY(${tokens.map(digest)}::text[]) AND user_id = ${String(userId)} AND scope = ${scope}
+        AND permission_key = ${permission} AND token_expires_at > CURRENT_TIMESTAMP
+        AND (used_request IS NULL OR used_request = ${usedBy})
+      ORDER BY id DESC`) as Array<{ id: number; request_info: any }>
+    const match = candidates.find((row) => !accept || accept(cleanApprovalContext(row.request_info?.context)))
+    if (!match) return false
     // استهلاك ذرّي: يُعلَّم الصف بمعرّف هذا الطلب إن لم يُستخدم بعد، أو يُقبل إن كان هذا الطلب نفسه من استخدمه
     const rows = await sql`
       UPDATE permission_approvals_tbl SET used_request = COALESCE(used_request, ${usedBy}), used_at = COALESCE(used_at, CURRENT_TIMESTAMP)
-      WHERE id = (
-        SELECT id FROM permission_approvals_tbl
-        WHERE token_hash = ANY(${tokens.map(digest)}::text[]) AND user_id = ${String(userId)} AND scope = ${scope}
-          AND permission_key = ${permission} AND token_expires_at > CURRENT_TIMESTAMP
-          AND (used_request IS NULL OR used_request = ${usedBy})
-        ORDER BY id DESC LIMIT 1
-      ) AND (used_request IS NULL OR used_request = ${usedBy})
+      WHERE id = ${match.id} AND (used_request IS NULL OR used_request = ${usedBy})
       RETURNING id`
     return rows.length > 0
   } catch {

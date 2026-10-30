@@ -140,7 +140,7 @@ export default function RestaurantPos() {
   const can = (key: RestaurantPermission) => Boolean(perms?.[key])
   // صلاحية غير ممنوحة ⇐ نافذة "لا يوجد لديك صلاحية" مع رمز تفعيل لايميلي مدير النظام والمسؤول على الموقع
   const ensurePermission = async (key: RestaurantPermission, locationId?: number | null) =>
-    can(key) || askPermissionApproval({ scope: "restaurant", key, name: RESTAURANT_PERMISSIONS[key], scopeId: locationId ?? null })
+    can(key) || askPermissionApproval({ scope: "restaurant", key, name: RESTAURANT_PERMISSIONS[key], scopeId: locationId ?? null }, { fresh: true })
   // قبل فتح نافذة إجراء أو تنفيذه: الأزرار تبقى ظاهرة، والنقر بلا صلاحية يفتح نافذة رمز التفعيل أولاً
   const gated = (key: RestaurantPermission, fn: () => void, locationId?: number | null) => () => { void ensurePermission(key, locationId).then((ok) => { if (ok) fn() }) }
   // لوحة الطلب تُظهر كل أدواتها مفعّلة؛ الصلاحية تُفحص (أو تُطلب موافقتها) عند النقر في المعالجات أدناه
