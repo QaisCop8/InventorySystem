@@ -77,9 +77,11 @@ export async function ensureInternalManufacturingTables() {
 async function createInternalManufacturingTables() {
   await ensureReceiptTables()
   await ensureStockTables()
-  const conflict = await sql`SELECT name FROM voucher_types_tbl WHERE id = ${INTERNAL_MANUFACTURING_VOUCHER_TYPE} AND name <> 'طلب صناعة داخلي'`
+  // الاسم القديم 'طلب صناعة داخلي' يُعاد تسميته إلى 'طلب بضاعة داخلي' (2026-10-30)
+  await sql`UPDATE voucher_types_tbl SET name = 'طلب بضاعة داخلي' WHERE id = ${INTERNAL_MANUFACTURING_VOUCHER_TYPE} AND name = 'طلب صناعة داخلي'`
+  const conflict = await sql`SELECT name FROM voucher_types_tbl WHERE id = ${INTERNAL_MANUFACTURING_VOUCHER_TYPE} AND name <> 'طلب بضاعة داخلي'`
   if (conflict.length) throw new Error("رقم نوع السند 20 مستخدم لنوع مختلف")
-  await sql`INSERT INTO voucher_types_tbl (id, name, status) VALUES (20, 'طلب صناعة داخلي', 1) ON CONFLICT (id) DO NOTHING`
+  await sql`INSERT INTO voucher_types_tbl (id, name, status) VALUES (20, 'طلب بضاعة داخلي', 1) ON CONFLICT (id) DO NOTHING`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS internal_status INTEGER DEFAULT 1`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS manufacturing_branch_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS destination_warehouse_id INTEGER`

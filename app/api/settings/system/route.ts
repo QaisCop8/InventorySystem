@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql, { memoInTransaction } from "@/lib/database"
+import sql, { memoInTransaction, resolveCurrentDbName } from "@/lib/database"
 import { ensureWorkingPeriodGuard } from "@/lib/working-period"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccounts } from "@/lib/leaf-accounts"
@@ -240,19 +240,38 @@ async function ensureSettingsTable(): Promise<void> { return runSchemaOnce("app/
     "updated_at",
   ]
 
-  for (const col of dropColumns) {
-    // Column names can't be bound as query parameters (sql`...${col}` would send it as $1,
-    // an identifier, which Postgres rejects) — col only ever comes from the fixed list above,
-    // so building the statement text directly here is safe.
-    // eslint-disable-next-line no-await-in-loop
-    await execSafe(sql([`ALTER TABLE system_settings DROP COLUMN IF EXISTS "${col}"`] as any))
-  }
+  // كل الأعمدة القديمة بأمر واحد بدل ~60 أمراً متتالياً (القائمة ثابتة أعلاه فبناء النص مباشرة آمن —
+  // أسماء الأعمدة لا يمكن تمريرها كمعاملات)
+  await execSafe(sql([`ALTER TABLE system_settings ${dropColumns.map((col) => `DROP COLUMN IF EXISTS "${col}"`).join(", ")}`] as any))
 }) }
 
 // داخل معاملة (حفظ فاتورة الكاشير مثلاً) تُقرأ الإعدادات مرة واحدة (memoInTransaction في lib/database.ts)؛
 // نسخة منفصلة لكل مستدعٍ حتى لا يؤثر تعديل أحدهم على الآخر.
 export async function loadStoredSettings(): Promise<Record<string, unknown>> {
   return { ...(await memoInTransaction("system-settings", loadStoredSettingsFromDb)) }
+}
+
+// نوع عمود id (جداول قديمة برقم صحيح) — يُفحص مرة لكل قاعدة شركة بدل استعلام information_schema مع كل قراءة وحفظ
+const idTypeByDb = new Map<string, Promise<boolean>>()
+async function settingsIdIsInteger(): Promise<boolean> {
+  const dbName = await resolveCurrentDbName()
+  let pending = idTypeByDb.get(dbName)
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const info = await sql`
+          SELECT data_type FROM information_schema.columns
+          WHERE table_name = 'system_settings' AND column_name = 'id' LIMIT 1
+        `
+        const dt = info?.[0]?.data_type
+        return typeof dt === "string" && /int/i.test(dt)
+      } catch {
+        return false
+      }
+    })()
+    idTypeByDb.set(dbName, pending)
+  }
+  return pending
 }
 
 async function loadStoredSettingsFromDb(): Promise<Record<string, unknown>> {
@@ -270,19 +289,7 @@ async function loadStoredSettingsFromDb(): Promise<Record<string, unknown>> {
 
   // Detect if the existing table uses an integer id PK (legacy). If so,
   // prefer the `description` column as the settings key.
-  let idIsInteger = false
-  try {
-    const info = await sql`
-      SELECT data_type
-      FROM information_schema.columns
-      WHERE table_name = 'system_settings' AND column_name = 'id'
-      LIMIT 1
-    `
-    const dt = info?.[0]?.data_type
-    if (typeof dt === "string" && /int/i.test(dt)) idIsInteger = true
-  } catch (err) {
-    // ignore
-  }
+  const idIsInteger = await settingsIdIsInteger()
 
   for (const row of rows) {
     const key = idIsInteger ? row.description ?? String(row.id) : row.id ?? row.description
@@ -293,30 +300,36 @@ async function loadStoredSettingsFromDb(): Promise<Record<string, unknown>> {
   return settings
 }
 
-async function saveSettingsPayload(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function saveSettingsPayload(payload: Record<string, unknown>, stored?: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (!sql) return {}
 
   await ensureSettingsTable()
 
   // If the table has an integer `id` PK (legacy), store settings by
   // `description`/`value`. Otherwise use `id` as the key.
-  let idIsInteger = false
-  try {
-    const info = await sql`
-      SELECT data_type
-      FROM information_schema.columns
-      WHERE table_name = 'system_settings' AND column_name = 'id'
-      LIMIT 1
+  const idIsInteger = await settingsIdIsInteger()
+
+  // فقط المفاتيح التي تغيّرت عن المحفوظ (مقارنة بالقيمة المخزنة نصاً)، ثم إدراج/تحديث جماعي باستعلام واحد —
+  // كان كل مفتاح (مئات المفاتيح) يُحفظ باستعلام منفصل متتالٍ فيستغرق الحفظ ثوانٍ مع قاعدة بعيدة.
+  const changed = Object.entries(payload).filter(([key, value]) => !stored || !(key in stored)
+    || serializeSettingValue(value) !== serializeSettingValue(stored[key]))
+  if (!changed.length) return stored ? { ...stored } : loadStoredSettings()
+
+  if (!idIsInteger) {
+    const keys = changed.map(([key]) => key)
+    const values = changed.map(([, value]) => serializeSettingValue(value))
+    await sql`
+      INSERT INTO system_settings (id, description, value)
+      SELECT k, k, v FROM unnest(${keys}::text[], ${values}::text[]) AS t(k, v)
+      ON CONFLICT (id) DO UPDATE SET
+        description = EXCLUDED.description,
+        value = EXCLUDED.value
     `
-    const dt = info?.[0]?.data_type
-    if (typeof dt === "string" && /int/i.test(dt)) idIsInteger = true
-  } catch (err) {
-    // ignore and proceed with id as string
+    return loadStoredSettings()
   }
 
-  for (const [key, value] of Object.entries(payload)) {
+  for (const [key, value] of changed) {
     const serializedValue = serializeSettingValue(value)
-    if (idIsInteger) {
       const updated = await sql`
         UPDATE system_settings
         SET value = ${serializedValue}
@@ -329,15 +342,6 @@ async function saveSettingsPayload(payload: Record<string, unknown>): Promise<Re
           VALUES (${key}, ${serializedValue})
         `
       }
-    } else {
-      await sql`
-        INSERT INTO system_settings (id, description, value)
-        VALUES (${key}, ${key}, ${serializedValue})
-        ON CONFLICT (id) DO UPDATE SET
-          description = EXCLUDED.description,
-          value = EXCLUDED.value
-      `
-    }
   }
 
   return loadStoredSettings()
@@ -374,7 +378,7 @@ export async function PUT(request: NextRequest) {
       .map(([, value]) => value)
     const leafAccountsError = await validateLeafAccounts(leafAccountIds, "الحسابات الافتراضية")
     if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
-    const saved = await saveSettingsPayload(payload)
+    const saved = await saveSettingsPayload(payload, storedSettings)
     await ensureWorkingPeriodGuard().catch((error) => console.error("Failed to install working period guard:", error))
     return NextResponse.json(saved)
   } catch (error) {

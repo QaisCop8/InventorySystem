@@ -1,13 +1,14 @@
 -- Internal Manufacturing Request, voucher type 20.
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM voucher_types_tbl WHERE id = 20 AND name <> 'طلب صناعة داخلي') THEN
+  UPDATE voucher_types_tbl SET name = 'طلب بضاعة داخلي' WHERE id = 20 AND name = 'طلب صناعة داخلي';
+  IF EXISTS (SELECT 1 FROM voucher_types_tbl WHERE id = 20 AND name <> 'طلب بضاعة داخلي') THEN
     RAISE EXCEPTION 'voucher type 20 is already assigned to another voucher type';
   END IF;
 END $$;
 
 INSERT INTO voucher_types_tbl (id, name, status)
-VALUES (20, 'طلب صناعة داخلي', 1)
+VALUES (20, 'طلب بضاعة داخلي', 1)
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE voucher_header_tbl
