@@ -121,6 +121,63 @@ export async function ensureStockCountTables() { return runSchemaOnce("lib/stock
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_stock_count_serials_count ON stock_count_serials(count_id)`
+
+  // جلسات الجرد: عدة مستخدمين يعدّون نفس الوثيقة بالتوازي — لكل مستخدم جلسة مفتوحة واحدة بالوثيقة،
+  // وكمية السطر المجرودة = مجموع كميات كل الجلسات (stock_count_items.counted_qty مجمّع يُعاد حسابه).
+  await sql`
+    CREATE TABLE IF NOT EXISTS stock_count_sessions (
+      id SERIAL PRIMARY KEY,
+      count_id INTEGER NOT NULL REFERENCES stock_counts(id) ON DELETE CASCADE,
+      session_no INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT,
+      status SMALLINT NOT NULL DEFAULT 1,
+      started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      finished_at TIMESTAMP,
+      finished_by TEXT,
+      UNIQUE (count_id, session_no)
+    )
+  `
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS stock_count_sessions_one_open ON stock_count_sessions(count_id, user_id) WHERE status = 1`
+  await sql`
+    CREATE TABLE IF NOT EXISTS stock_count_session_lines (
+      id SERIAL PRIMARY KEY,
+      session_id INTEGER NOT NULL REFERENCES stock_count_sessions(id) ON DELETE CASCADE,
+      count_id INTEGER NOT NULL REFERENCES stock_counts(id) ON DELETE CASCADE,
+      line_id INTEGER NOT NULL REFERENCES stock_count_items(id) ON DELETE CASCADE,
+      counted_qty NUMERIC(20,6),
+      counted_pieces NUMERIC(20,6),
+      note TEXT,
+      counted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (session_id, line_id)
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_stock_count_session_lines_count ON stock_count_session_lines(count_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_stock_count_session_lines_line ON stock_count_session_lines(line_id)`
+  await sql`ALTER TABLE stock_count_serials ADD COLUMN IF NOT EXISTS session_id INTEGER`
+  // وثائق مفتوحة من قبل الجلسات: كمياتها المجرودة تُنقل لجلسة منتهية رقم 1 كي لا تضيع عند إعادة التجميع
+  const legacy = (await sql`
+    SELECT c.id, c.created_by FROM stock_counts c
+    WHERE c.status IN (1, 2)
+      AND NOT EXISTS (SELECT 1 FROM stock_count_sessions s WHERE s.count_id = c.id)
+      AND EXISTS (SELECT 1 FROM stock_count_items i WHERE i.count_id = c.id AND (i.counted_qty IS NOT NULL OR COALESCE(i.note, '') <> ''))
+  `) as any[]
+  for (const count of legacy) {
+    const created = (await sql`
+      INSERT INTO stock_count_sessions (count_id, session_no, user_id, user_name, status, finished_at)
+      VALUES (${Number(count.id)}, 1, ${String(count.created_by || "0")}, 'جلسة سابقة', 2, CURRENT_TIMESTAMP)
+      RETURNING id
+    `) as any[]
+    const sessionId = Number(created[0].id)
+    await sql`
+      INSERT INTO stock_count_session_lines (session_id, count_id, line_id, counted_qty, counted_pieces, note, counted_at)
+      SELECT ${sessionId}, i.count_id, i.id, CASE WHEN i.has_serial THEN NULL ELSE i.counted_qty END, i.counted_pieces, NULLIF(i.note, ''), COALESCE(i.counted_at, CURRENT_TIMESTAMP)
+      FROM stock_count_items i
+      WHERE i.count_id = ${Number(count.id)} AND (i.counted_qty IS NOT NULL OR COALESCE(i.note, '') <> '')
+    `
+    await sql`UPDATE stock_count_serials SET session_id = ${sessionId} WHERE count_id = ${Number(count.id)} AND counted AND session_id IS NULL`
+  }
   preparedDatabases.add(databaseName)
 }) }
 
@@ -484,3 +541,138 @@ export const lineLotLabel = (line: any) =>
     line.batch_no ? `دفعة ${line.batch_no}` : "",
     dimensionsLabel(line) ? `مقاس ${dimensionsLabel(line)}` : "",
   ].filter(Boolean).join(" — ")
+
+// ── جلسات الجرد ──────────────────────────────────────────────────────────────────────────────
+export const STOCK_COUNT_SESSION_STATUS = { OPEN: 1, FINISHED: 2, CANCELLED: 3 } as const
+export const STOCK_COUNT_SESSION_STATUS_NAME: Record<number, string> = { 1: "مفتوحة", 2: "منتهية", 3: "ملغاة" }
+
+export type CountSessionUser = { user_id: string; username?: string; full_name?: string }
+const sessionUserName = (user: CountSessionUser) => String(user.full_name || user.username || user.user_id || "")
+
+/** الجلسة المفتوحة للمستخدم في الوثيقة (أو null). */
+export async function openSessionOf(countId: number, userId: string) {
+  const rows = (await sql`
+    SELECT id, session_no FROM stock_count_sessions WHERE count_id = ${countId} AND user_id = ${userId} AND status = 1 LIMIT 1
+  `) as any[]
+  return rows[0] ? { id: Number(rows[0].id), session_no: Number(rows[0].session_no) } : null
+}
+
+/** جلسة المستخدم المفتوحة، أو جلسة جديدة برقم تالٍ بالوثيقة عند أول إدخال له. */
+export async function ensureOpenSession(countId: number, user: CountSessionUser) {
+  const userId = String(user.user_id)
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const existing = await openSessionOf(countId, userId)
+    if (existing) return existing
+    try {
+      const rows = (await sql`
+        INSERT INTO stock_count_sessions (count_id, session_no, user_id, user_name)
+        SELECT ${countId}, COALESCE(MAX(session_no), 0) + 1, ${userId}, ${sessionUserName(user)}
+        FROM stock_count_sessions WHERE count_id = ${countId}
+        RETURNING id, session_no
+      `) as any[]
+      return { id: Number(rows[0].id), session_no: Number(rows[0].session_no) }
+    } catch (error: any) {
+      // سباق: مستخدمان فتحا جلسة بنفس الرقم، أو نفس المستخدم من نافذتين ⇐ إعادة المحاولة
+      if (String(error?.code) !== "23505") throw error
+    }
+  }
+  throw new Error("تعذر فتح جلسة جرد — أعد المحاولة")
+}
+
+/** يحفظ كمية/ملاحظة سطر في جلسة (null بلا ملاحظة ⇐ حذف إدخال الجلسة للسطر). */
+export async function setSessionLine(sessionId: number, countId: number, lineId: number, entry: { counted_qty: number | null; counted_pieces?: number | null; note?: string | null }) {
+  const note = String(entry.note ?? "").trim()
+  if (entry.counted_qty == null && !note) {
+    await sql`DELETE FROM stock_count_session_lines WHERE session_id = ${sessionId} AND line_id = ${lineId}`
+    return
+  }
+  await sql`
+    INSERT INTO stock_count_session_lines (session_id, count_id, line_id, counted_qty, counted_pieces, note, counted_at)
+    VALUES (${sessionId}, ${countId}, ${lineId}, ${entry.counted_qty}, ${entry.counted_pieces ?? null}, ${note || null}, CURRENT_TIMESTAMP)
+    ON CONFLICT (session_id, line_id) DO UPDATE SET
+      counted_qty = EXCLUDED.counted_qty, counted_pieces = EXCLUDED.counted_pieces, note = EXCLUDED.note, counted_at = CURRENT_TIMESTAMP
+  `
+  await sql`UPDATE stock_count_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ${sessionId}`
+}
+
+/**
+ * يجمّع كميات الجلسات على أسطر الوثيقة: المجرودة = مجموع الجلسات (NULL إن لم تعدّه أي جلسة)، والقطع
+ * كذلك، والملاحظة = ملاحظات الجلسات. أسطر السيريال تُحسب من السيريالات المجرودة (syncSerialCount).
+ */
+export async function recomputeCountedLines(countId: number, lineIds: number[] | null = null) {
+  const ids = lineIds || []
+  const all = lineIds == null
+  await sql`
+    UPDATE stock_count_items i SET
+      counted_qty = a.qty, counted_pieces = a.pieces, note = COALESCE(a.notes, ''),
+      counted_by = a.users, counted_at = a.last_at
+    FROM (
+      SELECT li.id,
+        SUM(e.counted_qty) AS qty,
+        SUM(e.counted_pieces) AS pieces,
+        string_agg(DISTINCT NULLIF(BTRIM(e.note), ''), ' | ') AS notes,
+        string_agg(DISTINCT CASE WHEN e.counted_qty IS NOT NULL THEN s.user_id END, ',') AS users,
+        MAX(e.counted_at) FILTER (WHERE e.counted_qty IS NOT NULL) AS last_at
+      FROM stock_count_items li
+      LEFT JOIN stock_count_session_lines e ON e.line_id = li.id
+      LEFT JOIN stock_count_sessions s ON s.id = e.session_id
+      WHERE li.count_id = ${countId} AND NOT li.has_serial AND (${all} OR li.id = ANY(${ids}::int[]))
+      GROUP BY li.id
+    ) a
+    WHERE i.id = a.id
+  `
+  // ملاحظات أسطر السيريال (كميتها من السيريالات)
+  await sql`
+    UPDATE stock_count_items i SET note = COALESCE((
+      SELECT string_agg(DISTINCT NULLIF(BTRIM(e.note), ''), ' | ') FROM stock_count_session_lines e WHERE e.line_id = i.id
+    ), '')
+    WHERE i.count_id = ${countId} AND i.has_serial AND (${all} OR i.id = ANY(${ids}::int[]))
+  `
+}
+
+export async function loadCountSessions(countId: number) {
+  const rows = (await sql`
+    SELECT s.id, s.session_no, s.user_id, s.user_name, s.status, s.started_at, s.updated_at, s.finished_at,
+      (SELECT COUNT(*) FROM stock_count_session_lines e WHERE e.session_id = s.id AND e.counted_qty IS NOT NULL)::int
+        + (SELECT COUNT(DISTINCT sr.line_id) FROM stock_count_serials sr WHERE sr.session_id = s.id AND sr.counted)::int AS lines_counted,
+      COALESCE((SELECT SUM(e.counted_qty) FROM stock_count_session_lines e WHERE e.session_id = s.id), 0)
+        + (SELECT COUNT(*) FROM stock_count_serials sr WHERE sr.session_id = s.id AND sr.counted) AS total_qty
+    FROM stock_count_sessions s
+    WHERE s.count_id = ${countId}
+    ORDER BY s.session_no
+  `) as any[]
+  return rows.map((row) => ({
+    id: Number(row.id),
+    session_no: Number(row.session_no),
+    user_id: String(row.user_id),
+    user_name: row.user_name || "",
+    status: Number(row.status),
+    started_at: row.started_at,
+    updated_at: row.updated_at,
+    finished_at: row.finished_at,
+    lines_counted: Number(row.lines_counted || 0),
+    total_qty: Number(row.total_qty || 0),
+  }))
+}
+
+/** رسالة منع الاعتماد/الإنهاء إن بقيت جلسة مفتوحة — null إن كانت كل الجلسات منتهية. */
+export async function openSessionsMessage(countId: number) {
+  const open = (await sql`
+    SELECT session_no, user_name FROM stock_count_sessions WHERE count_id = ${countId} AND status = 1 ORDER BY session_no
+  `) as any[]
+  if (!open.length) return null
+  return open.map((row) => `يجب انهاء الجرد للجلسة رقم - ${Number(row.session_no)}${row.user_name ? ` (${row.user_name})` : ""}`).join("، ")
+}
+
+/** إلغاء جلسة: تُحذف كمياتها وتُلغى سيريالاتها المجرودة ثم يُعاد تجميع الأسطر. */
+export async function cancelCountSession(countId: number, sessionId: number) {
+  const serialLines = (await sql`SELECT DISTINCT line_id FROM stock_count_serials WHERE session_id = ${sessionId} AND counted`) as any[]
+  await sql`DELETE FROM stock_count_serials WHERE session_id = ${sessionId} AND counted AND in_system = false`
+  await sql`UPDATE stock_count_serials SET counted = false, counted_at = NULL, session_id = NULL WHERE session_id = ${sessionId}`
+  for (const row of serialLines) {
+    await sql`UPDATE stock_count_items SET counted_qty = NULLIF((SELECT COUNT(*) FROM stock_count_serials WHERE line_id = ${Number(row.line_id)} AND counted), 0) WHERE id = ${Number(row.line_id)}`
+  }
+  await sql`DELETE FROM stock_count_session_lines WHERE session_id = ${sessionId}`
+  await sql`UPDATE stock_count_sessions SET status = 3, updated_at = CURRENT_TIMESTAMP, finished_at = CURRENT_TIMESTAMP WHERE id = ${sessionId}`
+  await recomputeCountedLines(countId)
+}

@@ -3,7 +3,14 @@ import sql from "@/lib/database"
 import { getBaseCurrencyId } from "@/lib/auto-journals"
 import {
   STOCK_COUNT_STATUS,
+  cancelCountSession,
+  ensureOpenSession,
   insertCountLine,
+  loadCountSessions,
+  openSessionOf,
+  openSessionsMessage,
+  recomputeCountedLines,
+  setSessionLine,
   jsonError,
   lineDifference,
   lineLotLabel,
@@ -85,12 +92,37 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ product, attributes: await productAttributes(optionsFor) })
     }
 
-    const hideSystem = Boolean(header.blind) && Number(header.status) === STOCK_COUNT_STATUS.COUNTING
+    // ?view=approval (شاشة اعتماد الجرد) ⇐ الدفترية ظاهرة دائماً — تتطلب صلاحية الترحيل
+    const approvalView = request.nextUrl.searchParams.get("view") === "approval"
+    if (approvalView) {
+      const postPermission = await requireStockCountPermission(request, "post")
+      if (!postPermission.ok) return postPermission.response
+    }
+    const hideSystem = !approvalView && Boolean(header.blind) && Number(header.status) === STOCK_COUNT_STATUS.COUNTING
+    const userId = String((permission as any).user?.user_id ?? "")
     const lines = (await sql`
       SELECT * FROM stock_count_items WHERE count_id = ${countId}
       ORDER BY product_code, product_name, expiry_date NULLS FIRST, batch_no NULLS FIRST, variant_label NULLS FIRST, length NULLS FIRST, width NULLS FIRST
     `) as any[]
-    const serials = (await sql`SELECT line_id, serial, in_system, counted FROM stock_count_serials WHERE count_id = ${countId} ORDER BY serial`) as any[]
+    const serials = (await sql`
+      SELECT sr.line_id, sr.serial, sr.in_system, sr.counted, ss.session_no
+      FROM stock_count_serials sr LEFT JOIN stock_count_sessions ss ON ss.id = sr.session_id
+      WHERE sr.count_id = ${countId} ORDER BY sr.serial
+    `) as any[]
+    const sessions = await loadCountSessions(countId)
+    const mySession = sessions.find((session) => session.user_id === userId && session.status === 1) || null
+    // كميات كل جلسة لكل سطر (التفصيل) — وكمية جلسة المستخدم المفتوحة هي ما يحرّره بشاشة الجرد
+    const entries = (await sql`
+      SELECT e.line_id, e.session_id, s.session_no, e.counted_qty, e.counted_pieces, e.note
+      FROM stock_count_session_lines e JOIN stock_count_sessions s ON s.id = e.session_id
+      WHERE e.count_id = ${countId} ORDER BY s.session_no
+    `) as any[]
+    const entriesByLine = new Map<number, any[]>()
+    for (const entry of entries) {
+      const list = entriesByLine.get(Number(entry.line_id)) || []
+      list.push(entry)
+      entriesByLine.set(Number(entry.line_id), list)
+    }
     const productIds = [...new Set(lines.filter((line) => isMeasuredProduct(line.measurment_id)).map((line) => Number(line.item_id)))]
     const measured = productIds.length ? await loadProductMeta({ productIds }) : []
     const shaped = lines.map((line) => {
@@ -98,7 +130,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
       const lineSerials = serials
         .filter((serial) => Number(serial.line_id) === Number(line.id))
         .filter((serial) => !hideSystem || serial.counted)
-        .map((serial) => ({ serial: serial.serial, in_system: hideSystem ? null : Boolean(serial.in_system), counted: Boolean(serial.counted) }))
+        .map((serial) => ({
+          serial: serial.serial, in_system: hideSystem ? null : Boolean(serial.in_system), counted: Boolean(serial.counted),
+          session_no: serial.session_no == null ? null : Number(serial.session_no),
+        }))
+      const lineEntries = entriesByLine.get(Number(line.id)) || []
+      const mine = mySession ? lineEntries.find((entry) => Number(entry.session_id) === mySession.id) : null
       return {
         id: Number(line.id),
         item_id: Number(line.item_id),
@@ -128,9 +165,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
         manual: Boolean(line.manual),
         note: line.note || "",
         serials: line.has_serial ? lineSerials : [],
+        my_counted_qty: mine?.counted_qty == null ? null : Number(mine.counted_qty),
+        my_counted_pieces: mine?.counted_pieces == null ? null : Number(mine.counted_pieces),
+        my_note: mine?.note || "",
+        parts: lineEntries
+          .filter((entry) => entry.counted_qty != null)
+          .map((entry) => ({ session_no: Number(entry.session_no), qty: Number(entry.counted_qty), pieces: entry.counted_pieces == null ? null : Number(entry.counted_pieces) })),
       }
     })
-    return NextResponse.json({ ...header, system_hidden: hideSystem, lines: shaped }, { headers: { "Cache-Control": "no-store" } })
+    return NextResponse.json(
+      { ...header, system_hidden: hideSystem, me: userId, sessions, my_session: mySession, lines: shaped },
+      { headers: { "Cache-Control": "no-store" } },
+    )
   } catch (error: any) {
     console.error("Error loading stock count:", error)
     return jsonError(error?.message || "تعذر تحميل وثيقة الجرد", 500)
@@ -146,17 +192,27 @@ async function syncSerialCount(lineId: number, userId: string) {
   `
 }
 
-async function setSerial(countId: number, lineId: number, serial: string, counted: boolean, userId: string) {
+// السيريال يُسجَّل على جلسة من مسحه — جلسة أخرى لا تُلغي عدّه (يُعدّ مرة واحدة مهما تعددت الجلسات)
+async function setSerial(countId: number, lineId: number, serial: string, counted: boolean, userId: string, sessionId: number) {
+  const current = ((await sql`
+    SELECT sr.counted, sr.session_id, ss.session_no, ss.user_name FROM stock_count_serials sr
+    LEFT JOIN stock_count_sessions ss ON ss.id = sr.session_id
+    WHERE sr.line_id = ${lineId} AND sr.serial = ${serial}
+  `) as any[])[0]
+  const otherSession = current?.counted && current.session_id != null && Number(current.session_id) !== sessionId
   if (counted) {
+    if (otherSession) throw new Error(`الرقم ${serial} مجرود مسبقاً في الجلسة رقم - ${current.session_no}${current.user_name ? ` (${current.user_name})` : ""}`)
     await sql`
-      INSERT INTO stock_count_serials (count_id, line_id, serial, in_system, counted, counted_at)
-      VALUES (${countId}, ${lineId}, ${serial}, false, true, CURRENT_TIMESTAMP)
-      ON CONFLICT (line_id, serial) DO UPDATE SET counted = true, counted_at = CURRENT_TIMESTAMP
+      INSERT INTO stock_count_serials (count_id, line_id, serial, in_system, counted, counted_at, session_id)
+      VALUES (${countId}, ${lineId}, ${serial}, false, true, CURRENT_TIMESTAMP, ${sessionId})
+      ON CONFLICT (line_id, serial) DO UPDATE SET counted = true, counted_at = CURRENT_TIMESTAMP, session_id = ${sessionId}
     `
   } else {
-    await sql`UPDATE stock_count_serials SET counted = false, counted_at = NULL WHERE line_id = ${lineId} AND serial = ${serial}`
+    if (otherSession) throw new Error(`الرقم ${serial} مجرود في الجلسة رقم - ${current.session_no}${current.user_name ? ` (${current.user_name})` : ""} — لا يمكن إلغاؤه من جلستك`)
+    await sql`UPDATE stock_count_serials SET counted = false, counted_at = NULL, session_id = NULL WHERE line_id = ${lineId} AND serial = ${serial}`
     await sql`DELETE FROM stock_count_serials WHERE line_id = ${lineId} AND serial = ${serial} AND in_system = false`
   }
+  await sql`UPDATE stock_count_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ${sessionId}`
   await syncSerialCount(lineId, userId)
 }
 
@@ -165,10 +221,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const data = await request.json().catch(() => ({}))
     const action = String(data.action || "")
-    const permissionAction = action === "post" ? "post" : "edit"
+    const permissionAction = action === "post" || action === "approve" ? "post" : "edit"
     const permission = await requireStockCountPermission(request, permissionAction)
     if (!permission.ok) return permission.response
-    const userId = String((permission as any).user?.user_id ?? "")
+    const sessionUser = (permission as any).user
+    const userId = String(sessionUser?.user_id ?? "")
+    // جلسة المستخدم المفتوحة بهذه الوثيقة — تُفتح تلقائياً مع أول إدخال له
+    const mySession = () => ensureOpenSession(countId, sessionUser)
 
     const countId = await countIdOf(context)
     const header = await loadCountHeader(countId)
@@ -186,12 +245,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const measuredIds = [...new Set(existing.filter((line) => isMeasuredProduct(line.measurment_id)).map((line) => Number(line.item_id)))]
       const products = measuredIds.length ? await loadProductMeta({ productIds: measuredIds }) : []
       let updated = 0
+      const session = existing.length ? await mySession() : null
       for (const input of inputs) {
         const line = existing.find((entry) => Number(entry.id) === Number(input?.id))
-        if (!line) continue
+        if (!line || !session) continue
         if (line.has_serial) {
           // الكمية المجرودة لصنف بسيريال = عدد السيريالات المجرودة؛ الملاحظة فقط قابلة للتعديل هنا
-          await sql`UPDATE stock_count_items SET note = ${String(input.note ?? "")} WHERE id = ${Number(line.id)}`
+          await setSessionLine(session.id, countId, Number(line.id), { counted_qty: null, note: String(input.note ?? "") })
           continue
         }
         let counted: number | null
@@ -205,17 +265,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           counted = numberOrNull(input.counted_qty)
           if (counted != null && (!Number.isFinite(counted) || counted < 0)) return jsonError(`الكمية المجرودة غير صالحة للصنف ${line.product_code}`)
         }
-        await sql`
-          UPDATE stock_count_items
-          SET counted_qty = ${counted}, counted_pieces = ${pieces}, note = ${String(input.note ?? "")},
-            counted_by = CASE WHEN ${counted}::numeric IS NULL THEN NULL ELSE ${userId} END,
-            counted_at = CASE WHEN ${counted}::numeric IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END
-          WHERE id = ${Number(line.id)}
-        `
+        // كمية جلسة المستخدم فقط — كمية السطر = مجموع كل الجلسات (recomputeCountedLines)
+        await setSessionLine(session.id, countId, Number(line.id), { counted_qty: counted, counted_pieces: pieces, note: String(input.note ?? "") })
         updated++
       }
+      await recomputeCountedLines(countId, existing.map((line) => Number(line.id)))
       await sql`UPDATE stock_counts SET updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
-      return NextResponse.json({ updated })
+      return NextResponse.json({ updated, session_no: session?.session_no ?? null })
     }
 
     if (action === "set_serial") {
@@ -233,7 +289,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         `) as any[])[0]
         if (elsewhere) return jsonError(`الرقم ${serial} مجرود مسبقاً على الصنف ${elsewhere.product_code}`)
       }
-      await setSerial(countId, lineId, serial, data.counted !== false, userId)
+      await setSerial(countId, lineId, serial, data.counted !== false, userId, (await mySession()).id)
       return NextResponse.json({ ok: true })
     }
 
@@ -245,7 +301,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (!code) return jsonError("أدخل الرقم")
       const known = ((await sql`SELECT line_id FROM stock_count_serials WHERE count_id = ${countId} AND serial = ${code} LIMIT 1`) as any[])[0]
       if (known) {
-        await setSerial(countId, Number(known.line_id), code, true, userId)
+        await setSerial(countId, Number(known.line_id), code, true, userId, (await mySession()).id)
         return NextResponse.json({ line_id: Number(known.line_id), serial: code })
       }
       const registered = ((await sql`SELECT item_id FROM items_serials_tbl WHERE serial = ${code} LIMIT 1`) as any[])[0]
@@ -257,7 +313,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const lineId = await insertCountLine(countId, { product, lot_key: "", system_qty: 0, unit_cost: 0, manual: true })
         line = { id: lineId }
       }
-      await setSerial(countId, Number(line.id), code, true, userId)
+      await setSerial(countId, Number(line.id), code, true, userId, (await mySession()).id)
       return NextResponse.json({ line_id: Number(line.id), serial: code, extra: true })
     }
 
@@ -337,6 +393,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const products = measuredIds.length ? await loadProductMeta({ productIds: measuredIds }) : []
       let updated = 0
       const notFound: string[] = []
+      const session = await mySession()
+      const touched: number[] = []
       const same = (a: unknown, b: unknown) => String(a ?? "").trim().toUpperCase() === String(b ?? "").trim().toUpperCase()
       const sameNumber = (a: unknown, b: unknown) => (Number(a) || 0) === (Number(b) || 0)
       for (const row of Array.isArray(data.rows) ? data.rows : []) {
@@ -357,14 +415,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           const pieces = numberOrNull(row.counted_pieces)
           if (pieces == null || !Number.isFinite(pieces) || pieces < 0) { notFound.push(`${code} (عدد القطع)`); continue }
           const product = products.find((entry) => entry.id === Number(line.item_id)) as ProductMeta
-          await sql`UPDATE stock_count_items SET counted_pieces = ${pieces}, counted_qty = ${quantityFromPieces(product, line, pieces)}, counted_by = ${userId}, counted_at = CURRENT_TIMESTAMP WHERE id = ${Number(line.id)}`
+          const mine = ((await sql`SELECT note FROM stock_count_session_lines WHERE session_id = ${session.id} AND line_id = ${Number(line.id)}`) as any[])[0]
+          await setSessionLine(session.id, countId, Number(line.id), { counted_qty: quantityFromPieces(product, line, pieces), counted_pieces: pieces, note: mine?.note })
         } else {
           const counted = numberOrNull(row.counted_qty)
           if (counted == null || !Number.isFinite(counted) || counted < 0) { notFound.push(`${code} (كمية غير صالحة)`); continue }
-          await sql`UPDATE stock_count_items SET counted_qty = ${counted}, counted_by = ${userId}, counted_at = CURRENT_TIMESTAMP WHERE id = ${Number(line.id)}`
+          const mine = ((await sql`SELECT note FROM stock_count_session_lines WHERE session_id = ${session.id} AND line_id = ${Number(line.id)}`) as any[])[0]
+          await setSessionLine(session.id, countId, Number(line.id), { counted_qty: counted, note: mine?.note })
         }
+        touched.push(Number(line.id))
         updated++
       }
+      if (touched.length) await recomputeCountedLines(countId, touched)
       await sql`UPDATE stock_counts SET updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
       return NextResponse.json({ updated, not_found: notFound })
     }
@@ -372,13 +434,52 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (action === "remove_line") {
       // حذف سطر دفعة أُضيف يدوياً أثناء الجرد (خطأ إدخال) — أسطر الدفتر لا تُحذف (تُترك بلا عدّ)
       if (!counting) return notCounting()
+      const own = await openSessionOf(countId, userId)
+      const others = ((await sql`
+        SELECT s.session_no FROM stock_count_session_lines e JOIN stock_count_sessions s ON s.id = e.session_id
+        WHERE e.line_id = ${Number(data.line_id)} AND e.counted_qty IS NOT NULL AND s.id <> ${own?.id ?? 0} LIMIT 1
+      `) as any[])[0]
+      if (others) return jsonError(`لا يمكن حذف السطر — عليه كمية مجرودة في الجلسة رقم - ${others.session_no}`)
       const removed = await sql`DELETE FROM stock_count_items WHERE id = ${Number(data.line_id)} AND count_id = ${countId} AND manual = true AND ABS(system_qty) < 0.000001 RETURNING id`
       if (!removed.length) return jsonError("يمكن حذف الأسطر المضافة يدوياً بلا رصيد دفتري فقط")
       return NextResponse.json({ ok: true })
     }
 
+    // ── الجلسات ──
+    // إنهاء/إعادة فتح/إلغاء جلسة: صاحبها، أو من له صلاحية ترحيل الجرد (من شاشة اعتماد الجرد)
+    if (action === "finish_session" || action === "reopen_session" || action === "cancel_session") {
+      if (!counting) return notCounting()
+      const requested = Number(data.session_id) || 0
+      const session = ((requested
+        ? await sql`SELECT * FROM stock_count_sessions WHERE id = ${requested} AND count_id = ${countId}`
+        : await sql`SELECT * FROM stock_count_sessions WHERE count_id = ${countId} AND user_id = ${userId} AND status = 1 LIMIT 1`) as any[])[0]
+      if (!session) return jsonError(requested ? "الجلسة غير موجودة" : "لا توجد لديك جلسة جرد مفتوحة بهذه الوثيقة")
+      if (String(session.user_id) !== userId) {
+        const approver = await requireStockCountPermission(request, "post")
+        if (!approver.ok) return jsonError(`الجلسة رقم - ${session.session_no} تخص ${session.user_name || "مستخدماً آخر"} — يمكن لصاحبها فقط أو لمن له صلاحية ترحيل الجرد`, 403)
+      }
+      const sessionStatus = Number(session.status)
+      if (action === "finish_session") {
+        if (sessionStatus !== 1) return jsonError(`الجلسة رقم - ${session.session_no} ليست مفتوحة`)
+        await sql`UPDATE stock_count_sessions SET status = 2, finished_at = CURRENT_TIMESTAMP, finished_by = ${userId}, updated_at = CURRENT_TIMESTAMP WHERE id = ${Number(session.id)}`
+        return NextResponse.json({ ok: true, message: `انتهت الجلسة رقم - ${session.session_no}` })
+      }
+      if (action === "reopen_session") {
+        if (sessionStatus !== 2) return jsonError("يمكن إعادة فتح جلسة منتهية فقط")
+        const otherOpen = await openSessionOf(countId, String(session.user_id))
+        if (otherOpen) return jsonError(`لدى المستخدم جلسة مفتوحة رقم - ${otherOpen.session_no} — أنهِها أولاً`)
+        await sql`UPDATE stock_count_sessions SET status = 1, finished_at = NULL, finished_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ${Number(session.id)}`
+        return NextResponse.json({ ok: true, message: `أُعيد فتح الجلسة رقم - ${session.session_no}` })
+      }
+      if (sessionStatus === 3) return jsonError("الجلسة ملغاة مسبقاً")
+      await cancelCountSession(countId, Number(session.id))
+      return NextResponse.json({ ok: true, message: `أُلغيت الجلسة رقم - ${session.session_no} وحُذفت كمياتها` })
+    }
+
     if (action === "finish") {
       if (!counting) return jsonError("الجرد ليس قيد الجرد")
+      const openMessage = await openSessionsMessage(countId)
+      if (openMessage) return jsonError(openMessage)
       await refreshSystemQuantities(countId, scope)
       await sql`UPDATE stock_counts SET status = ${STOCK_COUNT_STATUS.FINISHED}, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
       return NextResponse.json({ ok: true })
@@ -404,7 +505,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     if (action === "post") {
       if (status !== STOCK_COUNT_STATUS.FINISHED) return jsonError("يجب إنهاء الجرد ومراجعة الفروقات قبل الترحيل")
+      const openMessage = await openSessionsMessage(countId)
+      if (openMessage) return jsonError(openMessage)
       return await postCount(request, countId, header, data, userId)
+    }
+
+    // اعتماد الجرد (شاشة اعتماد الجرد): كل الجلسات منتهية ⇐ إنهاء الوثيقة (إن كانت قيد الجرد) وترحيل
+    // الفروقات — كمية كل سطر = مجموع ما عدّته كل الجلسات لنفس الصنف/الدفعة.
+    if (action === "approve") {
+      if (status !== STOCK_COUNT_STATUS.COUNTING && status !== STOCK_COUNT_STATUS.FINISHED) return jsonError("الجرد معتمد أو ملغى")
+      const openMessage = await openSessionsMessage(countId)
+      if (openMessage) return jsonError(openMessage)
+      const finishedSessions = ((await sql`SELECT COUNT(*)::int AS n FROM stock_count_sessions WHERE count_id = ${countId} AND status = 2`) as any[])[0]
+      if (!Number(finishedSessions?.n) && data.uncounted !== "zero") return jsonError("لا توجد جلسات جرد منتهية لهذه الوثيقة")
+      await recomputeCountedLines(countId)
+      if (counting) {
+        await sql`UPDATE stock_counts SET status = ${STOCK_COUNT_STATUS.FINISHED}, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
+      }
+      return await postCount(request, countId, await loadCountHeader(countId), data, userId)
     }
 
     return jsonError("عملية غير معروفة")

@@ -4,7 +4,7 @@ import { amountFractionOptions } from "@/lib/decimals"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowRight, Barcode, Building2, CheckCircle2, ClipboardCheck, ClipboardList, Download, EyeOff, FileSpreadsheet,
-  Hash, Layers, Lock, Plus, RefreshCw, RotateCcw, Ruler, Save, ScanLine, Search, Send, Trash2, Upload, Warehouse, XCircle,
+  Hash, Layers, Lock, Plus, RefreshCw, Ruler, Save, ScanLine, Search, Send, Trash2, Upload, Users, Warehouse, XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/components/auth/auth-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 import { voucherHref } from "@/lib/voucher-links"
 import {
   dimensionsLabel, isMeasuredProduct, measurementRequiresHeight, measurementRequiresLength, measurementRequiresWidth, quantityFromMeasurement,
@@ -22,13 +23,21 @@ import {
 // أعمى اختياري) ⇐ إنهاء ومراجعة الفروقات ⇐ ترحيل (سند ادخال للزيادة + سند اخراج للعجز).
 // الأصناف ذات الصلاحية/الرقم التشغيلي/المتغيرات تُعدّ لكل دفعة، وأصناف القياس (طول/عرض/ارتفاع) لكل مقاس
 // بعدد القطع، وأصناف السيريال بمسح أرقامها.
+// جلسات الجرد: كل مستخدم يُدخل كمياته في جلسته (تُفتح مع أول إدخال)، وكمية السطر = مجموع كل الجلسات؛
+// "إنهاء جلستي" هنا، والاعتماد وترحيل الفروقات من شاشة «اعتماد الجرد» بعد إنهاء كل الجلسات.
 
 type CountSummary = {
   id: number; count_no: string; warehouse_id: number; warehouse_name: string; branch_id: number | null; branch_name: string | null
   count_date: string; status: number; blind: boolean; notes: string; lines: number; counted: number; with_difference: number
   in_voucher_id: number | null; out_voucher_id: number | null; in_voucher_code: string | null; out_voucher_code: string | null
+  sessions: number; open_sessions: number; open_session_nos: string | null
 }
-type CountSerial = { serial: string; in_system: boolean | null; counted: boolean }
+export type CountSession = {
+  id: number; session_no: number; user_id: string; user_name: string; status: number
+  started_at: string | null; updated_at: string | null; finished_at: string | null; lines_counted: number; total_qty: number
+}
+export type SessionPart = { session_no: number; qty: number; pieces: number | null }
+type CountSerial = { serial: string; in_system: boolean | null; counted: boolean; session_no: number | null }
 type CountLine = {
   id: number; item_id: number; product_code: string; product_name: string; barcode: string; unit_name: string
   system_qty: number | null; counted_qty: number | null; unit_cost: number | null
@@ -38,37 +47,51 @@ type CountLine = {
   length: number | null; width: number | null; height: number | null
   system_pieces: number | null; counted_pieces: number | null
   manual: boolean; note: string; serials: CountSerial[]
+  /** كمية/قطع/ملاحظة جلسة المستخدم المفتوحة (ما يحرّره هنا) — counted_qty = مجموع كل الجلسات */
+  my_counted_qty: number | null; my_counted_pieces: number | null; my_note: string
+  parts: SessionPart[]
 }
-type CountDetail = Omit<CountSummary, "lines" | "counted" | "with_difference"> & { system_hidden: boolean; lines: CountLine[] }
+export type CountDetail = Omit<CountSummary, "lines" | "counted" | "with_difference" | "sessions" | "open_sessions" | "open_session_nos"> & {
+  system_hidden: boolean; me: string; lines: CountLine[]; sessions: CountSession[]; my_session: CountSession | null
+}
+export type { CountLine, CountSummary }
 type LineEdit = { counted_qty: number | null; counted_pieces: number | null; note: string; text?: string }
 
-const STATUS: Record<number, { label: string; className: string }> = {
+export const SESSION_STATUS: Record<number, { label: string; className: string }> = {
+  1: { label: "مفتوحة", className: "bg-sky-100 text-sky-800" },
+  2: { label: "منتهية", className: "bg-emerald-100 text-emerald-800" },
+  3: { label: "ملغاة", className: "bg-slate-200 text-slate-600" },
+}
+
+export const STATUS: Record<number, { label: string; className: string }> = {
   1: { label: "قيد الجرد", className: "bg-sky-100 text-sky-800" },
   2: { label: "منتهي — مراجعة", className: "bg-amber-100 text-amber-800" },
   3: { label: "معتمد", className: "bg-emerald-100 text-emerald-800" },
   4: { label: "ملغى", className: "bg-slate-200 text-slate-600" },
 }
 const today = () => new Date().toISOString().slice(0, 10)
-const dateOnly = (value?: string | null) => (value ? String(value).slice(0, 10) : "-")
-const qty = (value: number | null | undefined) => (value == null ? "—" : Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 }))
-const money = (value: number) => value.toLocaleString("en-US", amountFractionOptions())
+export const dateOnly = (value?: string | null) => (value ? String(value).slice(0, 10) : "-")
+export const qty = (value: number | null | undefined) => (value == null ? "—" : Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 }))
+/** "ج1: 5 + ج2: 3" */
+export const partsLabel = (parts: SessionPart[]) => parts.map((part) => `ج${part.session_no}: ${qty(part.pieces ?? part.qty)}`).join(" + ")
+export const money = (value: number) => value.toLocaleString("en-US", amountFractionOptions())
 const isMeasured = (line: CountLine) => isMeasuredProduct(line.measurment_id)
 const isLotProduct = (line: CountLine) => !line.has_serial && (line.has_expiry || line.has_batch || line.has_variants || isMeasured(line))
 const productOf = (line: CountLine) => ({ measurment_id: line.measurment_id, length: line.product_length, width: line.product_width, density: line.product_density })
 const piecesToQty = (line: CountLine, pieces: number | null) =>
   pieces == null ? null : Math.round(quantityFromMeasurement(productOf(line), { length: line.length, width: line.width, height: line.height, count: pieces }) * 1e6) / 1e6
-const lotLabel = (line: Pick<CountLine, "variant_label" | "expiry_date" | "batch_no" | "length" | "width" | "height">) =>
+export const lotLabel = (line: Pick<CountLine, "variant_label" | "expiry_date" | "batch_no" | "length" | "width" | "height">) =>
   [line.variant_label, line.expiry_date ? `صلاحية ${line.expiry_date}` : "", line.batch_no ? `دفعة ${line.batch_no}` : "", dimensionsLabel(line) ? `مقاس ${dimensionsLabel(line)}` : ""]
     .filter(Boolean).join(" — ")
 
-async function api<T = any>(url: string, init?: RequestInit): Promise<T> {
+export async function api<T = any>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init, headers: { "Content-Type": "application/json", ...(init?.headers || {}) } })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data?.error || "تعذر تنفيذ العملية")
   return data
 }
 
-const openVoucher = (id: number | null, type: number) => {
+export const openVoucher = (id: number | null, type: number) => {
   if (id) window.open(voucherHref(id, type, sessionStorage.getItem("active_company_id")), "_blank", "noopener,noreferrer")
 }
 
@@ -153,7 +176,7 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
           <table className="w-full min-w-[1080px] text-sm">
             <thead className="bg-emerald-100 text-emerald-950">
               <tr>
-                {["رقم الجرد", "الفرع", "المستودع", "تاريخ القطع", "الحالة", "الأسطر", "المجرود", "أسطر بفروقات", "سندات التسوية", ""].map((header) => (
+                {["رقم الجرد", "الفرع", "المستودع", "تاريخ القطع", "الحالة", "الجلسات", "الأسطر", "المجرود", "أسطر بفروقات", "سندات التسوية", ""].map((header) => (
                   <th key={header} className="p-3 text-right">{header}</th>
                 ))}
               </tr>
@@ -166,6 +189,10 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
                   <td className="p-3 font-semibold">{row.warehouse_name}</td>
                   <td className="p-3 font-mono" dir="ltr">{dateOnly(row.count_date)}</td>
                   <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${STATUS[row.status]?.className}`}>{STATUS[row.status]?.label}</span></td>
+                  <td className="p-3 text-xs">
+                    {row.sessions}
+                    {row.open_sessions > 0 && <span className="mr-1 rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-800">مفتوحة: {row.open_session_nos}</span>}
+                  </td>
                   <td className="p-3">{row.lines.toLocaleString("en-US")}</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
@@ -297,7 +324,6 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
   const [scanCode, setScanCode] = useState("")
   const [scanQty, setScanQty] = useState("1")
   const [highlight, setHighlight] = useState<number | null>(null)
-  const [posting, setPosting] = useState(false)
   const [serialLineId, setSerialLineId] = useState<number | null>(null)
   const [lotItemId, setLotItemId] = useState<number | null>(null)
   const [confirm, setConfirm] = useState<null | { message: string; run: () => void }>(null)
@@ -320,14 +346,34 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
   const counting = count?.status === 1
   const hidden = Boolean(count?.system_hidden)
   const dirty = Object.keys(edits).length > 0
+  const mySessionNo = count?.my_session?.session_no ?? null
 
-  const lineValue = (line: CountLine) => (edits[line.id] ? edits[line.id].counted_qty : line.counted_qty)
-  const linePieces = (line: CountLine) => (edits[line.id] ? edits[line.id].counted_pieces : line.counted_pieces)
-  const lineNote = (line: CountLine) => (edits[line.id] ? edits[line.id].note : line.note || "")
+  // التبديل لشاشة أخرى/إغلاق التبويب مع كميات غير محفوظة ⇐ نفس نافذة التأكيد
+  useNavigationGuard(() => dirty, (continueNavigation) => setConfirm({ message: "توجد كميات غير محفوظة، هل تريد الخروج دون حفظ؟", run: continueNavigation }))
+
+  // كمية جلستي (المحرَّرة)
+  const lineValue = (line: CountLine) => (edits[line.id] ? edits[line.id].counted_qty : line.my_counted_qty)
+  const linePieces = (line: CountLine) => (edits[line.id] ? edits[line.id].counted_pieces : line.my_counted_pieces)
+  const lineNote = (line: CountLine) => (edits[line.id] ? edits[line.id].note : line.my_note || "")
+  // إجمالي المجرود = كميات الجلسات الأخرى + كمية جلستي الحالية (السيريال: عدد الأرقام المجرودة بكل الجلسات)
+  const othersParts = (line: CountLine) => line.parts.filter((part) => part.session_no !== mySessionNo)
+  const totalValue = (line: CountLine): number | null => {
+    if (line.has_serial) return line.counted_qty
+    const others = othersParts(line)
+    const mine = lineValue(line)
+    if (!others.length && mine == null) return null
+    return Math.round((others.reduce((sum, part) => sum + part.qty, 0) + Number(mine || 0)) * 1e6) / 1e6
+  }
+  const totalPieces = (line: CountLine): number | null => {
+    const others = othersParts(line)
+    const mine = linePieces(line)
+    if (!others.length && mine == null) return null
+    return others.reduce((sum, part) => sum + Number(part.pieces || 0), 0) + Number(mine || 0)
+  }
   const setLine = (line: CountLine, patch: Partial<LineEdit>) =>
     setEdits((current) => ({
       ...current,
-      [line.id]: { ...(current[line.id] ?? { counted_qty: line.counted_qty, counted_pieces: line.counted_pieces, note: line.note || "" }), ...patch },
+      [line.id]: { ...(current[line.id] ?? { counted_qty: line.my_counted_qty, counted_pieces: line.my_counted_pieces, note: line.my_note || "" }), ...patch },
     }))
   const setPieces = (line: CountLine, pieces: number | null, text?: string) => setLine(line, { counted_pieces: pieces, counted_qty: piecesToQty(line, pieces), text })
 
@@ -335,7 +381,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
     const term = search.trim().toLowerCase()
     return (count?.lines || []).filter((line) => {
       if (term && !`${line.product_code} ${line.product_name} ${line.barcode} ${lotLabel(line)} ${line.serials.map((s) => s.serial).join(" ")}`.toLowerCase().includes(term)) return false
-      const value = lineValue(line)
+      const value = totalValue(line)
       if (filter === "uncounted") return value == null
       if (filter === "tracked") return line.has_serial || isLotProduct(line)
       if (filter === "difference") return !hidden && value != null && Math.abs(Number(value) - Number(line.system_qty || 0)) > 0.000001
@@ -348,7 +394,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
     const lines = count?.lines || []
     let counted = 0, surplusValue = 0, shortageValue = 0, surplusLines = 0, shortageLines = 0
     for (const line of lines) {
-      const value = lineValue(line)
+      const value = totalValue(line)
       if (value == null) continue
       counted++
       if (hidden) continue
@@ -370,7 +416,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
           lines: Object.entries(edits).map(([id, value]) => ({ id: Number(id), counted_qty: value.counted_qty, counted_pieces: value.counted_pieces, note: value.note })),
         }),
       })
-      if (!silent) toast({ title: "تم الحفظ", description: "تم حفظ الكميات المجرودة" })
+      if (!silent) toast({ title: "تم الحفظ", description: "تم حفظ كميات جلستك" })
       await load()
       return true
     } catch (error: any) {
@@ -455,7 +501,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       const line = data?.lines.find((item) => item.id === result.line_id)
       if (!line) return
       if (line.has_serial) { setSerialLineId(line.id); return }
-      setEdits({ [line.id]: { counted_qty: Number(line.counted_qty || 0) + amount, counted_pieces: null, note: line.note || "" } })
+      setEdits({ [line.id]: { counted_qty: Number(line.my_counted_qty || 0) + amount, counted_pieces: null, note: line.my_note || "" } })
       focusLine(line.id)
       toast({ title: "أُضيف صنف للجرد", description: `${line.product_code} — ${line.product_name}` })
     } catch (error: any) {
@@ -482,6 +528,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       ...(hidden ? {} : { "الكمية الدفترية": line.system_qty, "القطع الدفترية": line.system_pieces ?? "" }),
       "عدد القطع المجرود": isMeasured(line) ? linePieces(line) ?? "" : "",
       "الكمية المجرودة": lineValue(line) ?? "",
+      "إجمالي كل الجلسات": totalValue(line) ?? "",
       "الأرقام التسلسلية المجرودة": line.serials.filter((s) => s.counted).map((s) => s.serial).join(", "),
     }))
     const sheet = XLSX.utils.json_to_sheet(rows)
@@ -571,22 +618,17 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                 <HeaderButton icon={Save} label={dirty ? "حفظ*" : "حفظ"} onClick={() => void saveEdits()} disabled={busy || !dirty} />
                 <HeaderButton icon={FileSpreadsheet} label="تصدير Excel" onClick={() => void exportExcel()} />
                 <HeaderButton icon={Upload} label="استيراد Excel" onClick={() => fileRef.current?.click()} disabled={busy} />
-                <HeaderButton icon={CheckCircle2} label="إنهاء الجرد" primary disabled={busy}
-                  onClick={() => setConfirm({
-                    message: summary.counted < summary.total
-                      ? `لم يُجرد ${summary.total - summary.counted} سطراً بعد. إنهاء الجرد يُظهر الفروقات للمراجعة. هل تريد المتابعة؟`
-                      : "إنهاء الجرد وعرض الفروقات للمراجعة؟",
-                    run: () => void runAction("finish", {}, "انتهى الجرد — راجع الفروقات ثم رحّل"),
-                  })} />
+                {count.my_session && (
+                  <HeaderButton icon={CheckCircle2} label={`إنهاء جلستي (${count.my_session.session_no})`} primary disabled={busy}
+                    onClick={() => setConfirm({
+                      message: `إنهاء جلسة الجرد رقم - ${count.my_session!.session_no}؟ تُحفظ كمياتك وتُجمع مع باقي الجلسات عند الاعتماد.`,
+                      run: () => void runAction("finish_session", {}, "انتهت جلستك — الاعتماد من شاشة «اعتماد الجرد» بعد إنهاء كل الجلسات"),
+                    })} />
+                )}
               </>
             )}
             {count.status === 2 && (
-              <>
-                <HeaderButton icon={RefreshCw} label="تحديث الدفترية" onClick={() => void runAction("refresh", {}, "أُعيد احتساب الكميات الدفترية بتاريخ القطع")} disabled={busy} />
-                <HeaderButton icon={Download} label="تصدير Excel" onClick={() => void exportExcel()} />
-                <HeaderButton icon={RotateCcw} label="إعادة فتح" onClick={() => void runAction("reopen", {}, "أُعيد فتح الجرد")} disabled={busy} />
-                <HeaderButton icon={Send} label="ترحيل الفروقات" primary onClick={() => setPosting(true)} disabled={busy} />
-              </>
+              <HeaderButton icon={Download} label="تصدير Excel" onClick={() => void exportExcel()} />
             )}
             {count.status === 3 && (
               <>
@@ -611,6 +653,27 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
         </div>
       </div>
       <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void importExcel(file) }} />
+
+      {/* جلسات الجرد */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-white px-3 py-2 text-xs shadow-sm">
+        <span className="flex items-center gap-1 font-bold text-slate-700"><Users className="h-4 w-4 text-emerald-600" />جلسات الجرد:</span>
+        {counting && (
+          count.my_session
+            ? <span className="rounded-full bg-emerald-600 px-2.5 py-1 font-bold text-white">جلستي رقم - {count.my_session.session_no} (مفتوحة)</span>
+            : <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-800 ring-1 ring-amber-200">لا توجد لك جلسة مفتوحة — تبدأ جلسة جديدة مع أول كمية تحفظها</span>
+        )}
+        {count.sessions.filter((session) => session.status !== 3).map((session) => (
+          <span key={session.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${SESSION_STATUS[session.status]?.className}`}>
+            {session.session_no} — {session.user_name || "مستخدم"} · {SESSION_STATUS[session.status]?.label}
+            {counting && session.status === 2 && !count.my_session && session.user_id === count.me && (
+              <button type="button" className="mr-1 underline" disabled={busy}
+                onClick={() => void runAction("reopen_session", { session_id: session.id }, `أُعيد فتح الجلسة رقم - ${session.session_no}`)}>إعادة فتح</button>
+            )}
+          </span>
+        ))}
+        {!count.sessions.length && <span className="text-slate-400">لا توجد جلسات بعد</span>}
+        {count.status === 2 && <span className="mr-auto font-bold text-amber-700">بانتظار الاعتماد وترحيل الفروقات من شاشة «اعتماد الجرد»</span>}
+      </div>
 
       {/* شريط المسح + الملخص */}
       <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
@@ -671,7 +734,8 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                 <th className="p-3 text-right">اسم الصنف / الدفعة</th>
                 <th className="p-3 text-right">الوحدة</th>
                 {!hidden && <th className="p-3 text-center">الدفترية</th>}
-                <th className="p-3 text-center">المجرودة</th>
+                <th className="p-3 text-center">{counting ? `كميتي${mySessionNo ? ` (جلسة ${mySessionNo})` : ""}` : "المجرودة"}</th>
+                {counting && <th className="p-3 text-center">إجمالي الجلسات</th>}
                 {!hidden && <th className="p-3 text-center">الفرق</th>}
                 {!hidden && <th className="p-3 text-center">قيمة الفرق</th>}
                 <th className="p-3 text-right">ملاحظة</th>
@@ -681,13 +745,14 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
             <tbody>
               {rendered.map((line, index) => {
                 const value = lineValue(line)
-                const diff = value == null || hidden ? null : Number(value) - Number(line.system_qty || 0)
+                const total = totalValue(line)
+                const diff = total == null || hidden ? null : Number(total) - Number(line.system_qty || 0)
                 const diffClass = diff == null || Math.abs(diff) < 0.000001 ? "text-slate-400" : diff > 0 ? "font-bold text-emerald-700" : "font-bold text-rose-700"
                 const measured = isMeasured(line)
                 const label = lotLabel(line)
                 return (
                   <tr key={line.id} id={`count-line-${line.id}`}
-                    className={`border-t align-top ${highlight === line.id ? "bg-emerald-50" : value == null ? "" : "bg-slate-50/40"} ${edits[line.id] ? "shadow-[inset_-3px_0_0_0_rgb(245_158_11)]" : ""}`}>
+                    className={`border-t align-top ${highlight === line.id ? "bg-emerald-50" : total == null ? "" : "bg-slate-50/40"} ${edits[line.id] ? "shadow-[inset_-3px_0_0_0_rgb(245_158_11)]" : ""}`}>
                     <td className="p-3 text-xs text-slate-400">{index + 1}</td>
                     <td className="p-3 font-mono text-xs text-slate-600">{line.product_code}</td>
                     <td className="p-3">
@@ -713,7 +778,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                       {line.has_serial ? (
                         <button type="button" onClick={() => setSerialLineId(line.id)}
                           className="mx-auto flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100">
-                          <ScanLine className="h-3.5 w-3.5" />{value == null ? "مسح الأرقام" : `${qty(value)} رقم`}
+                          <ScanLine className="h-3.5 w-3.5" />{total == null ? "مسح الأرقام" : `${qty(total)} رقم`}
                         </button>
                       ) : measured ? (
                         counting ? (
@@ -728,7 +793,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                             <span className="text-[11px] text-slate-500">{value == null ? "عدد القطع" : `= ${qty(value)} ${line.unit_name}`}</span>
                           </div>
                         ) : (
-                          <span className="tabular-nums">{qty(value)}{linePieces(line) != null && <div className="text-[11px] text-slate-400">{qty(linePieces(line))} قطعة</div>}</span>
+                          <span className="tabular-nums">{qty(total)}{totalPieces(line) != null && <div className="text-[11px] text-slate-400">{qty(totalPieces(line))} قطعة</div>}</span>
                         )
                       ) : counting ? (
                         <Input value={edits[line.id]?.text ?? (value ?? "")} inputMode="decimal" className="mx-auto h-8 w-24 text-center tabular-nums"
@@ -738,8 +803,15 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                             setLine(line, { text: event.target.value, counted_qty: raw === "" || !Number.isFinite(parsed) ? null : parsed })
                           }}
                           onKeyDown={moveNext} data-count-input />
-                      ) : <span className="tabular-nums">{qty(value)}</span>}
+                      ) : <span className="tabular-nums">{qty(total)}</span>}
                     </td>
+                    {counting && (
+                      <td className="p-3 text-center tabular-nums" title={line.parts.length ? partsLabel(line.parts) : undefined}>
+                        <span className="font-bold">{qty(total)}</span>
+                        {measured && totalPieces(line) != null && <div className="text-[11px] text-slate-400">{qty(totalPieces(line))} قطعة</div>}
+                        {othersParts(line).length > 0 && <div className="text-[10px] text-slate-400">{partsLabel(othersParts(line))}</div>}
+                      </td>
+                    )}
                     {!hidden && <td className={`p-3 text-center tabular-nums ${diffClass}`}>{diff == null ? "—" : `${diff > 0 ? "+" : ""}${qty(diff)}`}</td>}
                     {!hidden && <td className={`p-3 text-center tabular-nums ${diffClass}`}>{diff == null ? "—" : money(diff * Number(line.unit_cost || 0))}</td>}
                     <td className="p-2">
@@ -791,16 +863,6 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
         }}
         beforeAdd={() => saveEdits(true)}
       />
-
-      <PostDialog open={posting} onOpenChange={setPosting} summary={summary}
-        onPost={async (options) => {
-          const result = await runAction("post", options)
-          if (result?.ok) {
-            setPosting(false)
-            const parts = [result.out_voucher && `اخراج ${result.out_voucher.vch_code}`, result.in_voucher && `ادخال ${result.in_voucher.vch_code}`].filter(Boolean)
-            toast({ title: "تم الترحيل", description: parts.length ? `سندات التسوية: ${parts.join("، ")}` : result.message })
-          }
-        }} />
 
       <ConfirmDialogYesNo useAppDialog visible={!!confirm} title="تأكيد" message={confirm?.message || ""}
         onConfirm={() => { const action = confirm?.run; setConfirm(null); action?.() }}
@@ -1006,7 +1068,7 @@ function AddLotDialog({ countId, itemId, onClose, onAdded, beforeAdd }: {
   )
 }
 
-function PostDialog({ open, onOpenChange, summary, onPost }: {
+export function PostDialog({ open, onOpenChange, summary, onPost }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   summary: { total: number; counted: number; surplusValue: number; shortageValue: number; surplusLines: number; shortageLines: number }

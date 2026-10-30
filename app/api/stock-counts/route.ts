@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
         c.created_at, c.posted_at, c.in_voucher_id, c.out_voucher_id,
         inv.vch_code AS in_voucher_code, outv.vch_code AS out_voucher_code,
         COALESCE(s.lines, 0)::int AS lines, COALESCE(s.counted, 0)::int AS counted,
-        COALESCE(s.with_difference, 0)::int AS with_difference
+        COALESCE(s.with_difference, 0)::int AS with_difference,
+        COALESCE(ss.sessions, 0)::int AS sessions, COALESCE(ss.open_sessions, 0)::int AS open_sessions, ss.open_session_nos
       FROM stock_counts c
       LEFT JOIN warehouses w ON w.id = c.warehouse_id
       LEFT JOIN branches b ON b.id = c.branch_id
@@ -28,6 +29,13 @@ export async function GET(request: NextRequest) {
           COUNT(*) FILTER (WHERE i.counted_qty IS NOT NULL AND ABS(i.counted_qty - i.system_qty) > 0.000001) AS with_difference
         FROM stock_count_items i WHERE i.count_id = c.id
       ) s ON true
+      -- جلسات الجرد (الملغاة لا تُحسب) والمفتوحة منها — الاعتماد ممنوع ما دامت جلسة مفتوحة
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) FILTER (WHERE x.status <> 3) AS sessions,
+          COUNT(*) FILTER (WHERE x.status = 1) AS open_sessions,
+          string_agg(x.session_no::text, '، ' ORDER BY x.session_no) FILTER (WHERE x.status = 1) AS open_session_nos
+        FROM stock_count_sessions x WHERE x.count_id = c.id
+      ) ss ON true
       WHERE (${status} = 0 OR c.status = ${status})
       ORDER BY c.id DESC
       LIMIT 500

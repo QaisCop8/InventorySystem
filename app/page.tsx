@@ -61,6 +61,7 @@ const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"
 const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
 const SerialMovementsReport = lazyNamed(() => import("@/components/reports/serial-movements-report"), "SerialMovementsReport")
 const StockCounts = lazyDefault(() => import("@/components/inventory/stock-counts"))
+const StockCountApproval = lazyDefault(() => import("@/components/inventory/stock-count-approval"))
 const ProductionVouchers = lazyDefault(() => import("@/components/inventory/production-vouchers"))
 const AccountAccess = lazyDefault(() => import("@/components/tools/account-access"))
 const ManagerAttachments = lazyDefault(() => import("@/components/tools/manager-attachments"))
@@ -331,6 +332,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={10} />,
   "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={11} />,
   "stock-counts": StockCounts,
+  "stock-count-approval": StockCountApproval,
   "production-vouchers": ProductionVouchers,
   "account-access": AccountAccess,
   "manager-attachments": ManagerAttachments,
