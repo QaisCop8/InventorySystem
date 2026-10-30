@@ -1,34 +1,22 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   Cashier — "Receipt paper" (2026-10-30)
-   The workspace is a cashier's desk: a dark register strip on top whose total glows
-   like a customer pole display; products are cream price tags with a punched hole;
-   categories are folder tabs; the sale is a live paper receipt feeding out of a
-   printer slot — dotted rules, dotted total leaders, a torn zig-zag edge — and it is
-   closed with a large ink-stamp pay button. Numbers use a monospaced "till" face.
-   Mode = ink colour: sale blue ink, return vermilion, gift plum.
+   Cashier — "Floating dock" (2026-10-20)
+   A soft-mint canvas holds the catalog; actions float in a glass command bar; the
+   sale lives in a frosted dock card that ends in one large pay pill. The number pad
+   appears only while a cart line is selected, so the dock stays calm.
    Class names are shared with the dialogs and mobile bar — keep them stable.
    ───────────────────────────────────────────────────────────────────────────── */
 .pos-workspace {
-  --pos-ink: #231d16;
-  --pos-muted: #7a6c5b;
-  --pos-accent: #2747a5;
-  --pos-accent-strong: #1b3278;
-  --pos-accent-soft: #e3e8f7;
-  --pos-surface: #fffdf8;
-  --pos-soft: #f5efe3;
-  --pos-edge: #e2d6c2;
-  --pos-desk: #ece4d6;
-  --pos-paper: #fffdf7;
-  --pos-tag: #fbf6ea;
-  --pos-register: #221d18;
-  --pos-register-edge: #3a322a;
-  --pos-display: #0f1612;
-  --pos-display-ink: #8ef0c2;
-  --pos-glass: rgb(255 253 247 / 82%);
-  --pos-glass-edge: #e2d6c2;
-  /* أرقام بخط الآلة؛ الحروف العربية (غير موجودة في خطوط monospace) تعود لخط النظام */
-  --pos-till: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", var(--font-family-custom, "Cairo"), sans-serif;
-  --pos-shadow: 0 18px 34px -24px rgb(60 40 15 / 55%);
+  --pos-ink: #12302a;
+  --pos-muted: #5e7c74;
+  --pos-accent: #10a37f;
+  --pos-accent-strong: #0b7f63;
+  --pos-accent-soft: #d8f5ea;
+  --pos-surface: #ffffff;
+  --pos-soft: #f1faf6;
+  --pos-edge: #d9eee6;
+  --pos-glass: rgb(255 255 255 / 72%);
+  --pos-glass-edge: rgb(255 255 255 / 85%);
+  --pos-shadow: 0 24px 48px -28px rgb(16 92 72 / 45%);
   /* عرض الفاتورة الحالية: نصف مساحة العمل تقريباً (نسبة من شبكة .pos-layout) بحد أدنى وأقصى */
   --pos-dock-width: clamp(560px, 50%, 1000px);
   container: cashier / inline-size;
@@ -41,106 +29,94 @@
   min-height: 720px;
   padding: 14px;
   color: var(--pos-ink);
-  /* سطح المكتب: ورق كرتوني بخطوط دقيقة */
   background:
-    repeating-linear-gradient(0deg, rgb(120 90 50 / 3.5%) 0 1px, transparent 1px 4px),
-    radial-gradient(900px 500px at 100% 0%, #f6efe2 0%, transparent 60%),
-    var(--pos-desk);
+    radial-gradient(1200px 520px at 100% -10%, #c9f2e3 0%, transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, #dff5ff 0%, transparent 55%),
+    linear-gradient(180deg, #f3fbf8 0%, #eef8f4 100%);
 }
-.pos-workspace[data-mode=return] { --pos-accent: #c2410c; --pos-accent-strong: #9a3412; --pos-accent-soft: #fbe6da; }
-.pos-workspace[data-mode=gift] { --pos-accent: #8b3fb8; --pos-accent-strong: #6d2b94; --pos-accent-soft: #f1e3f8; }
+.pos-workspace[data-mode=return] { --pos-accent: #e0763a; --pos-accent-strong: #b8561f; --pos-accent-soft: #fdebdc; }
+.pos-workspace[data-mode=gift] { --pos-accent: #9a62e0; --pos-accent-strong: #7a44c2; --pos-accent-soft: #efe4fd; }
 .pos-workspace button { cursor: pointer; }
 .pos-workspace button:disabled { opacity: .45; cursor: not-allowed; }
-.pos-workspace :is(button, input, select):focus-visible { outline: 2px dashed var(--pos-accent); outline-offset: 3px; }
-.pos-workspace kbd { font: 700 10px/1.2 var(--pos-till); padding: 1px 5px; border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 4px; opacity: .65; }
+.pos-workspace :is(button, input, select):focus-visible { outline: 3px solid color-mix(in srgb, var(--pos-accent) 45%, white); outline-offset: 2px; }
+.pos-workspace kbd { font: 600 10px/1.2 ui-monospace, monospace; padding: 2px 5px; border: 1px solid currentColor; border-radius: 6px; opacity: .6; }
 
-/* ── Register strip ───────────────────────────────────────────────────────── */
+/* ── Floating command bar ─────────────────────────────────────────────────── */
 .pos-topbar {
-  position: relative; display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; gap: 8px 10px;
-  padding: 9px 12px 12px; border-radius: 16px 16px 10px 10px; color: #f3ead9;
+  display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--pos-accent) 22%, white); border-radius: 22px;
+  /* خلفية ملوّنة ناعمة بلون الوضع (بيع أخضر، مرتجع برتقالي، هدية بنفسجي) بدل الأبيض — الأزرار تبقى بيضاء فتبرز */
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 40%),
-    var(--pos-register);
-  box-shadow: 0 2px 0 var(--pos-register-edge), 0 16px 28px -18px rgb(30 20 10 / 70%);
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--pos-accent) 20%, transparent), transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, var(--pos-accent) 13%, #ffffff), color-mix(in srgb, var(--pos-accent) 6%, #f4fbff));
+  backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: var(--pos-shadow);
 }
-/* شريط لون الوضع أسفل الشريط (أزرق بيع، برتقالي مرتجع، بنفسجي هدية) */
-.pos-topbar::after { content: ""; position: absolute; inset-inline: 14px; bottom: 4px; height: 3px; border-radius: 3px; background: repeating-linear-gradient(90deg, var(--pos-accent) 0 18px, transparent 18px 24px); opacity: .9; }
+.dark .pos-topbar {
+  border-color: color-mix(in srgb, var(--pos-accent) 30%, #0f1d1a);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pos-accent) 22%, #0f1d1a), color-mix(in srgb, var(--pos-accent) 8%, #0f1d1a));
+}
 .pos-toolbar, .pos-overview { display: contents; }
 .pos-identity { order: 0; display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding-inline-end: 6px; }
-.pos-brand { display: grid; place-items: center; width: 40px; height: 40px; border: 2px solid #f3ead9; border-radius: 10px; color: var(--pos-register); background: #f3ead9; box-shadow: 3px 3px 0 var(--pos-accent); }
+.pos-brand { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 14px; color: #fff; background: linear-gradient(140deg, #34d3a6, var(--pos-accent-strong)); box-shadow: 0 8px 18px -8px var(--pos-accent); }
 .pos-brand svg { width: 20px; height: 20px; }
-.pos-eyebrow { display: block; color: #b9ab95; font-size: 10px; font-weight: 700; line-height: 1.2; }
-.pos-identity h1 { color: #fff8ec; font-size: 17px; font-weight: 900; line-height: 1.15; }
+.pos-eyebrow { display: block; color: var(--pos-muted); font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+.pos-identity h1 { color: var(--pos-ink); font-size: 17px; font-weight: 900; line-height: 1.15; }
 .pos-context { order: 2; flex: 0 1 210px; min-width: 150px; }
 .pos-context label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.pos-workspace .pos-point-dropdown { display: flex; width: 100%; min-height: 38px; align-items: center; border: 1px solid var(--pos-register-edge); border-radius: 8px; background: #2f2821; box-shadow: inset 0 2px 4px rgb(0 0 0 / 35%); }
-.pos-workspace .pos-point-dropdown .p-dropdown-label { padding: 0 12px; color: #fff8ec; font-size: 12.5px; font-weight: 700; line-height: 36px; }
-.pos-workspace .pos-point-dropdown .p-dropdown-label.p-placeholder { color: #b9ab95; }
-.pos-workspace .pos-point-dropdown .p-dropdown-trigger { width: 32px; color: #b9ab95; }
+.pos-workspace .pos-point-dropdown { display: flex; width: 100%; min-height: 38px; align-items: center; border: 1px solid var(--pos-edge); border-radius: 999px; background: #fff; box-shadow: none; }
+.pos-workspace .pos-point-dropdown .p-dropdown-label { padding: 0 14px; color: var(--pos-ink); font-size: 12.5px; font-weight: 700; line-height: 36px; }
+.pos-workspace .pos-point-dropdown .p-dropdown-label.p-placeholder { color: var(--pos-muted); }
+.pos-workspace .pos-point-dropdown .p-dropdown-trigger { width: 32px; color: var(--pos-muted); }
 .pos-workspace .pos-point-dropdown:not(.p-disabled):hover,
-.pos-workspace .pos-point-dropdown.p-focus { border-color: var(--pos-accent); }
+.pos-workspace .pos-point-dropdown.p-focus { border-color: color-mix(in srgb, var(--pos-accent) 40%, white); }
 .pos-workspace .pos-point-dropdown.p-disabled { opacity: .65; cursor: not-allowed; }
 .pos-point-panel { z-index: 1400 !important; }
-.pos-shift { order: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; color: #b9ab95; font-size: 11.5px; }
+.pos-shift { order: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; color: var(--pos-muted); font-size: 11.5px; }
 .pos-shift > div { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.pos-shift b { color: #fff8ec; }
-.pos-shift time { font-family: var(--pos-till); font-variant-numeric: tabular-nums; opacity: .85; }
-.pos-shift-state { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: 1px solid currentColor; border-radius: 4px; color: #8ef0c2; background: transparent; font: 800 11px/1.5 var(--pos-till); }
-.pos-shift-state > span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-.pos-shift-state.is-closed { color: #f7c66b; }
+.pos-shift b { color: var(--pos-ink); }
+.pos-shift time { font-variant-numeric: tabular-nums; opacity: .8; }
+.pos-shift-state { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; color: #0b7f63; background: #d8f5ea; font-weight: 700; }
+.pos-shift-state > span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
+.pos-shift-state.is-closed { color: #b7791f; background: #fdf1d8; }
 .pos-toolbar-actions { order: 4; display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
-/* أزرار الشريط: مفاتيح آلة تسجيل بارزة */
 .pos-toolbar-actions > button {
-  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 12px;
-  border: 1px solid #4a4036; border-radius: 8px; color: #f3ead9; background: linear-gradient(180deg, #3a322a, #2c2620); font-size: 12px; font-weight: 700; white-space: nowrap;
-  box-shadow: 0 3px 0 #16120e; transition: transform .1s, box-shadow .1s, background-color .15s;
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 13px;
+  border: 1px solid var(--pos-edge); border-radius: 999px; color: var(--pos-ink); background: #fff; font-size: 12px; font-weight: 700; white-space: nowrap;
+  transition: background-color .15s, border-color .15s, transform .15s, box-shadow .15s;
 }
-.pos-toolbar-actions > button svg { width: 16px; height: 16px; color: #e9c98f; }
+.pos-toolbar-actions > button svg { width: 16px; height: 16px; color: var(--pos-accent); }
 .pos-toolbar-actions > button kbd { padding: 0 4px; font-size: 9px; }
-.pos-toolbar-actions > button:hover:not(:disabled) { background: linear-gradient(180deg, #463c32, #332c25); }
-.pos-toolbar-actions > button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 #16120e; }
-.pos-toolbar-actions > .pos-primary-tool { border-color: transparent; color: #fff; background: var(--pos-accent); box-shadow: 0 3px 0 var(--pos-accent-strong); }
-.pos-toolbar-actions > .pos-primary-tool:hover:not(:disabled) { background: var(--pos-accent); filter: brightness(1.1); }
+.pos-toolbar-actions > button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--pos-accent) 35%, white); box-shadow: 0 8px 16px -12px var(--pos-accent); transform: translateY(-1px); }
+.pos-toolbar-actions > .pos-primary-tool { border-color: transparent; color: #fff; background: linear-gradient(135deg, #2cc79a, var(--pos-accent-strong)); box-shadow: 0 10px 20px -12px var(--pos-accent); }
 .pos-toolbar-actions > .pos-primary-tool svg { color: #fff; }
-.pos-badge { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 4px; color: #fff; background: #d9480f; font: 800 10px/1 var(--pos-till); }
-/* الصافي للدفع: شاشة عرض الزبون (VFD) بأرقام متوهجة — النقر يقرّب المبلغ */
-.pos-net {
-  order: 5; display: flex; flex-shrink: 0; align-items: center; gap: 12px; height: 60px; padding: 0 18px 0 8px;
-  border: 2px solid #3d352c; border-radius: 10px; color: var(--pos-display-ink); background:
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 3%) 0 1px, transparent 1px 3px),
-    var(--pos-display);
-  box-shadow: inset 0 0 18px rgb(0 0 0 / 80%), 0 0 0 3px #16120e;
-}
-.pos-net-icon { display: grid; flex-shrink: 0; place-items: center; width: 40px; height: 40px; border: 1px dashed rgb(142 240 194 / 45%); border-radius: 8px; color: var(--pos-display-ink); background: transparent; }
-.pos-net-icon svg { width: 20px; height: 20px; }
+.pos-badge { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; color: #fff; background: #f08b3e; font-size: 10px; font-weight: 800; }
+/* الصافي للدفع: كبسولة أعلى وأوضح (المبلغ أهم رقم في الشاشة) */
+.pos-net { order: 5; display: flex; flex-shrink: 0; align-items: center; gap: 12px; height: 60px; padding: 0 22px 0 8px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, var(--pos-accent), var(--pos-accent-strong)); box-shadow: 0 16px 28px -16px var(--pos-accent); }
+.pos-net-icon { display: grid; flex-shrink: 0; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--pos-accent-strong); background: #fff; }
+.pos-net-icon svg { width: 22px; height: 22px; }
 .pos-net > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-.pos-net > div > span { color: rgb(142 240 194 / 70%); font: 700 12px/1 var(--pos-till); white-space: nowrap; }
-.pos-net strong { color: var(--pos-display-ink); font: 800 30px/1 var(--pos-till); font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap; text-shadow: 0 0 10px rgb(142 240 194 / 55%); }
-.pos-net small { color: rgb(142 240 194 / 75%); font: 700 12px/1 var(--pos-till); }
-.pos-connection { order: 1; display: inline-grid; flex-shrink: 0; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #4a4036; border-radius: 8px; color: #8ef0c2; background: #2c2620; font-size: 0; }
+.pos-net > div > span { color: rgb(255 255 255 / 85%); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.pos-net strong { color: #fff; font-size: 30px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos-net small { color: rgb(255 255 255 / 82%); font-size: 12px; font-weight: 700; }
+.pos-connection { order: 1; display: inline-grid; flex-shrink: 0; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 50%; color: #0b7f63; background: #d8f5ea; font-size: 0; }
 .pos-connection svg { width: 14px; height: 14px; }
-.pos-connection.is-offline { color: #f7c66b; animation: pos-pulse 1.8s ease-in-out infinite; }
-@keyframes pos-pulse { 50% { box-shadow: 0 0 0 5px rgb(247 198 107 / 18%); } }
+.pos-connection.is-offline { color: #b7791f; background: #fdf1d8; animation: pos-pulse 1.8s ease-in-out infinite; }
+@keyframes pos-pulse { 50% { box-shadow: 0 0 0 6px rgb(183 121 31 / 15%); } }
 
-.pos-message { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border: 1px dashed #9cb8a6; border-radius: 8px; color: #24533c; background: #f0f7ef; font-size: 13px; box-shadow: var(--pos-shadow); }
-.pos-message.is-error { border-color: #e6a3a3; color: #9b1c1c; background: #fdf0ee; }
+.pos-message { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border: 1px solid #bfeedd; border-radius: 16px; color: #0b6b53; background: rgb(236 251 245 / 90%); font-size: 13px; box-shadow: var(--pos-shadow); }
+.pos-message.is-error { border-color: #fbd0d6; color: #a1283f; background: rgb(255 241 243 / 95%); }
 
-/* ── Desk + receipt ───────────────────────────────────────────────────────── */
-.pos-layout { display: grid; flex: 1; min-height: 0; gap: 18px; grid-template-columns: minmax(0, 1fr) var(--pos-dock-width); }
+/* ── Canvas + dock ────────────────────────────────────────────────────────── */
+.pos-layout { display: grid; flex: 1; min-height: 0; gap: 16px; grid-template-columns: minmax(0, 1fr) var(--pos-dock-width); }
 .pos-catalog { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-/* الفاتورة: ورقة إيصال تخرج من فتحة الطابعة أعلاها وحافتها السفلية ممزّقة */
 .pos-sale {
-  position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
-  padding-top: 12px; padding-bottom: 10px; border-radius: 4px 4px 0 0;
-  background:
-    linear-gradient(90deg, rgb(120 90 50 / 5%), transparent 3%, transparent 97%, rgb(120 90 50 / 5%)),
-    var(--pos-paper);
-  box-shadow: 0 1px 0 #e9dfcd, 0 26px 40px -28px rgb(60 40 15 / 60%);
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
+  border: 1px solid var(--pos-glass-edge); border-radius: 30px;
+  /* لون ثابت بدل backdrop-filter: الضباب يُعاد حسابه مع كل إطار تمرير فيُبطئ الأجهزة الضعيفة */
+  background: #fbfefd;
+  box-shadow: 0 30px 60px -34px rgb(16 92 72 / 55%), inset 0 1px 0 #fff;
 }
-/* فتحة الطابعة */
-.pos-sale::before { content: ""; position: absolute; inset-inline: 0; top: 0; height: 8px; background: linear-gradient(180deg, #2b241d, #4a4036); box-shadow: 0 3px 6px rgb(0 0 0 / 25%); z-index: 2; }
-/* الحافة الممزقة (مثلثات بلون سطح المكتب) */
-.pos-sale::after { content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 10px; background: linear-gradient(-45deg, var(--pos-desk) 5px, transparent 0) 0 100% / 12px 10px repeat-x, linear-gradient(45deg, var(--pos-desk) 5px, transparent 0) 0 100% / 12px 10px repeat-x; pointer-events: none; z-index: 2; }
 
 /* إخفاء الأصناف (زر "إخفاء الأصناف" — يُحفظ على الجهاز): الفاتورة الحالية بعرض المساحة كاملة.
    الجوال يبقى على مبدّل الأصناف/السلة السفلي. */
@@ -149,180 +125,165 @@
   .pos-layout[data-catalog=hidden] .pos-catalog { display: none; }
   .pos-layout[data-catalog=hidden] .pos-sale { width: min(100%, 1100px); justify-self: center; }
 }
-.pos-toolbar-actions > .pos-view-toggle[aria-pressed=false] { color: #fff; background: linear-gradient(180deg, #5a4d40, #3f362d); }
-.pos-categories-toggle { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 42px; padding: 0 14px; border: 1px solid var(--pos-edge); border-radius: 8px; color: var(--pos-ink); background: var(--pos-tag); font-size: 12px; font-weight: 800; white-space: nowrap; box-shadow: 0 2px 0 var(--pos-edge); }
-.pos-categories-toggle[aria-pressed=false] { color: #fff; border-color: var(--pos-accent-strong); background: var(--pos-accent); }
+.pos-toolbar-actions > .pos-view-toggle[aria-pressed=false] { color: var(--pos-accent-strong); background: var(--pos-accent-soft); }
+.pos-categories-toggle { display: inline-flex; flex-shrink: 0; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--pos-glass-edge); border-radius: 999px; color: var(--pos-accent-strong); background: var(--pos-glass); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.pos-categories-toggle[aria-pressed=false] { background: var(--pos-accent-soft); }
 @container cashier (max-width: 900px) { .pos-categories-toggle span { display: none; } .pos-categories-toggle { padding: 0 11px; } }
 
-/* ── Catalog: search + folder-tab categories + price tags ─────────────────── */
+/* ── Catalog canvas ───────────────────────────────────────────────────────── */
 .pos-catalog-head { display: flex; flex-shrink: 0; align-items: center; gap: 10px; padding: 2px 2px 10px; }
-.pos-search-field { position: relative; display: flex; flex: 1; align-items: center; gap: 9px; min-width: 0; height: 48px; padding: 0 6px 0 14px; border: 1.5px solid var(--pos-ink); border-radius: 8px; color: var(--pos-muted); background: var(--pos-paper); box-shadow: 3px 3px 0 var(--pos-ink); transition: box-shadow .12s, transform .12s; }
-.pos-search-field:focus-within { color: var(--pos-accent); box-shadow: 3px 3px 0 var(--pos-accent); border-color: var(--pos-accent); }
-.pos-search-field > svg { flex-shrink: 0; color: var(--pos-ink); }
+.pos-search-field { position: relative; display: flex; flex: 1; align-items: center; gap: 9px; min-width: 0; height: 48px; padding: 0 8px 0 16px; border: 1px solid var(--pos-glass-edge); border-radius: 999px; color: var(--pos-muted); background: var(--pos-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 12px 26px -22px rgb(16 92 72 / 50%); transition: border-color .15s, box-shadow .15s, background-color .15s; }
+.pos-search-field:focus-within { border-color: color-mix(in srgb, var(--pos-accent) 45%, white); background: #fff; box-shadow: 0 0 0 5px color-mix(in srgb, var(--pos-accent) 14%, transparent); }
+.pos-search-field > svg { flex-shrink: 0; color: var(--pos-accent); }
 .pos-search-field input { flex: 1; width: 100%; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--pos-ink); font-size: 14.5px; }
 .pos-search-field input:focus-visible { outline: none; box-shadow: none; }
 /* زر بحث الأصناف داخل حقل الباركود وحقل البحث بالاسم — بديل F10 على الجوال واللمس */
-.pos-search-field .pos-item-search-btn { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: var(--pos-ink); color: var(--pos-paper); font-size: 12px; font-weight: 800; cursor: pointer; transition: background-color .15s; }
-.pos-search-field .pos-item-search-btn:hover:not(:disabled) { background: var(--pos-accent); }
+.pos-search-field .pos-item-search-btn { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--pos-accent); color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; transition: background-color .15s; }
+.pos-search-field .pos-item-search-btn:hover:not(:disabled) { background: var(--pos-accent-strong); }
 .pos-search-field .pos-item-search-btn:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 640px) { .pos-search-field .pos-item-search-btn span { display: none; } .pos-search-field .pos-item-search-btn { padding: 0 11px; } }
 .pos-search-field > button { display: grid; place-items: center; padding: 5px; border-radius: 50%; }
-.pos-count { flex-shrink: 0; padding: 7px 12px; border: 1px dashed var(--pos-muted); border-radius: 6px; color: var(--pos-ink); background: transparent; font: 800 11.5px/1.2 var(--pos-till); }
+.pos-count { flex-shrink: 0; padding: 8px 14px; border-radius: 999px; color: var(--pos-accent-strong); background: rgb(255 255 255 / 70%); font-size: 11.5px; font-weight: 800; }
 
-.pos-categories-bar { display: flex; flex-shrink: 0; align-items: flex-end; gap: 6px; padding: 0; border-bottom: 2px solid var(--pos-ink); margin-bottom: 12px; }
-.pos-categories-arrow { display: grid; flex-shrink: 0; place-items: center; width: 34px; height: 34px; margin-bottom: 4px; border: 1px solid var(--pos-edge); border-radius: 6px; color: var(--pos-ink); background: var(--pos-tag); }
-.pos-categories-arrow:hover { color: var(--pos-accent); }
-.pos-categories { display: flex; flex: 1; align-items: flex-end; gap: 3px; min-width: 0; padding: 4px 2px 0; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; }
+.pos-categories-bar { display: flex; flex-shrink: 0; align-items: center; gap: 6px; padding: 0 0 12px; }
+.pos-categories-arrow { display: grid; flex-shrink: 0; place-items: center; width: 36px; height: 36px; border: 1px solid var(--pos-glass-edge); border-radius: 50%; color: var(--pos-muted); background: var(--pos-glass); }
+.pos-categories-arrow:hover { color: var(--pos-accent-strong); }
+.pos-categories { display: flex; flex: 1; gap: 8px; min-width: 0; padding: 2px 2px 6px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; }
 .pos-categories::-webkit-scrollbar { display: none; }
-/* تبويبات ملفات: الحافة العليا مستديرة والسفلية ملتصقة بالخط */
-.pos-categories button { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border: 1px solid var(--pos-edge); border-bottom: 0; border-radius: 10px 10px 0 0; color: var(--pos-muted); background: #e5dccb; font-size: 13px; font-weight: 700; white-space: nowrap; transition: background-color .15s, color .15s, height .15s; }
-.pos-categories button small { padding: 0 6px; border-radius: 4px; color: var(--pos-muted); background: rgb(0 0 0 / 6%); font: 800 10.5px/1.6 var(--pos-till); }
-.pos-categories button:hover:not([aria-pressed=true]) { color: var(--pos-ink); background: #efe7d8; }
-.pos-categories button[aria-pressed=true] { height: 42px; border-color: var(--pos-ink); color: var(--pos-paper); background: var(--pos-ink); }
-.pos-categories button[aria-pressed=true] small { color: var(--pos-ink); background: var(--pos-paper); }
+.pos-categories button { display: inline-flex; flex-shrink: 0; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border: 1px solid var(--pos-glass-edge); border-radius: 999px; color: var(--pos-ink); background: var(--pos-glass); font-size: 13px; font-weight: 700; white-space: nowrap; transition: background-color .15s, color .15s, transform .15s; }
+.pos-categories button small { padding: 1px 8px; border-radius: 999px; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 10.5px; font-weight: 800; }
+.pos-categories button:hover:not([aria-pressed=true]) { transform: translateY(-1px); }
+.pos-categories button[aria-pressed=true] { border-color: transparent; color: #fff; background: linear-gradient(135deg, var(--pos-accent), var(--pos-accent-strong)); box-shadow: 0 10px 18px -12px var(--pos-accent); }
+.pos-categories button[aria-pressed=true] small { color: #fff; background: rgb(255 255 255 / 22%); }
 
-.pos-products { display: grid; flex: 1 1 0; align-content: start; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); grid-auto-rows: max-content; gap: 16px 14px; min-height: 0; padding: 6px 4px 16px; overflow-y: auto; overscroll-behavior: contain; will-change: scroll-position; contain: layout paint; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #cbbba1 transparent; }
-/* بطاقة السعر: ورق كريمي بثقب للخيط وحافة منقّطة */
-.pos-product { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 224px; overflow: hidden; padding: 8px; border: 1px solid var(--pos-edge); border-radius: 6px 6px 18px 6px; background: var(--pos-tag); text-align: start; white-space: normal; box-shadow: 0 2px 0 #ddd0b8, 0 10px 16px -14px rgb(60 40 15 / 50%); transition: transform .18s, box-shadow .18s; content-visibility: auto; contain-intrinsic-size: auto 224px; }
-.pos-product::before { content: ""; position: absolute; top: 10px; inset-inline-end: 10px; z-index: 1; width: 12px; height: 12px; border: 2px solid #cdbd9f; border-radius: 50%; background: var(--pos-desk); box-shadow: inset 1px 1px 2px rgb(0 0 0 / 20%); }
-.pos-product-visual { position: relative; display: grid; flex: 0 0 auto; place-items: center; height: 118px; overflow: hidden; border: 1px dashed #d8c9ad; border-radius: 4px; background: repeating-linear-gradient(135deg, #f6efe0 0 8px, #f2eada 8px 16px); }
-.pos-product:nth-child(5n+2) .pos-product-visual,
-.pos-product:nth-child(5n+3) .pos-product-visual,
-.pos-product:nth-child(5n+4) .pos-product-visual,
-.pos-product:nth-child(5n) .pos-product-visual { background: repeating-linear-gradient(135deg, #f6efe0 0 8px, #f2eada 8px 16px); }
-.pos-product-icon { display: grid; place-items: center; color: #b7a382; }
-.pos-product-icon.has-image { position: absolute; inset: 0; width: auto; height: auto; padding: 10px; background: #fff; }
+.pos-products { display: grid; flex: 1 1 0; align-content: start; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); grid-auto-rows: max-content; gap: 14px; min-height: 0; padding: 4px 4px 16px; overflow-y: auto; overscroll-behavior: contain; will-change: scroll-position; contain: layout paint; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #b9e6d6 transparent; }
+.pos-product { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 224px; overflow: hidden; padding: 8px; border: 1px solid var(--pos-glass-edge); border-radius: 24px; background: #fff; text-align: start; white-space: normal; box-shadow: 0 6px 14px -12px rgb(16 92 72 / 45%); transition: transform .18s, box-shadow .18s; content-visibility: auto; contain-intrinsic-size: auto 224px; }
+.pos-product-visual { position: relative; display: grid; flex: 0 0 auto; place-items: center; height: 118px; overflow: hidden; border-radius: 18px; background: linear-gradient(160deg, #eefaf5, #e2f5ee); }
+.pos-product:nth-child(5n+2) .pos-product-visual { background: linear-gradient(160deg, #eef6ff, #e3effc); }
+.pos-product:nth-child(5n+3) .pos-product-visual { background: linear-gradient(160deg, #fff6ee, #fdeedf); }
+.pos-product:nth-child(5n+4) .pos-product-visual { background: linear-gradient(160deg, #f6f1ff, #ece4fd); }
+.pos-product:nth-child(5n) .pos-product-visual { background: linear-gradient(160deg, #f3fbe9, #e8f5d9); }
+.pos-product-icon { display: grid; place-items: center; color: color-mix(in srgb, var(--pos-accent) 55%, #9bb8b0); }
+.pos-product-icon.has-image { position: absolute; inset: 0; width: auto; height: auto; padding: 10px; }
 .pos-product-icon.has-image img { display: block; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
-.pos-stock { position: absolute; top: 6px; inset-inline-start: 6px; display: inline-flex; align-items: center; gap: 5px; max-width: calc(100% - 34px); padding: 2px 7px; overflow: hidden; border: 1px solid currentColor; border-radius: 4px; color: #2f6b45; background: var(--pos-paper); font: 800 10px/1.5 var(--pos-till); white-space: nowrap; text-overflow: ellipsis; }
+.pos-stock { position: absolute; top: 8px; inset-inline-start: 8px; display: inline-flex; align-items: center; gap: 5px; max-width: calc(100% - 16px); padding: 3px 9px; overflow: hidden; border-radius: 999px; color: #0b7f63; background: rgb(255 255 255 / 92%); font-size: 10px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
 .pos-stock > span { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
-.pos-stock.is-unavailable { color: #b42318; }
-.pos-product-add { position: absolute; bottom: 8px; inset-inline-end: 8px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 6px; color: #fff; background: var(--pos-ink); box-shadow: 2px 2px 0 var(--pos-accent); transform: scale(.85); opacity: 0; transition: opacity .15s, transform .15s; }
-.pos-product-details { display: flex; flex: 1 0 auto; flex-direction: column; gap: 3px; padding: 10px 4px 4px; }
+.pos-stock.is-unavailable { color: #c2334d; }
+.pos-product-add { position: absolute; bottom: 8px; inset-inline-end: 8px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; background: var(--pos-accent); box-shadow: 0 8px 16px -8px var(--pos-accent); transform: scale(.85); opacity: .0; transition: opacity .15s, transform .15s; }
+.pos-product-details { display: flex; flex: 1 0 auto; flex-direction: column; gap: 3px; padding: 10px 6px 4px; }
 .pos-product-details > b { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 13.5px; font-weight: 800; line-height: 1.45; }
-.pos-product-code { color: var(--pos-muted); font: 10px var(--pos-till); text-align: start; }
-/* السعر: ملصق مائل قليلاً بالحبر */
-.pos-product-details > strong { display: inline-flex; align-self: flex-start; align-items: baseline; gap: 4px; margin-top: auto; padding: 3px 10px; border: 1.5px solid var(--pos-accent); border-radius: 4px; color: var(--pos-accent-strong); background: transparent; font: 800 15.5px/1.3 var(--pos-till); font-variant-numeric: tabular-nums; transform: rotate(-2deg); }
+.pos-product-code { color: var(--pos-muted); font: 10px ui-monospace, monospace; text-align: start; }
+.pos-product-details > strong { display: inline-flex; align-self: flex-start; align-items: baseline; gap: 4px; margin-top: auto; padding: 4px 11px; border-radius: 999px; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 15.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .pos-product-details > strong small { font-size: 10px; font-weight: 700; opacity: .8; }
 .pos-more { align-self: center; margin: 0 12px 12px; }
 
-/* ── Receipt: header · parties · scan ─────────────────────────────────────── */
-.pos-panel-heading { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 10px; margin: 0 18px; padding: 12px 0 10px; border-bottom: 2px dashed var(--pos-edge); }
+/* ── Dock: heading · parties · scan ───────────────────────────────────────── */
+.pos-panel-heading { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 18px 10px; }
 .pos-panel-title { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.pos-heading-icon { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border: 1.5px solid var(--pos-ink); border-radius: 50%; color: var(--pos-ink); background: transparent; }
+.pos-heading-icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 14px; color: #fff; background: linear-gradient(140deg, color-mix(in srgb, var(--pos-accent) 75%, white), var(--pos-accent-strong)); }
 .pos-panel-heading h2 { font-size: 16px; font-weight: 900; line-height: 1.35; }
-.pos-panel-heading p { color: var(--pos-muted); font: 11px/1.4 var(--pos-till); }
-/* شارة الوضع: ختم مطاطي */
-.pos-mode-badge { flex-shrink: 0; padding: 4px 10px; border: 2px solid var(--pos-accent); border-radius: 4px; color: var(--pos-accent); background: transparent; font-size: 11px; font-weight: 900; transform: rotate(-4deg); }
+.pos-panel-heading p { font-size: 11.5px; color: var(--pos-muted); }
+.pos-mode-badge { flex-shrink: 0; padding: 6px 12px; border-radius: 999px; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 11px; font-weight: 900; }
 
-.pos-parties { display: grid; flex-shrink: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px 18px 0; }
-.pos-parties > div { height: 40px; overflow: hidden; border: 1px solid var(--pos-edge) !important; border-radius: 6px !important; background: var(--pos-soft) !important; }
-.pos-parties button { display: flex; align-items: center; gap: 7px; height: 100%; padding: 0 12px; color: var(--pos-ink); font-size: 12px; font-weight: 700; }
+.pos-parties { display: grid; flex-shrink: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 18px; }
+.pos-parties > div { height: 42px; overflow: hidden; border: 1px solid var(--pos-edge) !important; border-radius: 999px !important; background: #fff !important; }
+.pos-parties button { display: flex; align-items: center; gap: 7px; height: 100%; padding: 0 14px; color: var(--pos-ink); font-size: 12px; font-weight: 700; }
 .pos-parties button svg { flex-shrink: 0; color: var(--pos-accent); }
 .pos-parties button kbd { margin-inline-start: auto; }
-.pos-barcode-field { flex: 0 0 auto; margin: 10px 18px; height: 50px; border-style: solid; box-shadow: 3px 3px 0 var(--pos-accent); border-color: var(--pos-accent); background: var(--pos-paper); }
-.pos-barcode-field > svg { color: var(--pos-accent); }
+.pos-barcode-field { flex: 0 0 auto; margin: 10px 18px; height: 50px; border: 1.5px dashed color-mix(in srgb, var(--pos-accent) 40%, white); background: color-mix(in srgb, var(--pos-accent-soft) 45%, white); box-shadow: none; }
+.pos-barcode-field > svg { color: var(--pos-accent-strong); }
 
-/* ── Receipt: lines separated by dotted rules ────────────────────────────── */
-.pos-cart { flex: 1; min-height: 120px; padding: 2px 18px 10px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #cbbba1 transparent; }
+/* ── Dock: cart lines ─────────────────────────────────────────────────────── */
+.pos-cart { flex: 1; min-height: 120px; padding: 2px 18px 10px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #b9e6d6 transparent; }
 /* سطر الفاتورة في صف واحد (الاسم + الكمية + الخصم + الإجمالي + الحذف) ليظهر أكبر عدد من الأصناف */
-.pos-cart-line { position: relative; display: flex; align-items: center; margin: 0; overflow: hidden; border: 0; border-bottom: 1.5px dotted #cbbba1; border-radius: 0; scroll-margin: 6px; background: transparent; transition: background-color .15s; animation: pos-line-in .25s ease-out; }
-@keyframes pos-line-in { from { opacity: 0; clip-path: inset(0 0 100% 0); } }
-/* السطر المحدد: تظليل بقلم ماركر */
-.pos-cart-line.is-selected { background: linear-gradient(180deg, transparent 8%, color-mix(in srgb, var(--pos-accent) 13%, transparent) 8% 92%, transparent 92%); }
-.pos-cart-line.is-selected::before { content: ""; position: absolute; inset-block: 6px; inset-inline-start: 0; width: 3px; border-radius: 3px; background: var(--pos-accent); }
-.pos-cart-line.is-gift { border-bottom-style: dashed; border-bottom-color: #c39bdc; }
-.pos-line-name { display: flex; flex: 1; align-items: center; gap: 9px; min-width: 0; padding: 8px 8px; text-align: start; }
-.pos-line-index { display: grid; place-items: center; min-width: 26px; height: 22px; flex-shrink: 0; border-radius: 3px; color: var(--pos-muted); background: transparent; font: 800 11.5px/1 var(--pos-till); }
-.pos-line-index::before { content: "#"; opacity: .6; }
+.pos-cart-line { display: flex; align-items: center; margin-bottom: 6px; overflow: hidden; border: 1px solid var(--pos-edge); border-radius: 16px; scroll-margin: 6px; background: #fff; transition: border-color .15s, box-shadow .15s, transform .15s; animation: pos-line-in .22s ease-out; }
+@keyframes pos-line-in { from { opacity: 0; transform: translateY(6px); } }
+.pos-cart-line.is-selected { border-color: color-mix(in srgb, var(--pos-accent) 55%, white); box-shadow: 0 0 0 4px var(--pos-accent-soft); }
+.pos-cart-line.is-gift { border-style: dashed; border-color: #c5a3f2; }
+.pos-line-name { display: flex; flex: 1; align-items: center; gap: 9px; min-width: 0; padding: 7px 11px; text-align: start; }
+.pos-line-index { display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 11.5px; font-weight: 900; }
 .pos-cart-line.is-selected .pos-line-index { color: #fff; background: var(--pos-accent); }
 .pos-line-info { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
 .pos-line-info b { overflow: hidden; font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-.pos-line-info small { overflow: hidden; color: var(--pos-muted); font: 11px/1.4 var(--pos-till); text-overflow: ellipsis; white-space: nowrap; }
-.pos-line-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-.pos-line-tags i { padding: 0 6px; border: 1px solid currentColor; border-radius: 3px; color: #b45309; background: transparent; font-size: 10px; font-style: normal; font-weight: 800; }
-.pos-line-tags i.is-gift { color: #8b3fb8; }
-.pos-line-tags i.is-campaign { color: #2f6b45; }
-.pos-line-total { flex-shrink: 0; min-width: 70px; text-align: end; font: 800 15px/1 var(--pos-till); font-variant-numeric: tabular-nums; }
-.pos-cart-line.is-history .pos-line-name { padding-block: 9px; }
-.pos-line-controls { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding-inline-end: 4px; }
-.pos-quantity { display: inline-flex; align-items: center; height: 30px; overflow: hidden; border: 1px solid var(--pos-edge); border-radius: 6px; background: var(--pos-paper); }
-.pos-quantity button { display: grid; place-items: center; width: 28px; height: 100%; color: var(--pos-ink); }
-.pos-quantity button:hover { color: #fff; background: var(--pos-ink); }
-.pos-quantity strong { min-width: 34px; text-align: center; font: 800 13.5px/1 var(--pos-till); font-variant-numeric: tabular-nums; }
-.pos-item-discount { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 9px; border: 1px dashed #d97706; border-radius: 6px; color: #b45309; background: transparent; font: 800 12px/1 var(--pos-till); }
-.pos-remove { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; color: #b42318; }
-.pos-remove:hover { color: #fff; background: #b42318; }
+.pos-line-info small { overflow: hidden; color: var(--pos-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.pos-line-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 1px; }
+.pos-line-tags i { padding: 1px 8px; border-radius: 999px; color: #b7651f; background: #fdf0de; font-size: 10px; font-style: normal; font-weight: 800; }
+.pos-line-tags i.is-gift { color: #7a44c2; background: #efe4fd; }
+.pos-line-tags i.is-campaign { color: #0b7f63; background: #d8f5ea; }
+.pos-line-total { flex-shrink: 0; min-width: 64px; text-align: end; font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.pos-cart-line.is-history .pos-line-name { padding-block: 8px; }
+.pos-line-controls { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding-inline-end: 8px; }
+.pos-quantity { display: inline-flex; align-items: center; height: 32px; overflow: hidden; border-radius: 999px; background: var(--pos-soft); }
+.pos-quantity button { display: grid; place-items: center; width: 30px; height: 100%; color: var(--pos-accent-strong); }
+.pos-quantity button:hover { background: var(--pos-accent-soft); }
+.pos-quantity strong { min-width: 34px; text-align: center; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.pos-item-discount { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 10px; border-radius: 999px; color: #b7651f; background: #fdf0de; font-size: 12px; font-weight: 800; }
+.pos-remove { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #c2334d; }
+.pos-remove:hover { background: #ffe8ec; }
 
 .pos-history-view { display: flex; flex-direction: column; gap: 8px; }
 .pos-history-nav, .pos-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.pos-history-nav { justify-content: center; padding: 6px; border: 1px dashed var(--pos-edge); border-radius: 6px; background: var(--pos-soft); }
-.pos-history-nav > span { min-width: 64px; text-align: center; font: 800 12px/1 var(--pos-till); font-variant-numeric: tabular-nums; }
-.pos-history-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px; border: 1.5px dashed var(--pos-edge); border-radius: 6px; background: var(--pos-soft); font-size: 12px; }
+.pos-history-nav { justify-content: center; padding: 6px; border-radius: 999px; background: var(--pos-soft); }
+.pos-history-nav > span { min-width: 64px; text-align: center; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pos-history-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px; border: 1px solid var(--pos-edge); border-radius: 18px; background: #fff; font-size: 12px; }
 .pos-history-summary small { display: block; color: var(--pos-muted); font-size: 10px; }
 .pos-history-payments { display: flex; flex-wrap: wrap; gap: 6px; }
-.pos-history-payments span { padding: 4px 10px; border: 1px solid var(--pos-edge); border-radius: 4px; background: var(--pos-paper); font: 11px/1.4 var(--pos-till); }
+.pos-history-payments span { padding: 5px 11px; border-radius: 999px; background: var(--pos-soft); font-size: 11px; }
 .pos-history-loading { padding: 32px 0; color: var(--pos-muted); font-size: 13px; text-align: center; }
 
-/* الفاتورة الفارغة: إيصال صغير مطوي */
 .pos-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 100%; min-height: 200px; padding: 20px; color: var(--pos-muted); font-size: 12px; text-align: center; }
 .pos-empty h3 { color: var(--pos-ink); font-size: 15px; font-weight: 900; }
-.pos-empty-icon { position: relative; display: grid; place-items: center; width: 76px; height: 90px; margin-bottom: 8px; border: 1.5px dashed #cbbba1; border-radius: 4px; color: var(--pos-muted); background: var(--pos-soft); transform: rotate(-3deg); }
-.pos-empty-plus { position: absolute; bottom: -8px; inset-inline-end: -10px; display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid var(--pos-paper); border-radius: 50%; color: #fff; background: var(--pos-accent); transform: rotate(3deg); }
-.pos-tool { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border: 1px solid var(--pos-ink); border-radius: 6px; color: var(--pos-ink); background: var(--pos-paper); font-size: 12px; font-weight: 700; box-shadow: 2px 2px 0 var(--pos-ink); }
+.pos-empty-icon { position: relative; display: grid; place-items: center; width: 80px; height: 80px; margin-bottom: 6px; border-radius: 50%; color: var(--pos-accent); background: radial-gradient(circle at 30% 30%, #fff, var(--pos-accent-soft)); box-shadow: 0 16px 30px -20px var(--pos-accent); }
+.pos-empty-plus { position: absolute; bottom: -2px; inset-inline-end: -2px; display: grid; place-items: center; width: 28px; height: 28px; border: 3px solid #fff; border-radius: 50%; color: #fff; background: var(--pos-accent); }
+.pos-tool { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 16px; border: 1px solid var(--pos-edge); border-radius: 999px; color: var(--pos-ink); background: #fff; font-size: 12px; font-weight: 700; }
 
-/* ── Receipt foot: dotted-leader totals · tools · keypad · ink stamp ──────── */
-.pos-ticket-footer { position: relative; display: flex; flex-shrink: 0; flex-direction: column; gap: 8px; padding: 12px 18px 14px; border-top: 2px dashed var(--pos-edge); background: transparent; }
-.pos-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 22px; font-size: 13px; }
-/* سطر إجمالي بنقاط إرشاد بين الاسم والمبلغ مثل الإيصال المطبوع */
-.pos-totals > div { display: flex; align-items: baseline; gap: 6px; color: var(--pos-muted); font-weight: 700; }
-.pos-totals > div::after { content: ""; order: 1; flex: 1; min-width: 12px; border-bottom: 1.5px dotted #cbbba1; transform: translateY(-3px); }
-.pos-totals > div > :last-child { order: 2; }
-.pos-totals b { color: var(--pos-ink); font: 800 14.5px/1 var(--pos-till); font-variant-numeric: tabular-nums; }
+/* ── Dock footer: totals · tools strip · keypad (on selection) · pay pill ─── */
+.pos-ticket-footer { display: flex; flex-shrink: 0; flex-direction: column; gap: 7px; padding: 9px 18px 12px; border-top: 1px solid var(--pos-edge); background: linear-gradient(180deg, rgb(241 250 246 / 60%), rgb(255 255 255 / 90%)); }
+.pos-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 18px; font-size: 13px; }
+.pos-totals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--pos-muted); font-weight: 700; }
+.pos-totals b { color: var(--pos-ink); font-size: 14.5px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .pos-totals > .pos-totals-due { display: none; }
-.pos-control-row { display: flex; flex-direction: column; gap: 8px; }
-/* لوحة الأرقام في صف واحد: خانة الكمية + تطبيق + 12 مفتاحاً — مفاتيح آلة حاسبة */
-.pos-keypad { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border-radius: 10px; background: #3a322a; box-shadow: inset 0 2px 6px rgb(0 0 0 / 40%); animation: pos-key-in .2s ease-out; }
-@keyframes pos-key-in { from { opacity: 0; transform: translateY(6px); } }
+.pos-control-row { display: flex; flex-direction: column; gap: 7px; }
+/* لوحة الأرقام في صف واحد: خانة الكمية + تطبيق + 12 مفتاحاً */
+.pos-keypad { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-radius: 18px; background: var(--pos-soft); animation: pos-line-in .2s ease-out; }
 .pos-keypad-entry { display: flex; flex: 0 0 190px; gap: 5px; }
-.pos-keypad-entry input { height: 34px; min-width: 0; padding: 0 10px; border: 0; border-radius: 6px; color: var(--pos-display-ink); background: var(--pos-display); text-align: center; font: 800 16px/1 var(--pos-till); box-shadow: inset 0 0 8px rgb(0 0 0 / 70%); }
-.pos-keypad-entry button { height: 34px; padding: 0 12px; border-radius: 6px; font-size: 12px; }
-.pos-keypad-keys { display: grid; flex: 1 1 300px; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 5px; }
-.pos-keypad-keys button { height: 34px; border-radius: 6px; color: var(--pos-ink); background: linear-gradient(180deg, #fffaf0, #ece2cf); font: 800 15px/1 var(--pos-till); box-shadow: 0 3px 0 #1c1712; transition: transform .08s, box-shadow .08s; }
-.pos-keypad-keys button:hover:not(:disabled) { background: linear-gradient(180deg, #fff, #f2e9d8); }
-.pos-keypad-keys button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 #1c1712; }
-.pos-keypad-keys button:nth-child(10) { color: #fff; background: linear-gradient(180deg, #d9480f, #b23a0b); }
+.pos-keypad-entry input { height: 34px; min-width: 0; padding: 0 10px; border-radius: 999px; text-align: center; font-size: 15px; font-weight: 800; }
+.pos-keypad-entry button { height: 34px; padding: 0 12px; border-radius: 999px; font-size: 12px; }
+.pos-keypad-keys { display: grid; flex: 1 1 300px; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+.pos-keypad-keys button { height: 34px; border-radius: 11px; color: var(--pos-ink); background: #fff; font-size: 15px; font-weight: 800; transition: background-color .12s, transform .12s; }
+.pos-keypad-keys button:hover:not(:disabled) { background: var(--pos-accent-soft); }
+.pos-keypad-keys button:active:not(:disabled) { transform: scale(.94); }
+.pos-keypad-keys button:nth-child(10) { color: #c2334d; }
 .pos-actions { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .pos-actions::-webkit-scrollbar { display: none; }
-/* أدوات الفاتورة: قسائم صغيرة بحافة مثقوبة */
-.pos-actions > button { position: relative; display: inline-flex; flex: 1 0 auto; flex-direction: row; align-items: center; justify-content: center; gap: 5px; min-width: 62px; height: 40px; padding: 0 10px; border: 1px solid var(--pos-edge); border-radius: 6px; color: var(--pos-ink); background: var(--pos-soft); font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; transition: background-color .15s, transform .12s, border-color .15s; }
-.pos-actions > button::before { content: ""; position: absolute; inset-block: 5px; inset-inline-start: 4px; border-inline-start: 1.5px dotted #cbbba1; }
+.pos-actions > button { position: relative; display: inline-flex; flex: 1 0 auto; flex-direction: row; align-items: center; justify-content: center; gap: 5px; min-width: 62px; height: 40px; padding: 0 10px; border-radius: 14px; color: var(--pos-ink); background: #fff; font-size: 11px; font-weight: 800; text-align: center; line-height: 1.15; box-shadow: 0 8px 18px -16px rgb(16 92 72 / 50%); transition: background-color .15s, transform .15s; }
 .pos-actions > button svg { color: var(--pos-accent); }
-.pos-actions > button kbd { position: absolute; top: 1px; inset-inline-end: 4px; padding: 0 3px; border: 0; font-size: 8.5px; }
-.pos-actions > button:hover:not(:disabled) { border-color: var(--pos-ink); background: var(--pos-paper); transform: translateY(-1px); }
-.pos-actions > button:nth-child(1) svg { color: #b45309; }
-.pos-actions > button:nth-child(2) svg { color: #b42318; }
-.pos-actions > button:nth-child(3) svg { color: #8b3fb8; }
-.pos-actions > button:nth-child(4) svg { color: #1d6fa5; }
-.pos-actions > button:nth-child(5) svg { color: #2747a5; }
-.pos-actions > button:nth-child(6) svg { color: #2f6b45; }
+.pos-actions > button kbd { position: absolute; top: 1px; inset-inline-end: 5px; padding: 0 3px; border: 0; font-size: 8.5px; }
+.pos-actions > button:hover:not(:disabled) { background: var(--pos-accent-soft); transform: translateY(-1px); }
+.pos-actions > button:nth-child(1) svg { color: #d98a2b; }
+.pos-actions > button:nth-child(2) svg { color: #d4485f; }
+.pos-actions > button:nth-child(3) svg { color: #9a62e0; }
+.pos-actions > button:nth-child(4) svg { color: #3b8fd6; }
+.pos-actions > button:nth-child(5) svg { color: #5b6ee0; }
+.pos-actions > button:nth-child(6) svg { color: var(--pos-accent); }
 
-/* زر الدفع: ختم حبر بإطار مزدوج */
-.pos-pay-button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 58px; padding: 0 8px 0 20px; overflow: hidden; border: 2px solid var(--pos-accent-strong); border-radius: 8px; color: #fff; background: var(--pos-accent); box-shadow: inset 0 0 0 3px var(--pos-accent), inset 0 0 0 4.5px rgb(255 255 255 / 55%), 0 4px 0 var(--pos-accent-strong); transition: transform .1s, box-shadow .1s, filter .14s; }
-.pos-pay-button::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgb(255 255 255 / 4%) 0 6px, transparent 6px 12px); pointer-events: none; }
-.pos-pay-button:hover:not(:disabled) { filter: brightness(1.08); }
-.pos-pay-button:active:not(:disabled) { transform: translateY(4px); box-shadow: inset 0 0 0 3px var(--pos-accent), inset 0 0 0 4.5px rgb(255 255 255 / 55%), 0 0 0 var(--pos-accent-strong); }
+.pos-pay-button { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px; padding: 0 8px 0 22px; overflow: hidden; border-radius: 999px; color: #fff; background: linear-gradient(120deg, color-mix(in srgb, var(--pos-accent) 80%, #5ee6b8), var(--pos-accent-strong)); box-shadow: 0 18px 30px -18px var(--pos-accent); transition: transform .14s, box-shadow .14s, filter .14s; }
+.pos-pay-button::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 22%) 50%, transparent 70%); transform: translateX(-120%); transition: transform .6s; pointer-events: none; }
+.pos-pay-button:hover:not(:disabled)::after { transform: translateX(120%); }
+.pos-pay-button:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }
+.pos-pay-button:active:not(:disabled) { transform: translateY(1px); }
 .pos-pay-button:disabled { opacity: .5; box-shadow: none; }
 .pos-pay-label { display: inline-flex; align-items: center; gap: 9px; font-size: 17px; font-weight: 900; }
 .pos-pay-label kbd { border-color: rgb(255 255 255 / 55%); opacity: .8; }
-.pos-pay-button strong { display: inline-flex; align-items: baseline; gap: 6px; font: 800 26px/1 var(--pos-till); font-variant-numeric: tabular-nums; }
+.pos-pay-button strong { display: inline-flex; align-items: baseline; gap: 6px; font-size: 26px; font-weight: 950; font-variant-numeric: tabular-nums; }
 .pos-pay-button strong small { font-size: 12px; font-weight: 700; opacity: .85; }
-.pos-pay-arrow { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 6px; color: var(--pos-accent-strong); background: #fff; transition: transform .2s; }
+.pos-pay-arrow { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; color: var(--pos-accent-strong); background: #fff; transition: transform .2s; }
 .pos-pay-button:hover:not(:disabled) .pos-pay-arrow { transform: translateX(-4px); }
 .pos-pay-amount { display: flex; align-items: center; gap: 12px; }
-.pos-ticket-note { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--pos-muted); font: 11px/1.4 var(--pos-till); }
+.pos-ticket-note { display: flex; align-items: center; gap: 6px; color: var(--pos-muted); font-size: 11px; }
 
 @media (hover: hover) {
-  .pos-product:hover:not(:disabled) { box-shadow: 0 2px 0 #ddd0b8, 0 22px 30px -20px rgb(60 40 15 / 60%); transform: translateY(-3px) rotate(-.6deg); }
+  .pos-product:hover:not(:disabled) { box-shadow: 0 26px 40px -26px rgb(16 92 72 / 65%); transform: translateY(-4px); }
   .pos-product:hover:not(:disabled) .pos-product-add { opacity: 1; transform: none; }
 }
 .pos-product:active:not(:disabled) { transform: scale(.97); }
@@ -345,11 +306,10 @@
 @container cashier (max-width: 560px) {
   .pos-totals { grid-template-columns: 1fr; }
   .pos-parties { grid-template-columns: 1fr; }
-  .pos-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; }
+  .pos-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .pos-keypad-keys { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .pos-keypad-keys button { height: 42px; }
   .pos-cart-line { flex-wrap: wrap; }
-  .pos-line-controls { width: 100%; padding: 0 8px 8px; padding-inline-start: 43px; }
+  .pos-line-controls { width: 100%; padding: 0 11px 7px; padding-inline-start: 44px; }
   .pos-keypad-entry { flex-basis: 100%; }
   .pos-context { flex-basis: 100%; order: 6; }
   .pos-net { height: 52px; }
@@ -364,40 +324,26 @@
 }
 @media (prefers-reduced-motion: reduce) { .pos-workspace *, .pos-workspace *::after { transition: none !important; animation: none !important; } .pos-workspace button:hover, .pos-workspace button:active { transform: none !important; } }
 
-/* ── Dark mode: charcoal paper on a night desk ─────────────────────────── */
+/* ── Dark mode ──────────────────────────────────────────────────────────── */
 .dark .pos-workspace {
-  --pos-ink: #f1e8d8; --pos-muted: #a89a86; --pos-surface: #1d1a16; --pos-soft: #26221d; --pos-edge: #3b342b;
-  --pos-desk: #121110; --pos-paper: #1d1a16; --pos-tag: #221e19; --pos-glass: rgb(29 26 22 / 85%); --pos-glass-edge: #3b342b;
-  --pos-accent: #6f8fe8; --pos-accent-strong: #3f5fc0; --pos-accent-soft: rgb(111 143 232 / 16%);
-  background: repeating-linear-gradient(0deg, rgb(255 255 255 / 2%) 0 1px, transparent 1px 4px), var(--pos-desk);
+  --pos-ink: #e3f3ed; --pos-muted: #93b3aa; --pos-surface: #0f1d1a; --pos-soft: #16292449; --pos-edge: #24413a;
+  --pos-glass: rgb(17 33 29 / 70%); --pos-glass-edge: rgb(56 98 87 / 45%); --pos-accent-soft: rgb(52 211 166 / 16%);
+  background: radial-gradient(1100px 500px at 100% -10%, #0f3a2f 0%, transparent 60%), linear-gradient(180deg, #0b1714, #08120f);
 }
-.dark .pos-workspace[data-mode=return] { --pos-accent: #f0804a; --pos-accent-strong: #c2410c; --pos-accent-soft: rgb(240 128 74 / 16%); }
-.dark .pos-workspace[data-mode=gift] { --pos-accent: #c084e8; --pos-accent-strong: #8b3fb8; --pos-accent-soft: rgb(192 132 232 / 16%); }
-.dark .pos-topbar { background: linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 40%), #0b0a09; box-shadow: 0 2px 0 #2a251f, 0 16px 28px -18px #000; }
-.dark .pos-sale { background: var(--pos-paper); box-shadow: 0 1px 0 #2a251f, 0 26px 40px -28px #000; }
-.dark .pos-sale::before { background: linear-gradient(180deg, #050504, #2a251f); }
-.dark .pos-product { box-shadow: 0 2px 0 #0b0a09, 0 10px 16px -14px #000; }
-.dark .pos-product::before { border-color: #4a4036; }
-.dark .pos-product-visual,
-.dark .pos-product:nth-child(n) .pos-product-visual { border-color: #3b342b; background: repeating-linear-gradient(135deg, #26221d 0 8px, #221e19 8px 16px); }
-.dark .pos-product-icon.has-image { background: #f7f2e8; }
-.dark .pos-categories button { background: #26221d; }
-.dark .pos-categories button:hover:not([aria-pressed=true]) { background: #2e2923; }
-.dark .pos-categories button[aria-pressed=true] { color: #121110; }
-.dark .pos-cart-line, .dark .pos-totals > div::after, .dark .pos-actions > button::before { border-color: #4a4036; }
-.dark .pos-stock { color: #7fd8a4; }
-.dark .pos-stock.is-unavailable { color: #fb8a7e; }
-.dark .pos-keypad { background: #0b0a09; }
-.dark .pos-keypad-keys button:not(:nth-child(10)) { color: #f1e8d8; background: linear-gradient(180deg, #3a332b, #2a251f); box-shadow: 0 3px 0 #000; }
-.dark .pos-item-discount, .dark .pos-line-tags i { color: #f6c27a; border-color: #f6c27a; }
-.dark .pos-line-tags i.is-gift { color: #d7a8f2; border-color: #d7a8f2; }
-.dark .pos-line-tags i.is-campaign { color: #7fd8a4; border-color: #7fd8a4; }
-.dark .pos-message { border-color: #2f5b45; color: #b5ecd0; background: rgb(30 70 50 / 35%); }
+.dark .pos-workspace[data-mode=return] { --pos-accent-soft: rgb(240 140 80 / 16%); }
+.dark .pos-workspace[data-mode=gift] { --pos-accent-soft: rgb(180 130 240 / 16%); }
+.dark :is(.pos-sale) { background: rgb(15 29 26 / 82%); box-shadow: 0 30px 60px -34px #000; }
+.dark :is(.pos-product, .pos-cart-line, .pos-actions > button, .pos-keypad-keys button, .pos-parties > div, .pos-tool, .pos-toolbar-actions > button, .pos-history-summary) { background: #13241f !important; }
+.dark .pos-workspace .pos-point-dropdown { border-color: var(--pos-edge); background: #13241f; }
+.dark .pos-product-visual { background: linear-gradient(160deg, #173029, #12261f) !important; }
+.dark .pos-stock { background: rgb(15 29 26 / 88%); color: #34d3a6; }
+.dark .pos-stock.is-unavailable { color: #fb7185; }
+.dark .pos-ticket-footer { background: linear-gradient(180deg, rgb(22 41 36 / 50%), rgb(15 29 26 / 90%)); }
+.dark .pos-barcode-field { background: rgb(52 211 166 / 8%); }
+.dark .pos-item-discount, .dark .pos-line-tags i { color: #f6c27a; background: rgb(217 138 43 / 18%); }
+.dark .pos-message { border-color: #1f5b4b; color: #a7f0d8; background: rgb(16 70 56 / 45%); }
 .dark .pos-message.is-error { border-color: #7a2235; color: #fecdd3; background: rgb(122 34 53 / 35%); }
-.dark .pos-search-field { box-shadow: 3px 3px 0 #000; border-color: #4a4036; }
-.dark .pos-search-field:focus-within { box-shadow: 3px 3px 0 var(--pos-accent); border-color: var(--pos-accent); }
-.dark .pos-search-field .pos-item-search-btn { color: #121110; }
-.dark .pos-tool { box-shadow: 2px 2px 0 #000; }
+.dark .pos-empty-icon { background: radial-gradient(circle at 30% 30%, #1d3a32, #10241f); }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POS dialogs (shared with pos-payment-details / pos-discount / unsaved prompt)
@@ -438,22 +384,22 @@
 .dark .pos-discount-dialog section input { border-color: #24413a; color: #e3f3ed; background: #13241f; }
 
 /* ── معاينة طباعة الفاتورة على الجوال (نفس التبويب) ───────────────────── */
-.pos-print-preview { position: fixed; inset: 0; z-index: 2000; display: flex; flex-direction: column; background: #ece4d6; }
-.pos-print-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); color: #f3ead9; background: #221d18; box-shadow: 0 4px 14px rgb(30 20 10 / 35%); }
+.pos-print-preview { position: fixed; inset: 0; z-index: 2000; display: flex; flex-direction: column; background: #e6f4ef; }
+.pos-print-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); color: #fff; background: linear-gradient(120deg, #10a37f, #0b7f63); box-shadow: 0 4px 14px rgb(16 92 72 / 30%); }
 .pos-print-preview-bar b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
 .pos-print-preview-bar button { display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 18px; border-radius: 999px; font-size: 15px; font-weight: 800; }
-.pos-print-preview-print { border: 0; color: #221d18; background: #f3ead9; }
+.pos-print-preview-print { border: 0; color: #0b7f63; background: #fff; }
 .pos-print-preview-close { border: 1px solid rgb(255 255 255 / 45%); color: #fff; background: rgb(255 255 255 / 12%); }
 .pos-print-preview-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
 
 /* ── واجهة الجوال: لوحة واحدة (الأصناف أو السلة) + شريط سفلي للتنقل والدفع ── */
 .pos-mobile-bar { display: none; }
 @container cashier (max-width: 640px) {
-  .pos-mobile-bar { position: sticky; bottom: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 6px; margin-top: 8px; padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); border: 0; border-radius: 12px; background: var(--pos-register); box-shadow: 0 -10px 24px -16px rgb(30 20 10 / 60%); }
-  .pos-mobile-bar > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 54px; border-radius: 8px; color: #d8ccb8; background: #2f2821; box-shadow: 0 3px 0 #16120e; font-size: 12px; font-weight: 800; }
-  .pos-mobile-bar > button.is-active { color: var(--pos-register); background: #f3ead9; }
+  .pos-mobile-bar { position: sticky; bottom: 0; z-index: 30; display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 6px; margin-top: 8px; padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); border: 1px solid var(--pos-glass-edge); border-radius: 26px; background: var(--pos-glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 -10px 24px -16px rgb(16 92 72 / 45%); }
+  .pos-mobile-bar > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 54px; border-radius: 20px; color: var(--pos-muted); background: #fff; font-size: 12px; font-weight: 800; }
+  .pos-mobile-bar > button.is-active { color: var(--pos-accent-strong); background: var(--pos-accent-soft); }
   .pos-mobile-bar > button .pos-badge { position: absolute; top: 4px; inset-inline-end: 10px; }
-  .pos-mobile-bar > .pos-mobile-pay { flex-direction: row; gap: 8px; color: #fff; background: var(--pos-accent); box-shadow: 0 3px 0 var(--pos-accent-strong); font: 800 16px/1 var(--pos-till); }
+  .pos-mobile-bar > .pos-mobile-pay { flex-direction: row; gap: 8px; color: #fff; background: linear-gradient(120deg, var(--pos-accent), var(--pos-accent-strong)); font-size: 16px; }
   .pos-mobile-bar > .pos-mobile-pay:disabled { opacity: .55; }
   .pos-mobile-bar > .pos-mobile-pay small { font-size: 11px; opacity: .85; }
   .pos-layout[data-mobile-pane="cart"] .pos-catalog { display: none; }
@@ -465,10 +411,10 @@
   .pos-toolbar-actions { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
   .pos-toolbar-actions::-webkit-scrollbar { display: none; }
   .pos-toolbar-actions > button { flex-shrink: 0; height: 40px; padding: 0 14px; font-size: 13px; }
-  .pos-topbar { padding: 8px 10px 12px; border-radius: 12px; }
+  .pos-topbar { padding: 8px 10px; border-radius: 20px; }
   .pos-eyebrow { display: none; }
   .pos-net { flex: 1 1 auto; }
-  .pos-sale { border-radius: 4px 4px 0 0; }
+  .pos-sale { border-radius: 24px; }
 }
 /* لمس بلا لوحة مفاتيح: لا داعي لعرض اختصارات F2/F3… */
 @media (hover: none) and (pointer: coarse) { .pos-workspace kbd { display: none; } }
