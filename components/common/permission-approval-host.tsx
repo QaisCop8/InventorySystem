@@ -17,6 +17,8 @@ export function PermissionApprovalHost() {
   const [sentTo, setSentTo] = useState<string[]>([])
   // قناة الإرسال: البريد (الايميلين) أو واتساب (جوالي مدير النظام والمسؤول المعرّفين على النقطة/الموقع فقط)
   const [channel, setChannel] = useState<"email" | "whatsapp">("email")
+  // روابط wa.me لكل رقم (مدير النظام، المسؤول) — الأول يُفتح تلقائياً، والباقي بالأزرار
+  const [waLinks, setWaLinks] = useState<{ role: string; url: string }[]>([])
   const [code, setCode] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -25,7 +27,7 @@ export function PermissionApprovalHost() {
   useEffect(() => {
     installPermissionApprovalFetch()
     return registerApprovalAsker((request) => new Promise<boolean>((resolve) => {
-      setApprovalId(null); setSentTo([]); setCode(""); setError(""); setBusy(false); setChannel("email")
+      setApprovalId(null); setSentTo([]); setCode(""); setError(""); setBusy(false); setChannel("email"); setWaLinks([])
       setState({ request, resolve })
     }))
   }, [])
@@ -40,10 +42,12 @@ export function PermissionApprovalHost() {
   }
 
   const sendCode = async (via: "email" | "whatsapp" = channel) => {
-    setChannel(via)
     if (!state || busy) return
+    setChannel(via)
     if (!state.request.scopeId) { setError("تعذر تحديد نقطة البيع/الموقع لإرسال الرمز"); return }
-    setBusy(true); setError("")
+    // واتساب كباقي الشاشات: تبويب يُفتح الآن (ضمن النقر حتى لا يحجبه المتصفح) ثم يُوجَّه لرابط wa.me — تطبيق واتساب أو واتساب ويب
+    const waWindow = via === "whatsapp" ? window.open("about:blank", "_blank") : null
+    setBusy(true); setError(""); setWaLinks([])
     try {
       const response = await fetch("/api/permission-approvals", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -52,7 +56,15 @@ export function PermissionApprovalHost() {
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data?.error || "تعذر إرسال رمز التفعيل")
       setApprovalId(Number(data.id)); setSentTo(Array.isArray(data.sent_to) ? data.sent_to : []); setCode("")
+      const links: { role: string; url: string }[] = Array.isArray(data.links) ? data.links : []
+      setWaLinks(links)
+      if (via === "whatsapp") {
+        if (links[0] && waWindow) waWindow.location.href = links[0].url
+        else if (links[0]) window.open(links[0].url, "_blank")
+        else waWindow?.close()
+      }
     } catch (sendError) {
+      waWindow?.close()
       setError(sendError instanceof Error ? sendError.message : "تعذر إرسال رمز التفعيل")
     } finally {
       setBusy(false)
@@ -102,8 +114,17 @@ export function PermissionApprovalHost() {
             <div className="space-y-2">
               <p className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-emerald-800 ring-1 ring-emerald-200">
                 <MailCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>تم إرسال رمز التفعيل {channel === "whatsapp" ? "عبر واتساب" : "بالبريد"} إلى: <span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
+                <span>{channel === "whatsapp" ? "فُتحت محادثة واتساب — أرسل الرسالة إلى: " : "تم إرسال رمز التفعيل بالبريد إلى: "}<span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
               </p>
+              {channel === "whatsapp" && waLinks.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {waLinks.map((link) => (
+                    <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1ebe5b]">
+                      <MessageCircle className="h-3.5 w-3.5" />فتح واتساب — {link.role}
+                    </a>
+                  ))}
+                </div>
+              )}
               <label className="block text-xs font-semibold text-slate-600">رمز التفعيل</label>
               <div className="relative">
                 <KeyRound className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

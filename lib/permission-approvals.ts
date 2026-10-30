@@ -103,10 +103,14 @@ export async function requestPermissionApproval(input: { userId: string; userNam
 
 /** نفس الرمز عبر واتساب (WhatsApp Business API من الإعدادات) إلى جوال مدير النظام وجوال المسؤول. */
 async function requestByWhatsApp(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string }, name: string, config: { label: string }, place: any) {
-  const { formatPhoneNumber, isWhatsAppConfigured, sendTextMessage, validatePhoneNumber } = await import("@/lib/whatsapp-service")
-  const phones = [...new Set([place.admin_mobile, place.manager_mobile].map((value: unknown) => String(value || "").trim()).filter(Boolean).map(formatPhoneNumber).filter(validatePhoneNumber))]
-  if (!phones.length) throw Object.assign(new Error(`لم يُعرَّف جوال مدير النظام أو جوال المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
-  if (!(await isWhatsAppConfigured())) throw Object.assign(new Error("واتساب غير مهيأ — عرّف WhatsApp Business في إعدادات الربط"), { status: 400 })
+  // واتساب كباقي الشاشات (رابط wa.me يفتح تطبيق واتساب أو واتساب ويب على جهاز المستخدم) — لا WhatsApp Business API.
+  // الأرقام فقط من تعريف النقطة/الموقع: جوال مدير النظام وجوال المسؤول (لا إرسال لأي رقم آخر).
+  const digits = (value: unknown) => String(value || "").replace(/\D/g, "").replace(/^00/, "")
+  const recipients = [{ role: "مدير النظام", phone: digits(place.admin_mobile) }, { role: "المسؤول", phone: digits(place.manager_mobile) }]
+    .filter((row) => row.phone.length >= 8)
+    .filter((row, index, rows) => rows.findIndex((other) => other.phone === row.phone) === index)
+  if (!recipients.length) throw Object.assign(new Error(`لم يُعرَّف جوال مدير النظام أو جوال المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
+  const phones = recipients.map((row) => row.phone)
 
   const code = String(crypto.randomInt(100000, 1000000))
   await sql`UPDATE permission_approvals_tbl SET expires_at = CURRENT_TIMESTAMP WHERE user_id = ${input.userId} AND scope = ${input.scope} AND permission_key = ${input.permission} AND verified_at IS NULL AND expires_at > CURRENT_TIMESTAMP`
@@ -116,15 +120,12 @@ async function requestByWhatsApp(input: { userId: string; userName: string; scop
     RETURNING id`)[0] as any
 
   const text = `طلب المستخدم ${input.userName} تفعيل صلاحية "${name}" على ${config.label} "${String(place.name || "")}".\nرمز التفعيل: ${code}\n(صالح لمدة ${CODE_MINUTES} دقائق ولمرة واحدة — إن لم توافق فتجاهل الرسالة)`
-  const results = await Promise.all(phones.map((phone) => sendTextMessage(phone, text, "رمز تفعيل صلاحية").then(() => true).catch((error) => {
-    console.error(`[permission-approvals] WhatsApp to ${phone} failed`, error)
-    return error instanceof Error ? error.message : "failed"
-  })))
-  if (!results.some((result) => result === true)) {
-    const reason = results.find((result) => typeof result === "string") as string | undefined
-    throw Object.assign(new Error(`تعذر الإرسال عبر واتساب${reason ? `: ${reason}` : ""}`), { status: 502 })
+  // المتصفح يفتح محادثة واتساب لكل رقم بهذه الروابط
+  return {
+    id: Number(row.id), minutes: CODE_MINUTES,
+    sentTo: recipients.map((row) => `${row.role}: ${row.phone}`),
+    links: recipients.map((row) => ({ role: row.role, url: `https://wa.me/${row.phone}?text=${encodeURIComponent(text)}` })),
   }
-  return { id: Number(row.id), sentTo: phones.filter((_, index) => results[index] === true).map((phone) => `${phone.slice(0, 4)}****${phone.slice(-3)}`), minutes: CODE_MINUTES }
 }
 
 /** يتحقق من الرمز (5 محاولات) ويعيد رمز موافقة صالحاً لـ TOKEN_MINUTES دقائق. */

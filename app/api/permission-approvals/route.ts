@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""),
         channel: data.channel === "whatsapp" ? "whatsapp" : "email",
       })
-      return NextResponse.json({ id: result.id, sent_to: result.sentTo, minutes: result.minutes })
+      return NextResponse.json({ id: result.id, sent_to: result.sentTo, minutes: result.minutes, links: "links" in result ? result.links : [] })
     }
     if (action === "verify") {
       const result = await verifyPermissionApproval({ userId: String(user.user_id), id: Number(data.id) || 0, code: String(data.code || "") })
