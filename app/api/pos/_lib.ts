@@ -152,6 +152,9 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   // ايميل مدير النظام + ايميل المسؤول: يستلمان رمز التفعيل عند طلب صلاحية غير ممنوحة (lib/permission-approvals.ts)
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS admin_email VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS manager_email VARCHAR(150)`
+  // جوال مدير النظام + جوال المسؤول: إرسال رمز التفعيل عبر واتساب
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS admin_mobile VARCHAR(30)`
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS manager_mobile VARCHAR(30)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
   // عهدة الدخان (lib/pos-tobacco.ts): كميات أصناف الدخان تُستلم عند فتح العهدة وتُسلَّم قبل تسليمها

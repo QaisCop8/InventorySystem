@@ -71,6 +71,9 @@ async function validate(data: any, id: number | null, userId: string) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return { error: `${label} غير صالح` }
     emails[key] = value || null
   }
+  // جوال مدير النظام + جوال المسؤول (اختياريان): إرسال رمز التفعيل عبر واتساب
+  const mobile = (value: unknown) => String(value ?? "").replace(/[^\d+]/g, "").slice(0, 30) || null
+  const mobiles = { admin: mobile(data.admin_mobile), manager: mobile(data.manager_mobile) }
 
   const duplicate = (await sql`
     SELECT id FROM restaurant_locations_tbl
@@ -81,7 +84,7 @@ async function validate(data: any, id: number | null, userId: string) {
   if (duplicate) return { error: "يوجد موقع بنفس الرقم أو بنفس الاسم في هذا الفرع" }
   return {
     value: {
-      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails,
+      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, mobiles,
       printByGroup: data.print_by_item_group !== false,
       kitchenPrintConfirm: data.kitchen_print_confirm === true,
       status: Number(data.status) === 2 ? 2 : 1,
@@ -171,7 +174,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
           print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
-          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, updated_at = NOW()
+          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, admin_mobile = ${v.mobiles.admin}, manager_mobile = ${v.mobiles.manager}, updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `
@@ -179,11 +182,11 @@ async function save(request: NextRequest, mode: "create" | "update") {
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
           card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
-          sort_order, color, notes, status, created_by, admin_email, manager_email
+          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_mobile, manager_mobile
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.mobiles.admin}, ${v.mobiles.manager}
         )
         RETURNING *
       `

@@ -112,7 +112,8 @@ async function saveUsers(pointId:number, users:any[]) {
 // ايميل مدير النظام + ايميل المسؤول: يستلمان رمز تفعيل الصلاحيات غير الممنوحة في الكاشير (lib/permission-approvals.ts)
 async function saveApprovalEmails(pointId:number,data:any){
   const clean=(value:unknown)=>String(value??"").trim().toLowerCase().slice(0,150)||null
-  return (await sql`UPDATE pos_points_tbl SET admin_email=${clean(data.admin_email)},manager_email=${clean(data.manager_email)} WHERE id=${pointId} RETURNING *`)[0]
+  const mobile=(value:unknown)=>String(value??"").replace(/[^\d+]/g,"").slice(0,30)||null
+  return (await sql`UPDATE pos_points_tbl SET admin_email=${clean(data.admin_email)},manager_email=${clean(data.manager_email)},admin_mobile=${mobile(data.admin_mobile)},manager_mobile=${mobile(data.manager_mobile)} WHERE id=${pointId} RETURNING *`)[0]
 }
 
 export async function POST(request:NextRequest) {

@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       const result = await requestPermissionApproval({
         userId: String(user.user_id), userName: user.full_name || user.username || String(user.user_id),
         scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""),
+        channel: data.channel === "whatsapp" ? "whatsapp" : "email",
       })
       return NextResponse.json({ id: result.id, sent_to: result.sentTo, minutes: result.minutes })
     }

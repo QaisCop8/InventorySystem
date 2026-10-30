@@ -67,15 +67,19 @@ async function ensureApprovalTable() {
   await pending
 }
 
-/** ينشئ رمزاً من 6 أرقام ويرسله لايميلي مدير النظام والمسؤول على نقطة البيع/الموقع. */
-export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string }) {
+export type ApprovalChannel = "email" | "whatsapp"
+
+/** ينشئ رمزاً من 6 أرقام ويرسله لمدير النظام والمسؤول على نقطة البيع/الموقع — بالبريد أو عبر واتساب. */
+export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; channel?: ApprovalChannel }) {
   const config = SCOPES[input.scope]
   if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
   const name = approvalPermissionName(input.scope, input.permission)
   if (!name) throw Object.assign(new Error("الصلاحية غير معروفة"), { status: 400 })
+  const channel: ApprovalChannel = input.channel === "whatsapp" ? "whatsapp" : "email"
   await ensureApprovalTable()
-  const place = (await sql.unsafe(`SELECT name, admin_email, manager_email FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
+  const place = (await sql.unsafe(`SELECT name, admin_email, manager_email, admin_mobile, manager_mobile FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
   if (!place) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
+  if (channel === "whatsapp") return requestByWhatsApp(input, name, config, place)
   const recipients = [...new Set([place.admin_email, place.manager_email].map((value: unknown) => String(value || "").trim().toLowerCase()).filter(validEmail))]
   if (!recipients.length) throw Object.assign(new Error(`لم يُعرَّف ايميل مدير النظام أو ايميل المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
 
@@ -95,6 +99,32 @@ export async function requestPermissionApproval(input: { userId: string; userNam
     throw Object.assign(new Error("تعذر إرسال البريد — تحقق من إعدادات البريد في الخادم"), { status: 502 })
   }
   return { id: Number(row.id), sentTo: recipients.filter((_, index) => results[index]).map(maskEmail), minutes: CODE_MINUTES }
+}
+
+/** نفس الرمز عبر واتساب (WhatsApp Business API من الإعدادات) إلى جوال مدير النظام وجوال المسؤول. */
+async function requestByWhatsApp(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string }, name: string, config: { label: string }, place: any) {
+  const { formatPhoneNumber, isWhatsAppConfigured, sendTextMessage, validatePhoneNumber } = await import("@/lib/whatsapp-service")
+  const phones = [...new Set([place.admin_mobile, place.manager_mobile].map((value: unknown) => String(value || "").trim()).filter(Boolean).map(formatPhoneNumber).filter(validatePhoneNumber))]
+  if (!phones.length) throw Object.assign(new Error(`لم يُعرَّف جوال مدير النظام أو جوال المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
+  if (!(await isWhatsAppConfigured())) throw Object.assign(new Error("واتساب غير مهيأ — عرّف WhatsApp Business في إعدادات الربط"), { status: 400 })
+
+  const code = String(crypto.randomInt(100000, 1000000))
+  await sql`UPDATE permission_approvals_tbl SET expires_at = CURRENT_TIMESTAMP WHERE user_id = ${input.userId} AND scope = ${input.scope} AND permission_key = ${input.permission} AND verified_at IS NULL AND expires_at > CURRENT_TIMESTAMP`
+  const row = (await sql`
+    INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to)
+    VALUES (${input.userId}, ${input.scope}, ${Number(input.scopeId)}, ${input.permission}, ${digest(code)}, CURRENT_TIMESTAMP + (${CODE_MINUTES} * INTERVAL '1 minute'), ${`whatsapp: ${phones.join(", ")}`})
+    RETURNING id`)[0] as any
+
+  const text = `طلب المستخدم ${input.userName} تفعيل صلاحية "${name}" على ${config.label} "${String(place.name || "")}".\nرمز التفعيل: ${code}\n(صالح لمدة ${CODE_MINUTES} دقائق ولمرة واحدة — إن لم توافق فتجاهل الرسالة)`
+  const results = await Promise.all(phones.map((phone) => sendTextMessage(phone, text, "رمز تفعيل صلاحية").then(() => true).catch((error) => {
+    console.error(`[permission-approvals] WhatsApp to ${phone} failed`, error)
+    return error instanceof Error ? error.message : "failed"
+  })))
+  if (!results.some((result) => result === true)) {
+    const reason = results.find((result) => typeof result === "string") as string | undefined
+    throw Object.assign(new Error(`تعذر الإرسال عبر واتساب${reason ? `: ${reason}` : ""}`), { status: 502 })
+  }
+  return { id: Number(row.id), sentTo: phones.filter((_, index) => results[index] === true).map((phone) => `${phone.slice(0, 4)}****${phone.slice(-3)}`), minutes: CODE_MINUTES }
 }
 
 /** يتحقق من الرمز (5 محاولات) ويعيد رمز موافقة صالحاً لـ TOKEN_MINUTES دقائق. */

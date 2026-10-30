@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { KeyRound, Loader2, Lock, MailCheck, Send } from "lucide-react"
+import { KeyRound, Loader2, Lock, MailCheck, MessageCircle, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,8 @@ export function PermissionApprovalHost() {
   const [state, setState] = useState<State | null>(null)
   const [approvalId, setApprovalId] = useState<number | null>(null)
   const [sentTo, setSentTo] = useState<string[]>([])
+  // قناة الإرسال: البريد (الايميلين) أو واتساب (جوالي مدير النظام والمسؤول المعرّفين على النقطة/الموقع فقط)
+  const [channel, setChannel] = useState<"email" | "whatsapp">("email")
   const [code, setCode] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -23,7 +25,7 @@ export function PermissionApprovalHost() {
   useEffect(() => {
     installPermissionApprovalFetch()
     return registerApprovalAsker((request) => new Promise<boolean>((resolve) => {
-      setApprovalId(null); setSentTo([]); setCode(""); setError(""); setBusy(false)
+      setApprovalId(null); setSentTo([]); setCode(""); setError(""); setBusy(false); setChannel("email")
       setState({ request, resolve })
     }))
   }, [])
@@ -37,14 +39,15 @@ export function PermissionApprovalHost() {
     setState(null)
   }
 
-  const sendCode = async () => {
+  const sendCode = async (via: "email" | "whatsapp" = channel) => {
+    setChannel(via)
     if (!state || busy) return
     if (!state.request.scopeId) { setError("تعذر تحديد نقطة البيع/الموقع لإرسال الرمز"); return }
     setBusy(true); setError("")
     try {
       const response = await fetch("/api/permission-approvals", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key }),
+        body: JSON.stringify({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, channel: via }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data?.error || "تعذر إرسال رمز التفعيل")
@@ -94,12 +97,12 @@ export function PermissionApprovalHost() {
         <div className="space-y-3 p-4 text-sm">
           {request?.message && <p className="rounded-lg bg-amber-50 p-2.5 text-amber-900 ring-1 ring-amber-200">{request.message}</p>}
           {!approvalId ? (
-            <p className="text-slate-600">يمكنك طلب موافقة لمرة واحدة: يُرسل رمز تفعيل إلى ايميل مدير النظام وايميل المسؤول المعرّفين على {request?.scope === "restaurant" ? "موقع المطعم" : "نقطة البيع"}، ثم تُدخل الرمز للمتابعة.</p>
+            <p className="text-slate-600">يمكنك طلب موافقة لمرة واحدة: يُرسل رمز تفعيل إلى مدير النظام والمسؤول المعرّفين على {request?.scope === "restaurant" ? "موقع المطعم" : "نقطة البيع"} — بالبريد أو عبر واتساب — ثم تُدخل الرمز للمتابعة.</p>
           ) : (
             <div className="space-y-2">
               <p className="flex items-start gap-2 rounded-lg bg-emerald-50 p-2.5 text-emerald-800 ring-1 ring-emerald-200">
                 <MailCheck className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>تم إرسال رمز التفعيل إلى: <span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
+                <span>تم إرسال رمز التفعيل {channel === "whatsapp" ? "عبر واتساب" : "بالبريد"} إلى: <span dir="ltr" className="font-semibold">{sentTo.join("، ")}</span></span>
               </p>
               <label className="block text-xs font-semibold text-slate-600">رمز التفعيل</label>
               <div className="relative">
@@ -123,15 +126,21 @@ export function PermissionApprovalHost() {
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t bg-slate-50 px-4 py-3">
           {!approvalId ? (
-            <Button onClick={() => void sendCode()} disabled={busy} className="gap-1 bg-amber-600 text-white hover:bg-amber-700">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}ارسال رمز تفعيل للمدير ومسؤول النظام
-            </Button>
+            <>
+              <Button onClick={() => void sendCode("email")} disabled={busy} className="gap-1 bg-amber-600 text-white hover:bg-amber-700">
+                {busy && channel === "email" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}ارسال رمز تفعيل للمدير ومسؤول النظام
+              </Button>
+              <Button onClick={() => void sendCode("whatsapp")} disabled={busy} className="gap-1 bg-[#25D366] text-white hover:bg-[#1ebe5b]">
+                {busy && channel === "whatsapp" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}ارسال عبر واتساب
+              </Button>
+            </>
           ) : (
             <>
               <Button onClick={() => void verify()} disabled={busy || code.length !== 6} className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}تحقق ومتابعة
               </Button>
-              <Button variant="outline" onClick={() => void sendCode()} disabled={busy}>إعادة الإرسال</Button>
+              <Button variant="outline" onClick={() => void sendCode(channel)} disabled={busy}>إعادة الإرسال</Button>
+              <Button variant="outline" onClick={() => void sendCode(channel === "email" ? "whatsapp" : "email")} disabled={busy}>{channel === "email" ? "إرسال عبر واتساب" : "إرسال بالبريد"}</Button>
             </>
           )}
           <Button variant="outline" onClick={() => close(false)} disabled={busy}>إلغاء</Button>
