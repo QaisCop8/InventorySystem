@@ -1,6 +1,6 @@
 "use client"
 
-// قارئ الشيكات (ChecksReader1000) عبر CashierWinService على جهاز المستخدم (ws://localhost:32999/cashier) —
+// قارئ الشيكات (ChecksReader1000) عبر CashService على جهاز المستخدم (ws://localhost:32999/cashier) —
 // نفس بروتوكول الشامل (ShamelWeb Stores/ChequeReaderStore.js):
 // → {type:"openChequeReader", data:{banks:[{id,code,name}], branches:[{id,code,name,bankCode}], bankPhysicalAccount, chequeList}}
 //   (الأكواد نصوص: الخدمة تأخذ آخر خانتين من كود البنك، وكود البنك للفرع يُكمَّل لأربع خانات)
@@ -54,7 +54,7 @@ function tryOpen(timeoutMs = 1200) {
 }
 
 /**
- * يطلق CashierWinService عبر رابط البروتوكول — نفس الشامل (window.location.href)؛ المتصفح يمنع روابط
+ * يطلق CashService عبر رابط البروتوكول — نفس الشامل (window.location.href)؛ المتصفح يمنع روابط
  * البروتوكولات الخارجية من iframe مخفي بصمت، فلا تُطلق الخدمة. لا تُغادر الصفحة (يفتحها نظام التشغيل).
  */
 function launchService() {
@@ -75,7 +75,7 @@ async function connect(onPhase?: (phase: ChequeReaderPhase) => void) {
     const socket = await tryOpen()
     if (socket) return socket
   }
-  throw new Error("خطأ في الاتصال بقارئ الشيكات — تأكد من تشغيل خدمة الكاشير (CashierWinService) على هذا الجهاز")
+  throw new Error("خطأ في الاتصال بقارئ الشيكات — تأكد من تشغيل خدمة الكاشير (CashService) على هذا الجهاز")
 }
 
 const parseDueDate = (value: unknown) => {

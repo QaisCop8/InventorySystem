@@ -2517,7 +2517,7 @@ export default function UnifiedReceiptVoucher({
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {isReceipt && (
                     <Button type="button" variant="outline" size="sm" onClick={() => void readChequesFromReader()}
-                      title="قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashierWinService)"
+                      title="قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashService)"
                       className={chequeReading ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"}>
                       {chequeReading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <ScanLine className="ml-1 h-4 w-4" />}
                       {chequeReading

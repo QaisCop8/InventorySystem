@@ -315,7 +315,7 @@ export default function PrintSettings() {
                 <Field label="عناوين النسخ" htmlFor="print-copy-labels" hint="مفصولة بفاصلة، مثال: الأصل, نسخة العميل" className="sm:col-span-2"><Input id="print-copy-labels" value={form.copy_labels} onChange={event => update({ copy_labels: event.target.value })} placeholder="الأصل, نسخة" /></Field>
               </div>
               <div className="mt-4 grid gap-2 text-[11px] leading-5 text-slate-600 sm:grid-cols-2 dark:text-slate-400">
-                <p className="flex gap-2"><Monitor className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />على ويندوز تُرسل الطباعة مباشرة إلى الطابعة عبر خدمة الطباعة (CashierWinService) بدون نافذة.</p>
+                <p className="flex gap-2"><Monitor className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />على ويندوز تُرسل الطباعة مباشرة إلى الطابعة عبر خدمة الطباعة (CashService) بدون نافذة.</p>
                 <p className="flex gap-2"><Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />على أندرويد وiOS، أو إذا لم تعمل الخدمة، تُفتح طباعة المتصفح بنفس المقاس.</p>
               </div>
             </div>

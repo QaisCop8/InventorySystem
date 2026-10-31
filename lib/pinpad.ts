@@ -1,6 +1,6 @@
 "use client"
 
-// أجهزة الدفع بالبطاقة (PinPad) عبر CashierWinService على جهاز الكاشير (ws://localhost:32999/cashier) — نفس بروتوكول الشامل:
+// أجهزة الدفع بالبطاقة (PinPad) عبر CashService على جهاز الكاشير (ws://localhost:32999/cashier) — نفس بروتوكول الشامل:
 // → {type:"PassToMachine", machine_id, amount, currency, current_batch}
 // ← {Type:"PassToMachine", Data:"{type:'dataResponse', data:{result, response}}"} أو data:"openSettings" إذا لم تُضبط إعدادات الجهاز بعد.
 // → {type:"SaveSettings", machine_id, ...إعدادات} ← data:"ok" (البنك العربي لا يرد، فنكتفي بمهلة قصيرة).
@@ -44,10 +44,10 @@ export class PinpadSettingsRequired extends Error {
 function openSocket() {
   return new Promise<WebSocket>((resolve, reject) => {
     let socket: WebSocket
-    try { socket = new WebSocket(SERVICE_URL) } catch { reject(new Error("تعذر الاتصال بخدمة الكاشير (CashierWinService) على هذا الجهاز")); return }
-    const timer = window.setTimeout(() => { socket.close(); reject(new Error("لم يتم العثور على خدمة الكاشير (CashierWinService) على هذا الجهاز")) }, 4000)
+    try { socket = new WebSocket(SERVICE_URL) } catch { reject(new Error("تعذر الاتصال بخدمة الكاشير (CashService) على هذا الجهاز")); return }
+    const timer = window.setTimeout(() => { socket.close(); reject(new Error("لم يتم العثور على خدمة الكاشير (CashService) على هذا الجهاز")) }, 4000)
     socket.addEventListener("open", () => { window.clearTimeout(timer); resolve(socket) }, { once: true })
-    socket.addEventListener("error", () => { window.clearTimeout(timer); reject(new Error("تعذر الاتصال بخدمة الكاشير (CashierWinService) على هذا الجهاز")) }, { once: true })
+    socket.addEventListener("error", () => { window.clearTimeout(timer); reject(new Error("تعذر الاتصال بخدمة الكاشير (CashService) على هذا الجهاز")) }, { once: true })
   })
 }
 
@@ -111,7 +111,7 @@ export async function payWithPinpad(input: { machineId: number; amount: number; 
   }
 }
 
-/** يحفظ إعدادات جهاز الدفع في CashierWinService على هذا الجهاز. */
+/** يحفظ إعدادات جهاز الدفع في CashService على هذا الجهاز. */
 export async function savePinpadSettings(machineId: number, settings: PinpadSettings) {
   const socket = await openSocket()
   try {

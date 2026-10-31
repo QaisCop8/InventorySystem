@@ -4,7 +4,7 @@ import { amountFractionOptions } from "@/lib/decimals"
 import { loadVoucherPrintSettings, printVoucherWithSettings, type PrintResult } from "@/lib/voucher-print/print"
 import type { PrintDocument } from "@/lib/voucher-print/document"
 
-// إيصال تسليم/إغلاق العهدة في الكاشير — بحجم إيصال الكاشير (80mm): عبر CashierWinService إن وُجدت على الجهاز،
+// إيصال تسليم/إغلاق العهدة في الكاشير — بحجم إيصال الكاشير (80mm): عبر CashService إن وُجدت على الجهاز،
 // وإلا طباعة المتصفح (print_method "auto" في lib/voucher-print/print.ts). المبالغ من نافذة العهدة لحظة التأكيد.
 type Currency = { currency_id: number; currency_code: string; currency_name: string; rate_to_point: number }
 type TobaccoLine = { product_code: string; product_name: string; opening_qty: number; sold_qty: number; expected_qty: number; counted_qty: number | null }

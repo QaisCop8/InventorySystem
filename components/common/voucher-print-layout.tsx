@@ -63,7 +63,7 @@ export function accountVoucherDocument(data: VoucherPrintData, voucherTypeId: nu
 }
 
 // Each new `data` object prints once through the shared engine (lib/voucher-print), using the
-// print settings saved for `voucherTypeId`: direct to the default printer via CashierWinService on
+// print settings saved for `voucherTypeId`: direct to the default printer via CashService on
 // Windows, otherwise the browser print dialog.
 const identity = (document: PrintDocument) => document
 

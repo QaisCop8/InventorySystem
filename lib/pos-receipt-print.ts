@@ -1,7 +1,7 @@
 import { logVoucherAudit } from "@/lib/audit-client"
 import { invoiceQrDataUrl, qrReceiptHtml, type QrInvoice } from "@/lib/pos-invoice-qr"
 
-// طباعة فاتورة نقطة البيع — مشتركة بين كاشير نقطة البيع وشاشة المطعم: خدمة الطباعة المحلية (CashierWinService
+// طباعة فاتورة نقطة البيع — مشتركة بين كاشير نقطة البيع وشاشة المطعم: خدمة الطباعة المحلية (CashService
 // ws://localhost:32999) على الحاسوب، ومعاينة داخل الصفحة على الجوال، وفاتورة QR فقط حسب إعداد invoice_print_mode للنقطة.
 
 export type PosReceiptLine = { name: string; code?: string; unitName?: string; quantity: number; price: number; discount: number; campaign_discount?: number; gift?: boolean }

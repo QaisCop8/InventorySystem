@@ -58,7 +58,7 @@ export const ensureTables = async () => { return runSchemaOnce("app/api/credit-c
   // for this; machine_type_id is a soft reference: a real banks.id, or 0 as the "neo_cash" sentinel).
   await sql`ALTER TABLE credit_cards_types_tbl ADD COLUMN IF NOT EXISTS link_bank_machine BOOLEAN DEFAULT false`
   await sql`ALTER TABLE credit_cards_types_tbl ADD COLUMN IF NOT EXISTS machine_type_id INTEGER`
-  // جهاز الدفع (PinPad) عبر CashierWinService — نفس أرقام الشامل: 1 البنك العربي، 2 بنك فلسطين (Verifone X990)، 3 NeoCash
+  // جهاز الدفع (PinPad) عبر CashService — نفس أرقام الشامل: 1 البنك العربي، 2 بنك فلسطين (Verifone X990)، 3 NeoCash
   await sql`ALTER TABLE credit_cards_types_tbl ADD COLUMN IF NOT EXISTS pinpad_machine_id INTEGER`
   await sql`UPDATE credit_cards_types_tbl SET pinpad_machine_id = 3 WHERE pinpad_machine_id IS NULL AND link_bank_machine = true AND machine_type_id = 0`
 

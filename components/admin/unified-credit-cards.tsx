@@ -249,7 +249,7 @@ export default function UnifiedCreditCards({
     onFormChange("holidays", next)
   }
 
-  // أجهزة الدفع المدعومة في CashierWinService (نفس أرقام الشامل)
+  // أجهزة الدفع المدعومة في CashService (نفس أرقام الشامل)
   const PINPAD_MACHINES = [
     { id: 1, name: "البنك العربي (Arab Bank)" },
     { id: 2, name: "بنك فلسطين (Verifone X990)" },

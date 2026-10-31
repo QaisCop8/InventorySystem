@@ -5,7 +5,7 @@ import { amountInArabicWords, cellText, headerPrintFields, type PrintCell, type 
 import { copyLabelsFor, visibleColumns, type PrintContext } from "./html"
 import { paperDimensions, type VoucherPrintSettings } from "./settings"
 
-// CashierWinService (ws://localhost:32999/cashier) draws GDI+ commands in 1/100 inch with fonts
+// CashService (ws://localhost:32999/cashier) draws GDI+ commands in 1/100 inch with fonts
 // in points. textFormat is passed as StringFormatFlags: 1 = right-to-left (right aligned), 0 = left
 // aligned; there is no centering, so centered text gets an estimated x. One startPrinting = one page.
 const SERVICE_URL = "ws://localhost:32999/cashier"
