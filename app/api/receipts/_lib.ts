@@ -1073,9 +1073,58 @@ interface ChequeContext {
   checkAccountId: number | null
 }
 
+// صور الشيكات من قارئ الشيكات (وجه/ظهر، base64) — جدول مستقل بمفتاح (السند، رقم الشيك، البنك) لأن
+// أسطر cheques_tbl تُحذف ويُعاد إدراجها مع كل حفظ فتتغير معرّفاتها.
+export const ensureChequeImagesTable = () => runSchemaOnce("app/api/receipts/_lib#ensureChequeImagesTable", async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS cheque_images_tbl (
+      id SERIAL PRIMARY KEY,
+      voucher_id INTEGER NOT NULL,
+      cheq_num TEXT NOT NULL,
+      bank_id INTEGER NOT NULL DEFAULT 0,
+      front_image TEXT,
+      back_image TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (voucher_id, cheq_num, bank_id)
+    )
+  `
+})
+
+const imageText = (value: unknown) => {
+  const text = String(value || "").trim()
+  if (!text) return null
+  // يُقبل base64 خام أو data URL لصورة فقط
+  const raw = text.startsWith("data:image/") ? text.slice(text.indexOf(",") + 1) : text
+  return /^[A-Za-z0-9+/=\s]+$/.test(raw) ? raw.replace(/\s+/g, "") : null
+}
+
+const saveChequeImages = async (voucherId: number, rows: any[]) => {
+  await ensureChequeImagesTable()
+  const keep: string[] = []
+  for (const row of rows) {
+    const cheqNum = String(row.cheq_num || "").trim()
+    if (!cheqNum) continue
+    const bankId = Number(row.bank_id) || 0
+    keep.push(`${cheqNum}#${bankId}`)
+    const front = imageText(row.front_image)
+    const back = imageText(row.back_image)
+    if (!front && !back) continue
+    await sql`
+      INSERT INTO cheque_images_tbl (voucher_id, cheq_num, bank_id, front_image, back_image)
+      VALUES (${voucherId}, ${cheqNum}, ${bankId}, ${front}, ${back})
+      ON CONFLICT (voucher_id, cheq_num, bank_id) DO UPDATE SET
+        front_image = COALESCE(EXCLUDED.front_image, cheque_images_tbl.front_image),
+        back_image = COALESCE(EXCLUDED.back_image, cheque_images_tbl.back_image)
+    `
+  }
+  // صور شيكات حُذفت من السند
+  await sql`DELETE FROM cheque_images_tbl WHERE voucher_id = ${voucherId} AND NOT ((cheq_num || '#' || bank_id::text) = ANY(${keep}::text[]))`
+}
+
 export const saveChequeRows = async (voucherId: number, cheques: any[], ctx: ChequeContext) => {
   await sql`DELETE FROM cheques_tbl WHERE voucher_id = ${voucherId}`
   const rows = (Array.isArray(cheques) ? cheques : []).filter((row) => row?.cheq_num || row?.bank_account)
+  await saveChequeImages(voucherId, rows)
   // cheques_type_tbl: 1 = شيكات واردة (in, سند قبض), 2 = شيكات صادرة (out, سند صرف)
   const cheqType = ctx.vchType === RECEIPT_VCH_TYPE ? 1 : 2
 
@@ -1155,6 +1204,7 @@ export const saveNoteRows = async (voucherId: number, notes: any[]) => {
 }
 
 export const fetchDetails = async (voucherId: number) => {
+  await ensureChequeImagesTable()
   const [journalRaw, cashCheckCardRows, costCenterRows, cheques, notes, cards] = await Promise.all([
     // نقدي/شيكات/بطاقات (JOURNAL_TYPE_CASH/CHEQUE/CARD) هي أسطر تركيبية تعكس حقول الرئيسية
     // المخصصة (cash_amount/check_amount/credit_card_amount) وليست جزءاً من تبويب "الحسابات" —
@@ -1182,7 +1232,8 @@ export const fetchDetails = async (voucherId: number) => {
       WHERE vjd.voucher_id = ${voucherId}
     `,
     sql`
-      SELECT c.*, b.bank_code AS bank_no, b.bank_name, br.branch_code AS branch_no, br.branch_name
+      SELECT c.*, b.bank_code AS bank_no, b.bank_name, br.branch_code AS branch_no, br.branch_name,
+        EXISTS (SELECT 1 FROM cheque_images_tbl ci WHERE ci.voucher_id = c.voucher_id AND ci.cheq_num = c.cheq_num AND ci.bank_id = COALESCE(c.bank_id, 0)) AS has_image
       FROM cheques_tbl c
       LEFT JOIN banks b ON b.id = c.bank_id
       LEFT JOIN branches br ON br.id = c.branch_id
@@ -1313,6 +1364,8 @@ export const archiveAndDeleteVoucher = async (voucherId: number): Promise<{ erro
   // cheques_tbl.voucher_id هو ON DELETE RESTRICT (وليس CASCADE) — يجب حذفها صراحة قبل حذف
   // الرأسية وإلا يفشل الحذف بخرق قيد مرجعي. غير مؤرشفة هنا (خارج النطاق المطلوب).
   await sql`DELETE FROM cheques_tbl WHERE voucher_id = ${voucherId}`
+  await ensureChequeImagesTable()
+  await sql`DELETE FROM cheque_images_tbl WHERE voucher_id = ${voucherId}`
 
   await sql`DELETE FROM voucher_header_tbl WHERE id = ${voucherId}`
 

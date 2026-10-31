@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "rea
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
-import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X } from "lucide-react"
+import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2 } from "lucide-react"
+import { cancelChequeReader, readReceivedCheques, sameCode } from "@/lib/cheque-reader"
 import { PinpadPayButton } from "@/components/pinpad/pinpad-pay-button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
@@ -71,6 +72,11 @@ export interface VoucherChequeRow {
   due_date: string
   amount: number | null
   cheq_owner_name: string
+  /** صور قارئ الشيكات (base64) لشيك مقروء لم يُحفظ بعد — تُحفظ في cheque_images_tbl */
+  front_image?: string
+  back_image?: string
+  /** للشيك المحفوظ: توجد صورة له في cheque_images_tbl */
+  has_image?: boolean
 }
 
 export interface VoucherCardRow {
@@ -313,6 +319,13 @@ const selectAllProps = {
   },
 }
 const emptyJournalRow: VoucherJournalRow = { account_id: null, account_code: "", account_name: "", amount: null, note: "", cost_centers: [] }
+// نوع الصورة من بداية base64 (القارئ يحفظ JPG عادةً)
+const chequeImageSrc = (base64: string) => {
+  if (base64.startsWith("data:")) return base64
+  const mime = base64.startsWith("iVBOR") ? "image/png" : base64.startsWith("Qk") ? "image/bmp" : base64.startsWith("R0lG") ? "image/gif" : "image/jpeg"
+  return `data:${mime};base64,${base64}`
+}
+
 const emptyChequeRow: VoucherChequeRow = {
   bank_account: "",
   bank_account_id: null,
@@ -438,6 +451,9 @@ export default function UnifiedReceiptVoucher({
   const [branchSearchOpen, setBranchSearchOpen] = useState(false)
   const [bankAccountSearchOpen, setBankAccountSearchOpen] = useState(false)
   const [chequeLeafSearchOpen, setChequeLeafSearchOpen] = useState(false)
+  // قارئ الشيكات (سند القبض) + عرض صورة الشيك
+  const [chequeReading, setChequeReading] = useState(false)
+  const [chequeImage, setChequeImage] = useState<null | { title: string; front: string; back: string; loading?: boolean }>(null)
   const [chequeSearchRow, setChequeSearchRow] = useState<number | null>(null)
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
   const [dueDateRow, setDueDateRow] = useState<number | null>(null)
@@ -1143,6 +1159,74 @@ export default function UnifiedReceiptVoucher({
     onChequesChange(next)
   }
 
+  const showChequeMessage = (detail: string, severity: "error" | "warn" | "success" = "error") =>
+    messagesRef.current?.show?.([{ severity, summary: "", detail, life: 5000 }])
+
+  // قراءة الشيكات من قارئ الشيكات: كل شيك مقروء يُضاف سطراً (أو يحدّث سطراً بنفس رقم الشيك والبنك)
+  // مع البنك/الفرع المطابقين لتعريفات النظام وتاريخ الاستحقاق والمبلغ وصورتي الوجه والظهر.
+  const readChequesFromReader = async () => {
+    if (isLocked) return
+    if (chequeReading) { cancelChequeReader(); return }
+    setChequeReading(true)
+    try {
+      const scanned = await readReceivedCheques(banks, branches)
+      if (!scanned.length) { showChequeMessage("لم يُقرأ أي شيك", "warn"); return }
+      const isBlank = (row: VoucherChequeRow) => !row.cheq_num?.trim() && !row.bank_account?.trim() && !row.amount
+      let next = chequesRef.current.filter((row) => !isBlank(row))
+      const problems: string[] = []
+      for (const cheque of scanned) {
+        const bank = banks.find((b) => sameCode(b.bank_code, cheque.bank_no))
+        if (!bank) problems.push(`البنك ${cheque.bank_no} غير معرّف (شيك ${cheque.cheq_num})`)
+        const branch = bank ? branches.find((b) => b.bank_id === bank.id && sameCode(b.branch_code, cheque.branch_no)) : undefined
+        if (bank && !branch && cheque.branch_no) problems.push(`الفرع ${cheque.branch_no} للبنك ${bank.bank_code} غير معرّف (شيك ${cheque.cheq_num})`)
+        const patch: Partial<VoucherChequeRow> = {
+          cheq_num: cheque.cheq_num,
+          bank_account: cheque.bank_account,
+          bank_id: bank?.id ?? null,
+          bank_no: bank?.bank_code || cheque.bank_no,
+          bank_name: bank?.bank_name || "",
+          branch_id: branch?.id ?? null,
+          branch_no: branch?.branch_code || cheque.branch_no,
+          branch_name: branch?.branch_name || "",
+          ...(cheque.due_date ? { due_date: cheque.due_date } : {}),
+          ...(cheque.amount != null ? { amount: cheque.amount } : {}),
+          ...(cheque.front_image || cheque.back_image ? { front_image: cheque.front_image, back_image: cheque.back_image, has_image: true } : {}),
+        }
+        const index = next.findIndex((row) => row.cheq_num?.trim() === cheque.cheq_num && sameCode(row.bank_no, patch.bank_no))
+        if (index >= 0) next = next.map((row, i) => (i === index ? { ...row, ...patch } : row))
+        else next = [...next, { ...emptyChequeRow, due_date: new Date().toISOString().slice(0, 10), ...patch }]
+      }
+      if (!next.length) next = [{ ...emptyChequeRow }]
+      chequesRef.current = next
+      onChequesChange(next)
+      showChequeMessage(`تمت قراءة ${scanned.length} شيك`, "success")
+      if (problems.length) showChequeMessage(problems.slice(0, 4).join(" — "), "warn")
+    } catch (error: any) {
+      showChequeMessage(error?.message || "تعذرت قراءة الشيكات")
+    } finally {
+      setChequeReading(false)
+    }
+  }
+  useEffect(() => () => cancelChequeReader(), [])
+
+  const openChequeImage = async (index: number) => {
+    const row = chequesRef.current[index]
+    if (!row) return
+    const title = `الشيك رقم ${row.cheq_num || ""}${row.bank_name ? ` — ${row.bank_name}` : ""}`
+    if (row.front_image || row.back_image) { setChequeImage({ title, front: row.front_image || "", back: row.back_image || "" }); return }
+    if (!row.has_image || !form.id) { showChequeMessage("لا توجد صورة لهذا الشيك — تُحفظ الصور عند قراءة الشيك بقارئ الشيكات", "warn"); return }
+    setChequeImage({ title, front: "", back: "", loading: true })
+    try {
+      const response = await fetch(`/api/receipts/${form.id}/cheque-image?cheq_num=${encodeURIComponent(row.cheq_num || "")}&bank_id=${Number(row.bank_id) || 0}`, { cache: "no-store" })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data?.error || "تعذر تحميل صورة الشيك")
+      setChequeImage({ title, front: data.front_image || "", back: data.back_image || "" })
+    } catch (error: any) {
+      setChequeImage(null)
+      showChequeMessage(error?.message || "تعذر تحميل صورة الشيك")
+    }
+  }
+
   const chequeScheme = useMemo(
     () => ({
       name: "VoucherChequesScheme",
@@ -1243,6 +1327,17 @@ export default function UnifiedReceiptVoucher({
         },
         { header: "المبلغ", name: "amount", width: 90, dataType: "Number" },
         { header: "اسم صاحب الشيك", name: "cheq_owner_name", width: "*", minWidth: 110 },
+        {
+          name: "btnChequeImage",
+          header: "صورة",
+          width: 55,
+          buttonBody: "button",
+          align: "center",
+          iconType: "view",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => void openChequeImage(ctx.row.index),
+          visible: isReceipt,
+        },
         {
           name: "btnDelete",
           header: " ",
@@ -2417,7 +2512,15 @@ export default function UnifiedReceiptVoucher({
               {/* الشيكات */}
               <TabsContent value="cheques" className="mt-4 min-h-[260px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <fieldset disabled={isLocked} className="contents">
-                <div className="flex items-center justify-end">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {isReceipt && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => void readChequesFromReader()}
+                      title="قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashierWinService)"
+                      className={chequeReading ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"}>
+                      {chequeReading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <ScanLine className="ml-1 h-4 w-4" />}
+                      {chequeReading ? "جاري القراءة… (إلغاء)" : "قراءة الشيكات"}
+                    </Button>
+                  )}
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>
                     <Plus className="ml-1 h-4 w-4" />
                     إضافة شيك
@@ -2657,6 +2760,26 @@ export default function UnifiedReceiptVoucher({
           if (journalSearchRow !== null) patchJournalRow(journalSearchRow, { cost_centers: selection })
         }}
       />
+
+      <Dialog open={!!chequeImage} onOpenChange={(open) => { if (!open) setChequeImage(null) }}>
+        <DialogContent dir="rtl" className="max-w-4xl">
+          <DialogHeader><DialogTitle>{chequeImage?.title}</DialogTitle></DialogHeader>
+          {chequeImage?.loading ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="ml-2 h-5 w-5 animate-spin" />جاري تحميل الصورة…</div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {([["وجه الشيك", chequeImage?.front], ["ظهر الشيك", chequeImage?.back]] as const).map(([label, image]) => (
+                <div key={label} className="space-y-1.5">
+                  <p className="text-sm font-semibold text-slate-600">{label}</p>
+                  {image
+                    ? <img src={chequeImageSrc(image)} alt={label} className="w-full rounded-lg border bg-white object-contain" />
+                    : <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-xs text-slate-400">لا توجد صورة</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <BanksSearch
         open={bankSearchOpen}
