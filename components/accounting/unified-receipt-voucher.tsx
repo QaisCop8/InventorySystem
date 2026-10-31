@@ -5,7 +5,7 @@ import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
 import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X, ScanLine, Loader2 } from "lucide-react"
-import { cancelChequeReader, readReceivedCheques, sameCode } from "@/lib/cheque-reader"
+import { cancelChequeReader, readReceivedCheques, sameCode, type ChequeReaderPhase } from "@/lib/cheque-reader"
 import { PinpadPayButton } from "@/components/pinpad/pinpad-pay-button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
@@ -453,6 +453,7 @@ export default function UnifiedReceiptVoucher({
   const [chequeLeafSearchOpen, setChequeLeafSearchOpen] = useState(false)
   // قارئ الشيكات (سند القبض) + عرض صورة الشيك
   const [chequeReading, setChequeReading] = useState(false)
+  const [chequeReaderPhase, setChequeReaderPhase] = useState<ChequeReaderPhase>("connecting")
   const [chequeImage, setChequeImage] = useState<null | { title: string; front: string; back: string; loading?: boolean }>(null)
   const [chequeSearchRow, setChequeSearchRow] = useState<number | null>(null)
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
@@ -1169,7 +1170,8 @@ export default function UnifiedReceiptVoucher({
     if (chequeReading) { cancelChequeReader(); return }
     setChequeReading(true)
     try {
-      const scanned = await readReceivedCheques(banks, branches)
+      setChequeReaderPhase("connecting")
+      const scanned = await readReceivedCheques(banks, branches, setChequeReaderPhase)
       if (!scanned.length) { showChequeMessage("لم يُقرأ أي شيك", "warn"); return }
       const isBlank = (row: VoucherChequeRow) => !row.cheq_num?.trim() && !row.bank_account?.trim() && !row.amount
       let next = chequesRef.current.filter((row) => !isBlank(row))
@@ -2518,7 +2520,9 @@ export default function UnifiedReceiptVoucher({
                       title="قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashierWinService)"
                       className={chequeReading ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"}>
                       {chequeReading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <ScanLine className="ml-1 h-4 w-4" />}
-                      {chequeReading ? "جاري القراءة… (إلغاء)" : "قراءة الشيكات"}
+                      {chequeReading
+                        ? `${chequeReaderPhase === "connecting" ? "الاتصال بخدمة الكاشير…" : chequeReaderPhase === "launching" ? "تشغيل خدمة الكاشير…" : "بانتظار قارئ الشيكات…"} (إلغاء)`
+                        : "قراءة الشيكات"}
                     </Button>
                   )}
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>

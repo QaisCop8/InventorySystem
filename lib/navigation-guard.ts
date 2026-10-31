@@ -24,11 +24,17 @@ type Guard = {
 const guards: Guard[] = []
 let nextId = 1
 let beforeUnloadInstalled = false
+// فتح رابط بروتوكول خارجي (مثل cashierService://start/) ليس مغادرة للصفحة — يُتجاهل تحذير المغادرة لحظتها
+let suppressUnloadUntil = 0
+export function allowExternalProtocolNavigation() {
+  suppressUnloadUntil = Date.now() + 2000
+}
 
 function installBeforeUnload() {
   if (beforeUnloadInstalled || typeof window === "undefined") return
   beforeUnloadInstalled = true
   window.addEventListener("beforeunload", (event) => {
+    if (Date.now() < suppressUnloadUntil) return
     if (!guards.some((guard) => safeDirty(guard))) return
     event.preventDefault()
     event.returnValue = ""

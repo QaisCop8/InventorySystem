@@ -6,6 +6,8 @@
 //   (الأكواد نصوص: الخدمة تأخذ آخر خانتين من كود البنك، وكود البنك للفرع يُكمَّل لأربع خانات)
 // ← {Type:"cheqsReaderResult", Data:"{type:'dataResponse', data:'[{checkNo, accountNo, bankNo, branchNo, dueDate, checkAmount, frontBase64, backBase64}]'}"}
 // الخدمة غير مشغّلة ⇐ تُطلق عبر رابط cashierService://start/ ثم يُعاد الاتصال.
+import { allowExternalProtocolNavigation } from "@/lib/navigation-guard"
+
 const SERVICE_URL = "ws://localhost:32999/cashier"
 const START_URL = "cashierService://start/"
 const READ_TIMEOUT_MS = 15 * 60_000
@@ -51,18 +53,22 @@ function tryOpen(timeoutMs = 1200) {
   })
 }
 
-/** يطلق CashierWinService عبر رابط البروتوكول (iframe مخفي كي لا تُغادر الصفحة). */
+/**
+ * يطلق CashierWinService عبر رابط البروتوكول — نفس الشامل (window.location.href)؛ المتصفح يمنع روابط
+ * البروتوكولات الخارجية من iframe مخفي بصمت، فلا تُطلق الخدمة. لا تُغادر الصفحة (يفتحها نظام التشغيل).
+ */
 function launchService() {
-  const frame = document.createElement("iframe")
-  frame.style.display = "none"
-  frame.src = `${START_URL}?languageId=2`
-  document.body.appendChild(frame)
-  window.setTimeout(() => frame.remove(), 3000)
+  allowExternalProtocolNavigation()
+  window.location.href = `${START_URL}?languageId=2`
 }
 
-async function connect() {
-  const first = await tryOpen()
+export type ChequeReaderPhase = "connecting" | "launching" | "waiting"
+
+async function connect(onPhase?: (phase: ChequeReaderPhase) => void) {
+  onPhase?.("connecting")
+  const first = await tryOpen(800)
   if (first) return first
+  onPhase?.("launching")
   launchService()
   for (let attempt = 0; attempt < 12; attempt++) {
     await sleep(1000)
@@ -109,9 +115,9 @@ export function cancelChequeReader() {
  * يفتح نافذة قارئ الشيكات (شيكات واردة — سند قبض) وينتظر نتيجة المسح.
  * يُرجع الشيكات المقروءة مع صورها (base64).
  */
-export async function readReceivedCheques(banks: ChequeReaderBank[], branches: ChequeReaderBranch[]): Promise<ScannedCheque[]> {
+export async function readReceivedCheques(banks: ChequeReaderBank[], branches: ChequeReaderBranch[], onPhase?: (phase: ChequeReaderPhase) => void): Promise<ScannedCheque[]> {
   cancelChequeReader()
-  const socket = await connect()
+  const socket = await connect(onPhase)
   activeSocket = socket
   const bankCodeById = new Map(banks.map((bank) => [bank.id, pad4(bank.bank_code)]))
   const message = {
@@ -160,6 +166,8 @@ export async function readReceivedCheques(banks: ChequeReaderBank[], branches: C
     socket.addEventListener("message", onMessage)
     socket.addEventListener("close", onClose)
     socket.send(JSON.stringify(message))
+    onPhase?.("waiting")
+    console.info("[cheque-reader] openChequeReader sent", { banks: message.data.banks.length, branches: message.data.branches.length })
   })
 }
 
