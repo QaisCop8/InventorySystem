@@ -263,8 +263,15 @@ export const menuItems: MenuItem[] = [
           { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
           { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
           { title: "سند انتاج بضاعة", section: "production-vouchers", icon: Factory },
-          { title: "جرد المخازن", section: "stock-counts", icon: ClipboardCheck },
-          { title: "اعتماد الجرد", section: "stock-count-approval", icon: CheckCircle2 },
+        ],
+      },
+      {
+        title: "جرد المخازن",
+        section: "stock-counts-menu",
+        icon: ClipboardCheck,
+        submenu: [
+          { title: "تعريف الجلسات وادخال الجرد", section: "stock-counts", icon: ClipboardList },
+          { title: "مطابقة الجرد", section: "stock-count-approval", icon: CheckCircle2 },
         ],
       },
       { title: "تخطيط المشتريات الذكي", section: "purchase-planning", icon: TrendingUp },

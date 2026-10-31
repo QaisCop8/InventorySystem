@@ -47,13 +47,13 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="rounded-2xl bg-gradient-to-l from-indigo-700 via-indigo-600 to-violet-600 px-5 py-5 text-white shadow-lg">
+      <div className="rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><CheckCircle2 className="h-6 w-6" /></span>
             <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">اعتماد الجرد</h1>
-              <p className="text-xs text-indigo-50/90 sm:text-sm">مراجعة جلسات الجرد وتجميع كمياتها ثم ترحيل الفروقات — بعد إنهاء كل الجلسات</p>
+              <h1 className="text-xl font-extrabold sm:text-2xl">مطابقة الجرد</h1>
+              <p className="text-xs text-emerald-50/90 sm:text-sm">مراجعة جلسات الجرد وتجميع كمياتها ثم ترحيل الفروقات — بعد إنهاء كل الجلسات</p>
             </div>
           </div>
           <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
@@ -66,7 +66,7 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
         {[
           ["جاهزة للاعتماد", ready, CheckCircle2, "text-emerald-600"],
           ["بجلسات مفتوحة", blocked, AlertTriangle, "text-amber-600"],
-          ["معتمدة", rows.filter((row) => row.status === 3).length, Lock, "text-indigo-600"],
+          ["معتمدة", rows.filter((row) => row.status === 3).length, Lock, "text-teal-600"],
         ].map(([label, value, Icon, color]: any) => (
           <div key={label} className="flex items-center justify-between rounded-2xl border bg-white p-5 shadow-sm">
             <div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>
@@ -78,7 +78,7 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
       <div className="flex gap-2">
         {([["pending", "بانتظار الاعتماد"], ["posted", "معتمدة"]] as const).map(([value, label]) => (
           <button key={value} type="button" onClick={() => setTab(value)}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${tab === value ? "bg-indigo-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${tab === value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
             {label}
           </button>
         ))}
@@ -87,7 +87,7 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
       <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
-            <thead className="bg-indigo-50 text-indigo-950">
+            <thead className="bg-emerald-100 text-emerald-950">
               <tr>
                 {["رقم الجرد", "الفرع", "المستودع", "تاريخ القطع", "الحالة", "الجلسات", "المجرود", "أسطر بفروقات", tab === "posted" ? "سندات التسوية" : "الاعتماد", ""].map((header) => (
                   <th key={header} className="p-3 text-right">{header}</th>
@@ -96,8 +96,8 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
             </thead>
             <tbody>
               {visible.map((row) => (
-                <tr key={row.id} className="cursor-pointer border-t hover:bg-indigo-50/40" onDoubleClick={() => onOpen(row.id)}>
-                  <td className="p-3 font-mono font-bold text-indigo-700">{row.count_no}{row.blind && <EyeOff className="mr-1 inline h-3.5 w-3.5 text-slate-400" aria-label="جرد أعمى" />}</td>
+                <tr key={row.id} className="cursor-pointer border-t hover:bg-emerald-50/40" onDoubleClick={() => onOpen(row.id)}>
+                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="mr-1 inline h-3.5 w-3.5 text-slate-400" aria-label="جرد أعمى" />}</td>
                   <td className="p-3">{row.branch_name || "—"}</td>
                   <td className="p-3 font-semibold">{row.warehouse_name}</td>
                   <td className="p-3 font-mono" dir="ltr">{dateOnly(row.count_date)}</td>
@@ -205,7 +205,7 @@ function ApprovalDetail({ countId, onBack }: { countId: number; onBack: () => vo
   const RENDER_LIMIT = 500
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="rounded-2xl bg-gradient-to-l from-indigo-700 via-indigo-600 to-violet-600 px-5 py-4 text-white shadow-lg">
+      <div className="rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-4 text-white shadow-lg">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <button type="button" onClick={onBack} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 hover:bg-white/25" aria-label="رجوع">
@@ -213,10 +213,10 @@ function ApprovalDetail({ countId, onBack }: { countId: number; onBack: () => vo
             </button>
             <div>
               <h1 className="flex flex-wrap items-center gap-2 text-lg font-extrabold">
-                اعتماد جرد رقم <span className="font-mono">{count.count_no}</span>
+                مطابقة جرد رقم <span className="font-mono">{count.count_no}</span>
                 <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs ring-1 ring-white/25">{STATUS[count.status]?.label}</span>
               </h1>
-              <p className="flex flex-wrap items-center gap-x-2 text-xs text-indigo-50/90">
+              <p className="flex flex-wrap items-center gap-x-2 text-xs text-emerald-50/90">
                 {count.branch_name && <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{count.branch_name}</span>}
                 <span className="inline-flex items-center gap-1"><Warehouse className="h-3 w-3" />{count.warehouse_name}</span>
                 <span>تاريخ القطع {dateOnly(count.count_date)}</span>
@@ -252,7 +252,7 @@ function ApprovalDetail({ countId, onBack }: { countId: number; onBack: () => vo
 
       {/* الجلسات */}
       <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700"><Users className="h-4 w-4 text-indigo-600" />جلسات الجرد</div>
+        <div className="flex items-center gap-2 border-b bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-700"><Users className="h-4 w-4 text-emerald-600" />جلسات الجرد</div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="text-slate-500">
@@ -311,7 +311,7 @@ function ApprovalDetail({ countId, onBack }: { countId: number; onBack: () => vo
         </div>
         {([["difference", "بفروقات"], ["uncounted", "غير مجرود"], ["all", "الكل"]] as const).map(([value, label]) => (
           <button key={value} type="button" onClick={() => setFilter(value)}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filter === value ? "bg-indigo-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filter === value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
             {label}
           </button>
         ))}
@@ -320,7 +320,7 @@ function ApprovalDetail({ countId, onBack }: { countId: number; onBack: () => vo
       <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
         <div className="max-h-[58vh] overflow-auto">
           <table className="w-full min-w-[1080px] text-sm">
-            <thead className="sticky top-0 z-[1] bg-indigo-50 text-indigo-950">
+            <thead className="sticky top-0 z-[1] bg-emerald-100 text-emerald-950">
               <tr>
                 {["#", "رقم الصنف", "اسم الصنف / الدفعة", "الوحدة", "الدفترية", "تفصيل الجلسات", "إجمالي المجرود", "الفرق", "قيمة الفرق", "ملاحظات"].map((header) => (
                   <th key={header} className="p-3 text-right">{header}</th>
@@ -393,7 +393,7 @@ function SummaryCard({ label, value, tone = "" }: { label: string; value: string
 function HeaderButton({ icon: Icon, label, onClick, disabled, primary }: { icon: any; label: string; onClick: () => void; disabled?: boolean; primary?: boolean }) {
   return (
     <Button type="button" onClick={onClick} disabled={disabled}
-      className={primary ? "h-9 rounded-xl bg-white font-bold text-indigo-700 hover:bg-indigo-50" : "h-9 rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20"}>
+      className={primary ? "h-9 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" : "h-9 rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20"}>
       <Icon className="ml-1.5 h-4 w-4" />{label}
     </Button>
   )
