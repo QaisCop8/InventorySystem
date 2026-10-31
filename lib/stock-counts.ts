@@ -210,9 +210,18 @@ async function ensureStockCountPermission(name: string) {
   `
 }
 
+// تعريف صلاحيات الجرد مرة واحدة لكل قاعدة شركة (كانت ~12 استعلاماً مع كل طلب)
+const permissionsReady = new Map<string, Promise<void>>()
 export async function requireStockCountPermission(request: NextRequest, action: StockCountAction) {
   await ensureStockCountTables()
-  for (const name of Object.values(STOCK_COUNT_PERMISSIONS)) await ensureStockCountPermission(name)
+  const databaseName = await resolveCurrentDbName()
+  let ready = permissionsReady.get(databaseName)
+  if (!ready) {
+    ready = (async () => { for (const name of Object.values(STOCK_COUNT_PERMISSIONS)) await ensureStockCountPermission(name) })()
+    ready.catch(() => permissionsReady.delete(databaseName))
+    permissionsReady.set(databaseName, ready)
+  }
+  await ready
   return requirePermissionByName(request, STOCK_COUNT_PERMISSIONS[action])
 }
 
@@ -239,13 +248,54 @@ export type ProductMeta = {
   measurment_id: number; length: number; width: number; density: number
 }
 
+// أعمدة الصنف التي يقرؤها الجرد — موجودة في قواعد الشركات الحالية؛ قاعدة قديمة تنقصها ⇐ مسار to_jsonb الآمن
+const META_COLUMNS = ["serial_tracking", "has_expiry_date", "has_batch_number", "measurment_id", "length", "width", "density"]
+const metaColumnsByDb = new Map<string, Promise<boolean>>()
+async function productsHaveMetaColumns() {
+  const databaseName = await resolveCurrentDbName()
+  let pending = metaColumnsByDb.get(databaseName)
+  if (!pending) {
+    pending = (async () => {
+      const rows = (await sql`
+        SELECT COUNT(*)::int AS n FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'products' AND column_name = ANY(${META_COLUMNS}::text[])
+      `) as any[]
+      return Number(rows[0]?.n) === META_COLUMNS.length
+    })()
+    pending.catch(() => metaColumnsByDb.delete(databaseName))
+    metaColumnsByDb.set(databaseName, pending)
+  }
+  return pending
+}
+
 export async function loadProductMeta(filter: { productIds?: number[]; categoryIds?: number[]; code?: string } = {}): Promise<ProductMeta[]> {
   const productIds = filter.productIds || []
   const categoryIds = filter.categoryIds || []
   const code = String(filter.code || "").trim()
   const variantsTable = Boolean(((await sql`SELECT to_regclass('product_atrributes_values_tbl') IS NOT NULL AS ok`) as any[])[0]?.ok)
   await ensureProductUnitRoleColumns()
-  const rows = await sql`
+  const direct = await productsHaveMetaColumns()
+  const rows = direct ? await sql`
+    SELECT p.id, p.product_code, p.product_name, p.barcode, p.measurment_unit AS unit_id, u.unit_name,
+      cu.unit_id AS count_unit_id, cuu.unit_name AS count_unit_name, cu.to_main_qnty AS count_unit_factor,
+      COALESCE(p.serial_tracking, false) AS has_serial,
+      COALESCE(p.has_expiry_date, false) AS has_expiry,
+      COALESCE(p.has_batch_number, false) AS has_batch,
+      COALESCE(p.measurment_id, 1) AS measurment_id,
+      COALESCE(p.length, 0) AS length,
+      COALESCE(p.width, 0) AS width,
+      COALESCE(p.density, 0) AS density
+    FROM products p
+    LEFT JOIN units u ON u.id = p.measurment_unit
+    LEFT JOIN LATERAL (SELECT pu.unit_id, pu.to_main_qnty FROM product_units pu WHERE pu.product_id = p.id AND pu.is_stock_count_unit ORDER BY pu.id LIMIT 1) cu ON true
+    LEFT JOIN units cuu ON cuu.id = cu.unit_id
+    WHERE COALESCE(p.deleted, false) = false AND COALESCE(p.status, 1) <> 3 AND COALESCE(p.type, 1) = 1
+      AND (${productIds.length} = 0 OR p.id = ANY(${productIds}::int[]))
+      AND (${categoryIds.length} = 0 OR p.category_id = ANY(${categoryIds}::int[]))
+      AND (${code} = '' OR UPPER(p.product_code) = UPPER(${code}) OR p.barcode = ${code}
+        OR EXISTS (SELECT 1 FROM product_units pu WHERE pu.product_id = p.id AND (to_jsonb(pu)->>'barcode') = ${code}))
+    ORDER BY p.product_code, p.product_name
+  ` : await sql`
     SELECT p.id, p.product_code, p.product_name, p.barcode, p.measurment_unit AS unit_id, u.unit_name,
       cu.unit_id AS count_unit_id, cuu.unit_name AS count_unit_name, cu.to_main_qnty AS count_unit_factor,
       COALESCE(p.serial_tracking, false) AS has_serial,
@@ -386,9 +436,10 @@ export async function insertCountLine(countId: number, line: LineInput) {
 }
 
 /** أسطر الدفترية المتوقعة (صنف/دفعة) بتاريخ القطع لمجموعة أصناف — مشتركة بين التوليد والتحديث. */
-async function expectedLines(scope: CountScope, products: ProductMeta[]) {
+async function expectedLines(scope: CountScope, products: ProductMeta[], allProducts = false) {
   const ids = products.map((product) => product.id)
-  const balances = await warehouseBalancesAt(scope, ids)
+  // كل الأصناف ⇐ بلا فلتر معرّفات (ANY بآلاف المعرّفات يضاعف زمن استعلام الأرصدة)
+  const balances = await warehouseBalancesAt(scope, allProducts ? [] : ids)
   const lotProducts = products.filter(isLotProduct)
   const measuredIds = new Set(lotProducts.filter((product) => isMeasuredProduct(product.measurment_id)).map((product) => product.id))
   const lots = lotProducts.length
@@ -437,72 +488,140 @@ async function expectedLines(scope: CountScope, products: ProductMeta[]) {
   return result
 }
 
+const BULK_CHUNK = 2000
+const chunks = <T>(list: T[], size = BULK_CHUNK) => {
+  const result: T[][] = []
+  for (let index = 0; index < list.length; index += size) result.push(list.slice(index, index + size))
+  return result
+}
+
+/** صف سطر جرد جاهز للإدراج (system_qty/unit_cost محوَّلة لوحدة الجرد) — نفس تحويلات insertCountLine. */
+const lineRecord = (line: LineInput) => {
+  const product = line.product
+  const factor = product.unit_factor > 0 ? product.unit_factor : 1
+  return {
+    item_id: product.id, product_code: product.product_code, product_name: product.product_name, barcode: product.barcode,
+    unit_id: product.unit_id, unit_name: product.unit_name, unit_factor: factor,
+    system_qty: round6(line.system_qty / factor), unit_cost: round6(line.unit_cost * factor),
+    has_serial: product.has_serial, has_expiry: product.has_expiry, has_batch: product.has_batch, has_variants: product.has_variants,
+    measurment_id: product.measurment_id, lot_key: line.lot_key, expiry_date: line.expiry_date || null, batch_no: line.batch_no || null,
+    attribute_value_ids: line.attribute_value_ids || [], variant_label: line.variant_label || null,
+    length: line.length ?? null, width: line.width ?? null, height: line.height ?? null, system_pieces: line.system_pieces ?? null,
+    manual: Boolean(line.manual),
+  }
+}
+
+/**
+ * إدراج جماعي لأسطر الجرد (دفعات من 2000 سطر باستعلام واحد لكل دفعة) — كان كل سطر استعلاماً منفصلاً،
+ * فجرد مستودع بآلاف الأصناف على قاعدة بعيدة (Neon) يستغرق دقائق. يُرجع معرّفات الأسطر المُدرجة بمفتاح item#lot.
+ */
+export async function insertCountLines(countId: number, lines: LineInput[]) {
+  const ids = new Map<string, number>()
+  for (const part of chunks(lines.map(lineRecord))) {
+    const rows = (await sql`
+      INSERT INTO stock_count_items (count_id, item_id, product_code, product_name, barcode, unit_id, unit_name, unit_factor,
+        system_qty, unit_cost, has_serial, has_expiry, has_batch, has_variants, measurment_id,
+        lot_key, expiry_date, batch_no, attribute_value_ids, variant_label, length, width, height, system_pieces, manual)
+      SELECT ${countId}, x.item_id, x.product_code, x.product_name, x.barcode, x.unit_id, x.unit_name, x.unit_factor,
+        x.system_qty, x.unit_cost, x.has_serial, x.has_expiry, x.has_batch, x.has_variants, x.measurment_id,
+        x.lot_key, x.expiry_date, x.batch_no, COALESCE(x.attribute_value_ids, '{}'), x.variant_label, x.length, x.width, x.height, x.system_pieces, x.manual
+      FROM jsonb_to_recordset(${JSON.stringify(part)}::jsonb) AS x(
+        item_id int, product_code text, product_name text, barcode text, unit_id int, unit_name text, unit_factor double precision,
+        system_qty numeric, unit_cost numeric, has_serial boolean, has_expiry boolean, has_batch boolean, has_variants boolean, measurment_id int,
+        lot_key text, expiry_date date, batch_no text, attribute_value_ids int[], variant_label text,
+        length numeric, width numeric, height numeric, system_pieces numeric, manual boolean)
+      ON CONFLICT (count_id, item_id, lot_key) DO NOTHING
+      RETURNING id, item_id, lot_key
+    `) as any[]
+    for (const row of rows) ids.set(`${Number(row.item_id)}#${row.lot_key}`, Number(row.id))
+  }
+  return ids
+}
+
+/** إدراج جماعي لسيريالات الأسطر: [line_id, serial] (in_system = true). */
+async function insertSystemSerials(countId: number, pairs: { line_id: number; serial: string }[]) {
+  for (const part of chunks(pairs, 5000)) {
+    await sql`
+      INSERT INTO stock_count_serials (count_id, line_id, serial, in_system)
+      SELECT ${countId}, x.line_id, x.serial, true FROM jsonb_to_recordset(${JSON.stringify(part)}::jsonb) AS x(line_id int, serial text)
+      ON CONFLICT (line_id, serial) DO UPDATE SET in_system = true
+    `
+  }
+}
+
 /** يبني أسطر وثيقة الجرد من أرصدة المستودع (والفرع) بتاريخ القطع. */
 export async function generateCountLines(countId: number, scope: CountScope, includeZero: boolean, categoryIds: number[] = []) {
   const products = await loadProductMeta({ categoryIds })
-  const expected = await expectedLines(scope, products)
-  const covered = new Set<number>()
-  let inserted = 0
-  for (const line of expected) {
-    const zero = Math.abs(line.system_qty) < 0.000001 && !(line.serials && line.serials.length)
-    if (zero && !includeZero) continue
-    const lineId = await insertCountLine(countId, line)
-    if (!lineId) continue
-    covered.add(line.product.id)
-    inserted++
-    for (const serial of line.serials || []) {
-      await sql`INSERT INTO stock_count_serials (count_id, line_id, serial, in_system) VALUES (${countId}, ${lineId}, ${serial}, true) ON CONFLICT (line_id, serial) DO NOTHING`
-    }
-  }
+  const expected = await expectedLines(scope, products, categoryIds.length === 0)
+  const selected = expected.filter((line) => includeZero || !(Math.abs(line.system_qty) < 0.000001 && !(line.serials && line.serials.length)))
+  const covered = new Set(selected.map((line) => line.product.id))
   // أصناف دفعات بلا أي دفعة برصيد (تضمين الأصفار) ⇐ سطر فارغ يُعدّ عليه أو تُضاف دفعاته أثناء الجرد
-  if (includeZero) {
-    for (const product of products.filter((entry) => isLotProduct(entry) && !covered.has(entry.id))) {
-      if (await insertCountLine(countId, { product, lot_key: "", system_qty: 0, unit_cost: 0 })) inserted++
-    }
+  const emptyLots: LineInput[] = includeZero
+    ? products.filter((entry) => isLotProduct(entry) && !covered.has(entry.id)).map((product) => ({ product, lot_key: "", system_qty: 0, unit_cost: 0 }))
+    : []
+  const ids = await insertCountLines(countId, [...selected, ...emptyLots])
+  const serialPairs: { line_id: number; serial: string }[] = []
+  for (const line of selected) {
+    const lineId = ids.get(`${line.product.id}#${line.lot_key}`)
+    if (lineId) for (const serial of line.serials || []) serialPairs.push({ line_id: lineId, serial })
   }
-  return inserted
+  await insertSystemSerials(countId, serialPairs)
+  return ids.size
 }
 
 /**
  * يُعيد الكمية الدفترية بتاريخ القطع لكل أسطر الوثيقة (يلتقط سندات أُدخلت بتاريخ سابق للقطع بعد الإنشاء):
  * دفعات جديدة ظهرت دفترياً تُضاف كأسطر، ودفعات اختفت تصبح دفتريتها صفراً، وسيريالات دفترية تُحدَّث.
+ * تحديث جماعي (استعلام لكل 2000 سطر) بدل استعلام لكل سطر.
  */
 export async function refreshSystemQuantities(countId: number, scope: CountScope) {
   const lines = (await sql`SELECT id, item_id, lot_key, unit_factor FROM stock_count_items WHERE count_id = ${countId}`) as any[]
   if (!lines.length) return
   const productIds = [...new Set(lines.map((line) => Number(line.item_id)))]
   const products = await loadProductMeta({ productIds })
+  const productById = new Map(products.map((product) => [product.id, product]))
   const expected = await expectedLines(scope, products)
   const expectedByKey = new Map(expected.map((line) => [`${line.product.id}#${line.lot_key}`, line]))
 
+  const updates: { id: number; system_qty: number; system_pieces: number | null; unit_cost: number }[] = []
+  const serialLines: { id: number; serials: string[] }[] = []
   for (const line of lines) {
     const key = `${Number(line.item_id)}#${line.lot_key}`
     const match = expectedByKey.get(key)
     expectedByKey.delete(key)
-    const product = products.find((entry) => entry.id === Number(line.item_id))
+    const product = productById.get(Number(line.item_id))
     const factor = Number(line.unit_factor) > 0 ? Number(line.unit_factor) : 1
-    await sql`
-      UPDATE stock_count_items
-      SET system_qty = ${round6((match?.system_qty ?? 0) / factor)}, system_pieces = ${match?.system_pieces ?? (product && isMeasuredProduct(product.measurment_id) ? 0 : null)},
-        unit_cost = ${round6((match?.unit_cost ?? 0) * factor)}
-      WHERE id = ${Number(line.id)}
-    `
     if (product?.has_serial) {
       const list = match?.serials || []
-      await sql`UPDATE stock_count_serials SET in_system = (serial = ANY(${list}::text[])) WHERE line_id = ${Number(line.id)}`
-      for (const serial of list) {
-        await sql`INSERT INTO stock_count_serials (count_id, line_id, serial, in_system) VALUES (${countId}, ${Number(line.id)}, ${serial}, true) ON CONFLICT (line_id, serial) DO UPDATE SET in_system = true`
-      }
-      await sql`DELETE FROM stock_count_serials WHERE line_id = ${Number(line.id)} AND in_system = false AND counted = false`
-      await sql`UPDATE stock_count_items SET system_qty = ${list.length} WHERE id = ${Number(line.id)}`
+      serialLines.push({ id: Number(line.id), serials: list })
+      updates.push({ id: Number(line.id), system_qty: list.length, system_pieces: null, unit_cost: round6((match?.unit_cost ?? 0) * factor) })
+      continue
     }
+    updates.push({
+      id: Number(line.id),
+      system_qty: round6((match?.system_qty ?? 0) / factor),
+      system_pieces: match?.system_pieces ?? (product && isMeasuredProduct(product.measurment_id) ? 0 : null),
+      unit_cost: round6((match?.unit_cost ?? 0) * factor),
+    })
+  }
+  for (const part of chunks(updates)) {
+    await sql`
+      UPDATE stock_count_items i SET system_qty = x.system_qty, system_pieces = x.system_pieces, unit_cost = x.unit_cost
+      FROM jsonb_to_recordset(${JSON.stringify(part)}::jsonb) AS x(id int, system_qty numeric, system_pieces numeric, unit_cost numeric)
+      WHERE i.id = x.id AND i.count_id = ${countId}
+    `
+  }
+  if (serialLines.length) {
+    const serialLineIds = serialLines.map((line) => line.id)
+    await sql`UPDATE stock_count_serials SET in_system = false WHERE count_id = ${countId} AND line_id = ANY(${serialLineIds}::int[])`
+    await insertSystemSerials(countId, serialLines.flatMap((line) => line.serials.map((serial) => ({ line_id: line.id, serial }))))
+    await sql`DELETE FROM stock_count_serials WHERE count_id = ${countId} AND line_id = ANY(${serialLineIds}::int[]) AND in_system = false AND counted = false`
   }
   // دفعات دفترية جديدة لأصناف الوثيقة لم يكن لها سطر
-  for (const line of expectedByKey.values()) {
-    if (Math.abs(line.system_qty) < 0.000001) continue
-    await insertCountLine(countId, line)
-  }
+  const added = [...expectedByKey.values()].filter((line) => Math.abs(line.system_qty) >= 0.000001)
+  if (added.length) await insertCountLines(countId, added)
 }
+
 
 export async function loadCountHeader(countId: number) {
   const rows = await sql`
@@ -675,4 +794,28 @@ export async function cancelCountSession(countId: number, sessionId: number) {
   await sql`DELETE FROM stock_count_session_lines WHERE session_id = ${sessionId}`
   await sql`UPDATE stock_count_sessions SET status = 3, updated_at = CURRENT_TIMESTAMP, finished_at = CURRENT_TIMESTAMP WHERE id = ${sessionId}`
   await recomputeCountedLines(countId)
+}
+
+/** حفظ جماعي لكميات/ملاحظات جلسة (استعلامان مهما كان عدد الأسطر) — بنفس قواعد setSessionLine. */
+export async function setSessionLines(sessionId: number, countId: number, entries: { line_id: number; counted_qty: number | null; counted_pieces?: number | null; note?: string | null }[]) {
+  if (!entries.length) return
+  const normalized = entries.map((entry) => ({
+    line_id: entry.line_id,
+    counted_qty: entry.counted_qty,
+    counted_pieces: entry.counted_pieces ?? null,
+    note: String(entry.note ?? "").trim() || null,
+  }))
+  const removed = normalized.filter((entry) => entry.counted_qty == null && !entry.note).map((entry) => entry.line_id)
+  const kept = normalized.filter((entry) => !(entry.counted_qty == null && !entry.note))
+  if (removed.length) await sql`DELETE FROM stock_count_session_lines WHERE session_id = ${sessionId} AND line_id = ANY(${removed}::int[])`
+  if (kept.length) {
+    await sql`
+      INSERT INTO stock_count_session_lines (session_id, count_id, line_id, counted_qty, counted_pieces, note, counted_at)
+      SELECT ${sessionId}, ${countId}, x.line_id, x.counted_qty, x.counted_pieces, x.note, CURRENT_TIMESTAMP
+      FROM jsonb_to_recordset(${JSON.stringify(kept)}::jsonb) AS x(line_id int, counted_qty numeric, counted_pieces numeric, note text)
+      ON CONFLICT (session_id, line_id) DO UPDATE SET
+        counted_qty = EXCLUDED.counted_qty, counted_pieces = EXCLUDED.counted_pieces, note = EXCLUDED.note, counted_at = CURRENT_TIMESTAMP
+    `
+  }
+  await sql`UPDATE stock_count_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ${sessionId}`
 }

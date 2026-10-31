@@ -10,7 +10,7 @@ import {
   openSessionOf,
   openSessionsMessage,
   recomputeCountedLines,
-  setSessionLine,
+  setSessionLines,
   jsonError,
   lineDifference,
   lineLotLabel,
@@ -246,12 +246,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const products = measuredIds.length ? await loadProductMeta({ productIds: measuredIds }) : []
       let updated = 0
       const session = existing.length ? await mySession() : null
+      const entries: { line_id: number; counted_qty: number | null; counted_pieces?: number | null; note?: string }[] = []
+      const existingById = new Map(existing.map((entry) => [Number(entry.id), entry]))
       for (const input of inputs) {
-        const line = existing.find((entry) => Number(entry.id) === Number(input?.id))
+        const line = existingById.get(Number(input?.id))
         if (!line || !session) continue
         if (line.has_serial) {
           // الكمية المجرودة لصنف بسيريال = عدد السيريالات المجرودة؛ الملاحظة فقط قابلة للتعديل هنا
-          await setSessionLine(session.id, countId, Number(line.id), { counted_qty: null, note: String(input.note ?? "") })
+          entries.push({ line_id: Number(line.id), counted_qty: null, note: String(input.note ?? "") })
           continue
         }
         let counted: number | null
@@ -266,9 +268,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           if (counted != null && (!Number.isFinite(counted) || counted < 0)) return jsonError(`الكمية المجرودة غير صالحة للصنف ${line.product_code}`)
         }
         // كمية جلسة المستخدم فقط — كمية السطر = مجموع كل الجلسات (recomputeCountedLines)
-        await setSessionLine(session.id, countId, Number(line.id), { counted_qty: counted, counted_pieces: pieces, note: String(input.note ?? "") })
+        entries.push({ line_id: Number(line.id), counted_qty: counted, counted_pieces: pieces, note: String(input.note ?? "") })
         updated++
       }
+      if (session) await setSessionLines(session.id, countId, entries)
       await recomputeCountedLines(countId, existing.map((line) => Number(line.id)))
       await sql`UPDATE stock_counts SET updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
       return NextResponse.json({ updated, session_no: session?.session_no ?? null })
@@ -395,6 +398,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const notFound: string[] = []
       const session = await mySession()
       const touched: number[] = []
+      const importEntries: { line_id: number; counted_qty: number | null; counted_pieces?: number | null; note?: string }[] = []
+      const myNotes = new Map(((await sql`SELECT line_id, note FROM stock_count_session_lines WHERE session_id = ${session.id}`) as any[]).map((row) => [Number(row.line_id), row.note || ""]))
       const same = (a: unknown, b: unknown) => String(a ?? "").trim().toUpperCase() === String(b ?? "").trim().toUpperCase()
       const sameNumber = (a: unknown, b: unknown) => (Number(a) || 0) === (Number(b) || 0)
       for (const row of Array.isArray(data.rows) ? data.rows : []) {
@@ -415,17 +420,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           const pieces = numberOrNull(row.counted_pieces)
           if (pieces == null || !Number.isFinite(pieces) || pieces < 0) { notFound.push(`${code} (عدد القطع)`); continue }
           const product = products.find((entry) => entry.id === Number(line.item_id)) as ProductMeta
-          const mine = ((await sql`SELECT note FROM stock_count_session_lines WHERE session_id = ${session.id} AND line_id = ${Number(line.id)}`) as any[])[0]
-          await setSessionLine(session.id, countId, Number(line.id), { counted_qty: quantityFromPieces(product, line, pieces), counted_pieces: pieces, note: mine?.note })
+          importEntries.push({ line_id: Number(line.id), counted_qty: quantityFromPieces(product, line, pieces), counted_pieces: pieces, note: myNotes.get(Number(line.id)) })
         } else {
           const counted = numberOrNull(row.counted_qty)
           if (counted == null || !Number.isFinite(counted) || counted < 0) { notFound.push(`${code} (كمية غير صالحة)`); continue }
-          const mine = ((await sql`SELECT note FROM stock_count_session_lines WHERE session_id = ${session.id} AND line_id = ${Number(line.id)}`) as any[])[0]
-          await setSessionLine(session.id, countId, Number(line.id), { counted_qty: counted, note: mine?.note })
+          importEntries.push({ line_id: Number(line.id), counted_qty: counted, note: myNotes.get(Number(line.id)) })
         }
         touched.push(Number(line.id))
         updated++
       }
+      await setSessionLines(session.id, countId, importEntries)
       if (touched.length) await recomputeCountedLines(countId, touched)
       await sql`UPDATE stock_counts SET updated_at = CURRENT_TIMESTAMP WHERE id = ${countId}`
       return NextResponse.json({ updated, not_found: notFound })

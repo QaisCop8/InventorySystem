@@ -1,4 +1,4 @@
-import sql from "@/lib/database"
+import sql, { resolveCurrentDbName } from "@/lib/database"
 import { summarizeVoucherInventory, type LineCost } from "@/lib/voucher-inventory-valuation"
 import { getSystemSettingValue } from "@/lib/system-settings"
 import { ensureLandedCostSchema } from "@/lib/landed-costs"
@@ -33,9 +33,24 @@ export async function getInventoryReportProducts(organizationId: number, product
   `
 }
 
+// products.initial_price اختياري (غير موجود في بعض قواعد الشركات) — كان يُقرأ عبر to_jsonb(p) لكل صنف
+// (~1 ثانية لكل 16 ألف صنف)؛ يُفحص وجوده مرة لكل قاعدة ويُقرأ مباشرة أو يُستبدل بصفر.
+const initialPriceByDb = new Map<string, Promise<boolean>>()
+async function productsHasInitialPrice() {
+  const databaseName = await resolveCurrentDbName()
+  let pending = initialPriceByDb.get(databaseName)
+  if (!pending) {
+    pending = (async () => ((await sql`SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'initial_price'`) as any[]).length > 0)()
+    pending.catch(() => initialPriceByDb.delete(databaseName))
+    initialPriceByDb.set(databaseName, pending)
+  }
+  return pending
+}
+
 export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
   const { productIds = [], excludeProductIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
   await ensureLandedCostSchema()
+  const initialPriceExpr = (await productsHasInitialPrice()) ? "COALESCE(p.initial_price::numeric,0)" : "0::numeric"
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
   const [products, lines, includePurchaseReturns] = await Promise.all([
@@ -43,7 +58,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
                -- مجموعة الصنف: المجموعة الفرعية (category_id) وإلا المجموعة الرئيسية (main_stock_id) — كثير من الأصناف
                -- تحفظ مجموعتها في main_stock_id فقط فكان العمود "—" (نفس منطق كتالوج نقطة البيع)
                COALESCE(NULLIF(groups.group_name,''),NULLIF(main_group.group_name,'')) AS category,p.currency_id,p.last_purchase_price,
-               COALESCE((to_jsonb(p)->>'initial_price')::numeric,0) AS initial_price
+               ${sql.unsafe(initialPriceExpr)} AS initial_price
         FROM products p
         LEFT JOIN units u ON u.id=p.measurment_unit
         LEFT JOIN item_groups groups ON groups.id=p.category_id
