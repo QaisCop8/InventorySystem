@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { ensureVoucherItemDiscountColumns } from "@/lib/voucher-item-columns"
 
 // آخر سعر شراء للصنف من فاتورة المشتريات (17) وإرسالية المشتريات (18):
 // products.last_purchase_price (بالوحدة الرئيسية، بعد خصم السطر، بعملة السند) + تاريخ وعملة آخر شراء.
@@ -7,6 +8,8 @@ import { runSchemaOnce } from "@/lib/schema-once"
 export const LAST_PURCHASE_VCH_TYPES = [17, 18]
 
 export async function ensureLastPurchaseColumns() { return runSchemaOnce("lib/last-purchase.ts#ensureLastPurchaseColumns", async () => {
+  // التعبئة أدناه تقرأ vi.pos_discount_percent — غير موجود في شركة جديدة قبل أول فاتورة
+  await ensureVoucherItemDiscountColumns()
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS last_purchase_date DATE`
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS last_purchase_currency_id INTEGER`
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS last_purchase_voucher_id INTEGER`

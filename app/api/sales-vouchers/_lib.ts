@@ -1,5 +1,6 @@
 import sql, { memoInTransaction } from "@/lib/database"
 import { saveNewVoucherItemSelections, savedSelections } from "@/lib/voucher-item-attributes"
+import { ensureVoucherItemDiscountColumns } from "@/lib/voucher-item-columns"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion } from "@/lib/consignment"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
@@ -153,6 +154,8 @@ export const ensureTables = async () => { return runSchemaOnce("app/api/sales-vo
   // مشتريات ومردود مبيعات/مشتريات، انظر buildSalesVoucherJournalRows أدناه) مملوكان أصلاً بواسطة
   // receipts/_lib.ts — نفس نمط credit-notes/_lib.ts (تستدعيها أولاً قبل أي شيء آخر).
   await ensureReceiptsTables()
+  // أعمدة خصم السطر تُقرأ في الاستعلامات (fetchSalesVoucherItems، العمولات) قبل أي حفظ
+  await ensureVoucherItemDiscountColumns()
   // product_stock/inventory_transactions مملوكان فعلياً بواسطة stock-vouchers/_lib.ts — تُستدعى
   // ensureTables هناك هنا أيضاً لضمان وجودهما حتى لو لم تُستخدَم شاشات سندات المخزون إطلاقاً بعد على
   // هذه الشركة (تنصيب جديد قد يبدأ مباشرة بشاشة إرسالية المبيعات دون المرور بها أولاً).
