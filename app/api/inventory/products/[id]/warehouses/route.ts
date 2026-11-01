@@ -3,6 +3,7 @@ import { projectFileLookup } from "@/lib/file-permissions"
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
+import { withDerivedUnitPrices } from "@/lib/unit-prices"
 
 async function ensureProductCostCentersTable(client: any) {
   await client.query(`
@@ -123,7 +124,8 @@ export async function GET(request: NextRequest) {
   ORDER BY pu.id
 `;
     const unitsResult = await client.query(unitsQuery, [product.id, priceCategoryId]);
-    product.units = unitsResult.rows;
+    // وحدة بلا سعر ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts)
+    product.units = withDerivedUnitPrices(unitsResult.rows.map((row: any) => ({ ...row, unit_price: Number(row.unit_price) || 0 })), "unit_price", "to_main_qnty");
     product.price = 0;
     if (!is_barcode) {
       product.unit_id = product.units[0].unit_id;

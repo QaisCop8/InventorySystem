@@ -7,6 +7,7 @@ import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { ensureTables, generateSalesVoucherCode, SALES_INVOICE_VCH_TYPE, RETURN_SELL_VCH_TYPE } from "@/app/api/sales-vouchers/_lib"
 import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "./_lib"
 import { getPosCurrencies } from "@/lib/pos-currencies"
+import { itemLevelVatEnabled, itemVatRates } from "@/lib/item-vat-server"
 import { needsPosReceipt } from "@/lib/pos-receipt"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
 import { resolvePosCashAccount } from "@/lib/pos-accounts"
@@ -94,10 +95,15 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
         await sql`UPDATE voucher_header_tbl SET pos_client_sale_id=${clientSaleId},pos_point_id=${pointId},pos_session_id=${session?Number(session.id):null},shift_guid=${session?String(session.shift_guid):null}::uuid WHERE id=${Number(saved.id)}`
         return response
       }
+      // "الضريبة على مستوى الصنف": فاتورة المبيعات تحسب ضريبة كل سطر بنسبة الصنف (صنف بلا نسبة ⇐ 0، lib/item-vat.ts)،
+      // فسعر الكاشير الشامل يُفكّ بنسبة الصنف نفسها — كان يُفكّ بنسبة النظام فيختلف إجمالي الفاتورة عن الدفعات ويُرفض الحفظ
+      const itemRates=await itemLevelVatEnabled()?await itemVatRates(data.items.map((item:any)=>Number(item.product_id||item.item_id))):null
+      const lineTaxRate=(item:any)=>itemRates?Math.max(0,Number(itemRates.get(Number(item.product_id||item.item_id))??0)):taxRate
       const invoiceItems=data.items.map((item:any,index:number)=>{
         const displayedPrice=Number(item.price??item.unit_price??0)
-        const taxFactor=1+taxRate/100
-        const netPrice=taxRate>0?displayedPrice/taxFactor:displayedPrice
+        const lineRate=lineTaxRate(item)
+        const taxFactor=1+lineRate/100
+        const netPrice=lineRate>0?displayedPrice/taxFactor:displayedPrice
         const quantity=Number(item.quantity??item.qnty??0)
         const campaignDiscount=Number(campaignResult.items[index]?.campaign_discount||0)/taxFactor
         const roundedPrice=Math.round(netPrice*10000)/10000
@@ -106,8 +112,13 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
         const effectiveDiscountPercent=combinedDiscountPercent(quantity,roundedPrice,regularDiscountPercent,savedCampaignDiscount)
         return {...item,unit_price:roundedPrice,price:roundedPrice,discount:effectiveDiscountPercent,discount_percent:regularDiscountPercent,pos_discount_percent:regularDiscountPercent,campaign_discount:savedCampaignDiscount,campaign_id:campaignResult.items[index]?.campaign_id||null,total_price:Math.round(roundedPrice*quantity*100)/100,line_amount:Math.max(0,Math.round((roundedPrice*quantity*(1-regularDiscountPercent/100)-savedCampaignDiscount)*100)/100)}
       })
-      const campaignTaxFactor=1+taxRate/100
-      const itemNetSubtotal=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity)*(1-Number(item.discount_percent??item.discount??0)/100)-Number(item.campaign_discount||0),0)
+      const lineNet=(item:any)=>Number(item.unit_price)*Number(item.quantity)*(1-Number(item.discount_percent??item.discount??0)/100)-Number(item.campaign_discount||0)
+      const itemNetSubtotal=invoiceItems.reduce((sum:number,item:any)=>sum+lineNet(item),0)
+      // تحويل خصم الفاتورة الشامل (الحملات/بطاقة الخصم) إلى صافٍ: خصم السند يتوزع على الأسطر بالتناسب مع صافيها، فمع ضريبة
+      // الأصناف يُستخدم متوسط نسبها المرجّح بالصافي حتى يطابق الإجمالي المحسوب في فاتورة المبيعات
+      const campaignTaxFactor=itemRates
+        ?(itemNetSubtotal>0?1+invoiceItems.reduce((sum:number,item:any)=>sum+lineNet(item)*lineTaxRate(item),0)/itemNetSubtotal/100:1)
+        :1+taxRate/100
       const manualInvoiceDiscount=itemNetSubtotal*Math.max(0,Number(data.discount_value||0))/100
       // أعلى نسبة خصم في إعدادات نقطة البيع تشمل مجموع الخصم اليدوي: خصومات الأصناف + خصم الفاتورة كنسبة من قيمة
       // الفاتورة قبل أي خصم (خصم الحملات وبطاقة الخصم آليان فلا يدخلان) — كان يُفحص خصم كل صنف وحده فقط.
@@ -195,7 +206,7 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
           payment.account_id=await resolvePosCashAccount(point,userId,Number(payment.currency_id||point.currency_id))
         }
       }
-      const accountIssue=validatePosAccounts(point,payments,{mode:String(data.pos_mode),taxAmount:taxRate,returnAccountIds:invoiceItems.map((item:any)=>item.account_id),customerAccountId:data.account_id})
+      const accountIssue=validatePosAccounts(point,payments,{mode:String(data.pos_mode),taxAmount:itemRates?Math.max(0,...invoiceItems.map((item:any)=>lineTaxRate(item))):taxRate,returnAccountIds:invoiceItems.map((item:any)=>item.account_id),customerAccountId:data.account_id})
       if(accountIssue)return NextResponse.json({error:accountIssue},{status:400})
       for(const payment of payments.filter((row:any)=>Number(row.amount)>0)){
         if(payment.payment_method==="account"){
@@ -286,16 +297,41 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       // ومجموعها المقيّم = صافي النقد في الفاتورة؛ عكس الإلغاء (_session-payments) يعكسها كما هي
       if(drawerCash){
         await sql`DELETE FROM pos_sale_payments_tbl WHERE voucher_id=${Number(saved.id)} AND payment_method='cash'`
-        for(const row of drawerCash.filter((row:any)=>Math.abs(Number(row.amount))>0.0001||Math.abs(Number(row.currency_amount))>0.0001))
-          await sql`INSERT INTO pos_sale_payments_tbl (voucher_id,payment_method,amount,account_id,reference,currency_id,currency_amount,exchange_rate) VALUES (${Number(saved.id)},'cash',${Number(row.amount)},${Number(row.account_id||point.cash_account_id)},${String(row.reference||"")||null},${Number(row.currency_id)},${Number(row.currency_amount)},${Number(row.exchange_rate||1)})`
+        const drawerRows=drawerCash.filter((row:any)=>Math.abs(Number(row.amount))>0.0001||Math.abs(Number(row.currency_amount))>0.0001)
+        if(drawerRows.length){
+          const values:unknown[]=[],p=(value:unknown)=>{values.push(value);return `$${values.length}`}
+          await sql.unsafe(`INSERT INTO pos_sale_payments_tbl (voucher_id,payment_method,amount,account_id,reference,currency_id,currency_amount,exchange_rate) VALUES ${drawerRows.map((row:any)=>`(${p(Number(saved.id))},'cash',${p(Number(row.amount))},${p(Number(row.account_id||point.cash_account_id))},${p(String(row.reference||"")||null)},${p(Number(row.currency_id))},${p(Number(row.currency_amount))},${p(Number(row.exchange_rate||1))})`).join(",")}`,values)
+        }
       }
-      await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${session?Number(session.id):null} WHERE voucher_id=${Number(saved.id)}`
       // بيانات جهاز الدفع لدفعة البطاقة (رقم الموافقة/الحركة/الجهاز) أو "manual" للإدخال اليدوي
       const cardMeta=payments.find((p:any)=>p.payment_method==="card"&&p.card_meta)?.card_meta
-      if(cardMeta)await sql`UPDATE pos_sale_payments_tbl SET card_entry=${cardMeta.entry},pinpad_machine_id=${cardMeta.machine??null},card_auth_code=${cardMeta.auth??null},card_trans_id=${cardMeta.trans??null},card_terminal_id=${cardMeta.terminal??null},card_merchant=${cardMeta.merchant??null} WHERE voucher_id=${Number(saved.id)} AND payment_method='card'`
-      if(discountCardId)await sql`UPDATE voucher_header_tbl SET discount_card_id=${discountCardId},discount_card_amount=${discountCardGross} WHERE id=${Number(saved.id)}`
-      await sql`UPDATE voucher_header_tbl SET pos_session_id=${session?Number(session.id):null},shift_guid=${session?String(session.shift_guid):null}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
-      if(session)await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${session?Number(session.id):null},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`
+      // ربط الدفعات والسند بالنقطة والعهدة + سجل الكاشير + نقد العهدة وعملاتها: أمر واحد (CTEs) بدل 5-8 أوامر متتالية،
+      // كل أمر رحلة شبكة مع قاعدة بعيدة. المعاملات مرقّمة يدوياً ($n) فتُستنتج أنواعها من أعمدة الجداول كما في الأوامر المنفردة.
+      {
+        const sessionId=session?Number(session.id):null,savedId=Number(saved.id),values:unknown[]=[]
+        const p=(value:unknown)=>{values.push(value);return `$${values.length}`}
+        const parts=[
+          `link_payments AS (UPDATE pos_sale_payments_tbl SET pos_point_id=${p(pointId)},session_id=${p(sessionId)}${cardMeta?`,card_entry=CASE WHEN payment_method='card' THEN ${p(cardMeta.entry)} ELSE card_entry END,pinpad_machine_id=CASE WHEN payment_method='card' THEN ${p(cardMeta.machine??null)}::int ELSE pinpad_machine_id END,card_auth_code=CASE WHEN payment_method='card' THEN ${p(cardMeta.auth??null)} ELSE card_auth_code END,card_trans_id=CASE WHEN payment_method='card' THEN ${p(cardMeta.trans??null)} ELSE card_trans_id END,card_terminal_id=CASE WHEN payment_method='card' THEN ${p(cardMeta.terminal??null)} ELSE card_terminal_id END,card_merchant=CASE WHEN payment_method='card' THEN ${p(cardMeta.merchant??null)} ELSE card_merchant END`:""} WHERE voucher_id=${p(savedId)} RETURNING 1)`,
+          `link_header AS (UPDATE voucher_header_tbl SET pos_session_id=${p(sessionId)},shift_guid=${p(session?String(session.shift_guid):null)}::uuid,campaign_discount_amount=${p(Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100)},campaign_discount_id=${p(campaignResult.campaignId||null)}${discountCardId?`,discount_card_id=${p(discountCardId)},discount_card_amount=${p(discountCardGross)}`:""} WHERE id=${p(savedId)} RETURNING 1)`,
+        ]
+        if(session){
+          parts.push(`cashier_log AS (INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${p(pointId)},${p(sessionId)},${p(Number(userId))},${p(String(data.cashier_action||"حفظ فاتورة"))},${p(String(saved.vch_code||""))},${p(String(data.note||""))}) RETURNING 1)`)
+          const cashAmount=payments.filter((row:any)=>row.payment_method==="cash").reduce((sum:number,row:any)=>sum+Number(row.amount||0),0)
+          if(cashAmount>0){
+            parts.push(`session_cash AS (UPDATE pos_sessions_tbl SET expected_cash=expected_cash+${p(isReturn?-cashAmount:cashAmount)},updated_at=NOW() WHERE id=${p(sessionId)} RETURNING 1)`)
+            parts.push(`cash_movement AS (INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,reference,note,user_id) VALUES(${p(sessionId)},${p(isReturn?"refund":"sale")},${p(cashAmount)},${p(String(saved.vch_code||""))},${p(isReturn?"مردود نقدي":"بيع نقدي")},${p(userId)}) RETURNING 1)`)
+          }
+          // نقد العهدة بكل عملة — صف واحد لكل عملة (ON CONFLICT لا يحدّث نفس الصف مرتين في أمر واحد)، والسعر من أول دفعة بها كما كان
+          const byCurrency=new Map<number,{delta:number;rate:number}>()
+          for(const payment of (drawerCash??payments.filter((row:any)=>row.payment_method==="cash"&&Number(row.amount)>0)).filter((row:any)=>Number(row.currency_amount??row.amount)!==0)){
+            const currencyId=Number(payment.currency_id||point.currency_id),original=Number(payment.currency_amount??payment.amount),current=byCurrency.get(currencyId)
+            const delta=(current?.delta||0)+(isReturn?-original:original)
+            byCurrency.set(currencyId,{delta:Math.round(delta*1e6)/1e6,rate:current?.rate??Number(payment.exchange_rate||1)})
+          }
+          if(byCurrency.size)parts.push(`session_currencies AS (INSERT INTO pos_session_currencies_tbl(session_id,currency_id,opening_amount,expected_amount,rate_to_point) VALUES ${[...byCurrency].map(([currencyId,row])=>`(${p(sessionId)},${p(currencyId)},0,${p(row.delta)},${p(row.rate)})`).join(",")} ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+EXCLUDED.expected_amount RETURNING 1)`)
+        }
+        await sql.unsafe(`WITH ${parts.join(",\n")} SELECT 1`,values)
+      }
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
         if(receipt) continue
         await sql`
@@ -311,14 +347,6 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
             ${Number(point.cheque_account_id)},1,1,0,1
           )
         `
-      }
-      const cashAmount=payments.filter((p:any)=>p.payment_method==="cash").reduce((sum:number,p:any)=>sum+Number(p.amount||0),0)
-      if(cashAmount>0&&session){const delta=isReturn?-cashAmount:cashAmount;await sql`UPDATE pos_sessions_tbl SET expected_cash=expected_cash+${delta},updated_at=NOW() WHERE id=${session?Number(session.id):null}`;await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,reference,note,user_id) VALUES(${session?Number(session.id):null},${isReturn?"refund":"sale"},${cashAmount},${String(saved.vch_code||"")},${isReturn?"مردود نقدي":"بيع نقدي"},${userId})`}
-      if(session)for(const payment of (drawerCash??payments.filter((p:any)=>p.payment_method==="cash"&&Number(p.amount)>0)).filter((p:any)=>Number(p.currency_amount??p.amount)!==0)){
-        const currencyId=Number(payment.currency_id||point.currency_id),original=Number(payment.currency_amount??payment.amount),rate=Number(payment.exchange_rate||1),delta=isReturn?-original:original
-        await sql`INSERT INTO pos_session_currencies_tbl(session_id,currency_id,opening_amount,expected_amount,rate_to_point)
-          VALUES(${session?Number(session.id):null},${currencyId},0,${delta},${rate})
-          ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+${delta}`
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
       timing.mark("finalize")

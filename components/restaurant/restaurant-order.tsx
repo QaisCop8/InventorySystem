@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useEffect, useRef, useState } from "react"
-import { ArrowRight, ChefHat, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, Search, Send, ShoppingBag, Sparkles, Users, X } from "lucide-react"
+import { ArrowRight, ChefHat, TextSearch as ListSearchIcon, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, Search, Send, ShoppingBag, Sparkles, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
@@ -37,7 +37,7 @@ type Props = {
   pending: Pending[]; pendingTotal: number; remainingTotal: number
   mobileTab: "menu" | "ticket"; onMobileTab: (tab: "menu" | "ticket") => void
   actions: OrderAction[]
-  onBack: () => void; onAddProduct: (product: Product) => void
+  onBack: () => void; onAddProduct: (product: Product) => void; onOpenItemSearch: () => void
   onPendingQty: (key: string, delta: number) => void; onPendingRemove: (key: string) => void
   onEditPending: (key: string) => void; onEditItem: (item: OrderItem) => void; onRemoveService: (item: OrderItem) => void
   onPendingAddons: (key: string) => void; onItemAddons: (item: OrderItem) => void
@@ -312,7 +312,8 @@ export function RestaurantOrder(p: Props) {
             <div className="relative">
               <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input className="h-10 pr-9 text-base" placeholder="ابحث عن صنف بالاسم أو الرمز" value={p.query} onChange={(event) => p.onQuery(event.target.value)} />
-              {p.query && <button type="button" className="absolute left-3 top-3 text-muted-foreground" onClick={() => p.onQuery("")}><X className="h-4 w-4" /></button>}
+              {p.query && <button type="button" className="absolute left-12 top-3 text-muted-foreground" onClick={() => p.onQuery("")}><X className="h-4 w-4" /></button>}
+              <Button type="button" variant="outline" size="icon" className="absolute left-1 top-1 h-8 w-8" title="بحث الأصناف" disabled={!can("addItems")} onClick={p.onOpenItemSearch}><ListSearchIcon className="h-4 w-4" /></Button>
             </div>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {[{ name: "all", label: "الكل", count: p.totalProducts }, ...p.categories.map((row) => ({ name: row.name, label: row.name, count: row.count }))].map((row) => (

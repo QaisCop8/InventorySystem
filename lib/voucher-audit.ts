@@ -105,7 +105,7 @@ async function auditUser(request: NextRequest | null) {
   return { user_id: headerUser, user_name: row?.full_name || row?.username || null }
 }
 
-export async function logVoucherEvent(request: NextRequest | null, event: {
+type VoucherAuditEvent = {
   source?: AuditSource
   action: VoucherAuditAction
   voucherId?: number | null
@@ -116,27 +116,56 @@ export async function logVoucherEvent(request: NextRequest | null, event: {
   header?: Record<string, any> | null
   vchType?: number | null
   vchCode?: string | null
-}) {
+}
+
+export async function logVoucherEvent(request: NextRequest | null, event: VoucherAuditEvent) {
+  await logVoucherEvents(request, [event])
+}
+
+// تاريخ السند كنص يقبله عمود DATE: كائن Date يُقرأ بتاريخه المحلي (كما يرسله pg لمعامل Date منفرد)، والنص كما هو
+const auditDate = (value: unknown) => {
+  if (value == null || value === "") return null
+  if (value instanceof Date) {
+    const pad = (n: number) => String(n).padStart(2, "0")
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+  }
+  return String(value)
+}
+
+/** عدة أحداث لنفس الطلب (مثل إدخال + ترحيل) بأمر إدراج واحد — رحلة شبكة واحدة داخل معاملة الحفظ */
+export async function logVoucherEvents(request: NextRequest | null, events: VoucherAuditEvent[]) {
+  if (!events.length) return
   try {
     await ensureVoucherAuditTables()
-    const source = event.source || "voucher"
-    const facts = headerFacts(source, event.after || event.before || (event.header ? { header: event.header, items: [] } : null))
     const user = await auditUser(request)
+    const rows = events.map((event) => {
+      const source = event.source || "voucher"
+      const facts = headerFacts(source, event.after || event.before || (event.header ? { header: event.header, items: [] } : null))
+      return {
+        source, voucher_id: event.voucherId ?? null, vch_type: facts.vch_type ?? event.vchType ?? null, vch_code: facts.vch_code ?? event.vchCode ?? null,
+        vch_date: facts.vch_date ?? null, branch_id: facts.branch_id ?? null, amount: facts.amount ?? null, action: event.action,
+        before_data: event.before ? JSON.stringify(event.before) : null, after_data: event.after ? JSON.stringify(event.after) : null,
+        details: event.details ? JSON.stringify(event.details) : null,
+      }
+    })
+    const col = (pick: (row: (typeof rows)[number]) => unknown) => rows.map(pick)
     await sql`
       INSERT INTO voucher_audit_log_tbl (
         source, voucher_id, vch_type, vch_code, vch_date, branch_id, amount, action,
         user_id, user_name, before_data, after_data, details
-      ) VALUES (
-        ${source}, ${event.voucherId ?? null}, ${facts.vch_type ?? event.vchType ?? null}, ${facts.vch_code ?? event.vchCode ?? null},
-        ${facts.vch_date}, ${facts.branch_id}, ${facts.amount}, ${event.action},
-        ${user.user_id}, ${user.user_name},
-        ${event.before ? JSON.stringify(event.before) : null}::jsonb,
-        ${event.after ? JSON.stringify(event.after) : null}::jsonb,
-        ${event.details ? JSON.stringify(event.details) : null}::jsonb
       )
+      SELECT e.source, e.voucher_id, e.vch_type, e.vch_code, e.vch_date::date, e.branch_id, e.amount::numeric, e.action,
+             ${user.user_id}, ${user.user_name}, e.before_data, e.after_data, e.details
+      FROM unnest(
+        ${col((row) => row.source)}::text[], ${col((row) => row.voucher_id)}::int[], ${col((row) => row.vch_type)}::int[], ${col((row) => row.vch_code == null ? null : String(row.vch_code))}::text[],
+        ${col((row) => auditDate(row.vch_date))}::text[],
+        ${col((row) => row.branch_id)}::int[], ${col((row) => row.amount == null ? null : String(row.amount))}::text[], ${col((row) => row.action)}::text[],
+        ${col((row) => row.before_data)}::jsonb[], ${col((row) => row.after_data)}::jsonb[], ${col((row) => row.details)}::jsonb[]
+      ) WITH ORDINALITY AS e(source, voucher_id, vch_type, vch_code, vch_date, branch_id, amount, action, before_data, after_data, details, ord)
+      ORDER BY e.ord
     `
   } catch (error) {
-    console.error("[voucher-audit] failed to log event", event.action, error)
+    console.error("[voucher-audit] failed to log event", events.map((event) => event.action).join(","), error)
   }
 }
 
@@ -224,8 +253,10 @@ export function withVoucherAudit<A extends unknown[], R extends Response>(
       const savedId = Number(result?.id || result?.data?.id || result?.order?.id || targetId) || null
       const after = savedId ? await snapshotVoucher(source, savedId) : null
       if (!before) {
-        await logVoucherEvent(request, { source, action: "create", voucherId: savedId, after, details })
-        if (statusOf(source, after) === 2) await logVoucherEvent(request, { source, action: "post", voucherId: savedId, after, details })
+        await logVoucherEvents(request, [
+          { source, action: "create", voucherId: savedId, after, details },
+          ...(statusOf(source, after) === 2 ? [{ source, action: "post" as const, voucherId: savedId, after, details }] : []),
+        ])
         return response
       }
 
@@ -237,8 +268,10 @@ export function withVoucherAudit<A extends unknown[], R extends Response>(
       }
       const changed = contentChanged(before, after)
       const posted = nextStatus === 2 && previousStatus !== 2
-      if (changed || !posted) await logVoucherEvent(request, { source, action: "update", voucherId: savedId, before, after, details })
-      if (posted) await logVoucherEvent(request, { source, action: "post", voucherId: savedId, before: changed ? null : before, after, details })
+      await logVoucherEvents(request, [
+        ...(changed || !posted ? [{ source, action: "update" as const, voucherId: savedId, before, after, details }] : []),
+        ...(posted ? [{ source, action: "post" as const, voucherId: savedId, before: changed ? null : before, after, details }] : []),
+      ])
     } catch (error) {
       console.error("[voucher-audit] logging failed", error)
     }

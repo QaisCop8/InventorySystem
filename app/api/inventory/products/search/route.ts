@@ -1,4 +1,5 @@
 import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
+import { withDerivedUnitPrices } from "@/lib/unit-prices"
 import { projectFileLookup } from "@/lib/file-permissions"
 
 import { type NextRequest, NextResponse } from "next/server"
@@ -166,7 +167,8 @@ export async function GET(request: NextRequest) {
   ORDER BY pu.id
 `;
     const unitsResult = await client.query(unitsQuery, [product.id, priceCategoryId]);
-    product.units = unitsResult.rows;
+    // وحدة بلا سعر ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts)
+    product.units = withDerivedUnitPrices(unitsResult.rows.map((row: any) => ({ ...row, unit_price: Number(row.unit_price) || 0 })), "unit_price", "to_main_qnty");
     product.price = 0;
     if (!is_barcode) {
       // ?unitRole=purchase|stock_count|report: الوحدة المؤشَّرة لهذا الدور في تعريف الصنف (وإلا أول وحدة)
@@ -186,8 +188,6 @@ export async function GET(request: NextRequest) {
         product.unit_id = barcodeUnit.unit_id;
         product.unit_name = barcodeUnit.unit_name;
         product.price = barcodeUnit.unit_price ?? 0;
-        if(product.price <= 0)
-          product.price = product.units[0].unit_price * barcodeUnit.to_main_qnty || 0;
         product.to_main_unit_qty = barcodeUnit.to_main_qnty?? 1
         product.barcode = query
       }

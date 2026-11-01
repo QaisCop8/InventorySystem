@@ -55,6 +55,46 @@ export async function saveVoucherItemSelection(voucherItemId: number, productId:
   }
 }
 
+/**
+ * مثل saveVoucherItemSelection لأسطر سند أُدرجت للتو (selected_attributes فيها NULL): تحديث واحد لكل الأسطر ذات الاختيار
+ * بدل تحديث لكل سطر — سطر بلا اختيار لا يُلمس. الروابط تُدرَج لأسطر الاختيار فقط (قليلة عادةً).
+ */
+export async function saveNewVoucherItemSelections(rows: { voucherItemId: number; productId: number; selection: unknown; orderItemId?: number | null }[]) {
+  const chosen = rows.map((row) => ({ ...row, selected: cleanSelection(row.selection) })).filter((row) => Object.keys(row.selected).length)
+  if (!chosen.length) return
+  await ensureSelectedAttributesColumn()
+  await sql`
+    UPDATE voucher_items_tbl vi SET selected_attributes = s.selected
+    FROM unnest(${chosen.map((row) => row.voucherItemId)}::int[], ${chosen.map((row) => JSON.stringify(row.selected))}::jsonb[]) AS s(id, selected)
+    WHERE vi.id = s.id
+  `
+  for (const row of chosen) {
+    if (!(row.productId > 0)) continue
+    for (const [name, value] of Object.entries(row.selected)) {
+      await sql`
+        INSERT INTO voucher_item_attributes_tbl (voucher_item_id, product_attribute_value_id)
+        SELECT ${row.voucherItemId}, pav.id
+        FROM product_atrributes_values_tbl pav
+        JOIN attributes_tbl a ON a.id = pav.attr_id
+        JOIN attribute_values_tbl av ON av.id = pav.value_id
+        WHERE pav.product_id = ${row.productId} AND a.name = ${name} AND av.name = ${value}
+        ON CONFLICT DO NOTHING
+      `
+      if (row.orderItemId) {
+        await sql`
+          INSERT INTO order_item_attributes_tbl (order_item_id, product_attribute_value_id)
+          SELECT ${row.orderItemId}, pav.id
+          FROM product_atrributes_values_tbl pav
+          JOIN attributes_tbl a ON a.id = pav.attr_id
+          JOIN attribute_values_tbl av ON av.id = pav.value_id
+          WHERE pav.product_id = ${row.productId} AND a.name = ${name} AND av.name = ${value}
+          ON CONFLICT DO NOTHING
+        `
+      }
+    }
+  }
+}
+
 /** نسخ JSON المحفوظة على الأسطر — تُكمل ما لم تُرجعه روابط الجدول */
 export async function savedSelections(itemIds: number[]): Promise<Map<number, SelectedAttributes>> {
   const map = new Map<number, SelectedAttributes>()

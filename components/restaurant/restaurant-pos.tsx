@@ -29,6 +29,7 @@ import {
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
 import { RestaurantFloor, type Takeaway } from "./restaurant-floor"
+import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { RestaurantOrder, type Order, type OrderAction, type Pending, type Product } from "./restaurant-order"
 
 type Perms = Record<RestaurantPermission, boolean>
@@ -467,6 +468,20 @@ export default function RestaurantPos() {
   addProductRef.current = addProduct
   const onAddProduct = useCallback((product: Product) => addProductRef.current(product), [])
 
+  // نافذة "بحث الأصناف" الموحّدة: المختار يُضاف من قائمة الموقع (سعرها وعملتها ووحدتها) كما لو نُقر في الشبكة
+  const [itemSearchOpen, setItemSearchOpen] = useState(false)
+  const addSearchedItems = async (selected: any[]) => {
+    const missing: string[] = []
+    for (const row of selected) {
+      const product = productById.get(Number(row.id))
+      if (!product) { missing.push(String(row.product_name || row.product_code || row.id)); continue }
+      const unitId = Number(row.selected_unit?.unit_id) || null
+      const unit = unitId ? product.unitPrices.find((option) => option.unitId === unitId) : undefined
+      await addProduct(unit ? { ...product, unitId: unit.unitId, unitName: unit.unitName || product.unitName, price: unit.price } : product)
+    }
+    if (missing.length) setMessage({ type: "error", text: `أصناف غير متاحة في قائمة هذا الموقع: ${missing.join("، ")}` })
+  }
+
   const isTakeaway = order?.order_type === "takeaway"
   const tableNames = isTakeaway ? `سفري${order?.takeaway_name ? ` ${order.takeaway_name}` : ""}` : order?.tables.map((table) => table.name).join(" + ") || ""
 
@@ -885,7 +900,7 @@ export default function RestaurantPos() {
         products={shown} productById={productById} categories={categories} totalProducts={products.length}
         query={query} onQuery={setQuery} category={category} onCategory={setCategory} catalogLoading={catalogLoading} catalogError={catalogError}
         pending={pending} pendingTotal={pendingTotal} remainingTotal={remainingTotal} mobileTab={mobileTab} onMobileTab={setMobileTab} actions={actions}
-        onBack={() => void backToFloor()} onAddProduct={onAddProduct}
+        onBack={() => void backToFloor()} onAddProduct={onAddProduct} onOpenItemSearch={() => setItemSearchOpen(true)}
         onPendingQty={(key, delta) => setPending((rows) => rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : []))}
         onPendingRemove={(key) => setPending((rows) => rows.filter((row) => row.key !== key))}
         onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => gated("editItems", () => setEditing({ kind: "item", item }), order.location_id)()} onRemoveService={(item) => void removeService(item)}
@@ -953,6 +968,9 @@ export default function RestaurantPos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProductSearchPopup visible={itemSearchOpen} priceCategoryId={Number(catalog?.point?.price_category_id) || 0} productTypes={[1]} ShowSelect
+        onClose={() => setItemSearchOpen(false)} onSelect={(selected: any[]) => void addSearchedItems(selected)} />
 
       <PayScopeDialog open={scopeOpen} onOpenChange={setScopeOpen} items={order.items} guests={order.guests} amountFor={amountFor} currencyCode={currency} busy={busy} onContinue={(lines, partial) => void startPayment(lines, partial)} />
 

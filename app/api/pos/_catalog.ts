@@ -5,6 +5,7 @@ import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { getOpenPosSession } from "./_lib"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { withDerivedUnitPrices } from "@/lib/unit-prices"
 
 const byText = (a: string, b: string) => a.localeCompare(b, "ar", { numeric: true })
 
@@ -81,7 +82,7 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
           ORDER BY x.product_id, CASE WHEN has_price.product_id IS NOT NULL THEN 0 ELSE 1 END, x.id
         ), unit_prices AS (
           SELECT up.product_id, jsonb_agg(jsonb_build_object(
-              'unit_id',up.unit_id,'unit_name',un.unit_name,
+              'unit_id',up.unit_id,'unit_name',un.unit_name,'to_main_qnty',up.to_main_qnty,
               'source_price',COALESCE(CASE WHEN by_unit.product_id IS NOT NULL THEN by_unit.price ELSE by_row.price END,0),
               'price_currency_id',CASE WHEN by_unit.product_id IS NOT NULL THEN by_unit.currency_id ELSE by_row.currency_id END
             ) ORDER BY up.id) list
@@ -92,7 +93,7 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
           GROUP BY up.product_id
         ), barcode_options AS (
           SELECT pub.product_id, jsonb_agg(jsonb_build_object(
-              'barcode',pub.barcode,'unit_id',all_pu.unit_id,'unit_name',all_u.unit_name,
+              'barcode',pub.barcode,'unit_id',all_pu.unit_id,'unit_name',all_u.unit_name,'to_main_qnty',all_pu.to_main_qnty,
               'source_price',COALESCE(CASE WHEN by_row.product_id IS NOT NULL THEN by_row.price ELSE by_unit.price END,0),
               'price_currency_id',CASE WHEN by_row.product_id IS NOT NULL THEN by_row.currency_id ELSE by_unit.currency_id END
             ) ORDER BY pub.id) list
@@ -165,9 +166,13 @@ export async function buildPosCatalog(point: any, pointId: number, userId: strin
       })
       const unitPrices=(Array.isArray(product.unit_prices)?product.unit_prices:[]).map((option:any)=>{
         const rate=rateByCurrency.get(Number(option.price_currency_id||pointCurrencyId))||1
-        return {unit_id:Number(option.unit_id),unit_name:String(option.unit_name||''),price:Math.round(Number(option.source_price||0)*rate/pointRate*10000)/10000}
+        return {unit_id:Number(option.unit_id),unit_name:String(option.unit_name||''),to_main_qnty:Number(option.to_main_qnty)||1,price:Math.round(Number(option.source_price||0)*rate/pointRate*10000)/10000}
       })
-      return {...rest,first_price:firstPrice,barcode_options:barcodeOptions,unit_prices:unitPrices}
+      // وحدة/باركود بلا سعر في فئة السعر ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts) — بعد التحويل لعملة النقطة
+      const filledUnits=withDerivedUnitPrices(unitPrices,"price","to_main_qnty")
+      const derivedByUnit=new Map<number,number>(filledUnits.map((unit:any)=>[Number(unit.unit_id),Number(unit.price)] as [number,number]))
+      for(const option of barcodeOptions)if(!(option.price>0))option.price=derivedByUnit.get(Number(option.unit_id))||0
+      return {...rest,first_price:firstPrice>0?firstPrice:(derivedByUnit.get(Number(product.unit_id))||0),barcode_options:barcodeOptions,unit_prices:filledUnits.map(({to_main_qnty,...unit}:any)=>unit)}
     })
     const [campaigns,campaignUsage,productsWithExtras]=await Promise.all([getPosCampaigns(),getPosCampaignUsage(),attachProductExtras(pricedProducts)])
     // صلاحيات المستخدمين على الحسابات: العملاء الممنوعون عن المستخدم (بفرع النقطة) لا يظهرون بالكاشير/المطعم

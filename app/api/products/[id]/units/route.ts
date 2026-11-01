@@ -2,6 +2,7 @@ import { authorizeStoredProduct } from "@/app/api/inventory/products/_permission
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
 import { ensureProductUnitRoleColumns } from "@/lib/product-unit-roles-schema"
+import { withDerivedUnitPrices } from "@/lib/unit-prices"
 
 // وحدات صنف واحد بمعرّفه — يستدعيه ProductSearchPopup (عند اختيار صنف بالنقر المزدوج/Enter) وشاشتا
 // فاتورة/طلبية المبيعات، بنفس الشكل الذي يعيده /api/inventory/products/search لتوحيد التعامل مع
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
          ORDER BY pu.id ASC`,
         [productId, priceCategoryId],
       )
-      return NextResponse.json(result.rows)
+      // وحدة بلا سعر ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts)
+      return NextResponse.json(withDerivedUnitPrices(result.rows.map((row: any) => ({ ...row, price: Number(row.price) || 0 })), "price", "to_main_qnty"))
     } finally {
       client.release()
     }

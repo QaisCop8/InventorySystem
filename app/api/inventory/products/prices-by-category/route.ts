@@ -1,6 +1,7 @@
 import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { withDerivedUnitPrices } from "@/lib/unit-prices"
 
 // إعادة احتساب أسعار مجموعة أصناف دفعة واحدة حسب "فئة سعر" مختارة — نظير جماعي لِمنطق
 // /api/inventory/products/search (الذي يجلب سعر صنف واحد فقط حسب priceCategoryId)، مطابق لِـ
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const rows = await sql`
-      SELECT pu.product_id, u.id AS unit_id, u.unit_name, COALESCE(pp.price, 0) AS price
+      SELECT pu.product_id, u.id AS unit_id, u.unit_name, pu.to_main_qnty, COALESCE(pp.price, 0) AS price
       FROM product_units pu
       LEFT JOIN units u ON u.id = pu.unit_id
       LEFT JOIN product_prices pp
@@ -93,12 +94,14 @@ export async function POST(request: NextRequest) {
       ORDER BY pu.id
     `
 
-    const byProduct = new Map<number, { unit_name: string; price: number }[]>()
+    const byProduct = new Map<number, { unit_name: string; price: number; to_main_qnty: number }[]>()
     for (const row of rows as any[]) {
       const list = byProduct.get(row.product_id) || []
-      list.push({ unit_name: row.unit_name || "", price: Number(row.price || 0) })
+      list.push({ unit_name: row.unit_name || "", price: Number(row.price || 0), to_main_qnty: Number(row.to_main_qnty) || 1 })
       byProduct.set(row.product_id, list)
     }
+    // وحدة بلا سعر في الفئة ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts)
+    for (const [productId, list] of byProduct) byProduct.set(productId, withDerivedUnitPrices(list, "price", "to_main_qnty"))
 
     const results = items.map((item) => {
       const units = byProduct.get(Number(item.product_id)) || []

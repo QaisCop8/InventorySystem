@@ -3,7 +3,7 @@ import { withBranchSymbol } from "@/lib/branch-symbol"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
 import { validateSerialsRemoval } from "@/lib/item-serials"
-import { saveVoucherItemSelection, savedSelections } from "@/lib/voucher-item-attributes"
+import { saveNewVoucherItemSelections, savedSelections } from "@/lib/voucher-item-attributes"
 import { lotAvailable, normalizeExpiry } from "@/lib/stock-lots"
 import { runSchemaOnce } from "@/lib/schema-once"
 
@@ -579,9 +579,9 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
       ) RETURNING id
     `
     insertedIds.push(Number(inserted[0].id))
-    // اختيار "تهيئة الصنف": روابط الجدول + نسخة JSON على السطر (lib/voucher-item-attributes.ts)
-    await saveVoucherItemSelection(Number(inserted[0].id), Number(row.item_id ?? row.product_id), row.selected_attributes, Number(row.order_item_id) || null)
   }
+  // اختيار "تهيئة الصنف": روابط الجدول + نسخة JSON على السطر (lib/voucher-item-attributes.ts) — تحديث واحد لكل الأسطر
+  await saveNewVoucherItemSelections(rows.map((row, index) => ({ voucherItemId: insertedIds[index], productId: Number(row.item_id ?? row.product_id), selection: row.selected_attributes, orderItemId: Number(row.order_item_id) || null })))
   return rows.map((row, index) => ({ ...row, id: insertedIds[index] }))
 }
 
@@ -714,51 +714,57 @@ export const applyStockMovement = async (
   // سندات المخزون نفسها في inventory_transactions، رغم مشاركة نفس دفتر product_stock الفعلي.
   referenceType: string = "stock_voucher",
 ) => {
-  for (const item of items) {
-    const productId = Number(item.product_id)
-    const quantity = Number(item.quantity || 0)
-    if (!productId || quantity <= 0) continue
-    const delta = direction === "in" ? quantity : -quantity
+  const moving = items
+    .map((item) => ({ productId: Number(item.product_id), quantity: Number(item.quantity || 0), warehouseId: warehouseIdOverride ?? item.store_id ?? item.warehouse_id ?? null }))
+    .filter((item) => item.productId && item.quantity > 0)
+  if (!moving.length) return
+  // أمران فقط لكل السند بدل أمرين لكل سطر (رحلة شبكة لكل أمر مع قاعدة بعيدة). الرصيد يُجمع لكل صنف بالقاعدة (ON CONFLICT
+  // لا يحدّث نفس الصف مرتين في أمر واحد؛ الجمع numeric بلا تقريب JS)، مرتّباً بالصنف حتى تُقفل الصفوف بنفس الترتيب في الحفظات المتزامنة
+  const sign = direction === "in" ? 1 : -1
+  const productIds = moving.map((item) => item.productId)
+  const quantities = moving.map((item) => item.quantity)
 
-    // ON CONFLICT (product_id) فقط — هذا القيد الفريد الفعلي الموجود على الجدول الحي
-    // (product_stock_product_id_key)؛ إعلان الجدول أدناه في ensureTables كان يفترض قيداً مركّباً
-    // مع organization_id لم يُطبَّق فعلياً لأن الجدول كان موجوداً مسبقاً قبل هذا الكود (CREATE TABLE
-    // IF NOT EXISTS لم يُنفَّذ)، وON CONFLICT بقيد غير مطابق يُفشِل الإدراج بخطأ Postgres صريح —
-    // وهو ما كان يُفشِل كل عملية ترحيل (status=2) لسندات الحركة رغم نجاح الحفظ العادي.
-    await sql`
-      INSERT INTO product_stock (product_id, organization_id, current_stock)
-      VALUES (${productId}, ${organizationId}, ${delta})
-      ON CONFLICT (product_id)
-      DO UPDATE SET current_stock = product_stock.current_stock + ${delta}, last_updated = CURRENT_TIMESTAMP
-    `
+  // ON CONFLICT (product_id) فقط — هذا القيد الفريد الفعلي الموجود على الجدول الحي
+  // (product_stock_product_id_key)؛ إعلان الجدول أدناه في ensureTables كان يفترض قيداً مركّباً
+  // مع organization_id لم يُطبَّق فعلياً لأن الجدول كان موجوداً مسبقاً قبل هذا الكود (CREATE TABLE
+  // IF NOT EXISTS لم يُنفَّذ)، وON CONFLICT بقيد غير مطابق يُفشِل الإدراج بخطأ Postgres صريح —
+  // وهو ما كان يُفشِل كل عملية ترحيل (status=2) لسندات الحركة رغم نجاح الحفظ العادي.
+  await sql`
+    INSERT INTO product_stock (product_id, organization_id, current_stock)
+    SELECT s.product_id, ${organizationId}, SUM(s.quantity) * ${sign}
+    FROM unnest(${productIds}::int[], ${quantities}::numeric[]) AS s(product_id, quantity)
+    GROUP BY s.product_id
+    ORDER BY s.product_id
+    ON CONFLICT (product_id)
+    DO UPDATE SET current_stock = product_stock.current_stock + EXCLUDED.current_stock, last_updated = CURRENT_TIMESTAMP
+  `
 
-    await sql`
-      INSERT INTO inventory_transactions (
-        product_id, warehouse_id, transaction_type, quantity, reference_type, reference_id, organization_id
-      ) VALUES (
-        ${productId}, ${warehouseIdOverride ?? item.store_id ?? item.warehouse_id ?? null}, ${direction}, ${quantity},
-        ${referenceType}, ${referenceId}, ${organizationId}
-      )
-    `
-  }
+  await sql`
+    INSERT INTO inventory_transactions (
+      product_id, warehouse_id, transaction_type, quantity, reference_type, reference_id, organization_id
+    )
+    SELECT m.product_id, m.warehouse_id, ${direction}, m.quantity, ${referenceType}, ${referenceId}, ${organizationId}
+    FROM unnest(${productIds}::int[], ${moving.map((item) => item.warehouseId == null ? null : Number(item.warehouseId))}::int[], ${quantities}::numeric[])
+      WITH ORDINALITY AS m(product_id, warehouse_id, quantity, ord)
+    ORDER BY m.ord
+  `
 }
 
 // يعكس أي حركة مخزون سُجِّلت سابقاً لهذا السند (عند حذفه أو إلغاء ترحيله) — يقرأ
 // inventory_transactions الفعلية بدل إعادة بناء الاتجاه من نوع السند، فيبقى صحيحاً حتى
 // للإرسالية الداخلية (سطرا in/out معاً).
 export const reverseStockMovement = async (referenceId: number, organizationId = 1, referenceType: string = "stock_voucher") => {
-  const rows = await sql`
-    SELECT product_id, warehouse_id, transaction_type, quantity
-    FROM inventory_transactions
-    WHERE reference_type = ${referenceType} AND reference_id = ${referenceId}
+  // تحديث واحد بصافي كل صنف بدل تحديث لكل حركة
+  await sql`
+    UPDATE product_stock ps SET current_stock = ps.current_stock + d.delta, last_updated = CURRENT_TIMESTAMP
+    FROM (
+      SELECT product_id, SUM(CASE WHEN transaction_type = 'in' THEN -quantity ELSE quantity END) AS delta
+      FROM inventory_transactions
+      WHERE reference_type = ${referenceType} AND reference_id = ${referenceId}
+      GROUP BY product_id
+    ) d
+    WHERE ps.product_id = d.product_id AND ps.organization_id = ${organizationId}
   `
-  for (const row of rows) {
-    const delta = row.transaction_type === "in" ? -Number(row.quantity) : Number(row.quantity)
-    await sql`
-      UPDATE product_stock SET current_stock = current_stock + ${delta}, last_updated = CURRENT_TIMESTAMP
-      WHERE product_id = ${row.product_id} AND organization_id = ${organizationId}
-    `
-  }
   await sql`DELETE FROM inventory_transactions WHERE reference_type = ${referenceType} AND reference_id = ${referenceId}`
 }
 

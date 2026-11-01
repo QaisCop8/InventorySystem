@@ -279,11 +279,12 @@ async function loadStoredSettingsFromDb(): Promise<Record<string, unknown>> {
 
   await ensureSettingsTable()
 
-  const rows = await sql`
+  // نفس مفتاح lib/system-settings.ts#getSystemSettings: داخل معاملة الحفظ يُقرأ الجدول مرة واحدة للمسارين
+  const rows = await memoInTransaction("system-settings-rows", () => sql`
     SELECT id, description, value
     FROM system_settings
     ORDER BY id ASC
-  `
+  ` as Promise<any[]>)
 
   const settings: Record<string, unknown> = {}
 

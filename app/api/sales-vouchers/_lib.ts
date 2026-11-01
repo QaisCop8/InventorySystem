@@ -1,5 +1,5 @@
 import sql, { memoInTransaction } from "@/lib/database"
-import { saveVoucherItemSelection, savedSelections } from "@/lib/voucher-item-attributes"
+import { saveNewVoucherItemSelections, savedSelections } from "@/lib/voucher-item-attributes"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion } from "@/lib/consignment"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
@@ -530,14 +530,9 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
   // المعرّفات تُولَّد بترتيب الإدراج (ORDER BY ord) فترتيبها تصاعدياً يطابق ترتيب الأسطر المُرسلة
   const insertedIds = insertedRows.map((row: any) => Number(row.id)).sort((a: number, b: number) => a - b)
 
-  const savedRows: any[] = []
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    const inserted = [{ id: insertedIds[i] }]
-    savedRows.push({ ...row, id: Number(inserted[0].id) })
-    // اختيار "تهيئة الصنف": روابط الجدول + نسخة JSON على السطر (lib/voucher-item-attributes.ts)
-    await saveVoucherItemSelection(Number(inserted[0].id), Number(row.item_id ?? row.product_id), row.selected_attributes, Number(row.order_item_id) || null)
-  }
+  const savedRows = rows.map((row, i) => ({ ...row, id: Number(insertedIds[i]) }))
+  // اختيار "تهيئة الصنف": روابط الجدول + نسخة JSON على السطر (lib/voucher-item-attributes.ts) — تحديث واحد لكل الأسطر
+  await saveNewVoucherItemSelections(savedRows.map((row) => ({ voucherItemId: row.id, productId: Number(row.item_id ?? row.product_id), selection: row.selected_attributes, orderItemId: Number(row.order_item_id) || null })))
   return savedRows
 }
 

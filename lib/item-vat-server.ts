@@ -1,4 +1,4 @@
-import sql from "@/lib/database"
+import sql, { memoInTransaction } from "@/lib/database"
 import { getSystemSettingValue } from "@/lib/system-settings"
 import { ITEM_LEVEL_VAT_SETTING, settingEnabled } from "@/lib/item-vat"
 
@@ -16,14 +16,15 @@ export async function itemVatRates(productIds: number[]): Promise<Map<number, nu
   const ids = [...new Set(productIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
   const result = new Map<number, number | null>()
   if (!ids.length) return result
-  const rows = (await sql`
+  // داخل معاملة حفظ الكاشير يطلبها محرك البيع ثم فاتورة المبيعات لنفس الأصناف ⇐ قراءة واحدة
+  const rows = (await memoInTransaction(`item-vat-rates:${[...ids].sort((x, y) => x - y).join(",")}`, () => sql`
     SELECT p.id,
       COALESCE(
         (SELECT tc.tax_percent FROM tax_classifications tc WHERE tc.id = p.tax_classification_id AND COALESCE(tc.status, 1) <> 3),
         NULLIF(p.tax_rate, 0)
       )::float AS rate
     FROM products p WHERE p.id = ANY(${ids}::int[])
-  `.catch(async () => sql`SELECT id, NULLIF(tax_rate, 0)::float AS rate FROM products WHERE id = ANY(${ids}::int[])`)) as any[]
+  `.catch(async () => sql`SELECT id, NULLIF(tax_rate, 0)::float AS rate FROM products WHERE id = ANY(${ids}::int[])`) as Promise<any[]>)) as any[]
   for (const row of rows) result.set(Number(row.id), row.rate == null ? null : Number(row.rate))
   return result
 }
