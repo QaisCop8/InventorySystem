@@ -235,6 +235,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "orders-by-party-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersByPartyReport"),
   "orders-backlog-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersBacklogReport"),
   "orders-by-salesman-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersBySalesmanReport"),
+  "restaurant-monitor-report": lazyNamed(() => import("@/components/reports/restaurant-monitor-report"), "default"),
   "restaurant-tables-report": lazyNamed(() => import("@/components/reports/restaurant-report"), "RestaurantTablesReport"),
   "restaurant-orders-report": lazyNamed(() => import("@/components/reports/restaurant-report"), "RestaurantOrdersReport"),
   "restaurant-items-report": lazyNamed(() => import("@/components/reports/restaurant-report"), "RestaurantItemsReport"),

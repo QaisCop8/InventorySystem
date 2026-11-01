@@ -62,6 +62,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "cashier-log-total-report", title: "تقرير حركات الكاشير إجمالي" },
   { section: "cashier-log-detailed-report", title: "تقرير حركات الكاشير تفصيلي" },
   { section: "task-orders-report", title: "تقارير أوامر العمل" },
+  { section: "restaurant-monitor-report", title: "مراقبة المطعم" },
   { section: "restaurant-tables-report", title: "تقرير الطاولات" },
   { section: "restaurant-orders-report", title: "طلبات المطعم تفصيلي" },
   { section: "restaurant-items-report", title: "الأصناف المباعة في المطعم" },

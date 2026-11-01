@@ -41,11 +41,19 @@ ENV NODE_ENV=production \
     PSQL_PATH=/usr/bin/psql \
     COMPANY_BOOTSTRAP_SCRIPT_PATH=/app/scripts/company-bootstrap.sql
 
+# أدوات PostgreSQL من مستودع PGDG بنفس إصدار خادم Neon أو أحدث: pg_dump يرفض نسخ خادم أحدث منه
+# (عميل Debian الافتراضي 15). غيّر PG_CLIENT_VERSION ليطابق إصدار مشروع Neon.
+ARG PG_CLIENT_VERSION=17
+
 RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
-    ca-certificates \
     unixodbc \
-    postgresql-client \
+    postgresql-client-${PG_CLIENT_VERSION} \
+  && apt-get purge -y --auto-remove curl gnupg \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs

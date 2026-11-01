@@ -1,0 +1,26 @@
+name: Scheduled database backups
+
+# نسخ احتياطي يومي لكل قواعد الشركات + قاعدة الإدارة إلى Neon Object Storage (app/api/management/backups/cron).
+# الأسرار المطلوبة في GitHub: BACKUP_APP_URL (مثل https://your-app.onrender.com) و BACKUP_CRON_SECRET (نفس قيمة Render).
+on:
+  schedule:
+    - cron: "0 23 * * *" # 23:00 UTC = 02:00 بتوقيت فلسطين (صيفي)
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Run backups
+        env:
+          APP_URL: ${{ secrets.BACKUP_APP_URL }}
+          SECRET: ${{ secrets.BACKUP_CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$SECRET" ]; then
+            echo "::warning::BACKUP_APP_URL / BACKUP_CRON_SECRET secrets are not set - skipping."
+            exit 0
+          fi
+          # الطلب الأول قد يوقظ الخادم إن كان نائماً
+          curl -fsS --retry 3 --retry-delay 20 --max-time 120 "$APP_URL" -o /dev/null || true
+          curl -sS --fail-with-body --max-time 3300 -X POST -H "Authorization: Bearer $SECRET" "$APP_URL/api/management/backups/cron"

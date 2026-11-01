@@ -65,7 +65,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Factory, KeyRound } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 import { PoweredBy } from "@/components/brand/powered-by"
@@ -421,6 +421,7 @@ export const menuItems: MenuItem[] = [
         section: "restaurant-reports",
         icon: BarChart3,
         submenu: [
+          { title: "مراقبة المطعم", section: "restaurant-monitor-report", icon: Eye },
           { title: "تقرير الطاولات", section: "restaurant-tables-report", icon: LayoutGrid },
           { title: "طلبات المطعم تفصيلي", section: "restaurant-orders-report", icon: ClipboardList },
           { title: "الأصناف المباعة في المطعم", section: "restaurant-items-report", icon: PackageSearch },

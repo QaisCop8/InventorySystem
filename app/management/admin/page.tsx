@@ -9,6 +9,7 @@ import { FeatureRequestsAdmin } from "@/components/management/feature-requests-a
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
 import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit, KeyRound, Database } from "lucide-react"
 import { UserLoginReport } from "@/components/management/user-login-report"
+import { BackupsPanel } from "@/components/management/backups-panel"
 
 interface PendingCompany {
   id: number
@@ -76,7 +77,7 @@ interface AccessDefinition {
 }
 
 export default function ManagementAdminPage() {
-  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "login-report" | "permissions" | "pricing" | "feature-requests">("pending")
+  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "login-report" | "permissions" | "pricing" | "feature-requests" | "backups">("pending")
   const [companies, setCompanies] = useState<PendingCompany[]>([])
   const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -465,7 +466,14 @@ export default function ManagementAdminPage() {
           >
             بريد الرسائل والتحسينات
           </button>
+          <button
+            onClick={() => setTab("backups")}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "backups" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+          >
+            النسخ الاحتياطي
+          </button>
         </div>
+        {tab === "backups" && <BackupsPanel />}
         {tab === "pricing" && <PricingPanel />}
         {tab === "feature-requests" && <FeatureRequestsAdmin />}
         {tab === "login-report" && <UserLoginReport companies={allCompanies.map(({ id, name }) => ({ id, name }))} />}

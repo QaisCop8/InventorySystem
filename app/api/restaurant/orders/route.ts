@@ -156,7 +156,7 @@ async function handleUpdateOrder(ctx: Ctx, order: any) {
   const takeawayName = ctx.data.takeaway_name === undefined ? order.takeaway_name : String(ctx.data.takeaway_name || "").trim().slice(0, 100) || null
   await sql`UPDATE restaurant_orders_tbl SET guests = ${guests}, note = ${note}, customer_id = ${customerId}, discount_percent = ${discount}, takeaway_name = ${takeawayName} WHERE id = ${Number(order.id)}`
   customerId = customerId || null
-  await logRestaurant(Number(order.id), "update_order", { guests, customer_id: customerId, discount_percent: discount }, ctx.userId)
+  await logRestaurant(Number(order.id), "update_order", { guests, customer_id: customerId, discount_percent: discount, discount_from: num(order.discount_percent) }, ctx.userId)
 }
 
 async function handleAddItems(ctx: Ctx, order: any) {
@@ -186,7 +186,7 @@ async function handleAddItems(ctx: Ctx, order: any) {
               ${String(item.note || "").trim().slice(0, 300) || null}, ${JSON.stringify(cleanAddons(item.addons))}::jsonb, ${ctx.userId})
     `
   }
-  await logRestaurant(Number(order.id), "add_items", { count: items.length }, ctx.userId)
+  await logRestaurant(Number(order.id), "add_items", { count: items.length, items: items.map((item: any) => ({ product_id: positiveId(item.product_id), name: String(item.product_name || byId.get(positiveId(item.product_id))?.product_name || ""), quantity: qty(item.quantity), price: num(item.price) })) }, ctx.userId)
 }
 
 async function orderItem(orderId: number, itemId: number) {
@@ -212,7 +212,7 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
     if (qty(item.paid_quantity) > 0) throw fail("لا يمكن تغيير خصم صنف دُفع جزء منه")
   }
   await sql`UPDATE restaurant_order_items_tbl SET quantity = ${quantity}, discount = ${discount}, note = ${note}, addons = ${JSON.stringify(addons)}::jsonb, updated_at = NOW() WHERE id = ${Number(item.id)}`
-  await logRestaurant(Number(order.id), "update_item", { item_id: Number(item.id), from: qty(item.quantity), quantity, discount }, ctx.userId)
+  await logRestaurant(Number(order.id), "update_item", { item_id: Number(item.id), product_id: Number(item.product_id), product_name: item.product_name, price: num(item.price), from: qty(item.quantity), quantity, discount_from: num(item.discount), discount }, ctx.userId)
 }
 
 async function handleRemoveItem(ctx: Ctx, order: any) {
@@ -223,7 +223,7 @@ async function handleRemoveItem(ctx: Ctx, order: any) {
   } else {
     await sql`DELETE FROM restaurant_order_items_tbl WHERE id = ${Number(item.id)}`
   }
-  await logRestaurant(Number(order.id), "remove_item", { item_id: Number(item.id), product_id: Number(item.product_id), quantity: remainingQuantity(item) }, ctx.userId)
+  await logRestaurant(Number(order.id), "remove_item", { item_id: Number(item.id), product_id: Number(item.product_id), product_name: item.product_name, price: num(item.price), quantity: remainingQuantity(item) }, ctx.userId)
 }
 
 async function activeTables(orderId: number) {
@@ -472,7 +472,7 @@ async function handlePay(ctx: Ctx, order: any) {
   `
   if (customer) await sql`UPDATE restaurant_orders_tbl SET customer_id = ${Number(customer.id)} WHERE id = ${Number(order.id)}`
   const closed = await closeIfSettled(Number(order.id), ctx.userId)
-  await logRestaurant(Number(order.id), "pay", { voucher_id: Number(voucher?.id), vch_code: voucher?.vch_code, partial: !closed }, ctx.userId)
+  await logRestaurant(Number(order.id), "pay", { voucher_id: Number(voucher?.id), vch_code: voucher?.vch_code, amount: num(voucher?.amount), partial: !closed }, ctx.userId)
   return {
     voucher_id: Number(voucher?.id) || null,
     vch_code: String(voucher?.vch_code || saved.vch_code || ""),

@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.121",
     "@ai-sdk/xai": "latest",
+    "@aws-sdk/client-s3": "^3.984.0",
     "@grapecity/wijmo": "^5.20252.42",
     "@grapecity/wijmo.chart.finance.analytics": "^5.20252.42",
     "@grapecity/wijmo.grid": "^5.20252.42",
