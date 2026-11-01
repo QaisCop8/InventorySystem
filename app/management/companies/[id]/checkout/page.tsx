@@ -45,7 +45,9 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
       .catch((error) => setLoadError(error instanceof Error ? error.message : "تعذّر تحميل خيارات الدفع"))
   }, [id])
 
-  const verify = useCallback(async (reference: string) => {
+  // closedText: نافذة لحظة أُغلقت (onCancel) — يُتحقق بالخادم أولاً لأن الإغلاق قد يأتي بعد دفع ناجح
+  // (خصوصاً داخل WebView تطبيق أندرويد)، ولا تظهر رسالة الإلغاء إلا إن لم يُدفع فعلاً.
+  const verify = useCallback(async (reference: string, closedText?: string) => {
     setPayState({ kind: "verifying" })
     try {
       const res = await fetch("/api/management/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference }) })
@@ -53,9 +55,9 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
       if (!res.ok) throw new Error(body.error || "تعذّر التحقق من الدفع")
       // الدفع مؤكَّد ⇒ "شركاتي" تعرض "جاري اعتماد الشركة" (أو الشركة جاهزة / فشل الاعتماد مع "اعادة المحاولة")
       if (["approved", "provisioning", "failed"].includes(body.status)) { window.location.href = "/management/companies"; return }
-      if (body.status === "unpaid") setPayState({ kind: "error", text: body.message || "لم تكتمل عملية الدفع" })
+      setPayState({ kind: "error", text: closedText || body.message || "لم تكتمل عملية الدفع" })
     } catch (error) {
-      setPayState({ kind: "error", text: error instanceof Error ? error.message : "تعذّر التحقق من الدفع" })
+      setPayState({ kind: "error", text: closedText || (error instanceof Error ? error.message : "تعذّر التحقق من الدفع") })
     }
   }, [])
 
@@ -78,7 +80,7 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
         reference: body.reference,
         metadata: { company_id: Number(id) },
         onSuccess: () => { pollCount.current = 0; void verify(body.reference) },
-        onCancel: () => setPayState({ kind: "error", text: "تم إغلاق نافذة الدفع قبل إتمام العملية" }),
+        onCancel: () => void verify(body.reference, "تم إغلاق نافذة الدفع قبل إتمام العملية"),
       })
     } catch (error) {
       setPayState({ kind: "error", text: error instanceof Error ? error.message : "تعذّر بدء عملية الدفع" })

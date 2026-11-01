@@ -50,7 +50,8 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
     return { start, end, fromExpiry: Boolean(expiry && expiry > now) }
   }, [company.expiry_date])
 
-  const verify = async (reference: string) => {
+  // closedText: أُغلقت نافذة لحظة — قد يكون الدفع تم فعلاً (WebView أندرويد)، فيُتحقق بالخادم قبل عرض رسالة الإلغاء
+  const verify = async (reference: string, closedText?: string) => {
     setBusy(true)
     setError("")
     setVerificationReference(reference)
@@ -59,9 +60,9 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذّر التحقق من الدفع")
       if (data.status === "approved") { setVerificationReference(""); onDone(data.expiryDate || null) }
-      else setError(data.message || "لم تكتمل عملية الدفع")
+      else setError(closedText || data.message || "لم تكتمل عملية الدفع")
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر التحقق من الدفع")
+      setError(closedText || (e instanceof Error ? e.message : "تعذّر التحقق من الدفع"))
     } finally {
       setBusy(false)
     }
@@ -84,7 +85,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
         publicKey: data.publicKey, email: data.email, firstName: data.fullName, amountMinor: data.amountMinor, currency: data.currency, reference: data.reference,
         metadata: { company_id: company.id, purpose },
         onSuccess: () => { setPopupOpen(false); void verify(data.reference) },
-        onCancel: () => { setPopupOpen(false); setBusy(false); setError("تم إغلاق نافذة الدفع قبل إتمام العملية") },
+        onCancel: () => { setPopupOpen(false); void verify(data.reference, "تم إغلاق نافذة الدفع قبل إتمام العملية") },
       })
     } catch (e) {
       setPopupOpen(false)

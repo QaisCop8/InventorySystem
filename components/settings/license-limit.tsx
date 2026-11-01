@@ -85,14 +85,15 @@ export function useLicenseRequestDialog(onSent?: () => void) {
         publicKey: data.publicKey, email: data.email, firstName: data.fullName, amountMinor: data.amountMinor, currency: data.currency, reference: data.reference,
         metadata: { license_resource: state.resource, quantity: Number(quantity) },
         onSuccess: () => { setPopupOpen(false); void verifyPayment(data.reference) },
-        onCancel: () => { setPopupOpen(false); setBusy(false); setError("تم إغلاق نافذة الدفع قبل إتمام العملية") },
+        onCancel: () => { setPopupOpen(false); void verifyPayment(data.reference, "تم إغلاق نافذة الدفع قبل إتمام العملية") },
       })
     } catch (e) {
       setPopupOpen(false); setBusy(false)
       setError(e instanceof Error ? e.message : "تعذّر بدء عملية الدفع")
     }
   }
-  const verifyPayment = async (reference: string) => {
+  // closedText: أُغلقت نافذة لحظة — قد يكون الدفع تم فعلاً (WebView أندرويد)، فيُتحقق بالخادم قبل عرض رسالة الإلغاء
+  const verifyPayment = async (reference: string, closedText?: string) => {
     if (verificationInProgress.current) return
     verificationInProgress.current = true
     setBusy(true)
@@ -102,9 +103,9 @@ export function useLicenseRequestDialog(onSent?: () => void) {
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || "تعذّر التحقق من الدفع")
       if (data.status === "approved") { setPaid(true); onSent?.() }
-      else setError(data.message || "لم تكتمل عملية الدفع")
+      else setError(closedText || data.message || "لم تكتمل عملية الدفع")
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذّر التحقق من الدفع")
+      setError(closedText || (e instanceof Error ? e.message : "تعذّر التحقق من الدفع"))
     } finally {
       verificationInProgress.current = false
       setBusy(false)
