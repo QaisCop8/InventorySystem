@@ -1211,7 +1211,9 @@ export default function UnifiedStockVoucher({
     previousRow?: VoucherItemRow,
   ) => {
     try {
-      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=0`)
+      // عمود الرقم (إعدادات السندات): الباركود أو رقم المصنع/الأصلي — يُعرض ويُبحث به عن الصنف
+      const barcodeMode = Util.getVoucherBarcodeMode(voucherType)
+      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=0${barcodeMode === "barcode" ? "" : `&numberType=${barcodeMode}`}`)
       if (!isMountedRef.current) return
       let product = await res.json()
       if (!res.ok) throw new Error("not found")
@@ -1896,7 +1898,7 @@ export default function UnifiedStockVoucher({
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "ser") },
         {
-          header: "الباركود",
+          header: Util.getVoucherBarcodeHeader(voucherType),
           name: "barcode",
           width: 120,
           // قابل للكتابة المباشرة (مسح ضوئي أو كتابة يدوية) — يجلب الصنف تلقائياً عبر
@@ -2757,6 +2759,7 @@ export default function UnifiedStockVoucher({
           priceCategoryId={0}
           ShowSelect={true}
           searchText=""
+          voucherNumberType={Util.getVoucherBarcodeMode(voucherType) as "barcode" | "factory" | "original"}
         />
         <StoresSearchPopup
           visible={warehouseSearchOpen}

@@ -47,6 +47,10 @@ export async function GET(request: NextRequest) {
     const priceCategoryId = Number(searchParams.get("priceCategoryId") || 1);
     const unitRoleParam = searchParams.get("unitRole");
     const unitRole: UnitRole | null = unitRoleParam === "purchase" || unitRoleParam === "stock_count" || unitRoleParam === "report" ? unitRoleParam : null;
+    // numberType=factory|original: عمود الرقم في السند يعرض/يبحث برقم المصنع (product_numbers.type 2) أو الأصلي (1)
+    const numberTypeParam = searchParams.get("numberType");
+    const numberType = numberTypeParam === "factory" ? 2 : numberTypeParam === "original" ? 1 : 0;
+    let matchedNumber = "";
     await ensureProductUnitRoleColumns();
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
@@ -108,12 +112,18 @@ export async function GET(request: NextRequest) {
 
     if (!productResult.rows.length) {
 
-      const productQuery = `
+      // عمود الرقم في السند = رقم المصنع/الرقم الأصلي (إعدادات السندات) ⇐ البحث في أرقام الصنف بدل الباركود
+      const productQuery = numberType
+        ? `SELECT product_id FROM product_numbers WHERE type = $2 AND TRIM(number) = TRIM($1::text) ORDER BY id LIMIT 1`
+        : `
       SELECT p.* FROM product_unit_barcodes p
       WHERE TRIM(p.barcode) = TRIM($1::text)
       LIMIT 1
     `;
-      const barcodeResult = await client.query(productQuery, [query]);
+      const barcodeResult = numberType
+        ? await client.query(productQuery, [query, numberType]).catch(() => ({ rows: [] as any[] }))
+        : await client.query(productQuery, [query]);
+      if (numberType && barcodeResult.rows.length) matchedNumber = String(query).trim();
 
       if (!barcodeResult.rows.length) {
         client.release();
@@ -133,7 +143,8 @@ export async function GET(request: NextRequest) {
         LIMIT 1`}
       `;
         productResult = await client.query(productQuery, [barcodeResult.rows[0].product_id]);
-        is_barcode = true;
+        // بالرقم (مصنع/أصلي): الوحدة الافتراضية كالبحث بالكود — الرقم لا يحدد وحدة
+        is_barcode = !numberType;
       }
     }
 
@@ -191,6 +202,17 @@ export async function GET(request: NextRequest) {
         product.to_main_unit_qty = barcodeUnit.to_main_qnty?? 1
         product.barcode = query
       }
+    }
+    // عمود الرقم = رقم المصنع/الأصلي: يُعرض الرقم المطابق (بحث بالرقم) أو أول رقم من هذا النوع (بحث بالكود) بدل الباركود،
+    // وعلى كل وحدات الصنف حتى لا يستبدله تغيير الوحدة بباركود الوحدة
+    if (numberType) {
+      const number = matchedNumber || String((await client.query(
+        `SELECT TRIM(number) AS number FROM product_numbers WHERE product_id = $1 AND type = $2 AND TRIM(COALESCE(number, '')) <> '' ORDER BY id LIMIT 1`,
+        [product.id, numberType],
+      ).catch(() => ({ rows: [] as any[] }))).rows[0]?.number || "")
+      product.barcode = number
+      product.first_barcode = number
+      product.units = product.units.map((unit: any) => ({ ...unit, barcode: number }))
     }
     const costCentersResult = await client.query(
       `SELECT id, product_id, cost_center_type_id, required_in_transactions, default_cost_center_id

@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import Messages from "@/components/common/Messages"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useFileAccess } from "@/components/auth/use-file-access"
 import { useAuth } from "@/components/auth/auth-context"
@@ -109,6 +110,14 @@ export default function RestaurantLocations() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<Form>(emptyForm(null))
   const [formError, setFormError] = useState("")
+  // رسائل التحقق والحفظ أعلى النموذج (مكوّن Messages كباقي شاشات التعريف) مع التمرير للأعلى لتظهر
+  const messagesRef = useRef<any>(null)
+  useEffect(() => {
+    messagesRef.current?.clear?.()
+    if (!formError) return
+    messagesRef.current?.show?.([{ severity: "error", summary: "", detail: formError, sticky: true }])
+    formBodyRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+  }, [formError])
   const [saving, setSaving] = useState(false)
   const initialRef = useRef("")
   const nextCodeRef = useRef("")
@@ -177,7 +186,7 @@ export default function RestaurantLocations() {
   }
 
   const save = async () => {
-    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"], [form.admin_email.trim(), "ايميل مدير النظام"], [form.manager_email.trim(), "ايميل المسؤول"]]
+    const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"]]
     const missing = required.filter(([value]) => !value).map(([, label]) => label)
     if (missing.length) { setFormError(`الحقول المطلوبة: ${missing.join("، ")}`); return }
     setSaving(true); setFormError("")
@@ -342,6 +351,7 @@ export default function RestaurantLocations() {
           </div>
 
           <div ref={formBodyRef} onKeyDownCapture={onFormKeyDownCapture} onKeyDown={onFormKeyDown} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-muted/20 px-4 py-4 sm:px-5">
+            <Messages innerRef={messagesRef} />
             <FormSection icon={<Store className="h-4 w-4" />} title="البيانات الأساسية">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
@@ -407,8 +417,8 @@ export default function RestaurantLocations() {
             <FormSection icon={<Mail className="h-4 w-4" />} title="ايميلات الموافقة على الصلاحيات">
               <p className="mb-2 text-xs text-muted-foreground">عند طلب صلاحية غير ممنوحة في شاشة المطعم: يُرسل رمز تفعيل لهذين الايميلين، أو يكتب مدير النظام/المسؤول رمز PIN الخاص به على الشاشة مباشرة.</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>ايميل مدير النظام *</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
-                <div className="space-y-1"><Label>ايميل المسؤول *</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
+                <div className="space-y-1"><Label>ايميل مدير النظام</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
+                <div className="space-y-1"><Label>ايميل المسؤول</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
                 <div className="space-y-1"><Label>PIN مدير النظام</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.admin_pin} disabled={readOnly} onChange={(e) => set({ admin_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_admin_pin: false })} placeholder={form.has_admin_pin && !form.clear_admin_pin ? "محفوظ — اتركه فارغاً للإبقاء" : "4 إلى 8 أرقام"} />{form.has_admin_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ admin_pin: "", clear_admin_pin: !form.clear_admin_pin })}>{form.clear_admin_pin ? "تراجع عن الحذف" : "حذف الرمز المحفوظ"}</button>}</div>
                 <div className="space-y-1"><Label>PIN المسؤول</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.manager_pin} disabled={readOnly} onChange={(e) => set({ manager_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_manager_pin: false })} placeholder={form.has_manager_pin && !form.clear_manager_pin ? "محفوظ — اتركه فارغاً للإبقاء" : "4 إلى 8 أرقام"} />{form.has_manager_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ manager_pin: "", clear_manager_pin: !form.clear_manager_pin })}>{form.clear_manager_pin ? "تراجع عن الحذف" : "حذف الرمز المحفوظ"}</button>}</div>
               </div>
@@ -417,7 +427,6 @@ export default function RestaurantLocations() {
             <FormSection icon={<StickyNote className="h-4 w-4" />} title="ملاحظات">
               <Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => set({ notes: e.target.value })} placeholder="ملاحظات اختيارية" />
             </FormSection>
-            {formError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{formError}</div>}
           </div>
 
           <div className="flex items-center justify-between gap-2 border-t bg-background px-5 py-3">

@@ -1284,7 +1284,7 @@ function UnifiedSalesOrder({
     try {
       console.log("priceCategoryId priceCategoryId ", priceCategoryIdRef.current)
       const res = await fetch(
-        `/api/inventory/products/search?query=${encodeURIComponent(value)}&priceCategoryId=${priceCategoryIdRef.current}${vch_type === 2 ? "&unitRole=purchase" : ""}`
+        `/api/inventory/products/search?query=${encodeURIComponent(value)}&priceCategoryId=${priceCategoryIdRef.current}${vch_type === 2 ? "&unitRole=purchase" : ""}${Util.getVoucherBarcodeMode(vch_type) === "barcode" ? "" : `&numberType=${Util.getVoucherBarcodeMode(vch_type)}`}`
       );
       console.log("res res res res res ", res)
       if (!res.ok) throw new Error('Failed to fetch product');
@@ -1729,7 +1729,7 @@ function UnifiedSalesOrder({
           dataMap: new wjGrid.DataMap(ORDER_ITEM_STATUS_DISPLAY, "value", "label"),
         },
         {
-          header: "الباركود", name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
+          header: Util.getVoucherBarcodeHeader(vch_type), name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
         },
         {
           header: "رقم الصنف", name: "code", width: 120, maxLength: 8, visible: Util.getVoucherSettingScreenData(vch_type, 'code')
@@ -3463,6 +3463,7 @@ function UnifiedSalesOrder({
               priceCategoryId={priceCategoryIdRef.current}
               ShowSelect={true}
               searchText={searchTextRef.current}
+              voucherNumberType={Util.getVoucherBarcodeMode(vch_type) as "barcode" | "factory" | "original"}
               customerAccountId={Number(state.formData?.customer_id) || null}
               transactionDate={state.formData?.order_date || null}
               defaultUnitRole={vch_type === 2 ? "purchase" : undefined}

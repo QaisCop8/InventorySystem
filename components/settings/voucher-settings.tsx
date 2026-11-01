@@ -25,6 +25,15 @@ const VOUCHER_TYPES = [
     { id: "23", name: "مرتجع مشتريات" },
 ];
 
+// عمود "الباركود" في السند: بلا (مخفي) أو نوع الرقم الذي يُعرض فيه ويُبحث به عن الصنف
+// (الباركود من باركودات الوحدات، رقم المصنع/الرقم الأصلي من أرقام الصنف product_numbers نوع 2/1)
+const BARCODE_MODES = [
+    { id: "none", name: "بلا" },
+    { id: "barcode", name: "الباركود" },
+    { id: "factory", name: "رقم المصنع" },
+    { id: "original", name: "الرقم الاصلي" },
+];
+
 const COLUMNS = [
     { id: "ser", label: "##" },
     { id: "barcode", label: "الباركود" },
@@ -85,6 +94,7 @@ export default function VoucherSettings() {
     const [voucherType, setVoucherType] = useState("1");
     const [screenColumns, setScreenColumns] = useState<Record<string, boolean>>({});
     const [printColumns, setPrintColumns] = useState<Record<string, boolean>>({});
+    const [screenOptions, setScreenOptions] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
     const buildColumnsFromRows = (rows: any[]) => {
@@ -108,6 +118,7 @@ export default function VoucherSettings() {
                     voucher_type: voucherType,
                     target: "screen",
                     columns: screenColumns,
+                    options: screenOptions,
                 }),
             });
             // Save print columns
@@ -160,6 +171,8 @@ export default function VoucherSettings() {
                 printData?.columns?.[voucherType] ??
                 applicablePrintColumns.reduce((acc, col) => ({ ...acc, [col.id]: true }), {});
 
+            setScreenOptions(screenData?.options?.[voucherType] ?? {});
+
             setScreenColumns(
                 screenRows ??
                 applicableScreenColumns.reduce((acc, col) => {
@@ -207,7 +220,28 @@ export default function VoucherSettings() {
 
     const renderCheckboxes = (state: Record<string, boolean>, target: "screen" | "print") => (
         <div className="grid grid-cols-3 gap-3 mt-3">
-            {getColumnsForType(voucherType, target).map((col) => (
+            {getColumnsForType(voucherType, target).map((col) => target === "screen" && col.id === "barcode" ? (
+                <div key={col.id} className="flex items-center gap-3">
+                    <span className="shrink-0">عمود الرقم</span>
+                    <div className="w-44 invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                            value={state.barcode === false ? "none" : (screenOptions.barcode || "barcode")}
+                            options={BARCODE_MODES}
+                            optionLabel="name"
+                            optionValue="id"
+                            className="invoice-currency-dropdown w-full"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            panelStyle={{ zIndex: 10000 }}
+                            onChange={(e: any) => {
+                                const mode = String(e.value || "barcode");
+                                setScreenColumns((prev) => ({ ...prev, barcode: mode !== "none" }));
+                                setScreenOptions((prev) => ({ ...prev, barcode: mode === "none" ? (prev.barcode || "barcode") : mode }));
+                            }}
+                        />
+                    </div>
+                </div>
+            ) : (
                 <label key={col.id} className="flex items-center gap-4 cursor-pointer">
                     <Checkbox
                         checked={!!state[col.id]}

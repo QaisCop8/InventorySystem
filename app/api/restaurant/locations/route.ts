@@ -71,8 +71,8 @@ async function validate(data: any, id: number | null, userId: string) {
   const emails: { admin: string | null; manager: string | null } = { admin: null, manager: null }
   for (const [field, key, label] of [["admin_email", "admin", "ايميل مدير النظام"], ["manager_email", "manager", "ايميل المسؤول"]] as const) {
     const value = String(data[field] ?? "").trim().toLowerCase().slice(0, 150)
-    if (!value) return { error: `${label} مطلوب` }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return { error: `${label} غير صالح` }
+    // اختياري: فارغ = لا يُرسل رمز تفعيل لهذه الجهة؛ المُدخل يجب أن يكون بريداً صالحاً
+    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return { error: `${label} غير صالح` }
     emails[key] = value || null
   }
   // رمز PIN لمدير النظام والمسؤول (يُكتب على شاشة المطعم للموافقة) — فارغ = إبقاء الحالي

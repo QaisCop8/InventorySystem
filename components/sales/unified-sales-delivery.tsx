@@ -2023,6 +2023,9 @@ export default function UnifiedSalesDelivery({
   // مصفوفة ثابتة المرجع — نافذة البحث تعيد ضبط فلترها عند تغيّر productTypes.
   const servicesOnly = Number(form.invoice_type) === 2
   const searchProductTypes = useMemo(() => (servicesOnly ? [2] : undefined), [servicesOnly])
+  // عمود الرقم (إعدادات السندات): الباركود أو رقم المصنع/الأصلي — يُعرض ويُبحث به عن الصنف
+  const barcodeMode = Util.getVoucherBarcodeMode(voucherType) as "barcode" | "factory" | "original"
+  const numberTypeParam = barcodeMode === "barcode" ? "" : `&numberType=${barcodeMode}`
 
   const lookupProductByCode = async (
     row: number,
@@ -2033,7 +2036,7 @@ export default function UnifiedSalesDelivery({
   ) => {
     try {
       // فواتير/إرساليات المشتريات: الوحدة الافتراضية = وحدة الشراء في تعريف الصنف
-      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1${isPurchaseDeliveryVoucher ? "&unitRole=purchase" : ""}`)
+      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1${isPurchaseDeliveryVoucher ? "&unitRole=purchase" : ""}${numberTypeParam}`)
       if (!isMountedRef.current) return
       let product = await res.json()
       if (!res.ok) throw new Error("not found")
@@ -2431,7 +2434,7 @@ export default function UnifiedSalesDelivery({
           .map((id) => products.find((product: any) => Number(product.id) === id))
           .filter(Boolean)
           .map(async (product: any) => {
-            const units = await fetch(`/api/products/${product.id}/units?price_category_id=1`).then((response) => response.ok ? response.json() : []).catch(() => [])
+            const units = await fetch(`/api/products/${product.id}/units?price_category_id=1${numberTypeParam}`).then((response) => response.ok ? response.json() : []).catch(() => [])
             return { ...product, units: Array.isArray(units) ? units : [], selected_unit: Array.isArray(units) ? units[0] : undefined }
           }))
         if (cancelled || !ordered.length) return
@@ -2487,7 +2490,7 @@ export default function UnifiedSalesDelivery({
         const ordered = (await Promise.all(prefill.lines.map(async (line) => {
           const product = products.find((item: any) => Number(item.id) === Number(line.product_id))
           if (!product) return null
-          const units = await fetch(`/api/products/${product.id}/units?price_category_id=1`).then((response) => (response.ok ? response.json() : [])).catch(() => [])
+          const units = await fetch(`/api/products/${product.id}/units?price_category_id=1${numberTypeParam}`).then((response) => (response.ok ? response.json() : [])).catch(() => [])
           const unitList = Array.isArray(units) ? units : []
           const unit = unitList.find((item: any) => Number(item.unit_id) === Number(line.unit_id)) || unitList[0]
           return { product: { ...product, units: unitList, selected_unit: unit }, line }
@@ -2669,7 +2672,7 @@ export default function UnifiedSalesDelivery({
             for (const line of missing) {
               const product = products.find((item) => Number(item.id) === Number(line.product_id))
               if (!product) continue
-              const units = await fetch(`/api/products/${product.id}/units?price_category_id=1`).then((res) => (res.ok ? res.json() : [])).catch(() => [])
+              const units = await fetch(`/api/products/${product.id}/units?price_category_id=1${numberTypeParam}`).then((res) => (res.ok ? res.json() : [])).catch(() => [])
               const unitList = Array.isArray(units) ? units : []
               const unit = unitList.find((item: any) => Number(item.unit_id) === Number(line.unit_id)) || unitList[0]
               const warehousePatch = resolveDefaultWarehouse(product)
@@ -2917,7 +2920,7 @@ export default function UnifiedSalesDelivery({
       showFooter: false,
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "ser") },
-        { header: "الباركود", name: "barcode", width: 140,maxLength: 30, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery || consignmentLinked },
+        { header: Util.getVoucherBarcodeHeader(voucherType), name: "barcode", width: 140,maxLength: 30, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery || consignmentLinked },
         { header: "رقم الصنف", name: "product_code", width: 120,maxLength: 10, visible: Util.getVoucherSettingScreenData(voucherType, "code"), isReadOnly: isLocked || isFromDelivery || consignmentLinked },
         {
           header: " ",
@@ -4029,6 +4032,7 @@ export default function UnifiedSalesDelivery({
           priceSource={isPurchaseDeliveryVoucher ? "purchase" : "sale"}
           defaultUnitRole={isPurchaseDeliveryVoucher ? "purchase" : undefined}
           productTypes={searchProductTypes}
+          voucherNumberType={barcodeMode}
         />
         {showAccountsTab && (
           <AccountSearchDialog

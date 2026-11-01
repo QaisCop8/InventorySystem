@@ -49,7 +49,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         [productId, priceCategoryId],
       )
       // وحدة بلا سعر ⇐ سعر الوحدة الأولى × العلاقة بالرئيسية (lib/unit-prices.ts)
-      return NextResponse.json(withDerivedUnitPrices(result.rows.map((row: any) => ({ ...row, price: Number(row.price) || 0 })), "price", "to_main_qnty"))
+      let units = withDerivedUnitPrices(result.rows.map((row: any) => ({ ...row, price: Number(row.price) || 0 })), "price", "to_main_qnty")
+      // numberType=factory|original (عمود الرقم في السند): أول رقم مصنع/أصلي للصنف بدل باركود كل وحدة
+      const numberTypeParam = searchParams.get("numberType")
+      const numberType = numberTypeParam === "factory" ? 2 : numberTypeParam === "original" ? 1 : 0
+      if (numberType) {
+        const number = String((await client.query(
+          `SELECT TRIM(number) AS number FROM product_numbers WHERE product_id = $1 AND type = $2 AND TRIM(COALESCE(number, '')) <> '' ORDER BY id LIMIT 1`,
+          [productId, numberType],
+        ).catch(() => ({ rows: [] as any[] }))).rows[0]?.number || "")
+        units = units.map((unit: any) => ({ ...unit, barcode: number, primary_barcode: number, barcodes: number ? [number] : [] }))
+      }
+      return NextResponse.json(units)
     } finally {
       client.release()
     }

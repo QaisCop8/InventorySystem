@@ -1288,7 +1288,7 @@ function UnifiedSaleInvoices({
     try {
       console.log("priceCategoryId priceCategoryId ", priceCategoryIdRef.current)
       const res = await fetch(
-        `/api/inventory/products/search?query=${encodeURIComponent(value)}&priceCategoryId=${priceCategoryIdRef.current}`
+        `/api/inventory/products/search?query=${encodeURIComponent(value)}&priceCategoryId=${priceCategoryIdRef.current}${Util.getVoucherBarcodeMode(vch_type) === "barcode" ? "" : `&numberType=${Util.getVoucherBarcodeMode(vch_type)}`}`
       );
       console.log("res res res res res ", res)
       if (!res.ok) throw new Error('Failed to fetch product');
@@ -1634,7 +1634,7 @@ function UnifiedSaleInvoices({
           header: "الحالة", name: "item_status", width: 100, visible: false,
         },
         {
-          header: "الباركود", name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
+          header: Util.getVoucherBarcodeHeader(vch_type), name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
         },
         {
           header: "رقم الصنف", name: "code", width: 120, maxLength: 8, visible: Util.getVoucherSettingScreenData(vch_type, 'code')
@@ -3177,6 +3177,7 @@ function UnifiedSaleInvoices({
               priceCategoryId={priceCategoryIdRef.current}
               ShowSelect={true}
               searchText={searchTextRef.current}
+              voucherNumberType={Util.getVoucherBarcodeMode(vch_type) as "barcode" | "factory" | "original"}
             />
             <UnitsSearchPopup
               visible={showUnitsSearch}

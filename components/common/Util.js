@@ -945,6 +945,18 @@ const exportDefault = {
     if (!columnsForVoucher) return true;
     return columnsForVoucher?.[columnId] ?? false;
   },
+  // نوع الرقم في عمود "الباركود" للسند (إعدادات السندات): barcode | factory (رقم المصنع) | original (الرقم الأصلي)
+  getVoucherBarcodeMode(voucher_id) {
+    const voucherSettings = JSON.parse(localStorage.getItem('screenData') || '{}');
+    const mode = voucherSettings.options?.[String(voucher_id)]?.barcode;
+    return mode === 'factory' || mode === 'original' ? mode : 'barcode';
+  },
+  // عنوان عمود "الباركود" حسب نوع الرقم المختار
+  getVoucherBarcodeHeader(voucher_id) {
+    const voucherSettings = JSON.parse(localStorage.getItem('screenData') || '{}');
+    const mode = voucherSettings.options?.[String(voucher_id)]?.barcode;
+    return mode === 'factory' ? 'رقم المصنع' : mode === 'original' ? 'الرقم الاصلي' : 'الباركود';
+  },
 
   checkHasp(haspToCheckArr) {
     let activeHaspList = JSON.parse(localStorage.getItem('haspsList'));

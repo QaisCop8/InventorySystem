@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import Util from "@/components/common/Util"
 import { Filter, Loader2, PackageSearch, Percent, Search, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -186,8 +187,8 @@ export default function BulkItems() {
             <Label>بحث (رقم / اسم / باركود)</Label>
             <Input value={filters.search || ""} onChange={(event) => setFilter("search", event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void load() }} />
           </div>
-          <div className="grid gap-1.5"><Label>من رقم صنف</Label><Input value={filters.codeFrom || ""} onChange={(event) => setFilter("codeFrom", event.target.value)} dir="ltr" /></div>
-          <div className="grid gap-1.5"><Label>إلى رقم صنف</Label><Input value={filters.codeTo || ""} onChange={(event) => setFilter("codeTo", event.target.value)} dir="ltr" /></div>
+          <div className="grid gap-1.5"><Label>من رقم صنف</Label><Input value={filters.codeFrom || ""} onChange={(event) => setFilter("codeFrom", event.target.value)} onBlur={(event) => setFilter("codeFrom", Util.adjustCode(event.target.value.trim(), 10))} dir="ltr" /></div>
+          <div className="grid gap-1.5"><Label>إلى رقم صنف</Label><Input value={filters.codeTo || ""} onChange={(event) => setFilter("codeTo", event.target.value)} onBlur={(event) => setFilter("codeTo", Util.adjustCode(event.target.value.trim(), 10))} dir="ltr" /></div>
           <div className="flex items-end gap-2 sm:col-span-2">
             <Button onClick={() => void load()} disabled={loading} data-report-apply>
               {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض الأصناف

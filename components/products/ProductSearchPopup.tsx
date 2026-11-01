@@ -82,6 +82,8 @@ interface ProductSearchPopupProps {
   priceSource?: "sale" | "purchase";
   /** الوحدة الافتراضية عند الاختيار بلا تحديد وحدة: وحدة الشراء/الجرد/التقارير من تعريف الصنف (وإلا أول وحدة) */
   defaultUnitRole?: UnitRole;
+  /** نوع الرقم في عمود "الباركود" للسند (إعدادات السندات): رقم المصنع/الأصلي ⇐ فلتر النافذة يبدأ به، والمختار يحمل أول رقم من هذا النوع بدل الباركود */
+  voucherNumberType?: "barcode" | "factory" | "original";
 }
 
 // قائمة الأصناف المخففة (lite) لكل رابط — فتح النافذة مجدداً فوري من الذاكرة ثم تحديث بالخلفية
@@ -95,7 +97,7 @@ const productThumb = (image?: string | null, alt = "") =>
     ? <img src={image} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
     : <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Package className="h-3.5 w-3.5" /></div>
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null, priceSource = "sale", defaultUnitRole }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null, priceSource = "sale", defaultUnitRole, voucherNumberType = "barcode" }) => {
   const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -114,6 +116,18 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       .catch(() => undefined);
     return () => { active = false };
   }, [numberType, productNumbers]);
+  useEffect(() => { if (visible) setNumberType(voucherNumberType) }, [visible, voucherNumberType]);
+  // أرقام الصنف لنوع معيّن (مخزّنة بعد أول تحميل) — لملء عمود الرقم في السند عند الاختيار
+  const productNumbersRef = useRef(productNumbers);
+  productNumbersRef.current = productNumbers;
+  const loadNumbers = useCallback(async (type: "factory" | "original"): Promise<Record<number, string>> => {
+    const cached = productNumbersRef.current[type];
+    if (cached) return cached;
+    const data = await fetch(`/api/products/numbers?type=${type === "original" ? 1 : 2}`, { cache: "no-store" }).then((response) => (response.ok ? response.json() : { numbers: {} })).catch(() => ({ numbers: {} }));
+    const numbers = data.numbers || {};
+    setProductNumbers((current) => ({ ...current, [type]: numbers }));
+    return numbers;
+  }, []);
   const numberLabel = numberType === "factory" ? "رقم المصنع" : numberType === "original" ? "الرقم الأصلي" : "الباركود";
   const numbersOf = useCallback((productId: unknown) => (numberType === "barcode" ? "" : productNumbers[numberType]?.[Number(productId)] || ""), [numberType, productNumbers]);
   const [selectedTypes, setSelectedTypes] = useState<number[]>(() =>
@@ -506,9 +520,21 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         return { ...item, units, selected_unit: selectedUnit, first_price: selectedUnit?.price ?? roundPrice(Number(item.last_purchase_price ?? 0)) };
       });
     }
+    if (voucherNumberType !== "barcode") {
+      // عمود الرقم في السند = رقم المصنع/الأصلي: أول رقم من هذا النوع على الصنف ووحداته (كما يُعرض الباركود الأول عادةً)
+      const numbers = await loadNumbers(voucherNumberType);
+      merged = merged.map((item) => {
+        const number = String(numbers[Number(item.id)] || "").split("، ")[0].trim();
+        return {
+          ...item, barcode: number, first_barcode: number,
+          units: (item.units || []).map((unit) => ({ ...unit, barcode: number })),
+          selected_unit: item.selected_unit ? { ...item.selected_unit, barcode: number } : item.selected_unit,
+        };
+      });
+    }
     onSelect(merged);
     onClose();
-  }, [fetchFullProducts, priceSource, priceUnits, onSelect, onClose, defaultUnitRole]);
+  }, [fetchFullProducts, priceSource, priceUnits, onSelect, onClose, defaultUnitRole, voucherNumberType, loadNumbers]);
   // المعالجات المحفوظة (useCallback) تستدعي آخر نسخة دائماً
   const emitSelectRef = useRef(emitSelect);
   emitSelectRef.current = emitSelect;

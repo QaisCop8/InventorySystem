@@ -1,12 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Button } from "@/components/ui/button";
-import DataGrid from "@/components/common/DataGrid";
-import * as wjGrid from "@grapecity/wijmo.grid";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Barcode, Check, Plus, X } from "lucide-react";
+import ProductNumbers from "./ProductNumbers";
 import { isScaleItemBarcode, SCALE_BARCODE_ERROR } from "@/lib/scale-barcode";
+
 interface ProductBarcodesProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -17,6 +14,9 @@ interface ProductBarcodesProps {
     onUpdateBarcodes: (newBarcodes: string[]) => void;
 }
 
+// نافذة باركودات الوحدة — نفس نافذة "الرقم الأصلي/رقم المصنع" (ProductNumbers): سطر إضافة سريع بالأعلى (Enter)
+// وقائمة قابلة للتعديل والحذف. فحوص الباركود: باركود الميزان لصنف يُباع بالميزان، والتكرار داخل الوحدة
+// (ضمن ProductNumbers) ومع وحدات الصنف الأخرى (reservedBarcodes).
 export default function ProductBarcodes({
     open,
     onOpenChange,
@@ -24,118 +24,27 @@ export default function ProductBarcodes({
     barcodes,
     reservedBarcodes = [],
     soldUsingScale = false,
-    onUpdateBarcodes
+    onUpdateBarcodes,
 }: ProductBarcodesProps) {
-    const [dialogData, setDialogData] = React.useState<{ ser: number; barcode: string }[]>([]);
-    const [duplicateError, setDuplicateError] = React.useState("");
-
-    React.useEffect(() => {
-        setDialogData(barcodes.map((b, i) => ({ ser: i + 1, barcode: b })));
-        setDuplicateError("");
-    }, [barcodes]);
-
-    const handleDelete = (index: number) => {
-        const newData = dialogData.filter((_, i) => i !== index)
-            .map((d, i) => ({ ...d, ser: i + 1 }));
-        setDialogData(newData);
-        onUpdateBarcodes(newData.map(d => d.barcode));
-    };
-    const flexRef = React.useRef<wjGrid.FlexGrid>(null);
-    const handleAdd = () => {
-        const newData = [...dialogData, { ser: dialogData.length + 1, barcode: "" }];
-        setDialogData(newData);
-        onUpdateBarcodes(newData.map(d => d.barcode));
-
-        // Focus the new row after it renders
-        setTimeout(() => {
-            const flex = flexRef.current;
-            if (flex) {
-                const lastRow = newData.length - 1;
-                // getColumn by binding
-                const barcodeCol = flex.columns.getColumn("barcode");
-                if (barcodeCol) {
-                    flex.select(new wjGrid.CellRange(lastRow, barcodeCol.index));
-                    flex.startEditing(true);
-                }
-            }
-        }, 50);
-    };
-    const cellEditEnded = (s: any, e: any) => {
-        const editedItem = s.rows[e.row].dataItem;
-        const barcode = String(editedItem?.barcode ?? "").trim();
-
-        setDialogData(prev => {
-            const newData = [...prev];
-            const key = barcode.toLocaleLowerCase("en");
-            if (soldUsingScale && barcode && !isScaleItemBarcode(barcode)) {
-                setDuplicateError(SCALE_BARCODE_ERROR);
-                newData[e.row] = { ...editedItem, barcode: "" };
-                onUpdateBarcodes(newData.map(d => d.barcode));
-                return newData;
-            }
-            const duplicateInUnit = barcode && newData.some((row, index) => index !== e.row && String(row.barcode ?? "").trim().toLocaleLowerCase("en") === key);
-            const duplicateInOtherUnit = barcode && reservedBarcodes.some(value => String(value ?? "").trim().toLocaleLowerCase("en") === key);
-
-            if (duplicateInUnit || duplicateInOtherUnit) {
-                setDuplicateError(duplicateInUnit
-                    ? `الباركود ${barcode} مكرر في نفس الوحدة`
-                    : `الباركود ${barcode} مستخدم في وحدة أخرى من نفس الصنف`);
-                newData[e.row] = { ...editedItem, barcode: "" };
-                onUpdateBarcodes(newData.map(d => d.barcode));
-                requestAnimationFrame(() => {
-                    s.invalidate?.();
-                    s.select?.(e.row, e.col);
-                    s.startEditing?.(true, e.row, e.col);
-                });
-                return newData;
-            }
-
-            setDuplicateError("");
-            newData[e.row] = { ...editedItem, barcode };
-
-            // ✅ Call onUpdateBarcodes *inside* the same callback
-            // so it uses the updated array, not the stale one
-            onUpdateBarcodes(newData.map(d => d.barcode));
-
-            return newData;
-        });
-    };
-
-    const getScheme = () => ({
-        name: 'barcodeScheme_Table',
-        filter: false,
-        showFooter: false,
-        sortable: false,
-        allowGrouping: false,
-        responsiveColumnIndex: 1,
-        columns: [
-            { header: "##", name: "ser", width: 50 },
-            { header: "الباركود", name: "barcode", width: "*" },
-            {
-                header: " ",
-                name: "delete",
-                width: 80,
-                buttonBody: "button",
-                iconType: "trash",
-                onClick: (item: { ser: number }) => handleDelete(item.ser - 1)
-            }
-        ]
-    });
+    const validate = React.useCallback((value: string) => {
+        if (soldUsingScale && !isScaleItemBarcode(value)) return SCALE_BARCODE_ERROR;
+        const key = value.trim().toLocaleLowerCase("en");
+        if (reservedBarcodes.some((reserved) => String(reserved ?? "").trim().toLocaleLowerCase("en") === key)) {
+            return `الباركود ${value} مستخدم في وحدة أخرى من نفس الصنف`;
+        }
+        return "";
+    }, [soldUsingScale, reservedBarcodes]);
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent dir="rtl" className="flex max-h-[86dvh] w-[min(94vw,680px)] max-w-none flex-col gap-0 overflow-hidden rounded-3xl border-0 bg-white p-0 shadow-2xl">
-                <DialogHeader className="shrink-0 bg-gradient-to-l from-emerald-700 via-teal-700 to-sky-700 px-6 py-5 text-right text-white">
-                    <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Barcode className="size-5" /></span><div><DialogTitle className="text-lg font-bold text-white">باركود الوحدة</DialogTitle><DialogDescription className="mt-1 text-emerald-50">{unitName || "الوحدة"} · أضف باركوداً أو أكثر لهذه الوحدة</DialogDescription></div></div>
-                </DialogHeader>
-                <div className="flex min-h-0 flex-1 flex-col gap-4 bg-slate-50 p-4 sm:p-6">
-                    {duplicateError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{duplicateError}</div>}
-                    <div className="flex items-center justify-between rounded-2xl border bg-white p-3 shadow-sm"><div><b className="text-sm">الباركودات المعرفة</b><p className="text-xs text-slate-500">اضغط Enter للانتقال إلى الخلية التالية</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-800">{dialogData.length}</span></div>
-                    <Button className="w-fit rounded-xl bg-emerald-600 shadow-sm hover:bg-emerald-700" type="button" onClick={handleAdd}><Plus className="ml-2 size-4" />إضافة باركود</Button>
-                    <div className="min-h-64 flex-1 overflow-hidden rounded-2xl border bg-white p-2 shadow-sm"><DataGrid ref={flexRef} dataSource={dialogData} scheme={getScheme()} keyActionEnter="MoveAcross" cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)} /></div>
-                </div>
-                <DialogFooter className="shrink-0 flex-row justify-start gap-2 border-t bg-white px-5 py-4"><Button type="button" className="rounded-xl bg-emerald-600 hover:bg-emerald-700" onClick={() => onOpenChange(false)}><Check className="ml-2 size-4" />موافق</Button><Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}><X className="ml-2 size-4" />إغلاق</Button></DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ProductNumbers
+            open={open}
+            onOpenChange={onOpenChange}
+            title="الباركود"
+            subtitle={`${unitName ? `الوحدة: ${unitName}` : "الوحدة"} · يمكن إضافة أكثر من باركود`}
+            numbers={barcodes}
+            onUpdateNumbers={onUpdateBarcodes}
+            currentProductName={unitName}
+            validate={validate}
+        />
     );
 }

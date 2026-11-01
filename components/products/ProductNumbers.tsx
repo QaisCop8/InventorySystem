@@ -13,10 +13,15 @@ interface ProductNumbersProps {
     onUpdateNumbers: (newNumbers: string[]) => void;
     // 1 = الرقم الأصلي، 2 = رقم المصنع (يطابق عمود product_numbers.type في app/api/inventory/
     // products/route.ts) — يُستخدَم لفحص التكرار مع أصناف أخرى عبر check-number.
-    numberType: 1 | 2;
-    excludeProductId: number;
+    // بلا numberType (نافذة الباركودات) لا يُفحص التكرار مع الأصناف الأخرى عبر check-number
+    numberType?: 1 | 2;
+    excludeProductId?: number;
     currentProductName: string;
-    onDuplicateError: (message: string) => void;
+    onDuplicateError?: (message: string) => void;
+    /** فحص إضافي قبل قبول القيمة (مثل باركود الميزان، أو باركود مستخدم في وحدة أخرى) — يعيد رسالة الخطأ أو "" */
+    validate?: (value: string) => string;
+    /** نص فرعي تحت العنوان (افتراضياً اسم الصنف · يمكن إضافة أكثر من رقم) */
+    subtitle?: string;
 }
 
 // نافذة أرقام الصنف (الرقم الأصلي/رقم المصنع): سطر إضافة سريع بالأعلى (Enter) + قائمة أرقام قابلة للتعديل والحذف.
@@ -30,7 +35,9 @@ export default function ProductNumbers({
     numberType,
     excludeProductId,
     currentProductName,
-    onDuplicateError,
+    onDuplicateError = () => undefined,
+    validate,
+    subtitle,
 }: ProductNumbersProps) {
     const [rows, setRows] = React.useState<string[]>([]);
     const [draft, setDraft] = React.useState("");
@@ -54,9 +61,12 @@ export default function ProductNumbers({
     const duplicateMessage = async (value: string, ignoreIndex: number, list: string[]) => {
         const trimmed = value.trim();
         if (!trimmed) return "";
+        const invalid = validate?.(trimmed);
+        if (invalid) return invalid;
         if (list.some((row, index) => index !== ignoreIndex && row.trim().toLowerCase() === trimmed.toLowerCase())) {
             return `${title} مكرر مع صنف - ${currentProductName || "هذا الصنف"}`;
         }
+        if (!numberType) return "";
         try {
             const response = await fetch(`/api/inventory/products/check-number?type=${numberType}&number=${encodeURIComponent(trimmed)}&exclude_id=${excludeProductId || 0}`);
             if (response.ok) {
@@ -105,7 +115,7 @@ export default function ProductNumbers({
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Hash className="h-5 w-5" /></span>
                         <div>
                             <h2 className="text-base font-bold">{title}</h2>
-                            <p className="text-xs text-emerald-50">{currentProductName || "صنف جديد"} · يمكن إضافة أكثر من رقم</p>
+                            <p className="text-xs text-emerald-50">{subtitle ?? `${currentProductName || "صنف جديد"} · يمكن إضافة أكثر من رقم`}</p>
                         </div>
                     </div>
                     <button type="button" aria-label="إغلاق" onClick={() => onOpenChange(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/15 hover:bg-white/25"><X className="h-4 w-4" /></button>
