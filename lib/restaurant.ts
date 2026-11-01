@@ -5,6 +5,7 @@ import { runSchemaOnce } from "@/lib/schema-once"
 import { ensureNamedPermission, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { resolvePosAccounts } from "@/lib/pos-accounts"
+import { getPosCurrencies } from "@/lib/pos-currencies"
 import {
   RESTAURANT_PERMISSION_CATEGORY,
   RESTAURANT_PERMISSIONS,
@@ -43,6 +44,8 @@ export async function ensureRestaurantTables() {
       "max_discount_percent NUMERIC(7,3) NOT NULL DEFAULT 100", "invoice_print_mode INTEGER NOT NULL DEFAULT 1", "print_by_item_group BOOLEAN NOT NULL DEFAULT TRUE", "kitchen_print_confirm BOOLEAN NOT NULL DEFAULT FALSE",
       // ايميل مدير النظام + ايميل المسؤول: رمز التفعيل عند طلب صلاحية غير ممنوحة (lib/permission-approvals.ts)
       "admin_email VARCHAR(150)", "manager_email VARCHAR(150)", "admin_pin_hash VARCHAR(200)", "manager_pin_hash VARCHAR(200)",
+      // خدمة الطاولات: خدمة (products.type=2) تُضاف تلقائياً عند فتح طاولة، وتُرحَّل على "حساب المبيعات" المعرّف في الخدمة
+      "table_service_id INTEGER",
     ]) await sql.unsafe(`ALTER TABLE restaurant_locations_tbl ADD COLUMN IF NOT EXISTS ${column}`)
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS restaurant_locations_code_uq ON restaurant_locations_tbl (LOWER(code)) WHERE status <> 3`
     await sql`CREATE INDEX IF NOT EXISTS restaurant_locations_branch_idx ON restaurant_locations_tbl (branch_id)`
@@ -124,6 +127,8 @@ export async function ensureRestaurantTables() {
     await sql`CREATE INDEX IF NOT EXISTS restaurant_order_items_order_idx ON restaurant_order_items_tbl (order_id)`
     // الإضافات المختارة للسطر من "المتغيرات والخصائص" في تعريف الصنف: [{group, value}] — تُطبع في قسيمة المطبخ
     await sql`ALTER TABLE restaurant_order_items_tbl ADD COLUMN IF NOT EXISTS addons JSONB NOT NULL DEFAULT '[]'::jsonb`
+    // سطر "خدمة الطاولات" المضاف تلقائياً عند فتح الطاولة — حذفه بصلاحية مستقلة (removeTableService)
+    await sql`ALTER TABLE restaurant_order_items_tbl ADD COLUMN IF NOT EXISTS is_table_service BOOLEAN NOT NULL DEFAULT FALSE`
     // أعمدة الصنف التي تقرؤها شاشة المطعم (تُنشئها عادةً مسارات الأصناف)
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
@@ -265,6 +270,50 @@ export async function loadOrder(orderId: number) {
     items: normalizedItems,
     payments: payments.map((row: any) => ({ ...row, amount: num(row.amount) })),
     totals: { gross: round2(gross), remaining: round2(remaining), paid: round2(paid) },
+  }
+}
+
+/**
+ * سطر "خدمة الطاولات" للموقع (null إن لم تُحدَّد خدمة): سعر الخدمة في فئة سعر الموقع بنفس قواعد كتالوج الكاشير
+ * (الوحدة الافتراضية = أول وحدة لها سعر، ثم سعر صف الوحدة، ثم السعر الوحيد) محوّلاً إلى عملة الموقع.
+ */
+export async function tableServiceLine(location: any) {
+  const serviceId = Number(location?.table_service_id) || 0
+  if (!serviceId) return null
+  const row = (await sql`
+    WITH prices AS (
+      SELECT id, unit_id, price, currency_id FROM product_prices WHERE product_id = ${serviceId} AND price_category_id = ${Number(location.price_category_id) || 0}
+    ), du AS (
+      SELECT x.id AS pu_id, x.unit_id FROM product_units x WHERE x.product_id = ${serviceId}
+      ORDER BY CASE WHEN EXISTS (SELECT 1 FROM prices pr WHERE pr.unit_id = x.unit_id) THEN 0 ELSE 1 END, x.id LIMIT 1
+    )
+    SELECT p.id, p.product_code, p.product_name, u.id AS unit_id, u.unit_name, sp.price, sp.currency_id
+    FROM products p
+    LEFT JOIN du ON true
+    LEFT JOIN units u ON u.id = du.unit_id
+    LEFT JOIN LATERAL (
+      SELECT pr.price, pr.currency_id FROM prices pr
+      WHERE pr.unit_id = du.unit_id OR pr.unit_id = du.pu_id
+         OR ((SELECT COUNT(*) FROM product_units WHERE product_id = p.id) <= 1 AND (SELECT COUNT(*) FROM prices) = 1)
+      ORDER BY CASE WHEN pr.unit_id = du.unit_id THEN 0 WHEN pr.unit_id = du.pu_id THEN 1 ELSE 2 END, pr.id DESC
+      LIMIT 1
+    ) sp ON true
+    WHERE p.id = ${serviceId} AND COALESCE(p.type, 1) = 2 AND COALESCE(p.deleted, false) = false AND COALESCE(p.status, 1) <> 3
+  `)[0]
+  if (!row) return null
+  const locationCurrencyId = Number(location.currency_id)
+  const sourceCurrencyId = Number(row.currency_id) || locationCurrencyId
+  let price = num(row.price)
+  if (price > 0 && sourceCurrencyId !== locationCurrencyId) {
+    const rates = await getPosCurrencies(locationCurrencyId)
+    const rateOf = (id: number) => Number(rates.find((rate) => Number(rate.currency_id) === id)?.exchange_rate) || 0
+    const sourceRate = rateOf(sourceCurrencyId), locationRate = rateOf(locationCurrencyId)
+    if (!(sourceRate > 0) || !(locationRate > 0)) throw Object.assign(new Error(`لا يوجد سعر صرف صالح لعملة سعر خدمة الطاولات ${row.product_name}`), { status: 400 })
+    price = Math.round(price * sourceRate / locationRate * 10000) / 10000
+  }
+  return {
+    product_id: Number(row.id), product_code: String(row.product_code || ""), product_name: String(row.product_name || ""),
+    unit_id: Number(row.unit_id) || null, unit_name: row.unit_name ? String(row.unit_name) : null, price,
   }
 }
 

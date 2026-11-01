@@ -61,6 +61,9 @@ async function validate(data: any, id: number | null, userId: string) {
     if (accountId && !(await sql`SELECT id FROM account_tbl WHERE id = ${accountId} AND COALESCE(status, 1) <> 3`)[0]) return { error: "يوجد حساب غير صالح في إعدادات البيع" }
     accounts[key] = accountId
   }
+  // خدمة الطاولات (اختيارية): خدمة نشطة تُضاف تلقائياً عند فتح الطاولة وتُرحَّل على حساب مبيعاتها
+  const tableServiceId = optionalId(data.table_service_id)
+  if (tableServiceId && !(await sql`SELECT id FROM products WHERE id = ${tableServiceId} AND COALESCE(type, 1) = 2 AND COALESCE(deleted, false) = false AND COALESCE(status, 1) <> 3`)[0]) return { error: "خدمة الطاولات غير صالحة" }
   const maxDiscount = Number(data.max_discount_percent ?? 100)
   if (!Number.isFinite(maxDiscount) || maxDiscount < 0 || maxDiscount > 100) return { error: "أعلى نسبة خصم يجب أن تكون بين 0 و100" }
   const printMode = [0, 1, 2].includes(Number(data.invoice_print_mode)) ? Number(data.invoice_print_mode) : 1
@@ -85,7 +88,7 @@ async function validate(data: any, id: number | null, userId: string) {
   if (duplicate) return { error: "يوجد موقع بنفس الرقم أو بنفس الاسم في هذا الفرع" }
   return {
     value: {
-      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, pins,
+      name, code, branchId, warehouseId, currencyId, priceCategoryId, salesBookId, accounts, maxDiscount, printMode, emails, pins, tableServiceId,
       printByGroup: data.print_by_item_group !== false,
       kitchenPrintConfirm: data.kitchen_print_confirm === true,
       status: Number(data.status) === 2 ? 2 : 1,
@@ -103,22 +106,23 @@ export async function GET(request: NextRequest) {
     if (params.get("options") === "1") {
       const permission = await authorizeFile(request, "restaurant-locations", "access")
       if (!permission.ok) return permission.response
-      const [branches, warehouses, currencies, books, priceCategories, code] = await Promise.all([
+      const [branches, warehouses, currencies, books, priceCategories, code, services] = await Promise.all([
         userBranches(permission.userId),
         sql`SELECT id, warehouse_code AS code, warehouse_name AS name FROM warehouses WHERE COALESCE(status, 1) <> 3 ORDER BY warehouse_name`,
         sql`SELECT id, currency_code AS code, currency_name AS name FROM currency WHERE COALESCE(is_active, true) ORDER BY id`,
         sql`SELECT id, name FROM voucher_books_tbl ORDER BY name`,
         sql`SELECT id, name FROM pricecategory WHERE COALESCE(status, 1) = 1 ORDER BY id`,
         nextCode(),
+        sql`SELECT id, product_code AS code, product_name AS name FROM products WHERE COALESCE(type, 1) = 2 AND COALESCE(deleted, false) = false AND COALESCE(status, 1) <> 3 ORDER BY product_name`,
       ])
-      return NextResponse.json({ branches, warehouses, currencies, books, priceCategories, next_code: code })
+      return NextResponse.json({ branches, warehouses, currencies, books, priceCategories, services, next_code: code })
     }
     // شاشة الطاولات تقرأ المواقع كقائمة اختيار (حقول مختصرة) لمن يملك صلاحيات الطاولات فقط
     const permission = await authorizeFileRead(request, ["restaurant-locations", "restaurant-tables"])
     if (!permission.ok) return permission.response
     const branchId = Number(params.get("branch_id")) || 0
     const rows = await sql`
-      SELECT l.*, b.branch_name, w.warehouse_name, c.currency_code, pc.name AS price_category_name, vb.name AS sales_book_name,
+      SELECT l.*, b.branch_name, w.warehouse_name, c.currency_code, pc.name AS price_category_name, vb.name AS sales_book_name, ts.product_name AS table_service_name,
              (SELECT COUNT(*)::int FROM restaurant_tables_tbl t WHERE t.location_id = l.id AND t.status <> 3) AS tables_count
       FROM restaurant_locations_tbl l
       LEFT JOIN branches b ON b.id = l.branch_id
@@ -126,6 +130,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currency c ON c.id = l.currency_id
       LEFT JOIN pricecategory pc ON pc.id = l.price_category_id
       LEFT JOIN voucher_books_tbl vb ON vb.id = l.sales_book_id
+      LEFT JOIN products ts ON ts.id = l.table_service_id
       WHERE l.status <> 3 AND (${branchId} = 0 OR l.branch_id = ${branchId})
       ORDER BY l.branch_id, l.sort_order, l.id
     `
@@ -175,7 +180,7 @@ async function save(request: NextRequest, mode: "create" | "update") {
           walk_in_account_id = ${a.walk_in_account_id}, card_account_id = ${a.card_account_id}, cheque_account_id = ${a.cheque_account_id},
           tax_account_id = ${a.tax_account_id}, max_discount_percent = ${v.maxDiscount}, invoice_print_mode = ${v.printMode},
           print_by_item_group = ${v.printByGroup}, kitchen_print_confirm = ${v.kitchenPrintConfirm}, sort_order = ${v.sortOrder}, color = ${v.color}, notes = ${v.notes}, status = ${v.status},
-          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, updated_at = NOW(),
+          admin_email = ${v.emails.admin}, manager_email = ${v.emails.manager}, table_service_id = ${v.tableServiceId}, updated_at = NOW(),
           admin_pin_hash = CASE WHEN ${v.pins.admin !== undefined} THEN ${v.pins.admin ?? null} ELSE admin_pin_hash END,
           manager_pin_hash = CASE WHEN ${v.pins.manager !== undefined} THEN ${v.pins.manager ?? null} ELSE manager_pin_hash END
         WHERE id = ${id}
@@ -185,11 +190,11 @@ async function save(request: NextRequest, mode: "create" | "update") {
         INSERT INTO restaurant_locations_tbl (
           code, name, branch_id, warehouse_id, currency_id, price_category_id, sales_book_id, cash_account_id, walk_in_account_id,
           card_account_id, cheque_account_id, tax_account_id, max_discount_percent, invoice_print_mode, print_by_item_group, kitchen_print_confirm,
-          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_pin_hash, manager_pin_hash
+          sort_order, color, notes, status, created_by, admin_email, manager_email, admin_pin_hash, manager_pin_hash, table_service_id
         ) VALUES (
           ${v.code}, ${v.name}, ${v.branchId}, ${v.warehouseId}, ${v.currencyId}, ${v.priceCategoryId}, ${v.salesBookId}, ${a.cash_account_id},
           ${a.walk_in_account_id}, ${a.card_account_id}, ${a.cheque_account_id}, ${a.tax_account_id}, ${v.maxDiscount}, ${v.printMode},
-          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}
+          ${v.printByGroup}, ${v.kitchenPrintConfirm}, ${v.sortOrder}, ${v.color}, ${v.notes}, ${v.status}, ${permission.userId}, ${v.emails.admin}, ${v.emails.manager}, ${v.pins.admin ?? null}, ${v.pins.manager ?? null}, ${v.tableServiceId}
         )
         RETURNING *
       `

@@ -22,7 +22,7 @@ type Location = Record<string, any> & {
   warehouse_name?: string | null; currency_code?: string | null; price_category_name?: string | null; sales_book_name?: string | null
 }
 type Option = { id: number; name: string; code?: string }
-type Options = { branches: Option[]; warehouses: Option[]; currencies: Option[]; books: Option[]; priceCategories: Option[] }
+type Options = { branches: Option[]; warehouses: Option[]; currencies: Option[]; books: Option[]; priceCategories: Option[]; services: Option[] }
 const ACCOUNT_FIELDS = [
   ["cash_account_id", "حساب الصندوق"], ["walk_in_account_id", "الحساب النقدي (العميل النقدي)"], ["card_account_id", "حساب البطاقات"],
   ["cheque_account_id", "حساب الشيكات"], ["tax_account_id", "حساب الضريبة"],
@@ -34,6 +34,8 @@ type Form = {
   cash_account_id: string; walk_in_account_id: string; card_account_id: string; cheque_account_id: string; tax_account_id: string
   max_discount_percent: string; invoice_print_mode: string; print_by_item_group: boolean; kitchen_print_confirm: boolean; sort_order: string; color: string; notes: string; active: boolean
   admin_email: string; manager_email: string
+  // خدمة الطاولات: "" = بدون خدمة
+  table_service_id: string
   // رمز PIN جديد (فارغ = إبقاء المحفوظ)، هل يوجد رمز محفوظ، وحذفه
   admin_pin: string; manager_pin: string; has_admin_pin: boolean; has_manager_pin: boolean; clear_admin_pin: boolean; clear_manager_pin: boolean
 }
@@ -42,6 +44,7 @@ const emptyForm = (branchId: number | null, code = ""): Form => ({
   id: 0, code, name: "", branch_id: str(branchId), warehouse_id: "", currency_id: "", price_category_id: "", sales_book_id: "",
   cash_account_id: "", walk_in_account_id: "", card_account_id: "", cheque_account_id: "", tax_account_id: "",
   max_discount_percent: "100", invoice_print_mode: "1", print_by_item_group: true, kitchen_print_confirm: false, sort_order: "0", color: "#0f766e", notes: "", active: true,
+  table_service_id: "",
   admin_email: "", manager_email: "", admin_pin: "", manager_pin: "", has_admin_pin: false, has_manager_pin: false, clear_admin_pin: false, clear_manager_pin: false,
 })
 const toForm = (row: Location): Form => ({
@@ -51,7 +54,7 @@ const toForm = (row: Location): Form => ({
   tax_account_id: str(row.tax_account_id), max_discount_percent: str(row.max_discount_percent ?? 100), invoice_print_mode: str(row.invoice_print_mode ?? 1),
   print_by_item_group: row.print_by_item_group !== false, kitchen_print_confirm: row.kitchen_print_confirm === true, sort_order: str(row.sort_order ?? 0), color: row.color || "#0f766e", notes: row.notes || "",
   active: Number(row.status) !== 2,
-  admin_email: row.admin_email || "", manager_email: row.manager_email || "",
+  admin_email: row.admin_email || "", manager_email: row.manager_email || "", table_service_id: str(row.table_service_id),
   admin_pin: "", manager_pin: "", has_admin_pin: row.has_admin_pin === true, has_manager_pin: row.has_manager_pin === true, clear_admin_pin: false, clear_manager_pin: false,
 })
 const errorText = async (response: Response, fallback: string) => String((await response.json().catch(() => ({})))?.error || fallback)
@@ -98,7 +101,7 @@ export default function RestaurantLocations() {
   const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const { activeBranchId } = useAuth()
   const [rows, setRows] = useState<Location[]>([])
-  const [options, setOptions] = useState<Options>({ branches: [], warehouses: [], currencies: [], books: [], priceCategories: [] })
+  const [options, setOptions] = useState<Options>({ branches: [], warehouses: [], currencies: [], books: [], priceCategories: [], services: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [search, setSearch] = useState("")
@@ -128,7 +131,7 @@ export default function RestaurantLocations() {
         const map = (list: any[], name = "name") => (list || []).map((row: any) => ({ id: Number(row.id), name: String(row[name] ?? row.name ?? ""), code: row.code ? String(row.code) : undefined }))
         setOptions({
           branches: map(data.branches, "branch_name"), warehouses: map(data.warehouses), currencies: map(data.currencies),
-          books: map(data.books), priceCategories: map(data.priceCategories),
+          books: map(data.books), priceCategories: map(data.priceCategories), services: map(data.services),
         })
         nextCodeRef.current = String(data.next_code || "")
       } else {
@@ -185,7 +188,7 @@ export default function RestaurantLocations() {
         body: JSON.stringify({
           ...form, id: form.id || undefined,
           branch_id: Number(form.branch_id), warehouse_id: Number(form.warehouse_id), currency_id: Number(form.currency_id),
-          price_category_id: Number(form.price_category_id), sales_book_id: Number(form.sales_book_id),
+          price_category_id: Number(form.price_category_id), sales_book_id: Number(form.sales_book_id), table_service_id: Number(form.table_service_id) || null,
           ...Object.fromEntries(ACCOUNT_FIELDS.map(([key]) => [key, Number(form[key]) || null])),
           max_discount_percent: Number(form.max_discount_percent), invoice_print_mode: Number(form.invoice_print_mode),
           sort_order: Number(form.sort_order) || 0, status: form.active ? 1 : 2,
@@ -368,6 +371,17 @@ export default function RestaurantLocations() {
                 <div className="space-y-1">
                   <Label>طباعة الفاتورة بعد الدفع</Label>
                   <OptionSelect value={form.invoice_print_mode} disabled={readOnly} onChange={(value) => set({ invoice_print_mode: value })} options={PRINT_MODES.map((mode) => ({ id: Number(mode.id), name: mode.name }))} placeholder="اختر" />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label>خدمة الطاولات</Label>
+                  <Select value={form.table_service_id || "none"} disabled={readOnly} onValueChange={(value) => set({ table_service_id: value === "none" ? "" : value })}>
+                    <SelectTrigger><SelectValue placeholder="بدون خدمة" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون خدمة</SelectItem>
+                      {options.services.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} — ` : ""}{option.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">تُضاف تلقائياً عند فتح أي طاولة في هذا الموقع بسعرها في فئة السعر، وتُرحَّل على "حساب المبيعات" المعرّف في الخدمة.</p>
                 </div>
               </div>
             </FormSection>

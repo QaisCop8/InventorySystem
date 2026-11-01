@@ -19,6 +19,8 @@ export type OrderItem = {
   id: number; product_id: number; product_code: string; product_name: string; unit_id: number | null; unit_name: string | null
   price: number; quantity: number; paid_quantity: number; remaining_quantity: number; discount: number; note: string | null; created_at: string
   addons?: Addon[]
+  // سطر خدمة الطاولات المضاف تلقائياً عند فتح الطاولة (حذفه بصلاحية "حذف خدمة الطاولة")
+  is_table_service?: boolean
 }
 export type Addon = { group: string; value: string }
 export type AddonGroup = { name: string; values: string[] }

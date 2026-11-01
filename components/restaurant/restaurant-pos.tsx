@@ -720,6 +720,14 @@ export default function RestaurantPos() {
     if (data) setEditing(null)
   }
 
+  // خدمة الطاولات: صلاحية مستقلة عن حذف الأصناف (أو موافقة برمز تفعيل)
+  const removeService = async (item: OrderItem) => {
+    if (!order) return
+    if (!(await ensurePermission("removeTableService", order.location_id))) return
+    if (!(await confirmYesNo(`حذف ${item.product_name} من الطاولة؟`))) return
+    await act("remove_item", { order_id: order.id, item_id: item.id }, "تم حذف خدمة الطاولة")
+  }
+
   const saveValueDialog = async (raw: string) => {
     if (!order || !valueDialog) return
     const data = valueDialog === "discount"
@@ -880,7 +888,7 @@ export default function RestaurantPos() {
         onBack={() => void backToFloor()} onAddProduct={onAddProduct}
         onPendingQty={(key, delta) => setPending((rows) => rows.flatMap((row) => row.key !== key ? [row] : row.quantity + delta > 0 ? [{ ...row, quantity: round4(row.quantity + delta) }] : []))}
         onPendingRemove={(key) => setPending((rows) => rows.filter((row) => row.key !== key))}
-        onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => gated("editItems", () => setEditing({ kind: "item", item }), order.location_id)()}
+        onEditPending={(key) => setEditing({ kind: "pending", key })} onEditItem={(item) => gated("editItems", () => setEditing({ kind: "item", item }), order.location_id)()} onRemoveService={(item) => void removeService(item)}
         onPendingAddons={(key) => setAddonsTarget({ kind: "pending", key })} onItemAddons={(item) => gated("editItems", () => setAddonsTarget({ kind: "item", item }), order.location_id)()}
         onSend={() => void sendPending()} onPay={gated("pay", () => {
           // ولا دفع قبل اكتمال إضافات الأصناف غير المدفوعة

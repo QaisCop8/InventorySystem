@@ -92,6 +92,7 @@ export const RESTAURANT_PERMISSIONS = {
   addItems: "إضافة أصناف للطاولة - مطاعم",
   editItems: "تعديل أصناف الطاولة - مطاعم",
   deleteItems: "حذف أصناف من الطاولة - مطاعم",
+  removeTableService: "حذف خدمة الطاولة - مطاعم",
   discount: "إدخال خصم - مطاعم",
   transfer: "نقل طاولة - مطاعم",
   merge: "دمج الطاولات - مطاعم",

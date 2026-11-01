@@ -39,7 +39,7 @@ type Props = {
   actions: OrderAction[]
   onBack: () => void; onAddProduct: (product: Product) => void
   onPendingQty: (key: string, delta: number) => void; onPendingRemove: (key: string) => void
-  onEditPending: (key: string) => void; onEditItem: (item: OrderItem) => void
+  onEditPending: (key: string) => void; onEditItem: (item: OrderItem) => void; onRemoveService: (item: OrderItem) => void
   onPendingAddons: (key: string) => void; onItemAddons: (item: OrderItem) => void
   onSend: () => void; onPay: () => void; onDiscount: () => void; onGuests: (delta: number) => void
   onUnmerge: (tableId: number, name: string) => void; onRenameTakeaway: () => void
@@ -202,13 +202,13 @@ export function RestaurantOrder(p: Props) {
                 {order.items.map((item) => {
                   const paid = item.remaining_quantity <= 0
                   const product = p.productById.get(item.product_id)
-                  const canEdit = !paid && (can("editItems") || can("deleteItems"))
+                  const canEdit = !paid && !item.is_table_service && (can("editItems") || can("deleteItems"))
                   return (
                     <div key={item.id} className={`rounded-xl border bg-card p-2 ${paid ? "opacity-55" : ""}`}>
                       <div className="flex items-start gap-2">
                         <span className="min-w-[2.6rem] rounded-lg bg-slate-100 px-1.5 py-1 text-center text-sm font-black dark:bg-slate-800">{qtyText(item.quantity)}</span>
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold leading-tight">{item.product_name}{item.unit_name ? <span className="text-xs font-normal text-muted-foreground"> ({item.unit_name})</span> : null}</div>
+                          <div className="font-bold leading-tight">{item.product_name}{item.unit_name ? <span className="text-xs font-normal text-muted-foreground"> ({item.unit_name})</span> : null}{item.is_table_service && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">خدمة الطاولة</span>}</div>
                           <AddonChips addons={item.addons} />
                           {item.note && <div className="mt-0.5 text-xs text-orange-700">{item.note}</div>}
                           <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
@@ -218,6 +218,11 @@ export function RestaurantOrder(p: Props) {
                         </div>
                         <span className="text-sm font-extrabold">{money(item.price * item.quantity * (1 - item.discount / 100))}</span>
                       </div>
+                      {!paid && item.is_table_service && (
+                        <div className="mt-1.5 flex gap-1.5">
+                          <Button size="sm" variant="outline" className="h-8 flex-1 text-red-600 hover:text-red-700" disabled={p.busy} onClick={() => p.onRemoveService(item)}><X className="ml-1 h-3.5 w-3.5" />حذف الخدمة</Button>
+                        </div>
+                      )}
                       {canEdit && (
                         <div className="mt-1.5 flex gap-1.5">
                           {can("editItems") && (product?.addonGroups.length || item.addons?.length) ? <Button size="sm" variant="outline" className="h-8 flex-1" disabled={p.busy} onClick={() => p.onItemAddons(item)}><Sparkles className="ml-1 h-3.5 w-3.5" />إضافات</Button> : null}

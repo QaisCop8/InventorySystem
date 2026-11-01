@@ -15,6 +15,7 @@ import {
   ORDER_STATUS,
   releaseOrderTables,
   remainingQuantity,
+  tableServiceLine,
   tableWithState,
   touchOrder,
 } from "@/lib/restaurant"
@@ -52,7 +53,8 @@ const ACTION_PERMISSIONS: Record<string, RestaurantPermission[]> = {
   update_order: ["openTable"],
   add_items: ["addItems"],
   update_item: ["editItems"],
-  remove_item: ["deleteItems"],
+  // حذف صنف أو خدمة الطاولات: الصلاحية تُفحص داخل handleRemoveItem حسب نوع السطر
+  remove_item: [],
   transfer: ["transfer"],
   merge: ["merge"],
   unmerge: ["split"],
@@ -121,6 +123,16 @@ async function handleOpen(ctx: Ctx) {
   const guests = Math.min(999, Math.max(1, Math.trunc(num(ctx.data.guests)) || 1))
   const id = await createOrder(table, ctx, guests, String(ctx.data.note || "").trim().slice(0, 500) || null)
   await logRestaurant(id, "open", { table_id: Number(table.id), guests }, ctx.userId)
+  // خدمة الطاولات المعرّفة على الموقع تُضاف تلقائياً (سطر واحد، لا يُطبع للمطبخ) — حذفها بصلاحية "حذف خدمة الطاولة"
+  const location = (await sql`SELECT * FROM restaurant_locations_tbl WHERE id = ${Number(table.location_id)}`)[0]
+  const service = await tableServiceLine(location)
+  if (service) {
+    await sql`
+      INSERT INTO restaurant_order_items_tbl (order_id, product_id, product_code, product_name, unit_id, unit_name, price, quantity, is_table_service, added_by)
+      VALUES (${id}, ${service.product_id}, ${service.product_code}, ${service.product_name.slice(0, 200)}, ${service.unit_id}, ${service.unit_name}, ${service.price}, 1, TRUE, ${ctx.userId})
+    `
+    await logRestaurant(id, "add_items", { count: 1, table_service: true, items: [{ product_id: service.product_id, name: service.product_name, quantity: 1, price: service.price }] }, ctx.userId)
+  }
   return { order_id: id }
 }
 
@@ -217,13 +229,18 @@ async function handleUpdateItem(ctx: Ctx, order: any) {
 
 async function handleRemoveItem(ctx: Ctx, order: any) {
   const item = await orderItem(Number(order.id), positiveId(ctx.data.item_id))
+  // سطر خدمة الطاولات له صلاحية مستقلة عن حذف الأصناف (أو موافقة لمرة برمز تفعيل)
+  const key: RestaurantPermission = item.is_table_service ? "removeTableService" : "deleteItems"
+  if (!ctx.permissions[key] && !(await hasPermissionApproval(ctx.userId, "restaurant", key, ctx.request.headers.get(APPROVAL_HEADER)))) {
+    throw permissionFail(key, item.is_table_service ? "لا توجد لديك صلاحية حذف خدمة الطاولة - مطاعم" : "لا توجد لديك صلاحية حذف أصناف من الطاولة - مطاعم")
+  }
   if (qty(item.paid_quantity) > 0) {
     if (remainingQuantity(item) <= 0) throw fail("الصنف مدفوع بالكامل")
     await sql`UPDATE restaurant_order_items_tbl SET quantity = paid_quantity, updated_at = NOW() WHERE id = ${Number(item.id)}`
   } else {
     await sql`DELETE FROM restaurant_order_items_tbl WHERE id = ${Number(item.id)}`
   }
-  await logRestaurant(Number(order.id), "remove_item", { item_id: Number(item.id), product_id: Number(item.product_id), product_name: item.product_name, price: num(item.price), quantity: remainingQuantity(item) }, ctx.userId)
+  await logRestaurant(Number(order.id), "remove_item", { item_id: Number(item.id), product_id: Number(item.product_id), product_name: item.product_name, price: num(item.price), quantity: remainingQuantity(item), ...(item.is_table_service ? { table_service: true } : {}) }, ctx.userId)
 }
 
 async function activeTables(orderId: number) {
