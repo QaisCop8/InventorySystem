@@ -246,7 +246,10 @@ export default function PosCashier(){
   }
  },[baseKey,choosePoint,user?.id])
  const refreshCampaignUsage=useCallback(async()=>{if(!pointId||!navigator.onLine)return;try{const response=await fetch(`/api/pos/campaign-usage?point_id=${pointId}`,{cache:"no-store"}),data=await response.json();if(response.ok)setCatalog(current=>({...current,campaignUsage:data.campaignUsage||{}}))}catch{}},[pointId])
- const loadCatalogData=useCallback(async()=>{if(!pointId)return;setLoading(true);const key=`${baseKey}:point:${pointId}`,cached=await loadPosCatalog<Catalog>(key).catch(()=>null);if(cached?.catalog){setCatalog(cached.catalog);setPosCampaigns(cached.catalog.campaigns||[])}if(!navigator.onLine){if(!cached)setMessage({type:"error",text:"افتح نقطة البيع مرة أثناء الاتصال لتنزيل أصناف المخزن الرئيسي"});setLoading(false);return}try{const r=await fetch(`/api/pos/catalog?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);const next={...normalize(d),campaigns:d.campaigns||[],campaignUsage:d.campaignUsage||{}};setCatalog(next);setPosCampaigns(next.campaigns||[]);await savePosCatalog(key,next);localStorage.setItem(`${baseKey}:last-point`,String(pointId));setMessage(null)}catch(e){if(!cached)setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل الكاشير"})}finally{setLoading(false)}},[baseKey,pointId])
+ const loadCatalogData=useCallback(async()=>{if(!pointId)return;setLoading(true);const key=`${baseKey}:point:${pointId}`,cached=await loadPosCatalog<Catalog>(key).catch(()=>null);if(cached?.catalog){setCatalog(cached.catalog);setPosCampaigns(cached.catalog.campaigns||[])}if(!navigator.onLine){if(!cached)setMessage({type:"error",text:"افتح نقطة البيع مرة أثناء الاتصال لتنزيل أصناف المخزن الرئيسي"});setLoading(false);return}try{const r=await fetch(`/api/pos/catalog?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);const next={...normalize(d),campaigns:d.campaigns||[],campaignUsage:d.campaignUsage||{}};setCatalog(next);setPosCampaigns(next.campaigns||[]);await savePosCatalog(key,next);localStorage.setItem(`${baseKey}:last-point`,String(pointId));setMessage(null)}catch(e){
+  // مع وجود نسخة محفوظة كان الفشل يُخفى فتعمل الشاشة ببيانات قديمة (أصناف/عملاء قبل آخر تعديل) دون علم المستخدم
+  setMessage({type:"error",text:cached?`تعذر تحديث بيانات نقطة البيع — تُعرض آخر نسخة محفوظة: ${e instanceof Error?e.message:"خطأ غير معروف"}`:(e instanceof Error?e.message:"تعذر تحميل الكاشير")})
+ }finally{setLoading(false)}},[baseKey,pointId])
  const loadSession=useCallback(async()=>{if(!pointId||!navigator.onLine)return;try{const r=await fetch(`/api/pos/sessions?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(r.ok){setCatalog(c=>({...c,session:d.session||null}));setPendingHandovers(d.pending||[]);setActivePointShift(d.active_shift||null);return d}}catch{}},[pointId])
  const syncPending=useCallback(async()=>{if(!navigator.onLine||syncingRef.current)return;syncingRef.current=true;setSyncing(true);try{for(const sale of await listPosSales(baseKey)){try{const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(sale.payload)}),d=await r.json();if(!r.ok){await markPosSaleFailed(sale,errorText(d,"فشلت المزامنة"));continue}await removePosSale(sale.id)}catch(e){await markPosSaleFailed(sale,e instanceof Error?e.message:"انقطع الاتصال");break}}await updateQueue();await loadSession()}finally{syncingRef.current=false;setSyncing(false)}},[baseKey,loadSession,updateQueue])
  // مزامنة تلقائية: كل 30 ثانية أثناء الاتصال تُرفع الفواتير المحفوظة دون اتصال (بالإضافة لعودة الاتصال وفتح الكاشير) — بلا ضغط زر
@@ -321,7 +324,20 @@ export default function PosCashier(){
    if(requestId===pricingRequestRef.current){setPendingCustomer(null);setCustomerPriceError(reason instanceof Error?reason.message:"تعذر تحميل أسعار العميل")}
   }finally{if(requestId===pricingRequestRef.current)setPricingBusy(false)}
  }
- const selectCustomer=(id:number|null)=>{
+ // عميل من دليل الحسابات غير موجود في كتالوج النقطة (كتالوج محفوظ قبل تعريفه/فشل تحديثه): يُضاف للقائمة ثم يُختار
+ const addCustomerRow=(row:{id:number;code?:string;name:string}):Customer=>{
+  const existing=catalog.customers.find(customer=>customer.id===row.id)
+  if(existing)return existing
+  const customer:Customer={id:row.id,name:row.name,code:row.code||"",accountId:row.id}
+  setCatalog(current=>current.customers.some(item=>item.id===row.id)?current:{...current,customers:[...current.customers,customer]})
+  return customer
+ }
+ const searchCustomerAccounts=async():Promise<PosParty[]>=>{
+  const response=await fetch("/api/accounts",{cache:"no-store"});if(!response.ok)return[]
+  const rows=await response.json();const list=Array.isArray(rows)?rows:Array.isArray(rows?.data)?rows.data:[]
+  return list.filter((row:any)=>[2,3,5].includes(Number(row.type))&&Number(row.status??1)!==3).map((row:any)=>({id:Number(row.id),code:String(row.code||""),name:String(row.name||"")}))
+ }
+ const selectCustomer=(id:number|null,known?:Customer)=>{
   if(pricingBusy||saving||id===customerId)return
   if(id===null){
    try{
@@ -331,7 +347,7 @@ export default function PosCashier(){
    }catch(error){setCustomerPriceError(error instanceof Error?error.message:"تعذر إعادة تسعير الأصناف حسب نقطة البيع")}
    return
   }
-  const customer=catalog.customers.find(row=>row.id===id)
+  const customer=known||catalog.customers.find(row=>row.id===id)
   if(!customer)return
   const priceClass=Number(customer.pricecategory)||Number(point?.price_category_id)
   if(priceClass!==Number(point?.price_category_id)){
@@ -611,8 +627,8 @@ export default function PosCashier(){
    <button type="button" className="pos-mobile-pay" onClick={openCheckout} disabled={!cart.length||saving}><CreditCard size={18}/><span><bdi>{total.toFixed(2)}</bdi> <small>{point?.currency_code}</small></span></button>
   </nav>
 
- {partyPicker&&<PosPartyPicker title={partyPicker==="customer"?"بحث الحساب":"بحث المندوب"} rows={partyPicker==="customer"?catalog.customers:catalog.salesmen||[]} onClose={()=>setPartyPicker(null)} onSelect={id=>{if(partyPicker==="customer")selectCustomer(id);else setSalesmanId(id);setPartyPicker(null)}}/>}
- <PosPaymentDetailsDialog open={checkoutOpen} onOpenChange={open=>{setCheckoutOpen(open);if(!open)pendingActionRef.current=null}} mode={mode} total={total} currencyCode={point?.currency_code||""} pointCurrencyId={Number(point?.currency_id||0)} currencies={catalog.currencies} customers={catalog.customers} customerId={customerId} onCustomerChange={selectCustomer} banks={catalog.banks} branches={catalog.bankBranches} cardTypes={catalog.cardTypes.filter(card=>Number(card.currency_id)===Number(point?.currency_id))} payments={payments} cashAmounts={cashCurrencyAmounts} onCashChange={updateCashCurrency} onPaymentAmount={(method,value,currencyId)=>{updatePayment(method,value,undefined,currencyId);setCheckoutError("")}} onPaymentField={updatePaymentField} pinpadBatch={session?.id??""} onConfirm={()=>void finish()} onSavedClose={()=>{if(!focusBarcodeAfterSaveRef.current)return false;focusBarcodeAfterSaveRef.current=false;searchRef.current?.focus();return true}} busy={saving} error={checkoutError}/>
+ {partyPicker&&<PosPartyPicker title={partyPicker==="customer"?"بحث الحساب":"بحث المندوب"} rows={partyPicker==="customer"?catalog.customers:catalog.salesmen||[]} onClose={()=>setPartyPicker(null)} remoteRows={partyPicker==="customer"?searchCustomerAccounts:undefined} onSelect={(id,party)=>{if(partyPicker==="customer")selectCustomer(id,catalog.customers.find(row=>row.id===id)||(party?addCustomerRow(party):undefined));else setSalesmanId(id);setPartyPicker(null)}}/>}
+ <PosPaymentDetailsDialog open={checkoutOpen} onOpenChange={open=>{setCheckoutOpen(open);if(!open)pendingActionRef.current=null}} mode={mode} total={total} currencyCode={point?.currency_code||""} pointCurrencyId={Number(point?.currency_id||0)} currencies={catalog.currencies} customers={catalog.customers} customerId={customerId} onCustomerChange={id=>selectCustomer(id)} onCustomerAccount={account=>{const customer=addCustomerRow(account);selectCustomer(customer.id,customer)}} banks={catalog.banks} branches={catalog.bankBranches} cardTypes={catalog.cardTypes.filter(card=>Number(card.currency_id)===Number(point?.currency_id))} payments={payments} cashAmounts={cashCurrencyAmounts} onCashChange={updateCashCurrency} onPaymentAmount={(method,value,currencyId)=>{updatePayment(method,value,undefined,currencyId);setCheckoutError("")}} onPaymentField={updatePaymentField} pinpadBatch={session?.id??""} onConfirm={()=>void finish()} onSavedClose={()=>{if(!focusBarcodeAfterSaveRef.current)return false;focusBarcodeAfterSaveRef.current=false;searchRef.current?.focus();return true}} busy={saving} error={checkoutError}/>
  <PosStartSessionDialog open={custodyOpen&&!session&&!!point&&!noPoints} onOpenChange={setCustodyOpen} userName={user?.fullName||user?.username||""} currency={point?.currency_name||""} amount={custodyAmount} onAmountChange={setCustodyAmount} currencies={catalog.currencies} amounts={custodyAmounts} onCurrencyAmountChange={(currencyId,amount)=>setCustodyAmounts(current=>({...current,[currencyId]:amount}))} busy={saving} online={online} error={custodyError} pending={pendingHandovers} activeShift={activePointShift} onConfirm={(sourceId,shiftGuid)=>void custody(sourceId,shiftGuid)}/>
  {tobacco&&pointId&&<PosTobaccoDialog mode={tobacco.mode} pointId={pointId} onCancel={()=>{const cancel=tobacco.cancel;setTobacco(null);cancel?.()}} onDone={lines=>{if(tobacco.mode==="handover")tobaccoHandoverRef.current=lines;const resume=tobacco.resume;setTobacco(null);if(tobacco.mode==="open")setMessage({type:"success",text:"تم استلام عهدة الدخان"});else{setMessage({type:"success",text:"تم تسليم عهدة الدخان"});resume?.()}}}/>}
  <PosHandoverDialog open={custodyOpen&&!!session} onOpenChange={setCustodyOpen} session={session} userName={user?.fullName||user?.username||""} currencyCode={point?.currency_code||""} currencies={catalog.currencies} action={custodyAction} onActionChange={action=>void changeCustodyAction(action)} amount={custodyAmount} onAmountChange={setCustodyAmount} currencyId={custodyCurrencyId||Number(point?.currency_id||catalog.currencies[0]?.currency_id)} onCurrencyIdChange={setCustodyCurrencyId} amounts={custodyAmounts} onCurrencyAmountChange={(id,amount)=>{custodyAmountsEditedRef.current=true;setCustodyAmounts(current=>({...current,[id]:amount}))}} movementAmounts={movementAmounts} onMovementAmountChange={(id,amount)=>setMovementAmounts(current=>({...current,[id]:amount}))} note={custodyNote} onNoteChange={setCustodyNote} onConfirm={()=>void custody()} busy={saving} error={custodyError}/>

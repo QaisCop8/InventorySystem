@@ -977,7 +977,12 @@ export default function RestaurantPos() {
       {catalog && (
         <PosPaymentDetailsDialog open={payLines !== null} onOpenChange={(value) => { if (!value) setPayLines(null) }} mode="sale" total={payTotal}
           currencyCode={currency} pointCurrencyId={pointCurrencyId} currencies={catalog.currencies} customers={catalog.customers}
-          customerId={payCustomerId} onCustomerChange={setPayCustomerId} banks={catalog.banks} branches={catalog.bankBranches} cardTypes={catalog.cardTypes}
+          customerId={payCustomerId} onCustomerChange={setPayCustomerId}
+          onCustomerAccount={(account) => {
+            // عميل من دليل الحسابات غير موجود في قائمة الموقع المحفوظة: يُضاف للقائمة ثم يُختار
+            setCatalog((current) => current && !current.customers.some((row) => row.id === account.id) ? { ...current, customers: [...current.customers, { id: account.id, name: account.name, code: account.code || "", accountId: account.id }] } : current)
+            setPayCustomerId(account.id)
+          }} banks={catalog.banks} branches={catalog.bankBranches} cardTypes={catalog.cardTypes}
           payments={payments} cashAmounts={cashAmounts} onCashChange={updateCash}
           onPaymentAmount={(method, value, currencyId) => { updatePayment(method, value, currencyId); setPayError("") }}
           onPaymentField={(method, field, value) => updatePaymentField(method, field, value)}
