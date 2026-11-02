@@ -11,8 +11,9 @@ import "./voucher-list-theme.css"
 export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon = FileText, category = "الحركات", actions, addDisabled = false }: {
   title: ReactNode
   subtitle?: ReactNode
-  addLabel: ReactNode
-  onNew: () => void
+  /** زر الإضافة (F5) — يُحذف لشاشة بلا إضافة (مثل تخطيط المشتريات) وتكفي `actions` */
+  addLabel?: ReactNode
+  onNew?: () => void
   icon?: LucideIcon
   /** النص الصغير فوق العنوان (الحركات / الملفات…) */
   category?: ReactNode
@@ -36,7 +37,7 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
         </div>
         <div className="flex flex-wrap items-center gap-2">
         {actions}
-        <button
+        {onNew && <button
           type="button"
           data-hotkey-new
           onClick={onNew}
@@ -46,7 +47,7 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
           <Plus className="h-4 w-4" />
           {addLabel}
           <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700" dir="ltr">F5</span>
-        </button>
+        </button>}
         </div>
       </div>
     </header>

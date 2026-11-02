@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CalendarClock, Package, RefreshCw, Search, ShoppingCart, TrendingUp } from "lucide-react"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -214,15 +215,14 @@ export function PurchasePlanning() {
 
   return (
     <div className="flex flex-col gap-5 p-1 lg:h-full lg:min-h-0 lg:overflow-hidden" dir="rtl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">تخطيط المشتريات الذكي</h1>
-          <p className="mt-1 text-sm text-muted-foreground">اقتراح كميات الشراء حسب حركة البيع والمخزون والطلبيات المفتوحة.</p>
-        </div>
-        <Button variant="outline" onClick={() => void load(true)} disabled={loading || refreshing}>
-          <RefreshCw className={`ml-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> تحديث البيانات
-        </Button>
-      </div>
+      {/* ترويسة موحّدة مع شاشات النظام (VoucherListHero) — بلا زر إضافة */}
+      <VoucherListHero
+        title="تخطيط المشتريات الذكي"
+        subtitle="اقتراح كميات الشراء حسب حركة البيع والمخزون والطلبيات المفتوحة."
+        category="ادارة الاصناف"
+        icon={TrendingUp}
+        actions={<button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />تحديث البيانات</button>}
+      />
 
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {message && <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{message}</div>}

@@ -34,6 +34,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import Util from "../common/Util"
 interface OrdersProps {
   isPurchase?: boolean;
@@ -556,29 +557,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   return (
     <div className="w-full max-w-full space-y-6" dir="rtl">
       {state.error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
-      {/* Header Section */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            {isPurchase ? "طلبيات المشتريات" : "طلبيات المبيعات"}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {isPurchase
-              ? "إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية"
-              : "إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية"}
-          </p>
-        </div>
-        <div className="flex gap-3">
-
-          <Button data-hotkey-new
-            className="flex items-center gap-2"
-            onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
-          >
-            <Plus className="ml-2 h-4 w-4" />
-            طلبية جديدة <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
-          </Button>
-        </div>
-      </div>
+      {/* Header Section — نفس ترويسة شاشات الحركات (VoucherListHero) */}
+      <VoucherListHero
+        title={isPurchase ? "طلبيات المشتريات" : "طلبيات المبيعات"}
+        subtitle={isPurchase ? "إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية" : "إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية"}
+        category="الطلبيات"
+        icon={ShoppingCart}
+        addLabel="طلبية جديدة"
+        onNew={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
+      />
 
       {/* Analytics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

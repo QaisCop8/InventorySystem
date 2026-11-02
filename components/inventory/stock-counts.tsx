@@ -7,6 +7,7 @@ import {
   Hash, Layers, Lock, Plus, RefreshCw, Ruler, Save, ScanLine, Search, Send, Trash2, Upload, Users, Warehouse, XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -128,26 +129,16 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
-        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><ClipboardCheck className="h-6 w-6" /></span>
-            <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">جرد المخازن</h1>
-              <p className="text-xs text-emerald-50/90 sm:text-sm">عدّ فعلي لكل فرع ومستودع بتاريخ قطع — بالدفعات والمقاسات والأرقام التسلسلية — ثم ترحيل الفروقات بسندات تسوية</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-              <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث
-            </Button>
-            <Button data-hotkey-new onClick={() => setCreating(true)} className="h-10 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50">
-              <Plus className="ml-2 h-4 w-4" />جرد جديد <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* ترويسة موحّدة مع شاشات النظام (VoucherListHero): العنوان أبيض صراحةً — كان يرث لون العناوين العام فيظهر داكناً */}
+      <VoucherListHero
+        title="جرد المخازن"
+        subtitle="عدّ فعلي لكل فرع ومستودع بتاريخ قطع — بالدفعات والمقاسات والأرقام التسلسلية — ثم ترحيل الفروقات بسندات تسوية"
+        category="ادارة الاصناف"
+        icon={ClipboardCheck}
+        addLabel="جرد جديد"
+        onNew={() => setCreating(true)}
+        actions={<button type="button" onClick={() => void load()} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>}
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[
