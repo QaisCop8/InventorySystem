@@ -845,6 +845,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
           }
         />
 
+        {/* على الجوال: الفلاتر + النتائج + الوحدات صفحة واحدة قابلة للتمرير (لا تتسع الشاشة لها معاً)؛ على الشاشات الكبيرة كما هي */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:overflow-hidden">
         {/* الفلاتر */}
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
@@ -915,8 +917,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         )}
 
         {/* النتائج + لوحة الوحدات/المتغيرات */}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 lg:flex-row">
-          <div className="flex min-h-[200px] min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex shrink-0 flex-col gap-3 p-3 lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
+          <div className="flex h-[min(360px,55dvh)] min-w-0 flex-col gap-1.5 lg:h-auto lg:min-h-[200px] lg:flex-1">
             <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
               <span>نتائج البحث</span>
               <span>
@@ -937,7 +939,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             />
           </div>
 
-          <div className="flex min-h-[160px] min-w-0 flex-col gap-1.5 lg:w-[300px] lg:shrink-0">
+          <div className="flex h-[240px] min-w-0 flex-col gap-1.5 lg:h-auto lg:min-h-[160px] lg:w-[300px] lg:shrink-0">
             <div className="flex items-center justify-between gap-2 px-1 text-[11px] font-bold text-slate-500">
               <span>{showingAttributes ? "المتغيرات والخصائص" : "وحدات الصنف"}</span>
               <span className="truncate text-slate-700">{selectedProduct?.product_name || ""}</span>
@@ -971,6 +973,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               />
             )}
           </div>
+        </div>
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-2.5">

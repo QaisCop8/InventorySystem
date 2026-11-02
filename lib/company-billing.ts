@@ -69,8 +69,8 @@ export function ensureBillingTables() {
       // مواقع المطاعم: سعر سنوي لكل موقع (افتراضياً 50) + عددها في كل دفعة
       await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS per_restaurant_location NUMERIC(12,2) NOT NULL DEFAULT 50`
       await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS number_of_restaurant_locations INTEGER`
-      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_phone VARCHAR(40) NOT NULL DEFAULT '+970 92 373 001'`
-      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_whatsapp VARCHAR(40) NOT NULL DEFAULT '+970 569 555 576'`
+      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_phone VARCHAR(40) NOT NULL DEFAULT '09 2353937'`
+      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_whatsapp VARCHAR(40) NOT NULL DEFAULT '+970594536322'`
       // "ارسال بطاقة للمبيعات": طلب تواصل بدل الدفع الإلكتروني
       await managementSql`
         CREATE TABLE IF NOT EXISTS sales_leads (
