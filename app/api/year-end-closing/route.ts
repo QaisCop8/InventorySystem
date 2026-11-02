@@ -19,7 +19,7 @@ const failure = (error: unknown, fallback: string, tag: string) => {
 
 export async function GET(request: NextRequest) {
   try {
-    const authorization = await authorizeTransaction(request, "year_end_closing", "view")
+    const authorization = await authorizeTransaction(request, "year_end_closing", "access")
     if (!authorization.ok) return authorization.response
     await ensureYearClosingSchema()
     const params = request.nextUrl.searchParams

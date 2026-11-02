@@ -16,7 +16,7 @@ const ids = (value: unknown) => [...new Set((Array.isArray(value) ? value : []).
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authorizeTransaction(request, "account_access", "view")
+    const auth = await authorizeTransaction(request, "account_access", "access")
     if (!auth.ok) return auth.response
     await ensureAccountAccessTable()
     const params = request.nextUrl.searchParams

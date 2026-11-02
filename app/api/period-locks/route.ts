@@ -9,7 +9,7 @@ const isDate = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""
 
 export async function GET(request: NextRequest) {
   try {
-    const authorization = await authorizeTransaction(request, "period_lock", "view")
+    const authorization = await authorizeTransaction(request, "period_lock", "access")
     if (!authorization.ok) return authorization.response
     await ensureWorkingPeriodGuard()
     const [rows, branches] = await Promise.all([
@@ -59,10 +59,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const authorization = await authorizeTransaction(request, "period_lock", "update")
+    const data = await request.json().catch(() => ({}))
+    // فتح الفترة ⇐ "إلغاء إقفال فترة وتعديلها"؛ إعادة الإقفال أو تعديل تواريخ الفترة ⇐ "إقفال فترة"
+    const unlocking = data.is_active === false && Object.keys(data).every((key) => key === "id" || key === "is_active")
+    const authorization = await authorizeTransaction(request, "period_lock", unlocking ? "update" : "create")
     if (!authorization.ok) return authorization.response
     await ensureWorkingPeriodGuard()
-    const data = await request.json().catch(() => ({}))
     const id = Number(data.id)
     if (!id) return NextResponse.json({ error: "معرّف الفترة مطلوب" }, { status: 400 })
     if (data.is_active !== undefined && Object.keys(data).every((key) => key === "id" || key === "is_active")) {
@@ -86,7 +88,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authorization = await authorizeTransaction(request, "period_lock", "delete")
+    const authorization = await authorizeTransaction(request, "period_lock", "update")
     if (!authorization.ok) return authorization.response
     const id = Number(request.nextUrl.searchParams.get("id"))
     const row = (await sql`SELECT is_active FROM period_locks_tbl WHERE id = ${id}`)[0] as any

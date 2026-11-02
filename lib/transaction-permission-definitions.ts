@@ -170,6 +170,11 @@ export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | nul
  */
 export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, TransactionAction[]>> = {
   bulk_items: ["access", "update"],
+  // أدوات: إقفال فترة/إلغاؤه، تنفيذ إقفال السنة/التراجع عنه. ترحيل السندات يفحص "ترحيل" كل سند على حدة فيكفيه الدخول.
+  period_lock: ["access", "create", "update"],
+  year_end_closing: ["access", "create", "delete"],
+  voucher_posting_tools: ["access"],
+  account_access: ["access", "update"],
   manager_attachment: ["access", "create"],
   manager_inbox: ["access", "view", "delete"],
   hr_jobs: ["access", "view", "create", "update", "delete"],
@@ -190,6 +195,8 @@ export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, Trans
 /** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
 export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFamily, Partial<Record<TransactionAction, string>>>> = {
   bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
+  period_lock: { create: "إقفال فترة", update: "إلغاء إقفال فترة وتعديلها" },
+  year_end_closing: { create: "تنفيذ إقفال السنة المالية", delete: "التراجع عن إقفال السنة المالية" },
   manager_attachment: { create: "التواصل مع الإدارة" },
   manager_inbox: { view: "استعلام ومعالجة بريد رسائل الموظفين", delete: "حذف مرفقات بريد رسائل الموظفين" },
   hr_salary_periods: { create: "تنفيذ فتح راتب شهر" },
