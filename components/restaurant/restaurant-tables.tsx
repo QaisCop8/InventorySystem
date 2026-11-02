@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Circle, Edit, LayoutGrid, Loader2, Plus, RectangleHorizontal, RefreshCw, Search, Square, Trash2, Users } from "lucide-react"
+import { Circle, Edit, LayoutGrid, Loader2, RectangleHorizontal, RefreshCw, Search, Square, Trash2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,6 +13,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useFileAccess } from "@/components/auth/use-file-access"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+
+// زر ثانوي على الشريط الأخضر للترويسة
+const HERO_GHOST = "inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"
 
 type Location = { id: number; name: string; branch_id?: number; branch_name?: string }
 type TableRow = {
@@ -150,22 +154,20 @@ export default function RestaurantTables() {
 
   return (
     <div dir="rtl" className="flex h-full flex-col gap-4 p-3 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-amber-600 to-orange-500 p-4 text-white shadow">
-        <div className="flex items-center gap-3">
-          <LayoutGrid className="h-8 w-8" />
-          <div>
-            <h1 className="text-xl font-bold">طاولات المطعم</h1>
-            <p className="text-sm text-amber-50">تعريف الطاولات لكل موقع: الاسم/الرقم، عدد المقاعد والشكل</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="ml-1 h-4 w-4" />تحديث</Button>
-          {canCreate && <Button variant="secondary" size="sm" onClick={openBulk} disabled={!locations.length}><LayoutGrid className="ml-1 h-4 w-4" />إضافة مجموعة</Button>}
-          {canCreate && <Button size="sm" className="bg-white text-orange-700 hover:bg-orange-50" disabled={!locations.length}
-            onClick={() => openForm({ id: 0, location_id: defaultLocation, name: "", seats: "4", shape: "square", sort_order: "0", notes: "", active: true })}>
-            <Plus className="ml-1 h-4 w-4" />إضافة طاولة</Button>}
-        </div>
-      </div>
+      {/* ترويسة موحّدة مع شاشات النظام (VoucherListHero) */}
+      <VoucherListHero
+        title="طاولات المطعم"
+        subtitle="تعريف الطاولات لكل موقع: الاسم/الرقم، عدد المقاعد والشكل"
+        category="المطاعم"
+        icon={LayoutGrid}
+        addLabel="إضافة طاولة"
+        addDisabled={!locations.length}
+        onNew={canCreate ? () => openForm({ id: 0, location_id: defaultLocation, name: "", seats: "4", shape: "square", sort_order: "0", notes: "", active: true }) : undefined}
+        actions={<>
+          <button type="button" onClick={() => void load()} disabled={loading} className={HERO_GHOST}><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>
+          {canCreate && <button type="button" onClick={openBulk} disabled={!locations.length} className={HERO_GHOST}><LayoutGrid className="h-4 w-4" />إضافة مجموعة</button>}
+        </>}
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">

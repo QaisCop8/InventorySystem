@@ -16,7 +16,10 @@ import {
   type FileAction, type FileFamily,
 } from "@/lib/file-permission-definitions"
 import { REPORT_DEFINITIONS, reportPermissionNameForTitle, type ReportPermissionAction } from "@/lib/report-permission-definitions"
-import { POS_CASHIER_PERMISSION_CATEGORY, RESTAURANT_PERMISSION_CATEGORY } from "@/lib/transaction-permission-definitions"
+import {
+  POS_CASHIER_PERMISSION_CATEGORY, RESTAURANT_PERMISSION_CATEGORY, TRANSACTION_FAMILIES, TRANSACTION_PERMISSION_NAME_OVERRIDES,
+  type TransactionFamily,
+} from "@/lib/transaction-permission-definitions"
 
 // فئات تبويب "كاشير نقطة البيع والمطاعم" (كانت ضمن الشاشات والصلاحيات العامة)
 const RETAIL_CATEGORIES = new Set<string>([POS_CASHIER_PERMISSION_CATEGORY, RESTAURANT_PERMISSION_CATEGORY])
@@ -269,15 +272,23 @@ const GENERIC_CATEGORIES = new Set(["صلاحيات الحركات", "الحرك
 const SCREEN_ACTION_PREFIXES: [string, string][] = [
   ["ترحيل وإلغاء ترحيل", "ترحيل"], ["الدخول لشاشة", "الدخول"], ["استعلام ومعالجة", "استعلام ومعالجة"], ["حذف مرفقات", "حذف المرفقات"],
   ["إضافة مسودة", "إضافة مسودة"], ["تعديل مسودة", "تعديل مسودة"], ["استعلام مسودة", "استعلام مسودة"],
-  ["استعلام", "استعلام"], ["إدخال", "إدخال"], ["ادخال", "إدخال"], ["تعديل", "تعديل"], ["حذف", "حذف"], ["تنفيذ", "تنفيذ"], ["نسخ", "نسخ"], ["طباعة", "طباعة"],
+  ["اعتماد", "اعتماد"], ["استعلام", "استعلام"], ["إدخال", "إدخال"], ["ادخال", "إدخال"], ["تعديل", "تعديل"], ["حذف", "حذف"], ["تنفيذ", "تنفيذ"], ["نسخ", "نسخ"], ["طباعة", "طباعة"],
 ]
-const ACTION_ORDER = ["الدخول", "استعلام", "إدخال", "تعديل", "حذف", "ترحيل"]
+const ACTION_ORDER = ["الدخول", "استعلام", "إدخال", "تعديل", "حذف", "ترحيل", "اعتماد", "تنفيذ"]
+// أسماء مخصّصة (TRANSACTION_PERMISSION_NAME_OVERRIDES) لا تنتهي باسم شاشتها ("تنفيذ إغلاق الرواتب وقيد الراتب") ⇐ شاشتها صراحةً
+const OVERRIDE_SCREENS = new Map((Object.entries(TRANSACTION_PERMISSION_NAME_OVERRIDES) as [TransactionFamily, Record<string, string>][])
+  .flatMap(([family, names]) => Object.values(names).map((name) => [normalize(name), TRANSACTION_FAMILIES[family] as string] as const)))
 function splitPermission(name: string): { action: string; screen: string } {
   const text = name.replace(/\s+/g, " ").trim()
+  let split = { action: "", screen: text }
   for (const [prefix, label] of SCREEN_ACTION_PREFIXES) {
-    if (text.startsWith(prefix + " ")) return { action: label, screen: text.slice(prefix.length + 1).trim() }
+    if (text.startsWith(prefix + " ")) { split = { action: label, screen: text.slice(prefix.length + 1).trim() }; break }
   }
-  return { action: "", screen: text }
+  const overrideScreen = OVERRIDE_SCREENS.get(normalize(text))
+  if (overrideScreen && normalize(split.screen) !== normalize(overrideScreen)) {
+    return { action: split.action || text, screen: overrideScreen }
+  }
+  return split
 }
 // عنوان الشاشة ⇐ القسم الرئيسي في القائمة الجانبية
 const SCREEN_MODULES = (() => {

@@ -36,7 +36,26 @@ export const TRANSACTION_FAMILIES = {
   manager_attachment: "التواصل مع الإدارة",
   manager_inbox: "بريد رسائل الموظفين",
   bulk_items: "تعديل الأصناف",
+  // نظام ادارة الموظفين — الأسماء مطابقة لعناوين القائمة الجانبية (تُجمَّع بها في شاشة الصلاحيات). شاشة الموظفين نفسها
+  // صلاحيات ملفات (lib/file-permission-definitions.ts) وتقاريره صلاحيات تقارير.
+  hr_jobs: "الوظائف",
+  hr_salary_items: "بنود الراتب",
+  hr_tax_rules: "قوانين ضريبة الدخل",
+  hr_tax_exemptions: "الإعفاءات الضريبية",
+  hr_shifts: "الورديات وجدول المناوبات",
+  hr_official_holidays: "العطل الرسمية",
+  hr_attendance_devices: "إعداد أجهزة الحضور",
+  hr_employee_salary_items: "بنود رواتب الموظفين",
+  hr_salary_periods: "فتح راتب شهر",
+  hr_attendance_records: "حركات البصمة (الحضور والدوام)",
+  hr_attendance_processing: "معالجة حركات الدخول والخروج",
+  hr_attendance_editor: "تعديل سجلات الدوام",
+  hr_attendance_transactions: "حركات الدوام (إضافي وخصومات)",
+  hr_salary_journal: "إغلاق وتنفيذ قيد الراتب",
 } as const
+
+export const HR_TRANSACTION_FAMILIES = (Object.keys(TRANSACTION_FAMILIES) as (keyof typeof TRANSACTION_FAMILIES)[])
+  .filter((family) => family.startsWith("hr_"))
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
 
@@ -153,6 +172,19 @@ export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, Trans
   bulk_items: ["access", "update"],
   manager_attachment: ["access", "create"],
   manager_inbox: ["access", "view", "delete"],
+  hr_jobs: ["access", "view", "create", "update", "delete"],
+  hr_salary_items: ["access", "view", "create", "update", "delete"],
+  hr_tax_rules: ["access", "view", "create", "update", "delete"],
+  hr_tax_exemptions: ["access", "view", "create", "update", "delete"],
+  hr_shifts: ["access", "view", "create", "update", "delete"],
+  hr_official_holidays: ["access", "view", "create", "update", "delete"],
+  hr_attendance_devices: ["access", "view", "create", "update", "delete"],
+  hr_employee_salary_items: ["access", "view", "create", "update"],
+  hr_salary_periods: ["access", "view", "create"],
+  hr_attendance_records: ["access", "view", "create"],
+  hr_attendance_processing: ["access", "view", "create"],
+  hr_attendance_editor: ["access", "view", "update", "delete"],
+  hr_salary_journal: ["access", "view", "post"],
 }
 
 /** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
@@ -160,6 +192,12 @@ export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFa
   bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
   manager_attachment: { create: "التواصل مع الإدارة" },
   manager_inbox: { view: "استعلام ومعالجة بريد رسائل الموظفين", delete: "حذف مرفقات بريد رسائل الموظفين" },
+  hr_salary_periods: { create: "تنفيذ فتح راتب شهر" },
+  hr_attendance_records: { create: "إدخال وقراءة حركات البصمة (الحضور والدوام)" },
+  hr_attendance_processing: { create: "تنفيذ معالجة حركات الدخول والخروج" },
+  hr_attendance_editor: { view: "استعلام سجلات الدوام", update: "تعديل سجلات الدوام يدوياً", delete: "حذف سجلات الدوام" },
+  hr_attendance_transactions: { post: "اعتماد حركات الدوام (إضافي وخصومات)" },
+  hr_salary_journal: { post: "تنفيذ إغلاق الرواتب وقيد الراتب" },
 }
 
 export const transactionActionsFor = (family: TransactionFamily): TransactionAction[] =>
@@ -190,6 +228,9 @@ export const REMOVED_TRANSACTION_PERMISSION_NAMES: string[] = (Object.keys(TRANS
   .flatMap((family) => (Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[])
     .filter((action) => !transactionActionsFor(family).includes(action))
     .map((action) => defaultTransactionPermissionName(family, action)))
+
+/** صلاحيات قديمة من تأسيس الشركة لا يفحصها شيء وتكرّر صلاحية حركة ("الدخول لشاشة طلبيات المشتريات" ⇐ "الدخول لشاشة طلبية مشتريات") — تُحذف مع منحها */
+export const LEGACY_DUPLICATE_PERMISSION_NAMES: string[] = ["الدخول لشاشة طلبيات المشتريات"]
 
 export function legacyTransactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return action === "view" ? `عرض ${TRANSACTION_FAMILIES[family]}` : null
@@ -232,6 +273,20 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "manager-inbox": "manager_inbox",
   "bulk-items": "bulk_items",
   "salesman-commissions": "salesman_commission",
+  "employee-jobs": "hr_jobs",
+  "salary-items": "hr_salary_items",
+  "tax-rules": "hr_tax_rules",
+  "tax-exemptions": "hr_tax_exemptions",
+  shifts: "hr_shifts",
+  "official-holidays": "hr_official_holidays",
+  "attendance-devices": "hr_attendance_devices",
+  "employee-salary-items": "hr_employee_salary_items",
+  "salary-periods": "hr_salary_periods",
+  "attendance-records": "hr_attendance_records",
+  "attendance-processing": "hr_attendance_processing",
+  "attendance-editor": "hr_attendance_editor",
+  "attendance-transactions": "hr_attendance_transactions",
+  "salary-journal": "hr_salary_journal",
 }
 
 export function transactionFamilyForSection(section: string | null | undefined): TransactionFamily | null {

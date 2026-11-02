@@ -9,7 +9,7 @@ import {
 } from "@/lib/attendance-device-registry"
 import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUNTER_ACCOUNT, validateJournalAccountCurrencies } from "@/app/api/receipts/_lib"
 import { JournalDefaultsError, nextJournalVoucherCode, resolveUserDefaultJournalBook, type JournalBookContext } from "@/lib/journal-defaults"
-import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { authorizeAnyTransaction, authorizeTransaction, type TransactionAction, type TransactionFamily } from "@/lib/transaction-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 import { attendancePayrollSettings, attendancePayrollTotals } from "@/lib/attendance-payroll"
@@ -22,6 +22,41 @@ const definitions: Record<string, { table: string; fields: string[]; order: stri
   "tax-exemptions": { table: "tax_exemptions_tbl", fields: ["name", "other_name", "tax_law_id", "exemption_nature", "exemption_value_type", "annual_amount", "max_amount", "max_amount_type", "is_active"], order: "id" },
 }
 const ident = (value: string) => `"${value.replace(/"/g, '""')}"`
+
+// صلاحيات شاشات نظام ادارة الموظفين (hr_* بـlib/transaction-permission-definitions.ts): المورد ⇐ الشاشات التي تعمل عليه.
+// القراءة تبقى مفتوحة لموارد تستخدمها شاشات أخرى كقوائم اختيار (الوظائف، البنود، الفترات...) — وتُفحص لبيانات شاشة بعينها.
+type HrMethod = "GET" | "POST" | "PUT" | "DELETE"
+const HR_RESOURCE_PERMISSIONS: Record<string, { families: TransactionFamily[]; actions?: Partial<Record<HrMethod, TransactionAction>>; employeeForm?: boolean }> = {
+  jobs: { families: ["hr_jobs"] },
+  // تُضاف أيضاً من نافذة الموظف (بند راتب / إعفاء جديد) ⇐ تكفي صلاحية إضافة أو تعديل موظف
+  "salary-items": { families: ["hr_salary_items", "hr_employee_salary_items"], employeeForm: true },
+  "tax-exemptions": { families: ["hr_tax_exemptions"], employeeForm: true },
+  "tax-rules": { families: ["hr_tax_rules"] },
+  "tax-laws": { families: ["hr_tax_rules"] },
+  shifts: { families: ["hr_shifts"] },
+  "shift-assignments": { families: ["hr_shifts"] },
+  "shift-schedules": { families: ["hr_shifts"] },
+  "official-holidays": { families: ["hr_official_holidays"] },
+  "attendance-devices": { families: ["hr_attendance_devices"] },
+  "employee-items": { families: ["hr_employee_salary_items"] },
+  periods: { families: ["hr_salary_periods"], actions: { PUT: "create" } },
+  "salary-opening": { families: ["hr_salary_periods"], actions: { GET: "view" } },
+  payroll: { families: ["hr_salary_periods"] },
+  "salary-journal": { families: ["hr_salary_journal"], actions: { GET: "view", POST: "post" } },
+  "attendance-records": { families: ["hr_attendance_records"], actions: { GET: "view" } },
+}
+const HR_METHOD_ACTIONS: Partial<Record<HrMethod, TransactionAction>> = { POST: "create", PUT: "update", DELETE: "delete" }
+async function authorizeHrResource(request: NextRequest, resource: string, method: HrMethod): Promise<NextResponse | null> {
+  const permission = HR_RESOURCE_PERMISSIONS[resource]
+  const action = permission?.actions?.[method] ?? HR_METHOD_ACTIONS[method]
+  if (!permission || !action) return null
+  const result = await authorizeAnyTransaction(request, permission.families, action)
+  if (result.ok) return null
+  if (permission.employeeForm && method === "POST") {
+    for (const employeeAction of ["create", "update"] as const) if ((await authorizeFile(request, "employees", employeeAction)).ok) return null
+  }
+  return result.response
+}
 
 async function getSalaryOpeningRows(year: number, month: number, excludeExisting = true) {
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -147,6 +182,8 @@ export async function GET(request: NextRequest, { params }: { params: { resource
     ? await authorizeFileRead(request, ["employees"])
     : resource === "employee-number" ? await authorizeFile(request, "employees", "create") : null
   if (authorization && !authorization.ok) return authorization.response
+  const denied = await authorizeHrResource(request, resource, "GET")
+  if (denied) return denied
   await ensureHrSchema()
   try {
     if (definitions[resource]) {
@@ -297,6 +334,8 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
     const authorization = await authorizeFile(request, "employees", "create")
     if (!authorization.ok) return authorization.response
   }
+  const denied = await authorizeHrResource(request, resource, "POST")
+  if (denied) return denied
   await ensureHrSchema(); const body = await request.json()
   try {
     const leafAccountsError = await hrLeafAccountsError(resource, body)
@@ -559,6 +598,8 @@ export async function PUT(request: NextRequest, { params }: { params: { resource
     const authorization = await authorizeFile(request, "employees", Number(body.status) === 3 ? "delete" : "update")
     if (!authorization.ok) return authorization.response
   }
+  const denied = await authorizeHrResource(request, resource, "PUT")
+  if (denied) return denied
   await ensureHrSchema()
   try {
     const leafAccountsError = await hrLeafAccountsError(resource, body)
@@ -616,6 +657,8 @@ export async function DELETE(request:NextRequest,{params}:{params:{resource:stri
     const authorization = await authorizeFile(request, "employees", "delete")
     if (!authorization.ok) return authorization.response
   }
+  const denied = await authorizeHrResource(request, params.resource, "DELETE")
+  if (denied) return denied
   await ensureHrSchema()
   const id=Number(request.nextUrl.searchParams.get("id"))
   if(params.resource==="attendance-devices"&&id){

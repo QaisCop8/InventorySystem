@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { authorizeTransaction, type TransactionAction } from "@/lib/transaction-permissions"
 import { ATTENDANCE_TRANSACTION_TYPES, ensureAttendanceSchema } from "@/lib/attendance-engine"
 import { attendancePayrollSettings, closedPayrollEmployees, saveAttendancePayrollSettings } from "@/lib/attendance-payroll"
 
@@ -18,6 +19,8 @@ const round2 = (value: number) => Math.round((Number(value) || 0) * 100) / 100
 export async function GET(request: NextRequest) {
   try {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_attendance_transactions", "view")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const p = request.nextUrl.searchParams
     if (p.get("settings") === "1") {
@@ -72,6 +75,10 @@ export async function POST(request: NextRequest) {
     await ensureAttendanceSchema()
     const body = await request.json().catch(() => ({}))
     const userId = Number((user as any).user_id) || null
+    // الإعدادات تعديل، الاعتماد/الرفض ترحيل، التوليد والإضافة اليدوية إدخال
+    const action: TransactionAction = body.action === "save-settings" ? "update" : body.action === "set-status" ? "post" : "create"
+    const authorization = await authorizeTransaction(request, "hr_attendance_transactions", action)
+    if (!authorization.ok) return authorization.response
 
     if (body.action === "save-settings") {
       await saveAttendancePayrollSettings(body.settings || {})
@@ -149,6 +156,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_attendance_transactions", "update")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const body = await request.json().catch(() => ({}))
     const id = Number(body.id) || 0
@@ -173,6 +182,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_attendance_transactions", "delete")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const id = Number(request.nextUrl.searchParams.get("id")) || 0
     const current = ((await sql`SELECT status FROM attendance_transactions_tbl WHERE id = ${id}`) as any[])[0]

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { ensureAttendanceSchema } from "@/lib/attendance-engine"
 
 // قوالب الورديات (صباحية/مسائية/ليلية/مناوبة...) بالحقول الكاملة: اللون، النوع، الاستراحة، فترة السماح،
@@ -25,6 +26,8 @@ export async function GET(request: NextRequest) {
 
 async function save(request: NextRequest, update: boolean) {
   if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+  const authorization = await authorizeTransaction(request, "hr_shifts", update ? "update" : "create")
+  if (!authorization.ok) return authorization.response
   await ensureAttendanceSchema()
   const body = await request.json().catch(() => ({}))
   const code = String(body.code || "").trim().toUpperCase()
@@ -66,6 +69,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_shifts", "delete")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const id = Number(request.nextUrl.searchParams.get("id")) || 0
     const used = ((await sql`SELECT (SELECT COUNT(*) FROM employee_shift_roster_tbl WHERE shift_id = ${id}) + (SELECT COUNT(*) FROM attendance_days_tbl WHERE shift_id = ${id}) AS n`) as any[])[0]

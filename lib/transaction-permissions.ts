@@ -164,6 +164,21 @@ export async function authorizeTransaction(
   return { ok: true, userId: user.user_id, branchId, branchIds: [branchId], accessId }
 }
 
+/**
+ * مورد تعمل عليه أكثر من شاشة (مثل بنود الراتب من "بنود الراتب" و"بنود رواتب الموظفين"): يكفي أن تسمح إحداها.
+ * الشاشات التي لا تعرّف هذا الإجراء (TRANSACTION_FAMILY_ACTIONS) تُتجاوز — فلا تُنشأ صلاحية غير معرّفة.
+ */
+export async function authorizeAnyTransaction(request: NextRequest, families: TransactionFamily[], action: TransactionAction) {
+  let denied: { ok: false; response: NextResponse } | null = null
+  for (const family of families) {
+    if (!transactionActionsFor(family).includes(action)) continue
+    const result = await authorizeTransaction(request, family, action)
+    if (result.ok) return result
+    denied ??= result
+  }
+  return denied ?? { ok: false as const, response: NextResponse.json({ error: "لا توجد لديك صلاحية لهذه العملية" }, { status: 403 }) }
+}
+
 export async function authorizeStoredVoucher(request: NextRequest, voucherId: number, action: TransactionAction) {
   const row = (await sql`SELECT vch_type, branch_id FROM voucher_header_tbl WHERE id = ${voucherId} LIMIT 1`)[0]
   if (!row) return { ok: false as const, response: NextResponse.json({ error: "السند غير موجود" }, { status: 404 }) }

@@ -72,6 +72,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "voucher-audit-report", title: "تقرير ارشفة السندات" },
   { section: "report-audit-report", title: "تقرير ارشفة التقارير" },
   { section: "sales-drafts-archive-report", title: "تقرير ارشفة مسودات طلبيات المبيعات" },
+  { section: "payroll", title: "كشف الرواتب" },
   { section: "salary-items-report", title: "تقرير بنود الرواتب" },
   { section: "income-tax-report", title: "ضريبة دخل الموظفين" },
   { section: "attendance-detailed-report", title: "دخول الموظفين تفصيلي" },

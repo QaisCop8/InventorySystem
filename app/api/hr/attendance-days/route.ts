@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { ensureAttendanceSchema, processAttendance, recomputeManualDay } from "@/lib/attendance-engine"
 
 // سجل الدوام اليومي المعالَج:
@@ -74,6 +75,8 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const body = await request.json().catch(() => ({}))
     if (body?.action !== "process") return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 })
+    const authorization = await authorizeTransaction(request, "hr_attendance_processing", "create")
+    if (!authorization.ok) return authorization.response
     const from = isoDate(body.from)
     const to = isoDate(body.to)
     if (!from || !to || from > to) return NextResponse.json({ error: "حدد فترة صحيحة" }, { status: 400 })
@@ -96,6 +99,8 @@ export async function PUT(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_attendance_editor", "update")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const body = await request.json().catch(() => ({}))
     const employeeId = Number(body.employee_id) || 0
@@ -137,6 +142,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_attendance_editor", "delete")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const id = Number(request.nextUrl.searchParams.get("id")) || 0
     const reason = String(request.nextUrl.searchParams.get("reason") || "").trim()

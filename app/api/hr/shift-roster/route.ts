@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { datesBetween, ensureAttendanceSchema } from "@/lib/attendance-engine"
 
 // جدول المناوبات اليومي (على نمط المستشفيات): وردية لكل موظف في كل يوم — تتقدّم على الجداول الأسبوعية.
@@ -49,6 +50,8 @@ async function saveCell(cell: { employee_id: number; roster_date: string; shift_
 export async function POST(request: NextRequest) {
   try {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const authorization = await authorizeTransaction(request, "hr_shifts", "update")
+    if (!authorization.ok) return authorization.response
     await ensureAttendanceSchema()
     const body = await request.json().catch(() => ({}))
 
