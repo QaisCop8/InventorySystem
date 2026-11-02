@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { promises as fs } from "fs"
 import sql from "@/lib/database"
+import { getSessionUser } from "@/lib/tenant-auth"
 import { resolveStorageDir } from "../_lib"
 
 // يُعيد محتوى الملف فعلياً — التنزيل يمر دائماً عبر هذا المسار (لا رابط ثابت مباشر تحت public/)،
@@ -8,6 +9,7 @@ import { resolveStorageDir } from "../_lib"
 // فسند/عميل/صنف من شركة أخرى لن يجد صف attachment_tbl أصلاً حتى لو خمّن الـid الصحيح).
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const id = Number(params.id)
     if (!id) return NextResponse.json({ error: "معرف المرفق غير صالح" }, { status: 400 })
 
@@ -19,11 +21,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const filePath = `${dir}/${attachment.file_name}`
     const buffer = await fs.readFile(filePath)
 
-    const disposition = request.nextUrl.searchParams.get("download") === "1" ? "attachment" : "inline"
+    // العرض المباشر للصور وPDF فقط: ملف HTML/SVG مرفوع يُعرض داخل الموقع كان سيشغّل سكربتاً باسم المستخدم (XSS)
+    const inlineSafe = /^(image\/(png|jpe?g|gif|webp|bmp)|application\/pdf)$/i.test(String(attachment.mime_type || ""))
+    const disposition = request.nextUrl.searchParams.get("download") === "1" || !inlineSafe ? "attachment" : "inline"
     const encodedName = encodeURIComponent(attachment.original_name)
     return new NextResponse(buffer, {
       headers: {
-        "Content-Type": attachment.mime_type || "application/octet-stream",
+        "Content-Type": inlineSafe ? attachment.mime_type : "application/octet-stream",
+        "X-Content-Type-Options": "nosniff",
         "Content-Disposition": `${disposition}; filename="${encodedName}"; filename*=UTF-8''${encodedName}`,
         "Cache-Control": "private, no-store",
       },
@@ -36,6 +41,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const id = Number(params.id)
     if (!id) return NextResponse.json({ error: "معرف المرفق غير صالح" }, { status: 400 })
 

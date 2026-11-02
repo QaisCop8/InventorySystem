@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { promises as fs } from "fs"
 import sql from "@/lib/database"
+import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureTables, isAllowedModel, resolveStorageDir, generateStoredFileName, ensureDir } from "./_lib"
 
 // حد أقصى 20 ميغابايت لكل ملف — وقاية بسيطة من رفع ملفات ضخمة تُثقل قرص الخادم (Node مستمر على
@@ -21,6 +22,7 @@ const isUploadedFile = (value: FormDataEntryValue | null): value is File =>
 
 export async function GET(request: NextRequest) {
   try {
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     await ensureTables()
     const { searchParams } = new URL(request.url)
     const modelName = searchParams.get("model_name") || ""
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     await ensureTables()
     const form = await request.formData()
     const modelName = String(form.get("model_name") || "")

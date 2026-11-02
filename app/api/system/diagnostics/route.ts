@@ -1,3 +1,4 @@
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 declare global {
@@ -5,6 +6,9 @@ declare global {
 }
 
 export async function GET(request: NextRequest) {
+  // أداة إدارية/تطوير: للمسؤول فقط
+  const admin = await authorizeUserAdmin(request)
+  if (!admin.ok) return admin.response
   try {
     const cacheKey = "system-diagnostics"
     const cacheTime = 30000 // 30 seconds

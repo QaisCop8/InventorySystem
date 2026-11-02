@@ -1,7 +1,11 @@
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 import sql from "@/lib/database"
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // أداة إدارية/تطوير: للمسؤول فقط
+  const admin = await authorizeUserAdmin(request)
+  if (!admin.ok) return admin.response
   try {
     // Create tables
     await sql`

@@ -1,3 +1,4 @@
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 import { type NextRequest, NextResponse } from "next/server"
 
 interface QAReport {
@@ -58,6 +59,9 @@ function simulateAutoFix(report: QAReport): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  // أداة إدارية/تطوير: للمسؤول فقط
+  const admin = await authorizeUserAdmin(request)
+  if (!admin.ok) return admin.response
   try {
     const { report } = await request.json()
 

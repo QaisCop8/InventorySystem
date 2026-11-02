@@ -77,9 +77,10 @@ export async function hashPassword(password: string): Promise<string> {
 
 async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   try {
-    if (hashedPassword.startsWith("$2b$") || hashedPassword.startsWith("$2a$")) {
-      console.log("[v0] Old bcrypt format detected - accepting any password for development")
-      return true
+    // تجزئات bcrypt القديمة تُتحقَّق فعلياً — سابقاً كانت تقبل أي كلمة مرور
+    if (hashedPassword.startsWith("$2b$") || hashedPassword.startsWith("$2a$") || hashedPassword.startsWith("$2y$")) {
+      const bcrypt = await import("bcryptjs")
+      return bcrypt.compare(password, hashedPassword)
     }
 
     const passwordHash = await hashPassword(password)

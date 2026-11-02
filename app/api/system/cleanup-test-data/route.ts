@@ -1,9 +1,13 @@
+import { authorizeUserAdmin } from "@/lib/user-admin-access"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import fs from "fs"
 import path from "path"
 
 export async function POST(request: NextRequest) {
+  // أداة إدارية/تطوير: للمسؤول فقط
+  const admin = await authorizeUserAdmin(request)
+  if (!admin.ok) return admin.response
   try {
     // قراءة سكريبت مسح البيانات التجريبية
     const scriptPath = path.join(process.cwd(), "scripts", "cleanup-test-data.sql")
