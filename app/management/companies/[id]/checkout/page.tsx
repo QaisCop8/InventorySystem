@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useCallback, useEffect, useRef, useState, type FormEvent } from "react"
-import { ArrowRight, CheckCircle2, Loader2, Phone, ShieldCheck, XCircle } from "lucide-react"
+import { ArrowRight, Building2, Check, CheckCircle2, CreditCard, Headphones, Loader2, Lock, MessageCircle, Phone, Send, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
 import { openLahzaPopup } from "@/lib/lahza-popup"
 
 // صفحة "خيارات الدفع" لشركة بانتظار الدفع: الدفع عبر الانترنت (نافذة لحظة المنبثقة، أو صفحة لحظة إن لم يُضبط المفتاح العام)
@@ -21,7 +21,7 @@ type Checkout = {
 const money = (value: number) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const telHref = (value: string) => `tel:${value.replace(/[^\d+]/g, "")}`
 const waHref = (value: string) => `https://wa.me/${value.replace(/\D/g, "")}`
-const inputClass = "h-11 w-full rounded-lg border border-slate-400/70 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[#1a6bb3] focus:ring-2 focus:ring-[#1a6bb3]/15"
+const inputClass = "h-11 w-full rounded-xl border-0 bg-slate-50 px-3.5 text-sm font-medium text-slate-900 ring-1 ring-slate-200 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500"
 
 export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -103,95 +103,155 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
   }
 
   if (loadError) return <Centered><XCircle className="mx-auto h-10 w-10 text-rose-500" /><p className="mt-3 text-sm text-slate-600">{loadError}</p><BackLink /></Centered>
-  if (!data) return <Centered><Loader2 className="mx-auto h-8 w-8 animate-spin text-[#1a6bb3]" /></Centered>
+  if (!data) return <Centered><Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-600" /></Centered>
 
   const alreadyActive = data.company.status === "approved" || payState.kind === "approved"
 
+  const busy = paying || payState.kind === "verifying"
+  const lines = data.quote.lines.filter((line) => line.amount > 0)
+
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-100 px-4 py-8 text-slate-900">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-4"><BackLink /></div>
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="border-b border-slate-200 pb-4 text-lg font-black">خيارات الدفع</h1>
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#f4f8f7] text-slate-900">
+      {/* خلفية ناعمة: توهّجات + شبكة خافتة */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-emerald-300/25 blur-3xl" />
+        <div className="absolute bottom-[-20%] left-[-10%] h-[480px] w-[480px] rounded-full bg-teal-200/30 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(15,118,110,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,118,110,.05)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,#000_30%,transparent_80%)]" />
+      </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            {/* خيارات الدفع */}
-            <div className="rounded-xl border border-slate-200 p-7 shadow-sm">
-              <h2 className="border-b border-slate-200 pb-4 text-lg font-black">خيارات الدفع</h2>
+      <div className="relative mx-auto max-w-6xl px-4 py-6 sm:py-10">
+        <div className="flex items-center justify-between gap-3">
+          <BackLink />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100 backdrop-blur"><Lock className="h-3.5 w-3.5" />اتصال آمن ومشفّر</span>
+        </div>
 
-              <div className="mt-5 rounded-lg bg-slate-50 p-4 text-sm">
-                <div className="flex items-center justify-between gap-3"><span className="text-slate-500">الشركة</span><b>{data.company.name}</b></div>
-                {data.quote.lines.filter((line) => line.amount > 0).map((line) => (
-                  <div key={line.label} className="mt-1.5 flex items-center justify-between gap-3 text-xs text-slate-500"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{money(line.amount)}</span></div>
-                ))}
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-200 pt-3"><span className="font-bold">الاشتراك السنوي</span><b className="text-lg tabular-nums text-[#1a6bb3]" dir="ltr">{money(data.quote.total)} {data.quote.currency}</b></div>
-              </div>
+        <header className="mt-6 sm:mt-8">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-bold text-emerald-700"><Sparkles className="h-3.5 w-3.5" />خطوة أخيرة</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">أكمل اشتراكك في <span className="bg-gradient-to-l from-emerald-600 to-teal-500 bg-clip-text text-transparent">Noon ERP</span></h1>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">ادفع الآن عبر الإنترنت وتُفعَّل شركتك فوراً، أو تحدّث مع فريق المبيعات ونساعدك في اختيار ما يناسبك.</p>
+        </header>
 
-              {alreadyActive ? (
-                <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-center">
-                  <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-                  <p className="mt-2 font-black text-emerald-800">تم الدفع وإنشاء الشركة</p>
-                  <a href="/management/companies" className="mt-4 inline-flex h-11 items-center justify-center rounded-lg bg-[#1a6bb3] px-6 text-sm font-bold text-white hover:bg-[#155a96]">الذهاب إلى شركاتي</a>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+          {/* ملخص الاشتراك والدفع */}
+          <section className="overflow-hidden rounded-3xl bg-white shadow-[0_24px_60px_-30px_rgba(15,80,70,.35)] ring-1 ring-slate-900/5">
+            <div className="relative bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-500 p-6 text-white sm:p-7">
+              <div aria-hidden className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+              <div className="relative flex items-center gap-3">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Building2 className="h-6 w-6" /></span>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-emerald-50/80">الشركة</p>
+                  <p className="truncate text-lg font-black">{data.company.name}</p>
                 </div>
-              ) : (
-                <>
-                  <button type="button" onClick={() => void payOnline()} disabled={!data.online || paying || payState.kind === "verifying"}
-                    className="mt-6 flex h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#1a6bb3] text-base font-black text-white shadow-sm transition hover:bg-[#155a96] disabled:cursor-not-allowed disabled:opacity-60">
-                    {paying || payState.kind === "verifying" ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                    {payState.kind === "verifying" ? "جاري التحقق من الدفع…" : "الدفع عبر الانترنت"}
-                  </button>
-                  <p className="mt-3 text-sm text-slate-600">{data.online ? "اضغط على 'الدفع عبر الانترنت' للانتقال إلى بوابة الدفع الآمنة الخاصة بنا" : "الدفع الإلكتروني غير متاح حالياً — تواصل مع المبيعات."}</p>
-                  {data.testMode && data.online && <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
-                  {payState.kind === "error" && <p className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{payState.text}</p>}
-                </>
-              )}
-
-              <div className="my-6 flex items-center gap-3 text-sm text-slate-500"><span className="h-px flex-1 bg-slate-300" />او<span className="h-px flex-1 bg-slate-300" /></div>
-
-              <h3 className="font-black">تواصل مع المبيعات</h3>
-              <div className="mt-4 space-y-3 text-sm">
-                {data.contacts.phone && <div className="flex items-center justify-between gap-3"><span className="text-slate-600">اتصل بنا على</span><a href={telHref(data.contacts.phone)} dir="ltr" className="inline-flex items-center gap-1.5 text-base font-black text-[#1a6bb3] hover:underline"><Phone className="h-4 w-4" />{data.contacts.phone}</a></div>}
-                {data.contacts.whatsapp && <div className="flex items-center justify-between gap-3"><span className="text-slate-600">او عبر الواتساب</span><a href={waHref(data.contacts.whatsapp)} target="_blank" rel="noreferrer" dir="ltr" className="text-base font-black text-[#1a6bb3] hover:underline">{data.contacts.whatsapp}</a></div>}
+              </div>
+              <div className="relative mt-6 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-emerald-50/80">الاشتراك السنوي</p>
+                  <p className="mt-1 text-4xl font-black tabular-nums" dir="ltr">{money(data.quote.total)} <span className="text-lg font-bold text-emerald-50/90">{data.quote.currency}</span></p>
+                </div>
+                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">يُجدَّد سنوياً</span>
               </div>
             </div>
 
-            {/* ارسال بطاقة للمبيعات */}
-            <form onSubmit={sendLead} className="rounded-xl border border-slate-200 p-7 shadow-sm">
-              <h2 className="text-lg font-black">ارسال بطاقة للمبيعات</h2>
+            <div className="p-6 sm:p-7">
+              {lines.length > 0 && (
+                <ul className="divide-y divide-slate-100 rounded-2xl bg-slate-50/80 px-4 ring-1 ring-slate-100">
+                  {lines.map((line) => (
+                    <li key={line.label} className="flex items-center justify-between gap-3 py-3 text-sm">
+                      <span className="flex items-center gap-2 text-slate-600"><Check className="h-4 w-4 shrink-0 text-emerald-600" />{line.label}</span>
+                      <span className="font-bold tabular-nums text-slate-800" dir="ltr">{money(line.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {alreadyActive ? (
+                <div className="mt-6 rounded-2xl bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
+                  <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
+                  <p className="mt-3 text-lg font-black text-emerald-800">تم الدفع وإنشاء الشركة</p>
+                  <a href="/management/companies" className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-6 text-sm font-bold text-white transition hover:bg-emerald-700">الذهاب إلى شركاتي</a>
+                </div>
+              ) : (
+                <>
+                  <button type="button" onClick={() => void payOnline()} disabled={!data.online || busy}
+                    className="group mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-500 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:shadow-xl hover:shadow-emerald-600/30 hover:brightness-105 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none">
+                    {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
+                    {payState.kind === "verifying" ? "جاري التحقق من الدفع…" : `ادفع ${money(data.quote.total)} ${data.quote.currency} الآن`}
+                  </button>
+                  <p className="mt-3 text-center text-xs leading-6 text-slate-500">{data.online ? "ستنتقل إلى بوابة الدفع الآمنة لإدخال بيانات البطاقة — لا نحتفظ ببيانات بطاقتك" : "الدفع الإلكتروني غير متاح حالياً — تواصل مع المبيعات."}</p>
+                  {data.testMode && data.online && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs text-amber-800 ring-1 ring-amber-100">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+                  {payState.kind === "error" && <p className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100"><XCircle className="h-4 w-4 shrink-0" />{payState.text}</p>}
+                </>
+              )}
+
+              <div className="mt-6 grid grid-cols-3 gap-2 border-t border-slate-100 pt-5 text-center text-[11px] font-semibold text-slate-500">
+                <span className="flex flex-col items-center gap-1.5"><ShieldCheck className="h-5 w-5 text-emerald-600" />دفع آمن عبر لحظة</span>
+                <span className="flex flex-col items-center gap-1.5"><Zap className="h-5 w-5 text-emerald-600" />تفعيل فوري</span>
+                <span className="flex flex-col items-center gap-1.5"><CreditCard className="h-5 w-5 text-emerald-600" />Visa · Mastercard</span>
+              </div>
+            </div>
+          </section>
+
+          {/* التواصل مع المبيعات */}
+          <div className="flex flex-col gap-6">
+            <section className="rounded-3xl bg-white p-6 shadow-[0_24px_60px_-34px_rgba(15,80,70,.3)] ring-1 ring-slate-900/5 sm:p-7">
+              <h2 className="flex items-center gap-2 text-lg font-black"><Headphones className="h-5 w-5 text-emerald-600" />تحدّث مع المبيعات</h2>
+              <p className="mt-1 text-sm text-slate-500">فريقنا جاهز للإجابة عن أسئلتك ومساعدتك في الاشتراك.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                {data.contacts.phone && (
+                  <a href={telHref(data.contacts.phone)} className="group flex items-center gap-3 rounded-2xl p-4 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-emerald-50/60 hover:ring-emerald-200">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25"><Phone className="h-5 w-5" /></span>
+                    <span className="min-w-0"><span className="block text-xs text-slate-500">اتصل بنا</span><span className="block truncate text-base font-black text-slate-900" dir="ltr">{data.contacts.phone}</span></span>
+                  </a>
+                )}
+                {data.contacts.whatsapp && (
+                  <a href={waHref(data.contacts.whatsapp)} target="_blank" rel="noreferrer" className="group flex items-center gap-3 rounded-2xl p-4 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-green-50/70 hover:ring-green-200">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-md shadow-green-600/25"><MessageCircle className="h-5 w-5" /></span>
+                    <span className="min-w-0"><span className="block text-xs text-slate-500">راسلنا على واتساب</span><span className="block truncate text-base font-black text-slate-900" dir="ltr">{data.contacts.whatsapp}</span></span>
+                  </a>
+                )}
+              </div>
+            </section>
+
+            <form onSubmit={sendLead} className="rounded-3xl bg-white p-6 shadow-[0_24px_60px_-34px_rgba(15,80,70,.3)] ring-1 ring-slate-900/5 sm:p-7">
+              <h2 className="flex items-center gap-2 text-lg font-black"><Send className="h-5 w-5 text-emerald-600" />اطلب اتصالاً من المبيعات</h2>
+              <p className="mt-1 text-sm text-slate-500">اترك بياناتك وسنتواصل معك في أقرب وقت.</p>
               {leadState.kind === "sent" ? (
-                <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
-                  <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+                <div className="mt-5 rounded-2xl bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
+                  <CheckCircle2 className="mx-auto h-11 w-11 text-emerald-600" />
                   <p className="mt-2 font-black text-emerald-800">تم إرسال طلبك</p>
                   <p className="mt-1 text-sm text-emerald-700">سيتواصل معك فريق المبيعات قريباً.</p>
                 </div>
               ) : (
                 <>
-                  <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
-                    <label className="text-sm text-slate-600">الاسم<span className="text-rose-500">*</span><input required value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} className={`mt-1.5 ${inputClass}`} /></label>
-                    <label className="text-sm text-slate-600">البريد الالكتروني<span className="text-rose-500">*</span><input required type="email" dir="ltr" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} className={`mt-1.5 ${inputClass}`} style={{ textAlign: "left" }} /></label>
-                    <label className="text-sm text-slate-600">الهاتف<span className="text-rose-500">*</span><input required type="tel" dir="ltr" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} className={`mt-1.5 ${inputClass}`} style={{ textAlign: "left" }} /></label>
-                    <label className="text-sm text-slate-600">واتساب<span className="text-rose-500">*</span><input required type="tel" dir="ltr" value={lead.whatsapp} onChange={(e) => setLead({ ...lead, whatsapp: e.target.value })} className={`mt-1.5 ${inputClass}`} style={{ textAlign: "left" }} placeholder="+970" /></label>
-                    <label className="text-sm text-slate-600 sm:col-span-2">ملاحظات<textarea rows={4} value={lead.notes} onChange={(e) => setLead({ ...lead, notes: e.target.value })} className={`mt-1.5 ${inputClass} h-auto py-2`} /></label>
+                  <div className="mt-5 grid gap-x-4 gap-y-3.5 sm:grid-cols-2">
+                    <Field label="الاسم" required><input required value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} className={inputClass} /></Field>
+                    <Field label="البريد الإلكتروني" required><input required type="email" dir="ltr" value={lead.email} onChange={(e) => setLead({ ...lead, email: e.target.value })} className={`${inputClass} text-left`} /></Field>
+                    <Field label="الهاتف" required><input required type="tel" dir="ltr" value={lead.phone} onChange={(e) => setLead({ ...lead, phone: e.target.value })} className={`${inputClass} text-left`} placeholder="05xxxxxxxx" /></Field>
+                    <Field label="واتساب" required><input required type="tel" dir="ltr" value={lead.whatsapp} onChange={(e) => setLead({ ...lead, whatsapp: e.target.value })} className={`${inputClass} text-left`} placeholder="+970" /></Field>
+                    <Field label="ملاحظات" className="sm:col-span-2"><textarea rows={3} value={lead.notes} onChange={(e) => setLead({ ...lead, notes: e.target.value })} className={`${inputClass} h-auto resize-none py-2.5`} placeholder="عدد المستخدمين، الفروع، أو أي استفسار…" /></Field>
                   </div>
-                  {leadState.kind === "error" && <p className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{leadState.text}</p>}
-                  <button type="submit" disabled={leadState.kind === "sending"} className="mt-6 inline-flex h-11 min-w-24 items-center justify-center gap-2 rounded-lg bg-[#1a6bb3] px-6 text-sm font-black text-white hover:bg-[#155a96] disabled:opacity-60">
-                    {leadState.kind === "sending" && <Loader2 className="h-4 w-4 animate-spin" />}ارسال
+                  {leadState.kind === "error" && <p className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100"><XCircle className="h-4 w-4 shrink-0" />{leadState.text}</p>}
+                  <button type="submit" disabled={leadState.kind === "sending"} className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
+                    {leadState.kind === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}إرسال الطلب
                   </button>
                 </>
               )}
             </form>
           </div>
-          <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />الدفع آمن عبر بوابة لحظة</p>
-        </section>
+        </div>
       </div>
     </main>
   )
 }
 
+function Field({ label, required, className = "", children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
+  return <label className={`block text-xs font-bold text-slate-600 ${className}`}><span className="mb-1.5 block">{label}{required && <span className="text-rose-500"> *</span>}</span>{children}</label>
+}
+
 function Centered({ children }: { children: React.ReactNode }) {
-  return <main dir="rtl" className="grid min-h-screen place-items-center bg-slate-100 p-6"><div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">{children}</div></main>
+  return <main dir="rtl" className="grid min-h-screen place-items-center bg-[#f4f8f7] p-6"><div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-[0_24px_60px_-30px_rgba(15,80,70,.35)] ring-1 ring-slate-900/5">{children}</div></main>
 }
 
 function BackLink() {
-  return <a href="/management/companies" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6bb3] hover:underline"><ArrowRight className="h-4 w-4" />العودة إلى شركاتي</a>
+  return <a href="/management/companies" className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 backdrop-blur transition hover:text-emerald-700 hover:ring-emerald-200"><ArrowRight className="h-4 w-4" />العودة إلى شركاتي</a>
 }

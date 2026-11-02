@@ -71,6 +71,9 @@ export function ensureBillingTables() {
       await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS number_of_restaurant_locations INTEGER`
       await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_phone VARCHAR(40) NOT NULL DEFAULT '09 2353937'`
       await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_whatsapp VARCHAR(40) NOT NULL DEFAULT '+970594536322'`
+      // الأرقام الافتراضية القديمة (لم يعدّلها المسؤول) ⇐ الأرقام المعتمدة (2026-11-02)
+      await managementSql`UPDATE platform_pricing SET sales_phone = '09 2353937' WHERE sales_phone = '+970 92 373 001'`
+      await managementSql`UPDATE platform_pricing SET sales_whatsapp = '+970594536322' WHERE sales_whatsapp = '+970 569 555 576'`
       // "ارسال بطاقة للمبيعات": طلب تواصل بدل الدفع الإلكتروني
       await managementSql`
         CREATE TABLE IF NOT EXISTS sales_leads (
