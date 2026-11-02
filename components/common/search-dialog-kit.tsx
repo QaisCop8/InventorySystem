@@ -315,6 +315,8 @@ export function useEnterAsTabFilters(
       if (event.key === "ArrowDown") {
         // السهم داخل منسدلة مغلقة يفتحها/يتنقّل بين خياراتها — يُترك لها
         if (target.closest(".p-dropdown, .p-multiselect")) return
+        // حقول التاريخ/الوقت/الأرقام: ↑/↓ تغيّر اليوم أو الشهر أو السنة (أو القيمة) — سلوك المتصفح يبقى لها
+        if (target instanceof HTMLInputElement && ["date", "datetime-local", "month", "week", "time", "number"].includes(target.type)) return
         event.preventDefault()
         event.stopPropagation()
         onReachEndRef.current()
