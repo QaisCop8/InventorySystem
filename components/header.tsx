@@ -15,7 +15,8 @@ import {
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
 import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
-import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus, MapPin } from "lucide-react";
+import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus, KeyRound, MapPin } from "lucide-react";
+import { ChangePasswordDialog } from "@/components/management/change-password-dialog";
 import { GlobalSearch } from "@/components/navigation/global-search";
 import { menuItems, SECTION_TITLES, type MenuItem } from "@/components/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -77,6 +78,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
   const [loggingOut, setLoggingOut] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [myCompanies, setMyCompanies] = useState<HeaderCompany[]>([]);
   const [currentCompanyId, setCurrentCompanyId] = useState<number | null>(null);
@@ -509,6 +511,11 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               {avatarSaving ? "جاري حفظ الصورة..." : "تغيير صورة المستخدم"}
             </DropdownMenuItem>
 
+            <DropdownMenuItem onSelect={() => setChangePasswordOpen(true)} className="justify-center cursor-pointer">
+              <KeyRound className="ml-2 h-4 w-4" />
+              تغيير كلمة المرور
+            </DropdownMenuItem>
+
             <DropdownMenuItem onClick={() => onSettingsClick?.()} className="justify-center cursor-pointer">
               الإعدادات
             </DropdownMenuItem>
@@ -525,6 +532,8 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
           </DropdownMenuContent>
         </DropdownMenu>
         <input ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleAvatarChange} />
+        {/* كلمة مرور دخول بوابة الإدارة (نفس نافذة "شركاتي") — تُكتب أيضاً في كل شركات المستخدم */}
+        <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
       </div>
 
       {loggingOut && (

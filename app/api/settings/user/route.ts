@@ -21,6 +21,14 @@ function ensureBranchColumn() { return runSchemaOnce("app/api/settings/user/rout
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+  // المستخدم المحذوف (is_deleted) منفصل عن الموقوف (is_active=false فقط): الموقوف يبقى في القائمة ويمكن إعادة تفعيله.
+  // كان الحذف = is_active=false والقائمة تُخفي كل غير النشطين؛ عند إضافة العمود أول مرة يُعلَّم غير النشطين حالياً
+  // كمحذوفين حتى تبقى القائمة كما كانت.
+  const hasDeleted = (await sql`SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'user_settings' AND column_name = 'is_deleted'`)[0]
+  if (!hasDeleted) {
+    await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE`
+    await sql`UPDATE user_settings SET is_deleted = TRUE WHERE is_active = false`
+  }
   // إصلاح أنواع أعمدة قديمة: اختياري — pg_input_is_valid متوفرة في PostgreSQL 16+ فقط، فلا يُعطِّل فشلها بقية الإعداد
   try {
         await sql`
@@ -122,7 +130,8 @@ export async function GET(request: NextRequest) {
         us.updated_at
       FROM user_settings us
       LEFT JOIN branches b ON b.id = us.branch_id
-      WHERE us.is_active = true
+      -- النشطون والموقوفون (لإعادة التفعيل) — المحذوفون فقط مخفيّون
+      WHERE COALESCE(us.is_deleted, false) = false
       -- رقم المستخدم تصاعدياً (رقمياً؛ user_id نصّي في بعض القواعد ورقمي في أخرى)
       ORDER BY CASE WHEN us.user_id::text ~ '^[0-9]+$' THEN us.user_id::text::bigint END NULLS LAST, us.user_id::text
     `
@@ -404,6 +413,30 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // إيقاف/إعادة تفعيل فقط (أزرار قائمة المستخدمين): تحديث ضيّق لحالة المستخدم — التحديث العام أدناه يُصفِّر كل عمود
+    // غير مُرسَل. إعادة التفعيل مرّت بفحص الترخيص أعلاه؛ عضوية "شركاتي" لهذه الشركة تتبع الحالة نفسها.
+    if (data.is_active !== undefined && Object.keys(data).every((key) => key === "user_id" || key === "is_active")) {
+      const updated = (await sql`
+        UPDATE user_settings SET is_active = ${data.is_active === true}, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${data.user_id} AND COALESCE(is_deleted, false) = false
+        RETURNING *
+      `)[0] as any
+      if (!updated) return NextResponse.json({ error: "User not found" }, { status: 404 })
+      if (updated.management_user_id) {
+        try {
+          const currentDbName = await resolveCurrentDbName()
+          await managementSql`
+            UPDATE user_company SET is_active = ${data.is_active === true}
+            WHERE user_id = ${updated.management_user_id}
+              AND company_id = (SELECT id FROM companies WHERE db_name = ${currentDbName})
+          `
+        } catch (syncError) {
+          console.error("[settings/user PUT status] Failed to sync management DB:", syncError)
+        }
+      }
+      return NextResponse.json({ success: true, user: updated })
+    }
+
     if (data.email && String(data.email).trim()) {
       const existingEmailUser = await sql`
         SELECT user_id FROM user_settings
@@ -538,11 +571,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
-    await sql`
-      UPDATE user_settings 
-      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+    await ensureBranchColumn()
+    const deleted = (await sql`
+      UPDATE user_settings
+      SET is_active = false, is_deleted = true, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
-    `
+      RETURNING management_user_id
+    `)[0] as any
+    // عضوية "شركاتي" لهذه الشركة تُعطَّل أيضاً — كان المستخدم المحذوف يرى الشركة ويدخلها من بوابة الإدارة
+    if (deleted?.management_user_id) {
+      try {
+        const currentDbName = await resolveCurrentDbName()
+        await managementSql`
+          UPDATE user_company SET is_active = false
+          WHERE user_id = ${deleted.management_user_id}
+            AND company_id = (SELECT id FROM companies WHERE db_name = ${currentDbName})
+        `
+      } catch (syncError) {
+        console.error("[settings/user DELETE] Failed to sync management DB:", syncError)
+      }
+    }
 
     return NextResponse.json({ message: "User deactivated successfully" })
   } catch (error) {

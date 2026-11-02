@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Shield, Key, User, Users, UserCheck, UserX, Clock, Eye, EyeOff, Mail, Save, UserPlus, X } from "lucide-react"
 
 import Messages from "@/components/common/Messages"
+import { confirmYesNo } from "@/components/ui/confirm-host"
+import { menuItems, type MenuItem } from "@/components/sidebar"
 
 const roles = ["مدير النظام", "مدير المبيعات", "مدير المشتريات", "محاسب", "مندوب مبيعات", "موظف مخازن"]
 interface User {
@@ -41,21 +43,19 @@ interface DepartmentDefinition {
   department_name: string
   is_active: boolean
 }
-const defaultScreens = [
-  { value: "dashboard", label: "لوحة التحكم الرئيسية", roles: ["all"] },
-  { value: "sales-orders", label: "طلبيات المبيعات", roles: ["مدير النظام", "مدير المبيعات", "مندوب مبيعات"] },
-  { value: "purchase-orders", label: "طلبيات المشتريات", roles: ["مدير النظام", "مدير المشتريات"] },
-  {
-    value: "batch-movements",
-    label: "حركات الرقم التشغيلي",
-    roles: ["مدير النظام", "مدير المبيعات", "مدير المشتريات", "مندوب مبيعات"],
-  },
-  { value: "customers", label: "إدارة العملاء", roles: ["مدير النظام", "مدير المبيعات", "مندوب مبيعات"] },
-  { value: "suppliers", label: "إدارة الموردين", roles: ["مدير النظام", "مدير المشتريات"] },
-  { value: "products", label: "إدارة الأصناف", roles: ["مدير النظام", "موظف مخازن"] },
-  { value: "orders-migration", label: "ترحيل الطلبيات", roles: ["مدير النظام", "موظف مخازن"] },
-  { value: "order-management", label: "معالجة حالة الطلبيات", roles: ["مدير النظام", "موظف مخازن"] },
-]
+// الشاشة الافتراضية عند الدخول: كل صفحات النظام من القائمة الجانبية (نفس الأقسام والعناوين)، مع اسم القسم الرئيسي
+// لتمييز الصفحات المتشابهة. فتح الصفحة يبقى خاضعاً لصلاحيات المستخدم (شاشة "لا توجد صلاحية" إن لم تُمنح له).
+function flattenScreens(items: MenuItem[], group = "", acc: { value: string; label: string }[] = []) {
+  for (const item of items) {
+    const top = group || item.title
+    if (item.section && item.section !== "home-dashboard" && !acc.some((row) => row.value === item.section)) {
+      acc.push({ value: item.section, label: group ? `${top} › ${item.title}` : item.title })
+    }
+    if (item.submenu) flattenScreens(item.submenu, top, acc)
+  }
+  return acc
+}
+const defaultScreens = [{ value: "dashboard", label: "لوحة التحكم الرئيسية" }, ...flattenScreens(menuItems)]
 
 interface JobRole {
   id: number
@@ -237,9 +237,7 @@ export function UserSettings() {
     )
   }
 
-  const getAvailableScreens = (userRole) => {
-    return defaultScreens.filter((screen) => screen.roles.includes("all") || screen.roles.includes(userRole))
-  }
+  const getAvailableScreens = (_userRole?: unknown) => defaultScreens
 
   const handleViewUser = (user) => {
     setSelectedUser(user)
@@ -260,6 +258,34 @@ export function UserSettings() {
     window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: "permissions" } }))
   }
 
+
+  // إيقاف المستخدم (غير نشط: لا يدخل الشركة ولا تظهر له في "شركاتي" ولا يُحسب في الترخيص) وإعادة تفعيله.
+  // إعادة التفعيل فقط إن كان عدد المستخدمين النشطين أقل من المرخّص (والخادم يفرض ذلك أيضاً).
+  const [statusBusyId, setStatusBusyId] = useState<number | null>(null)
+  const changeUserStatus = async (user: User, active: boolean) => {
+    if (active && license && license.usage.users >= license.limits.users) {
+      licenseRequest.open("users", `لا يمكن إعادة تفعيل المستخدم: عدد المستخدمين النشطين (${license.usage.users}) وصل للحد المرخّص (${license.limits.users}).`, license.pending.some((request) => request.resource === "users"))
+      return
+    }
+    if (!active && !(await confirmYesNo(`إيقاف المستخدم ${user.full_name}؟ لن يستطيع الدخول للشركة حتى إعادة تفعيله.`))) return
+    const id = Number(user.user_id) || user.id
+    setStatusBusyId(id)
+    try {
+      const response = await fetch("/api/settings/user", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: id, is_active: active }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        if (response.status === 409 && data?.code === "LICENSE_LIMIT") { licenseRequest.open("users", data.error, Boolean(data.pending_request_id)); return }
+        throw new Error(data.error || "تعذر تغيير حالة المستخدم")
+      }
+      showMessage(active ? "تمت إعادة تفعيل المستخدم" : "تم إيقاف المستخدم", "success")
+      await loadUsers()
+      void reloadLicense()
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "تعذر تغيير حالة المستخدم")
+    } finally {
+      setStatusBusyId(null)
+    }
+  }
 
   const saveUser = async (userData, isNew = false) => {
 
@@ -415,6 +441,8 @@ export function UserSettings() {
                   setNewBranchId(branches[0]?.id ?? null)
                   setNewDefaultScreen("dashboard")
                   setNewOpenScreensFullscreen(false)
+                  // الدور الوظيفي افتراضياً أول دور في القائمة
+                  setNewJobRoleId(jobRoles[0]?.id ?? null)
                   setShowNewUserDialog(true)
                 }}
                 className="erp-btn-primary"
@@ -510,6 +538,15 @@ export function UserSettings() {
                         >
                           <Shield className="h-3 w-3" />
                         </Button>
+                        {user.is_active ? (
+                          <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, false)} title="إيقاف المستخدم (غير نشط)">
+                            <UserX className="h-3 w-3" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="text-emerald-700 hover:text-emerald-800" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, true)} title="إعادة تفعيل المستخدم">
+                            <UserCheck className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -521,7 +558,7 @@ export function UserSettings() {
       </Card>
 
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} onKeyDownCapture={submitOnF3}>
           <DialogTitle className="sr-only">تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
           {selectedUser && (
             <form
@@ -610,6 +647,7 @@ export function UserSettings() {
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
                           onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                           onChange={(e: any) => setEditDefaultScreen(e.value)}
                         />
                       </div>
@@ -642,6 +680,7 @@ export function UserSettings() {
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
                           onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                           onChange={(e: any) => setEditDepartment(e.value)}
                         />
                       </div>
@@ -660,6 +699,7 @@ export function UserSettings() {
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
                           onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                           onChange={(e: any) => setEditBranchId(e.value)}
                         />
                       </div>
@@ -678,6 +718,7 @@ export function UserSettings() {
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
                           onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                           onChange={(e: any) => setEditJobRoleId(e.value)}
                         />
                       </div>
@@ -707,7 +748,7 @@ export function UserSettings() {
       </Dialog>
 
       <Dialog open={showNewUserDialog} onOpenChange={setShowNewUserDialog}>
-        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} onKeyDownCapture={submitOnF3}>
           <DialogTitle className="sr-only">إضافة مستخدم جديد</DialogTitle>
           <form
             className="flex min-h-0 flex-1 flex-col"
@@ -787,6 +828,7 @@ export function UserSettings() {
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                         onChange={(e: any) => setNewDefaultScreen(e.value)}
                       />
                     </div>
@@ -819,6 +861,7 @@ export function UserSettings() {
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                         onChange={(e: any) => setNewDepartment(e.value)}
                       />
                     </div>
@@ -837,6 +880,7 @@ export function UserSettings() {
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                         onChange={(e: any) => setNewBranchId(e.value)}
                       />
                     </div>
@@ -855,6 +899,7 @@ export function UserSettings() {
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         onShow={revealOpenDropdown}
+                          onHide={resetDropdownSpace}
                         onChange={(e: any) => setNewJobRoleId(e.value)}
                       />
                     </div>
@@ -930,12 +975,29 @@ function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: 
   )
 }
 
-// تمرير جسم النافذة حتى تظهر قائمة الاختيار المفتوحة كاملة (appendTo="self" داخل منطقة التمرير)
+// تمرير جسم النافذة حتى تظهر قائمة الاختيار المفتوحة كاملة (appendTo="self" داخل منطقة التمرير). قائمة آخر حقل
+// (الدور الوظيفي) كانت تمتد أسفل نهاية منطقة التمرير فتختفي تحت شريط الأزرار: يُضاف فراغ سفلي مؤقت بقدر الجزء
+// الخارج ثم يُمرَّر إليها، ويُزال الفراغ عند إغلاقها (resetDropdownSpace).
 function revealOpenDropdown() {
   window.setTimeout(() => {
     const panels = document.querySelectorAll<HTMLElement>(".user-dialog-body .p-dropdown-panel")
-    panels[panels.length - 1]?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    const panel = panels[panels.length - 1]
+    const body = panel?.closest<HTMLElement>(".user-dialog-body")
+    if (!panel || !body) return
+    const overflow = panel.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom + 16
+    if (overflow > 0) body.style.paddingBottom = `${(parseFloat(getComputedStyle(body).paddingBottom) || 0) + overflow}px`
+    panel.scrollIntoView({ block: "nearest", behavior: "smooth" })
   }, 60)
+}
+function resetDropdownSpace() {
+  document.querySelectorAll<HTMLElement>(".user-dialog-body").forEach((body) => { body.style.paddingBottom = "" })
+}
+// F3 = حفظ نافذة إضافة/تعديل المستخدم (نفس اختصار الحفظ في باقي الشاشات)
+function submitOnF3(event: React.KeyboardEvent<HTMLElement>) {
+  if (event.key !== "F3") return
+  event.preventDefault()
+  event.stopPropagation()
+  event.currentTarget.querySelector<HTMLFormElement>("form")?.requestSubmit()
 }
 
 function FormSection({ icon: Icon, title, description, tone, children }: {

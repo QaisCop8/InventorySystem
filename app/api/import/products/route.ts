@@ -15,6 +15,15 @@ export async function POST(request: NextRequest) {
     await sql`CREATE TABLE IF NOT EXISTS product_unit_barcodes (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, unit_id INTEGER NOT NULL, barcode TEXT NOT NULL)`
     await sql`CREATE TABLE IF NOT EXISTS product_prices (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, price_category_id INTEGER NOT NULL, unit_id INTEGER NOT NULL, price NUMERIC(18,4) DEFAULT 0, currency_id INTEGER DEFAULT 1)`
 
+    // أعمدة جدول الأصناف تختلف بين القواعد: القديمة (category/main_unit/currency نصية...) والجديدة المُنشأة من
+    // company-bootstrap.sql (currency_id، status/type رقمية، بلا category) — كان الإدراج الثابت بالأعمدة القديمة يُفشِل
+    // كل أسطر الاستيراد في أي شركة جديدة: "column category of relation products does not exist".
+    const productColumns = new Map<string, string>(
+      (await sql`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'products'`)
+        .map((row: any) => [String(row.column_name), String(row.data_type)] as [string, string]),
+    )
+    const isNumericColumn = (column: string) => /int|numeric|double|real/.test(productColumns.get(column) || "")
+
     let success = 0
     let failed = 0
     let duplicates = 0
@@ -67,12 +76,14 @@ export async function POST(request: NextRequest) {
         }
         const barcode = String(item.barcode || "").trim()
         if (barcode) {
-          const duplicateBarcode = await sql`
+          const duplicateBarcode = productColumns.has("barcode")
+            ? await sql`
             SELECT id FROM products WHERE TRIM(COALESCE(barcode, '')) = ${barcode}
             UNION ALL
             SELECT product_id AS id FROM product_unit_barcodes WHERE TRIM(barcode) = ${barcode}
             LIMIT 1
           `
+            : await sql`SELECT product_id AS id FROM product_unit_barcodes WHERE TRIM(barcode) = ${barcode} LIMIT 1`
           if (duplicateBarcode.length > 0) {
             errors.push(`السطر ${data.indexOf(item) + 1}: الباركود موجود مسبقاً`)
             duplicates++
@@ -81,31 +92,31 @@ export async function POST(request: NextRequest) {
         }
 
         // Insert the product
-        const inserted = await sql`
-          INSERT INTO products (
-            product_code, product_name, description, category,
-            main_unit, secondary_unit, conversion_factor, barcode,
-            last_purchase_price, currency, product_type, status,
-            has_expiry, has_batch, has_colors
-          ) VALUES (
-            ${item.product_code},
-            ${item.product_name},
-            ${item.description || ""},
-            ${item.category || "عام"},
-            ${item.main_unit || "قطعة"},
-            ${item.secondary_unit || ""},
-            ${item.conversion_factor || 1},
-            ${item.barcode || ""},
-            ${sellingPrice},
-            ${item.currency || "شيكل"},
-            'منتج',
-            'نشط',
-            false,
-            false,
-            false
-          )
-          RETURNING id
-        `
+        // نفس القيم السابقة، لكن لكل عمود موجود فعلاً في قاعدة الشركة فقط وبنوعه (رقمي/نصي)
+        const candidates: [string, unknown][] = [
+          ["product_code", item.product_code],
+          ["product_name", item.product_name],
+          ["description", item.description || ""],
+          ["category", item.category || "عام"],
+          ["main_unit", item.main_unit || "قطعة"],
+          ["secondary_unit", item.secondary_unit || ""],
+          ["conversion_factor", item.conversion_factor || 1],
+          ["barcode", item.barcode || ""],
+          ["last_purchase_price", sellingPrice],
+          ["currency", item.currency || "شيكل"],
+          ["currency_id", Number(item.currency_id) || null],
+          ["product_type", isNumericColumn("product_type") ? 1 : "بضاعة تجارية"],
+          ["type", 1],
+          ["status", isNumericColumn("status") ? 1 : "نشط"],
+          ["has_expiry", false],
+          ["has_batch", false],
+          ["has_colors", false],
+        ]
+        const present = candidates.filter(([column]) => productColumns.has(column))
+        const inserted = await sql.unsafe(
+          `INSERT INTO products (${present.map(([column]) => column).join(", ")}) VALUES (${present.map((_, index) => `$${index + 1}`).join(", ")}) RETURNING id`,
+          present.map(([, value]) => value),
+        )
         const productId = Number(inserted[0]?.id)
         const unitId = Number(item.unit_id || 0)
         const priceCategoryId = Number(item.price_category_id || 0)

@@ -684,26 +684,31 @@ function HomePageContent() {
     }
   }, [])
 
+  // الشاشة الافتراضية عند الدخول (اعدادات المستخدم ← dashboard_layout.default_screen): تُفتح مرة واحدة لكل جلسة دخول.
+  // كان الفتح فقط عبر حدث OPEN_DEFAULT_SCREEN بعد 100ms من الدخول فيضيع إن لم تكن الصفحة مركّبة بعد، ولا يُطلق أصلاً عند
+  // الدخول من "شركاتي" — فتُفتح الآن عند أول تركيب للصفحة أيضاً. default_screen_opened تُمسح عند تسجيل الخروج (auth-context).
   useEffect(() => {
-    const handler = () => {
-      const storedUser =
-        sessionStorage.getItem("erp_user") ||
-        localStorage.getItem("erp_user")
-
-      if (!storedUser) return
-
-      const user = JSON.parse(storedUser)
-      const defaultScreen = user?.dashboard_layout?.default_screen
-
-      if (!defaultScreen || defaultScreen === "dashboard") return
-
-      const resolved = componentMap[defaultScreen] ? defaultScreen : "home-dashboard"
-      openSection(resolved, titleFor(resolved))
+    const openDefaultScreen = (fromLogin: boolean) => {
+      try {
+        if (!fromLogin && sessionStorage.getItem("default_screen_opened")) return
+        const storedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
+        if (!storedUser) return
+        sessionStorage.setItem("default_screen_opened", "1")
+        // رابط بقسم محدد (?section=) أو استئناف الكاشير لهما الأولوية على الشاشة الافتراضية
+        if (!fromLogin && (searchParams.get("section") || localStorage.getItem(POS_RESUME_KEY) === "1")) return
+        const defaultScreen = JSON.parse(storedUser)?.dashboard_layout?.default_screen
+        if (!defaultScreen || defaultScreen === "dashboard" || defaultScreen === "home-dashboard" || !componentMap[defaultScreen]) return
+        openSection(defaultScreen, titleFor(defaultScreen))
+      } catch {
+        // تخزين غير متاح — تبقى الشاشة الرئيسية
+      }
     }
-
+    openDefaultScreen(false)
+    const handler = () => openDefaultScreen(true)
     window.addEventListener("OPEN_DEFAULT_SCREEN", handler)
 
     return () => window.removeEventListener("OPEN_DEFAULT_SCREEN", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, openSection])
 
   // جسر تنقّل عام بين مكوّنات الأقسام الشقيقة (لا قناة props مباشرة بينها — كل قسم يُصيَّر بلا أي
