@@ -167,10 +167,10 @@ export default function Permissions() {
 
   return (
     <div className="w-full space-y-5 p-4 md:p-6" dir="rtl">
-      <div className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-l from-primary/10 via-background to-background p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border bg-gradient-to-l from-primary/[0.06] via-background to-background px-4 py-3.5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Shield className="h-6 w-6" /></div>
-          <div><h1 className="text-xl font-bold">صلاحيات المستخدمين</h1><p className="mt-1 text-sm text-muted-foreground">خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.</p></div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Shield className="h-5 w-5" /></div>
+          <div><h1 className="text-lg font-bold">صلاحيات المستخدمين</h1><p className="mt-0.5 text-xs text-muted-foreground">خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.</p></div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="ml-2 h-4 w-4" />نسخ صلاحيات</Button>
@@ -186,9 +186,9 @@ export default function Permissions() {
             <div className="max-h-[360px] space-y-1 overflow-y-auto pl-1">
               {filteredUsers.map((user) => {
                 const id = String(user.user_id || user.id); const active = id === selectedUserId
-                return <button key={id} type="button" onClick={() => chooseUser(user)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-right transition-colors ${active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
-                  <Avatar className="h-9 w-9"><AvatarFallback className={active ? "bg-primary-foreground/15 text-primary-foreground" : ""}>{(user.full_name || user.username || "م").charAt(0)}</AvatarFallback></Avatar>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{user.full_name || user.username}</span><span className={`block truncate text-xs ${active ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{user.branch_name || user.department || "غير مرتبط بفرع"}</span></span>
+                return <button key={id} type="button" onClick={() => chooseUser(user)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-sm transition-colors ${active ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-muted"}`}>
+                  <Avatar className="h-9 w-9"><AvatarFallback className={active ? "bg-primary/15 text-primary" : ""}>{(user.full_name || user.username || "م").charAt(0)}</AvatarFallback></Avatar>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{user.full_name || user.username}</span><span className={`block truncate text-xs ${active ? "text-primary/70" : "text-muted-foreground"}`}>{user.branch_name || user.department || "غير مرتبط بفرع"}</span></span>
                 </button>
               })}
             </div>

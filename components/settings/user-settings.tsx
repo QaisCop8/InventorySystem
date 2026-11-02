@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import PrimeDropdown from "@/components/common/FocusDropdown"
+import { SearchableSelect } from "@/components/common/searchable-select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -634,23 +635,15 @@ export function UserSettings() {
                     </div>
 
                     <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="defaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
-                      <div className="invoice-currency-dropdown-wrap">
-                        <PrimeDropdown
+                      <SearchableSelect
                           id="defaultScreen"
                           value={editDefaultScreen}
                           options={getAvailableScreens(selectedUser.role)}
                           optionLabel="label"
                           optionValue="value"
                           placeholder="اختر الشاشة الافتراضية"
-                          filter
-                          className="invoice-currency-dropdown w-full"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                          onChange={(e: any) => setEditDefaultScreen(e.value)}
+                          onChange={(value) => setEditDefaultScreen(value)}
                         />
-                      </div>
                     </FieldBox>
                     <ToggleTile className="md:col-span-2" id="openScreensFullscreen" title="فتح الشاشة بشاشة كاملة" description="يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات">
                       <Switch id="openScreensFullscreen" checked={editOpenScreensFullscreen} onCheckedChange={setEditOpenScreensFullscreen} />
@@ -667,61 +660,37 @@ export function UserSettings() {
                       <Input id="phone" name="phone" defaultValue={selectedUser.phone || ""} className={FIELD_CLASS} dir="rtl" />
                     </FieldBox>
                     <FieldBox label="القسم *" htmlFor="department">
-                      <div className="invoice-currency-dropdown-wrap">
-                        <PrimeDropdown
+                      <SearchableSelect
                           id="department"
                           value={editDepartment}
                           options={activeDepartments}
                           optionLabel="department_name"
                           optionValue="department_name"
                           placeholder="اختر القسم"
-                          filter
-                          className="invoice-currency-dropdown w-full"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                          onChange={(e: any) => setEditDepartment(e.value)}
+                          onChange={(value) => setEditDepartment(value)}
                         />
-                      </div>
                     </FieldBox>
                     <FieldBox label="الفرع *" htmlFor="branch">
-                      <div className="invoice-currency-dropdown-wrap">
-                        <PrimeDropdown
+                      <SearchableSelect
                           id="branch"
                           value={editBranchId}
                           options={branches}
                           optionLabel="branch_name"
                           optionValue="id"
                           placeholder="اختر الفرع"
-                          filter
-                          className="invoice-currency-dropdown w-full"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                          onChange={(e: any) => setEditBranchId(e.value)}
+                          onChange={(value) => setEditBranchId(value)}
                         />
-                      </div>
                     </FieldBox>
                     <FieldBox className="md:col-span-2" label="الدور الوظيفي *" htmlFor="editJobRole">
-                      <div className="invoice-currency-dropdown-wrap">
-                        <PrimeDropdown
+                      <SearchableSelect
                           id="editJobRole"
                           value={editJobRoleId}
                           options={jobRoles}
                           optionLabel="name"
                           optionValue="id"
                           placeholder="اختر الدور الوظيفي"
-                          filter
-                          className="invoice-currency-dropdown w-full"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                          onChange={(e: any) => setEditJobRoleId(e.value)}
+                          onChange={(value) => setEditJobRoleId(value)}
                         />
-                      </div>
                     </FieldBox>
                   </div>
                 </FormSection>
@@ -815,23 +784,15 @@ export function UserSettings() {
                     لا حاجة لإدخال كلمة مرور — سيصل المستخدم بريد دعوة برمز لتعيين كلمة المرور الخاصة به بنفسه.
                   </div>
                   <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="newDefaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
-                    <div className="invoice-currency-dropdown-wrap">
-                      <PrimeDropdown
-                        id="newDefaultScreen"
-                        value={newDefaultScreen}
-                        options={getAvailableScreens("مدير النظام")}
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="اختر الشاشة الافتراضية"
-                        filter
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                        onChange={(e: any) => setNewDefaultScreen(e.value)}
-                      />
-                    </div>
+                    <SearchableSelect
+                          id="newDefaultScreen"
+                          value={newDefaultScreen}
+                          options={getAvailableScreens("مدير النظام")}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر الشاشة الافتراضية"
+                          onChange={(value) => setNewDefaultScreen(value)}
+                        />
                   </FieldBox>
                   <ToggleTile className="md:col-span-2" id="newOpenScreensFullscreen" title="فتح الشاشة بشاشة كاملة" description="يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات">
                     <Switch id="newOpenScreensFullscreen" checked={newOpenScreensFullscreen} onCheckedChange={setNewOpenScreensFullscreen} />
@@ -848,61 +809,37 @@ export function UserSettings() {
                     <Input id="newPhone" name="phone" placeholder="05xxxxxxxx" className={FIELD_CLASS} dir="rtl" />
                   </FieldBox>
                   <FieldBox label="القسم *" htmlFor="newDepartment">
-                    <div className="invoice-currency-dropdown-wrap">
-                      <PrimeDropdown
-                        id="newDepartment"
-                        value={newDepartment}
-                        options={activeDepartments}
-                        optionLabel="department_name"
-                        optionValue="department_name"
-                        placeholder="اختر القسم"
-                        filter
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                        onChange={(e: any) => setNewDepartment(e.value)}
-                      />
-                    </div>
+                    <SearchableSelect
+                          id="newDepartment"
+                          value={newDepartment}
+                          options={activeDepartments}
+                          optionLabel="department_name"
+                          optionValue="department_name"
+                          placeholder="اختر القسم"
+                          onChange={(value) => setNewDepartment(value)}
+                        />
                   </FieldBox>
                   <FieldBox label="الفرع *" htmlFor="newBranch">
-                    <div className="invoice-currency-dropdown-wrap">
-                      <PrimeDropdown
-                        id="newBranch"
-                        value={newBranchId}
-                        options={branches}
-                        optionLabel="branch_name"
-                        optionValue="id"
-                        placeholder="اختر الفرع"
-                        filter
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                        onChange={(e: any) => setNewBranchId(e.value)}
-                      />
-                    </div>
+                    <SearchableSelect
+                          id="newBranch"
+                          value={newBranchId}
+                          options={branches}
+                          optionLabel="branch_name"
+                          optionValue="id"
+                          placeholder="اختر الفرع"
+                          onChange={(value) => setNewBranchId(value)}
+                        />
                   </FieldBox>
                   <FieldBox className="md:col-span-2" label="الدور الوظيفي *" htmlFor="newJobRole">
-                    <div className="invoice-currency-dropdown-wrap">
-                      <PrimeDropdown
-                        id="newJobRole"
-                        value={newJobRoleId}
-                        options={jobRoles}
-                        optionLabel="name"
-                        optionValue="id"
-                        placeholder="اختر الدور الوظيفي"
-                        filter
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onShow={revealOpenDropdown}
-                          onHide={resetDropdownSpace}
-                        onChange={(e: any) => setNewJobRoleId(e.value)}
-                      />
-                    </div>
+                    <SearchableSelect
+                          id="newJobRole"
+                          value={newJobRoleId}
+                          options={jobRoles}
+                          optionLabel="name"
+                          optionValue="id"
+                          placeholder="اختر الدور الوظيفي"
+                          onChange={(value) => setNewJobRoleId(value)}
+                        />
                   </FieldBox>
                 </div>
               </FormSection>
@@ -975,23 +912,6 @@ function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: 
   )
 }
 
-// تمرير جسم النافذة حتى تظهر قائمة الاختيار المفتوحة كاملة (appendTo="self" داخل منطقة التمرير). قائمة آخر حقل
-// (الدور الوظيفي) كانت تمتد أسفل نهاية منطقة التمرير فتختفي تحت شريط الأزرار: يُضاف فراغ سفلي مؤقت بقدر الجزء
-// الخارج ثم يُمرَّر إليها، ويُزال الفراغ عند إغلاقها (resetDropdownSpace).
-function revealOpenDropdown() {
-  window.setTimeout(() => {
-    const panels = document.querySelectorAll<HTMLElement>(".user-dialog-body .p-dropdown-panel")
-    const panel = panels[panels.length - 1]
-    const body = panel?.closest<HTMLElement>(".user-dialog-body")
-    if (!panel || !body) return
-    const overflow = panel.getBoundingClientRect().bottom - body.getBoundingClientRect().bottom + 16
-    if (overflow > 0) body.style.paddingBottom = `${(parseFloat(getComputedStyle(body).paddingBottom) || 0) + overflow}px`
-    panel.scrollIntoView({ block: "nearest", behavior: "smooth" })
-  }, 60)
-}
-function resetDropdownSpace() {
-  document.querySelectorAll<HTMLElement>(".user-dialog-body").forEach((body) => { body.style.paddingBottom = "" })
-}
 // F3 = حفظ نافذة إضافة/تعديل المستخدم (نفس اختصار الحفظ في باقي الشاشات)
 function submitOnF3(event: React.KeyboardEvent<HTMLElement>) {
   if (event.key !== "F3") return

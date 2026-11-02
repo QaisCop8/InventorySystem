@@ -10,6 +10,7 @@ import {
   Receipt, RotateCcw, Search, ShieldCheck, ShoppingBag, ShoppingCart, TrendingUp, Truck, Undo2, Users, Wallet, WalletCards, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { menuItems, type MenuItem } from "@/components/sidebar"
 import {
   FILE_ACTION_LABELS, FILE_FAMILIES, FILE_PERMISSION_CATEGORY, parseFilePermission,
   type FileAction, type FileFamily,
@@ -66,12 +67,12 @@ const FILE_ACTIONS: { key: FileAction; label: string; tone: string }[] = [
   { key: "delete", label: FILE_ACTION_LABELS.delete, tone: "rose" },
 ]
 const toneClasses: Record<string, { on: string; soft: string; text: string }> = {
-  sky: { on: "bg-sky-500 border-sky-500 text-white", soft: "bg-sky-50", text: "text-sky-700" },
-  emerald: { on: "bg-emerald-500 border-emerald-500 text-white", soft: "bg-emerald-50", text: "text-emerald-700" },
-  amber: { on: "bg-amber-500 border-amber-500 text-white", soft: "bg-amber-50", text: "text-amber-700" },
-  rose: { on: "bg-rose-500 border-rose-500 text-white", soft: "bg-rose-50", text: "text-rose-700" },
-  violet: { on: "bg-violet-500 border-violet-500 text-white", soft: "bg-violet-50", text: "text-violet-700" },
-  teal: { on: "bg-teal-600 border-teal-600 text-white", soft: "bg-teal-50", text: "text-teal-700" },
+  sky: { on: "bg-sky-100 border-sky-300 text-sky-700 dark:bg-sky-500/20 dark:border-sky-500/40 dark:text-sky-200", soft: "bg-sky-50", text: "text-sky-700" },
+  emerald: { on: "bg-emerald-100 border-emerald-300 text-emerald-700 dark:bg-emerald-500/20 dark:border-emerald-500/40 dark:text-emerald-200", soft: "bg-emerald-50", text: "text-emerald-700" },
+  amber: { on: "bg-amber-100 border-amber-300 text-amber-700 dark:bg-amber-500/20 dark:border-amber-500/40 dark:text-amber-200", soft: "bg-amber-50", text: "text-amber-700" },
+  rose: { on: "bg-rose-100 border-rose-300 text-rose-700 dark:bg-rose-500/20 dark:border-rose-500/40 dark:text-rose-200", soft: "bg-rose-50", text: "text-rose-700" },
+  violet: { on: "bg-violet-100 border-violet-300 text-violet-700 dark:bg-violet-500/20 dark:border-violet-500/40 dark:text-violet-200", soft: "bg-violet-50", text: "text-violet-700" },
+  teal: { on: "bg-teal-100 border-teal-300 text-teal-700 dark:bg-teal-500/20 dark:border-teal-500/40 dark:text-teal-200", soft: "bg-teal-50", text: "text-teal-700" },
 }
 
 const VOUCHER_SECTIONS: { title: string; icon: any; gradient: string; vouchers: { name: string; icon: any }[] }[] = [
@@ -261,6 +262,39 @@ const SOURCE_LABELS: Record<string, string> = {
 
 type Filter = "all" | "granted" | "denied"
 
+// "الشاشات والصلاحيات العامة": أغلبها مسجّلة بفئة عامة ("صلاحيات الحركات") فكانت قائمة طويلة واحدة. تُقسَّم الآن حسب
+// وحدة النظام (أقسام القائمة الجانبية) ثم الشاشة، وعمليات كل شاشة شرائح على سطر واحد: "تعديل التسوية البنكية" ⇐
+// الشاشة "التسوية البنكية" (قسم المحاسبة العامة)، العملية "تعديل". الفئات المحددة أصلاً (الإعدادات، العملاء والذمم...) تبقى كما هي.
+const GENERIC_CATEGORIES = new Set(["صلاحيات الحركات", "الحركات", "أخرى"])
+const SCREEN_ACTION_PREFIXES: [string, string][] = [
+  ["ترحيل وإلغاء ترحيل", "ترحيل"], ["الدخول لشاشة", "الدخول"], ["استعلام ومعالجة", "استعلام ومعالجة"], ["حذف مرفقات", "حذف المرفقات"],
+  ["إضافة مسودة", "إضافة مسودة"], ["تعديل مسودة", "تعديل مسودة"], ["استعلام مسودة", "استعلام مسودة"],
+  ["استعلام", "استعلام"], ["إدخال", "إدخال"], ["ادخال", "إدخال"], ["تعديل", "تعديل"], ["حذف", "حذف"], ["تنفيذ", "تنفيذ"], ["نسخ", "نسخ"], ["طباعة", "طباعة"],
+]
+const ACTION_ORDER = ["الدخول", "استعلام", "إدخال", "تعديل", "حذف", "ترحيل"]
+function splitPermission(name: string): { action: string; screen: string } {
+  const text = name.replace(/\s+/g, " ").trim()
+  for (const [prefix, label] of SCREEN_ACTION_PREFIXES) {
+    if (text.startsWith(prefix + " ")) return { action: label, screen: text.slice(prefix.length + 1).trim() }
+  }
+  return { action: "", screen: text }
+}
+// عنوان الشاشة ⇐ القسم الرئيسي في القائمة الجانبية
+const SCREEN_MODULES = (() => {
+  const map = new Map<string, string>()
+  const walk = (items: MenuItem[], top: string) => items.forEach((item) => { if (item.section) map.set(normalize(item.title), top); if (item.submenu) walk(item.submenu, top) })
+  menuItems.forEach((item) => { if (item.submenu) walk(item.submenu, item.title) })
+  return map
+})()
+function moduleOf(screen: string, category: string) {
+  if (!GENERIC_CATEGORIES.has(category)) return category
+  const key = normalize(screen)
+  const exact = SCREEN_MODULES.get(key)
+  if (exact) return exact
+  for (const [title, top] of SCREEN_MODULES) if (title.length > 3 && (key.includes(title) || title.includes(key))) return top
+  return "أخرى"
+}
+
 export function BranchPermissionEditor({ items, values, onChange, search, onSearchChange, loading, dirty }: Props) {
   const [tab, setTab] = useState<"vouchers" | "files" | "reports" | "retail" | "general">("vouchers")
   const [filter, setFilter] = useState<Filter>("all")
@@ -353,6 +387,29 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
   const generalGroups = useMemo(() => categoryGroups.filter((group) => !RETAIL_CATEGORIES.has(group.category)), [categoryGroups])
   const retailGroups = useMemo(() => categoryGroups.filter((group) => RETAIL_CATEGORIES.has(group.category)), [categoryGroups])
   const shownGroups = tab === "retail" ? retailGroups : generalGroups
+  const generalModules = useMemo(() => {
+    const modules = new Map<string, Map<string, { action: string; items: PermissionItem[] }[]>>()
+    for (const group of generalGroups) {
+      for (const entry of group.entries) {
+        const { action, screen } = splitPermission(entry[0].access_name || "")
+        const module = moduleOf(screen, group.category)
+        const screens = modules.get(module) || new Map<string, { action: string; items: PermissionItem[] }[]>()
+        const actions = screens.get(screen) || []
+        const existing = actions.find((row) => row.action === action)
+        if (existing) existing.items.push(...entry)
+        else actions.push({ action, items: [...entry] })
+        screens.set(screen, actions)
+        modules.set(module, screens)
+      }
+    }
+    const rank = (action: string) => { const index = ACTION_ORDER.indexOf(action); return index < 0 ? ACTION_ORDER.length : index }
+    return Array.from(modules.entries())
+      .map(([module, screens]) => ({
+        module,
+        screens: Array.from(screens.entries()).map(([screen, actions]) => ({ screen, actions: actions.sort((a, b) => rank(a.action) - rank(b.action)) })),
+      }))
+      .sort((a, b) => (a.module === "أخرى" ? 1 : b.module === "أخرى" ? -1 : b.screens.length - a.screens.length))
+  }, [generalGroups])
 
   const voucherItems = useMemo(() => Array.from(rows.values()).flatMap(rowAll), [rows]) // eslint-disable-line react-hooks/exhaustive-deps
   const fileItems = useMemo(() => Array.from(fileRows.values()).flatMap(fileRowAll), [fileRows])
@@ -448,25 +505,25 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
               const SectionIcon = section.icon
               return (
                 <section key={section.title} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-                  <header className={cn("flex flex-wrap items-center justify-between gap-3 bg-gradient-to-l p-4 text-white", section.gradient)}>
+                  <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
                     <button type="button" onClick={() => toggleCollapsed(section.title)} className="flex items-center gap-3 text-right">
-                      <span className="grid size-10 place-items-center rounded-xl bg-white/15"><SectionIcon className="h-5 w-5" /></span>
+                      <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><SectionIcon className="h-4 w-4" /></span>
                       <span>
-                        <span className="block text-base font-black">{section.title}</span>
-                        <span className="block text-xs text-white/80">{section.rows.length} نوع سند · {sectionGranted}/{sectionItems.length} مفعّلة</span>
+                        <span className="block text-sm font-bold">{section.title}</span>
+                        <span className="block text-[11px] text-muted-foreground">{section.rows.length} نوع سند · {sectionGranted}/{sectionItems.length} مفعّلة</span>
                       </span>
                       <ChevronDown className={cn("h-4 w-4 transition", !open && "-rotate-90")} />
                     </button>
                     <div className="flex items-center gap-3">
-                      <div className="hidden h-2 w-32 overflow-hidden rounded-full bg-white/25 sm:block"><div className="h-full rounded-full bg-white" style={{ width: `${sectionItems.length ? (sectionGranted / sectionItems.length) * 100 : 0}%` }} /></div>
-                      <Button type="button" size="sm" variant="secondary" className="h-8 bg-white/90 text-slate-900 hover:bg-white" onClick={() => onChange(set(sectionItems, !allOn))}>
+                      <div className="hidden h-1.5 w-28 overflow-hidden rounded-full bg-muted sm:block"><div className="h-full rounded-full bg-primary/60" style={{ width: `${sectionItems.length ? (sectionGranted / sectionItems.length) * 100 : 0}%` }} /></div>
+                      <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => onChange(set(sectionItems, !allOn))}>
                         {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? "إلغاء الكل" : "تفعيل الكل"}
                       </Button>
                     </div>
                   </header>
                   {open && (
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[760px] text-sm">
+                      <table className="w-full min-w-[760px] text-xs">
                         <thead>
                           <tr className="border-b bg-muted/40">
                             <th className="p-3 text-right text-xs font-semibold text-muted-foreground">نوع السند</th>
@@ -505,7 +562,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                 <td className="p-3">
                                   <div className="flex items-center gap-2.5">
                                     <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", count(all) ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><VoucherIcon className="h-4 w-4" /></span>
-                                    <div><p className="font-semibold">{name}</p><p className="text-[11px] text-muted-foreground tabular-nums">{count(all)}/{all.length}</p></div>
+                                    <div><p className="text-[13px] font-medium">{name}</p><p className="text-[11px] text-muted-foreground tabular-nums">{count(all)}/{all.length}</p></div>
                                   </div>
                                 </td>
                                 {ACTIONS.map((action) => {
@@ -522,11 +579,11 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                         aria-label={`${action.label} ${name}`}
                                         title={`${action.label} ${name}${source ? ` — ${source}` : ""}`}
                                         className={cn(
-                                          "mx-auto grid size-9 place-items-center rounded-xl border-2 transition-all hover:scale-105",
+                                          "mx-auto grid size-7 place-items-center rounded-lg border transition-all hover:scale-105",
                                           on ? toneClasses[action.tone].on + " shadow-sm" : partial ? "border-dashed border-muted-foreground/50 bg-muted" : "border-muted-foreground/20 bg-background text-transparent hover:border-muted-foreground/50",
                                         )}
                                       >
-                                        {on ? <Check className="h-4 w-4" strokeWidth={3} /> : partial ? <Minus className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4" />}
+                                        {on ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : partial ? <Minus className="h-3.5 w-3.5 text-muted-foreground" /> : <Check className="h-3.5 w-3.5" />}
                                       </button>
                                     </td>
                                   )
@@ -537,7 +594,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                       const on = isOn(extra.items)
                                       return (
                                         <button key={extra.key} type="button" onClick={() => toggleExtra(row, extra.items)} aria-pressed={on}
-                                          className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold transition", on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:border-primary/50")}
+                                          className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold transition", on ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/50")}
                                         >{on && <Check className="-mt-0.5 ml-1 inline h-3 w-3" />}{extra.label}</button>
                                       )
                                     })}
@@ -573,18 +630,18 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
               const SectionIcon = section.icon
               return (
                 <section key={section.title} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-                  <header className={cn("flex flex-wrap items-center justify-between gap-3 bg-gradient-to-l p-4 text-white", section.gradient)}>
+                  <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
                     <button type="button" onClick={() => toggleCollapsed(collapseKey)} aria-expanded={open} className="flex items-center gap-3 text-right">
-                      <span className="grid size-10 place-items-center rounded-xl bg-white/15"><SectionIcon className="h-5 w-5" /></span>
+                      <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><SectionIcon className="h-4 w-4" /></span>
                       <span>
-                        <span className="block text-base font-black">{section.title}</span>
-                        <span className="block text-xs text-white/80">{section.rows.length} ملفات · {sectionGranted}/{sectionItems.length} مفعّلة</span>
+                        <span className="block text-sm font-bold">{section.title}</span>
+                        <span className="block text-[11px] text-muted-foreground">{section.rows.length} ملفات · {sectionGranted}/{sectionItems.length} مفعّلة</span>
                       </span>
                       <ChevronDown className={cn("h-4 w-4 transition", !open && "-rotate-90")} />
                     </button>
                     <div className="flex items-center gap-3">
-                      <div className="hidden h-2 w-32 overflow-hidden rounded-full bg-white/25 sm:block"><div className="h-full rounded-full bg-white" style={{ width: `${sectionItems.length ? (sectionGranted / sectionItems.length) * 100 : 0}%` }} /></div>
-                      <Button type="button" size="sm" variant="secondary" className="h-8 bg-white/90 text-slate-900 hover:bg-white"
+                      <div className="hidden h-1.5 w-28 overflow-hidden rounded-full bg-muted sm:block"><div className="h-full rounded-full bg-primary/60" style={{ width: `${sectionItems.length ? (sectionGranted / sectionItems.length) * 100 : 0}%` }} /></div>
+                      <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
                         aria-label={`${allOn ? "إلغاء" : "تفعيل"} كل صلاحيات ${section.title}`}
                         onClick={() => onChange(setFilePermissionValues(sectionRows, values, "all", !allOn))}>
                         {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? "إلغاء الكل" : "تفعيل الكل"}
@@ -623,7 +680,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                 <th scope="row" className="p-3 text-right font-normal">
                                   <div className="flex items-center gap-2.5">
                                     <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", count(all) ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><FileIcon className="h-4 w-4" /></span>
-                                    <div><p className="font-semibold">{name}</p><p className="text-[11px] text-muted-foreground tabular-nums">{count(all)}/{all.length}</p></div>
+                                    <div><p className="text-[13px] font-medium">{name}</p><p className="text-[11px] text-muted-foreground tabular-nums">{count(all)}/{all.length}</p></div>
                                   </div>
                                 </th>
                                 {FILE_ACTIONS.map((action) => {
@@ -637,10 +694,10 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                         aria-pressed={partial ? "mixed" : on} aria-label={`${action.label} ${name}`}
                                         title={`${action.label} ${name}${source ? ` — ${source}` : ""}`}
                                         className={cn(
-                                          "mx-auto grid size-9 place-items-center rounded-xl border-2 transition-all hover:scale-105",
+                                          "mx-auto grid size-7 place-items-center rounded-lg border transition-all hover:scale-105",
                                           on ? toneClasses[action.tone].on + " shadow-sm" : partial ? "border-dashed border-muted-foreground/50 bg-muted" : "border-muted-foreground/20 bg-background text-transparent hover:border-muted-foreground/50",
                                         )}>
-                                        {on ? <Check className="h-4 w-4" strokeWidth={3} /> : partial ? <Minus className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4" />}
+                                        {on ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : partial ? <Minus className="h-3.5 w-3.5 text-muted-foreground" /> : <Check className="h-3.5 w-3.5" />}
                                       </button>
                                     </td>
                                   )
@@ -699,10 +756,10 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                             aria-pressed={partial ? "mixed" : on} aria-label={`${action.label}: ${row.definition.title}`}
                             title={`${action.label}: ${row.definition.title}`}
                             className={cn(
-                              "mx-auto grid size-9 place-items-center rounded-xl border-2 transition-all hover:scale-105",
+                              "mx-auto grid size-7 place-items-center rounded-lg border transition-all hover:scale-105",
                               on ? toneClasses[action.tone].on + " shadow-sm" : partial ? "border-dashed border-muted-foreground/50 bg-muted" : "border-muted-foreground/20 bg-background text-transparent hover:border-muted-foreground/50",
                             )}>
-                            {on ? <Check className="h-4 w-4" strokeWidth={3} /> : partial ? <Minus className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4" />}
+                            {on ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : partial ? <Minus className="h-3.5 w-3.5 text-muted-foreground" /> : <Check className="h-3.5 w-3.5" />}
                           </button>
                         </td>
                       })}
@@ -718,6 +775,56 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             </div>
           </section>
         )
+      ) : tab === "general" ? (
+        generalModules.length === 0 ? <Empty text="لا توجد صلاحيات مطابقة للبحث أو الفلتر." /> : (
+          <div className="grid items-start gap-3 xl:grid-cols-2">
+            {generalModules.map((group) => {
+              const groupItems = group.screens.flatMap((screen) => screen.actions.flatMap((action) => action.items))
+              const groupGranted = count(groupItems)
+              const allOn = groupGranted === groupItems.length
+              return (
+                <section key={group.module} className="overflow-hidden rounded-2xl border bg-card">
+                  <header className="flex items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><LayoutGrid className="h-4 w-4" /></span>
+                      <div className="min-w-0"><h3 className="truncate text-sm font-bold">{group.module}</h3><p className="text-[11px] text-muted-foreground tabular-nums">{group.screens.length} شاشة · {groupGranted}/{groupItems.length} مفعّلة</p></div>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => onChange(set(groupItems, !allOn))}>
+                      {allOn ? <X className="ml-1 h-3.5 w-3.5" /> : <CheckCheck className="ml-1 h-3.5 w-3.5" />}{allOn ? "إلغاء الكل" : "تفعيل الكل"}
+                    </Button>
+                  </header>
+                  <ul className="divide-y">
+                    {group.screens.map((screen) => {
+                      const screenItems = screen.actions.flatMap((action) => action.items)
+                      const screenOn = isOn(screenItems)
+                      const single = screen.actions.length === 1 && !screen.actions[0].action
+                      return (
+                        <li key={screen.screen} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
+                          <p className="min-w-0 flex-1 basis-40 text-[13px] font-medium">{screen.screen}</p>
+                          {!single && (
+                            <div className="flex flex-wrap gap-1">
+                              {screen.actions.map((action) => {
+                                const on = isOn(action.items)
+                                const source = SOURCE_LABELS[action.items[0].permission_source || ""]
+                                return (
+                                  <button key={action.action || "main"} type="button" aria-pressed={on} title={`${action.items[0].access_name}${source ? ` — ${source}` : ""}`}
+                                    onClick={() => onChange(set(action.items, !on))}
+                                    className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium transition", on ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40")}
+                                  >{on && <Check className="-mt-0.5 ml-0.5 inline h-3 w-3" />}{action.action || "تفعيل"}</button>
+                                )
+                              })}
+                            </div>
+                          )}
+                          <Switch checked={screenOn} onCheckedChange={(value) => onChange(set(screenItems, value))} aria-label={`كل صلاحيات ${screen.screen}`} className="scale-90" />
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              )
+            })}
+          </div>
+        )
       ) : shownGroups.length === 0 ? (
         <Empty text="لا توجد صلاحيات مطابقة للبحث أو الفلتر." />
       ) : (
@@ -727,11 +834,11 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             const groupGranted = count(groupItems)
             const allOn = groupGranted === groupItems.length
             return (
-              <section key={group.category} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-                <header className="flex items-center justify-between gap-3 border-b bg-muted/40 p-4">
+              <section key={group.category} className="overflow-hidden rounded-2xl border bg-card">
+                <header className="flex items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
                   <div className="flex items-center gap-3">
                     <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><ShieldCheck className="h-4 w-4" /></span>
-                    <div><h3 className="font-bold">{group.category}</h3><p className="text-xs text-muted-foreground">{groupGranted} من {groupItems.length} مفعّلة</p></div>
+                    <div><h3 className="text-sm font-bold">{group.category}</h3><p className="text-xs text-muted-foreground">{groupGranted} من {groupItems.length} مفعّلة</p></div>
                   </div>
                   <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => onChange(set(groupItems, !allOn))}>
                     {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? "إلغاء الكل" : "تفعيل الكل"}
@@ -742,9 +849,9 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                     const on = isOn(entry)
                     const source = SOURCE_LABELS[entry[0].permission_source || ""]
                     return (
-                      <li key={entry[0].access_id} className={cn("flex items-center justify-between gap-3 px-4 py-3 transition", on && "bg-primary/[0.03]")}>
+                      <li key={entry[0].access_id} className={cn("flex items-center justify-between gap-3 px-4 py-2 transition", on && "bg-primary/[0.03]")}>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{entry[0].access_name}</p>
+                          <p className="truncate text-[13px] font-medium">{entry[0].access_name}</p>
                           {source && <p className="text-[11px] text-muted-foreground">{source}</p>}
                         </div>
                         <Switch checked={on} onCheckedChange={(value) => onChange(set(entry, value))} aria-label={`صلاحية ${entry[0].access_name}`} />
@@ -763,10 +870,10 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
 
 function TabButton({ active, onClick, icon: Icon, label, granted, total }: { active: boolean; onClick: () => void; icon: any; label: string; granted: number; total: number }) {
   return (
-    <button type="button" onClick={onClick} className={cn("flex items-center gap-2 rounded-xl border px-4 py-2.5 text-right text-sm font-semibold transition", active ? "border-primary bg-primary text-primary-foreground shadow-sm" : "bg-background hover:bg-muted")}>
+    <button type="button" onClick={onClick} className={cn("flex items-center gap-2 rounded-xl border px-3 py-2 text-right text-xs font-semibold transition", active ? "border-primary/40 bg-primary/10 text-primary" : "bg-background text-muted-foreground hover:bg-muted")}>
       <Icon className="h-4 w-4 shrink-0" />
       <span className="flex-1">{label}</span>
-      <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] tabular-nums", active ? "bg-white/20" : "bg-muted")}>{granted}/{total}</span>
+      <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] tabular-nums", active ? "bg-primary/15" : "bg-muted")}>{granted}/{total}</span>
     </button>
   )
 }
