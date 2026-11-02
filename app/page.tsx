@@ -575,7 +575,14 @@ function HomePageContent() {
     // نفّذ الاختيار أصلاً من شركاتي يصل هنا وقد عمّر sessionStorage مسبقاً فيتخطى هذا مباشرة.
     const companyIdParam = searchParams.get("company")
     if (!companyIdParam) return
-    if (sessionStorage.getItem("active_company_id") === companyIdParam) return
+    if (sessionStorage.getItem("active_company_id") === companyIdParam) {
+      // الشركة مختارة لهذا التبويب ⇐ يُزال ?company= من شريط العنوان (مع إبقاء باقي المعاملات كـ section)
+      const params = new URLSearchParams(window.location.search)
+      params.delete("company")
+      const query = params.toString()
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`)
+      return
+    }
 
     activateCompany(Number(companyIdParam))
       .then((result) => {
