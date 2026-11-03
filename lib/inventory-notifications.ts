@@ -1,3 +1,4 @@
+import { publicAppUrl } from "@/lib/app-url"
 import sql from "@/lib/database"
 /**
  * Check if a product has reached its reorder point and trigger notification
@@ -60,7 +61,7 @@ export async function checkAndNotifyReorderPoint(productId: number): Promise<voi
     console.log(`[v0] Triggering reorder notification for product ${product.product_code}`)
 
     // Use fetch to call the internal API
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const baseUrl = publicAppUrl()
     await fetch(`${baseUrl}/api/inventory/check-and-notify`, {
       method: "POST",
       headers: {

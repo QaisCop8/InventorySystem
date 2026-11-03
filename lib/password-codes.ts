@@ -3,6 +3,7 @@ import { hashPassword } from "@/lib/auth"
 import sql, { withTenantDb } from "@/lib/database"
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { sendMail } from "@/lib/email"
+import { publicAppUrl } from "@/lib/app-url"
 
 // رموز تعيين/استعادة كلمة المرور — مخزّنة بقاعدة الإدارة (هوية المستخدم موحّدة عبر الشركات). كلمة المرور
 // الجديدة تُكتب بنفس تجزئة تسجيل الدخول (hashPassword) في حساب الإدارة وفي كل شركة مرتبط بها البريد.
@@ -35,7 +36,7 @@ function ensureTable() {
 
 const normalize = (email: string) => String(email || "").trim().toLowerCase()
 const digest = (code: string) => crypto.createHash("sha256").update(String(code).trim()).digest("hex")
-const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "")
+const escapeHtml = (value: string) => value.replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[ch] as string)
 
 /** هل البريد مسجّل (حساب إدارة، أو مستخدم نشط في قاعدة الشركة الحالية)؟ */
 export async function emailIsRegistered(email: string, tenantDb?: string | null) {
@@ -46,22 +47,37 @@ export async function emailIsRegistered(email: string, tenantDb?: string | null)
   return withTenantDb(tenantDb, async () => (await sql`SELECT 1 FROM user_settings WHERE LOWER(TRIM(email)) = ${normalized} AND is_active = true LIMIT 1`).length > 0).catch(() => false)
 }
 
-/** ينشئ رمزاً من 6 أرقام (يلغي الرموز السابقة لنفس الغرض) ويُرسله بالبريد. يعيد sent=false إن تعذّر الإرسال. */
+/**
+ * الاستعادة: رمز من 6 أرقام يُكتب في الشاشة (صالح 15 دقيقة). الدعوة: رابط فقط — المستخدم يفتحه ويعيّن كلمة المرور مباشرة
+ * (الرابط يحمل رمزاً طويلاً لمرة واحدة صالحاً 72 ساعة، لا يُعرض في الرسالة). يلغي الرموز السابقة لنفس الغرض.
+ */
 export async function issuePasswordCode(options: { email: string; purpose: PasswordCodePurpose; tenantDb?: string | null; fullName?: string; companyName?: string }) {
   await ensureTable()
   const email = normalize(options.email)
-  const code = String(crypto.randomInt(100000, 1000000))
-  const minutes = options.purpose === "invite" ? 72 * 60 : 15
+  const invite = options.purpose === "invite"
+  const code = invite ? crypto.randomBytes(24).toString("hex") : String(crypto.randomInt(100000, 1000000))
+  const minutes = invite ? 72 * 60 : 15
   await managementSql`UPDATE password_codes SET used = true WHERE LOWER(email) = ${email} AND purpose = ${options.purpose} AND used = false`
   await managementSql`
     INSERT INTO password_codes (email, code_hash, purpose, tenant_db, expires_at)
     VALUES (${email}, ${digest(code)}, ${options.purpose}, ${options.tenantDb || null}, CURRENT_TIMESTAMP + (${minutes} * INTERVAL '1 minute'))`
-  const link = appUrl() ? `${appUrl()}/management/login?set_password=1&email=${encodeURIComponent(email)}&code=${code}` : ""
-  const greeting = options.fullName ? `مرحباً ${options.fullName}،` : "مرحباً،"
-  const html = options.purpose === "invite"
-    ? `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${greeting}</p><p>تم إنشاء حساب لك في نظام Noon ERP${options.companyName ? ` لدى شركة <b>${options.companyName}</b>` : ""}.</p><p>لتعيين كلمة المرور الخاصة بك استخدم رمز التحقق التالي (صالح لمدة 72 ساعة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p>${link ? `<p><a href="${link}">اضغط هنا لتعيين كلمة المرور</a></p>` : `<p>من صفحة تسجيل الدخول اختر "نسيت كلمة المرور؟" ثم أدخل بريدك وهذا الرمز.</p>`}</div>`
-    : `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${greeting}</p><p>رمز التحقق لاستعادة كلمة المرور (صالح لمدة 15 دقيقة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p><p>إن لم تطلب استعادة كلمة المرور فتجاهل هذه الرسالة.</p></div>`
-  const sent = await sendMail({ to: email, subject: options.purpose === "invite" ? "تعيين كلمة المرور لحسابك الجديد — Noon ERP" : "رمز استعادة كلمة المرور — Noon ERP", html })
+  const greeting = options.fullName ? `مرحباً ${escapeHtml(options.fullName)}،` : "مرحباً،"
+  let html: string
+  if (invite) {
+    const link = `${publicAppUrl()}/management/login?set_password=1&email=${encodeURIComponent(email)}&code=${code}`
+    html = `<div dir="rtl" style="background:#f4f8f7;padding:24px;font-family:Tahoma,Arial,sans-serif">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e2ece9;padding:28px;text-align:center">
+    <div style="font-size:20px;font-weight:800;color:#065f46">مرحباً بك في Noon ERP</div>
+    <p style="color:#334155;line-height:1.9;margin:14px 0 0">${greeting}<br>تم إنشاء حساب لك${options.companyName ? ` لدى شركة <b>${escapeHtml(options.companyName)}</b>` : ""}.<br>اضغط الزر لتعيين كلمة المرور الخاصة بك والدخول إلى النظام.</p>
+    <a href="${link}" style="display:inline-block;margin:22px 0 8px;background:#059669;color:#fff;text-decoration:none;font-weight:700;padding:13px 32px;border-radius:12px">تعيين كلمة المرور</a>
+    <p style="color:#64748b;font-size:12px;line-height:1.8;margin:12px 0 0">الرابط صالح لمدة 72 ساعة ولمرة واحدة. بعد تعيين كلمة المرور ادخل ببريدك <span dir="ltr">${escapeHtml(email)}</span>.</p>
+    <p style="color:#94a3b8;font-size:11px;margin:14px 0 0;word-break:break-all" dir="ltr">${link}</p>
+  </div>
+</div>`
+  } else {
+    html = `<div dir="rtl" style="font-family:Arial,sans-serif"><p>${greeting}</p><p>رمز التحقق لاستعادة كلمة المرور (صالح لمدة 15 دقيقة):</p><p style="font-size:26px;font-weight:bold;letter-spacing:6px">${code}</p><p>إن لم تطلب استعادة كلمة المرور فتجاهل هذه الرسالة.</p></div>`
+  }
+  const sent = await sendMail({ to: email, subject: invite ? "تعيين كلمة المرور لحسابك الجديد — Noon ERP" : "رمز استعادة كلمة المرور — Noon ERP", html })
   if (!sent) console.log(`[password-codes] email not sent; ${options.purpose} code for ${email} was generated (check SMTP settings)`)
   return { sent }
 }

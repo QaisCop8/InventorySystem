@@ -3,6 +3,7 @@ import { countTenantUsage, ensureLicenseTables, LICENSE_RESOURCE_LABELS, type Li
 import { initializeLahzaTransaction, isLahzaConfigured, isLahzaTestMode, LAHZA_CURRENCIES, lahzaPublicKey, toMinorUnits, verifyLahzaTransaction, type LahzaCurrency } from "@/lib/lahza"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
 import { sendMail } from "@/lib/email"
+import { publicAppUrl } from "@/lib/app-url"
 import { priceFor, type LicenseCounts, type Pricing } from "@/lib/company-pricing"
 
 // الدفع عند إنشاء شركة جديدة (قاعدة الإدارة):
@@ -532,7 +533,7 @@ async function sendCompanyWelcomeEmail(companyId: number, payment: any, owner: a
   const [company] = await managementSql`SELECT expiry_date FROM companies WHERE id = ${companyId}`
   const expiry = company?.expiry_date ? new Date(company.expiry_date).toLocaleDateString("en-GB") : "—"
   const manual = String(payment.provider) === "manual"
-  const appUrl = String(process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/$/, "")
+  const appUrl = publicAppUrl()
   const { phone, whatsapp } = await getSalesContacts().catch(() => ({ phone: "", whatsapp: "" }))
   const row = (label: string, value: string) =>
     `<tr><td style="padding:10px 14px;color:#64748b;border-bottom:1px solid #eef2f1">${label}</td><td style="padding:10px 14px;font-weight:700;color:#0f172a;border-bottom:1px solid #eef2f1">${value}</td></tr>`
@@ -575,10 +576,11 @@ export async function retryCompanyProvisioning(companyId: number, session: Sessi
   return claimAndProvision(companyId, String(company.name))
 }
 
-/** أصل الموقع لرابط العودة من صفحة الدفع (NEXT_PUBLIC_APP_URL أولاً، ثم رؤوس الوكيل مثل Render). */
+/** أصل الموقع لرابط العودة من صفحة الدفع: NEXT_PUBLIC_APP_URL أولاً (ما لم يكن عنوان onrender الداخلي)، ثم رؤوس الوكيل —
+ *  أي نفس النطاق الذي فتح منه المستخدم الصفحة، فتبقى كوكي الجلسة صالحة عند العودة. */
 export function appOrigin(request: Request) {
   const configured = String(process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/$/, "")
-  if (configured) return configured
+  if (configured && !/\.onrender\.com/i.test(configured)) return configured
   const headers = request.headers
   const host = headers.get("x-forwarded-host") || headers.get("host") || new URL(request.url).host
   const proto = headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https")
