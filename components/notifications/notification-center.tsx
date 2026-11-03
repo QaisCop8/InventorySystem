@@ -1,7 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Bell, CheckCheck, Clock, AlertTriangle, Info } from "lucide-react"
+import { useState, useEffect, useMemo, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { Bell, CheckCheck, Clock, AlertTriangle, Info, ChevronLeft } from "lucide-react"
+import { useReportAccess } from "@/components/auth/use-report-access"
+import { useFileSectionAccess } from "@/components/auth/use-file-access"
+import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +30,25 @@ interface Notification {
   created_at: string
 }
 
+// تنبيهات العمل الحيّة (/api/work-alerts): أعداد ما ينتظر معالجة، كل منها يفتح شاشته
+interface WorkAlert {
+  key: string
+  title: string
+  message: string
+  count: number
+  section: string
+  priority: "normal" | "high" | "urgent"
+}
+
+// آخر عدد اطّلع عليه المستخدم لكل تنبيه — الشارة تعدّ ما زاد بعده فقط (للمتصفح الحالي)
+const SEEN_KEY = "work_alerts_seen"
+const readSeen = (): Record<string, number> => {
+  try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}") || {} } catch { return {} }
+}
+const writeSeen = (value: Record<string, number>) => {
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify(value)) } catch {}
+}
+
 interface NotificationCenterProps {
   userId?: string
   department?: string
@@ -36,6 +60,27 @@ export function NotificationCenter({ userId, department, className }: Notificati
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [alerts, setAlerts] = useState<WorkAlert[]>([])
+  const [seen, setSeen] = useState<Record<string, number>>({})
+  const previousCounts = useRef<Record<string, number> | null>(null)
+  const router = useRouter()
+  const { toast } = useToast()
+  const canOpenReport = useReportAccess()
+  const canOpenFile = useFileSectionAccess()
+  const canOpenTransaction = useTransactionSectionAccess()
+  const canOpen = (section: string) => canOpenReport(section) && canOpenFile(section) && canOpenTransaction(section)
+  const visibleAlerts = useMemo(() => alerts.filter((alert) => canOpen(alert.section)), [alerts, canOpenReport, canOpenFile, canOpenTransaction])
+  const newAlerts = visibleAlerts.filter((alert) => alert.count > (seen[alert.key] || 0)).length
+  const badgeCount = unreadCount + newAlerts
+
+  const fetchAlerts = async () => {
+    try {
+      const response = await fetch(`/api/work-alerts?_=${Date.now()}`, { cache: "no-store" })
+      if (!response.ok) return
+      const data = await response.json()
+      setAlerts(Array.isArray(data.alerts) ? data.alerts : [])
+    } catch {}
+  }
 
   // جلب التنبيهات
   const fetchNotifications = async (unreadOnly = false) => {
@@ -49,74 +94,13 @@ export function NotificationCenter({ userId, department, className }: Notificati
 
       const response = await fetch(`/api/notifications?${params}`)
 
-      if (!response.ok) {
-        console.error("[v0] Notifications API error:", response.status, response.statusText)
-        // Use mock data if API fails
-        const mockNotifications = [
-          {
-            id: 1,
-            notification_type: "order_advance",
-            title: "تم تقديم طلبية مبيعات",
-            message: "تم تقديم طلبية رقم SO-2024-001 إلى مرحلة الموافقة",
-            priority_level: "normal" as const,
-            is_read: false,
-            related_order_number: "SO-2024-001",
-            stage_name: "الموافقة",
-            stage_color: "#3B82F6",
-            icon_name: "check-circle",
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: 2,
-            notification_type: "order_overdue",
-            title: "طلبية متأخرة",
-            message: "طلبية رقم PO-2024-005 متأخرة في مرحلة المراجعة",
-            priority_level: "high" as const,
-            is_read: false,
-            related_order_number: "PO-2024-005",
-            stage_name: "المراجعة",
-            stage_color: "#EF4444",
-            icon_name: "alert-triangle",
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-          },
-          {
-            id: 3,
-            notification_type: "system",
-            title: "تحديث النظام",
-            message: "تم تحديث النظام بنجاح إلى الإصدار 2.1.0",
-            priority_level: "low" as const,
-            is_read: true,
-            created_at: new Date(Date.now() - 7200000).toISOString(),
-          },
-        ]
-        setNotifications(mockNotifications)
-        setUnreadCount(mockNotifications.filter((n) => !n.is_read).length)
-        return
-      }
+      if (!response.ok) return
 
       const data = await response.json()
       setNotifications(Array.isArray(data.notifications) ? data.notifications : [])
       setUnreadCount(typeof data.totalUnread === "number" ? data.totalUnread : 0)
     } catch (error) {
-      console.error("[v0] Error fetching notifications:", error)
-      // Use mock data as fallback
-      const mockNotifications = [
-        {
-          id: 1,
-          notification_type: "order_advance",
-          title: "تم تقديم طلبية مبيعات",
-          message: "تم تقديم طلبية رقم SO-2024-001 إلى مرحلة الموافقة",
-          priority_level: "normal" as const,
-          is_read: false,
-          related_order_number: "SO-2024-001",
-          stage_name: "الموافقة",
-          stage_color: "#3B82F6",
-          icon_name: "check-circle",
-          created_at: new Date().toISOString(),
-        },
-      ]
-      setNotifications(mockNotifications)
-      setUnreadCount(1)
+      console.error("Error fetching notifications:", error)
     } finally {
       setLoading(false)
     }
@@ -194,7 +178,7 @@ export function NotificationCenter({ userId, department, className }: Notificati
     }
   }
 
-  // تحديث التنبيهات كل 30 ثانية
+  // تحديث التنبيهات كل 30 ثانية، وتنبيهات العمل كل دقيقة
   useEffect(() => {
     fetchNotifications()
     const interval = setInterval(() => {
@@ -204,17 +188,51 @@ export function NotificationCenter({ userId, department, className }: Notificati
     return () => clearInterval(interval)
   }, [userId, department])
 
+  useEffect(() => {
+    setSeen(readSeen())
+    previousCounts.current = null
+    fetchAlerts()
+    const interval = setInterval(fetchAlerts, 60000)
+    return () => clearInterval(interval)
+  }, [userId])
+
+  // إشعار منبثق عند ظهور عمل جديد (عند الدخول: ما زاد منذ آخر اطّلاع؛ بعدها: ما زاد منذ آخر تحديث)
+  useEffect(() => {
+    if (!visibleAlerts.length && previousCounts.current === null) return
+    const baseline = previousCounts.current ?? seen
+    const grown = visibleAlerts.filter((alert) => alert.count > (baseline[alert.key] || 0))
+    previousCounts.current = Object.fromEntries(visibleAlerts.map((alert) => [alert.key, alert.count]))
+    if (!grown.length) return
+    const first = grown[0]
+    toast({
+      title: first.title,
+      description: grown.length > 1 ? `${first.message} — و${grown.length - 1} تنبيه آخر في الجرس` : first.message,
+      variant: first.priority === "urgent" ? "destructive" : "default",
+    })
+  }, [visibleAlerts])
+
+  const markAlertsSeen = () => {
+    const next = { ...readSeen(), ...Object.fromEntries(visibleAlerts.map((alert) => [alert.key, alert.count])) }
+    writeSeen(next)
+    setSeen(next)
+  }
+
+  const openAlert = (alert: WorkAlert) => {
+    setIsOpen(false)
+    router.push(`/?section=${alert.section}`, { scroll: false })
+  }
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (open) { fetchAlerts(); markAlertsSeen() } }}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className={cn("relative", className)} onClick={() => fetchNotifications()}>
           <Bell className="h-4 w-4 md:h-5 md:w-5" />
-          {unreadCount > 0 && (
+          {badgeCount > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center"
             >
-              {unreadCount > 99 ? "99+" : unreadCount}
+              {badgeCount > 99 ? "99+" : badgeCount}
             </Badge>
           )}
         </Button>
@@ -241,12 +259,33 @@ export function NotificationCenter({ userId, department, className }: Notificati
 
           <CardContent className="p-0">
             <ScrollArea className="h-96">
+              {visibleAlerts.length > 0 && (
+                <div className="border-b bg-amber-50/40 p-2">
+                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground">بحاجة لمتابعة</div>
+                  {visibleAlerts.map((alert) => (
+                    <button
+                      key={alert.key}
+                      type="button"
+                      onClick={() => openAlert(alert)}
+                      className="flex w-full items-start gap-3 rounded-lg p-2 text-right transition-colors hover:bg-white"
+                    >
+                      <div className="mt-0.5 flex-shrink-0">{getPriorityIcon(alert.priority)}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold">{alert.title}</div>
+                        <p className="text-xs text-muted-foreground">{alert.message}</p>
+                      </div>
+                      <Badge variant="outline" className={cn("flex-shrink-0 text-xs", getPriorityColor(alert.priority))}>{alert.count}</Badge>
+                      <ChevronLeft className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              )}
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">لا توجد تنبيهات</div>
+                visibleAlerts.length ? null : <div className="text-center py-8 text-muted-foreground">لا توجد تنبيهات</div>
               ) : (
                 <div className="divide-y">
                   {notifications.map((notification) => (
