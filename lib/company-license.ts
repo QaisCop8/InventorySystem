@@ -80,7 +80,7 @@ export async function countTenantUsage(dbName?: string, includeStorage = false):
       includeStorage ? sql`SELECT pg_database_size(current_database())::bigint AS bytes` : Promise.resolve([]),
     ])
     const branchTable = await sql`SELECT to_regclass('branches') IS NOT NULL AS ok`
-    const branches = branchTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM branches WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
+    const branches = branchTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM branches b WHERE COALESCE(b.status, 1) <> 3 AND COALESCE((to_jsonb(b)->>'is_bank_branch')::boolean, false) = false`)[0] : { n: 0 }
     const posTable = await sql`SELECT to_regclass('pos_points_tbl') IS NOT NULL AS ok`
     const posPoints = posTable[0]?.ok ? (await sql`SELECT COUNT(*)::int AS n FROM pos_points_tbl WHERE COALESCE(status, 1) <> 3`)[0] : { n: 0 }
     const restaurantTable = await sql`SELECT to_regclass('restaurant_locations_tbl') IS NOT NULL AS ok`

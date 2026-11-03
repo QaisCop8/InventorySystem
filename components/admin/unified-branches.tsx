@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { useEffect, useRef } from "react"
-import { BRANCH_SYMBOLS } from "@/lib/voucher-code"
 
 interface Branch {
   id: number
@@ -172,7 +171,9 @@ export default function UnifiedBranches({
                   id="branch-code"
                   value={form.branch_code}
                   onChange={(e) => onFormChange("branch_code", e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="أدخل رقماً من 1 إلى 4 خانات"
+                  // رقم الفرع 4 خانات: 1 ⇐ 0001
+                  onBlur={(e) => { const code = e.target.value.replace(/\D/g, ""); if (code) onFormChange("branch_code", code.padStart(4, "0")) }}
+                  placeholder="4 خانات، مثل 0001"
                   ref={codeInputRef}
                   maxLength={4}
                   inputMode="numeric"
@@ -197,31 +198,6 @@ export default function UnifiedBranches({
                 {hasDuplicateName && (
                   <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
                 )}
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="branch-symbol">رمز الفرع *</Label>
-                <select
-                  id="branch-symbol"
-                  value={form.branch_symbol || ""}
-                  onChange={(e) => onFormChange("branch_symbol", e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                >
-                  <option value="" disabled>
-                    اختر رمز الفرع
-                  </option>
-                  {BRANCH_SYMBOLS.map((symbol) => (
-                    <option key={symbol} value={symbol} disabled={usedSymbols.includes(symbol)}>
-                      {symbol}{usedSymbols.includes(symbol) ? " (مستخدم)" : ""}
-                    </option>
-                  ))}
-                </select>
-                {showSymbolValidationError && (
-                  <p className="text-sm text-destructive">
-                    {form.branch_symbol ? "رمز الفرع مستخدم في فرع آخر." : "رمز الفرع مطلوب."}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">يدخل في ترقيم السندات: بادئة السند + رمز الفرع + رمز الدفتر + التسلسل.</p>
               </div>
 
               <div className="grid gap-2">

@@ -99,7 +99,7 @@ export default function Branches() {
   const fetchBranches = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/branches")
+      const response = await fetch("/api/branches?kind=bank")
       const data = await response.json()
       setBranches(Array.isArray(data) ? data : [])
     } catch (error) {
@@ -159,17 +159,10 @@ export default function Branches() {
     }
 
     const hasValidBranchCode = /^\d{1,4}$/.test(branchCode)
-    const symbol = String(form.branch_symbol || "").trim().toUpperCase()
-    const symbolTaken = branches.some((b) => (b.branch_symbol || "").toUpperCase() === symbol && b.id !== form.id)
     const hasValidBank = normalizedForm.bank_id !== null
 
     if (!hasValidBranchCode) {
       setShowBranchCodeValidationError(true)
-      return
-    }
-
-    if (!symbol || symbolTaken) {
-      setShowSymbolValidationError(true)
       return
     }
 
@@ -193,7 +186,7 @@ export default function Branches() {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...normalizedForm, branch_symbol: symbol, bank_branch: true }),
+        body: JSON.stringify({ ...normalizedForm, branch_code: branchCode.padStart(4, "0"), branch_symbol: null, bank_branch: true }),
       })
       if (!response.ok) {
         const error = await response.json()
@@ -337,8 +330,8 @@ export default function Branches() {
       <VoucherListHero
         category="الملفات"
         icon={Building2Icon}
-        title="الفروع"
-        subtitle="إدارة فروع الشركة وربطها بالبنوك"
+        title="فروع البنوك"
+        subtitle="فروع البنوك التي تُربط بها حسابات البنوك والشيكات — فروع الشركة تُعرَّف من الإعدادات ← التعريفات"
         addLabel="إضافة فرع"
         onNew={handleNew}
       />
@@ -347,14 +340,14 @@ export default function Branches() {
 
       <Card>
         <CardHeader>
-          <CardTitle>الفروع</CardTitle>
+          <CardTitle>فروع البنوك</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xl font-semibold">الفروع</div>
-                <p className="text-sm text-muted-foreground">إدارة فروع الشركة وربطها بالبنوك</p>
+                <div className="text-xl font-semibold">فروع البنوك</div>
+                <p className="text-sm text-muted-foreground">كل فرع مرتبط ببنك</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <select

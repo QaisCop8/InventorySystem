@@ -303,7 +303,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
           fetch("/api/exchange-rates").catch(() => null),
           fetch(booksUrl).catch(() => null),
           fetch("/api/banks", { cache: "no-store" }).catch(() => null),
-          fetch("/api/branches", { cache: "no-store" }).catch(() => null),
+          fetch("/api/branches?kind=all", { cache: "no-store" }).catch(() => null),
           fetch("/api/salesmen").catch(() => null),
           fetch("/api/payment-classifications").catch(() => null),
           fetch("/api/credit-card-types").catch(() => null),

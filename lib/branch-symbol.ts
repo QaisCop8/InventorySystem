@@ -22,6 +22,21 @@ export const ensureBranchSymbolColumn = async (): Promise<void> => {
         await sql`UPDATE branches SET branch_symbol = ${symbol} WHERE id = ${row.id} AND branch_symbol IS NULL`
       }
       await sql`CREATE UNIQUE INDEX IF NOT EXISTS branches_branch_symbol_key ON branches (branch_symbol) WHERE branch_symbol IS NOT NULL`
+      // فروع الشركة وفروع البنوك في نفس الجدول: is_bank_branch يفصلهما. الفروع القائمة تُصنَّف مرة واحدة — فرع بنك = له بنك
+      // ولم يُستخدم كفرع للشركة (سندات/مستخدمين)؛ الجديد يُحدَّد عند الحفظ (شاشة فروع البنوك أو تعريف فروع الشركة).
+      await sql`ALTER TABLE branches ADD COLUMN IF NOT EXISTS is_bank_branch BOOLEAN`
+      await sql.unsafe(`
+        UPDATE branches b SET is_bank_branch = (
+          b.bank_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM voucher_header_tbl vh WHERE vh.branch_id = b.id)
+          AND NOT EXISTS (SELECT 1 FROM user_settings us WHERE us.branch_id = b.id)
+          AND (to_regclass('user_branches') IS NULL OR NOT EXISTS (SELECT 1 FROM user_branches ub WHERE ub.branch_id = b.id))
+        )
+        WHERE b.is_bank_branch IS NULL`)
+      // رقم الفرع 4 خانات: الأرقام الأقصر تُكمَّل بأصفار (ما لم يتعارض مع رقم قائم)
+      await sql`UPDATE branches b SET branch_code = LPAD(b.branch_code, 4, '0') WHERE b.branch_code ~ '^[0-9]{1,3}$' AND NOT EXISTS (SELECT 1 FROM branches o WHERE o.branch_code = LPAD(b.branch_code, 4, '0'))`
+      // فرع البنك لا يدخل في ترقيم السندات — يُحرَّر رمزه ليُستخدم لفروع الشركة
+      await sql`UPDATE branches SET branch_symbol = NULL WHERE is_bank_branch = true AND branch_symbol IS NOT NULL`
     })().catch((error) => {
       ensuredByDb.delete(dbName)
       throw error

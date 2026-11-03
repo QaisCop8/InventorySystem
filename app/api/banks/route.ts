@@ -2,6 +2,9 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 
+// الأرقام تُكمَّل لأربع خانات (1 ⇐ 0001)
+const padCode = (value: unknown) => { const code = String(value ?? "").trim(); return /^\d{1,4}$/.test(code) ? code.padStart(4, "0") : code }
+
 export async function GET(request: NextRequest) {
   try {
     const authorization = await authorizeFileRead(request, ["banks", "branches", "bank-accounts", "credit-cards"])
@@ -18,6 +21,8 @@ export async function GET(request: NextRequest) {
       )
     `
 
+    // رقم البنك 4 خانات: الأرقام الأقصر تُكمَّل بأصفار (ما لم يتعارض مع رقم قائم)
+    await sql`UPDATE banks b SET bank_code = LPAD(b.bank_code, 4, '0') WHERE b.bank_code ~ '^[0-9]{1,3}$' AND NOT EXISTS (SELECT 1 FROM banks o WHERE o.bank_code = LPAD(b.bank_code, 4, '0'))`
     const banks = await sql`
       SELECT id, bank_code, bank_name, bank_name_en, status, created_at, updated_at
       FROM banks
@@ -41,6 +46,7 @@ export async function POST(request: NextRequest) {
     if (!data.bank_code || !data.bank_name) {
       return NextResponse.json({ error: "رقم البنك واسم البنك مطلوبان" }, { status: 400 })
     }
+    data.bank_code = padCode(data.bank_code)
 
     const existingBank = await sql`
       SELECT id FROM banks WHERE bank_code = ${data.bank_code}
@@ -74,6 +80,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "معرف البنك مطلوب" }, { status: 400 })
     }
 
+    if (data.bank_code) data.bank_code = padCode(data.bank_code)
     if (!data.bank_code || String(data.bank_code).trim().length > 4) {
       return NextResponse.json({ error: "رقم البنك يجب أن يتكون من 1 إلى 4 أحرف" }, { status: 400 })
     }

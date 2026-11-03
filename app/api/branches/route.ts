@@ -32,19 +32,21 @@ export async function GET(request: NextRequest) {
     const bankIdParam = searchParams.get("bank_id")
     const bankId = bankIdParam ? Number(bankIdParam) : undefined
 
-    const branches = bankId !== undefined && !Number.isNaN(bankId)
+    // فروع الشركة افتراضياً؛ kind=bank لشاشة فروع البنوك وحسابات البنوك، kind=all لما يحتاج الاثنين (السندات)
+    const kind = searchParams.get("kind") === "bank" || (bankId !== undefined && !Number.isNaN(bankId)) ? "bank" : searchParams.get("kind") === "all" ? "all" : "company"
+    const branches = (bankId !== undefined && !Number.isNaN(bankId)
       ? await sql`
-          SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
+          SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status, COALESCE(is_bank_branch, false) AS is_bank_branch
           FROM branches
           WHERE status != 3 AND bank_id = ${bankId}
           ORDER BY id ASC
         `
       : await sql`
-          SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
+          SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status, COALESCE(is_bank_branch, false) AS is_bank_branch
           FROM branches
           WHERE status != 3
           ORDER BY id ASC
-        `
+        `).filter((row: any) => kind === "all" || (kind === "bank") === Boolean(row.is_bank_branch))
 
     // scope=mine (قائمة فرع رأس الصفحة): دائماً فروع عضوية المستخدم فقط (بلا صفوف = كل الفروع)، حتى لمن يملك صلاحية ملف الفروع
     if (searchParams.get("scope") === "mine") {
@@ -93,9 +95,12 @@ export async function POST(request: NextRequest) {
     if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
-    const symbolCheck = await validateBranchSymbol(data.branch_symbol)
+    // فرع البنك: بلا رمز فرع (الرمز لترقيم سندات فروع الشركة) ولا يُحسب من ترخيص الفروع
+    const bankBranch = data.bank_branch === true
+    await ensureBranchSymbolColumn()
+    const symbolCheck = bankBranch ? { symbol: null, error: null } : await validateBranchSymbol(data.branch_symbol)
     if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
-    try {
+    if (!bankBranch) try {
       await assertLicenseAllows("branches")
     } catch (error) {
       const body = licenseErrorResponseBody(error)
@@ -103,16 +108,17 @@ export async function POST(request: NextRequest) {
       throw error
     }
     const result = await sql`
-      INSERT INTO branches (branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status)
+      INSERT INTO branches (branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status, is_bank_branch)
       VALUES (
-        ${branchCode},
+        ${branchCode.padStart(4, "0")},
         ${String(data.branch_name).trim()},
         ${symbolCheck.symbol},
         ${hasBank ? bankId : null},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},
-        ${Number(data.status || 1)}
+        ${Number(data.status || 1)},
+        ${bankBranch}
       )
       RETURNING id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
     `
@@ -148,15 +154,19 @@ export async function PUT(request: NextRequest) {
     if (data.bank_branch === true && !putHasBank) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
-    const symbolCheck = await validateBranchSymbol(data.branch_symbol, Number(data.id))
+    await ensureBranchSymbolColumn()
+    const existing = (await sql`SELECT COALESCE(is_bank_branch, false) AS is_bank_branch FROM branches WHERE id = ${Number(data.id)}`)[0]
+    const bankBranch = data.bank_branch === true || Boolean(existing?.is_bank_branch)
+    const symbolCheck = bankBranch ? { symbol: null, error: null } : await validateBranchSymbol(data.branch_symbol, Number(data.id))
     if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
 
     const result = await sql`
       UPDATE branches
       SET
-        branch_code = ${branchCode},
+        branch_code = ${branchCode.padStart(4, "0")},
         branch_name = ${String(data.branch_name).trim()},
         branch_symbol = ${symbolCheck.symbol},
+        is_bank_branch = ${bankBranch},
         bank_id = CASE WHEN ${data.bank_id === undefined}::boolean THEN bank_id ELSE ${putHasBank ? putBankId : null}::int END,
         address = ${data.address || ""},
         manager = ${data.manager || ""},

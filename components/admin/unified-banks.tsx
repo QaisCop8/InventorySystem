@@ -151,7 +151,13 @@ export default function UnifiedBanks({
                   id="bank-code"
                   value={form.bank_code}
                   onChange={(e) => onFormChange("bank_code", e.target.value)}
-                  onBlur={() => onCodeBlur?.(form.bank_code)}
+                  // رقم البنك 4 خانات: الأرقام تُكمَّل بأصفار (1 ⇐ 0001)
+                  onBlur={() => {
+                    const code = String(form.bank_code || "").trim()
+                    const padded = /^\d{1,3}$/.test(code) ? code.padStart(4, "0") : code
+                    if (padded !== form.bank_code) onFormChange("bank_code", padded)
+                    onCodeBlur?.(padded)
+                  }}
                   ref={codeInputRef}
                   maxLength={4}
                 />

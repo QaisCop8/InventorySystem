@@ -49,11 +49,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (data.bank_branch === true && !hasBank) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
-    const symbolCheck = await validateBranchSymbol(data.branch_symbol, branchId)
+    await ensureBranchSymbolColumn()
+    const existing = (await sql`SELECT COALESCE(is_bank_branch, false) AS is_bank_branch FROM branches WHERE id = ${branchId}`)[0]
+    const bankBranch = data.bank_branch === true || Boolean(existing?.is_bank_branch)
+    const symbolCheck = bankBranch ? { symbol: null, error: null } : await validateBranchSymbol(data.branch_symbol, branchId)
     if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
     const rows = await sql`
       UPDATE branches SET
-        branch_code = ${branchCode},
+        branch_code = ${branchCode.padStart(4, "0")},
         branch_name = ${String(data.branch_name).trim()},
         branch_symbol = ${symbolCheck.symbol},
         bank_id = CASE WHEN ${data.bank_id === undefined}::boolean THEN bank_id ELSE ${hasBank ? bankId : null}::int END,

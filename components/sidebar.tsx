@@ -157,7 +157,7 @@ export const menuItems: MenuItem[] = [
           { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
           { title: "العملات", section: "exchange-rates", icon: DollarSign },
           { title: "البنوك", section: "banks", icon: Building },
-          { title: "الفروع", section: "branches", icon: MapPin },
+          { title: "فروع البنوك", section: "branches", icon: MapPin },
           { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
           { title: "بطاقات الائتمان", section: "credit-cards", icon: CreditCard },
         ],

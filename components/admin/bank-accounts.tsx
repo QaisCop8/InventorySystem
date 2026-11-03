@@ -105,7 +105,7 @@ export default function BankAccounts() {
 
   const fetchBranches = async () => {
     try {
-      const response = await fetch("/api/branches")
+      const response = await fetch("/api/branches?kind=bank")
       const data = await response.json()
       setBranches(Array.isArray(data) ? data : [])
     } catch (error) {

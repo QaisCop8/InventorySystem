@@ -1311,7 +1311,7 @@ export default function UnifiedReceiptVoucher({
           visible: isReceipt,
         },
         { header: "اسم الفرع", name: "branch_name", width: 110, isReadOnly: true },
-        { header: "يستحق في", name: "due_date", width: 130, dataType: "Date", format: "MM/dd/yyyy" },
+        { header: "يستحق في", name: "due_date", width: 130, dataType: "Date", format: "dd/MM/yyyy" },
         {
           name: "btnDueDate",
           header: " ",
