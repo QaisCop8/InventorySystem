@@ -926,7 +926,7 @@ export async function resolveWorkflow(productId: number | null, itemType: string
 export async function listCustomerOrders() {
   await ensureTaskOrderTables()
   const orders = await sql`
-    SELECT o.*, c.name AS customer_name,
+    SELECT o.*, COALESCE((SELECT COALESCE(NULLIF(src.customer_name, ''), acc.name) FROM orders src LEFT JOIN account_tbl acc ON acc.id = src.customer_id WHERE src.id = o.source_order_id), c.name) AS customer_name,
       (SELECT COUNT(*) FROM task_order_items i WHERE i.customer_order_id = o.id) AS item_count,
       (SELECT COUNT(*) FROM task_order_items i WHERE i.customer_order_id = o.id AND i.status = 'completed') AS completed_item_count
     FROM task_customer_orders o
@@ -992,7 +992,7 @@ export async function getCustomerOrderById(id: number) {
 export async function listApprovableCustomerOrders() {
   await ensureTaskOrderTables()
   return sql`
-    SELECT o.*, c.name AS customer_name, so.order_number AS source_order_number,
+    SELECT o.*, COALESCE((SELECT COALESCE(NULLIF(src.customer_name, ''), acc.name) FROM orders src LEFT JOIN account_tbl acc ON acc.id = src.customer_id WHERE src.id = o.source_order_id), c.name) AS customer_name, so.order_number AS source_order_number,
       (SELECT COUNT(*) FROM task_order_items i WHERE i.customer_order_id = o.id) AS item_count,
       (SELECT COALESCE(SUM(si.total_duration_seconds), 0) FROM task_step_instances si
         JOIN task_order_items i ON i.id = si.order_item_id WHERE i.customer_order_id = o.id) AS total_work_seconds
@@ -1123,7 +1123,7 @@ export async function listOrderItems(filters: { workflowId?: number; status?: st
   await ensureTaskOrderTables()
   const searchPattern = filters.search ? `%${filters.search}%` : null
   const rows = await sql`
-    SELECT i.*, w.name AS workflow_name, co.order_code AS customer_order_code, c.name AS customer_name,
+    SELECT i.*, w.name AS workflow_name, co.order_code AS customer_order_code, COALESCE((SELECT COALESCE(NULLIF(src.customer_name, ''), acc.name) FROM orders src LEFT JOIN account_tbl acc ON acc.id = src.customer_id WHERE src.id = co.source_order_id), c.name) AS customer_name,
       COALESCE(o.order_number, co.order_code) AS source_order_number,
       creator.full_name AS created_by_name,
       (SELECT COALESCE(SUM(si.total_duration_seconds), 0) FROM task_step_instances si WHERE si.order_item_id = i.id) AS total_work_seconds,
@@ -1177,7 +1177,7 @@ export async function listOpenTasks(filters: { workflowId?: number; sectionId?: 
   const rows = await sql`
     SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.sla_hours, st.is_end, st.mandatory, st.show_all_items, st.print_barcode, st.attachment_required,
       CASE WHEN st.sla_hours IS NULL THEN NULL ELSE si.created_at + (st.sla_hours * INTERVAL '1 hour') END AS due_at,
-      c.name AS customer_name, COALESCE(o.order_number, co.order_code) AS source_order_number,
+      COALESCE((SELECT COALESCE(NULLIF(src.customer_name, ''), acc.name) FROM orders src LEFT JOIN account_tbl acc ON acc.id = src.customer_id WHERE src.id = co.source_order_id), c.name) AS customer_name, COALESCE(o.order_number, co.order_code) AS source_order_number,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name,
       i.id AS order_item_id, i.item_code, i.title, i.description, i.priority AS item_priority, i.workflow_id, i.status AS item_status,
@@ -1222,7 +1222,7 @@ export async function getOrderItemDetail(orderItemId: number) {
   // source_order_id (طلبية أُنشئت عبر جسر lib/orders.ts)، ويبقى الكود الداخلي احتياطاً فقط لأصناف لا
   // ترتبط بطلب فعلي (أُنشئت مباشرة من لوحة إدارة تتبع أوامر العمل).
   const items = await sql`
-    SELECT i.*, w.name AS workflow_name, co.order_code AS customer_order_code, c.name AS customer_name,
+    SELECT i.*, w.name AS workflow_name, co.order_code AS customer_order_code, COALESCE((SELECT COALESCE(NULLIF(src.customer_name, ''), acc.name) FROM orders src LEFT JOIN account_tbl acc ON acc.id = src.customer_id WHERE src.id = co.source_order_id), c.name) AS customer_name,
       COALESCE(o.order_number, co.order_code) AS source_order_number,
       creator.full_name AS created_by_name
     FROM task_order_items i

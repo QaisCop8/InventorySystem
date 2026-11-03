@@ -1109,13 +1109,13 @@ export function DraftOrderForm({
                 </div>
               ) : (
                 <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-                  <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_auto] items-center gap-2 bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-500 lg:grid dark:bg-slate-800/60">
+                  <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_140px] items-center gap-2 bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-500 lg:grid dark:bg-slate-800/60">
                     <span>الصنف</span><span>المستودع</span><span>الكمية</span><span>السعر</span><span>الخصم</span><span>الإجمالي</span><span />
                   </div>
                   {items.map((i, n) => (
                     <div
                       key={i.product_id}
-                      className="grid min-w-0 grid-cols-2 items-center gap-2 border-t border-slate-100 px-2 py-1.5 first:border-t-0 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_auto] dark:border-slate-800"
+                      className="grid min-w-0 grid-cols-2 items-center gap-2 border-t border-slate-100 px-2 py-1.5 first:border-t-0 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_140px] dark:border-slate-800"
                     >
                       <div className="col-span-2 flex min-w-0 items-center gap-2 lg:col-span-1">
                         {i.product_image ? (
