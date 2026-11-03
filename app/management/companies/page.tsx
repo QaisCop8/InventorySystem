@@ -23,6 +23,7 @@ import {
   CreditCard,
   RefreshCw,
   CalendarClock,
+  Send,
 } from "lucide-react"
 import { ONLINE_COMPANY_PAYMENT_VISIBLE, priceFor, type Pricing } from "@/lib/company-pricing"
 import { SubscriptionDialog } from "@/components/management/subscription-dialog"
@@ -503,7 +504,7 @@ export default function ManagementCompaniesPage() {
                       onClick={(event) => { event.stopPropagation(); void startPayment(company.id) }}
                       className="cp-btn inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white"
                     >
-                      {payingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}إكمال الدفع
+                      {payingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : ONLINE_COMPANY_PAYMENT_VISIBLE ? <CreditCard className="h-4 w-4" /> : <Send className="h-4 w-4" />}{ONLINE_COMPANY_PAYMENT_VISIBLE ? "إكمال الدفع" : "إرسال للمبيعات"}
                     </button>
                   )}
                   {canOpenCompany && (
@@ -601,8 +602,8 @@ export default function ManagementCompaniesPage() {
                   <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
                 ))}
                 <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>الإجمالي</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
-                <p className="text-[11px] leading-5 text-stone-500">الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع.</p>
-                {paymentTestMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir="rtl">وضع تجريبي: استخدم البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — تاريخ <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+                <p className="text-[11px] leading-5 text-stone-500">{ONLINE_COMPANY_PAYMENT_VISIBLE ? "الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع." : "بعد الإنشاء أرسل بطاقة لفريق المبيعات، وتُفعَّل الشركة لسنة كاملة فور اعتمادها."}</p>
+                {ONLINE_COMPANY_PAYMENT_VISIBLE && paymentTestMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir="rtl">وضع تجريبي: استخدم البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — تاريخ <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
               </div>
             )
           })() : (
@@ -618,7 +619,7 @@ export default function ManagementCompaniesPage() {
               disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0) || !(Number(newCompanyRestaurants || 0) >= 0)}
               className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
             >
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled ? "جاري التحويل للدفع..." : "جاري الإنشاء..."}</> : paymentEnabled ? <><CreditCard className="h-4 w-4" />الدفع وإنشاء الشركة</> : "إنشاء"}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? "جاري التحويل للدفع..." : "جاري الإنشاء..."}</> : paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? <><CreditCard className="h-4 w-4" />الدفع وإنشاء الشركة</> : paymentEnabled ? <><Send className="h-4 w-4" />إنشاء وإرسال للمبيعات</> : "إنشاء"}
             </button>
           </DialogFooter>
         </DialogContent>
