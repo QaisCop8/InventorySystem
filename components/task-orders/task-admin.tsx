@@ -467,13 +467,38 @@ function WorkflowsAdmin({
   // (section_id، وهو ما يحمل الأعضاء الفعليين لتوجيه/إشعار المهام)، فيُطابَق كل تعريف قسم نشِط
   // باسمه مع قسم تتبع أوامر عمل مطابق؛ تعريف بلا قسم مطابق يُستبعد من القائمة (يجب إنشاء قسم له
   // أولاً من تبويب "الأقسام").
+  // كل الأقسام الفعّالة تظهر: ما له قسم تتبع مطابق بمعرّفه، وما ليس له بمعرّف سالب (-رقم القسم) يُنشأ قسمه تلقائياً عند
+  // اختياره (createdSections يبقيه بالقائمة دون إعادة تحميل الشاشة وفقدان الخطوات غير المحفوظة).
+  const [createdSections, setCreatedSections] = useState<{ id: number; name: string }[]>([])
+  const knownSections = useMemo(() => [...sections.map((s) => ({ id: s.id, name: s.name })), ...createdSections], [sections, createdSections])
   const departmentSectionOptions = departments
     .filter((d) => d.is_active)
     .map((d) => {
-      const matchedSection = sections.find((s) => s.name === d.department_name)
-      return matchedSection ? { id: matchedSection.id, department_name: d.department_name } : null
+      const matchedSection = knownSections.find((s) => s.name === d.department_name)
+      return { id: matchedSection ? matchedSection.id : -d.id, department_name: d.department_name }
     })
-    .filter((d): d is { id: number; department_name: string } => d !== null)
+
+  const pickSection = async (index: number, value: number | null) => {
+    if (value == null || value > 0) {
+      updateStep(index, { section_id: value != null ? String(value) : "", assigned_user_id: "" })
+      return
+    }
+    const department = departments.find((d) => d.id === -value)
+    if (!department) return
+    try {
+      const res = await fetch("/api/task-orders/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, name: department.department_name, branch_id: department.branch_id ?? null }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.id) throw new Error(data?.error || "تعذّر إنشاء القسم")
+      setCreatedSections((current) => [...current, { id: Number(data.id), name: department.department_name }])
+      updateStep(index, { section_id: String(data.id), assigned_user_id: "" })
+    } catch (error) {
+      toast({ title: "خطأ", description: error instanceof Error ? error.message : "تعذّر إنشاء القسم", variant: "destructive" })
+    }
+  }
 
   // Map section id -> members for quick lookup when filling user dropdowns
   const sectionMembersMap = useMemo(() => {
@@ -882,7 +907,7 @@ function WorkflowsAdmin({
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
-                          onChange={(e: any) => updateStep(index, { section_id: e.value != null ? String(e.value) : "", assigned_user_id: "" })}
+                          onChange={(e: any) => void pickSection(index, e.value != null ? Number(e.value) : null)}
                         />
                       </div>
                     </div>
