@@ -3,6 +3,12 @@ export type PricingCurrency = "ILS" | "USD" | "JOD"
 export type Pricing = { currency: PricingCurrency; base_price: number; per_user: number; per_branch: number; per_pos_point: number; per_restaurant_location: number }
 export type LicenseCounts = { users: number; branches: number; posPoints: number; restaurantLocations: number }
 
+/**
+ * إظهار الدفع الإلكتروني (لحظة) في صفحة خيارات الدفع عند إنشاء شركة. مخفي مؤقتاً حتى اكتمال ترتيبات البنك — الميزة
+ * كاملة كما هي (الخادم والصفحة)، والمستخدم يرسل بطاقة للمبيعات فتُعتمد الشركة من لوحة الإدارة. لإعادتها: true.
+ */
+export const ONLINE_COMPANY_PAYMENT_VISIBLE = false
+
 /** الأساسي يشمل مستخدماً وفرعاً واحداً + (المستخدمون − 1) × سعر المستخدم + (الفروع − 1) × سعر الفرع + نقاط البيع × سعرها + مواقع المطاعم × سعرها */
 export function priceFor(pricing: Pricing, counts: LicenseCounts) {
   const users = Math.max(0, Math.floor(counts.users) - 1)

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Loader2, Monitor, Send, Users, UtensilsCrossed } from "lucide-react"
 import { openLahzaPopup } from "@/lib/lahza-popup"
+import { ONLINE_COMPANY_PAYMENT_VISIBLE } from "@/lib/company-pricing"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { WorkspaceDialogProvider } from "@/contexts/workspace-dialog-context"
@@ -62,15 +63,19 @@ export function useLicenseRequestDialog(onSent?: () => void) {
   const [payInfo, setPayInfo] = useState<{ enabled: boolean; testMode?: boolean; currency?: string; prices?: Record<LicenseResource, number> } | null>(null)
   const [popupOpen, setPopupOpen] = useState(false)
   const [paid, setPaid] = useState(false)
+  // بطاقة للمبيعات (والدفع الإلكتروني مخفي — ONLINE_COMPANY_PAYMENT_VISIBLE): رقم للتواصل مع الطلب
+  const [contactPhone, setContactPhone] = useState("")
+  const [contactWhatsapp, setContactWhatsapp] = useState("")
   const verificationInProgress = useRef(false)
 
   const open = (resource: LicenseResource, message?: string, pending = false) => {
-    setState({ resource, message, pending }); setQuantity("1"); setReason(""); setError(""); setSent(false); setPaid(false)
+    setState({ resource, message, pending }); setQuantity("1"); setReason(""); setError(""); setSent(false); setPaid(false); setContactPhone(""); setContactWhatsapp("")
     fetch("/api/license/payment", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => setPayInfo(data)).catch(() => setPayInfo(null))
   }
   const unitPrice = state && payInfo?.enabled ? Number(payInfo.prices?.[state.resource] || 0) : 0
   const total = Math.round(unitPrice * (Number(quantity) || 0) * 100) / 100
-  const canPay = Boolean(payInfo?.enabled && unitPrice > 0)
+  const canPay = ONLINE_COMPANY_PAYMENT_VISIBLE && Boolean(payInfo?.enabled && unitPrice > 0)
+  const salesCard = !ONLINE_COMPANY_PAYMENT_VISIBLE
 
   const payOnline = async () => {
     if (!state) return
@@ -119,9 +124,10 @@ export function useLicenseRequestDialog(onSent?: () => void) {
   }
   const submit = async () => {
     if (!state) return
+    if (salesCard && !contactPhone.trim()) { setError("أدخل رقم هاتف للتواصل"); return }
     setBusy(true); setError("")
     try {
-      const response = await fetch("/api/license/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resource: state.resource, quantity: Number(quantity), reason }) })
+      const response = await fetch("/api/license/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resource: state.resource, quantity: Number(quantity), reason, sales_card: salesCard, contact_phone: contactPhone.trim(), contact_whatsapp: contactWhatsapp.trim() }) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) { setError(data.error || "تعذر إرسال الطلب"); return }
       setSent(true); onSent?.()
@@ -137,7 +143,7 @@ export function useLicenseRequestDialog(onSent?: () => void) {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><AlertTriangle className="h-5 w-5" /></span>
             <div className="text-right">
               <DialogTitle className="text-base font-bold">زيادة عدد {label.plural} المرخّص</DialogTitle>
-              <DialogDescription className="text-xs text-amber-50">{canPay ? "ادفع إلكترونياً لتُضاف فوراً، أو أرسل طلباً لإدارة النظام" : "يُرسل الطلب لإدارة النظام للاعتماد أو الرفض"}</DialogDescription>
+              <DialogDescription className="text-xs text-amber-50">{canPay ? "ادفع إلكترونياً لتُضاف فوراً، أو أرسل طلباً لإدارة النظام" : salesCard ? "أرسل بطاقة لفريق المبيعات — نتواصل معك لإتمام الاشتراك وتُضاف فور الاعتماد" : "يُرسل الطلب لإدارة النظام للاعتماد أو الرفض"}</DialogDescription>
             </div>
           </div>
           <div className="min-w-0 space-y-3 p-5 text-sm">
@@ -145,7 +151,7 @@ export function useLicenseRequestDialog(onSent?: () => void) {
             {paid ? (
               <p className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 font-semibold text-emerald-700"><CheckCircle2 className="h-5 w-5 shrink-0" />تم الدفع وزيادة عدد {label.plural} المرخّص بمقدار {quantity}. يمكنك الإضافة الآن.</p>
             ) : sent ? (
-              <p className="rounded-lg bg-emerald-50 p-3 font-semibold text-emerald-700">تم إرسال الطلب. ستتمكن من الإضافة فور اعتماده من إدارة النظام.</p>
+              <p className="rounded-lg bg-emerald-50 p-3 font-semibold text-emerald-700">{salesCard ? "تم إرسال البطاقة لفريق المبيعات. سنتواصل معك قريباً، وتستطيع الإضافة فور الاعتماد." : "تم إرسال الطلب. ستتمكن من الإضافة فور اعتماده من إدارة النظام."}</p>
             ) : state?.pending && !canPay ? (
               <p className="rounded-lg bg-sky-50 p-3 text-sky-800">يوجد طلب زيادة {label.plural} بانتظار الاعتماد بالفعل.</p>
             ) : (
@@ -156,6 +162,16 @@ export function useLicenseRequestDialog(onSent?: () => void) {
                 <label className="block text-slate-600">سبب الطلب (اختياري)
                   <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2" placeholder={`مثال: افتتاح ${label.single} جديد`} />
                 </label>
+                {salesCard && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-slate-600">الهاتف *
+                      <input type="tel" dir="ltr" value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-1.5 text-right" placeholder="05xxxxxxxx" />
+                    </label>
+                    <label className="block text-slate-600">واتساب
+                      <input type="tel" dir="ltr" value={contactWhatsapp} onChange={(event) => setContactWhatsapp(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-1.5 text-right" placeholder="+970" />
+                    </label>
+                  </div>
+                )}
                 {canPay && (
                   <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
                     <div className="flex items-center justify-between text-xs text-slate-600"><span>سعر {label.single} (سنوياً)</span><span className="tabular-nums" dir="ltr">{unitPrice.toFixed(2)} {payInfo?.currency}</span></div>
@@ -170,7 +186,7 @@ export function useLicenseRequestDialog(onSent?: () => void) {
           </div>
           <div className="flex min-w-0 flex-wrap justify-end gap-2 border-t bg-slate-50 px-5 py-3">
             <Button variant="outline" disabled={busy} onClick={() => setState(null)}>إغلاق</Button>
-            {!sent && !paid && !state?.pending && <Button variant={canPay ? "outline" : "default"} disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className={canPay ? "gap-1" : "gap-1 bg-amber-600 hover:bg-amber-700"}>{busy && !canPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{canPay ? "إرسال طلب للاعتماد" : "إرسال الطلب"}</Button>}
+            {!sent && !paid && !state?.pending && <Button variant={canPay ? "outline" : "default"} disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className={canPay ? "gap-1" : "gap-1 bg-amber-600 hover:bg-amber-700"}>{busy && !canPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{canPay ? "إرسال طلب للاعتماد" : salesCard ? "إرسال بطاقة للمبيعات" : "إرسال الطلب"}</Button>}
             {!sent && !paid && canPay && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void payOnline()} className="gap-1 bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت</Button>}
           </div>
         </DialogContent>

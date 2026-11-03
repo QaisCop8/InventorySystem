@@ -24,7 +24,7 @@ import {
   RefreshCw,
   CalendarClock,
 } from "lucide-react"
-import { priceFor, type Pricing } from "@/lib/company-pricing"
+import { ONLINE_COMPANY_PAYMENT_VISIBLE, priceFor, type Pricing } from "@/lib/company-pricing"
 import { SubscriptionDialog } from "@/components/management/subscription-dialog"
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
 import { activateCompany } from "@/lib/tenant-client"
@@ -521,7 +521,7 @@ export default function ManagementCompaniesPage() {
               <Plus className="h-7 w-7" />
             </span>
             <span className="text-base font-black">اضافة شركة جديدة</span>
-            <span className="text-xs text-stone-500">{paymentEnabled ? "ادفع إلكترونياً وتُفعَّل فوراً" : "تُفعَّل بعد موافقة إدارة النظام"}</span>
+            <span className="text-xs text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? "ادفع إلكترونياً وتُفعَّل فوراً" : "أرسل طلبك للمبيعات وتُفعَّل بعد الاعتماد") : "تُفعَّل بعد موافقة إدارة النظام"}</span>
           </button>
 
           <button type="button" onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-700">
@@ -573,7 +573,7 @@ export default function ManagementCompaniesPage() {
           <style dangerouslySetInnerHTML={{ __html: css }} />
           <DialogHeader className="text-right">
             <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-emerald-700" />اضافة شركة جديدة</DialogTitle>
-            <DialogDescription className="text-stone-500">{paymentEnabled ? "ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً." : "تُرسل للموافقة من إدارة النظام قبل تفعيلها."}</DialogDescription>
+            <DialogDescription className="text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? "ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً." : "أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.") : "تُرسل للموافقة من إدارة النظام قبل تفعيلها."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <label htmlFor="new-company-name" className="text-sm font-bold text-slate-700">اسم الشركة</label>

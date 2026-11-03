@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { ArrowRight, Building2, Check, CheckCircle2, CreditCard, Headphones, Loader2, Lock, MessageCircle, Phone, Send, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
+import { ONLINE_COMPANY_PAYMENT_VISIBLE } from "@/lib/company-pricing"
 import { openLahzaPopup } from "@/lib/lahza-popup"
 
 // صفحة "خيارات الدفع" لشركة بانتظار الدفع: الدفع عبر الانترنت (نافذة لحظة المنبثقة، أو صفحة لحظة إن لم يُضبط المفتاح العام)
@@ -128,7 +129,7 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
         <header className="mt-6 sm:mt-8">
           <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-bold text-emerald-700"><Sparkles className="h-3.5 w-3.5" />خطوة أخيرة</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">أكمل اشتراكك في <span className="bg-gradient-to-l from-emerald-600 to-teal-500 bg-clip-text text-transparent">Noon ERP</span></h1>
-          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">ادفع الآن عبر الإنترنت وتُفعَّل شركتك فوراً، أو تحدّث مع فريق المبيعات ونساعدك في اختيار ما يناسبك.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{ONLINE_COMPANY_PAYMENT_VISIBLE ? "ادفع الآن عبر الإنترنت وتُفعَّل شركتك فوراً، أو تحدّث مع فريق المبيعات ونساعدك في اختيار ما يناسبك." : "أرسل طلبك لفريق المبيعات وسنتواصل معك لإتمام الاشتراك، وتُفعَّل شركتك لسنة كاملة فور اعتمادها."}</p>
         </header>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
@@ -170,7 +171,7 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
                   <p className="mt-3 text-lg font-black text-emerald-800">تم الدفع وإنشاء الشركة</p>
                   <a href="/management/companies" className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-6 text-sm font-bold text-white transition hover:bg-emerald-700">الذهاب إلى شركاتي</a>
                 </div>
-              ) : (
+              ) : ONLINE_COMPANY_PAYMENT_VISIBLE ? (
                 <>
                   <button type="button" onClick={() => void payOnline()} disabled={!data.online || busy}
                     className="group mt-6 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-l from-emerald-600 to-teal-500 text-base font-black text-white shadow-lg shadow-emerald-600/25 transition hover:shadow-xl hover:shadow-emerald-600/30 hover:brightness-105 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none">
@@ -181,13 +182,15 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
                   {data.testMode && data.online && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs text-amber-800 ring-1 ring-amber-100">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
                   {payState.kind === "error" && <p className="mt-3 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100"><XCircle className="h-4 w-4 shrink-0" />{payState.text}</p>}
                 </>
+              ) : (
+                <p className="mt-6 rounded-2xl bg-emerald-50/70 p-4 text-center text-sm leading-7 text-emerald-800 ring-1 ring-emerald-100">لإتمام الاشتراك أرسل طلبك لفريق المبيعات من النموذج المجاور، وسنتواصل معك لترتيب الدفع وتفعيل الشركة.</p>
               )}
 
-              <div className="mt-6 grid grid-cols-3 gap-2 border-t border-slate-100 pt-5 text-center text-[11px] font-semibold text-slate-500">
+              {ONLINE_COMPANY_PAYMENT_VISIBLE && <div className="mt-6 grid grid-cols-3 gap-2 border-t border-slate-100 pt-5 text-center text-[11px] font-semibold text-slate-500">
                 <span className="flex flex-col items-center gap-1.5"><ShieldCheck className="h-5 w-5 text-emerald-600" />دفع آمن عبر لحظة</span>
                 <span className="flex flex-col items-center gap-1.5"><Zap className="h-5 w-5 text-emerald-600" />تفعيل فوري</span>
                 <span className="flex flex-col items-center gap-1.5"><CreditCard className="h-5 w-5 text-emerald-600" />Visa · Mastercard</span>
-              </div>
+              </div>}
             </div>
           </section>
 
