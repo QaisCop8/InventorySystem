@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let client: any
   try {
-    const permission = await requirePermissionByName(_request, "تعديل مسودة طلبية مبيعات")
+    const permission = await requirePermissionByName(_request, "إلغاء مسودة طلبية مبيعات")
     if (!permission.ok) return permission.response
     await ensureOrderDraftTables(); await ensureReceiptTables()
     const id = Number((await params).id)

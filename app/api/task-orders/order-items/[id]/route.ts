@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { resolveActingUserId, unauthenticated } from "../../_auth"
+import { resolveActingUserId, unauthenticated, requireTaskPermission } from "../../_auth"
 import {
   getOrderItemDetail,
   updateOrderItemQty,
@@ -10,6 +10,8 @@ import {
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const item = await getOrderItemDetail(Number(params.id))
     if (!item) return NextResponse.json({ error: "الصنف غير موجود" }, { status: 404 })
     return NextResponse.json(item)
@@ -21,6 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const id = Number(params.id)
     const data = await request.json()
     const actingUserId = await resolveActingUserId(request)
@@ -46,6 +50,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const id = Number(params.id)
     const userId = await resolveActingUserId(request)
     if (!userId) return unauthenticated()

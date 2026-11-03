@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureOrderDraftTables } from "@/lib/order-drafts"
+import { requirePermissionByName } from "@/lib/tenant-auth"
+import { transactionPermissionName } from "@/lib/transaction-permission-definitions"
 
-export async function GET() {
+const checklistPermission = (request: NextRequest, action: "view" | "create" | "update") =>
+  requirePermissionByName(request, transactionPermissionName("order_checklist", action))
+
+export async function GET(request: NextRequest) {
+  // القوائم تُقرأ من شاشتها ومن نموذج المسودة (اختيار قائمة التحقق)
+  const view = await checklistPermission(request, "view")
+  if (!view.ok) {
+    const drafts = await requirePermissionByName(request, transactionPermissionName("sales_order_draft", "view"))
+    if (!drafts.ok) return view.response
+  }
   await ensureOrderDraftTables()
   const templates = await sql`SELECT * FROM order_checklist_templates ORDER BY created_at DESC`
   const fields = await sql`SELECT * FROM order_checklist_fields ORDER BY position, id`
@@ -11,6 +22,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const permission = await checklistPermission(request, "create")
+    if (!permission.ok) return permission.response
     await ensureOrderDraftTables()
     const data = await request.json()
     if (!String(data.name || "").trim() || !Array.isArray(data.fields) || !data.fields.length) return NextResponse.json({ error: "اسم القائمة وحقل واحد على الأقل مطلوبان" }, { status: 400 })
@@ -29,6 +42,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const permission = await checklistPermission(request, "update")
+    if (!permission.ok) return permission.response
     await ensureOrderDraftTables()
     const data = await request.json()
     const id = Number(data.id)

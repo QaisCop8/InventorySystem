@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { resolveActingUserId, unauthenticated } from "../../../_auth"
+import { resolveActingUserId, unauthenticated, requireTaskPermission } from "../../../_auth"
 import { completeTask } from "@/lib/task-orders"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const data = await request.json()
     const actingUserId = await resolveActingUserId(request)
     if (!actingUserId) return unauthenticated()

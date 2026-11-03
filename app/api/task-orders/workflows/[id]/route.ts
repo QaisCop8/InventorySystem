@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { resolveActingUserId, unauthenticated } from "../../_auth"
-import { updateWorkflowMeta, updateWorkflowDefinition, deleteWorkflow, isWorkspaceAdmin } from "@/lib/task-orders"
+import { resolveActingUserId, unauthenticated, requireTaskPermission } from "../../_auth"
+import { updateWorkflowMeta, updateWorkflowDefinition, deleteWorkflow } from "@/lib/task-orders"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -8,9 +8,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const data = await request.json()
     const actingUserId = await resolveActingUserId(request)
     if (!actingUserId) return unauthenticated()
-    if (!(await isWorkspaceAdmin(actingUserId))) {
-      return NextResponse.json({ error: "لا تملك صلاحية إدارة سير العمل" }, { status: 403 })
-    }
+    const denied = await requireTaskPermission(request, "task_orders_admin", "update")
+    if (denied) return denied
     // تعديل التعريف الكامل (اسم/نوع/فرع/مجموعة/أصناف) يصل مع name — أي شيء آخر (تفعيل/تعطيل
     // فقط مثلاً) يمر عبر updateWorkflowMeta الأبسط.
     const workflow = data.name ? await updateWorkflowDefinition(id, data) : await updateWorkflowMeta(id, data)

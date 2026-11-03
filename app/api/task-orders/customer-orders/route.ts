@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { resolveActingUserId, unauthenticated } from "../_auth"
+import { resolveActingUserId, unauthenticated, requireTaskPermission } from "../_auth"
 import { listCustomerOrders, createCustomerOrder } from "@/lib/task-orders"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const orders = await listCustomerOrders()
     return NextResponse.json(orders)
   } catch (error) {
@@ -14,6 +16,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const data = await request.json()
     const actingUserId = await resolveActingUserId(request)
     if (!actingUserId) return unauthenticated()

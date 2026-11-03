@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type TouchEvent } from "react"
 import { useAuth } from "@/components/auth/auth-context"
+import { useTransactionPermission } from "@/components/auth/transaction-access-gate"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -102,7 +103,13 @@ export function TaskBoard() {
   const { user } = useAuth()
   const { toast } = useToast()
   const userId = user?.id ?? null
-  const isAdmin = user?.role === "مدير النظام"
+  // صلاحيات متابعة الطلبات (شاشة الصلاحيات): رؤية كل المهام، التحويل، والإجراءات الإجبارية — قبل وصولها لقائمة
+  // المستخدم المخزّنة يبقى السلوك القديم (مدير النظام)
+  const can = useTransactionPermission()
+  const roleAdmin = user?.role === "مدير النظام"
+  const canSeeAll = can("task_board", "view", roleAdmin)
+  const canTransfer = can("task_board", "update", roleAdmin)
+  const canForce = can("task_board", "delete", roleAdmin)
 
   const [workflows, setWorkflows] = useState<TaskWorkflow[]>([])
   const [sections, setSections] = useState<TaskSection[]>([])
@@ -838,7 +845,7 @@ export function TaskBoard() {
           {[
             { label: "مهامي", value: "mine" as Scope },
             { label: "أقسامي", value: "section" as Scope },
-            ...(isAdmin ? [{ label: "كل المهام", value: "all" as Scope }] : []),
+            ...(canSeeAll ? [{ label: "كل المهام", value: "all" as Scope }] : []),
           ].map((option) => (
             <button
               key={option.value}
@@ -1156,7 +1163,7 @@ export function TaskBoard() {
                             <Undo2 className="h-3.5 w-3.5" /> رفض
                           </Button>
                         )}
-                        {isAdmin && (
+                        {canForce && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1263,9 +1270,9 @@ export function TaskBoard() {
                           </div>
                         )}
 
-                        {isOpen && isAdmin && (
+                        {isOpen && (canTransfer || canForce) && (
                           <div className="flex flex-wrap items-center gap-2 border-t border-dashed border-slate-200 pt-2">
-                            <Button
+                            {canTransfer && <Button
                               size="sm"
                               variant="ghost"
                               className="gap-1 text-indigo-600"
@@ -1273,8 +1280,8 @@ export function TaskBoard() {
                               onClick={() => setTransferringInstanceId(instance.id)}
                             >
                               <ArrowRightLeft className="h-3.5 w-3.5" /> تحويل إداري
-                            </Button>
-                            <Button
+                            </Button>}
+                            {canForce && <Button
                               size="sm"
                               variant="ghost"
                               className="gap-1 text-blue-600"
@@ -1282,8 +1289,8 @@ export function TaskBoard() {
                               onClick={() => openNoteDialog(instance.id, "force_complete", "إنهاء إجباري")}
                             >
                               <ShieldAlert className="h-3.5 w-3.5" /> إنهاء إجباري
-                            </Button>
-                            {instance.parent_instance_id && (
+                            </Button>}
+                            {canForce && instance.parent_instance_id && (
                               <Button
                                 size="sm"
                                 variant="ghost"

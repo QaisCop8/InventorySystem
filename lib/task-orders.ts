@@ -1,6 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { createNotification } from "@/lib/notifications"
+import { hasNamedPermission } from "@/lib/permissions"
+import { TRANSACTION_PERMISSION_CATEGORY, transactionPermissionName, type TransactionAction, type TransactionFamily } from "@/lib/transaction-permission-definitions"
 
 // كل إجراء بالمحرك يعدّل أكثر من صف (بدء/إنهاء/رفض/تحويل/حفظ خطوات...) يُنفَّذ بمعاملة واحدة —
 // سابقاً كان فشل أي استعلام وسط السلسلة يترك المهمة نصف منفَّذة (مكتملة بلا مرحلة تالية مثلاً).
@@ -422,8 +424,13 @@ async function assertWorkAccess(ctx: any, userId: string) {
   if (!membership.isMember) throw new Error("هذه المهمة ليست من مهام قسمك")
 }
 
-async function assertAdmin(userId: string) {
-  if (!(await isWorkspaceAdmin(userId))) throw new Error("هذا الإجراء متاح لمدير النظام فقط")
+// إجراءات خارج تكليف المهمة (حذف سير عمل، تحويل، إنهاء/رفض/إغلاق إجباري) — بصلاحيتها في شاشة الصلاحيات لا بدور "مدير النظام"
+async function hasTaskPermission(userId: string, family: TransactionFamily, action: TransactionAction) {
+  return hasNamedPermission(userId, transactionPermissionName(family, action), TRANSACTION_PERMISSION_CATEGORY)
+}
+
+async function assertTaskPermission(userId: string, family: TransactionFamily, action: TransactionAction) {
+  if (!(await hasTaskPermission(userId, family, action))) throw new Error(`لا توجد لديك صلاحية ${transactionPermissionName(family, action)}`)
 }
 
 // ------------------------------------------------------------------
@@ -658,7 +665,7 @@ export async function updateWorkflowDefinition(
 // تستخدم هذا السير حالياً، لتفادي "يتم العمل عليها حالياً وتختفي فجأة من كل الشاشات".
 export async function deleteWorkflow(id: number, userId: string) {
   await ensureTaskOrderTables()
-  await assertAdmin(userId)
+  await assertTaskPermission(userId, "task_orders_admin", "delete")
   const current = (await sql`SELECT id FROM task_workflows WHERE id = ${id}`)[0]
   if (!current) throw new Error("سير العمل غير موجود")
 
@@ -1478,7 +1485,7 @@ async function stopTaskTx(instanceId: number, userId: string, note?: string) {
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (ctx.status !== "in_progress") throw new Error("لا يوجد عمل جارٍ على هذه المهمة")
-  if (Number(ctx.claimed_by_user_id) !== Number(userId) && !(await isWorkspaceAdmin(userId))) {
+  if (Number(ctx.claimed_by_user_id) !== Number(userId) && !(await hasTaskPermission(userId, "task_board", "delete"))) {
     throw new Error("لا تملك صلاحية إيقاف مهمة مستخدم آخر")
   }
 
@@ -1497,7 +1504,7 @@ async function rejectTaskTx(instanceId: number, userId: string, reason: string, 
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (!["pending", "paused", "in_progress"].includes(ctx.status)) throw new Error("لا يمكن رفض هذه المهمة بحالتها الحالية")
   if (!isForce && ctx.first_started_at) throw new Error("لا يمكن الرفض بعد بدء العمل على المهمة")
-  if (isForce) await assertAdmin(userId)
+  if (isForce) await assertTaskPermission(userId, "task_board", "delete")
   else {
     await assertWorkAccess(ctx, userId)
   }
@@ -1594,7 +1601,7 @@ async function completeTaskTx(instanceId: number, userId: string, note?: string,
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (isForce) {
-    await assertAdmin(userId)
+    await assertTaskPermission(userId, "task_board", "delete")
     if (!["pending", "paused", "in_progress"].includes(ctx.status)) throw new Error("لا يمكن إنهاء هذه المهمة بحالتها الحالية")
   } else {
     await assertWorkAccess(ctx, userId)
@@ -1705,7 +1712,7 @@ async function adminTransferTaskTx(
   data: { toSectionId?: number | null; toUserId?: string | null; reason: string },
 ) {
   await ensureTaskOrderTables()
-  await assertAdmin(adminUserId)
+  await assertTaskPermission(adminUserId, "task_board", "delete")
   await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
@@ -1757,7 +1764,7 @@ async function adminTransferTaskTx(
 // بعد نجاح هذا الجزء — يبقى هذا الملف بلا أي استيراد من lib/orders.ts لتفادي الاستيراد الدائري.
 async function forceCloseCustomerOrderTx(instanceId: number, adminUserId: string, note?: string) {
   await ensureTaskOrderTables()
-  await assertAdmin(adminUserId)
+  await assertTaskPermission(adminUserId, "task_board", "update")
   await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")

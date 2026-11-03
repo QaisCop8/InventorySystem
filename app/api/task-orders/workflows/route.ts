@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { resolveActingUserId, unauthenticated } from "../_auth"
-import { listWorkflows, createWorkflow, isWorkspaceAdmin } from "@/lib/task-orders"
+import { resolveActingUserId, unauthenticated, requireTaskPermission } from "../_auth"
+import { listWorkflows, createWorkflow } from "@/lib/task-orders"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    if (!(await resolveActingUserId(request))) return unauthenticated()
     const workflows = await listWorkflows()
     return NextResponse.json(workflows)
   } catch (error) {
@@ -18,9 +19,8 @@ export async function POST(request: NextRequest) {
     if (!data.name) return NextResponse.json({ error: "اسم سير العمل مطلوب" }, { status: 400 })
     const actingUserId = await resolveActingUserId(request)
     if (!actingUserId) return unauthenticated()
-    if (!(await isWorkspaceAdmin(actingUserId))) {
-      return NextResponse.json({ error: "لا تملك صلاحية إدارة سير العمل" }, { status: 403 })
-    }
+    const denied = await requireTaskPermission(request, "task_orders_admin", "create")
+    if (denied) return denied
     const workflow = await createWorkflow(data)
     return NextResponse.json(workflow, { status: 201 })
   } catch (error: any) {

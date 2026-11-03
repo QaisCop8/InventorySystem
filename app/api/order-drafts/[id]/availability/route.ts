@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { ensureOrderDraftTables } from "@/lib/order-drafts"
 import { checkDraftProductionAvailability } from "@/lib/inventory-availability"
 import sql from "@/lib/database"
-import { getSessionUser } from "@/lib/tenant-auth"
+import { getSessionUser, requirePermissionByName } from "@/lib/tenant-auth"
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const permission = await requirePermissionByName(_request, "استعلام مسودة طلبية مبيعات")
+    if (!permission.ok) {
+      const confirm = await requirePermissionByName(_request, "تأكيد مسودة الطلبية وتحويلها لطلبية مبيعات")
+      if (!confirm.ok) return permission.response
+    }
     await ensureOrderDraftTables()
     const id = Number((await params).id)
     if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "رقم المسودة غير صالح" }, { status: 400 })

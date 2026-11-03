@@ -436,7 +436,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 7
+const PERMISSION_SYNC_VERSION = 8
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -925,6 +925,77 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       [targetNames],
     )
     await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [chequeScreensMigration])
+  }
+
+  // تتبع أوامر العمل صار بصلاحيات لكل شاشة (2026-11-03) — كان مفتوحاً لكل مستخدم مسجّل، وإدارته لمدير النظام فقط.
+  // مرة واحدة لكل شركة: الشاشات اليومية لكل الأدوار (عدا كاشير) وللمستخدمين بلا دور، وما كان لمدير النظام لأدوار
+  // المدير ولمستخدمي "مدير النظام"، والدخول/الإلغاء للمسودات لمن يملك صلاحيات المسودات القائمة.
+  const taskOrdersMigration = "task-orders-screens-access-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [taskOrdersMigration])).length) {
+    const name = transactionPermissionName
+    const everyone = [
+      name("task_board", "access"), name("order_confirmation", "access"), name("order_confirmation", "post"),
+      name("task_order_approval", "access"), name("task_order_approval", "post"), name("order_checklist", "access"), name("order_checklist", "view"),
+    ]
+    const adminOnly = [
+      ...transactionActionsFor("task_orders_admin").map((action) => name("task_orders_admin", action)),
+      name("order_checklist", "create"), name("order_checklist", "update"), name("order_checklist", "delete"),
+      name("task_board", "view"), name("task_board", "update"), name("task_board", "delete"),
+      ...transactionActionsFor("sales_order_draft").map((action) => name("sales_order_draft", action)),
+    ]
+    const adminRoles = `LOWER(BTRIM(r.name)) IN ('مدير', 'admin', 'administrator', 'مدير النظام', 'مسؤول النظام')`
+    await client.query(
+      `INSERT INTO role_permissions (role_id, access_id, is_granted)
+       SELECT r.id, a.id, TRUE FROM job_roles r CROSS JOIN access_list a
+       WHERE LOWER(BTRIM(r.name)) <> 'كاشير' AND a.name = ANY($1::text[])
+       ON CONFLICT (role_id, access_id) DO NOTHING`,
+      [everyone],
+    )
+    await client.query(
+      `INSERT INTO user_access (user_id, access_id, is_granted)
+       SELECT us.user_id, a.id, TRUE FROM user_settings us CROSS JOIN access_list a
+       WHERE us.job_role_id IS NULL AND a.name = ANY($1::text[])
+       ON CONFLICT (user_id, access_id) DO NOTHING`,
+      [everyone],
+    )
+    await client.query(
+      `INSERT INTO role_permissions (role_id, access_id, is_granted)
+       SELECT r.id, a.id, TRUE FROM job_roles r CROSS JOIN access_list a
+       WHERE ${adminRoles} AND a.name = ANY($1::text[])
+       ON CONFLICT (role_id, access_id) DO NOTHING`,
+      [[...everyone, ...adminOnly]],
+    )
+    await client.query(
+      `INSERT INTO user_access (user_id, access_id, is_granted)
+       SELECT us.user_id, a.id, TRUE FROM user_settings us CROSS JOIN access_list a
+       WHERE BTRIM(COALESCE(us.role, '')) = 'مدير النظام' AND a.name = ANY($1::text[])
+       ON CONFLICT (user_id, access_id) DO NOTHING`,
+      [[...everyone, ...adminOnly]],
+    )
+    // الدخول لشاشة المسودات لمن يملك أي صلاحية مسودة، والإلغاء (كان يتبع "تعديل") لمن يملك التعديل — مستخدم/دور، وبالفروع
+    for (const [targets, sources] of [
+      [[name("sales_order_draft", "access")], [name("sales_order_draft", "view"), name("sales_order_draft", "create"), name("sales_order_draft", "update")]],
+      [[name("sales_order_draft", "delete")], [name("sales_order_draft", "update")]],
+    ] as const) {
+      for (const [table, keys] of [
+        ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+        ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+      ] as const) {
+        const columns = keys.join(",")
+        const selected = keys.map((key) => `granted.${key}`).join(",")
+        await client.query(
+          `INSERT INTO ${table} (${columns}, access_id, is_granted)
+           SELECT DISTINCT ${selected}, target.id, TRUE
+           FROM access_list target
+           JOIN access_list source ON source.name = ANY($2::text[])
+           JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+           WHERE target.name = ANY($1::text[])
+           ON CONFLICT (${columns}, access_id) DO NOTHING`,
+          [targets, sources],
+        )
+      }
+    }
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [taskOrdersMigration])
   }
 
   // Name-based fallback for tenant databases whose locally-created access ids

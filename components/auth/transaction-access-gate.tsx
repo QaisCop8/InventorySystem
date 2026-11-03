@@ -12,7 +12,10 @@ import {
   RESTAURANT_SCREEN_SECTION,
   TRANSACTION_FAMILIES,
   transactionFamilyForSection,
+  transactionPermissionName,
   type TransactionAccessEntry,
+  type TransactionAction,
+  type TransactionFamily,
 } from "@/lib/transaction-permission-definitions"
 
 /** صلاحية "الدخول لشاشة {الحركة}" للفرع النشط — من نفس قائمة الصلاحيات المخزّنة التي تستخدمها شاشات الملفات. */
@@ -53,4 +56,29 @@ export function TransactionAccessGate({ section, children }: { section: string; 
       </div>
     </div>
   )
+}
+
+/**
+ * صلاحية إجراء محدد من صلاحيات الحركات (مثل "تحويل مهمة لمستخدم آخر") للفرع النشط — لإظهار/إخفاء أزرار. الخادم يفرضها.
+ * قبل أن تصل الصلاحية لقائمة المستخدم المخزّنة (لم تُحدَّث بعد) يُعاد fallback.
+ */
+export function useTransactionPermission() {
+  const { user, activeBranchId, permissionVersion } = useAuth()
+  const entries = useMemo<TransactionAccessEntry[] | null>(() => {
+    if (!user || typeof window === "undefined") return null
+    const branchId = activeBranchId || user.branchId || "default"
+    try {
+      const raw = localStorage.getItem(`user_Access_List:${user.id}:${branchId}`)
+      const value = raw ? JSON.parse(raw) : null
+      return Array.isArray(value) ? value : null
+    } catch {
+      return null
+    }
+  }, [user, activeBranchId, permissionVersion])
+  return useCallback((family: TransactionFamily, action: TransactionAction, fallback = false) => {
+    const name = transactionPermissionName(family, action)
+    const matches = (entries || []).filter((entry) => String(entry.access_name || "").trim() === name)
+    if (!matches.length) return fallback
+    return matches.some((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
+  }, [entries])
 }

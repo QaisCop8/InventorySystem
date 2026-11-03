@@ -1,8 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requireTaskPermission } from "../_auth"
 import { listOpenTasks } from "@/lib/task-orders"
 
 export async function GET(request: NextRequest) {
   try {
+    const denied = await requireTaskPermission(request, "task_board", "access")
+    if (denied) return denied
     const { searchParams } = new URL(request.url)
     const workflowId = searchParams.get("workflow_id")
     const sectionId = searchParams.get("section_id")

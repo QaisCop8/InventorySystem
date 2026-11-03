@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { resolveActingUserId, unauthenticated } from "../../_auth"
-import { updateBranch, isWorkspaceAdmin } from "@/lib/task-orders"
+import { resolveActingUserId, unauthenticated, requireTaskPermission } from "../../_auth"
+import { updateBranch } from "@/lib/task-orders"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -8,9 +8,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const data = await request.json()
     const actingUserId = await resolveActingUserId(request)
     if (!actingUserId) return unauthenticated()
-    if (!(await isWorkspaceAdmin(actingUserId))) {
-      return NextResponse.json({ error: "لا تملك صلاحية إدارة الفروع" }, { status: 403 })
-    }
+    const denied = await requireTaskPermission(request, "task_orders_admin", "update")
+    if (denied) return denied
     const branch = await updateBranch(id, data)
     if (!branch) return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 })
     return NextResponse.json(branch)
