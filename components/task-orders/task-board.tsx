@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type TouchEvent } from "react"
+import { useCallback, useEffect, useMemo, useState, type TouchEvent } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -236,6 +236,16 @@ export function TaskBoard() {
     return map
   }, [workflows])
 
+  // من يعمل على المهمة (مطابق لـ assertWorkAccess بالخادم): خطوة "لمستخدم معين" ⇐ مستلمها فقط؛ خطوة "كل القسم" ⇐
+  // عضو القسم ما لم يستلمها غيره. ما عدا ذلك (حتى بـ"كل المهام" أو لمدير النظام) يُعرض للقراءة فقط.
+  const canWork = useCallback((t: { assignment_type?: string | null; claimed_by_user_id?: string | number | null; effective_section_id: number }) => {
+    if (!userId) return false
+    const claimedBy = t.claimed_by_user_id ? Number(t.claimed_by_user_id) : null
+    if (t.assignment_type === "specific") return claimedBy === Number(userId)
+    if (claimedBy && claimedBy !== Number(userId)) return false
+    return mySectionIds.has(t.effective_section_id)
+  }, [userId, mySectionIds])
+
   const visibleTasks = useMemo(() => {
     let list = tasks
     if (branchFilter !== "all") {
@@ -245,7 +255,7 @@ export function TaskBoard() {
         return b === null || b === undefined || b === branchId
       })
     }
-    if (scope === "mine") list = list.filter((t) => Number(t.claimed_by_user_id) === Number(userId))
+    if (scope === "mine") list = list.filter((t) => canWork(t) || Number(t.claimed_by_user_id) === Number(userId))
     else if (scope === "section") list = list.filter((t) => mySectionIds.has(t.effective_section_id) || Number(t.claimed_by_user_id) === Number(userId))
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase()
@@ -259,7 +269,7 @@ export function TaskBoard() {
     }
     if (overdueOnly) list = list.filter((t) => slaInfo(t)?.overdue)
     return list
-  }, [tasks, scope, mySectionIds, userId, searchText, branchFilter, sectionBranchMap, overdueOnly])
+  }, [tasks, scope, mySectionIds, userId, searchText, branchFilter, sectionBranchMap, overdueOnly, canWork])
 
   const overdueCount = visibleTasks.filter((t) => slaInfo(t)?.overdue).length
 
@@ -684,16 +694,15 @@ export function TaskBoard() {
 
   return (
     <div dir="rtl" className="flex min-h-[calc(100vh-104px)] flex-col gap-4 md:min-h-[calc(100vh-136px)]">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
-        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
               <KanbanSquare className="h-6 w-6" />
             </span>
             <div>
               <h1 className="text-xl font-extrabold sm:text-2xl">لوحة متابعة الطلبات</h1>
-              <p className="text-xs text-emerald-50/90 sm:text-sm">تتبّع أصناف الطلبيات عبر مراحل سير العمل مع تسجيل وقت التنفيذ لحظياً</p>
+              <p className="text-xs text-slate-500 sm:text-sm">تتبّع أصناف الطلبيات عبر مراحل سير العمل مع تسجيل وقت التنفيذ لحظياً</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -701,13 +710,13 @@ export function TaskBoard() {
               variant="outline"
               onClick={() => fetchTasks(selectedWorkflowId)}
               disabled={loadingTasks}
-              className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              className="h-10 rounded-xl"
             >
               <RefreshCw className={cn("ml-2 h-4 w-4", loadingTasks && "animate-spin")} />
               تحديث
             </Button>
             {userId && (
-              <div className="rounded-xl bg-white/95 text-slate-700 shadow-sm">
+              <div className="rounded-xl ring-1 ring-slate-200 dark:ring-slate-700">
                 <NotificationCenter userId={userId} />
               </div>
             )}
@@ -1103,10 +1112,7 @@ export function TaskBoard() {
                 // مطابق لشرط الوصول الخادمي (assertOrderItemStepAccess بـlib/task-orders.ts): مستلم
                 // المهمة، أو عضو قسمها لخطوة "كل القسم"، أو مدير نظام — من عداهم يرى اللوحة للقراءة
                 // فقط ولا يظهر له تم/رفض إطلاقاً.
-                const canActOnSpecial =
-                  isAdmin ||
-                  Number(activeSpecialInstance.claimed_by_user_id) === Number(userId) ||
-                  (activeSpecialInstance.assignment_type === "all" && mySectionIds.has(activeSpecialInstance.effective_section_id))
+                const canActOnSpecial = canWork(activeSpecialInstance)
                 const loadingBlocked = activeSpecialInstance.step_type === "loading" && !allLoadingChecked
                 return (
                   <>
@@ -1197,7 +1203,7 @@ export function TaskBoard() {
                     التفصيلي (بدء/إيقاف مؤقت/تحويل إداري...) المخصَّص للخطوات العادية. */}
                 {detailItem.instances.filter((instance) => !SPECIAL_STEP_TYPES.has(instance.step_type)).map((instance) => {
                   const isOpen = ["pending", "in_progress", "paused"].includes(instance.status)
-                  const canAct = isAdmin || mySectionIds.has(instance.effective_section_id)
+                  const canAct = canWork(instance)
                   const liveSeconds =
                     instance.status === "in_progress"
                       ? instance.total_duration_seconds +

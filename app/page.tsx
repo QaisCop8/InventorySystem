@@ -16,7 +16,7 @@ import { activateCompany } from "@/lib/tenant-client"
 import { SECTION_TITLES } from "@/components/sidebar"
 // تبويب فُتح من المساعد الذكي (?handoff=): ينقل بياناته إلى sessionStorage قبل تركيب أي شاشة
 import "@/lib/new-tab-handoff"
-import { POS_RESUME_KEY } from "@/lib/pos-offline"
+import { shouldResumePos } from "@/lib/pos-offline"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { WorkspacePane } from "@/components/workspace/workspace-pane"
 import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"
@@ -234,6 +234,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "orders-by-item-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersByItemReport"),
   "orders-by-party-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersByPartyReport"),
   "orders-backlog-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersBacklogReport"),
+  "cheques-total-report": lazyNamed(() => import("@/components/reports/cheques-report"), "ChequesTotalReport"),
+  "cheques-detailed-report": lazyNamed(() => import("@/components/reports/cheques-report"), "ChequesDetailedReport"),
   "orders-by-salesman-report": lazyNamed(() => import("@/components/reports/orders-report"), "OrdersBySalesmanReport"),
   "restaurant-monitor-report": lazyNamed(() => import("@/components/reports/restaurant-monitor-report"), "default"),
   "restaurant-tables-report": lazyNamed(() => import("@/components/reports/restaurant-report"), "RestaurantTablesReport"),
@@ -518,7 +520,7 @@ function HomePageContent() {
   useEffect(() => {
     // الكاشير كان مفتوحاً عند إغلاق المتصفح/الجهاز (lib/pos-offline.ts POS_RESUME_KEY) ⇐ يُفتح مباشرة عند البدء بلا قسم في الرابط
     let resumeCashier = false
-    try { resumeCashier = !searchParams.get("section") && localStorage.getItem(POS_RESUME_KEY) === "1" } catch { /* ignore */ }
+    try { resumeCashier = !searchParams.get("section") && shouldResumePos() } catch { /* ignore */ }
     const fromUrl = resumeCashier ? "pos-cashier" : searchParams.get("section")
     const resolved =
       !fromUrl || fromUrl === "home-dashboard" || fromUrl === "dashboard"
@@ -702,7 +704,7 @@ function HomePageContent() {
         if (!storedUser) return
         sessionStorage.setItem("default_screen_opened", "1")
         // رابط بقسم محدد (?section=) أو استئناف الكاشير لهما الأولوية على الشاشة الافتراضية
-        if (!fromLogin && (searchParams.get("section") || localStorage.getItem(POS_RESUME_KEY) === "1")) return
+        if (!fromLogin && (searchParams.get("section") || shouldResumePos())) return
         const defaultScreen = JSON.parse(storedUser)?.dashboard_layout?.default_screen
         if (!defaultScreen || defaultScreen === "dashboard" || defaultScreen === "home-dashboard" || !componentMap[defaultScreen]) return
         openSection(defaultScreen, titleFor(defaultScreen))

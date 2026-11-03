@@ -32,7 +32,7 @@ import {Label} from "@/components/ui/label"
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from "@/components/ui/select"
 import {cn} from "@/lib/utils"
 import {useToast} from "@/hooks/use-toast"
-import {POS_RESUME_KEY,currentPosTenantKey,listPosSales,loadPosCatalog,markPosSaleFailed,queuePosSale,removePosSale,savePosCatalog,type PosQueuedSale} from "@/lib/pos-offline"
+import {POS_RESUME_KEY,markPosResume,currentPosTenantKey,listPosSales,loadPosCatalog,markPosSaleFailed,queuePosSale,removePosSale,savePosCatalog,type PosQueuedSale} from "@/lib/pos-offline"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { logVoucherAudit } from "@/lib/audit-client"
 import { isMobilePrintDevice, printPosReceipt, receiptHtml } from "@/lib/pos-receipt-print"
@@ -142,7 +142,7 @@ export default function PosCashier(){
    for(const key of ["erp_user","erp_token","erp_session","erp_active_branch","erp_active_department","active_tenant_db","active_company_id"]){
     const value=sessionStorage.getItem(key);if(value)localStorage.setItem(key,value)
    }
-   try{localStorage.setItem(POS_RESUME_KEY,"1")}catch{}
+   markPosResume()
   }
   persist()
   const timer=window.setInterval(persist,30*60*1000)

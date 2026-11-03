@@ -2,6 +2,9 @@ import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { requirePermissionByName } from "@/lib/tenant-auth"
+import { authorizeChequeOperation, permittedChequeOperationCodes, requestBranchId } from "@/lib/cheque-permissions"
+import { transactionPermissionName } from "@/lib/transaction-permission-definitions"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { CHEQUE_OPERATIONS, ensureChequeOperationsTable, withAllowedChequeOperations } from "./_lib"
@@ -36,6 +39,21 @@ export async function GET(request: NextRequest) {
     const minAmount = positiveNumber(params.get("min_amount"))
     const maxAmount = positiveNumber(params.get("max_amount"))
     const query = String(params.get("q") || "").trim().slice(0, 100)
+
+    // شاشة "الشيكات" تحتاج استعلام الشيكات، و"عمليات الشيكات" الدخول لشاشتها، والشاشات الجماعية (operation_code) صلاحية عمليتها
+    if (!paymentPicker) {
+      if (operationCode) {
+        const denied = await authorizeChequeOperation(user.user_id, operationCode, requestBranchId(request))
+        if (denied) return denied
+      } else {
+        const register = await requirePermissionByName(request, transactionPermissionName("cheque_register", "view"))
+        if (!register.ok) {
+          const operations = await requirePermissionByName(request, transactionPermissionName("cheque_operation", "access"))
+          if (!operations.ok) return register.response
+        }
+      }
+    }
+    const permittedOperations = paymentPicker ? null : await permittedChequeOperationCodes(user.user_id, requestBranchId(request))
 
     let permittedBranches: number[]
     if (paymentPicker) {
@@ -107,7 +125,13 @@ export async function GET(request: NextRequest) {
       LIMIT ${paymentPicker ? 500 : 2000}
     `
 
-    const effectiveRows = rawRows.map((row: any) => withAllowedChequeOperations(row,String(row.business_date)))
+    const effectiveRows = rawRows.map((row: any) => {
+      const withOperations: any = withAllowedChequeOperations(row,String(row.business_date))
+      if (permittedOperations && Array.isArray(withOperations.allowed_operations)) {
+        withOperations.allowed_operations = withOperations.allowed_operations.filter((operation: any) => permittedOperations.has(String(operation.code)))
+      }
+      return withOperations
+    })
     const rows = statusId
       ? effectiveRows.filter((row: any) => Number(row.status_id) === statusId)
       : effectiveRows

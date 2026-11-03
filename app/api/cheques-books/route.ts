@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import {
   ensureTables,
   saveChequeRows,
@@ -9,8 +10,10 @@ import {
   findDuplicateChequeCode,
 } from "./_lib"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeTransaction(request, "cheque_book", "view")
+    if (!authorization.ok) return authorization.response
     await ensureTables()
 
     const rows = await sql`
@@ -52,6 +55,8 @@ const extractChequeCodes = (data: any): string[] =>
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = await authorizeTransaction(request, "cheque_book", "create")
+    if (!authorization.ok) return authorization.response
     await ensureTables()
     const data = await request.json()
 
@@ -92,6 +97,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const authorization = await authorizeTransaction(request, "cheque_book", "update")
+    if (!authorization.ok) return authorization.response
     await ensureTables()
     const data = await request.json()
 

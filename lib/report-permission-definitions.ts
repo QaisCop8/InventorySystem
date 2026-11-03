@@ -50,6 +50,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "orders-by-item-report", title: "الطلبيات حسب الصنف" },
   { section: "orders-by-party-report", title: "الطلبيات حسب العميل/المورد" },
   { section: "orders-backlog-report", title: "الطلبيات غير المسلّمة" },
+  { section: "cheques-total-report", title: "تقرير الشيكات إجمالي" },
+  { section: "cheques-detailed-report", title: "تقرير الشيكات تفصيلي" },
   { section: "orders-by-salesman-report", title: "الطلبيات حسب المندوب" },
   { section: "batch-log-report", title: "أرشفة الرقم التشغيلي" },
   { section: "serial-movements-report", title: "تقرير حركات السيريال" },

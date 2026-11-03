@@ -408,10 +408,18 @@ export async function isWorkspaceAdmin(userId: string): Promise<boolean> {
   return false
 }
 
-async function assertSectionAccess(sectionId: number, userId: string) {
-  if (await isWorkspaceAdmin(userId)) return
-  const membership = await isSectionMember(sectionId, userId)
-  if (!membership.isMember) throw new Error("لا تملك صلاحية التعامل مع مهام هذا القسم")
+// العمل على مهمة (بدء/رفض/إنهاء) لمن تخصّه فقط — حتى مدير النظام (له الإجراءات الإجبارية/التحويل فقط):
+// خطوة "لمستخدم معين" ⇐ مستلمها (المسند إليه أو من حُوّلت له)؛ خطوة "كل القسم" ⇐ عضو القسم ما لم يستلمها غيره.
+async function assertWorkAccess(ctx: any, userId: string) {
+  const claimedBy = ctx.claimed_by_user_id ? Number(ctx.claimed_by_user_id) : null
+  if (ctx.assignment_type === "specific") {
+    const owner = claimedBy ?? (ctx.assigned_user_id ? Number(ctx.assigned_user_id) : null)
+    if (owner !== Number(userId)) throw new Error("هذه المهمة مسندة لمستخدم آخر")
+    return
+  }
+  if (claimedBy && claimedBy !== Number(userId)) throw new Error("تم استلام هذه المهمة من مستخدم آخر")
+  const membership = await isSectionMember(ctx.effective_section_id, userId)
+  if (!membership.isMember) throw new Error("هذه المهمة ليست من مهام قسمك")
 }
 
 async function assertAdmin(userId: string) {
@@ -770,10 +778,6 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
   for (const step of steps) {
     if (step.assignment_type !== "specific") continue
     if (!step.assigned_user_id) throw new Error(`يجب اختيار المستخدم للخطوة "${step.label}" عند تحديد ل مستخدم معين`)
-    const membership = await sql`
-      SELECT 1 FROM task_section_users WHERE section_id = ${step.section_id} AND user_id = ${step.assigned_user_id} LIMIT 1
-    `
-    if (membership.length === 0) throw new Error(`المستخدم المحدد للخطوة "${step.label}" ليس عضواً في القسم المختار`)
   }
 
   const current = (await sql`SELECT * FROM task_workflows WHERE id = ${workflowId}`)[0]
@@ -1297,7 +1301,6 @@ export async function listSiblingOrderItems(customerOrderId: number) {
 // قيد العمل/متوقفة) على أي صنف من نفس الطلبية بخطوة نوعها ضمن allowedStepTypes، إما لأنه مستلمها أو
 // عضو بقسمها (لخطوات assignment_type='all'). مدير النظام يتجاوز هذا الشرط دائماً.
 async function assertOrderItemStepAccess(orderItemId: number, userId: string, allowedStepTypes: StepType[]) {
-  if (await isWorkspaceAdmin(userId)) return
   const item = (await sql`SELECT id, customer_order_id FROM task_order_items WHERE id = ${orderItemId}`)[0]
   if (!item) throw new Error("الصنف غير موجود")
 
@@ -1438,13 +1441,7 @@ async function startTaskTx(instanceId: number, userId: string) {
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (!["pending", "paused"].includes(ctx.status)) throw new Error("لا يمكن بدء هذه المهمة بحالتها الحالية")
 
-  await assertSectionAccess(ctx.effective_section_id, userId)
-  if (ctx.assignment_type === "specific" && ctx.assigned_user_id && Number(ctx.assigned_user_id) !== Number(userId)) {
-    throw new Error("هذه المهمة مسندة لمستخدم محدد")
-  }
-  if (ctx.claimed_by_user_id && Number(ctx.claimed_by_user_id) !== Number(userId)) {
-    throw new Error("تم استلام هذه المهمة من مستخدم آخر")
-  }
+  await assertWorkAccess(ctx, userId)
 
   // قفل تفاؤلي: شرط WHERE بنفس الحالة/الاستلام المتوقَّعين يمنع سباقاً بين مستخدمين يضغطان Start
   // في اللحظة نفسها على مهمة assignment_type='all' غير مُستلَمة بعد. تُغطّي حالتين معاً بشرط واحد:
@@ -1502,13 +1499,7 @@ async function rejectTaskTx(instanceId: number, userId: string, reason: string, 
   if (!isForce && ctx.first_started_at) throw new Error("لا يمكن الرفض بعد بدء العمل على المهمة")
   if (isForce) await assertAdmin(userId)
   else {
-    await assertSectionAccess(ctx.effective_section_id, userId)
-    if (
-      ctx.assignment_type === "specific" && ctx.assigned_user_id && Number(ctx.assigned_user_id) !== Number(userId) &&
-      !(await isWorkspaceAdmin(userId))
-    ) {
-      throw new Error("هذه المهمة مسندة لمستخدم محدد")
-    }
+    await assertWorkAccess(ctx, userId)
   }
   if (!ctx.parent_instance_id) throw new Error("هذه أول مرحلة بسير العمل — لا توجد مرحلة سابقة للإعادة إليها")
 
@@ -1606,7 +1597,7 @@ async function completeTaskTx(instanceId: number, userId: string, note?: string,
     await assertAdmin(userId)
     if (!["pending", "paused", "in_progress"].includes(ctx.status)) throw new Error("لا يمكن إنهاء هذه المهمة بحالتها الحالية")
   } else {
-    await assertSectionAccess(ctx.effective_section_id, userId)
+    await assertWorkAccess(ctx, userId)
     if (ctx.status !== "in_progress") throw new Error("يجب بدء المهمة أولاً قبل إنهائها")
     if (Number(ctx.claimed_by_user_id) !== Number(userId)) throw new Error("لا تملك صلاحية إنهاء مهمة مستخدم آخر")
   }

@@ -240,7 +240,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
 
   const sectionTitles: Record<string, string> = {
     "home-dashboard": "الرئيسية",
-    dashboard: "لوحة التحكم الرئيسية",
+    dashboard: "الرئيسية",
     "order-tracking": "متابعة الطلبيات",
     customers: "إدارة العملاء",
     suppliers: "إدارة الموردين",

@@ -1,9 +1,12 @@
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureTables, fetchBookWithJoins } from "../../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
   try {
+    const authorization = await authorizeTransaction(request, "cheque_book", "view")
+    if (!authorization.ok) return authorization.response
     await ensureTables()
     const { navigationType } = params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)

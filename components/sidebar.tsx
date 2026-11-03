@@ -531,6 +531,15 @@ export const menuItems: MenuItem[] = [
         ],
       },
       {
+        id: "cheques-reports",
+        title: "تقارير الشيكات",
+        icon: WalletCards,
+        submenu: [
+          { title: "تقرير الشيكات إجمالي", section: "cheques-total-report", icon: Layers },
+          { title: "تقرير الشيكات تفصيلي", section: "cheques-detailed-report", icon: ClipboardList },
+        ],
+      },
+      {
         id: "orders-reports",
         title: "تقارير الطلبيات",
         icon: BarChart3,

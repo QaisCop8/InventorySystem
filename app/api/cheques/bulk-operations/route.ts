@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from "next/server"
 import sql,{withTenantTransaction} from "@/lib/database"
 import {getSessionUser} from "@/lib/tenant-auth"
 import {authorizeTransaction} from "@/lib/transaction-permissions"
+import {authorizeChequeOperation} from "@/lib/cheque-permissions"
 import {ensureTables as ensureVoucherTables} from "@/app/api/receipts/_lib"
 import {ensureTables as ensureVoucherBookTables} from "@/app/api/voucher-book-permissions/_lib"
 import {CHEQUE_OPERATIONS,ensureChequeOperationsTable,isChequeOperationAllowed} from "@/app/api/cheques/_lib"
@@ -31,7 +32,7 @@ export async function POST(request:NextRequest){
    const branchIds=Array.from(new Set<number>(cheques.map((x:any)=>Number(x.source_branch_id)).filter(Boolean))),currencyIds=Array.from(new Set<number>(cheques.map((x:any)=>Number(x.currency_id)||0)))
    if(cheques.some((cheque:any)=>!Number(cheque.source_branch_id)))return NextResponse.json({error:"Missing voucher branch"},{status:400})
    if(currencyIds.length!==1)return NextResponse.json({error:"يجب أن تكون جميع الشيكات من نفس العملة"},{status:400})
-   for(const branchId of branchIds){const createAuth=await authorizeTransaction(request,"journal","create",branchId);if(!createAuth.ok)return createAuth.response;const postAuth=await authorizeTransaction(request,"journal","post",branchId);if(!postAuth.ok)return postAuth.response}
+   for(const branchId of branchIds){const deniedOperation=await authorizeChequeOperation(String(user.user_id),code,branchId);if(deniedOperation)return deniedOperation;const createAuth=await authorizeTransaction(request,"journal","create",branchId);if(!createAuth.ok)return createAuth.response;const postAuth=await authorizeTransaction(request,"journal","post",branchId);if(!postAuth.ok)return postAuth.response}
    for(const cheque of cheques){const businessDate=String(cheque.business_date);if(Number(cheque.cheq_type)!==config.type)return NextResponse.json({error:`نوع الشيك ${cheque.cheq_num} لا يناسب العملية`},{status:409});if(!isChequeOperationAllowed(operation,cheque,businessDate))return NextResponse.json({error:`الحالة الحالية للشيك ${cheque.cheq_num} لا تسمح بالعملية`},{status:409})}
    let targetAccountId:number|null=null,targetBankAccountId:number|null=null
    if(code==="deposit"){

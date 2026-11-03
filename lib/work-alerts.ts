@@ -1,5 +1,6 @@
 import { getTenantPool } from "@/lib/database"
 import { countInternalManufacturingStages } from "@/lib/internal-manufacturing-request"
+import { isWorkspaceAdmin } from "@/lib/task-orders"
 
 // تنبيهات العمل (جرس الرأس): أعداد حيّة لما ينتظر معالجة — تُحسب عند الطلب ولا تُخزَّن، فتختفي وحدها حين تُعالَج.
 // كل تنبيه يحمل القسم الذي يفتحه؛ الواجهة تُخفي تنبيه أي قسم لا يملك المستخدم صلاحية فتحه.
@@ -35,7 +36,7 @@ const INTERNAL_STAGES: Record<number, { section: string; label: string }> = {
 }
 
 /** branchIds فارغة = كل الفروع؛ activeBranchId لطلب البضاعة الداخلي (كل مرحلة تخص فرعاً منفِّذاً). */
-export async function buildWorkAlerts(branchIds: number[], activeBranchId: number | null): Promise<WorkAlert[]> {
+export async function buildWorkAlerts(branchIds: number[], activeBranchId: number | null, userId?: string): Promise<WorkAlert[]> {
   const pool = await getTenantPool()
   const query: Query = async (text, values = []) => (await pool.query(text, values)).rows
   const all = branchIds.length === 0
@@ -83,6 +84,31 @@ export async function buildWorkAlerts(branchIds: number[], activeBranchId: numbe
   push({ key: "portal-payments", title: "إشعارات تحويل من العملاء بانتظار الاعتماد", message: `${count(portal)} إشعار تحويل مرفوع من بوابة العملاء`, section: "customer-portal", priority: "high" }, count(portal))
   push({ key: "stock-counts", title: "جرد منتهٍ بانتظار المطابقة والاعتماد", message: `${count(counts)} جرد مخازن انتهى وينتظر الاعتماد`, section: "stock-count-approval", priority: "normal" }, count(counts))
   push({ key: "attendance", title: "حركات دوام بانتظار الاعتماد", message: `${count(attendance)} حركة (إضافي/خصم) بانتظار الاعتماد`, section: "attendance-transactions", priority: "normal" }, count(attendance))
+
+  // مهام أوامر العمل المتأخرة (تجاوزت "مدة العمل المتوقعة"): لمن يعمل عليها دائماً (مستلمها، أو أعضاء قسمها إن لم
+  // تُستلم)، ولمدير القسم/مسؤول النظام حسب "عند تجاوز مدة العمل المتوقعة" في الخطوة.
+  if (userId) {
+    const admin = await optional(() => isWorkspaceAdmin(userId), false)
+    const late = await optional(() => query(`
+      WITH late AS (
+        SELECT si.id, COALESCE(si.override_section_id, st.section_id) AS section_id, si.claimed_by_user_id, st.sla_actions
+        FROM task_step_instances si JOIN task_workflow_steps st ON st.id = si.step_id
+        WHERE si.status IN ('pending', 'in_progress', 'paused') AND COALESCE(st.sla_hours, 0) > 0
+          AND si.created_at + (st.sla_hours * INTERVAL '1 hour') < CURRENT_TIMESTAMP
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE late.claimed_by_user_id::text = $1
+          OR (late.claimed_by_user_id IS NULL AND EXISTS (SELECT 1 FROM task_section_users su WHERE su.section_id = late.section_id AND su.user_id::text = $1))) AS mine,
+        COUNT(*) FILTER (WHERE 'notify_manager' = ANY(late.sla_actions)
+          AND EXISTS (SELECT 1 FROM task_section_users su WHERE su.section_id = late.section_id AND su.user_id::text = $1 AND su.is_manager)) AS managed,
+        COUNT(*) FILTER (WHERE $2::boolean AND 'notify_admin' = ANY(late.sla_actions)) AS admin
+      FROM late`, [String(userId), admin]), [])
+    const row = late[0] || {}
+    const mine = Number(row.mine || 0)
+    const supervised = Math.max(Number(row.managed || 0), Number(row.admin || 0))
+    push({ key: "task-orders-late", title: "مهام متأخرة عن مدة العمل المتوقعة", message: `${mine} مهمة من مهامك تجاوزت المدة المتوقعة`, section: "task-orders-board", priority: "urgent" }, mine)
+    push({ key: "task-orders-late-supervised", title: "مهام متأخرة في الأقسام التي تتابعها", message: `${supervised} مهمة تجاوزت مدة العمل المتوقعة`, section: "task-orders-board", priority: "high" }, supervised)
+  }
 
   const rank = { urgent: 0, high: 1, normal: 2 }
   return alerts.sort((a, b) => rank[a.priority] - rank[b.priority])

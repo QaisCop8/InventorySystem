@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import MultiSelect from "@/components/common/MultiSelect"
+import { ReportMultiChoice } from "@/components/reports/account-statement-report"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -353,10 +354,12 @@ interface EditableTransition {
 
 // خيارات "عند تجاوز المدة المتوقعة" — إجراء تلقائي (أو أكثر) يُتّخذ إن تجاوز إجمالي وقت العمل على
 // الخطوة سقف SLA المحدَّد لها. فارغ = لا إجراء تلقائي (تبقى تنبيهات SLA العادية إن وُجدت فقط).
+// ids رقمية لـ ReportMultiChoice؛ القيمة المخزّنة في sla_actions هي value
 const SLA_ACTION_OPTIONS = [
-  { value: "advance_next", label: "نقل الى المرحلة التالية" },
-  { value: "notify_manager", label: "ارسال notification الى مدير القسم" },
-  { value: "notify_admin", label: "ارسال notification الى مسؤول النظام" },
+  { id: 1, value: "notify_assignee", name: "تنبيه المكلّف بالخطوة" },
+  { id: 2, value: "notify_manager", name: "تنبيه مدير القسم" },
+  { id: 3, value: "notify_admin", name: "تنبيه مسؤول النظام" },
+  { id: 4, value: "advance_next", name: "نقل الى المرحلة التالية" },
 ]
 
 let stepKeySeq = 0
@@ -925,7 +928,7 @@ function WorkflowsAdmin({
                         <div className="invoice-currency-dropdown-wrap">
                           <PrimeDropdown
                             value={step.assigned_user_id || null}
-                            options={sectionMembersMap.get(Number(step.section_id)) || []}
+                            options={sectionMembersMap.get(Number(step.section_id))?.length ? sectionMembersMap.get(Number(step.section_id)) : users}
                             optionLabel="full_name"
                             optionValue="user_id"
                             placeholder="المستخدم"
@@ -956,19 +959,12 @@ function WorkflowsAdmin({
                     </div>
 
                     <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                      <Label className="text-xs text-slate-500">عند تجاوز مدة العمل المتوقعة</Label>
-                      <MultiSelect
-                        value={step.sla_actions}
+                      <ReportMultiChoice
+                        label="عند تجاوز مدة العمل المتوقعة"
                         options={SLA_ACTION_OPTIONS}
-                        optionLabel="label"
-                        optionValue="value"
-                        showFilter
-                        showMultiSelect
-                        maxSelectedLabels={3}
-                        selectedItemsLabel="تم تحديد اكثر من 3 عناصر"
+                        selected={SLA_ACTION_OPTIONS.filter((option) => step.sla_actions.includes(option.value)).map((option) => option.id)}
+                        onChange={(ids) => updateStep(index, { sla_actions: SLA_ACTION_OPTIONS.filter((option) => ids.includes(option.id)).map((option) => option.value) })}
                         placeholder="لا شيء"
-                        className="w-full"
-                        onChange={(e: any) => updateStep(index, { sla_actions: Array.isArray(e.value) ? e.value : [] })}
                       />
                     </div>
                   </div>

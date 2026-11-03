@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { authorizeChequeOperation, permittedChequeOperationCodes, requestBranchId } from "@/lib/cheque-permissions"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { ensureTables as ensureVoucherBookTables } from "@/app/api/voucher-book-permissions/_lib"
 import {
@@ -115,7 +116,11 @@ export async function GET(request: NextRequest) {
       CURRENT_DATE::text business_date
       FROM cheques_tbl c LEFT JOIN cheque_status_tbl cs ON cs.id=c.status_id
       WHERE c.id=${chequeId}`)[0]
-    const cheque = currentCheque ? withAllowedChequeOperations(currentCheque, String(currentCheque.business_date)) : null
+    const cheque: any = currentCheque ? withAllowedChequeOperations(currentCheque, String(currentCheque.business_date)) : null
+    if (cheque && Array.isArray(cheque.allowed_operations)) {
+      const permitted = await permittedChequeOperationCodes(user.user_id, requestBranchId(request))
+      cheque.allowed_operations = cheque.allowed_operations.filter((operation: any) => permitted.has(String(operation.code)))
+    }
     return NextResponse.json({ logs, cheque }, { headers: { "Cache-Control": "private, no-store" } })
   } catch(error) {
     console.error("Cheque operations log error:",error)
@@ -144,6 +149,9 @@ export async function POST(request: NextRequest) {
         FOR UPDATE OF c
       `)[0]
       if (!cheque) return NextResponse.json({error:"الشيك غير موجود"},{status:404})
+      // صلاحية العملية نفسها على فرع سند الشيك (فرع قيد العملية)
+      const deniedOperation = await authorizeChequeOperation(user.user_id, operation.code, Number(cheque.source_branch_id) || null)
+      if (deniedOperation) return deniedOperation
       if (Number(cheque.cheq_type)!==operation.type) return NextResponse.json({error:"العملية لا تتوافق مع نوع الشيك"},{status:400})
       const businessDate = String(cheque.business_date || today())
       if (operation.requiresDue && !isChequeDue(cheque, businessDate)) {

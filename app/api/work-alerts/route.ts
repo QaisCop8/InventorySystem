@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const branchIds = await briefingBranchIds(user.user_id)
     const activeBranchId = Number(request.headers.get("x-branch-id")) || null
-    const alerts = await buildWorkAlerts(branchIds, activeBranchId && activeBranchId > 0 ? activeBranchId : null)
+    const alerts = await buildWorkAlerts(branchIds, activeBranchId && activeBranchId > 0 ? activeBranchId : null, user.user_id)
     return NextResponse.json({ alerts })
   } catch (error) {
     console.error("[work-alerts] error:", error)

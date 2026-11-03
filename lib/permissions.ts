@@ -25,6 +25,8 @@ import {
   USER_ADMIN_PERMISSION,
   USER_ADMIN_PERMISSION_CATEGORY,
   RESTAURANT_PERMISSIONS,
+  CHEQUE_OPERATION_PERMISSION_CATEGORY,
+  CHEQUE_OPERATION_PERMISSIONS,
   transactionPermissionName,
   HR_TRANSACTION_FAMILIES,
   type PosCashierPermission,
@@ -434,7 +436,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 6
+const PERMISSION_SYNC_VERSION = 7
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -459,7 +461,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, USER_ADMIN_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, CHEQUE_OPERATION_PERMISSIONS, USER_ADMIN_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -848,6 +850,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     [CREDIT_LIMIT_PERMISSION_CATEGORY, [CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION]],
     [PURCHASE_PRICE_PERMISSION_CATEGORY, [PURCHASE_PRICE_VIEW_PERMISSION]],
     [RESTAURANT_PERMISSION_CATEGORY, Object.values(RESTAURANT_PERMISSIONS)],
+    [CHEQUE_OPERATION_PERMISSION_CATEGORY, Object.values(CHEQUE_OPERATION_PERMISSIONS)],
     [USER_ADMIN_PERMISSION_CATEGORY, [USER_ADMIN_PERMISSION]],
   ] as const) {
   const creditCategoryRows = await client.query(
@@ -884,6 +887,44 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       )
     }
   }
+  }
+
+  // شاشات الشيكات وعملياتها صارت صلاحيات مستقلة (2026-11-03) — كانت تتبع "سند صرف شيكات"/"سند قيد". مرة واحدة لكل
+  // شركة تُمنح كلها لمن يملك أي صلاحية ممنوحة على سند صرف شيكات أو "إدخال سند قيد" (مستخدم/دور، وعلى مستوى الفروع)
+  // ولأدوار المدير — فلا يفقد أحد شاشة أو عملية يعمل عليها اليوم. لا تُعاد، فتقييد المسؤول لاحقاً يبقى.
+  const chequeScreensMigration = "cheque-screens-access-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [chequeScreensMigration])).length) {
+    const chequeFamilies: TransactionFamily[] = ["cheque_book", "cheque_register", "cheque_operation", "cheque_deposit_bulk", "cheque_endorse_bulk", "outgoing_cheque_clear"]
+    const targetNames = [
+      ...chequeFamilies.flatMap((family) => transactionActionsFor(family).map((action) => transactionPermissionName(family, action))),
+      ...Object.values(CHEQUE_OPERATION_PERMISSIONS),
+    ]
+    const sourceNames = [...transactionActionsFor("cheque_payment").map((action) => transactionPermissionName("cheque_payment", action)), transactionPermissionName("journal", "create")]
+    for (const [table, keys] of [
+      ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+      ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+    ] as const) {
+      const columns = keys.join(",")
+      const selected = keys.map((key) => `granted.${key}`).join(",")
+      await client.query(
+        `INSERT INTO ${table} (${columns}, access_id, is_granted)
+         SELECT DISTINCT ${selected}, target.id, TRUE
+         FROM access_list target
+         JOIN access_list source ON LOWER(BTRIM(source.name)) = ANY(SELECT LOWER(BTRIM(n)) FROM unnest($2::text[]) n)
+         JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+         WHERE target.name = ANY($1::text[])
+         ON CONFLICT (${columns}, access_id) DO NOTHING`,
+        [targetNames, sourceNames],
+      )
+    }
+    await client.query(
+      `INSERT INTO role_permissions (role_id, access_id, is_granted)
+       SELECT r.id, a.id, TRUE FROM job_roles r CROSS JOIN access_list a
+       WHERE LOWER(BTRIM(r.name)) IN ('مدير', 'admin', 'administrator', 'مدير النظام', 'مسؤول النظام') AND a.name = ANY($1::text[])
+       ON CONFLICT (role_id, access_id) DO NOTHING`,
+      [targetNames],
+    )
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [chequeScreensMigration])
   }
 
   // Name-based fallback for tenant databases whose locally-created access ids
@@ -937,4 +978,16 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       )
     }
   }
+
+  // دور "كاشير" افتراضياً: شاشات الكاشير والمطاعم فقط، وكل صلاحية أخرى ممنوعة صراحةً (بلا قرار = مسموح في القوائم).
+  // يملأ فقط ما لا قرار له للدور (ON CONFLICT DO NOTHING) — فما عدّله المسؤول يبقى، والصلاحيات الجديدة لاحقاً ممنوعة له.
+  const cashierAllowed = [...Object.values(POS_CASHIER_PERMISSIONS), ...Object.values(RESTAURANT_PERMISSIONS)]
+  await client.query(
+    `INSERT INTO role_permissions (role_id, access_id, is_granted)
+     SELECT r.id, a.id, LOWER(BTRIM(a.name)) = ANY(SELECT LOWER(BTRIM(n)) FROM unnest($1::text[]) n)
+     FROM job_roles r CROSS JOIN access_list a
+     WHERE LOWER(BTRIM(r.name)) = 'كاشير'
+     ON CONFLICT (role_id, access_id) DO NOTHING`,
+    [cashierAllowed],
+  )
 }

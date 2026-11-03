@@ -18,6 +18,13 @@ export const TRANSACTION_FAMILIES = {
   receipt: "سند قبض",
   payment: "سند صرف",
   cheque_payment: "سند صرف شيكات",
+  // شاشات الشيكات (الأسماء = عناوين القائمة الجانبية) — كل عملية على الشيك صلاحية مستقلة في CHEQUE_OPERATION_PERMISSIONS
+  cheque_book: "دفاتر الشيكات",
+  cheque_register: "الشيكات",
+  cheque_operation: "عمليات الشيكات",
+  cheque_deposit_bulk: "إيداع الشيكات",
+  cheque_endorse_bulk: "تجيير الشيكات",
+  outgoing_cheque_clear: "إخراج الشيكات الصادرة",
   journal: "سند قيد",
   credit_note: "إشعار دائن",
   debit_note: "إشعار مدين",
@@ -102,6 +109,30 @@ export const POS_CASHIER_PERMISSIONS = {
 
 export type PosCashierPermission = keyof typeof POS_CASHIER_PERMISSIONS
 
+// عمليات الشيكات (app/api/cheques/_lib.ts#CHEQUE_OPERATIONS): صلاحية لكل عملية تُفحص على فرع سند الشيك، في شاشة
+// "عمليات الشيكات" وفي الشاشات الجماعية (إيداع/تجيير/إخراج). المفاتيح = رمز العملية.
+export const CHEQUE_OPERATION_PERMISSION_CATEGORY = "عمليات الشيكات"
+export const CHEQUE_OPERATION_PERMISSIONS = {
+  deposit: "إيداع شيك وارد في البنك",
+  postpone: "تغيير تاريخ استحقاق شيك وارد",
+  return_source: "إرجاع شيك وارد للمصدر",
+  return_bank: "إرجاع شيك وارد من البنك",
+  endorse: "تحويل أو تجيير شيك وارد",
+  undo_endorse: "إرجاع شيك محول أو مجير",
+  retrieve_customer: "استرجاع شيك من الزبون",
+  collection: "تحويل شيك وارد إلى حساب التحصيل",
+  cash: "سحب شيك الزبون نقداً",
+  transfer_account: "تحويل شيك وارد إلى حساب آخر",
+  clear_outgoing: "إخراج شيك صادر مستحق من البنك",
+  bank_return_supplier: "إرجاع البنك شيكاً صادراً إلى المورد",
+  retrieve_supplier: "استرجاع شيك صادر من المورد",
+  repay: "إعادة صرف شيك صادر مرتجع",
+  postpone_outgoing: "تغيير تاريخ استحقاق شيك صادر",
+} as const
+export type ChequeOperationCode = keyof typeof CHEQUE_OPERATION_PERMISSIONS
+export const chequeOperationPermissionName = (code: string) =>
+  (CHEQUE_OPERATION_PERMISSIONS as Record<string, string>)[code] ?? null
+
 // شاشة المطعم (الطاولات): كل إجراء صلاحية مستقلة تُفحص على فرع الموقع (lib/restaurant.ts#authorizeRestaurant)
 export const RESTAURANT_PERMISSION_CATEGORY = "المطاعم"
 export const RESTAURANT_PERMISSIONS = {
@@ -170,6 +201,12 @@ export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | nul
  */
 export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, TransactionAction[]>> = {
   bulk_items: ["access", "update"],
+  cheque_book: ["access", "view", "create", "update"],
+  cheque_register: ["access", "view"],
+  cheque_operation: ["access"],
+  cheque_deposit_bulk: ["access"],
+  cheque_endorse_bulk: ["access"],
+  outgoing_cheque_clear: ["access"],
   // أدوات: إقفال فترة/إلغاؤه، تنفيذ إقفال السنة/التراجع عنه. ترحيل السندات يفحص "ترحيل" كل سند على حدة فيكفيه الدخول.
   period_lock: ["access", "create", "update"],
   year_end_closing: ["access", "create", "delete"],
@@ -195,6 +232,8 @@ export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, Trans
 /** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
 export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFamily, Partial<Record<TransactionAction, string>>>> = {
   bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
+  cheque_book: { view: "استعلام دفاتر الشيكات", create: "إضافة دفتر شيكات", update: "تعديل دفتر شيكات" },
+  cheque_register: { view: "استعلام الشيكات وسجل عملياتها" },
   period_lock: { create: "إقفال فترة", update: "إلغاء إقفال فترة وتعديلها" },
   year_end_closing: { create: "تنفيذ إقفال السنة المالية", delete: "التراجع عن إقفال السنة المالية" },
   manager_attachment: { create: "التواصل مع الإدارة" },
@@ -265,6 +304,12 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "receipt-vouchers": "receipt",
   "payment-vouchers": "payment",
   "cheque-payment-vouchers": "cheque_payment",
+  "cheques-books": "cheque_book",
+  cheques: "cheque_register",
+  "cheque-operations": "cheque_operation",
+  "cheque-deposit-bulk": "cheque_deposit_bulk",
+  "cheque-endorse-bulk": "cheque_endorse_bulk",
+  "outgoing-cheque-clear-bulk": "outgoing_cheque_clear",
   "journal-vouchers": "journal",
   "credit-notes": "credit_note",
   "debit-notes": "debit_note",

@@ -13,6 +13,32 @@ export interface PosQueuedSale {
  */
 export const POS_RESUME_KEY = "pos:resume"
 
+// العلَم مرتبط بالمستخدم والشركة اللذين تركا الكاشير مفتوحاً — مستخدم آخر (أو شركة أخرى) على نفس المتصفح لا يُفتح له الكاشير
+function posResumeOwner() {
+  try {
+    const user = JSON.parse(sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user") || "{}")
+    const tenant = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db") || ""
+    return user?.id ? `${user.id}@${tenant}` : ""
+  } catch {
+    return ""
+  }
+}
+
+export function markPosResume() {
+  const owner = posResumeOwner()
+  try { if (owner) localStorage.setItem(POS_RESUME_KEY, owner) } catch {}
+}
+
+/** هل يُستأنف الكاشير لهذا المستخدم في هذه الشركة؟ */
+export function shouldResumePos() {
+  try {
+    const value = localStorage.getItem(POS_RESUME_KEY)
+    return Boolean(value) && value === posResumeOwner()
+  } catch {
+    return false
+  }
+}
+
 const DB_NAME = "shamel-pos-offline"
 const DB_VERSION = 1
 const CATALOG_STORE = "catalog"

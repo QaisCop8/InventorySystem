@@ -56,7 +56,7 @@ function flattenScreens(items: MenuItem[], group = "", acc: { value: string; lab
   }
   return acc
 }
-const defaultScreens = [{ value: "dashboard", label: "لوحة التحكم الرئيسية" }, ...flattenScreens(menuItems)]
+const defaultScreens = [{ value: "dashboard", label: "الرئيسية" }, ...flattenScreens(menuItems)]
 
 interface JobRole {
   id: number
