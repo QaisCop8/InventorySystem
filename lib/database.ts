@@ -289,6 +289,14 @@ export async function isPortalTenantDb(dbName: string): Promise<boolean> {
   return dbName === defaultDbName || isApprovedTenantDb(dbName)
 }
 
+// نفس ترتيب resolveCurrentDbName لكن من قيم صريحة (middleware لا يملك headers()/cookies() الخاصة بـRoute Handlers):
+// null = التبويب حدّد شركة غير متاحة (منتهية/غير معتمدة) فيُرفض الطلب.
+export async function resolveTenantDbFromValues(headerDb: string | null, cookieDb: string | null): Promise<string | null> {
+  if (headerDb && /^[a-zA-Z0-9_]+$/.test(headerDb)) return (await isApprovedTenantDb(headerDb)) ? headerDb : null
+  if (cookieDb && /^[a-zA-Z0-9_]+$/.test(cookieDb) && (await isApprovedTenantDb(cookieDb))) return cookieDb
+  return defaultDbName
+}
+
 export class TenantUnavailableError extends Error {
   constructor() {
     super("الشركة المفتوحة في هذا التبويب غير متاحة حالياً (منتهية الاشتراك أو غير معتمدة) — أعد اختيار الشركة")

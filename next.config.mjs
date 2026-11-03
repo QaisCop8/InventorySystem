@@ -68,6 +68,23 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+
+  // ترويسات أمان لكل الصفحات والمسارات: منع تضمين الموقع في إطار من نطاق آخر (clickjacking)، منع تخمين نوع الملف،
+  // HTTPS فقط، وعدم تسريب الرابط الكامل لمواقع أخرى. الكاميرا/الميكروفون/الموقع للموقع نفسه فقط.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

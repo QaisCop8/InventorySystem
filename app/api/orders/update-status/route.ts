@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
         if (notificationStatus) {
           await fetch(`${request.nextUrl.origin}/api/customer-notifications/send`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            // نفس الجلسة والشركة (مسارات /api محمية بجلسة في middleware.ts)
+            headers: { "Content-Type": "application/json", cookie: request.headers.get("cookie") || "", "x-tenant-db": request.headers.get("x-tenant-db") || "" },
             body: JSON.stringify({
               customer_id: currentOrder.customer_id,
               order_id: orderId,

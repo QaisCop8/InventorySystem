@@ -5,7 +5,7 @@ import { createLicenseRequest, LICENSE_RESOURCE_LABELS, type LicenseResource } f
 import { sendMail } from "@/lib/email"
 import { createSalesLead } from "@/lib/company-billing"
 
-const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
+const PLATFORM_ADMIN_EMAIL = "sabbahsoft2026@gmail.com"
 
 // طلب زيادة عدد المستخدمين/الفروع المرخّص — يُعتمد أو يُرفض من لوحة تحكم المنصة.
 export async function POST(request: NextRequest) {

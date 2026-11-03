@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import crypto from "crypto"
 import { handleWebhook } from "@/lib/whatsapp-service"
 import { handleCustomerMessage } from "@/lib/whatsapp-bot"
 
@@ -13,9 +14,10 @@ export async function GET(request: NextRequest) {
     console.log("[v0] WhatsApp webhook verification:", { mode, token })
 
     // التحقق من التوكن (يجب أن يكون مطابقاً للتوكن المحفوظ في الإعدادات)
-    const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "your_verify_token_here"
+    // بلا توكن افتراضي معروف: بدون WHATSAPP_VERIFY_TOKEN مضبوط يُرفض التحقق دائماً
+    const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
 
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    if (mode === "subscribe" && VERIFY_TOKEN && token === VERIFY_TOKEN) {
       console.log("[v0] WhatsApp webhook verified successfully")
       return new NextResponse(challenge, { status: 200 })
     }
@@ -30,9 +32,19 @@ export async function GET(request: NextRequest) {
 // استقبال تحديثات من WhatsApp (POST request)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-
-    console.log("[v0] WhatsApp webhook received:", JSON.stringify(body, null, 2))
+    const rawBody = await request.text()
+    // مسار عام: توقيع Meta (X-Hub-Signature-256 = HMAC-SHA256 بسر التطبيق) يثبت أن الرسالة من واتساب فعلاً
+    const appSecret = process.env.WHATSAPP_APP_SECRET
+    if (appSecret) {
+      const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`
+      const received = request.headers.get("x-hub-signature-256") || ""
+      if (received.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected))) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+      }
+    } else {
+      console.warn("[whatsapp webhook] WHATSAPP_APP_SECRET not set — signature not verified")
+    }
+    const body = JSON.parse(rawBody || "{}")
 
     // معالجة الـ webhook للتحديثات
     await handleWebhook(body)

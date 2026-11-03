@@ -49,8 +49,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Trigger the send notifications endpoint
+    // نفس الجلسة والشركة (مسارات /api محمية بجلسة في middleware.ts)
     const sendResponse = await fetch(`${request.nextUrl.origin}/api/inventory/send-reorder-notifications`, {
       method: "POST",
+      headers: { cookie: request.headers.get("cookie") || "", "x-tenant-db": request.headers.get("x-tenant-db") || "" },
     })
 
     const sendResult = await sendResponse.json()

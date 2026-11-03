@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import { shouldUseSecureCookies } from "./cookie-security"
 import crypto from "crypto"
 import sql, { ensureManagementTables } from "./management-db"
-import { hashPassword } from "./auth"
+import { hashPassword, needsPasswordRehash, verifyPassword } from "./auth"
 
 export interface ManagementUser {
   id: number
@@ -14,7 +14,7 @@ export interface ManagementUser {
 
 const SESSION_DURATION_MS = 4 * 24 * 60 * 60 * 1000 // 4 days
 const SESSION_COOKIE = "mgmt_session"
-const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
+const PLATFORM_ADMIN_EMAIL = "sabbahsoft2026@gmail.com"
 
 function isPlatformAdmin(user: { email: string; is_platform_admin: boolean }): boolean {
   return Boolean(user.is_platform_admin) || user.email.trim().toLowerCase() === PLATFORM_ADMIN_EMAIL
@@ -86,9 +86,14 @@ export async function loginManagementUser(data: { email: string; password: strin
   if (rows.length === 0) return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }
 
   const user = rows[0]
-  const passwordHash = await hashPassword(data.password)
-  if (passwordHash !== user.password_hash) {
+  if (!(await verifyPassword(data.password, user.password_hash))) {
     return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }
+  }
+  // تجزئة SHA-256 قديمة: تُستبدل بـbcrypt الآن (كلمة المرور الصريحة متاحة فقط لحظة الدخول)
+  if (needsPasswordRehash(user.password_hash)) {
+    const upgraded = await hashPassword(data.password)
+    await sql`UPDATE users SET password_hash = ${upgraded} WHERE id = ${user.id}`.catch((error: unknown) =>
+      console.error("[management-auth] password rehash failed:", error))
   }
 
   if (!user.email_verified) {
@@ -173,9 +178,9 @@ export async function changeManagementPassword(currentPassword: string, newPassw
   if (!currentPassword) return { ok: false, error: "أدخل كلمة المرور الحالية", status: 400 }
   if (String(newPassword || "").length < 6) return { ok: false, error: "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل", status: 400 }
   const row = (await sql`SELECT password_hash FROM users WHERE id = ${user.id}`)[0]
-  if (!row || (await hashPassword(currentPassword)) !== row.password_hash) return { ok: false, error: "كلمة المرور الحالية غير صحيحة", status: 400 }
+  if (!row || !(await verifyPassword(currentPassword, row.password_hash))) return { ok: false, error: "كلمة المرور الحالية غير صحيحة", status: 400 }
+  if (await verifyPassword(newPassword, row.password_hash)) return { ok: false, error: "كلمة المرور الجديدة مطابقة للحالية", status: 400 }
   const hash = await hashPassword(newPassword)
-  if (hash === row.password_hash) return { ok: false, error: "كلمة المرور الجديدة مطابقة للحالية", status: 400 }
   await sql`UPDATE users SET password_hash = ${hash}, updated_at = CURRENT_TIMESTAMP WHERE id = ${user.id}`
   const { writePasswordToCompanies } = await import("./password-codes")
   await writePasswordToCompanies(user.email, hash)

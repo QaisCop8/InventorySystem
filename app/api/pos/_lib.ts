@@ -210,6 +210,7 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   await sql`ANALYZE inventory_transactions`
 }) }
 
+// x-user-id يضبطه middleware.ts من الجلسة (يستبدل ما يرسله المتصفح) فلا يمكن انتحال مستخدم آخر
 export function requestUserId(request: Request) {
   return String(request.headers.get("x-user-id") || "").trim()
 }

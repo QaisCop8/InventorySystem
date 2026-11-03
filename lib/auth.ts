@@ -66,27 +66,37 @@ export interface AuthResult {
   token?: string
 }
 
+// bcrypt بملح لكل كلمة مرور. التجزئات القديمة (SHA-256 بلا ملح، 64 خانة hex) تبقى مقبولة في verifyPassword
+// وتُستبدل بـbcrypt عند أول تسجيل دخول ناجح (needsPasswordRehash). التجزئة لم تعد حتمية: قارن دائماً بـverifyPassword.
+const BCRYPT_ROUNDS = 10
+
 export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
-  return hashHex
+  const bcrypt = await import("bcryptjs")
+  return bcrypt.hash(password, BCRYPT_ROUNDS)
 }
 
-async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-  try {
-    // تجزئات bcrypt القديمة تُتحقَّق فعلياً — سابقاً كانت تقبل أي كلمة مرور
-    if (hashedPassword.startsWith("$2b$") || hashedPassword.startsWith("$2a$") || hashedPassword.startsWith("$2y$")) {
-      const bcrypt = await import("bcryptjs")
-      return bcrypt.compare(password, hashedPassword)
-    }
+async function legacySha256(password: string): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password))
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("")
+}
 
-    const passwordHash = await hashPassword(password)
-    return passwordHash === hashedPassword
+export function needsPasswordRehash(hashedPassword: string | null | undefined): boolean {
+  return /^[a-f0-9]{64}$/i.test(String(hashedPassword || ""))
+}
+
+export async function verifyPassword(password: string, hashedPassword: string | null | undefined): Promise<boolean> {
+  try {
+    const stored = String(hashedPassword || "")
+    if (!stored || !password) return false
+    if (stored.startsWith("$2b$") || stored.startsWith("$2a$") || stored.startsWith("$2y$")) {
+      const bcrypt = await import("bcryptjs")
+      return bcrypt.compare(password, stored)
+    }
+    if (!needsPasswordRehash(stored)) return false
+    const nodeCrypto = await import("node:crypto")
+    return nodeCrypto.timingSafeEqual(Buffer.from(await legacySha256(password), "hex"), Buffer.from(stored.toLowerCase(), "hex"))
   } catch (error) {
-    console.log("[v0] Error in verifyPassword:", error)
+    console.error("[auth] verifyPassword error:", error)
     return false
   }
 }
@@ -213,24 +223,7 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
         AND us.is_active = true
       `) as any[]
 
-      console.log("users :", dbUsers)
-      
-
       if (dbUsers.length === 0) {
-        console.log("[v0] No users found with username/email:", credentials.username)
-
-        try {
-          const allUsers = await sql`
-            SELECT user_id, username, email, full_name, is_active 
-            FROM user_settings 
-            ORDER BY created_at DESC
-            LIMIT 10
-          `
-          console.log("[v0] Available users in database:", allUsers)
-        } catch (listError) {
-          console.log("[v0] Could not list available users:", listError)
-        }
-
         try {
           await logFailedLoginAttempt({
             username: credentials.username,
@@ -249,14 +242,6 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
       }
 
       const dbUser = dbUsers[0]
-      console.log("[v0] Found user:", {
-        id: dbUser.id,
-        username: dbUser.username,
-        fullName: dbUser.fullName,
-        email: dbUser.email,
-        isActive: dbUser.isActive,
-        hasPassword: dbUser.password_hash ? "YES" : "NO",
-      })
       const isPasswordValid = await verifyPassword(credentials.password, dbUser.password_hash)
 
       if (!isPasswordValid) {
@@ -278,7 +263,11 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
         }
       }
 
-      console.log("[v0] Database authentication successful for:", dbUser.username)
+      if (needsPasswordRehash(dbUser.password_hash)) {
+        const upgraded = await hashPassword(credentials.password)
+        await sql`UPDATE user_settings SET password_hash = ${upgraded} WHERE user_id = ${dbUser.id}`.catch((error: unknown) =>
+          console.error("[auth] password rehash failed:", error))
+      }
 
       return await finalizeLogin(dbUser, credentials.ip, credentials.userAgent)
     } catch (dbError: any) {
@@ -451,8 +440,7 @@ export async function createTenantEmployeeWithManagementLink(userData: {
       [managementUserId, companyId],
     )
 
-    // hashPassword حتمية (SHA-256 بلا ملح، انظر تعريفها أدناه) — إعادة تجزئة نفس النص الصريح هنا
-    // بأمان تُنتج نفس القيمة المُدرَجة أعلاه في management.users.password_hash بلا حاجة لتمريرها.
+    // كلمة المرور نفسها تُجزَّأ هنا مرة أخرى (bcrypt بملح مختلف) — قيمتان مختلفتان لكن verifyPassword يقبل كلتيهما.
     const tenantResult = await createUser({ ...userData, email, managementUserId })
 
     if (!tenantResult.success) {
