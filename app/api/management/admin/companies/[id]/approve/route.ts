@@ -31,6 +31,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (rows.length === 0) return NextResponse.json({ error: "الشركة غير موجودة" }, { status: 404 })
 
     const company = rows[0]
+    // شركة أرسل صاحبها بطاقة للمبيعات (بانتظار الدفع): الاعتماد = اتمام الدفع (دفعة يدوية + سنة + الترخيص المدفوع)
+    if (company.status === "awaiting_payment" || company.status === "provisioning_failed") {
+      const { approveCompanyAsPaid } = await import("@/lib/company-billing")
+      const result = await approveCompanyAsPaid(companyId, session.id)
+      return NextResponse.json({ success: true, ...result })
+    }
     if (company.status !== "pending") {
       return NextResponse.json({ error: "هذه الشركة ليست بانتظار الموافقة" }, { status: 400 })
     }

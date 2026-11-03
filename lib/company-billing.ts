@@ -487,12 +487,82 @@ async function provisionPaidCompany(companyId: number) {
       subject: "شركة جديدة مدفوعة تم اعتمادها",
       html: `<div dir="rtl"><p>تم دفع اشتراك شركة "${owner.name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}) من ${owner.full_name} (${owner.email}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع، ${Number(payment.number_of_restaurant_locations) || 0} موقع مطعم. تم اعتماد الشركة وإنشاء قاعدتها تلقائياً لمدة سنة.</p></div>`,
     }).catch(() => undefined)
+    void sendCompanyWelcomeEmail(companyId, payment, owner).catch(() => undefined)
   } catch (error) {
     // الدفع يبقى ناجحاً: "اعادة المحاولة" تعيد الإنشاء فقط بلا دفع جديد
     const message = (error instanceof Error ? error.message : String(error)).slice(0, 500)
     await managementSql`UPDATE companies SET status = 'provisioning_failed', provisioning_error = ${message} WHERE id = ${companyId} AND status = 'provisioning'`
     throw error
   }
+}
+
+/**
+ * "اعتماد الشركة" من لوحة الإدارة لشركة أرسل صاحبها بطاقة للمبيعات (بانتظار الدفع): الدفع تم خارج النظام، فيُسجَّل
+ * دفعة يدوية ناجحة بسعر الاشتراك الحالي ثم يُكمَل كما بعد "اتمام الدفع" تماماً (سنة + الترخيص المدفوع) — بانتظار الإنشاء.
+ */
+export async function approveCompanyAsPaid(companyId: number, adminUserId: number) {
+  await ensureBillingTables()
+  const [company] = await managementSql`SELECT * FROM companies WHERE id = ${companyId}`
+  if (!company) throw Object.assign(new Error("الشركة غير موجودة"), { status: 404 })
+  if (!["awaiting_payment", "provisioning_failed"].includes(String(company.status))) throw Object.assign(new Error("هذه الشركة ليست بانتظار الدفع"), { status: 400 })
+  const [paid] = await managementSql`SELECT 1 FROM company_payments WHERE company_id = ${companyId} AND status = 'success' AND COALESCE(purpose, 'company') = 'company' LIMIT 1`
+  if (!paid) {
+    const counts = { users: Number(company.number_of_users) || 1, branches: Number(company.number_of_branches) || 1, posPoints: Number(company.number_of_pos_points) || 0, restaurantLocations: Number(company.number_of_restaurant_locations) || 0 }
+    const quote = priceFor(await getPricing(), counts)
+    await managementSql`
+      INSERT INTO company_payments (company_id, user_id, provider, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations, status, paid_at, gateway_response)
+      VALUES (${companyId}, ${adminUserId}, 'manual', ${`MAN-C${companyId}-${Date.now()}`}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints}, ${counts.restaurantLocations},
+              'success', CURRENT_TIMESTAMP, 'اعتماد يدوي من مسؤول المنصة (بطاقة مبيعات)')`
+  }
+  const [claimed] = await managementSql`
+    UPDATE companies SET status = 'provisioning', provisioning_started_at = CURRENT_TIMESTAMP, provisioning_error = NULL
+    WHERE id = ${companyId} AND status IN ('awaiting_payment', 'provisioning_failed') RETURNING id`
+  if (!claimed) throw Object.assign(new Error("الشركة قيد الاعتماد حالياً"), { status: 409 })
+  // بانتظار الإنشاء (لا بالخلفية) ليرى المسؤول نجاح الاعتماد أو سبب فشله
+  await provisionPaidCompany(companyId)
+  await managementSql`UPDATE sales_leads SET status = 'converted' WHERE company_id = ${companyId} AND status = 'new'`
+  return { status: "approved" as const, companyId, companyName: String(company.name) }
+}
+
+const escapeHtml = (value: unknown) => String(value ?? "").replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[ch] as string)
+
+/** بريد شكر لصاحب الشركة بعد الدفع/اعتماد الشركة: تفاصيل الاشتراك والترخيص ورابط الدخول. */
+async function sendCompanyWelcomeEmail(companyId: number, payment: any, owner: any) {
+  if (!owner?.email) return
+  const [company] = await managementSql`SELECT expiry_date FROM companies WHERE id = ${companyId}`
+  const expiry = company?.expiry_date ? new Date(company.expiry_date).toLocaleDateString("en-GB") : "—"
+  const manual = String(payment.provider) === "manual"
+  const appUrl = String(process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/$/, "")
+  const { phone, whatsapp } = await getSalesContacts().catch(() => ({ phone: "", whatsapp: "" }))
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:10px 14px;color:#64748b;border-bottom:1px solid #eef2f1">${label}</td><td style="padding:10px 14px;font-weight:700;color:#0f172a;border-bottom:1px solid #eef2f1">${value}</td></tr>`
+  const ltr = (value: unknown) => `<span dir="ltr">${escapeHtml(value)}</span>`
+  const html = `<div dir="rtl" style="background:#f4f8f7;padding:24px;font-family:Tahoma,Arial,sans-serif">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2ece9">
+    <div style="background:linear-gradient(135deg,#059669,#0d9488);padding:28px 24px;color:#fff;text-align:center">
+      <div style="font-size:22px;font-weight:800">شكراً لاختيارك Noon ERP</div>
+      <div style="margin-top:6px;font-size:14px;opacity:.9">تم ${manual ? "اعتماد" : "استلام دفعتك واعتماد"} شركتك وتفعيلها بنجاح 🎉</div>
+    </div>
+    <div style="padding:24px">
+      <p style="margin:0 0 12px;color:#334155;line-height:1.8">مرحباً ${escapeHtml(owner.full_name || "")}،</p>
+      <p style="margin:0 0 18px;color:#334155;line-height:1.8">يسعدنا انضمامك إلى عائلة Noon ERP. أصبحت شركة <b>${escapeHtml(owner.name)}</b> جاهزة للعمل الآن، ويمكنك تسجيل الدخول والبدء بإعداد الحسابات والأصناف والمستخدمين فوراً.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fafcfb;border-radius:12px;overflow:hidden">
+        ${row("الشركة", escapeHtml(owner.name))}
+        ${row("المبلغ المدفوع", ltr(`${Number(payment.amount).toFixed(2)} ${payment.currency}`))}
+        ${row(manual ? "طريقة الدفع" : "مرجع الدفع", manual ? "عبر فريق المبيعات" : ltr(payment.reference))}
+        ${row("مدة الاشتراك", `سنة كاملة — حتى ${ltr(expiry)}`)}
+        ${row("المستخدمون", String(Number(payment.number_of_users) || 1))}
+        ${row("الفروع", String(Number(payment.number_of_branches) || 1))}
+        ${Number(payment.number_of_pos_points) ? row("نقاط البيع", String(Number(payment.number_of_pos_points))) : ""}
+        ${Number(payment.number_of_restaurant_locations) ? row("مواقع المطاعم", String(Number(payment.number_of_restaurant_locations))) : ""}
+      </table>
+      ${appUrl ? `<div style="text-align:center;margin:24px 0 8px"><a href="${appUrl}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-weight:700;padding:12px 28px;border-radius:12px">الدخول إلى النظام</a></div>` : ""}
+      <p style="margin:18px 0 0;color:#475569;line-height:1.8;font-size:14px">سجّل الدخول بنفس البريد الإلكتروني (${ltr(owner.email)}) وكلمة المرور التي أنشأت بها حسابك. وإن احتجت أي مساعدة في البدء أو تدريب فريقك، فريقنا جاهز دائماً لخدمتك${phone || whatsapp ? `:<br>${phone ? `الهاتف ${ltr(phone)}` : ""}${phone && whatsapp ? " · " : ""}${whatsapp ? `واتساب ${ltr(whatsapp)}` : ""}` : "."}</p>
+      <p style="margin:18px 0 0;color:#334155;line-height:1.8">نتمنى لك تجربة ناجحة وأعمالاً مزدهرة،<br><b>فريق Noon ERP</b></p>
+    </div>
+  </div>
+</div>`
+  await sendMail({ to: owner.email, subject: `شكراً لاختيارك Noon ERP — تم تفعيل شركة ${owner.name}`, html })
 }
 
 /** "اعادة المحاولة" لشركة مدفوعة فشل اعتمادها (أو علق إنشاؤها) — لا دفع جديد. */

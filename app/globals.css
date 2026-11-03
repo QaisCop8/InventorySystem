@@ -3087,3 +3087,10 @@ td {
 @layer utilities {
   .dark :where(.bg-white\/95, .bg-white\/85, .bg-white\/75, .bg-white\/65, .bg-white\/50) { background-color: rgb(17 24 39 / 0.85); }
 }
+
+/* حقول الأرقام/الهواتف تُكتب من اليسار لليمين حتى داخل الصفحات العربية: المؤشر يتقدّم يميناً مع كل رقم
+   و"+970…" يظهر بترتيبه الصحيح. المحاذاة تبقى يميناً في RTL؛ :where بلا أولوية لتغلبها أي فئة Tailwind. */
+@layer base {
+  :where(input[type="tel"], input[type="number"], input[type="email"], input[type="url"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { direction: ltr; }
+  :where([dir="rtl"]) :where(input[type="tel"], input[type="number"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { text-align: right; }
+}

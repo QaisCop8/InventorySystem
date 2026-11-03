@@ -219,7 +219,7 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
                 <div className="mt-5 rounded-2xl bg-emerald-50 p-6 text-center ring-1 ring-emerald-100">
                   <CheckCircle2 className="mx-auto h-11 w-11 text-emerald-600" />
                   <p className="mt-2 font-black text-emerald-800">تم إرسال طلبك</p>
-                  <p className="mt-1 text-sm text-emerald-700">سيتواصل معك فريق المبيعات قريباً.</p>
+                  <p className="mt-1 text-sm text-emerald-700">سيتواصل معك فريق المبيعات قريباً، وتُفعَّل الشركة لسنة كاملة فور اعتمادها من الإدارة.</p>
                 </div>
               ) : (
                 <>

@@ -18,6 +18,12 @@ interface PendingCompany {
   created_at: string
   requested_by_name: string
   requested_by_email: string
+  // بطاقة للمبيعات (شركة بانتظار الدفع): الاعتماد يسجّل دفعة يدوية ويكمل كإتمام الدفع
+  lead_phone?: string | null
+  lead_whatsapp?: string | null
+  lead_notes?: string | null
+  quote_total?: number
+  quote_currency?: string
 }
 
 interface AllCompany {
@@ -350,6 +356,8 @@ export default function ManagementAdminPage() {
     setBusyId(id)
     setError("")
     try {
+      const lead = companies.find((company) => company.id === id)?.lead_phone
+      if (lead && !window.confirm("اعتماد هذه الشركة يسجّل دفع الاشتراك (خارج النظام) ويفعّلها لسنة كاملة كأنه تم إتمام الدفع. متابعة؟")) return
       const res = await fetch(`/api/management/admin/companies/${id}/approve`, { method: "POST" })
       const data = await res.json()
       if (!res.ok) {
@@ -492,8 +500,19 @@ export default function ManagementAdminPage() {
                     <div className="text-sm text-slate-500">
                       {company.requested_by_name} · {company.requested_by_email}
                     </div>
+                    {company.lead_phone && (
+                      <div className="mt-2 space-y-1 text-xs text-slate-600">
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">بطاقة للمبيعات — الاعتماد يعادل إتمام الدفع</span>
+                        <div>
+                          الهاتف: <span dir="ltr">{company.lead_phone}</span>
+                          {company.lead_whatsapp && <> · واتساب: <span dir="ltr">{company.lead_whatsapp}</span></>}
+                          {company.quote_total != null && <> · مبلغ الاشتراك: <span dir="ltr" className="font-semibold">{Number(company.quote_total).toFixed(2)} {company.quote_currency}</span></>}
+                        </div>
+                        {company.lead_notes && <div className="text-slate-500">ملاحظات: {company.lead_notes}</div>}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <Button size="sm" variant="outline" className="gap-1 border-red-200 text-red-600 hover:bg-red-50" disabled={busyId === company.id} onClick={() => handleReject(company.id)}>
                       <X className="h-4 w-4" /> رفض
                     </Button>
