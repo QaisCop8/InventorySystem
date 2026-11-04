@@ -6,6 +6,8 @@
 /* اتجاه الواجهة من <html dir> (lib/i18n.ts): القواعد التي كانت direction: rtl ثابتة تستخدم هذا المتغير */
 :root { --app-dir: rtl; }
 :root[dir="ltr"] { --app-dir: ltr; }
+/* أيقونات الاتجاه صُممت للواجهة العربية (← = التالي/الدخول): تنعكس في LTR. scale لا يتعارض مع transform/rotate */
+:root[dir="ltr"] :is(.lucide-arrow-left, .lucide-arrow-right, .lucide-chevron-left, .lucide-chevron-right, .lucide-chevrons-left, .lucide-chevrons-right, .lucide-arrow-left-right, .lucide-move-left, .lucide-move-right) { scale: -1 1; }
 
 /* Accounting reports stay compact even when the global user font preference is large. */
 .accounting-report {
