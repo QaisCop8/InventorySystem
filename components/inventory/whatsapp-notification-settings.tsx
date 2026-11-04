@@ -243,7 +243,7 @@ export function WhatsAppNotificationSettings() {
           <AlertDescription className={message.type === "success" ? "text-green-800" : "text-red-800"}>
             {message.text}
           </AlertDescription>
-          <Button variant="ghost" size="sm" className="mr-auto" onClick={() => setMessage(null)}>
+          <Button variant="ghost" size="sm" className="ms-auto" onClick={() => setMessage(null)}>
             <X className="h-4 w-4" />
           </Button>
         </Alert>
@@ -380,11 +380,11 @@ export function WhatsAppNotificationSettings() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("كود المنتج")}</TableHead>
-                    <TableHead className="text-right">{tr("اسم المنتج")}</TableHead>
-                    <TableHead className="text-right">{tr("رقم الهاتف")}</TableHead>
-                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{tr("كود المنتج")}</TableHead>
+                    <TableHead className="text-start">{tr("اسم المنتج")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم الهاتف")}</TableHead>
+                    <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-start">{tr("التاريخ")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -116,7 +116,7 @@ export function PosReturnFromInvoiceDialog(props: Props) {
       </> : <>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b p-3">
           <Button size="sm" variant="outline" onClick={onBack}><ArrowRight size={15} />{tr(" الفواتير")}</Button>
-          <div className="text-left text-xs text-slate-500"><b className="block text-sm text-slate-800 dark:text-slate-100">{selectedInvoice.customer_name || tr("عميل نقدي")}</b>{String(selectedInvoice.vch_date).slice(0, 10)} · {Number(selectedInvoice.amount || 0).toFixed(2)} {currencyCode}</div>
+          <div className="text-end text-xs text-slate-500"><b className="block text-sm text-slate-800 dark:text-slate-100">{selectedInvoice.customer_name || tr("عميل نقدي")}</b>{String(selectedInvoice.vch_date).slice(0, 10)} · {Number(selectedInvoice.amount || 0).toFixed(2)} {currencyCode}</div>
         </div>
         {error && <p className="mx-4 mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {itemError && <p className="mx-4 mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{itemError}</p>}

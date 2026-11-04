@@ -982,7 +982,7 @@ function UserDialogFooter({ submitLabel, onCancel }: { submitLabel: string; onCa
         {tr("إلغاء")}
       </Button>
       <Button type="submit" className="h-11 flex-1 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-6 font-bold shadow-md shadow-emerald-600/20 hover:from-emerald-700 hover:to-teal-700 sm:h-10 sm:w-44 sm:flex-none">
-        <Save className="ml-1.5 h-4 w-4" />
+        <Save className="me-1.5 h-4 w-4" />
         {submitLabel}
       </Button>
     </div>

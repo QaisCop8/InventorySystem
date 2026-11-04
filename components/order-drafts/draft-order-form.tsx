@@ -893,7 +893,7 @@ export function DraftOrderForm({
                 onClick={save}
                 disabled={isSaving || !form.account_id || !form.requested_delivery_date || !items.length}
               >
-                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
+                {isSaving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
                 {isSaving ? tr("جاري الحفظ...") : tr("حفظ المسودة")}
               </Button>
             </>
@@ -964,7 +964,7 @@ export function DraftOrderForm({
                         setShowCustomerForm(true);
                       }}
                     >
-                      <Plus className="ml-2 h-4 w-4" />
+                      <Plus className="me-2 h-4 w-4" />
                       {isCreatingCustomer ? tr("جاري إضافة الزبون...") : tr("إضافة زبون")}
                     </Button>
                   </div>
@@ -1069,7 +1069,7 @@ export function DraftOrderForm({
                 icon={Package}
                 action={
                   <Button type="button" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowProductSearch(true)}>
-                    <Plus className="ml-1 h-4 w-4" />
+                    <Plus className="me-1 h-4 w-4" />
                     {tr("إضافة صنف")}
                   </Button>
                 }
@@ -1079,7 +1079,7 @@ export function DraftOrderForm({
               </SectionTitle>
 
               <div className="mb-2 flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-1.5 dark:border-slate-700 dark:bg-slate-800/40">
-                <Search className="mr-1 h-4 w-4 shrink-0 text-slate-400" />
+                <Search className="ms-1 h-4 w-4 shrink-0 text-slate-400" />
                 <Input
                   ref={barcodeInputRef}
                   id="draft-barcode"
@@ -1193,7 +1193,7 @@ export function DraftOrderForm({
                           className={`h-8 px-2 text-xs ${i.specifications?.reviewed ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}`}
                           onClick={() => void openSpecifications(n)}
                         >
-                          {i.specifications?.reviewed ? <CheckCircle2 className="ml-1 h-3.5 w-3.5" /> : <Settings2 className="ml-1 h-3.5 w-3.5" />}
+                          {i.specifications?.reviewed ? <CheckCircle2 className="me-1 h-3.5 w-3.5" /> : <Settings2 className="me-1 h-3.5 w-3.5" />}
                           {tr("المواصفات")}
                         </Button>
                         <Button
@@ -1474,7 +1474,7 @@ function SpecificationsDialog({
               </div>
             )}
             <Button type="button" className="w-full" onClick={onSave}>
-              <CheckCircle2 className="ml-2 h-4 w-4" />
+              <CheckCircle2 className="me-2 h-4 w-4" />
               {tr("حفظ المواصفات")}
             </Button>
           </div>

@@ -447,21 +447,21 @@ function ExchangeRatesContent() {
       {/* Exchange Rates Table */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-sm">
         <CardHeader>
-          <CardTitle className="text-right">{tr("أسعار الصرف اليومية")}</CardTitle>
+          <CardTitle className="text-start">{tr("أسعار الصرف اليومية")}</CardTitle>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full max-h-full overflow-x-hidden overflow-y-auto" id="printArea">
             <table className="w-full table-fixed border-collapse text-sm [&_td]:break-words [&_th]:break-words" dir={appDir()}>
               <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b">
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("العملة")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("الرمز")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("سعر الشراء")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("سعر البيع")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("سعر الصرف")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("التغيير")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("آخر تحديث")}</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">{tr("الحالة")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("العملة")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("الرمز")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("سعر الشراء")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("سعر البيع")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("سعر الصرف")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("التغيير")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("آخر تحديث")}</th>
+                  <th className="text-start p-3 font-semibold text-gray-700">{tr("الحالة")}</th>
                   <th className="text-center p-3 font-semibold text-gray-700 justify-center">{tr("الإجراءات")}</th>
                 </tr>
               </thead>
@@ -470,12 +470,12 @@ function ExchangeRatesContent() {
                   <tr key={rate.id} className="border-b hover:bg-gray-50">
                     <td className="font-medium text-start p-3">{rate.currency_name || tr("غير محدد")}</td>
                     <td className="font-mono text-start p-3">{rate.currency_code || tr("غير محدد")}</td>
-                    <td className="text-right p-3">{Number(rate.buy_rate || 0).toFixed(3)}{tr(" شيكل")}</td>
-                    <td className="text-right p-3">{Number(rate.sell_rate || 0).toFixed(3)}{tr(" شيكل")}</td>
+                    <td className="text-start p-3">{Number(rate.buy_rate || 0).toFixed(3)}{tr(" شيكل")}</td>
+                    <td className="text-start p-3">{Number(rate.sell_rate || 0).toFixed(3)}{tr(" شيكل")}</td>
                     <td className="font-medium text-blue-600 text-start p-3">
                       {Number(rate.exchange_rate || 0).toFixed(3)}{tr(" شيكل")}
                     </td>
-                    <td className="text-right p-3">
+                    <td className="text-start p-3">
                       {rate.change_amount ? (
                         rate.change_amount > 0 ? (
                           <span className="text-green-600 flex items-center gap-1">
@@ -494,12 +494,12 @@ function ExchangeRatesContent() {
                       )}
                     </td>
                     <td className="text-sm text-muted-foreground text-start p-3">{rate.rate_date ? new Date(rate.rate_date).toLocaleDateString("en-CA") : tr("غير محدد")}</td>
-                    <td className="text-right p-3">
+                    <td className="text-start p-3">
                       <Badge variant={rate.is_active ? "secondary" : "outline"}>
                         {rate.is_active ? tr("نشط") : tr("غير نشط")}
                       </Badge>
                     </td>
-                    <td className="text-right p-3">
+                    <td className="text-start p-3">
                       <div className="flex gap-1 justify-center">
                         {rate && rate.currency_id !== 1 &&
                           <div className="flex flex-wrap justify-center gap-1">
@@ -533,14 +533,14 @@ function ExchangeRatesContent() {
       >
         <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle className="text-right">{tr("تعديل سعر صرف ")}{selectedRate?.currency_name}</DialogTitle>
+            <DialogTitle className="text-start">{tr("تعديل سعر صرف ")}{selectedRate?.currency_name}</DialogTitle>
           </DialogHeader>
           {selectedRate && (
             <div className="space-y-4">
               <Messages innerRef={rateDialogMessagesRef} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="buyRate" className="text-right block">
+                  <Label htmlFor="buyRate" className="text-start block">
                     {tr("سعر الشراء *")}
                   </Label>
                   <Input
@@ -549,12 +549,12 @@ function ExchangeRatesContent() {
                     step="0.001"
                     value={editFormData.buyRate}
                     onChange={(e) => handleInputChange("buyRate", e.target.value)}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="sellRate" className="text-right block">
+                  <Label htmlFor="sellRate" className="text-start block">
                     {tr("سعر البيع *")}
                   </Label>
                   <Input
@@ -563,12 +563,12 @@ function ExchangeRatesContent() {
                     step="0.001"
                     value={editFormData.sellRate}
                     onChange={(e) => handleInputChange("sellRate", e.target.value)}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="exchangeRate" className="text-right block">
+                  <Label htmlFor="exchangeRate" className="text-start block">
                     {tr("سعر الصرف *")}
                   </Label>
                   <Input
@@ -577,7 +577,7 @@ function ExchangeRatesContent() {
                     step="0.001"
                     value={editFormData.exchangeRate}
                     onChange={(e) => handleInputChange("exchangeRate", e.target.value)}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
@@ -619,19 +619,19 @@ function ExchangeRatesContent() {
       >
         <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle className="text-right">{tr("إضافة عملة جديدة")}</DialogTitle>
+            <DialogTitle className="text-start">{tr("إضافة عملة جديدة")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveNewCurrency} className="space-y-4" noValidate>
             <Messages innerRef={newCurrencyMessagesRef} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="currencyCode" className="text-right block">
+                <Label htmlFor="currencyCode" className="text-start block">
                   {tr("الرمز *")}
                 </Label>
                 <Input
                   id="currencyCode"
                   placeholder={tr("مثال: USD")}
-                  className="text-right"
+                  className="text-start"
                   dir={appDir()}
                   value={newCurrencyForm.currencyCode}
                   onChange={(e) => {
@@ -648,13 +648,13 @@ function ExchangeRatesContent() {
               </div>
 
               <div>
-                <Label htmlFor="currencyName" className="text-right block">
+                <Label htmlFor="currencyName" className="text-start block">
                   {tr("اسم العملة *")}
                 </Label>
                 <Input
                   id="currencyName"
                   placeholder={tr("مثال: دولار أمريكي")}
-                  className="text-right"
+                  className="text-start"
                   dir={appDir()}
                   value={newCurrencyForm.currencyName}
                   onChange={(e) => setNewCurrencyForm({ ...newCurrencyForm, currencyName: e.target.value })}
@@ -664,7 +664,7 @@ function ExchangeRatesContent() {
 
 
               <div>
-                <Label htmlFor="newBuyRate" className="text-right block">
+                <Label htmlFor="newBuyRate" className="text-start block">
                   {tr("سعر الشراء *")}
                 </Label>
                 <Input
@@ -672,7 +672,7 @@ function ExchangeRatesContent() {
                   type="number"
                   step="0.0001"
                   placeholder="0.0001"
-                  className="text-right"
+                  className="text-start"
                   dir={appDir()}
                   value={newCurrencyForm.buyRate}
                   disabled={exchangeRates.length === 0}
@@ -685,7 +685,7 @@ function ExchangeRatesContent() {
                 />
               </div>
               <div>
-                <Label htmlFor="newSellRate" className="text-right block">
+                <Label htmlFor="newSellRate" className="text-start block">
                   {tr("سعر البيع *")}
                 </Label>
                 <Input
@@ -693,7 +693,7 @@ function ExchangeRatesContent() {
                   type="number"
                   step="0.0001"
                   placeholder="0.0001"
-                  className="text-right"
+                  className="text-start"
                   dir={appDir()}
                   value={newCurrencyForm.sellRate}
                   disabled={exchangeRates.length === 0}
@@ -706,7 +706,7 @@ function ExchangeRatesContent() {
                 />
               </div>
               <div>
-                <Label htmlFor="newExchangeRate" className="text-right block">
+                <Label htmlFor="newExchangeRate" className="text-start block">
                   {tr("سعر الصرف *")}
                 </Label>
                 <Input
@@ -714,7 +714,7 @@ function ExchangeRatesContent() {
                   type="number"
                   step="0.0001"
                   placeholder="0.0001"
-                  className="text-right"
+                  className="text-start"
                   dir={appDir()}
                   value={newCurrencyForm.exchangeRate}
                   disabled={exchangeRates.length === 0}

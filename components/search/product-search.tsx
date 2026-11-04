@@ -278,14 +278,14 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">{tr("رقم الصنف")}</TableHead>
-                  <TableHead className="text-right">{tr("اسم الصنف")}</TableHead>
-                  <TableHead className="text-right">{tr("الباركود")}</TableHead>
-                  <TableHead className="text-right">{tr("المجموعة")}</TableHead>
-                  <TableHead className="text-right">{tr("الوحدة")}</TableHead>
-                  <TableHead className="text-right">{tr("آخر سعر شراء")}</TableHead>
-                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                  <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
+                  <TableHead className="text-start">{tr("رقم الصنف")}</TableHead>
+                  <TableHead className="text-start">{tr("اسم الصنف")}</TableHead>
+                  <TableHead className="text-start">{tr("الباركود")}</TableHead>
+                  <TableHead className="text-start">{tr("المجموعة")}</TableHead>
+                  <TableHead className="text-start">{tr("الوحدة")}</TableHead>
+                  <TableHead className="text-start">{tr("آخر سعر شراء")}</TableHead>
+                  <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-start">{tr("الإجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -255,19 +255,19 @@ export function LotSelector({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="font-medium">{tr("الكمية المطلوبة:")}</span>
-                <span className="mr-2 text-blue-600 font-bold">{requestedQuantity}</span>
+                <span className="ms-2 text-blue-600 font-bold">{requestedQuantity}</span>
               </div>
               <div>
                 <span className="font-medium">{tr("الكمية المحددة:")}</span>
-                <span className="mr-2 text-green-600 font-bold">{getTotalSelectedQuantity()}</span>
+                <span className="ms-2 text-green-600 font-bold">{getTotalSelectedQuantity()}</span>
               </div>
               <div>
                 <span className="font-medium">{tr("المتبقي:")}</span>
-                <span className="mr-2 text-orange-600 font-bold">{requestedQuantity - getTotalSelectedQuantity()}</span>
+                <span className="ms-2 text-orange-600 font-bold">{requestedQuantity - getTotalSelectedQuantity()}</span>
               </div>
               <div>
                 <span className="font-medium">{tr("إجمالي متاح:")}</span>
-                <span className="mr-2 text-purple-600 font-bold">
+                <span className="ms-2 text-purple-600 font-bold">
                   {lots.reduce((sum, lot) => sum + lot.available_quantity, 0)}
                 </span>
               </div>
@@ -367,7 +367,7 @@ export function LotSelector({
                             max={lot.available_quantity}
                             value={selectedQuantity}
                             onChange={(e) => updateLotQuantity(lot.lot_id, Number(e.target.value) || 0)}
-                            className="text-right mt-1"
+                            className="text-start mt-1"
                             placeholder="0"
                           />
                         </div>

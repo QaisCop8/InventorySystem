@@ -625,12 +625,12 @@ export default function UnifiedChequesBooks({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={handleGenerateCheques} className="h-9">
-                  <Plus className="ml-1 h-4 w-4" />
+                  <Plus className="me-1 h-4 w-4" />
                   {tr("اصدار الشيكات اليا")}
                 </Button>
                 {form.id === 0 && (
                   <Button type="button" variant="outline" onClick={handleClearCheques} className="h-9">
-                    <Trash2 className="ml-1 h-4 w-4" />
+                    <Trash2 className="me-1 h-4 w-4" />
                     {tr("تفريغ قائمة الشيكات")}
                   </Button>
                 )}

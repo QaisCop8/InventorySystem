@@ -450,7 +450,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         {/* المستخدم */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <RefButton className="flex h-auto items-center gap-2 rounded-full p-1 transition hover:bg-emerald-50/70 md:py-1 md:pl-1 md:pr-3 dark:hover:bg-white/5">
+            <RefButton className="flex h-auto items-center gap-2 rounded-full p-1 transition hover:bg-emerald-50/70 md:py-1 md:pe-1 md:ps-3 dark:hover:bg-white/5">
               <div className="hidden min-w-0 max-w-36 text-start xl:block">
                 <p className="truncate text-sm font-semibold leading-tight text-slate-700 dark:text-slate-200">{user?.fullName}</p>
                 <p className="truncate text-[11px] leading-tight text-slate-400">{user?.email}</p>
@@ -510,12 +510,12 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
             <DropdownMenuSeparator />
 
             <DropdownMenuItem onSelect={(event) => { event.preventDefault(); avatarInputRef.current?.click(); }} disabled={avatarSaving} className="justify-center cursor-pointer">
-              <ImagePlus className="ml-2 h-4 w-4" />
+              <ImagePlus className="me-2 h-4 w-4" />
               {avatarSaving ? tr("جاري حفظ الصورة...") : tr("تغيير صورة المستخدم")}
             </DropdownMenuItem>
 
             <DropdownMenuItem onSelect={() => setChangePasswordOpen(true)} className="justify-center cursor-pointer">
-              <KeyRound className="ml-2 h-4 w-4" />
+              <KeyRound className="me-2 h-4 w-4" />
               {tr("تغيير كلمة المرور")}
             </DropdownMenuItem>
 

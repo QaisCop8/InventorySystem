@@ -204,7 +204,7 @@ function SearchResultsTableInner<T>(
   }
 
   const alignClass = (align?: SearchColumn<T>["align"]) =>
-    align === "center" ? "text-center" : align === "end" ? "text-left" : "text-right"
+    align === "center" ? "text-center" : align === "end" ? "text-end" : "text-start"
 
   return (
     <div

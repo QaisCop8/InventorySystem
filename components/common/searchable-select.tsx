@@ -55,7 +55,7 @@ export function SearchableSelect<T extends Record<string, any>>({
         <Command
           filter={(itemValue, search) => (itemValue.toLocaleLowerCase("ar").includes(search.trim().toLocaleLowerCase("ar")) ? 1 : 0)}
         >
-          <CommandInput placeholder={searchPlaceholder} className="text-right" />
+          <CommandInput placeholder={searchPlaceholder} className="text-start" />
           <CommandList className="max-h-64">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>

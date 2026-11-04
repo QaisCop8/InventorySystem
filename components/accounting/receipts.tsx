@@ -963,7 +963,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("ابحث برقم السند...")}
               />
             </div>
@@ -973,7 +973,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 id="search-name"
                 value={searchDraft.name}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, name: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("ابحث بالاسم...")}
               />
             </div>
@@ -983,7 +983,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 value={searchDraft.currencyId}
                 onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر العملة")} />
                 </SelectTrigger>
                 <SelectContent>

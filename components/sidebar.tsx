@@ -1025,7 +1025,7 @@ export function Sidebar({
             {isOpen && (
               <>
                 <span className="text-emerald-700 dark:text-emerald-300">{tr("متصل")}</span>
-                <span className="mr-auto font-mono text-[10.5px] text-slate-400">Noon ERP</span>
+                <span className="ms-auto font-mono text-[10.5px] text-slate-400">Noon ERP</span>
               </>
             )}
           </div>

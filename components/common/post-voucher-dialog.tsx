@@ -62,7 +62,7 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
             </button>
             <div className="flex items-center gap-3">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><CheckCircle2 className="h-6 w-6" /></span>
-              <div className="text-right">
+              <div className="text-start">
                 <DialogTitle className="text-lg font-extrabold">{tr("حفظ السند")}</DialogTitle>
                 <DialogDescription className="text-xs text-emerald-50">{tr("اختر طريقة الحفظ — أو اضغط رقم الخيار مباشرة")}</DialogDescription>
               </div>

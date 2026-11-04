@@ -90,9 +90,9 @@ export function BackupsPanel() {
           <p className="text-sm text-slate-500">{tr("نسخة يومية تلقائية لكل شركة وقاعدة الإدارة، محفوظة ")}{data?.retention_days}{tr(" يوماً في Neon Object Storage")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={busy}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث")}</Button>
+          <Button variant="outline" onClick={() => void load()} disabled={busy}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث")}</Button>
           <Button className="bg-violet-600 hover:bg-violet-700" onClick={() => void post({ action: "backup_all" })} disabled={busy || !data?.configured}>
-            <HardDriveDownload className="ml-2 h-4 w-4" />{tr("نسخ الكل الآن")}
+            <HardDriveDownload className="me-2 h-4 w-4" />{tr("نسخ الكل الآن")}
           </Button>
         </div>
       </div>
@@ -211,7 +211,7 @@ export function BackupsPanel() {
               <Button variant="outline" onClick={() => setRestoring(null)}>{tr("إلغاء")}</Button>
               <Button className="bg-rose-600 hover:bg-rose-700" disabled={busy || confirm.trim() !== restoring.db_name}
                 onClick={async () => { if (await post({ action: "restore", backup_id: restoring.id, confirm })) setRestoring(null) }}>
-                <RotateCcw className="ml-2 h-4 w-4" />{tr("استعادة")}
+                <RotateCcw className="me-2 h-4 w-4" />{tr("استعادة")}
               </Button>
             </div>
           </div>

@@ -257,8 +257,8 @@ export default function ManagerInbox() {
         <div className="grid gap-1.5 sm:col-span-2">
           <Label>{tr("بحث")}</Label>
           <div className="flex gap-2">
-            <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("الحساب، الملف، المرسل، الملاحظة...")} /></div>
-            <Button variant="outline" onClick={() => void load()} disabled={loading} data-report-apply><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+            <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="ps-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("الحساب، الملف، المرسل، الملاحظة...")} /></div>
+            <Button variant="outline" onClick={() => void load()} disabled={loading} data-report-apply><RefreshCw className={`me-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
           </div>
         </div>
       </section>
@@ -268,10 +268,10 @@ export default function ManagerInbox() {
           <span className="text-sm">{selected.size ? <>{tr("محدد ")}<b>{selected.size}</b> ({sizeText(selectedSize)})</> : <>{visible.length}{tr(" مرفق")}</>}</span>
           <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void downloadSelected()} disabled={!selected.size || zipping}>
-            {zipping ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Download className="ml-1 h-4 w-4" />}{tr("تنزيل المحدد")}
+            {zipping ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Download className="me-1 h-4 w-4" />}{tr("تنزيل المحدد")}
           </Button>
           <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => void removeSelected()} disabled={!selected.size || deleting}>
-            {deleting ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Trash2 className="ml-1 h-4 w-4" />}{tr("حذف المحدد")}
+            {deleting ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Trash2 className="me-1 h-4 w-4" />}{tr("حذف المحدد")}
           </Button>
           </div>
         </div>
@@ -317,9 +317,9 @@ export default function ManagerInbox() {
                     <td className="p-2">
                       <div className="flex justify-center gap-1.5">
                         <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => void preview(row)} disabled={busy} title={tr("عرض")}><Eye className="h-4 w-4" /></Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2.5" onClick={() => void download(row)} disabled={busy}><Download className="ml-1 h-4 w-4" />{tr("تنزيل")}</Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2.5 text-red-600 hover:text-red-700" onClick={() => void remove(row)} disabled={busy}><Trash2 className="ml-1 h-4 w-4" />{tr("حذف")}</Button>
-                        <Button size="sm" className="h-8 px-2.5" onClick={() => void processRow(row)} disabled={busy}>{busy ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Bot className="ml-1 h-4 w-4" />}{tr("معالجة")}</Button>
+                        <Button size="sm" variant="outline" className="h-8 px-2.5" onClick={() => void download(row)} disabled={busy}><Download className="me-1 h-4 w-4" />{tr("تنزيل")}</Button>
+                        <Button size="sm" variant="outline" className="h-8 px-2.5 text-red-600 hover:text-red-700" onClick={() => void remove(row)} disabled={busy}><Trash2 className="me-1 h-4 w-4" />{tr("حذف")}</Button>
+                        <Button size="sm" className="h-8 px-2.5" onClick={() => void processRow(row)} disabled={busy}>{busy ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Bot className="me-1 h-4 w-4" />}{tr("معالجة")}</Button>
                       </div>
                     </td>
                   </tr>

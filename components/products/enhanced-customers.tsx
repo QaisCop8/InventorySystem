@@ -222,11 +222,11 @@ export function EnhancedCustomers() {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="bg-white shadow-sm">
-            <Activity className="ml-2 h-4 w-4" />
+            <Activity className="me-2 h-4 w-4" />
             {tr("تقرير النشاط")}
           </Button>
           <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg">
-            <Plus className="ml-2 h-4 w-4" />
+            <Plus className="me-2 h-4 w-4" />
             {tr("عميل جديد")}
           </Button>
         </div>
@@ -326,7 +326,7 @@ export function EnhancedCustomers() {
                       filters: { ...prev.filters, search: e.target.value },
                     }))
                   }
-                  className="pr-10 bg-white border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
+                  className="ps-10 bg-white border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -444,7 +444,7 @@ export function EnhancedCustomers() {
                   <h3 className="text-xl font-semibold text-slate-800 mb-2">{tr("لا يوجد العملاء")}</h3>
                   <p className="text-slate-600 mb-6">{tr("لم يتم العثور على أي العملاء تطابق معايير البحث")}</p>
                   <Button className="bg-gradient-to-r from-indigo-600 to-purple-600">
-                    <Plus className="ml-2 h-4 w-4" />
+                    <Plus className="me-2 h-4 w-4" />
                     {tr("إضافة عميل جديد")}
                   </Button>
                 </div>
@@ -551,13 +551,13 @@ export function EnhancedCustomers() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("العميل")}</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("رقم العميل")}</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("الجوال")}</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("البريد الإلكتروني")}</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("المدينة")}</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("التصنيف")}</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">{tr("الحالة")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("العميل")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("رقم العميل")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("الجوال")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("البريد الإلكتروني")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("المدينة")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("التصنيف")}</th>
+                      <th className="text-start p-4 font-semibold text-slate-700">{tr("الحالة")}</th>
                       <th className="text-center p-4 font-semibold text-slate-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>

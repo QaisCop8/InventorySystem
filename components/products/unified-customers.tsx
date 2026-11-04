@@ -1228,7 +1228,7 @@ export default function UnifiedCustomers({
                       onBlur={async (e) => {
                         await onCustomerCodeBlur?.(e.target.value)
                       }}
-                      className="text-right"
+                      className="text-start"
                       placeholder={tr("رقم {0}", entityLabel)}
                       maxLength={8}
                     />
@@ -1388,23 +1388,23 @@ export default function UnifiedCustomers({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="mobile1" className="text-sm font-medium">{tr("الجوال الأول")}</Label>
-                  <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className="text-right" />
+                  <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className="text-start" />
                 </div>
                 <div>
                   <Label htmlFor="mobile2" className="text-sm font-medium">{tr("الجوال الثاني")}</Label>
-                  <Input id="mobile2" value={formData.mobile2} onChange={(e) => updateField("mobile2", e.target.value)} className="text-right" />
+                  <Input id="mobile2" value={formData.mobile2} onChange={(e) => updateField("mobile2", e.target.value)} className="text-start" />
                 </div>
                 <div>
                   <Label htmlFor="whatsapp1" className="text-sm font-medium">{tr("واتساب الأول")}</Label>
-                  <Input id="whatsapp1" value={formData.whatsapp1} onChange={(e) => updateField("whatsapp1", e.target.value)} className="text-right" />
+                  <Input id="whatsapp1" value={formData.whatsapp1} onChange={(e) => updateField("whatsapp1", e.target.value)} className="text-start" />
                 </div>
                 <div>
                   <Label htmlFor="whatsapp2" className="text-sm font-medium">{tr("واتساب الثاني")}</Label>
-                  <Input id="whatsapp2" value={formData.whatsapp2} onChange={(e) => updateField("whatsapp2", e.target.value)} className="text-right" />
+                  <Input id="whatsapp2" value={formData.whatsapp2} onChange={(e) => updateField("whatsapp2", e.target.value)} className="text-start" />
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="email" className="text-sm font-medium">{tr("البريد الإلكتروني")}</Label>
-                  <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className="text-right" />
+                  <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className="text-start" />
                 </div>
               </div>
             </CardContent>
@@ -1483,15 +1483,15 @@ export default function UnifiedCustomers({
                 </div>
                 <div>
                   <Label htmlFor="tax_number" className="text-sm font-medium">{tr("الرقم الضريبي")}</Label>
-                  <Input id="tax_number" value={formData.tax_number} onChange={(e) => updateField("tax_number", e.target.value)} className="text-right" />
+                  <Input id="tax_number" value={formData.tax_number} onChange={(e) => updateField("tax_number", e.target.value)} className="text-start" />
                 </div>
                 <div>
                   <Label htmlFor="commercial_registration" className="text-sm font-medium">{tr("السجل التجاري")}</Label>
-                  <Input id="commercial_registration" value={formData.commercial_registration} onChange={(e) => updateField("commercial_registration", e.target.value)} className="text-right" />
+                  <Input id="commercial_registration" value={formData.commercial_registration} onChange={(e) => updateField("commercial_registration", e.target.value)} className="text-start" />
                 </div>
                 <div>
                   <Label htmlFor="credit_limit" className="text-sm font-medium">{tr("حد الائتمان")}</Label>
-                  <Input id="credit_limit" type="number" value={formData.credit_limit} onChange={(e) => updateField("credit_limit", e.target.value)} className="text-right" />
+                  <Input id="credit_limit" type="number" value={formData.credit_limit} onChange={(e) => updateField("credit_limit", e.target.value)} className="text-start" />
                 </div>
                 <div>
                   <Label htmlFor="payment_terms" className="text-sm font-medium">{tr("شروط الدفع")}</Label>
@@ -1517,7 +1517,7 @@ export default function UnifiedCustomers({
                 </div>
                 <div>
                   <Label htmlFor="discount_percentage" className="text-sm font-medium">{tr("نسبة الخصم %")}</Label>
-                  <Input id="discount_percentage" type="number" step="0.01" min="0" max="100" value={formData.discount_percentage} onChange={(e) => updateField("discount_percentage", e.target.value)} className="text-right" />
+                  <Input id="discount_percentage" type="number" step="0.01" min="0" max="100" value={formData.discount_percentage} onChange={(e) => updateField("discount_percentage", e.target.value)} className="text-start" />
                 </div>
               </div>
               <div className="pt-1">
@@ -1800,7 +1800,7 @@ export default function UnifiedCustomers({
                 onChange={(e) => setNewCostCenterTypeName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSaveCostCenterType() } }}
                 placeholder={tr("أدخل اسم النوع")}
-                className="text-right"
+                className="text-start"
                 autoFocus
               />
             </div>
@@ -1834,7 +1834,7 @@ export default function UnifiedCustomers({
                 value={newClassificationTypeName}
                 onChange={(e) => setNewClassificationTypeName(e.target.value)}
                 placeholder={tr("أدخل اسم النوع")}
-                className="text-right"
+                className="text-start"
                 autoFocus
               />
             </div>
@@ -1895,7 +1895,7 @@ export default function UnifiedCustomers({
                 value={newClassificationName}
                 onChange={(e) => setNewClassificationName(e.target.value)}
                 placeholder={tr("أدخل اسم التصنيف")}
-                className="text-right"
+                className="text-start"
               />
             </div>
           </div>

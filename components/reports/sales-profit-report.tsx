@@ -186,14 +186,14 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
   return <ReportPage loading={loading || loadingMeta}>
     <ReportHeader icon={mode === "pricing" ? Calculator : TrendingUp} category={tr("تقارير ارباح الاصناف")} title={config.title} description={config.description}
       actions={<>
-        {mode !== "pricing" && <Button variant="secondary" onClick={() => void savePricing()} disabled={pricing || loading} title={tr("حفظ الكلفة المحسوبة على أسطر السندات (تستخدمها عمولات المندوبين)")}>{pricing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}{tr("تنفيذ تسعير الإخراجات")}</Button>}
-        <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
-        <Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
+        {mode !== "pricing" && <Button variant="secondary" onClick={() => void savePricing()} disabled={pricing || loading} title={tr("حفظ الكلفة المحسوبة على أسطر السندات (تستخدمها عمولات المندوبين)")}>{pricing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Calculator className="me-2 h-4 w-4" />}{tr("تنفيذ تسعير الإخراجات")}</Button>}
+        <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}><Download className="me-2 h-4 w-4" />{tr("تصدير")}</Button>
+        <Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows.length}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>
       </>} />
     <ReportFilters>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {mode === "invoice"
-          ? <div className="sm:col-span-2"><Label>{tr("رقم الفاتورة / المرتجع")}</Label><div className="flex gap-2"><Input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} onKeyDown={(event) => { if (event.key === "F10" || (event.key === "Enter" && !voucherCode.trim())) { event.preventDefault(); setInvoicePickerOpen(true) } else if (event.key === "Enter") void loadReport() }} placeholder={tr("رقم السند — Enter أو F10 للبحث")} className="rounded-xl" dir="ltr" /><Button type="button" variant="outline" className="shrink-0 rounded-xl" onClick={() => setInvoicePickerOpen(true)} title={tr("بحث الفواتير (F10)")}><Search className="ml-1 h-4 w-4" />{tr("بحث")}</Button></div></div>
+          ? <div className="sm:col-span-2"><Label>{tr("رقم الفاتورة / المرتجع")}</Label><div className="flex gap-2"><Input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} onKeyDown={(event) => { if (event.key === "F10" || (event.key === "Enter" && !voucherCode.trim())) { event.preventDefault(); setInvoicePickerOpen(true) } else if (event.key === "Enter") void loadReport() }} placeholder={tr("رقم السند — Enter أو F10 للبحث")} className="rounded-xl" dir="ltr" /><Button type="button" variant="outline" className="shrink-0 rounded-xl" onClick={() => setInvoicePickerOpen(true)} title={tr("بحث الفواتير (F10)")}><Search className="me-1 h-4 w-4" />{tr("بحث")}</Button></div></div>
           : <>
             <div><Label>{tr("من تاريخ")}</Label><Input type="date" lang="en" dir="ltr" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="rounded-xl" /></div>
             <div><Label>{tr("إلى تاريخ")}</Label><Input type="date" lang="en" dir="ltr" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl" /></div>
@@ -219,17 +219,17 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
         <p className="text-xs text-muted-foreground">{mode === "pricing" ? tr("تُحسب كلفة كل سطر لحظة خروج البضاعة حسب حركة المخزون، وتُحفظ على أسطر السندات ضمن الفلاتر المختارة.") : tr("يتم تسعير الإخراجات تلقائياً عند عرض التقرير (حسب حركة المخزون حتى تاريخ النهاية) — لا حاجة لتنفيذ آلية التسعير مسبقاً.")}</p>
         <div className="flex gap-2">
-          {mode === "pricing" && <Button variant="outline" onClick={() => void loadReport()} disabled={loading || pricing || loadingMeta} className="rounded-xl"><Search className="ml-2 h-4 w-4" />{tr("معاينة بدون حفظ")}</Button>}
+          {mode === "pricing" && <Button variant="outline" onClick={() => void loadReport()} disabled={loading || pricing || loadingMeta} className="rounded-xl"><Search className="me-2 h-4 w-4" />{tr("معاينة بدون حفظ")}</Button>}
           {mode === "pricing"
-            ? <Button data-report-apply onClick={() => void savePricing()} disabled={loading || pricing || loadingMeta} className="min-w-44 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{pricing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}{tr("تنفيذ تسعير الإخراجات")}</Button>
-            : <Button data-report-apply onClick={() => void loadReport()} disabled={loading || loadingMeta} className="min-w-36 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض التقرير")}</Button>}
+            ? <Button data-report-apply onClick={() => void savePricing()} disabled={loading || pricing || loadingMeta} className="min-w-44 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{pricing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Calculator className="me-2 h-4 w-4" />}{tr("تنفيذ تسعير الإخراجات")}</Button>
+            : <Button data-report-apply onClick={() => void loadReport()} disabled={loading || loadingMeta} className="min-w-36 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض التقرير")}</Button>}
         </div>
       </div>
     </ReportFilters>
     {singleItem && currentItemIndex >= 0 && <div className="flex items-center justify-between gap-3 rounded-xl border bg-white px-4 py-2 text-sm print:hidden dark:bg-slate-950">
-      <Button variant="outline" size="sm" onClick={() => stepItem(-1)} disabled={currentItemIndex <= 0 || loading}><ChevronRight className="ml-1 h-4 w-4" />{tr("الصنف السابق")}</Button>
+      <Button variant="outline" size="sm" onClick={() => stepItem(-1)} disabled={currentItemIndex <= 0 || loading}><ChevronRight className="me-1 h-4 w-4" />{tr("الصنف السابق")}</Button>
       <span className="font-semibold"><span className="font-mono text-teal-700">{itemOptions[currentItemIndex]?.code}</span> — {itemOptions[currentItemIndex]?.name} <span className="text-xs text-muted-foreground">({currentItemIndex + 1}{tr(" من ")}{itemOptions.length})</span></span>
-      <Button variant="outline" size="sm" onClick={() => stepItem(1)} disabled={currentItemIndex >= itemOptions.length - 1 || loading}>{tr("الصنف التالي")}<ChevronLeft className="mr-1 h-4 w-4" /></Button>
+      <Button variant="outline" size="sm" onClick={() => stepItem(1)} disabled={currentItemIndex >= itemOptions.length - 1 || loading}>{tr("الصنف التالي")}<ChevronLeft className="ms-1 h-4 w-4" /></Button>
     </div>}
     {mode === "invoice" && <InvoicePickerDialog open={invoicePickerOpen} onOpenChange={setInvoicePickerOpen} initialSearch={voucherCode} onSelect={(row) => { loadAfterPickRef.current = true; setVoucherCode(row.vch_code) }} />}
     {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}

@@ -79,7 +79,7 @@ export default function PosCustodyReport() {
         category={tr("نظام البيع بالتجزئة")}
         title={tr("تقرير عهد البيع بالتجزئة")}
         description={tr("عهد الكاشير لكل وردية: النقد الافتتاحي والمتوقع والمسلَّم والفرق، المبيعات والدفعات، وعهدة الدخان")}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
@@ -91,7 +91,7 @@ export default function PosCustodyReport() {
           <ReportMultiChoice label={tr("حالة العهدة")} options={STATUS_OPTIONS} selected={filters.statuses} onChange={(statuses) => setFilters({ ...filters, statuses })} placeholder={tr("كل الحالات")} />
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="me-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 

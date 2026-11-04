@@ -61,7 +61,7 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
         <DialogContent className="z-[3001] flex max-h-[92vh] w-[min(1100px,calc(100vw-1.5rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir={appDir()}>
           <div className="flex items-center gap-3 bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-3 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Wallet className="h-5 w-5" /></span>
-            <div className="text-right">
+            <div className="text-start">
               <DialogTitle className="text-base font-bold">{tr("تسديد الفواتير ")}{voucher ? `— ${voucher.type_label} ${voucher.vch_code}` : ""}</DialogTitle>
               <DialogDescription className="text-xs text-emerald-50">{isInvoice ? tr("ربط سندات القبض والإشعارات الدائنة والمرتجعات بهذه الفاتورة") : tr("توزيع هذا السند على فواتير العميل المفتوحة")}</DialogDescription>
             </div>
@@ -87,8 +87,8 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
                   <h3 className="font-bold">{isInvoice ? tr("سندات العميل المتاحة للتسديد") : tr("فواتير العميل المفتوحة")} <span className="font-normal text-muted-foreground">({candidates.length})</span></h3>
                   <div className="flex flex-wrap items-center gap-2">
                     {!isInvoice && <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={lateOnly} onChange={(event) => setLateOnly(event.target.checked)} />{tr("المتأخرة السداد فقط")}</label>}
-                    <Button size="sm" variant="outline" disabled={!canEdit || busy || !voucher.remaining || !candidates.length} onClick={() => void post({ action: "auto", order: "fifo" })}><ArrowDownWideNarrow className="ml-1 h-4 w-4" />{tr("توزيع الأقدم أولاً")}</Button>
-                    <Button size="sm" variant="outline" disabled={!canEdit || busy || !voucher.remaining || !candidates.length} onClick={() => void post({ action: "auto", order: "lifo" })}><ArrowUpWideNarrow className="ml-1 h-4 w-4" />{tr("توزيع الأحدث أولاً")}</Button>
+                    <Button size="sm" variant="outline" disabled={!canEdit || busy || !voucher.remaining || !candidates.length} onClick={() => void post({ action: "auto", order: "fifo" })}><ArrowDownWideNarrow className="me-1 h-4 w-4" />{tr("توزيع الأقدم أولاً")}</Button>
+                    <Button size="sm" variant="outline" disabled={!canEdit || busy || !voucher.remaining || !candidates.length} onClick={() => void post({ action: "auto", order: "lifo" })}><ArrowUpWideNarrow className="me-1 h-4 w-4" />{tr("توزيع الأحدث أولاً")}</Button>
                   </div>
                 </div>
                 <div className="max-h-[32vh] overflow-auto">
@@ -105,7 +105,7 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
                         <td className="px-2 py-1.5" dir="ltr">{fmt(row.settled)}</td>
                         <td className="px-2 py-1.5 font-semibold" dir="ltr">{fmt(row.remaining_in_current)}</td>
                         <td className="px-2 py-1.5"><Input type="number" min={0} step="0.01" className="h-8 w-28 text-center" disabled={!canEdit || busy} placeholder={fmt(Math.min(row.remaining_in_current, voucher.remaining))} value={amounts[row.id] ?? ""} onChange={(event) => setAmounts((current) => ({ ...current, [row.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); payRow(row) } }} /></td>
-                        <td className="px-2 py-1.5"><Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" disabled={!canEdit || busy || !voucher.remaining} onClick={() => payRow(row)}><CheckCircle2 className="ml-1 h-3.5 w-3.5" />{tr("تسديد")}</Button></td>
+                        <td className="px-2 py-1.5"><Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" disabled={!canEdit || busy || !voucher.remaining} onClick={() => payRow(row)}><CheckCircle2 className="me-1 h-3.5 w-3.5" />{tr("تسديد")}</Button></td>
                       </tr>)}
                       {!candidates.length && <tr><td colSpan={11} className="px-3 py-8 text-center text-muted-foreground">{isInvoice ? tr("لا توجد سندات قبض أو إشعارات أو مرتجعات متاحة لهذا العميل") : tr("لا توجد فواتير مفتوحة لهذا العميل")}</td></tr>}
                     </tbody>
@@ -126,7 +126,7 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
                         <td className="px-2 py-1.5" dir="ltr">{row.vch_date}</td>
                         <td className="px-2 py-1.5" dir="ltr">{fmt(row.voucher_amount)} <span className="text-[10px] text-muted-foreground">{row.currency_name}</span></td>
                         <td className="px-2 py-1.5 font-semibold text-emerald-700" dir="ltr">{fmt(isInvoice ? row.amount : row.payment_amount)}</td>
-                        <td className="px-2 py-1.5"><Button size="sm" variant="outline" className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50" disabled={!view?.can_settle || busy} onClick={() => void post({ action: "remove", id: row.id })}><Link2Off className="ml-1 h-3.5 w-3.5" />{tr("فك الربط")}</Button></td>
+                        <td className="px-2 py-1.5"><Button size="sm" variant="outline" className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50" disabled={!view?.can_settle || busy} onClick={() => void post({ action: "remove", id: row.id })}><Link2Off className="me-1 h-3.5 w-3.5" />{tr("فك الربط")}</Button></td>
                       </tr>)}
                       {!view?.linked.length && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{tr("لا يوجد ربط بعد")}</td></tr>}
                     </tbody>
@@ -136,7 +136,7 @@ export function BillsPaymentDialog({ open, onOpenChange, voucherId }: { open: bo
             </>}
           </div>
           <div className="flex items-center justify-between border-t bg-slate-50 px-4 py-2.5 text-xs text-muted-foreground">
-            <span>{busy && <Loader2 className="ml-1 inline h-3.5 w-3.5 animate-spin" />}{tr("المبالغ بعملة ")}{voucher?.currency_name || tr("السند")}{tr(" — Enter في خانة المبلغ للتسديد")}</span>
+            <span>{busy && <Loader2 className="me-1 inline h-3.5 w-3.5 animate-spin" />}{tr("المبالغ بعملة ")}{voucher?.currency_name || tr("السند")}{tr(" — Enter في خانة المبلغ للتسديد")}</span>
             <Button variant="outline" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>{tr("إغلاق")}</Button>
           </div>
         </DialogContent>

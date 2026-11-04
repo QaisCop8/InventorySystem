@@ -142,7 +142,7 @@ export function useLicenseRequestDialog(onSent?: () => void) {
         <DialogContent className="z-[3001] flex w-[min(540px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir={appDir()}>
           <div className="flex items-center gap-3 bg-gradient-to-l from-amber-500 to-orange-500 px-5 py-4 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><AlertTriangle className="h-5 w-5" /></span>
-            <div className="text-right">
+            <div className="text-start">
               <DialogTitle className="text-base font-bold">{tr("زيادة عدد ")}{label.plural}{tr(" المرخّص")}</DialogTitle>
               <DialogDescription className="text-xs text-amber-50">{canPay ? tr("ادفع إلكترونياً لتُضاف فوراً، أو أرسل طلباً لإدارة النظام") : salesCard ? tr("أرسل بطاقة لفريق المبيعات — نتواصل معك لإتمام الاشتراك وتُضاف فور الاعتماد") : tr("يُرسل الطلب لإدارة النظام للاعتماد أو الرفض")}</DialogDescription>
             </div>

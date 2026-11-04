@@ -84,8 +84,8 @@ function Wordmark() {
 
 function DashboardScene() {
   const bars = [38, 56, 44, 72, 52, 86, 64]
-  return <div className="ml-scene" aria-hidden="true">
-    <div className="ml-board">
+  return <div className="me-scene" aria-hidden="true">
+    <div className="me-board">
       <div className="me-panel me-p-main">
         <div className="flex items-center justify-between" dir="ltr">
           <div className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-rose-400/80" /><i className="h-2.5 w-2.5 rounded-full bg-amber-300/80" /><i className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" /></div>
@@ -96,10 +96,10 @@ function DashboardScene() {
             <linearGradient id="mlg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#34d399" stopOpacity=".5" /><stop offset="1" stopColor="#34d399" stopOpacity="0" /></linearGradient>
           </defs>
           <path d="M0 100 C40 90 60 40 100 55 S160 110 200 70 S270 10 310 40 S370 50 400 20 V130 H0Z" fill="url(#mlg)" />
-          <path className="ml-line" d="M0 100 C40 90 60 40 100 55 S160 110 200 70 S270 10 310 40 S370 50 400 20" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
+          <path className="me-line" d="M0 100 C40 90 60 40 100 55 S160 110 200 70 S270 10 310 40 S370 50 400 20" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
         </svg>
         <div className="mt-3 flex h-[72px] items-end justify-between gap-2" dir="ltr">
-          {bars.map((height, index) => <span key={index} className="ml-bar w-full rounded-t-md bg-gradient-to-t from-emerald-500/40 to-cyan-300/80" style={{ height: `${height}%`, animationDelay: `${index * 90}ms` }} />)}
+          {bars.map((height, index) => <span key={index} className="me-bar w-full rounded-t-md bg-gradient-to-t from-emerald-500/40 to-cyan-300/80" style={{ height: `${height}%`, animationDelay: `${index * 90}ms` }} />)}
         </div>
       </div>
       <div className="me-panel me-p-stat">
@@ -162,17 +162,17 @@ export function ManagementLogin({ onLogin, footer }: Props) {
     }
   }
 
-  return <main ref={rootRef} dir={appDir()} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} className="ml-root grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
+  return <main ref={rootRef} dir={appDir()} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} className="me-root grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
     <style dangerouslySetInnerHTML={{ __html: css }} />
-    <div className="ml-aurora" aria-hidden="true" />
-    <div className="ml-dots" aria-hidden="true" />
+    <div className="me-aurora" aria-hidden="true" />
+    <div className="me-dots" aria-hidden="true" />
     <div className="me-blob -start-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
     <div className="me-blob -end-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
 
     <aside className="relative hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-      <div className="ml-rise"><Wordmark /></div>
+      <div className="me-rise"><Wordmark /></div>
 
-      <div className="ml-rise max-w-xl [animation-delay:.1s]">
+      <div className="me-rise max-w-xl [animation-delay:.1s]">
         <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
           <Sparkles className="h-3.5 w-3.5" />{tr("بوابة إدارة النظام")}
         </p>
@@ -185,7 +185,7 @@ export function ManagementLogin({ onLogin, footer }: Props) {
 
       <DashboardScene />
 
-      <div className="ml-rise grid grid-cols-3 gap-3 [animation-delay:.25s]">
+      <div className="me-rise grid grid-cols-3 gap-3 [animation-delay:.25s]">
         {[
           { icon: Building2, title: tr("عدة شركات"), text: tr("بيانات معزولة لكل شركة") },
           { icon: Database, title: tr("اشتراكات وتراخيص"), text: tr("متابعة حالة كل شركة") },
@@ -201,8 +201,8 @@ export function ManagementLogin({ onLogin, footer }: Props) {
     <section className="relative flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-8">
       <div className="mb-8 lg:hidden"><Wordmark /></div>
       <div className="me-wrap me-rise [animation-delay:.15s]">
-        <div className="ml-card">
-          <div className="ml-card-in p-7 sm:p-9">
+        <div className="me-card">
+          <div className="me-card-in p-7 sm:p-9">
             <div className="mb-7">
               <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200"><BarChart3 className="h-3.5 w-3.5" />Noon ERP</span>
               <p className="text-sm text-stone-500">{tr("سجّل الدخول للمتابعة إلى بوابة الإدارة")}</p>
@@ -243,7 +243,7 @@ export function ManagementLogin({ onLogin, footer }: Props) {
                 {tr("تذكرني على هذا الجهاز")}
               </label>
 
-              <button type="submit" disabled={loading} className="ml-btn group flex h-12 w-full items-center justify-center gap-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
+              <button type="submit" disabled={loading} className="me-btn group flex h-12 w-full items-center justify-center gap-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
                 {loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />{tr("جاري التحقق…")}</> : <>{tr("دخول")}<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
               </button>
             </form>

@@ -253,7 +253,7 @@ export function BatchReports() {
 <ReportHeader title={tr("تقارير حركات الدفعات")} description={<>{tr("تقارير شاملة وإحصائيات مفصلة لحركات الدفعات")}</>} actions={<>
           <SearchButton type="products" onSelect={handleProductSelect} variant="outline" />
           <Button onClick={() => exportReport(activeTab)} variant="outline">
-            <Download className="ml-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             {tr("تصدير التقرير")}
           </Button>
         </>} />
@@ -375,14 +375,14 @@ export function BatchReports() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="text-right p-4 font-semibold">{tr("المنتج")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("إجمالي الدفعات")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("جديد")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("قيد الاستخدام")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("منتهي")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("تالف")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("الكمية المتاحة")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("المنتج")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("إجمالي الدفعات")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("جديد")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("قيد الاستخدام")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("منتهي")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("تالف")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("الكمية المتاحة")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -491,7 +491,7 @@ export function BatchReports() {
 
                 <div className="flex items-end">
                   <Button data-report-apply onClick={fetchMovements} className="w-full">
-                    <Search className="ml-2 h-4 w-4" />
+                    <Search className="me-2 h-4 w-4" />
                     {tr("تطبيق الفلاتر")}
                   </Button>
                 </div>
@@ -512,15 +512,15 @@ export function BatchReports() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-4 font-semibold">{tr("التاريخ")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("المنتج")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("رقم الدفعة")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("نوع الحركة")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("الكمية")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("سعر الوحدة")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("المرجع")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("المستخدم")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("التاريخ")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("المنتج")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("رقم الدفعة")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("نوع الحركة")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("الكمية")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("سعر الوحدة")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("المرجع")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("المستخدم")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -600,11 +600,11 @@ export function BatchReports() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="text-right p-4 font-semibold">{tr("حالة الصلاحية")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("عدد الدفعات")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("إجمالي الكمية")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
-                          <th className="text-right p-4 font-semibold">{tr("النسبة المئوية")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("حالة الصلاحية")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("عدد الدفعات")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("إجمالي الكمية")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
+                          <th className="text-start p-4 font-semibold">{tr("النسبة المئوية")}</th>
                         </tr>
                       </thead>
                       <tbody>

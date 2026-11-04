@@ -65,7 +65,7 @@ const CONFIG: Record<View, { title: string; description: string; icon: LucideIco
 
 const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
-const alignClass = (align?: Column["align"]) => (align === "end" ? "text-left" : align === "center" ? "text-center" : "text-right")
+const alignClass = (align?: Column["align"]) => (align === "end" ? "text-end" : align === "center" ? "text-center" : "text-start")
 const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -132,7 +132,7 @@ export function ProductionReport({ view }: { view: View }) {
         category={tr("تقارير الانتاج")}
         title={config.title}
         description={config.description}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
@@ -145,7 +145,7 @@ export function ProductionReport({ view }: { view: View }) {
           <div className="space-y-2"><Label>{tr("الصنف أو رقم السند")}</Label><Input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} className="rounded-xl" placeholder={tr("بحث")} /></div>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="me-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 

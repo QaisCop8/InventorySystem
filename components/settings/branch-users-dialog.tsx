@@ -78,7 +78,7 @@ export function BranchUsersDialog({ branch, onClose }: { branch: { id: number; b
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث باسم المستخدم...")} className="h-10 w-full rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900" />
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-600 dark:text-slate-300"><Users className="ml-1 inline h-3.5 w-3.5" />{selected.size}{tr(" من ")}{users.length}{tr(" مستخدم")}</span>
+            <span className="font-semibold text-slate-600 dark:text-slate-300"><Users className="me-1 inline h-3.5 w-3.5" />{selected.size}{tr(" من ")}{users.length}{tr(" مستخدم")}</span>
             <span className="flex gap-2">
               <button type="button" onClick={() => setAll(true)} className="rounded-lg px-2 py-1 font-bold text-emerald-700 hover:bg-emerald-50">{tr("تحديد الكل")}</button>
               <button type="button" onClick={() => setAll(false)} className="rounded-lg px-2 py-1 font-bold text-slate-600 hover:bg-slate-100">{tr("إلغاء الكل")}</button>
@@ -114,7 +114,7 @@ export function BranchUsersDialog({ branch, onClose }: { branch: { id: number; b
 
         <div className="flex items-center justify-center gap-2 border-t bg-white px-4 py-3 dark:bg-slate-900">
           <Button onClick={() => void save()} disabled={saving || loading || !changed} className="h-10 w-36 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700">
-            {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ")}
+            {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("حفظ")}
           </Button>
           <Button variant="outline" onClick={onClose} disabled={saving} className="h-10 w-28 rounded-xl">{tr("إغلاق")}</Button>
         </div>

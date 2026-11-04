@@ -106,8 +106,8 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         confined
-          ? "absolute end-1/2 top-3 max-h-[calc(100%-1.5rem)] -translate-x-1/2 overflow-y-auto"
-          : "fixed end-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+          ? "absolute left-1/2 top-3 max-h-[calc(100%-1.5rem)] -translate-x-1/2 overflow-y-auto"
+          : "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
         "pointer-events-auto z-50 grid w-full max-w-lg gap-4 border-4 border-emerald-600 bg-background p-6 shadow-lg ring-2 ring-emerald-600/20 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className,
       )}
@@ -145,7 +145,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-right", className)} {...props} />
+  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-start", className)} {...props} />
 )
 DialogHeader.displayName = "DialogHeader"
 

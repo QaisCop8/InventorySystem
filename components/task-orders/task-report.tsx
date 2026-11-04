@@ -139,7 +139,7 @@ export function TaskReport() {
       <ReportFilters><div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute start-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("رقم الصنف، العنوان، العميل أو الطلبية")} className="pr-8" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("رقم الصنف، العنوان، العميل أو الطلبية")} className="ps-8" />
         </div>
         <div className="flex items-center gap-1 text-xs text-slate-500">
           {tr("من")}
@@ -183,17 +183,17 @@ export function TaskReport() {
             <Table>
               <TableHeader className="bg-emerald-100">
                 <TableRow className="hover:bg-emerald-100">
-                  <TableHead className="text-right">{tr("رقم الصنف")}</TableHead>
-                  <TableHead className="text-right">{tr("العنوان")}</TableHead>
-                  <TableHead className="text-right">{tr("الطلبية / العميل")}</TableHead>
-                  <TableHead className="text-right">{tr("سير العمل")}</TableHead>
-                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                  <TableHead className="text-right">{tr("المرحلة الحالية")}</TableHead>
-                  <TableHead className="text-right">{tr("الأولوية")}</TableHead>
-                  <TableHead className="text-right">{tr("وقت العمل")}</TableHead>
-                  <TableHead className="text-right">{tr("آخر ملاحظة")}</TableHead>
-                  <TableHead className="text-right">{tr("أنشئ بواسطة")}</TableHead>
-                  <TableHead className="text-right">{tr("تاريخ الإنشاء")}</TableHead>
+                  <TableHead className="text-start">{tr("رقم الصنف")}</TableHead>
+                  <TableHead className="text-start">{tr("العنوان")}</TableHead>
+                  <TableHead className="text-start">{tr("الطلبية / العميل")}</TableHead>
+                  <TableHead className="text-start">{tr("سير العمل")}</TableHead>
+                  <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-start">{tr("المرحلة الحالية")}</TableHead>
+                  <TableHead className="text-start">{tr("الأولوية")}</TableHead>
+                  <TableHead className="text-start">{tr("وقت العمل")}</TableHead>
+                  <TableHead className="text-start">{tr("آخر ملاحظة")}</TableHead>
+                  <TableHead className="text-start">{tr("أنشئ بواسطة")}</TableHead>
+                  <TableHead className="text-start">{tr("تاريخ الإنشاء")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -212,7 +212,7 @@ export function TaskReport() {
                     <TableCell className="text-xs text-slate-600">
                       {item.current_steps || (item.status === "in_workflow" ? "-" : "—")}
                       {Number(item.overdue_task_count || 0) > 0 && (
-                        <span className="mr-1 inline-flex items-center gap-0.5 rounded bg-red-100 px-1 py-0.5 text-[10px] font-semibold text-red-700">
+                        <span className="ms-1 inline-flex items-center gap-0.5 rounded bg-red-100 px-1 py-0.5 text-[10px] font-semibold text-red-700">
                           <AlarmClock className="h-3 w-3" />{tr(" متأخر")}
                         </span>
                       )}
@@ -221,7 +221,7 @@ export function TaskReport() {
                       <Badge className={cn("border text-[10px]", PRIORITY_BADGE_CLASS[item.priority])}>{PRIORITY_LABELS[item.priority] || item.priority}</Badge>
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-mono text-xs text-slate-600">
-                      <Clock className="ml-1 inline h-3 w-3 text-slate-400" />
+                      <Clock className="me-1 inline h-3 w-3 text-slate-400" />
                       {formatDuration(Number(item.total_work_seconds || 0))}
                     </TableCell>
                     <TableCell className="max-w-[240px] truncate text-xs text-slate-500" title={item.last_note || ""}>

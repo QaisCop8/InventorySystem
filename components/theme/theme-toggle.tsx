@@ -44,12 +44,12 @@ export function ThemeToggle() {
         <DropdownMenuItem onClick={toggleDarkMode}>
           {settings.dark_mode ? (
             <>
-              <Sun className="mr-2 h-4 w-4" />
+              <Sun className="ms-2 h-4 w-4" />
               <span>{tr("الوضع الفاتح")}</span>
             </>
           ) : (
             <>
-              <Moon className="mr-2 h-4 w-4" />
+              <Moon className="ms-2 h-4 w-4" />
               <span>{tr("الوضع الداكن")}</span>
             </>
           )}
@@ -57,19 +57,19 @@ export function ThemeToggle() {
         <DropdownMenuSeparator />
         <DropdownMenuLabel>{tr("الألوان السريعة")}</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => changeColorScheme("#059669", "#10b981", "emerald")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-emerald-500" />
+          <div className="ms-2 h-4 w-4 rounded-full bg-emerald-500" />
           <span>{tr("الزمرد")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => changeColorScheme("#0891b2", "#06b6d4", "blue")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-cyan-500" />
+          <div className="ms-2 h-4 w-4 rounded-full bg-cyan-500" />
           <span>{tr("الأزرق")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => changeColorScheme("#7c3aed", "#a855f7", "purple")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-purple-500" />
+          <div className="ms-2 h-4 w-4 rounded-full bg-purple-500" />
           <span>{tr("البنفسجي")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => changeColorScheme("#ea580c", "#f97316", "orange")}>
-          <div className="mr-2 h-4 w-4 rounded-full bg-orange-500" />
+          <div className="ms-2 h-4 w-4 rounded-full bg-orange-500" />
           <span>{tr("البرتقالي")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

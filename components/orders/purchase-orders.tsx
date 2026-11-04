@@ -558,14 +558,14 @@ export function PurchaseOrders() {
         <div className="flex gap-3">
           <SearchButton type="purchases" onSelectPurchaseOrder={handleSearchOrder} variant="outline" size="default" />
           <Button variant="outline" className="bg-white shadow-sm" onClick={handleReport}>
-            <FileText className="ml-2 h-4 w-4" />
+            <FileText className="me-2 h-4 w-4" />
             {tr("تقرير")}
           </Button>
           <Button
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg"
             onClick={handleNewOrder}
           >
-            <Plus className="ml-2 h-4 w-4" />
+            <Plus className="me-2 h-4 w-4" />
             {tr("طلبية جديدة")}
           </Button>
         </div>
@@ -669,7 +669,7 @@ export function PurchaseOrders() {
                       filters: { ...prev.filters, search: e.target.value },
                     }))
                   }
-                  className="pr-10 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                  className="ps-10 bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -865,7 +865,7 @@ export function PurchaseOrders() {
               <h3 className="text-xl font-semibold text-slate-800 mb-2">{tr("لا توجد طلبات")}</h3>
               <p className="text-slate-600 mb-6">{tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}</p>
               <Button className="bg-gradient-to-r from-purple-600 to-pink-600" onClick={handleNewOrder}>
-                <Plus className="ml-2 h-4 w-4" />
+                <Plus className="me-2 h-4 w-4" />
                 {tr("إنشاء طلبية جديدة")}
               </Button>
             </div>
@@ -959,16 +959,16 @@ export function PurchaseOrders() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("رقم الطلبية")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("التاريخ")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المورد")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("الحالة")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("الحالة المالية")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("سير العمل")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("الأولوية")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المصدر")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المبلغ")}</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المندوب")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("رقم الطلبية")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("التاريخ")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("المورد")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("الحالة")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("الحالة المالية")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("سير العمل")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("الأولوية")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("المصدر")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("المبلغ")}</th>
+                    <th className="text-start p-4 font-semibold text-slate-700">{tr("المندوب")}</th>
                     <th className="text-center p-4 font-semibold text-slate-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>

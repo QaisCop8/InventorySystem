@@ -154,11 +154,11 @@ export default function JobRoles() {
                 {form.id > 0 ? tr("تعديل الدور الوظيفي") : tr("إضافة دور وظيفي جديد")}
               </h3>
               <form className="space-y-4" onSubmit={handleSave}>
-                <div className="text-right">
-                  <Label className="text-right block">{tr("اسم الدور الوظيفي *")}</Label>
+                <div className="text-start">
+                  <Label className="text-start block">{tr("اسم الدور الوظيفي *")}</Label>
                   <Input
                     required
-                    className="text-right"
+                    className="text-start"
                     placeholder={tr("مثال: مشرف مبيعات")}
                     dir={appDir()}
                     maxLength={100}

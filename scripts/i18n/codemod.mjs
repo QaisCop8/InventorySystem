@@ -10,6 +10,7 @@ import ts from "typescript"
 
 const ROOT = process.cwd()
 const WRITE = process.argv.includes("--write")
+const CLASSES_ONLY = process.argv.includes("--classes-only")
 const filesArg = process.argv.find((arg) => arg.startsWith("--files="))
 const ARABIC = /[؀-ۿ]/
 
@@ -51,7 +52,8 @@ const CLASS_MAP = [
   [/(^|[\s:!"'`])(-?)ml-/g, "$1$2me-"], [/(^|[\s:!"'`])(-?)mr-/g, "$1$2ms-"],
   [/(^|[\s:!"'`])pl-/g, "$1pe-"], [/(^|[\s:!"'`])pr-/g, "$1ps-"],
   [/(^|[\s:!"'`])text-right(?![\w-])/g, "$1text-start"], [/(^|[\s:!"'`])text-left(?![\w-])/g, "$1text-end"],
-  [/(^|[\s:!"'`])(-?)right-(?=[\d[\w])/g, "$1$2start-"], [/(^|[\s:!"'`])(-?)left-(?=[\d[\w])/g, "$1$2end-"],
+  // left-1/2 / left-[50%] تبقى فيزيائية: تُقرن بـ -translate-x-1/2 للتوسيط (translate لا ينعكس مع الاتجاه)
+  [/(^|[\s:!"'`])(-?)right-(?!1\/2|\[50%\])(?=[\d[\w])/g, "$1$2start-"], [/(^|[\s:!"'`])(-?)left-(?!1\/2|\[50%\])(?=[\d[\w])/g, "$1$2end-"],
   [/(^|[\s:!"'`])border-r(?=[\s"'`-]|$)/g, "$1border-s"], [/(^|[\s:!"'`])border-l(?=[\s"'`-]|$)/g, "$1border-e"],
   [/(^|[\s:!"'`])rounded-r(?=[\s"'`-]|$)/g, "$1rounded-s"], [/(^|[\s:!"'`])rounded-l(?=[\s"'`-]|$)/g, "$1rounded-e"],
   [/(^|[\s:!"'`])rounded-tr(?=[\s"'`-]|$)/g, "$1rounded-ss"], [/(^|[\s:!"'`])rounded-tl(?=[\s"'`-]|$)/g, "$1rounded-se"],
@@ -60,7 +62,7 @@ const CLASS_MAP = [
   [/(^|[\s:!"'`])scroll-mr-/g, "$1scroll-ms-"], [/(^|[\s:!"'`])scroll-ml-/g, "$1scroll-me-"],
 ]
 const CLASS_CALLEES = new Set(["cn", "clsx", "cx", "classNames", "twMerge", "cva", "twJoin"])
-const isClassToken = (text) => /(^|\s)(-?m[lr]-|p[lr]-|text-(left|right)|-?(left|right)-|border-[lr]\b|rounded-[tb]?[lr]\b|float-(left|right))/.test(text)
+const isClassToken = (text) => /(^|[\s"'`:!])(-?m[lr]-|p[lr]-|text-(left|right)|-?(left|right)-|border-[lr]\b|rounded-[tb]?[lr]\b|float-(left|right))/.test(text)
 function convertClasses(text) {
   let out = text
   for (const [re, rep] of CLASS_MAP) out = out.replace(re, rep)
@@ -269,6 +271,8 @@ function transformFile(rel) {
       }
       return
     }
+    // --classes-only: تحويل أصناف الاتجاه فقط دون لفّ النصوص
+    if (CLASSES_ONLY) { ts.forEachChild(node, visit); return }
     if (ts.isJsxText(node) && ARABIC.test(node.text)) {
       const value = decodeEntities(jsxTextValue(node.getFullText(sf)))
       if (value.trim()) {
@@ -308,7 +312,7 @@ function transformFile(rel) {
   visit(sf)
   if (!edits.length) return
   edits.sort((a, b) => b.start - a.start)
-  // كود مضغوط: return"نص" ⇐ return tr("نص") لا returntr("نص")
+  // كود مضغوط: return"نص" ⇐ return tr("نص") لا return tr("نص")
   for (const edit of edits) if (/^[A-Za-z_$]/.test(edit.text) && /[A-Za-z0-9_$]$/.test(source.slice(0, edit.start))) edit.text = ` ${edit.text}`
   let out = source
   for (const edit of edits) out = out.slice(0, edit.start) + edit.text + out.slice(edit.end)

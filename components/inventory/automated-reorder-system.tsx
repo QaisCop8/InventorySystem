@@ -346,7 +346,7 @@ export function AutomatedReorderSystem() {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, successMessage: null }))}
           >
             <X className="h-4 w-4" />
@@ -362,7 +362,7 @@ export function AutomatedReorderSystem() {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, error: null }))}
           >
             <X className="h-4 w-4" />
@@ -565,13 +565,13 @@ export function AutomatedReorderSystem() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">{tr("كود المنتج")}</TableHead>
-                  <TableHead className="text-right">{tr("اسم المنتج")}</TableHead>
-                  <TableHead className="text-right">{tr("المخزون الحالي")}</TableHead>
-                  <TableHead className="text-right">{tr("نقطة إعادة الطلب")}</TableHead>
-                  <TableHead className="text-right">{tr("المورد")}</TableHead>
-                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                  <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
+                  <TableHead className="text-start">{tr("كود المنتج")}</TableHead>
+                  <TableHead className="text-start">{tr("اسم المنتج")}</TableHead>
+                  <TableHead className="text-start">{tr("المخزون الحالي")}</TableHead>
+                  <TableHead className="text-start">{tr("نقطة إعادة الطلب")}</TableHead>
+                  <TableHead className="text-start">{tr("المورد")}</TableHead>
+                  <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-start">{tr("الإجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

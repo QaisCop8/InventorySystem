@@ -782,11 +782,11 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               disabled={loading}
               className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             >
-              <RefreshCw className="ml-2 h-4 w-4" />
+              <RefreshCw className="me-2 h-4 w-4" />
               {tr("إعادة تحميل")}
             </Button>
             <Button onClick={handleSave} disabled={loading} className="h-10 rounded-xl bg-white font-bold text-emerald-700 shadow-sm hover:bg-emerald-50">
-              {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
+              {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
               {loading ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
             </Button>
           </div>
@@ -836,26 +836,26 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
             <CardContent className="space-y-4 py-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="companyName" className="text-right block">
+                  <Label htmlFor="companyName" className="text-start block">
                     {tr("اسم الشركة (عربي) *")}
                   </Label>
                   <Input
                     id="companyName"
                     value={settings.companyName}
                     onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="companyNameEn" className="text-right block">
+                  <Label htmlFor="companyNameEn" className="text-start block">
                     {tr("اسم الشركة (إنجليزي)")}
                   </Label>
                   <Input
                     id="companyNameEn"
                     value={settings.companyNameEn}
                     onChange={(e) => setSettings({ ...settings, companyNameEn: e.target.value })}
-                    className="text-left"
+                    className="text-end"
                     dir="ltr"
                   />
                 </div>
@@ -892,7 +892,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="licensedWorkerNumber" className="text-right block">
+                  <Label htmlFor="licensedWorkerNumber" className="text-start block">
                     {tr("رقم المشتغل المرخص")}
                   </Label>
                   <Input
@@ -900,12 +900,12 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     value={settings.licensedWorkerNumber}
                     onChange={(e) => setSettings({ ...settings, licensedWorkerNumber: e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 30) })}
                     maxLength={30}
-                    className="text-left"
+                    className="text-end"
                     dir="ltr"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="taxNumber" className="text-right block">
+                  <Label htmlFor="taxNumber" className="text-start block">
                     {tr("الرقم الضريبي")}
                   </Label>
                   <Input
@@ -913,48 +913,48 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     value={settings.taxNumber}
                     onChange={(e) => setSettings({ ...settings, taxNumber: e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20) })}
                     maxLength={20}
-                    className="text-left"
+                    className="text-end"
                     dir="ltr"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="commercialRegister" className="text-right block">
+                  <Label htmlFor="commercialRegister" className="text-start block">
                     {tr("السجل التجاري")}
                   </Label>
                   <Input
                     id="commercialRegister"
                     value={settings.commercialRegister}
                     onChange={(e) => setSettings({ ...settings, commercialRegister: e.target.value })}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="address" className="text-right block">
+                  <Label htmlFor="address" className="text-start block">
                     {tr("العنوان")}
                   </Label>
                   <Textarea
                     id="address"
                     value={settings.address}
                     onChange={(e) => setSettings({ ...settings, address: e.target.value })}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone" className="text-right block">
+                  <Label htmlFor="phone" className="text-start block">
                     {tr("الهاتف")}
                   </Label>
                   <Input
                     id="phone"
                     value={settings.phone}
                     onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email" className="text-right block">
+                  <Label htmlFor="email" className="text-start block">
                     {tr("البريد الإلكتروني")}
                   </Label>
                   <Input
@@ -962,19 +962,19 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     type="email"
                     value={settings.email}
                     onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-                    className="text-left"
+                    className="text-end"
                     dir="ltr"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="website" className="text-right block">
+                  <Label htmlFor="website" className="text-start block">
                     {tr("الموقع الإلكتروني")}
                   </Label>
                   <Input
                     id="website"
                     value={settings.website}
                     onChange={(e) => setSettings({ ...settings, website: e.target.value })}
-                    className="text-left"
+                    className="text-end"
                     dir="ltr"
                   />
                 </div>
@@ -988,7 +988,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
             <CardContent className="space-y-4 py-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="defaultCurrency" className="text-right block">
+                  <Label htmlFor="defaultCurrency" className="text-start block">
                     {tr("العملة الافتراضية")}
                   </Label>
                   <Select
@@ -1007,7 +1007,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="dateFormat" className="text-right block">
+                  <Label htmlFor="dateFormat" className="text-start block">
                     {tr("تنسيق التاريخ")}
                   </Label>
                   <Select
@@ -1025,7 +1025,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="timeFormat" className="text-right block">
+                  <Label htmlFor="timeFormat" className="text-start block">
                     {tr("تنسيق الوقت")}
                   </Label>
                   <Select
@@ -1042,7 +1042,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="language" className="text-right block">
+                  <Label htmlFor="language" className="text-start block">
                     {tr("اللغة")}
                   </Label>
                   <Select
@@ -1059,7 +1059,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="taxRate" className="text-right block">
+                  <Label htmlFor="taxRate" className="text-start block">
                     {tr("نسبة الضريبة")}
                   </Label>
                   <Input
@@ -1068,12 +1068,12 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     step="0.01"
                     value={settings.taxRate}
                     onChange={(e) => setSettings({ ...settings, taxRate: e.target.value === "" ? 0 : Number(e.target.value) })}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="taxRateClearing" className="text-right block">
+                  <Label htmlFor="taxRateClearing" className="text-start block">
                     {tr("نسبة الضريبة-مقاصة")}
                   </Label>
                   <Input
@@ -1082,7 +1082,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     step="0.01"
                     value={settings.taxRateClearing}
                     onChange={(e) => setSettings({ ...settings, taxRateClearing: e.target.value === "" ? 0 : Number(e.target.value) })}
-                    className="text-right"
+                    className="text-start"
                     dir={appDir()}
                   />
                 </div>
@@ -1106,7 +1106,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {defaultAccountFields.map((field) => (
                   <div key={field.key} className="space-y-2">
-                    <Label className="text-right block">{field.label}</Label>
+                    <Label className="text-start block">{field.label}</Label>
                     <AutoCompleteAccount
                       label=""
                       value={settings[field.key as DefaultAccountFieldKey]}
@@ -1142,7 +1142,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {productAccountFields.map((field) => (
                   <div key={field.key} className="space-y-2">
-                    <Label className="text-right block">{field.label}</Label>
+                    <Label className="text-start block">{field.label}</Label>
                     <AutoCompleteAccount
                       label=""
                       value={settings[field.key as ProductAccountFieldKey]}
@@ -1190,21 +1190,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="orderPrefix" className="text-right block">
+                        <Label htmlFor="orderPrefix" className="text-start block">
                           {tr("بادئة طلبات المبيعات *")}
                         </Label>
                         <Input
                           id="orderPrefix"
                           value={settings.orderPrefix}
                           onChange={(e) => setSettings({ ...settings, orderPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                           disabled={numberingLocks.order}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="orderStart" className="text-right block">
+                        <Label htmlFor="orderStart" className="text-start block">
                           {tr("بداية ترقيم طلبات المبيعات *")}
                         </Label>
                         <Input
@@ -1216,7 +1216,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, orderStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                           disabled={numberingLocks.order}
@@ -1233,21 +1233,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="purchasePrefix" className="text-right block">
+                        <Label htmlFor="purchasePrefix" className="text-start block">
                           {tr("بادئة طلبات الشراء *")}
                         </Label>
                         <Input
                           id="purchasePrefix"
                           value={settings.purchasePrefix}
                           onChange={(e) => setSettings({ ...settings, purchasePrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                           disabled={numberingLocks.purchase}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="purchaseStart" className="text-right block">
+                        <Label htmlFor="purchaseStart" className="text-start block">
                           {tr("بداية ترقيم طلبات الشراء *")}
                         </Label>
                         <Input
@@ -1259,7 +1259,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, purchaseStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                           disabled={numberingLocks.purchase}
@@ -1276,21 +1276,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="receiptPrefix" className="text-right block">
+                        <Label htmlFor="receiptPrefix" className="text-start block">
                           {tr("بادئة سندات القبض *")}
                         </Label>
                         <Input
                           id="receiptPrefix"
                           value={settings.receiptPrefix}
                           onChange={(e) => setSettings({ ...settings, receiptPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="receiptStart" className="text-right block">
+                        <Label htmlFor="receiptStart" className="text-start block">
                           {tr("الترقيم يبدأ من (سندات القبض) *")}
                         </Label>
                         <Input
@@ -1303,7 +1303,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, receiptStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1319,21 +1319,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="paymentPrefix" className="text-right block">
+                        <Label htmlFor="paymentPrefix" className="text-start block">
                           {tr("بادئة سندات الصرف *")}
                         </Label>
                         <Input
                           id="paymentPrefix"
                           value={settings.paymentPrefix}
                           onChange={(e) => setSettings({ ...settings, paymentPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="paymentStart" className="text-right block">
+                        <Label htmlFor="paymentStart" className="text-start block">
                           {tr("الترقيم يبدأ من (سندات الصرف) *")}
                         </Label>
                         <Input
@@ -1346,7 +1346,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, paymentStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1362,21 +1362,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="creditNotePrefix" className="text-right block">
+                        <Label htmlFor="creditNotePrefix" className="text-start block">
                           {tr("بادئة الاشعار الدائن *")}
                         </Label>
                         <Input
                           id="creditNotePrefix"
                           value={settings.creditNotePrefix}
                           onChange={(e) => setSettings({ ...settings, creditNotePrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="creditNoteStart" className="text-right block">
+                        <Label htmlFor="creditNoteStart" className="text-start block">
                           {tr("الترقيم يبدأ من (الاشعار الدائن) *")}
                         </Label>
                         <Input
@@ -1389,7 +1389,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, creditNoteStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1405,21 +1405,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="debitNotePrefix" className="text-right block">
+                        <Label htmlFor="debitNotePrefix" className="text-start block">
                           {tr("بادئة الاشعار المدين *")}
                         </Label>
                         <Input
                           id="debitNotePrefix"
                           value={settings.debitNotePrefix}
                           onChange={(e) => setSettings({ ...settings, debitNotePrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="debitNoteStart" className="text-right block">
+                        <Label htmlFor="debitNoteStart" className="text-start block">
                           {tr("الترقيم يبدأ من (الاشعار المدين) *")}
                         </Label>
                         <Input
@@ -1432,7 +1432,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, debitNoteStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1448,21 +1448,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="stockInPrefix" className="text-right block">
+                        <Label htmlFor="stockInPrefix" className="text-start block">
                           {tr("بادئة سند ادخال بضاعة *")}
                         </Label>
                         <Input
                           id="stockInPrefix"
                           value={settings.stockInPrefix}
                           onChange={(e) => setSettings({ ...settings, stockInPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="stockInStart" className="text-right block">
+                        <Label htmlFor="stockInStart" className="text-start block">
                           {tr("الترقيم يبدأ من (سند ادخال بضاعة) *")}
                         </Label>
                         <Input
@@ -1475,7 +1475,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, stockInStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1491,21 +1491,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="stockOutPrefix" className="text-right block">
+                        <Label htmlFor="stockOutPrefix" className="text-start block">
                           {tr("بادئة سند اخراج بضاعة *")}
                         </Label>
                         <Input
                           id="stockOutPrefix"
                           value={settings.stockOutPrefix}
                           onChange={(e) => setSettings({ ...settings, stockOutPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="stockOutStart" className="text-right block">
+                        <Label htmlFor="stockOutStart" className="text-start block">
                           {tr("الترقيم يبدأ من (سند اخراج بضاعة) *")}
                         </Label>
                         <Input
@@ -1518,7 +1518,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, stockOutStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1534,21 +1534,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="internalDeliveryPrefix" className="text-right block">
+                        <Label htmlFor="internalDeliveryPrefix" className="text-start block">
                           {tr("بادئة ارسالية داخلية *")}
                         </Label>
                         <Input
                           id="internalDeliveryPrefix"
                           value={settings.internalDeliveryPrefix}
                           onChange={(e) => setSettings({ ...settings, internalDeliveryPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="internalDeliveryStart" className="text-right block">
+                        <Label htmlFor="internalDeliveryStart" className="text-start block">
                           {tr("الترقيم يبدأ من (ارسالية داخلية) *")}
                         </Label>
                         <Input
@@ -1561,7 +1561,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, internalDeliveryStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1577,21 +1577,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="useVoucherPrefix" className="text-right block">
+                        <Label htmlFor="useVoucherPrefix" className="text-start block">
                           {tr("بادئة سند استعمال *")}
                         </Label>
                         <Input
                           id="useVoucherPrefix"
                           value={settings.useVoucherPrefix}
                           onChange={(e) => setSettings({ ...settings, useVoucherPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="useVoucherStart" className="text-right block">
+                        <Label htmlFor="useVoucherStart" className="text-start block">
                           {tr("الترقيم يبدأ من (سند استعمال) *")}
                         </Label>
                         <Input
@@ -1604,7 +1604,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, useVoucherStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1635,21 +1635,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                       <div key={key} className="rounded-lg border border-border/70 bg-muted/20 p-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <Label htmlFor={`${key}Prefix`} className="text-right block">
+                            <Label htmlFor={`${key}Prefix`} className="text-start block">
                               {tr("بادئة ")}{label} *
                             </Label>
                             <Input
                               id={`${key}Prefix`}
                               value={prefixValue}
                               onChange={(e) => setSettings({ ...settings, [prefixKey]: e.target.value })}
-                              className="text-right"
+                              className="text-start"
                               dir={appDir()}
                               maxLength={3}
                               required
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`${key}Start`} className="text-right block">
+                            <Label htmlFor={`${key}Start`} className="text-start block">
                               {tr("الترقيم يبدأ من (")}{label}) *
                             </Label>
                             <Input
@@ -1662,7 +1662,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                                 const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                                 setSettings({ ...settings, [startKey]: value })
                               }}
-                              className="text-right"
+                              className="text-start"
                               dir={appDir()}
                               required
                             />
@@ -1680,21 +1680,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <Label htmlFor="journalPrefix" className="text-right block">
+                        <Label htmlFor="journalPrefix" className="text-start block">
                           {tr("بادئة سندات القيد *")}
                         </Label>
                         <Input
                           id="journalPrefix"
                           value={settings.journalPrefix}
                           onChange={(e) => setSettings({ ...settings, journalPrefix: e.target.value })}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
-                        <Label htmlFor="journalStart" className="text-right block">
+                        <Label htmlFor="journalStart" className="text-start block">
                           {tr("الترقيم يبدأ من (سندات القيد) *")}
                         </Label>
                         <Input
@@ -1707,7 +1707,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                             setSettings({ ...settings, journalStart: value })
                           }}
-                          className="text-right"
+                          className="text-start"
                           dir={appDir()}
                           required
                         />
@@ -1726,20 +1726,20 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                 <h3 className="text-lg font-semibold mb-4 text-start">{tr("إعدادات التعريفات (اختيارية)")}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="accountPrefix" className="text-right block">
+                    <Label htmlFor="accountPrefix" className="text-start block">
                       {tr("بادئة الحسابات المحاسبية")}
                     </Label>
                     <Input
                       id="accountPrefix"
                       value={settings.accountPrefix}
                       onChange={(e) => setSettings({ ...settings, accountPrefix: e.target.value })}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="A"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="accountStart" className="text-right block">
+                    <Label htmlFor="accountStart" className="text-start block">
                       {tr("بداية ترقيم الحسابات المحاسبية")}
                     </Label>
                     <Input
@@ -1751,7 +1751,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                         setSettings({ ...settings, accountStart: value })
                       }}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="1"
                     />
@@ -1764,20 +1764,20 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </div>
 
                   <div>
-                    <Label htmlFor="customerPrefix" className="text-right block">
+                    <Label htmlFor="customerPrefix" className="text-start block">
                       {tr("بادئة العملاء")}
                     </Label>
                     <Input
                       id="customerPrefix"
                       value={settings.customerPrefix}
                       onChange={(e) => setSettings({ ...settings, customerPrefix: e.target.value })}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="C"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="customerStart" className="text-right block">
+                    <Label htmlFor="customerStart" className="text-start block">
                       {tr("بداية ترقيم العملاء")}
                     </Label>
                     <Input
@@ -1789,7 +1789,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                         setSettings({ ...settings, customerStart: value })
                       }}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="1"
                     />
@@ -1802,44 +1802,44 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </div>
 
                   <div>
-                    <Label htmlFor="salesmanPrefix" className="text-right block">{tr("بادئة المندوبين")}</Label>
-                    <Input id="salesmanPrefix" value={settings.salesmanPrefix} onChange={(e) => setSettings({ ...settings, salesmanPrefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9) })} className="text-right" dir={appDir()} placeholder="M" />
+                    <Label htmlFor="salesmanPrefix" className="text-start block">{tr("بادئة المندوبين")}</Label>
+                    <Input id="salesmanPrefix" value={settings.salesmanPrefix} onChange={(e) => setSettings({ ...settings, salesmanPrefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9) })} className="text-start" dir={appDir()} placeholder="M" />
                   </div>
                   <div>
-                    <Label htmlFor="salesmanStart" className="text-right block">{tr("الترقيم يبدأ من")}</Label>
-                    <Input id="salesmanStart" type="number" min="1" value={settings.salesmanStart} onChange={(e) => setSettings({ ...settings, salesmanStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir={appDir()} placeholder="1" />
+                    <Label htmlFor="salesmanStart" className="text-start block">{tr("الترقيم يبدأ من")}</Label>
+                    <Input id="salesmanStart" type="number" min="1" value={settings.salesmanStart} onChange={(e) => setSettings({ ...settings, salesmanStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-start" dir={appDir()} placeholder="1" />
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">{tr("مثال: ")}{settings.salesmanPrefix}{String(settings.salesmanStart).padStart(Math.max(1, 10 - settings.salesmanPrefix.length), "0")}</div>
                   </div>
 
                   <div>
-                    <Label htmlFor="employeePrefix" className="text-right block">{tr("بادئة الموظفين")}</Label>
-                    <Input id="employeePrefix" value={settings.employeePrefix} onChange={(e) => setSettings({ ...settings, employeePrefix: e.target.value })} className="text-right" dir={appDir()} placeholder="E" />
+                    <Label htmlFor="employeePrefix" className="text-start block">{tr("بادئة الموظفين")}</Label>
+                    <Input id="employeePrefix" value={settings.employeePrefix} onChange={(e) => setSettings({ ...settings, employeePrefix: e.target.value })} className="text-start" dir={appDir()} placeholder="E" />
                   </div>
                   <div>
-                    <Label htmlFor="employeeStart" className="text-right block">{tr("الرقم يبدأ من")}</Label>
-                    <Input id="employeeStart" type="number" min="1" value={settings.employeeStart} onChange={(e) => setSettings({ ...settings, employeeStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir={appDir()} placeholder="1" />
+                    <Label htmlFor="employeeStart" className="text-start block">{tr("الرقم يبدأ من")}</Label>
+                    <Input id="employeeStart" type="number" min="1" value={settings.employeeStart} onChange={(e) => setSettings({ ...settings, employeeStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-start" dir={appDir()} placeholder="1" />
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">{tr("مثال: ")}{settings.employeePrefix}{String(settings.employeeStart).padStart(Math.max(1, 10 - settings.employeePrefix.length), "0")}</div>
                   </div>
 
                   <div>
-                    <Label htmlFor="supplierPrefix" className="text-right block">
+                    <Label htmlFor="supplierPrefix" className="text-start block">
                       {tr("بادئة الموردين")}
                     </Label>
                     <Input
                       id="supplierPrefix"
                       value={settings.supplierPrefix}
                       onChange={(e) => setSettings({ ...settings, supplierPrefix: e.target.value })}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="S"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="supplierStart" className="text-right block">
+                    <Label htmlFor="supplierStart" className="text-start block">
                       {tr("بداية ترقيم الموردين")}
                     </Label>
                     <Input
@@ -1851,7 +1851,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                         setSettings({ ...settings, supplierStart: value })
                       }}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="1"
                     />
@@ -1864,20 +1864,20 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </div>
 
                   <div>
-                    <Label htmlFor="itemGroupPrefix" className="text-right block">
+                    <Label htmlFor="itemGroupPrefix" className="text-start block">
                       {tr("بادئة مجموعات الأصناف")}
                     </Label>
                     <Input
                       id="itemGroupPrefix"
                       value={settings.itemGroupPrefix}
                       onChange={(e) => setSettings({ ...settings, itemGroupPrefix: e.target.value })}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="G"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="itemGroupStart" className="text-right block">
+                    <Label htmlFor="itemGroupStart" className="text-start block">
                       {tr("بداية ترقيم مجموعات الأصناف")}
                     </Label>
                     <Input
@@ -1889,7 +1889,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                         setSettings({ ...settings, itemGroupStart: value })
                       }}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="1"
                     />
@@ -1902,7 +1902,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   </div>
 
                   <div>
-                    <Label htmlFor="itemStart" className="text-right block">
+                    <Label htmlFor="itemStart" className="text-start block">
                       {tr("بداية ترقيم الأصناف")}
                     </Label>
                     <Input
@@ -1914,7 +1914,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
                         setSettings({ ...settings, itemStart: value })
                       }}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       placeholder="1"
                     />

@@ -227,22 +227,22 @@ export const FontSettings: React.FC = () => {
         {/* Font Family Settings */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-right flex items-center gap-2">
+            <CardTitle className="text-start flex items-center gap-2">
               <Type className="h-5 w-5" />
               {tr("نوع الخط")}
             </CardTitle>
-            <CardDescription className="text-right">{tr("اختر نوع الخط المناسب للنظام")}</CardDescription>
+            <CardDescription className="text-start">{tr("اختر نوع الخط المناسب للنظام")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-right block">{tr("عائلة الخط")}</Label>
+              <Label className="text-start block">{tr("عائلة الخط")}</Label>
               <Select value={settings.fontFamily} onValueChange={(value) => updateSettings({ fontFamily: value })}>
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {fontFamilies.map((font) => (
-                    <SelectItem key={font.value} value={font.value} className="text-right">
+                    <SelectItem key={font.value} value={font.value} className="text-start">
                       <span style={{ fontFamily: font.value }}>{font.label}</span>
                     </SelectItem>
                   ))}
@@ -251,14 +251,14 @@ export const FontSettings: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-right block">{tr("وزن الخط")}</Label>
+              <Label className="text-start block">{tr("وزن الخط")}</Label>
               <Select value={settings.fontWeight} onValueChange={(value) => updateSettings({ fontWeight: value })}>
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {fontWeights.map((weight) => (
-                    <SelectItem key={weight.value} value={weight.value} className="text-right">
+                    <SelectItem key={weight.value} value={weight.value} className="text-start">
                       <span style={{ fontWeight: weight.value }}>{weight.label}</span>
                     </SelectItem>
                   ))}
@@ -271,17 +271,17 @@ export const FontSettings: React.FC = () => {
         {/* Font Size and Spacing Settings */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-right flex items-center gap-2">
+            <CardTitle className="text-start flex items-center gap-2">
               <Palette className="h-5 w-5" />
               {tr("حجم الخط والمسافات")}
             </CardTitle>
-            <CardDescription className="text-right">{tr("تحكم في حجم الخط والمسافات بين الأحرف والأسطر")}</CardDescription>
+            <CardDescription className="text-start">{tr("تحكم في حجم الخط والمسافات بين الأحرف والأسطر")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{settings.fontSize}px</span>
-                <Label className="text-right">{tr("حجم الخط")}</Label>
+                <Label className="text-start">{tr("حجم الخط")}</Label>
               </div>
               <Slider
                 value={[settings.fontSize]}
@@ -317,7 +317,7 @@ export const FontSettings: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{settings.lineHeight}</span>
-                <Label className="text-right">{tr("ارتفاع السطر")}</Label>
+                <Label className="text-start">{tr("ارتفاع السطر")}</Label>
               </div>
               <Slider
                 value={[settings.lineHeight]}
@@ -334,7 +334,7 @@ export const FontSettings: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{settings.letterSpacing}px</span>
-                <Label className="text-right">{tr("المسافة بين الأحرف")}</Label>
+                <Label className="text-start">{tr("المسافة بين الأحرف")}</Label>
               </div>
               <Slider
                 value={[settings.letterSpacing]}
@@ -352,8 +352,8 @@ export const FontSettings: React.FC = () => {
       {/* DataGridView Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-right">{tr("إعدادات جداول البيانات")}</CardTitle>
-          <CardDescription className="text-right">{tr("تخصيص رأس الجدول والصفوف والصف المحدد في جميع شاشات النظام")}</CardDescription>
+          <CardTitle className="text-start">{tr("إعدادات جداول البيانات")}</CardTitle>
+          <CardDescription className="text-start">{tr("تخصيص رأس الجدول والصفوف والصف المحدد في جميع شاشات النظام")}</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
@@ -385,10 +385,10 @@ export const FontSettings: React.FC = () => {
           <div className="space-y-2">
             <Label className="block text-start">{tr("نوع خط رأس الجدول")}</Label>
             <Select value={settings.gridHeaderFontFamily} onValueChange={(value) => updateSettings({ gridHeaderFontFamily: value })}>
-              <SelectTrigger className="text-right"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="text-start"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {fontFamilies.map((font) => (
-                  <SelectItem key={`grid-${font.value}`} value={font.value} className="text-right">
+                  <SelectItem key={`grid-${font.value}`} value={font.value} className="text-start">
                     <span style={{ fontFamily: font.value }}>{font.label}</span>
                   </SelectItem>
                 ))}
@@ -442,7 +442,7 @@ export const FontSettings: React.FC = () => {
             <PanelsTopLeft className="h-5 w-5" />
             {tr("قوالب شريط الأوامر")}
           </CardTitle>
-          <CardDescription className="text-right">{tr("اختر شكل شريط الأوامر الموحد في شاشات النظام")}</CardDescription>
+          <CardDescription className="text-start">{tr("اختر شكل شريط الأوامر الموحد في شاشات النظام")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {toolbarTemplates.map((template) => {
@@ -459,7 +459,7 @@ export const FontSettings: React.FC = () => {
                 <div className={`mb-3 items-center gap-1.5 border p-2 ${template.id === "gradient" || template.id === "classic" ? "grid h-24 grid-cols-2" : "flex h-14"} ${template.surface}`}>
                   <span className={`block ${template.id === "gradient" ? "h-10 w-12" : template.id === "compact" ? "h-5 w-5" : "h-7 w-10"} ${template.primary}`} />
                   <span className={`block ${template.id === "gradient" ? "h-10 w-12" : template.id === "compact" ? "h-5 w-5" : "h-7 w-10"} ${template.save}`} />
-                  <span className={`block h-7 ${template.id === "gradient" ? "col-span-2 w-full" : template.id === "classic" ? "order-first col-span-2 w-full" : "mr-auto w-20"} ${template.navigation}`}><span className="mx-auto mt-2 block h-1.5 w-10 rounded-full bg-slate-500/50" /></span>
+                  <span className={`block h-7 ${template.id === "gradient" ? "col-span-2 w-full" : template.id === "classic" ? "order-first col-span-2 w-full" : "ms-auto w-20"} ${template.navigation}`}><span className="mx-auto mt-2 block h-1.5 w-10 rounded-full bg-slate-500/50" /></span>
                 </div>
                 <div className="font-bold text-foreground">{template.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">{template.description}</div>
@@ -472,8 +472,8 @@ export const FontSettings: React.FC = () => {
       {/* Preview Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-right">{tr("معاينة الخط")}</CardTitle>
-          <CardDescription className="text-right">{tr("شاهد كيف ستبدو النصوص بالإعدادات الحالية")}</CardDescription>
+          <CardTitle className="text-start">{tr("معاينة الخط")}</CardTitle>
+          <CardDescription className="text-start">{tr("شاهد كيف ستبدو النصوص بالإعدادات الحالية")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div
@@ -488,7 +488,7 @@ export const FontSettings: React.FC = () => {
           >
             <h3 className="text-xl font-bold text-start">{tr("عنوان رئيسي")}</h3>
             <h4 className="text-lg font-semibold text-start">{tr("عنوان فرعي")}</h4>
-            <p className="text-right">
+            <p className="text-start">
               {tr("هذا نص تجريبي لمعاينة الخط المحدد. يمكنك رؤية كيف ستبدو النصوص في النظام بالإعدادات الحالية. النص العربي يحتاج إلى خطوط مناسبة لضمان الوضوح والقراءة السهلة.")}
             </p>
             <div className="flex gap-4 text-sm text-start">

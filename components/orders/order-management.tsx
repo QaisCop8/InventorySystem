@@ -352,7 +352,7 @@ export const OrderManagement: React.FC = () => {
           <span>{errorMessage}</span>
           <button
             onClick={() => setErrorMessage(null)}
-            className="ml-4 font-bold text-red-900 hover:text-red-700"
+            className="me-4 font-bold text-red-900 hover:text-red-700"
           >
             ✕
           </button>
@@ -407,7 +407,7 @@ export const OrderManagement: React.FC = () => {
                   onChange={e =>
                     setState(prev => ({ ...prev, filters: { ...prev.filters, search: e.target.value } }))
                   }
-                  className="pr-10 bg-white border-slate-200"
+                  className="ps-10 bg-white border-slate-200"
                 />
               </div>
             </div>

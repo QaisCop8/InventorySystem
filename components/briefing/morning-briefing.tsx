@@ -134,7 +134,7 @@ export default function MorningBriefing() {
                   <tbody>{data.sales.current.map((row) => {
                     const last = data.sales.lastWeek.find((item) => item.branch_id === row.branch_id)
                     const lastNet = last ? last.sales - last.returns : 0, net = row.sales - row.returns
-                    return <tr key={String(row.branch_id)} className="border-t border-slate-100 dark:border-slate-800"><td className="py-2 font-semibold">{row.branch_name}<span className="mr-2 text-xs font-normal text-slate-400">{row.invoices}{tr(" فاتورة")}</span></td><td className="py-2 text-end tabular-nums font-bold" dir="ltr">{money(net)}</td><td className={`py-2 text-end tabular-nums text-xs ${net >= lastNet ? "text-emerald-600" : "text-rose-600"}`} dir="ltr">{money(lastNet)}</td></tr>
+                    return <tr key={String(row.branch_id)} className="border-t border-slate-100 dark:border-slate-800"><td className="py-2 font-semibold">{row.branch_name}<span className="ms-2 text-xs font-normal text-slate-400">{row.invoices}{tr(" فاتورة")}</span></td><td className="py-2 text-end tabular-nums font-bold" dir="ltr">{money(net)}</td><td className={`py-2 text-end tabular-nums text-xs ${net >= lastNet ? "text-emerald-600" : "text-rose-600"}`} dir="ltr">{money(lastNet)}</td></tr>
                   })}</tbody>
                 </table>
               ) : <Empty text={tr("لا توجد مبيعات في هذا اليوم")} />}
@@ -155,12 +155,12 @@ export default function MorningBriefing() {
 
             <Card title={tr("شيكات تستحق خلال أسبوع")} icon={<CalendarClock className="h-4 w-4" />} tone="bg-indigo-50 text-indigo-600 dark:bg-indigo-400/10" badge={data.cheques.dueCount ? <span className="text-xs font-bold text-indigo-700 tabular-nums">{data.cheques.dueCount}{tr(" شيك · ")}{money(data.cheques.dueAmount)} {currency}</span> : null}>
               {data.cheques.items.length ? (
-                <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">{data.cheques.items.map((row, index) => <li key={index} className="flex items-center justify-between gap-2 py-2"><span><b className="ml-2 tabular-nums" dir="ltr">{row.due_date}</b>{row.owner} <span className="text-xs text-slate-400">#{row.cheq_num}</span></span><b className="tabular-nums" dir="ltr">{money(row.amount)} {row.currency_code}</b></li>)}</ul>
+                <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">{data.cheques.items.map((row, index) => <li key={index} className="flex items-center justify-between gap-2 py-2"><span><b className="me-2 tabular-nums" dir="ltr">{row.due_date}</b>{row.owner} <span className="text-xs text-slate-400">#{row.cheq_num}</span></span><b className="tabular-nums" dir="ltr">{money(row.amount)} {row.currency_code}</b></li>)}</ul>
               ) : <Empty text={tr("لا شيكات واردة تستحق هذا الأسبوع")} />}
             </Card>
 
             <Card title={tr("الذمم المدينة")} icon={<Users className="h-4 w-4" />} tone="bg-orange-50 text-orange-600 dark:bg-orange-400/10" badge={<span className="text-xs font-bold tabular-nums text-orange-700" dir="ltr">{money(data.receivables.total)} {currency}</span>}>
-              <p className="mb-2 text-xs text-slate-500">{data.receivables.customers}{tr(" عميل برصيد مدين")}{data.receivables.overLimit ? <b className="mr-1 text-rose-600">· {data.receivables.overLimit}{tr(" تجاوزوا السقف")}</b> : null}</p>
+              <p className="mb-2 text-xs text-slate-500">{data.receivables.customers}{tr(" عميل برصيد مدين")}{data.receivables.overLimit ? <b className="ms-1 text-rose-600">· {data.receivables.overLimit}{tr(" تجاوزوا السقف")}</b> : null}</p>
               {data.receivables.top.length ? (
                 <ul className="divide-y divide-slate-100 text-sm dark:divide-slate-800">{data.receivables.top.map((row) => <li key={row.id} className="flex items-center justify-between gap-2 py-2"><span>{row.name} <span className="text-xs text-slate-400">{row.code}</span></span><b className={`tabular-nums ${row.limit > 0 && row.balance > row.limit ? "text-rose-600" : ""}`} dir="ltr">{money(row.balance)}</b></li>)}</ul>
               ) : <Empty text={tr("لا أرصدة مدينة")} />}
@@ -174,10 +174,10 @@ export default function MorningBriefing() {
 
             <Card title={tr("صافي اليوم")} icon={<Wallet className="h-4 w-4" />} tone="bg-teal-50 text-teal-600 dark:bg-teal-400/10">
               <dl className="grid grid-cols-2 gap-2 text-sm">
-                <dt className="text-slate-500">{tr("المبيعات")}</dt><dd className="text-left font-bold tabular-nums" dir="ltr">{money(totals.sales)}</dd>
-                <dt className="text-slate-500">{tr("المردودات")}</dt><dd className="text-left font-bold tabular-nums text-amber-600" dir="ltr">{money(totals.returns)}</dd>
-                <dt className="text-slate-500">{tr("الصافي")}</dt><dd className="text-left font-black tabular-nums" dir="ltr">{money(totals.net)}</dd>
-                <dt className="text-slate-500">{tr("المقبوضات")}</dt><dd className="text-left font-bold tabular-nums text-teal-700" dir="ltr">{money(totals.receipts)}</dd>
+                <dt className="text-slate-500">{tr("المبيعات")}</dt><dd className="text-end font-bold tabular-nums" dir="ltr">{money(totals.sales)}</dd>
+                <dt className="text-slate-500">{tr("المردودات")}</dt><dd className="text-end font-bold tabular-nums text-amber-600" dir="ltr">{money(totals.returns)}</dd>
+                <dt className="text-slate-500">{tr("الصافي")}</dt><dd className="text-end font-black tabular-nums" dir="ltr">{money(totals.net)}</dd>
+                <dt className="text-slate-500">{tr("المقبوضات")}</dt><dd className="text-end font-bold tabular-nums text-teal-700" dir="ltr">{money(totals.receipts)}</dd>
               </dl>
               <p className="mt-3 flex items-center gap-1 text-[11px] text-slate-400"><FileWarning className="h-3 w-3" />{tr("المبالغ بعملة الأساس ")}{data.currency.name}{tr(" · حُدّثت ")}{new Date(data.generated_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p>
             </Card>

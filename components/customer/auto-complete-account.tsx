@@ -489,7 +489,7 @@ export default function AutoCompleteAccount({
           }}
           maxLength={100}
           placeholder={placeholder}
-          className={`text-right ${inputClassName}`}
+          className={`text-start ${inputClassName}`}
           disabled={disabled}
           autoComplete="off"
           inputMode="text"

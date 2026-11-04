@@ -477,7 +477,7 @@ export function InventoryAnalytics() {
                         <p className="font-medium">{forecast.product}</p>
                         <p className="text-sm text-muted-foreground">{tr("الطلب المتوقع: ")}{forecast.predictedDemand}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <p className="text-sm font-medium">{tr("الثقة: ")}{forecast.confidence}%</p>
                         <div className="w-16 bg-muted/30 rounded-full h-2 mt-1">
                           <div className="h-2 rounded-full bg-primary" style={{ width: `${forecast.confidence}%` }} />

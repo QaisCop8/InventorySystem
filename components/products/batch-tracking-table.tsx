@@ -301,20 +301,20 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">{tr("رقم الدفعة")}</TableHead>
-                  <TableHead className="text-right">{tr("تاريخ الإنتاج")}</TableHead>
-                  <TableHead className="text-right">{tr("تاريخ الانتهاء")}</TableHead>
-                  <TableHead className="text-right">{tr("حالة الصلاحية")}</TableHead>
-                  <TableHead className="text-right">{tr("المورد")}</TableHead>
-                  <TableHead className="text-right">{tr("الكمية الأولية")}</TableHead>
-                  <TableHead className="text-right">{tr("الكمية الحالية")}</TableHead>
-                  <TableHead className="text-right">{tr("محجوز")}</TableHead>
-                  <TableHead className="text-right">{tr("متاح")}</TableHead>
-                  <TableHead className="text-right">{tr("تكلفة الوحدة")}</TableHead>
-                  <TableHead className="text-right">{tr("المستودع")}</TableHead>
-                  <TableHead className="text-right">{tr("الموقع")}</TableHead>
-                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                  {!readOnly && <TableHead className="text-right">{tr("الإجراءات")}</TableHead>}
+                  <TableHead className="text-start">{tr("رقم الدفعة")}</TableHead>
+                  <TableHead className="text-start">{tr("تاريخ الإنتاج")}</TableHead>
+                  <TableHead className="text-start">{tr("تاريخ الانتهاء")}</TableHead>
+                  <TableHead className="text-start">{tr("حالة الصلاحية")}</TableHead>
+                  <TableHead className="text-start">{tr("المورد")}</TableHead>
+                  <TableHead className="text-start">{tr("الكمية الأولية")}</TableHead>
+                  <TableHead className="text-start">{tr("الكمية الحالية")}</TableHead>
+                  <TableHead className="text-start">{tr("محجوز")}</TableHead>
+                  <TableHead className="text-start">{tr("متاح")}</TableHead>
+                  <TableHead className="text-start">{tr("تكلفة الوحدة")}</TableHead>
+                  <TableHead className="text-start">{tr("المستودع")}</TableHead>
+                  <TableHead className="text-start">{tr("الموقع")}</TableHead>
+                  <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                  {!readOnly && <TableHead className="text-start">{tr("الإجراءات")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>

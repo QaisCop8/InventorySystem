@@ -207,7 +207,7 @@ export default function VoucherPostingTools() {
           <p className="mt-1 text-sm text-slate-500">{tr("اختر الفترة ونوع السند، ثم حدد السندات المراد ترحيلها.")}</p>
         </div>
         <Button variant="outline" onClick={() => void load()} disabled={loading || posting}>
-          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <RefreshCw className="ml-2 h-4 w-4" />}{tr("تحديث")}
+          {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <RefreshCw className="me-2 h-4 w-4" />}{tr("تحديث")}
         </Button>
       </header>
 
@@ -216,7 +216,7 @@ export default function VoucherPostingTools() {
         <div className="space-y-1.5"><Label htmlFor="posting-to">{tr("إلى تاريخ")}</Label><Input id="posting-to" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div>
         <ReportMultiChoice label={tr("نوع السند")} options={types} selected={voucherTypeIds} onChange={setVoucherTypeIds} placeholder={tr("كل الأنواع المسموح بها")} />
         <Button onClick={() => void load()} disabled={loading || posting}>
-          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}{tr("بحث")}
+          {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}{tr("بحث")}
         </Button>
       </section>
 

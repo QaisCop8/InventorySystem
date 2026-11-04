@@ -149,8 +149,8 @@ export default function DiscountCards() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button size="sm" className="bg-teal-500 hover:bg-teal-600" onClick={openNew}><Plus className="ml-1 h-4 w-4" />{tr("بطاقة جديدة")}</Button>
+          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button size="sm" className="bg-teal-500 hover:bg-teal-600" onClick={openNew}><Plus className="me-1 h-4 w-4" />{tr("بطاقة جديدة")}</Button>
         </div>
       </header>
 
@@ -181,13 +181,13 @@ export default function DiscountCards() {
           <div className="flex flex-col items-center gap-2 py-10 text-sm text-slate-500">
             <CreditCard className="h-8 w-8 text-slate-300" />
             {cards.length ? tr("لا توجد بطاقات مطابقة") : tr("لا توجد بطاقات خصم بعد")}
-            {!cards.length && <Button size="sm" variant="outline" onClick={openNew}><Plus className="ml-1 h-4 w-4" />{tr("إنشاء أول بطاقة")}</Button>}
+            {!cards.length && <Button size="sm" variant="outline" onClick={openNew}><Plus className="me-1 h-4 w-4" />{tr("إنشاء أول بطاقة")}</Button>}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800/60">
-                <tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:text-right [&>th]:font-bold">
+                <tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:text-start [&>th]:font-bold">
                   <th>{tr("رقم البطاقة")}</th><th>{tr("العميل")}</th><th>{tr("الخصم")}</th><th>{tr("الشروط")}</th><th>{tr("الصلاحية")}</th><th>{tr("الاستخدام")}</th><th>{tr("الحالة")}</th><th />
                 </tr>
               </thead>
@@ -205,7 +205,7 @@ export default function DiscountCards() {
                         {card.branch_name && <div>{tr("فرع ")}{card.branch_name}</div>}
                         {!(Number(card.min_invoice_amount) > 0) && !(Number(card.max_discount_amount) > 0) && !card.branch_name && <span className="text-slate-400">{tr("بدون شروط")}</span>}
                       </td>
-                      <td className="whitespace-nowrap text-xs"><CalendarRange className="ml-1 inline h-3.5 w-3.5 text-slate-400" />{card.start_date} ← {card.end_date}</td>
+                      <td className="whitespace-nowrap text-xs"><CalendarRange className="me-1 inline h-3.5 w-3.5 text-slate-400" />{card.start_date} ← {card.end_date}</td>
                       <td className="tabular-nums">{card.used_count}{card.max_uses > 0 ? ` / ${card.max_uses}` : ""}</td>
                       <td><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${state.tone}`}>{state.label}</span></td>
                       <td className="whitespace-nowrap text-end">
@@ -236,7 +236,7 @@ export default function DiscountCards() {
               </div>
               <div>
                 <Label>{tr("رقم البطاقة")}</Label>
-                <Input dir="ltr" className="text-right font-mono" placeholder={tr("يُولَّد تلقائياً إن تُرك فارغاً")} value={form.card_number} onChange={(event) => set({ card_number: event.target.value })} />
+                <Input dir="ltr" className="text-start font-mono" placeholder={tr("يُولَّد تلقائياً إن تُرك فارغاً")} value={form.card_number} onChange={(event) => set({ card_number: event.target.value })} />
               </div>
               <div>
                 <Label>{tr("الفرع (اختياري)")}</Label>
@@ -275,7 +275,7 @@ export default function DiscountCards() {
           )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setForm(null)} disabled={saving}>{tr("إلغاء")}</Button>
-            <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
+            <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -167,7 +167,7 @@ export default function ManagerAttachments() {
 
           <div className="flex justify-end">
             <Button onClick={() => void send()} disabled={sending} className="min-w-36">
-              {sending ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Send className="ml-2 h-4 w-4" />}{tr("إرسال")}
+              {sending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Send className="me-2 h-4 w-4" />}{tr("إرسال")}
             </Button>
           </div>
         </section>

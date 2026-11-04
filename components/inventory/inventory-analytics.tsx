@@ -178,11 +178,11 @@ export function InventoryAnalytics() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-right p-2">{tr("المنتج")}</th>
-                  <th className="text-right p-2">{tr("الفئة")}</th>
-                  <th className="text-right p-2">{tr("المخزون")}</th>
-                  <th className="text-right p-2">{tr("المبيعات")}</th>
-                  <th className="text-right p-2">{tr("الحالة")}</th>
+                  <th className="text-start p-2">{tr("المنتج")}</th>
+                  <th className="text-start p-2">{tr("الفئة")}</th>
+                  <th className="text-start p-2">{tr("المخزون")}</th>
+                  <th className="text-start p-2">{tr("المبيعات")}</th>
+                  <th className="text-start p-2">{tr("الحالة")}</th>
                 </tr>
               </thead>
               <tbody>

@@ -285,13 +285,13 @@ export function InitialQuantitiesDialog({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-right">{tr("المستودع")}</TableHead>
-                      <TableHead className="text-right">{tr("الكمية")}</TableHead>
-                      <TableHead className="text-right">{tr("تكلفة الوحدة")}</TableHead>
-                      {hasBatchTracking && <TableHead className="text-right">{tr("رقم الدفعة")}</TableHead>}
-                      {hasExpiryTracking && <TableHead className="text-right">{tr("تاريخ الإنتاج")}</TableHead>}
-                      {hasExpiryTracking && <TableHead className="text-right">{tr("تاريخ الانتهاء")}</TableHead>}
-                      <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
+                      <TableHead className="text-start">{tr("المستودع")}</TableHead>
+                      <TableHead className="text-start">{tr("الكمية")}</TableHead>
+                      <TableHead className="text-start">{tr("تكلفة الوحدة")}</TableHead>
+                      {hasBatchTracking && <TableHead className="text-start">{tr("رقم الدفعة")}</TableHead>}
+                      {hasExpiryTracking && <TableHead className="text-start">{tr("تاريخ الإنتاج")}</TableHead>}
+                      {hasExpiryTracking && <TableHead className="text-start">{tr("تاريخ الانتهاء")}</TableHead>}
+                      <TableHead className="text-start">{tr("الإجراءات")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -320,7 +320,7 @@ export function InitialQuantitiesDialog({
                             min="0"
                             value={qty.quantity}
                             onChange={(e) => updateQuantity(qty.id, "quantity", Number(e.target.value) || 0)}
-                            className="text-right"
+                            className="text-start"
                           />
                         </TableCell>
                         <TableCell>
@@ -330,7 +330,7 @@ export function InitialQuantitiesDialog({
                             step="0.01"
                             value={qty.cost_per_unit || ""}
                             onChange={(e) => updateQuantity(qty.id, "cost_per_unit", Number(e.target.value) || 0)}
-                            className="text-right"
+                            className="text-start"
                             placeholder="0.00"
                           />
                         </TableCell>
@@ -339,7 +339,7 @@ export function InitialQuantitiesDialog({
                             <Input
                               value={qty.lot_number || ""}
                               onChange={(e) => updateQuantity(qty.id, "lot_number", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                               placeholder={tr("رقم الدفعة")}
                             />
                           </TableCell>
@@ -350,7 +350,7 @@ export function InitialQuantitiesDialog({
                               type="date"
                               value={qty.manufacturing_date || ""}
                               onChange={(e) => updateQuantity(qty.id, "manufacturing_date", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                             />
                           </TableCell>
                         )}
@@ -360,7 +360,7 @@ export function InitialQuantitiesDialog({
                               type="date"
                               value={qty.expiry_date || ""}
                               onChange={(e) => updateQuantity(qty.id, "expiry_date", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                             />
                           </TableCell>
                         )}

@@ -160,7 +160,7 @@ export function BarcodeGenerator() {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, successMessage: null }))}
           >
             <X className="h-4 w-4" />
@@ -176,7 +176,7 @@ export function BarcodeGenerator() {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, error: null }))}
           >
             <X className="h-4 w-4" />

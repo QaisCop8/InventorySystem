@@ -98,7 +98,7 @@ export default function SearchAccountClassificationDialog({
             </div>
             <div>
               <span className="text-sm font-medium">{tr("النوع:")}</span>
-              <span className="mr-2 text-sm">{type?.name || "-"}</span>
+              <span className="ms-2 text-sm">{type?.name || "-"}</span>
             </div>
           </div>
 
@@ -108,7 +108,7 @@ export default function SearchAccountClassificationDialog({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={tr("ابحث باسم التصنيف")}
-              className="text-right"
+              className="text-start"
             />
           </div>
 

@@ -82,7 +82,7 @@ export function TablePickerDialog(props: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
-          <Button disabled={!selected.length || busy} onClick={() => onConfirm(selected)}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{confirmLabel || tr("تأكيد")}</Button>
+          <Button disabled={!selected.length || busy} onClick={() => onConfirm(selected)}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{confirmLabel || tr("تأكيد")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -127,10 +127,10 @@ export function ItemEditDialog(props: {
           <div className="space-y-1"><Label>{tr("ملاحظة للمطبخ")}</Label><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("بدون بصل، حار...")} /></div>
         </div>
         <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between">
-          {canDelete ? <Button variant="outline" className="text-red-600" disabled={busy} onClick={onDelete}><Trash2 className="ml-1 h-4 w-4" />{tr("حذف")}</Button> : <span />}
+          {canDelete ? <Button variant="outline" className="text-red-600" disabled={busy} onClick={onDelete}><Trash2 className="me-1 h-4 w-4" />{tr("حذف")}</Button> : <span />}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
-            <Button disabled={busy || !(quantity > 0)} onClick={() => onSave({ quantity, discount, note, unitId })}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />{tr("حفظ")}</Button>
+            <Button disabled={busy || !(quantity > 0)} onClick={() => onSave({ quantity, discount, note, unitId })}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}<Check className="me-1 h-4 w-4" />{tr("حفظ")}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -246,7 +246,7 @@ export function AddonsDialog(props: {
                   return (
                     <button key={value} type="button" onClick={() => toggle(group.name, value)}
                       className={`min-h-11 rounded-full border-2 px-4 text-sm font-semibold transition ${active ? "border-rose-600 bg-rose-600 text-white" : "border-slate-200 bg-background hover:border-rose-300"}`}>
-                      {active && <Check className="ml-1 inline h-4 w-4" />}{value}
+                      {active && <Check className="me-1 inline h-4 w-4" />}{value}
                     </button>
                   )
                 })}
@@ -259,7 +259,7 @@ export function AddonsDialog(props: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
-          <Button disabled={busy} onClick={save}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />{tr("حفظ")}</Button>
+          <Button disabled={busy} onClick={save}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}<Check className="me-1 h-4 w-4" />{tr("حفظ")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -313,7 +313,7 @@ export function ValueDialog(props: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
-          <Button className="h-11" disabled={busy} onClick={submit}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />{tr("حفظ")}</Button>
+          <Button className="h-11" disabled={busy} onClick={submit}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}<Check className="me-1 h-4 w-4" />{tr("حفظ")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

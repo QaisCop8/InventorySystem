@@ -663,7 +663,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   placeholder={tr("رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة...")}
                   value={filterDraft.search}
                   onChange={(e) => setDraftFilter({ search: e.target.value })}
-                  className="pr-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                  className="ps-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -821,7 +821,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   }))
                 }
               >
-                <Plus className="ml-2 h-4 w-4" />
+                <Plus className="me-2 h-4 w-4" />
                 {tr("إنشاء طلبية جديدة")}
               </Button>
             </div>
@@ -920,7 +920,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                               disabled={draftLoading}
                               onClick={() => void openSourceDraft(order)}
                             >
-                              <FileText className="ml-1 h-4 w-4" />
+                              <FileText className="me-1 h-4 w-4" />
                               {tr("فتح المسودة")}
                             </Button>
                           )}
@@ -957,15 +957,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="text-right p-4">##</th>
-                      <th className="text-right p-4">{tr("رقم الطلبية")}</th>
-                      <th className="text-right p-4">{tr("التاريخ")}</th>
-                      <th className="text-right p-4">{tr("العميل")}</th>
-                      <th className="text-right p-4">{tr("الحالة")}</th>
-                      <th className="text-right p-4">{tr("السند اليدوي")}</th>
-                      <th className="text-right p-4">{tr("رقم طلبية العميل")}</th>
-                      <th className="text-right p-4">{tr("المبلغ")}</th>
-                      <th className="text-right p-4">{tr("استلمت بواسطة")}</th>
+                      <th className="text-start p-4">##</th>
+                      <th className="text-start p-4">{tr("رقم الطلبية")}</th>
+                      <th className="text-start p-4">{tr("التاريخ")}</th>
+                      <th className="text-start p-4">{tr("العميل")}</th>
+                      <th className="text-start p-4">{tr("الحالة")}</th>
+                      <th className="text-start p-4">{tr("السند اليدوي")}</th>
+                      <th className="text-start p-4">{tr("رقم طلبية العميل")}</th>
+                      <th className="text-start p-4">{tr("المبلغ")}</th>
+                      <th className="text-start p-4">{tr("استلمت بواسطة")}</th>
                       <th className="text-center p-4">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
@@ -1009,7 +1009,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                                 disabled={draftLoading}
                                 onClick={() => void openSourceDraft(order)}
                               >
-                                <FileText className="ml-1 h-4 w-4" />
+                                <FileText className="me-1 h-4 w-4" />
                                 {tr("فتح المسودة")}
                               </Button>
                             )}

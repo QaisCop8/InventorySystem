@@ -300,7 +300,7 @@ export function ThemeCustomization() {
                       <div className={`mb-3 flex h-14 items-center gap-1.5 border p-2 ${template.surface}`}>
                         <span className={`block h-7 w-10 ${template.primary}`} />
                         <span className={`block h-7 w-10 ${template.save}`} />
-                        <span className={`mr-auto block h-7 w-20 ${template.navigation}`}>
+                        <span className={`ms-auto block h-7 w-20 ${template.navigation}`}>
                           <span className="mx-auto mt-2 block h-1.5 w-10 rounded-full bg-slate-500/50" />
                         </span>
                       </div>

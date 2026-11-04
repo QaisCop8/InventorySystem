@@ -106,7 +106,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
   return (
     <Dialog open={!popupOpen} onOpenChange={(open) => { if (!open && !busy) onClose() }}>
       <DialogContent dir={appDir()} className="cp-dialog max-w-lg">
-        <DialogHeader className="text-right">
+        <DialogHeader className="text-start">
           <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900">
             {purpose === "upgrade" ? <Sparkles className="h-5 w-5 text-violet-700" /> : <CalendarClock className="h-5 w-5 text-emerald-700" />}
             {purpose === "upgrade" ? tr("التحويل إلى نسخة حقيقية") : tr("تمديد الاشتراك")}

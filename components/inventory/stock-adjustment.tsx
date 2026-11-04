@@ -169,13 +169,13 @@ export function StockAdjustment() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-right p-4 font-semibold">{tr("كود المنتج")}</th>
-                  <th className="text-right p-4 font-semibold">{tr("اسم المنتج")}</th>
-                  <th className="text-right p-4 font-semibold">{tr("الوحدة")}</th>
-                  <th className="text-right p-4 font-semibold">{tr("المخزون الحالي")}</th>
-                  <th className="text-right p-4 font-semibold">{tr("الحد الأدنى")}</th>
-                  <th className="text-right p-4 font-semibold">{tr("حالة المخزون")}</th>
-                  <th className="text-right p-4 font-semibold">{tr("الإجراءات")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("كود المنتج")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("اسم المنتج")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("الوحدة")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("المخزون الحالي")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("الحد الأدنى")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("حالة المخزون")}</th>
+                  <th className="text-start p-4 font-semibold">{tr("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,7 +198,7 @@ export function StockAdjustment() {
                     </td>
                     <td className="p-4">
                       <Button size="sm" variant="outline" onClick={() => handleAdjustStock(product)}>
-                        <Settings className="ml-2 h-4 w-4" />
+                        <Settings className="me-2 h-4 w-4" />
                         {tr("تعديل")}
                       </Button>
                     </td>

@@ -483,7 +483,7 @@ export function BatchMovements() {
                       onChange={(e) =>
                         setFilters((prev) => ({ ...prev, product_id: e.target.value }))
                       }
-                      className="text-right font-medium h-11 flex-1"
+                      className="text-start font-medium h-11 flex-1"
                       dir={appDir()}
                       placeholder={""}
                       maxLength={8}
@@ -540,7 +540,7 @@ export function BatchMovements() {
 
                 <div className="flex items-end">
                   <Button onClick={fetchMovements} className="w-full">
-                    <Search className="ml-2 h-4 w-4" />
+                    <Search className="me-2 h-4 w-4" />
                     {tr("بحث")}
                   </Button>
                 </div>
@@ -563,7 +563,7 @@ export function BatchMovements() {
                   size="sm"
                   className="bg-white/20 border-white/30 text-white hover:bg-white/30"
                 >
-                  <Download className="ml-2 h-4 w-4" />
+                  <Download className="me-2 h-4 w-4" />
                   {tr("تصدير")}
                 </Button>
               </div>
@@ -772,16 +772,16 @@ export function BatchMovements() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-4 font-semibold">{tr("المنتج")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("رقم الدفعة")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("تاريخ الإنتاج")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("تاريخ الانتهاء")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("حالة الصلاحية")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("الكمية الحالية")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("الكمية المتاحة")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("الحالة")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("المورد")}</th>
-                      <th className="text-right p-4 font-semibold">{tr("إجراءات")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("المنتج")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("رقم الدفعة")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("تاريخ الإنتاج")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("تاريخ الانتهاء")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("حالة الصلاحية")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("الكمية الحالية")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("الكمية المتاحة")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("الحالة")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("المورد")}</th>
+                      <th className="text-start p-4 font-semibold">{tr("إجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>

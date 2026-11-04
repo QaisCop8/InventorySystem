@@ -89,8 +89,8 @@ export default function BankReconciliation() {
           <p className="mt-1 text-sm text-muted-foreground">{tr("استورد كشف البنك من Excel وطابقه مع سندات حساب البنك تلقائياً، ثم عالج الفروقات وأقفل التسوية.")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void loadList()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button onClick={() => setCreating(true)}><Plus className="ml-2 h-4 w-4" />{tr("تسوية جديدة")}</Button>
+          <Button variant="outline" onClick={() => void loadList()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button onClick={() => setCreating(true)}><Plus className="me-2 h-4 w-4" />{tr("تسوية جديدة")}</Button>
         </div>
       </div>
 
@@ -101,7 +101,7 @@ export default function BankReconciliation() {
           <FileSpreadsheet className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <h2 className="font-bold">{tr("لا توجد تسويات بنكية")}</h2>
           <p className="mb-4 mt-1 text-sm text-muted-foreground">{tr("ابدأ بتسوية جديدة واستورد كشف البنك من ملف Excel.")}</p>
-          <Button onClick={() => setCreating(true)}><Plus className="ml-2 h-4 w-4" />{tr("تسوية جديدة")}</Button>
+          <Button onClick={() => setCreating(true)}><Plus className="me-2 h-4 w-4" />{tr("تسوية جديدة")}</Button>
         </div>
       ) : (
         <Card>
@@ -380,20 +380,20 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
           <div>
             <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold">
               {detail.header.account_name} <span className="font-mono text-sm text-slate-500">{detail.header.account_code}</span>
-              {locked ? <Badge className="bg-slate-700"><Lock className="ml-1 h-3 w-3" />{tr("مُقفلة")}</Badge> : <Badge className="bg-amber-500">{tr("مفتوحة")}</Badge>}
+              {locked ? <Badge className="bg-slate-700"><Lock className="me-1 h-3 w-3" />{tr("مُقفلة")}</Badge> : <Badge className="bg-amber-500">{tr("مفتوحة")}</Badge>}
             </h1>
             <p className="text-sm text-muted-foreground">{tr("كشف من ")}{detail.header.statement_from}{tr(" إلى ")}{detail.header.statement_to} {detail.header.currency_code ? `• ${detail.header.currency_code}` : ""}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!locked && <Button variant="outline" onClick={() => setImportOpen(true)} disabled={busy}><Upload className="ml-2 h-4 w-4" />{tr("استيراد كشف")}</Button>}
-          <Button variant="outline" onClick={() => void exportExcel()}><FileSpreadsheet className="ml-2 h-4 w-4" />{tr("تصدير Excel")}</Button>
+          {!locked && <Button variant="outline" onClick={() => setImportOpen(true)} disabled={busy}><Upload className="me-2 h-4 w-4" />{tr("استيراد كشف")}</Button>}
+          <Button variant="outline" onClick={() => void exportExcel()}><FileSpreadsheet className="me-2 h-4 w-4" />{tr("تصدير Excel")}</Button>
           {locked
-            ? <Button variant="outline" onClick={() => void run({ action: "reopen" })} disabled={busy}><LockOpen className="ml-2 h-4 w-4" />{tr("إعادة فتح")}</Button>
+            ? <Button variant="outline" onClick={() => void run({ action: "reopen" })} disabled={busy}><LockOpen className="me-2 h-4 w-4" />{tr("إعادة فتح")}</Button>
             : <Button onClick={async () => {
                 if (!balanced && !(await confirmYesNo(tr("يوجد فرق {0} — إقفال التسوية رغم الفرق؟", fmt(s.difference))))) return
                 void run({ action: "finalize", force: !balanced })
-              }} disabled={busy} className={balanced ? "bg-emerald-600 hover:bg-emerald-700" : ""}><Lock className="ml-2 h-4 w-4" />{tr("إقفال التسوية")}</Button>}
+              }} disabled={busy} className={balanced ? "bg-emerald-600 hover:bg-emerald-700" : ""}><Lock className="me-2 h-4 w-4" />{tr("إقفال التسوية")}</Button>}
           {!locked && <Button variant="outline" className="text-rose-600" onClick={() => void remove()} disabled={busy}><Trash2 className="h-4 w-4" /></Button>}
         </div>
       </div>
@@ -447,7 +447,7 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
           <span className="text-xs text-slate-500">{tr("بالمبلغ ورقم السند/الشيك، ثم المبلغ وأقرب تاريخ، ثم الإيداعات المجمّعة")}</span>
           <div className="flex items-center gap-1.5 text-xs">{tr("فرق تاريخ حتى")}<Input className="h-8 w-16 text-center" value={tolerance} onChange={(event) => setTolerance(event.target.value.replace(/\D/g, ""))} />{tr("يوم")}</div>
           <Button size="sm" onClick={() => void run({ action: "auto_match", date_tolerance_days: Number(tolerance) || 0 })} disabled={busy || !statementLines.length}>
-            <Sparkles className="ml-1.5 h-4 w-4" />{tr("طابق الآن")}
+            <Sparkles className="me-1.5 h-4 w-4" />{tr("طابق الآن")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => void run({ action: "unmatch_auto" })} disabled={busy}>{tr("إلغاء المطابقات التلقائية")}</Button>
         </CardContent></Card>
@@ -460,7 +460,7 @@ function ReconciliationDetail({ id, onBack }: { id: number; onBack: () => void }
           <span>{tr("سطر الكشف: ")}<b className="font-mono">{fmt(currentLine.amount)}</b></span>
           <span>{tr("المختار من الدفاتر: ")}<b className="font-mono">{fmt(selectedTotal)}</b> ({selectedBook.size})</span>
           <span className={same(matchDifference, 0) ? "text-emerald-700" : "text-rose-600"}>{tr("الفرق: ")}<b className="font-mono">{fmt(matchDifference)}</b></span>
-          <div className="mr-auto flex gap-2">
+          <div className="ms-auto flex gap-2">
             <Button size="sm" disabled={busy || !selectedBook.size} onClick={async () => {
               const force = !same(matchDifference, 0)
               if (force && !(await confirmYesNo(tr("المبلغان غير متساويين (الفرق {0}). المطابقة رغم الفرق؟", fmt(matchDifference))))) return

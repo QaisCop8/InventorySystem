@@ -303,11 +303,11 @@ export default function Banks() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">{tr("رقم البنك")}</TableHead>
-              <TableHead className="text-right">{tr("اسم البنك")}</TableHead>
-              <TableHead className="text-right">{tr("اسم البنك انجليزي")}</TableHead>
-              <TableHead className="text-right">{tr("الحالة")}</TableHead>
-              <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+              <TableHead className="text-start">{tr("رقم البنك")}</TableHead>
+              <TableHead className="text-start">{tr("اسم البنك")}</TableHead>
+              <TableHead className="text-start">{tr("اسم البنك انجليزي")}</TableHead>
+              <TableHead className="text-start">{tr("الحالة")}</TableHead>
+              <TableHead className="text-start">{tr("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -317,11 +317,11 @@ export default function Banks() {
                 className="cursor-pointer transition hover:bg-slate-50"
                 onClick={() => openEditBankDialog(bank, index)}
               >
-                <TableCell className="text-right">{bank.bank_code}</TableCell>
-                <TableCell className="text-right">{bank.bank_name}</TableCell>
-                <TableCell className="text-right">{bank.bank_name_en}</TableCell>
-                <TableCell className="text-right">{bank.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-start">{bank.bank_code}</TableCell>
+                <TableCell className="text-start">{bank.bank_name}</TableCell>
+                <TableCell className="text-start">{bank.bank_name_en}</TableCell>
+                <TableCell className="text-start">{bank.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
+                <TableCell className="text-start">
                   <Button
                     variant="outline"
                     size="sm"

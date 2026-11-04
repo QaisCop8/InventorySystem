@@ -317,7 +317,7 @@ export function WorkflowDashboard() {
                       placeholder={tr("اسم العميل أو المورد...")}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pr-10"
+                      className="ps-10"
                     />
                   </div>
                 </div>
@@ -512,7 +512,7 @@ export function WorkflowDashboard() {
                             {tr("متوسط الوقت: ")}{Math.round(stage.avg_time)}{tr(" ساعة")}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-start">
                           <div className="text-lg font-bold">{stage.count}</div>
                           <div className="text-sm text-muted-foreground">{tr("طلبية")}</div>
                         </div>

@@ -183,9 +183,9 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
                           </span>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-slate-200/80 pt-2 text-xs">
-                          <span className="text-slate-500">{tr("السعر")}</span><span className="text-left font-semibold tabular-nums" dir="ltr">{Number(unit.price || 0).toLocaleString("en-US")}</span>
+                          <span className="text-slate-500">{tr("السعر")}</span><span className="text-end font-semibold tabular-nums" dir="ltr">{Number(unit.price || 0).toLocaleString("en-US")}</span>
                           <span className="text-slate-500">{tr("باركود")}</span><span className="truncate text-end font-mono" dir="ltr">{unit.barcode || "—"}</span>
-                          <span className="text-slate-500">{tr("العلاقة بالرئيسية")}</span><span className="text-left font-semibold tabular-nums" dir="ltr">{Number(unit.to_main_qnty || 0).toLocaleString("en-US")}</span>
+                          <span className="text-slate-500">{tr("العلاقة بالرئيسية")}</span><span className="text-end font-semibold tabular-nums" dir="ltr">{Number(unit.to_main_qnty || 0).toLocaleString("en-US")}</span>
                         </div>
                       </button>
                     )
@@ -229,7 +229,7 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
                 onClose();
               }}
             >
-              <Check className="ml-2 h-4 w-4" />{tr(" موافق")}
+              <Check className="me-2 h-4 w-4" />{tr(" موافق")}
             </Button>
 
             <Button variant="outline" className="!m-0 !min-h-10 !flex-1 !rounded-xl !border-slate-300 !bg-white !px-6 !font-semibold !text-slate-700 hover:!bg-slate-100 sm:!flex-none" onClick={onClose}>{tr("إغلاق")}</Button>

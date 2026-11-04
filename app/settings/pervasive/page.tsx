@@ -187,7 +187,7 @@ export default function PervasiveSettingsPage() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => openEditDialog()}>
-              <Plus className="ml-2 h-4 w-4" />
+              <Plus className="me-2 h-4 w-4" />
               {tr("اتصال جديد")}
             </Button>
           </DialogTrigger>
@@ -247,7 +247,7 @@ export default function PervasiveSettingsPage() {
                     <TableCell className="font-medium">
                       {conn.connection_name}
                       {conn.is_default && (
-                        <span className="mr-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded">{tr("افتراضي")}</span>
+                        <span className="ms-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded">{tr("افتراضي")}</span>
                       )}
                     </TableCell>
                     <TableCell>{conn.connection_type.toUpperCase()}</TableCell>
@@ -485,12 +485,12 @@ function ConnectionForm({
         <Button type="submit" disabled={isSaving}>
           {isSaving ? (
             <>
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              <Loader2 className="me-2 h-4 w-4 animate-spin" />
               {tr("جاري الحفظ...")}
             </>
           ) : (
             <>
-              <Save className="ml-2 h-4 w-4" />
+              <Save className="me-2 h-4 w-4" />
               {tr("حفظ")}
             </>
           )}

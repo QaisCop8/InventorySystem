@@ -63,7 +63,7 @@ export function ChangePasswordDialog({ open, onOpenChange, target }: { open: boo
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!busy) onOpenChange(value) }}>
       <DialogContent dir={appDir()} className="w-[calc(100vw-2rem)] max-w-md" onPointerDownOutside={(event) => event.preventDefault()}>
-        <DialogHeader className="text-right">
+        <DialogHeader className="text-start">
           <DialogTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5 text-emerald-600" />{target ? tr("تعيين كلمة مرور: {0}", target.full_name) : tr("تغيير كلمة المرور")}</DialogTitle>
           <DialogDescription>{target
             ? <>{tr("تعيين كلمة مرور جديدة للمستخدم ")}<span dir="ltr" className="font-semibold">{target.email}</span>{tr(" بدون كلمة المرور القديمة — تُطبَّق في كل شركاته وتُنهى جميع جلساته.")}</>
@@ -85,7 +85,7 @@ export function ChangePasswordDialog({ open, onOpenChange, target }: { open: boo
             </div>
             <div className="flex gap-2">
               <Button type="submit" className="h-11 flex-1 bg-emerald-600 hover:bg-emerald-700" disabled={busy}>
-                {busy ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري الحفظ...")}</> : tr("حفظ كلمة المرور")}
+                {busy ? <><Loader2 className="me-2 h-4 w-4 animate-spin" />{tr("جاري الحفظ...")}</> : tr("حفظ كلمة المرور")}
               </Button>
               <Button type="button" variant="outline" className="h-11" disabled={busy} onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
             </div>

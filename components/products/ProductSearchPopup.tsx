@@ -905,7 +905,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               onClick={clearFilters}
               className="h-9 shrink-0 rounded-lg border-slate-200 px-3 text-xs text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
             >
-              <RotateCcw className="ml-1.5 h-3.5 w-3.5" />
+              <RotateCcw className="me-1.5 h-3.5 w-3.5" />
               {tr("مسح الفلاتر")}
             </Button>
           </div>
@@ -924,7 +924,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               <span>{tr("نتائج البحث")}</span>
               <span>
                 {filteredProducts.length > 200 ? tr("عرض أول 200 من {0}", filteredProducts.length.toLocaleString("en-US")) : tr("{0} صنف", filteredProducts.length.toLocaleString("en-US"))}
-                {checkedCount > 0 && <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{tr("مؤشَّر ")}{checkedCount}</span>}
+                {checkedCount > 0 && <span className="ms-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{tr("مؤشَّر ")}{checkedCount}</span>}
               </span>
             </div>
             <SearchResultsTable<Product>

@@ -148,7 +148,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                             className="!m-0 !min-h-10 !rounded-xl !border !border-white/25 !bg-white/10 !px-3 !font-semibold !text-white hover:!bg-white/20 sm:!px-4"
                             onClick={() => window.open("/admin/definitions?section=warehouses&new=1", "_blank", "noopener,noreferrer")}
                         >
-                            <Plus className="ml-1 h-4 w-4" />
+                            <Plus className="me-1 h-4 w-4" />
                             <span className="hidden sm:inline">{tr("إضافة مستودع")}</span>
                             <span className="sm:hidden">{tr("إضافة")}</span>
                         </Button>
@@ -233,7 +233,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                             disabled={!selectedStore}
                             onClick={confirmSelection}
                         >
-                            <Check className="ml-2 h-4 w-4" />{tr(" موافق")}
+                            <Check className="me-2 h-4 w-4" />{tr(" موافق")}
                         </Button>
                         <Button className="!m-0 !min-h-10 !flex-1 !rounded-xl !border-slate-300 !bg-white !px-6 !font-semibold !text-slate-700 hover:!bg-slate-100 sm:!flex-none" variant="outline" onClick={onClose}>
                             {tr("إغلاق")}

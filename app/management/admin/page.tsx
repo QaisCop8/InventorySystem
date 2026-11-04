@@ -440,7 +440,7 @@ export default function ManagementAdminPage() {
           >
             {tr("طلبات الترخيص")}
             {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0) > 0 && (
-              <span className="mr-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+              <span className="ms-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
                 {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0)}
               </span>
             )}

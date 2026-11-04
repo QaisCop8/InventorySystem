@@ -85,7 +85,7 @@ export default function RestaurantMonitorReport() {
         category={tr("تقارير المطاعم")}
         title={tr("مراقبة المطعم")}
         description={tr("كل ما يقوم به المستخدمون في شاشة المطعم: فتح واستلام وتسليم العهدة، فتح الطاولات، إضافة وحذف الأصناف، الخصومات، النقل والدمج، الدفع والإلغاء")}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
@@ -99,8 +99,8 @@ export default function RestaurantMonitorReport() {
           <div className="space-y-2"><Label>{tr("رقم الطلب")}</Label><Input value={filters.orderNo} onChange={(event) => setFilters({ ...filters, orderNo: event.target.value })} placeholder={tr("الكل")} className="rounded-xl" /></div>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 pt-3">
-          <Button type="button" variant="outline" onClick={() => setFilters(emptyFilters())} disabled={loading} className="min-w-32 rounded-xl"><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
+          <Button type="button" variant="outline" onClick={() => setFilters(emptyFilters())} disabled={loading} className="min-w-32 rounded-xl"><RefreshCcw className="me-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="me-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 
@@ -121,7 +121,7 @@ export default function RestaurantMonitorReport() {
               <thead className="bg-slate-50 text-xs text-slate-500">
                 <tr>
                   {["#", "التاريخ والوقت", "المستخدم", "الحركة", "الموقع", "رقم الطلب", "الطاولة", "الصنف", "الكمية", "المبلغ", "الوردية", "التفاصيل"].map((label) => (
-                    <th key={label} className={`whitespace-nowrap p-2 ${label === "الكمية" || label === "المبلغ" ? "text-left" : "text-right"}`}>{label}</th>
+                    <th key={label} className={`whitespace-nowrap p-2 ${label === "الكمية" || label === "المبلغ" ? "text-end" : "text-start"}`}>{label}</th>
                   ))}
                 </tr>
               </thead>

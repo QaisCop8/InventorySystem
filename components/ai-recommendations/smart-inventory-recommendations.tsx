@@ -153,7 +153,7 @@ export function SmartInventoryRecommendations() {
                         setSearchQuery(e.target.value)
                         searchProducts(e.target.value)
                       }}
-                      className="pr-10"
+                      className="ps-10"
                     />
                   </div>
                 </div>
@@ -174,7 +174,7 @@ export function SmartInventoryRecommendations() {
                           }}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <div className="text-right">
+                            <div className="text-start">
                               <div className="font-medium">{product.product_name}</div>
                               <div className="text-sm text-muted-foreground">{product.product_code}</div>
                             </div>
@@ -211,7 +211,7 @@ export function SmartInventoryRecommendations() {
                           }}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <div className="text-right">
+                            <div className="text-start">
                               <div className="font-medium">{product.product_name}</div>
                               <div className="text-sm text-muted-foreground">{product.product_code}</div>
                             </div>
@@ -342,7 +342,7 @@ export function SmartInventoryRecommendations() {
                   <div className="grid gap-2 md:grid-cols-2">
                     {lowStockProducts.slice(0, 6).map((product) => (
                       <div key={product.id} className="flex items-center justify-between p-2 rounded-lg border">
-                        <div className="text-right">
+                        <div className="text-start">
                           <div className="font-medium text-sm">{product.product_name}</div>
                           <div className="text-xs text-muted-foreground">{product.product_code}</div>
                         </div>

@@ -209,11 +209,11 @@ export function LotInventoryReport() {
           <BatchPrintDialog />
           {/* data-report-apply: F5 يعيد جلب التقرير (lib/hotkeys.ts) */}
           <Button variant="outline" data-report-apply onClick={() => void fetchReportData()} disabled={loading}>
-            <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            {tr("تحديث ")}<span className="mr-1 text-[11px] opacity-70" dir="ltr">F5</span>
+            <RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            {tr("تحديث ")}<span className="ms-1 text-[11px] opacity-70" dir="ltr">F5</span>
           </Button>
           <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">
-            <Download className="ml-2 h-4 w-4" />
+            <Download className="me-2 h-4 w-4" />
             {tr("تصدير Excel")}
           </Button>
         </>} />
@@ -290,7 +290,7 @@ export function LotInventoryReport() {
                   placeholder={tr("اسم المنتج أو رقم الدفعة")}
                   value={filters.search}
                   onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                  className="pr-10"
+                  className="ps-10"
                 />
               </div>
             </div>
@@ -408,17 +408,17 @@ export function LotInventoryReport() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-right p-3 font-semibold">{tr("رقم الدفعة")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("المنتج")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("المورد")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("حالة الدفعة")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تاريخ الإنتاج")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تاريخ الانتهاء")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("حالة الصلاحية")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("الكمية الحالية")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("الكمية المتاحة")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تكلفة الوحدة")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("إجمالي القيمة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("رقم الدفعة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("المنتج")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("المورد")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("حالة الدفعة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تاريخ الإنتاج")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تاريخ الانتهاء")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("حالة الصلاحية")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("الكمية الحالية")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("الكمية المتاحة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تكلفة الوحدة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("إجمالي القيمة")}</th>
                   </tr>
                 </thead>
                 <tbody>

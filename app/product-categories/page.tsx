@@ -353,7 +353,7 @@ export default function ProductCategoriesPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded-full bg-primary" />
-                        <div className="text-right">
+                        <div className="text-start">
                           <h4 className="font-heading font-semibold">{category.group_name}</h4>
                           <p className="text-xs text-muted-foreground">#{category.group_number}</p>
                         </div>
@@ -417,12 +417,12 @@ export default function ProductCategoriesPage() {
         <div>
           <Card dir={appDir()}>
             <CardHeader>
-              <CardTitle className="text-right">{editingCategory ? tr("تعديل التصنيف") : tr("إضافة تصنيف جديد")}</CardTitle>
+              <CardTitle className="text-start">{editingCategory ? tr("تعديل التصنيف") : tr("إضافة تصنيف جديد")}</CardTitle>
             </CardHeader>
             <CardContent>
               {showForm ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="text-right">
+                  <div className="text-start">
                     <Label className="erp-label text-start block">{tr("اسم التصنيف *")}</Label>
                     <Input
                       required
@@ -434,7 +434,7 @@ export default function ProductCategoriesPage() {
                     />
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-start">
                     <Label className="erp-label text-start block">{tr("الوصف")}</Label>
                     <Input
                       value={formData.description}
@@ -453,7 +453,7 @@ export default function ProductCategoriesPage() {
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                       className="rounded"
                     />
-                    <Label htmlFor="isActive" className="text-right">
+                    <Label htmlFor="isActive" className="text-start">
                       {tr("تصنيف نشط")}
                     </Label>
                   </div>
@@ -484,7 +484,7 @@ export default function ProductCategoriesPage() {
           {filteredCategories.length > 0 && (
             <Card className="mt-4" dir={appDir()}>
               <CardHeader>
-                <CardTitle className="text-right">{tr("تفاصيل التصنيف")}</CardTitle>
+                <CardTitle className="text-start">{tr("تفاصيل التصنيف")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {filteredCategories[currentIndex] && (

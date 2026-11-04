@@ -139,7 +139,7 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
             {mode === "handover" && onCancel && <Button variant="outline" onClick={onCancel} disabled={saving}>{tr("إلغاء")}</Button>}
             {mode === "open" && <Button variant="outline" onClick={() => void skip()} disabled={saving} title={tr("لا توجد عهدة دخان مع هذه الوردية")}>{tr("إلغاء")}</Button>}
             <Button onClick={() => void save()} disabled={saving || loading || invalid} className="bg-amber-600 hover:bg-amber-700">
-              {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <PackageCheck className="ml-2 h-4 w-4" />}{mode === "open" ? tr("استلام") : tr("تسليم الدخان")}
+              {saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <PackageCheck className="me-2 h-4 w-4" />}{mode === "open" ? tr("استلام") : tr("تسليم الدخان")}
             </Button>
           </div>
         </div>

@@ -424,7 +424,7 @@ export default function Cars() {
             </Button>
           </div>
           <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading || !canCreate}>
-            <Plus className="ml-2 h-4 w-4" />{tr(" إضافة سيارة جديدة")}
+            <Plus className="me-2 h-4 w-4" />{tr(" إضافة سيارة جديدة")}
           </Button>
         </div>
       </div>

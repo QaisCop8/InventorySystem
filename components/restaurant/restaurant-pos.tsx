@@ -792,7 +792,7 @@ export default function RestaurantPos() {
   }
 
   const toast = message && (
-    <div className={`fixed bottom-20 end-1/2 z-[60] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-lg lg:bottom-6 ${message.type === "success" ? "bg-emerald-600" : "bg-red-600"}`} onClick={() => setMessage(null)}>
+    <div className={`fixed bottom-20 left-1/2 z-[60] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-lg lg:bottom-6 ${message.type === "success" ? "bg-emerald-600" : "bg-red-600"}`} onClick={() => setMessage(null)}>
       {message.text}
     </div>
   )
@@ -849,7 +849,7 @@ export default function RestaurantPos() {
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setOpenTable(null)}>{tr("إلغاء")}</Button>
-              <Button className="h-11" disabled={busy} onClick={() => void confirmOpenTable()}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("فتح الطاولة")}</Button>
+              <Button className="h-11" disabled={busy} onClick={() => void confirmOpenTable()}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr("فتح الطاولة")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -873,7 +873,7 @@ export default function RestaurantPos() {
             </div>
             <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setTakeawayOpen(false)}>{tr("إلغاء")}</Button>
-              <Button className="h-11" disabled={busy || !takeawayLocation} onClick={() => void confirmTakeaway()}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("فتح الطلب")}</Button>
+              <Button className="h-11" disabled={busy || !takeawayLocation} onClick={() => void confirmTakeaway()}>{busy && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr("فتح الطلب")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

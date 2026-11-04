@@ -136,9 +136,9 @@ export function UserLoginReport({ companies }: { companies: CompanyOption[] }) {
                   <span className="shrink-0 rounded-full bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700">{loginTypeLabel[row.login_type] || row.login_type}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 border-t border-slate-100 pt-3 text-xs">
-                  <span className="text-slate-500">{tr("الشركة")}</span><span className="text-left font-semibold text-slate-700">{row.company_name || tr("لوحة الإدارة")}</span>
-                  <span className="text-slate-500">{tr("وقت الدخول")}</span><span className="text-left tabular-nums text-slate-700" dir="ltr">{formatLoginDate(row.logged_at)}</span>
-                  <span className="text-slate-500">IP</span><span className="text-left font-mono text-slate-600" dir="ltr">{row.ip_address || "—"}</span>
+                  <span className="text-slate-500">{tr("الشركة")}</span><span className="text-end font-semibold text-slate-700">{row.company_name || tr("لوحة الإدارة")}</span>
+                  <span className="text-slate-500">{tr("وقت الدخول")}</span><span className="text-end tabular-nums text-slate-700" dir="ltr">{formatLoginDate(row.logged_at)}</span>
+                  <span className="text-slate-500">IP</span><span className="text-end font-mono text-slate-600" dir="ltr">{row.ip_address || "—"}</span>
                 </div>
               </article>
             ))}

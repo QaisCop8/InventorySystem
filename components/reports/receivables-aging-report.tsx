@@ -186,8 +186,8 @@ export function ReceivablesAgingReport() {
         title={<>{tr("تقرير تعمير الذمم")}</>}
         description={<>{tr("توزيع أرصدة العملاء والموردين على فترات عمر الدين حتى تاريخ محدد")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="me-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
@@ -223,7 +223,7 @@ export function ReceivablesAgingReport() {
             {periodLabels(periods).map((label) => (
               <span key={label} className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200" dir="ltr">{label}</span>
             ))}
-            <Button type="button" variant="outline" size="sm" className="h-7 rounded-full" onClick={openPeriods}><Settings2 className="ml-1 h-3.5 w-3.5" />{tr("تعديل الفترات")}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 rounded-full" onClick={openPeriods}><Settings2 className="me-1 h-3.5 w-3.5" />{tr("تعديل الفترات")}</Button>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <label className="flex cursor-pointer items-center gap-2" title={tr("احتساب الشيكات الواردة غير المحصّلة ضمن رصيد الذمة (والصادرة غير المصروفة)")}>
@@ -238,9 +238,9 @@ export function ReceivablesAgingReport() {
         </div>
 
         <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
+          <Button variant="outline" onClick={reset}><RefreshCcw className="me-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
           <Button data-report-apply onClick={() => void run()} disabled={running || loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-            {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
+            {running ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض النتائج")}
           </Button>
         </div>
       </ReportFilters>
@@ -300,7 +300,7 @@ export function ReceivablesAgingReport() {
                   <td className="px-3 py-2.5 font-semibold">
                     {row.account_name}
                     {row.credit_limit != null && Math.abs(row.aging_balance) > row.credit_limit && (
-                      <span className="mr-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700" title={tr("سقف الرصيد {0}", money.format(row.credit_limit))}>{tr("تجاوز السقف")}</span>
+                      <span className="ms-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700" title={tr("سقف الرصيد {0}", money.format(row.credit_limit))}>{tr("تجاوز السقف")}</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-600">{row.salesman_name || "—"}</td>
@@ -337,7 +337,7 @@ export function ReceivablesAgingReport() {
 
       <Dialog open={periodsOpen} onOpenChange={setPeriodsOpen}>
         <DialogContent dir={appDir()} className="max-w-md">
-          <DialogHeader className="text-right">
+          <DialogHeader className="text-start">
             <DialogTitle>{tr("تعديل فترات التعمير")}</DialogTitle>
             <DialogDescription>{tr("أدخل نهاية كل فترة بالأيام بشكل متصاعد — تُضاف تلقائياً فترة أخيرة \"فأكثر\".")}</DialogDescription>
           </DialogHeader>
@@ -353,12 +353,12 @@ export function ReceivablesAgingReport() {
                 </div>
               )
             })}
-            <Button type="button" variant="outline" size="sm" disabled={draftPeriods.length >= 12} onClick={() => setDraftPeriods((list) => [...list, String((Number(list[list.length - 1]) || 0) + 30)])}><Plus className="ml-1 h-4 w-4" />{tr("إضافة فترة")}</Button>
+            <Button type="button" variant="outline" size="sm" disabled={draftPeriods.length >= 12} onClick={() => setDraftPeriods((list) => [...list, String((Number(list[list.length - 1]) || 0) + 30)])}><Plus className="me-1 h-4 w-4" />{tr("إضافة فترة")}</Button>
             <p className="text-xs text-slate-500">{tr("الفترة الأخيرة: من يوم ")}{(Number(draftPeriods[draftPeriods.length - 1]) || 0) + 1}{tr(" فأكثر")}</p>
             {periodsError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{periodsError}</p>}
           </div>
           <DialogFooter className="gap-2 sm:justify-start">
-            <Button type="button" onClick={() => void applyPeriods(true)} disabled={savingPeriods}>{savingPeriods && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ كافتراضي")}</Button>
+            <Button type="button" onClick={() => void applyPeriods(true)} disabled={savingPeriods}>{savingPeriods && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("حفظ كافتراضي")}</Button>
             <Button type="button" variant="outline" onClick={() => void applyPeriods(false)}>{tr("تطبيق على هذا العرض")}</Button>
           </DialogFooter>
         </DialogContent>

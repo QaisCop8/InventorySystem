@@ -62,7 +62,7 @@ export function TabBar() {
       {windows.filter((w) => w.isMinimized).length > 0 && (
         <Button variant="ghost" size="sm" className="px-2">
           <MoreHorizontal className="h-4 w-4" />
-          <span className="mr-1 text-xs">{windows.filter((w) => w.isMinimized).length}</span>
+          <span className="ms-1 text-xs">{windows.filter((w) => w.isMinimized).length}</span>
         </Button>
       )}
     </div>

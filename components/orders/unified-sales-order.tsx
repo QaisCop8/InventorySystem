@@ -3390,7 +3390,7 @@ function UnifiedSalesOrder({
           [&_input:not([type=checkbox])]:px-2.5
           [&_.p-dropdown]:min-h-8
           [&_.p-dropdown-label]:py-1.5
-          ${fullscreenEnabled && open ? "!left-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}
+          ${fullscreenEnabled && open ? "!end-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}
         `}
         dir={appDir()}
         onPointerDownOutside={(event) => event.preventDefault()}
@@ -3965,7 +3965,7 @@ function UnifiedSalesOrder({
                           }))
                         }}
                         onBlur={handleReferenceNumberBlur}
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                         maxLength={7}
                       />
@@ -3983,7 +3983,7 @@ function UnifiedSalesOrder({
                             formData: { ...prev.formData, delivery_date: e.target.value },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -4248,7 +4248,7 @@ function UnifiedSalesOrder({
                               formData: { ...prev.formData, internal_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات للاستخدام الداخلي فقط")}
                           dir={appDir()}
@@ -4264,7 +4264,7 @@ function UnifiedSalesOrder({
                               formData: { ...prev.formData, delivery_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات خاصة بالتسليم")}
                           dir={appDir()}
@@ -4333,7 +4333,7 @@ function UnifiedSalesOrder({
                             },
                           }));
                         }}
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -4358,7 +4358,7 @@ function UnifiedSalesOrder({
                           formData: { ...prev.formData, vat_percent: value },
                         }))
                       }}
-                      className="text-right h-11"
+                      className="text-start h-11"
                       dir={appDir()}
                     />
                   </div>
@@ -4376,7 +4376,7 @@ function UnifiedSalesOrder({
                             formData: { ...prev.formData, shipping_cost: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -4392,7 +4392,7 @@ function UnifiedSalesOrder({
                             formData: { ...prev.formData, other_charges: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>

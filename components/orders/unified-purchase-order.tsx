@@ -1129,7 +1129,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, order_date: e.target.value },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -1151,7 +1151,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, expected_delivery_date: e.target.value },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -1197,7 +1197,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, salesman: e.target.value },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -1227,7 +1227,7 @@ function UnifiedPurchaseOrder({
                                   formData: { ...prev.formData, manual_document: e.target.value },
                                 }))
                               }
-                              className="text-right h-11"
+                              className="text-start h-11"
                               dir={appDir()}
                             />
                           </div>
@@ -1327,7 +1327,7 @@ function UnifiedPurchaseOrder({
                               formData: { ...prev.formData, supplier_name: e.target.value },
                             }))
                           }
-                          className="text-right h-11"
+                          className="text-start h-11"
                           dir={appDir()}
                         />
                       </div>
@@ -1348,7 +1348,7 @@ function UnifiedPurchaseOrder({
                               formData: { ...prev.formData, supplier_phone: e.target.value },
                             }))
                           }
-                          className="text-right h-11"
+                          className="text-start h-11"
                           dir={appDir()}
                         />
                       </div>
@@ -1371,7 +1371,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, delivery_address: e.target.value },
                           }))
                         }
-                        className="text-right min-h-[100px] resize-none"
+                        className="text-start min-h-[100px] resize-none"
                         rows={3}
                         dir={appDir()}
                       />
@@ -1401,57 +1401,57 @@ function UnifiedPurchaseOrder({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right w-16">{tr("م")}</TableHead>
+                          <TableHead className="text-start w-16">{tr("م")}</TableHead>
                           {isFieldVisible("barcode") && (
-                            <TableHead className="text-right min-w-[120px]">{getFieldDisplayName("barcode")}</TableHead>
+                            <TableHead className="text-start min-w-[120px]">{getFieldDisplayName("barcode")}</TableHead>
                           )}
                           {isFieldVisible("product") && (
                             <>
-                              <TableHead className="text-right min-w-[120px]">{tr("كود المنتج")}</TableHead>
-                              <TableHead className="text-right min-w-[200px]">{tr("اسم المنتج")}</TableHead>
+                              <TableHead className="text-start min-w-[120px]">{tr("كود المنتج")}</TableHead>
+                              <TableHead className="text-start min-w-[200px]">{tr("اسم المنتج")}</TableHead>
                             </>
                           )}
                           {isFieldVisible("unit") && (
-                            <TableHead className="text-right min-w-[100px]">{getFieldDisplayName("unit")}</TableHead>
+                            <TableHead className="text-start min-w-[100px]">{getFieldDisplayName("unit")}</TableHead>
                           )}
                           {isFieldVisible("quantity") && (
-                            <TableHead className="text-right min-w-[120px]">
+                            <TableHead className="text-start min-w-[120px]">
                               {getFieldDisplayName("quantity")}
                             </TableHead>
                           )}
                           {isFieldVisible("unit_price") && (
-                            <TableHead className="text-right min-w-[120px]">
+                            <TableHead className="text-start min-w-[120px]">
                               {getFieldDisplayName("unit_price")}
                             </TableHead>
                           )}
                           {isFieldVisible("discount") && (
-                            <TableHead className="text-right min-w-[100px]">
+                            <TableHead className="text-start min-w-[100px]">
                               {getFieldDisplayName("discount")}
                             </TableHead>
                           )}
                           {isFieldVisible("tax") && (
-                            <TableHead className="text-right min-w-[100px]">{getFieldDisplayName("tax")}</TableHead>
+                            <TableHead className="text-start min-w-[100px]">{getFieldDisplayName("tax")}</TableHead>
                           )}
                           {isFieldVisible("total") && (
-                            <TableHead className="text-right min-w-[140px]">{getFieldDisplayName("total")}</TableHead>
+                            <TableHead className="text-start min-w-[140px]">{getFieldDisplayName("total")}</TableHead>
                           )}
                           {isFieldVisible("warehouse") && (
-                            <TableHead className="text-right min-w-[120px]">
+                            <TableHead className="text-start min-w-[120px]">
                               {getFieldDisplayName("warehouse")}
                             </TableHead>
                           )}
                           {isFieldVisible("expiry_date") && (
-                            <TableHead className="text-right min-w-[140px]">
+                            <TableHead className="text-start min-w-[140px]">
                               {getFieldDisplayName("expiry_date")}
                             </TableHead>
                           )}
                           {isFieldVisible("batch_number") && (
-                            <TableHead className="text-right min-w-[120px]">
+                            <TableHead className="text-start min-w-[120px]">
                               {getFieldDisplayName("batch_number")}
                             </TableHead>
                           )}
                           {isFieldVisible("notes") && (
-                            <TableHead className="text-right min-w-[150px]">{getFieldDisplayName("notes")}</TableHead>
+                            <TableHead className="text-start min-w-[150px]">{getFieldDisplayName("notes")}</TableHead>
                           )}
                           <TableHead className="text-start w-20 sticky end-0 bg-background">{tr("إجراءات")}</TableHead>
                         </TableRow>
@@ -1465,7 +1465,7 @@ function UnifiedPurchaseOrder({
                                 <Input
                                   value={item.barcode}
                                   onChange={(e) => updateOrderItem(item.id, "barcode", e.target.value)}
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   placeholder={tr("باركود")}
                                   dir={appDir()}
                                 />
@@ -1503,7 +1503,7 @@ function UnifiedPurchaseOrder({
                                   <Input
                                     value={item.product_name}
                                     onChange={(e) => updateOrderItem(item.id, "product_name", e.target.value)}
-                                    className="text-right h-10"
+                                    className="text-start h-10"
                                     placeholder={tr("اسم المنتج")}
                                     dir={appDir()}
                                   />
@@ -1515,7 +1515,7 @@ function UnifiedPurchaseOrder({
                                 <Input
                                   value={item.unit}
                                   onChange={(e) => updateOrderItem(item.id, "unit", e.target.value)}
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   placeholder={tr("وحدة")}
                                   dir={appDir()}
                                 />
@@ -1529,7 +1529,7 @@ function UnifiedPurchaseOrder({
                                   onChange={(e) =>
                                     updateOrderItem(item.id, "quantity", Number.parseFloat(e.target.value) || 0)
                                   }
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   dir={appDir()}
                                 />
                               </TableCell>
@@ -1543,7 +1543,7 @@ function UnifiedPurchaseOrder({
                                   onChange={(e) =>
                                     updateOrderItem(item.id, "unit_price", Number.parseFloat(e.target.value) || 0)
                                   }
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   dir={appDir()}
                                 />
                               </TableCell>
@@ -1561,7 +1561,7 @@ function UnifiedPurchaseOrder({
                                       Number.parseFloat(e.target.value) || 0,
                                     )
                                   }
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   dir={appDir()}
                                 />
                               </TableCell>
@@ -1575,14 +1575,14 @@ function UnifiedPurchaseOrder({
                                   onChange={(e) =>
                                     updateOrderItem(item.id, "tax_percentage", Number.parseFloat(e.target.value) || 0)
                                   }
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   dir={appDir()}
                                 />
                               </TableCell>
                             )}
                             {isFieldVisible("total") && (
                               <TableCell>
-                                <div className="text-right font-semibold text-base" dir={appDir()}>
+                                <div className="text-start font-semibold text-base" dir={appDir()}>
                                   {calculateItemTotal(item).toFixed(2)}{tr(" ر.س")}
                                 </div>
                               </TableCell>
@@ -1609,7 +1609,7 @@ function UnifiedPurchaseOrder({
                                   type="date"
                                   value={item.expiry_date}
                                   onChange={(e) => updateOrderItem(item.id, "expiry_date", e.target.value)}
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   dir={appDir()}
                                 />
                               </TableCell>
@@ -1619,7 +1619,7 @@ function UnifiedPurchaseOrder({
                                 <Input
                                   value={item.batch_number}
                                   onChange={(e) => updateOrderItem(item.id, "batch_number", e.target.value)}
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   placeholder={tr("رقم الدفعة")}
                                   dir={appDir()}
                                 />
@@ -1630,7 +1630,7 @@ function UnifiedPurchaseOrder({
                                 <Input
                                   value={item.notes}
                                   onChange={(e) => updateOrderItem(item.id, "notes", e.target.value)}
-                                  className="text-right h-10"
+                                  className="text-start h-10"
                                   placeholder={tr("ملاحظات")}
                                   dir={appDir()}
                                 />
@@ -1698,7 +1698,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, discount_value: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -1716,7 +1716,7 @@ function UnifiedPurchaseOrder({
                           formData: { ...prev.formData, tax_percentage: Number.parseFloat(e.target.value) || 0 },
                         }))
                       }
-                      className="text-right h-11"
+                      className="text-start h-11"
                       dir={appDir()}
                     />
                   </div>
@@ -1734,7 +1734,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, shipping_cost: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -1750,7 +1750,7 @@ function UnifiedPurchaseOrder({
                             formData: { ...prev.formData, other_charges: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -1819,7 +1819,7 @@ function UnifiedPurchaseOrder({
                               formData: { ...prev.formData, notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات للمورد")}
                           dir={appDir()}
@@ -1835,7 +1835,7 @@ function UnifiedPurchaseOrder({
                               formData: { ...prev.formData, internal_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات للاستخدام الداخلي فقط")}
                           dir={appDir()}
@@ -1851,7 +1851,7 @@ function UnifiedPurchaseOrder({
                               formData: { ...prev.formData, delivery_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات خاصة بالتسليم")}
                           dir={appDir()}

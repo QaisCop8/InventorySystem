@@ -62,7 +62,7 @@ export function InvoicePickerDialog({ open, onOpenChange, onSelect, initialSearc
             <DialogDescription className="text-xs text-indigo-100">{tr("ابحث برقم السند أو اسم/رقم العميل — Enter أو نقر مزدوج للاختيار")}</DialogDescription>
           </div>
           <div className="grid gap-2 border-b bg-slate-50 p-3 sm:grid-cols-[1fr_150px_150px_160px]">
-            <div className="relative"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("رقم السند أو العميل...")} className="pr-9" /></div>
+            <div className="relative"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("رقم السند أو العميل...")} className="ps-9" /></div>
             <Input type="date" lang="en" dir="ltr" value={fromDate} onChange={(event) => setFromDate(event.target.value)} aria-label={tr("من تاريخ")} title={tr("من تاريخ")} />
             <Input type="date" lang="en" dir="ltr" value={toDate} onChange={(event) => setToDate(event.target.value)} aria-label={tr("إلى تاريخ")} title={tr("إلى تاريخ")} />
             <select value={types} onChange={(event) => setTypes(event.target.value)} className="h-10 rounded-md border bg-white px-2 text-sm" aria-label={tr("نوع السند")}>

@@ -155,7 +155,7 @@ export default function UserBranchAccessMatrix() {
           </div>
         </div>
         <Button onClick={() => void save()} disabled={!dirty || saving}>
-          <Save className="ml-2 h-4 w-4" />
+          <Save className="me-2 h-4 w-4" />
           {saving ? tr("جاري الحفظ...") : tr("حفظ")}
         </Button>
       </div>
@@ -167,7 +167,7 @@ export default function UserBranchAccessMatrix() {
           <CardContent className="space-y-4 p-4">
             <div className="relative max-w-sm">
               <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث عن مستخدم...")} className="pr-9" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث عن مستخدم...")} className="ps-9" />
             </div>
 
             <div className="overflow-x-auto rounded-xl border">

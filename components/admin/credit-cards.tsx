@@ -346,25 +346,25 @@ export default function CreditCards() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">{tr("اسم البطاقة")}</TableHead>
-              <TableHead className="text-right">{tr("النوع")}</TableHead>
-              <TableHead className="text-right">{tr("البنك")}</TableHead>
-              <TableHead className="text-right">{tr("العملة")}</TableHead>
-              <TableHead className="text-right">{tr("نوع العمولة")}</TableHead>
-              <TableHead className="text-right">{tr("الحالة")}</TableHead>
-              <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+              <TableHead className="text-start">{tr("اسم البطاقة")}</TableHead>
+              <TableHead className="text-start">{tr("النوع")}</TableHead>
+              <TableHead className="text-start">{tr("البنك")}</TableHead>
+              <TableHead className="text-start">{tr("العملة")}</TableHead>
+              <TableHead className="text-start">{tr("نوع العمولة")}</TableHead>
+              <TableHead className="text-start">{tr("الحالة")}</TableHead>
+              <TableHead className="text-start">{tr("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCards.map(({ card, index }) => (
               <TableRow key={card.id} className="cursor-pointer transition hover:bg-slate-50" onClick={() => openEditDialog(card, index)}>
-                <TableCell className="text-right">{card.name}</TableCell>
-                <TableCell className="text-right">{card.main_type_name}</TableCell>
-                <TableCell className="text-right">{card.bank_name}</TableCell>
-                <TableCell className="text-right">{card.currency_name || card.currency_code}</TableCell>
-                <TableCell className="text-right">{card.commission_type_name}</TableCell>
-                <TableCell className="text-right">{card.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-start">{card.name}</TableCell>
+                <TableCell className="text-start">{card.main_type_name}</TableCell>
+                <TableCell className="text-start">{card.bank_name}</TableCell>
+                <TableCell className="text-start">{card.currency_name || card.currency_code}</TableCell>
+                <TableCell className="text-start">{card.commission_type_name}</TableCell>
+                <TableCell className="text-start">{card.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
+                <TableCell className="text-start">
                   <Button
                     variant="outline"
                     size="sm"

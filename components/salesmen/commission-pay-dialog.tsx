@@ -111,7 +111,7 @@ export function CommissionPayDialog({ row, onClose, onPaid }: { row: Row; onClos
 
         <div className="flex justify-center gap-2 border-t bg-slate-50 px-4 py-3 dark:bg-slate-800">
           <Button onClick={() => void submit()} disabled={saving || loading || !voucherId || !!amountError} className="h-10 w-36 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700">
-            {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("صرف")}
+            {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("صرف")}
           </Button>
           <Button variant="outline" onClick={onClose} disabled={saving} className="h-10 w-28 rounded-xl">{tr("إغلاق")}</Button>
         </div>

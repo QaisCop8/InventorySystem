@@ -209,7 +209,7 @@ export function StockMovements() {
           <SearchButton type="movements" onSelectMovement={handleMovementSelect} variant="outline" />
           <SearchButton type="products" onSelect={handleProductSelect} variant="outline" data-search-type="products" />
           <Button onClick={() => setShowDialog(true)}>
-            <Plus className="ml-2 h-4 w-4" />
+            <Plus className="me-2 h-4 w-4" />
             {tr("إضافة حركة جديدة")}
           </Button>
         </div>
@@ -227,14 +227,14 @@ export function StockMovements() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-gray-50 to-blue-50/50">
                 <tr>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("التاريخ")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("المنتج")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("الكمية")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("التكلفة")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("المرجع")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("المستخدم")}</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">{tr("ملاحظات")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("التاريخ")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("المنتج")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("الكمية")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("التكلفة")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("المرجع")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("المستخدم")}</th>
+                  <th className="text-start p-4 font-semibold text-gray-700">{tr("ملاحظات")}</th>
                 </tr>
               </thead>
               <tbody>

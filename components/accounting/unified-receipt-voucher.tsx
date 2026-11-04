@@ -2520,14 +2520,14 @@ export default function UnifiedReceiptVoucher({
                     <Button type="button" variant="outline" size="sm" onClick={() => void readChequesFromReader()}
                       title={tr("قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashService)")}
                       className={chequeReading ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"}>
-                      {chequeReading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <ScanLine className="ml-1 h-4 w-4" />}
+                      {chequeReading ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <ScanLine className="me-1 h-4 w-4" />}
                       {chequeReading
                         ? tr("{0} (إلغاء)", chequeReaderPhase === "connecting" ? "الاتصال بخدمة الكاشير…" : chequeReaderPhase === "launching" ? "تشغيل خدمة الكاشير…" : "بانتظار قارئ الشيكات…")
                         : tr("قراءة الشيكات")}
                     </Button>
                   )}
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>
-                    <Plus className="ml-1 h-4 w-4" />
+                    <Plus className="me-1 h-4 w-4" />
                     {tr("إضافة شيك")}
                   </Button>
                 </div>
@@ -2619,7 +2619,7 @@ export default function UnifiedReceiptVoucher({
                         <span>{tr("رقم الموافقة: ")}<b dir="ltr">{card.card_auth_code || "-"}</b></span>
                         {card.card_trans_id && <span>{tr("رقم الحركة: ")}<b dir="ltr">{card.card_trans_id}</b></span>}
                         {card.card_terminal_id && <span>{tr("الجهاز: ")}<b dir="ltr">{card.card_terminal_id}</b></span>}
-                        {!isLocked && <button type="button" className="mr-auto text-rose-600 underline" onClick={() => patchCard({ card_no: "", ...CLEAR_PINPAD })}>{tr("إلغاء الربط والإدخال يدوياً")}</button>}
+                        {!isLocked && <button type="button" className="ms-auto text-rose-600 underline" onClick={() => patchCard({ card_no: "", ...CLEAR_PINPAD })}>{tr("إلغاء الربط والإدخال يدوياً")}</button>}
                       </div>
                     ) : (
                       <>
@@ -2657,7 +2657,7 @@ export default function UnifiedReceiptVoucher({
                     {tr("تُستخدم عند توزيع مبلغ السند على أكثر من حساب مقابل بدلاً من حقل \"على حساب\" وحده. اختيار حساب يفعّل زر مراكز التكلفة الخاص به.")}
                   </p>
                   <Button type="button" variant="outline" size="sm" onClick={addJournalRow}>
-                    <Plus className="ml-1 h-4 w-4" />
+                    <Plus className="me-1 h-4 w-4" />
                     {tr("إضافة سطر")}
                   </Button>
                 </div>
@@ -2689,7 +2689,7 @@ export default function UnifiedReceiptVoucher({
                 <fieldset disabled={isLocked} className="contents">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
-                    <ListPlus className="ml-1 h-4 w-4" />
+                    <ListPlus className="me-1 h-4 w-4" />
                     {tr("إضافة ملاحظة")}
                   </Button>
                 </div>
@@ -2770,7 +2770,7 @@ export default function UnifiedReceiptVoucher({
         <DialogContent dir={appDir()} className="max-w-4xl">
           <DialogHeader><DialogTitle>{chequeImage?.title}</DialogTitle></DialogHeader>
           {chequeImage?.loading ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="ml-2 h-5 w-5 animate-spin" />{tr("جاري تحميل الصورة…")}</div>
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="me-2 h-5 w-5 animate-spin" />{tr("جاري تحميل الصورة…")}</div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {([["وجه الشيك", chequeImage?.front], ["ظهر الشيك", chequeImage?.back]] as const).map(([label, image]) => (

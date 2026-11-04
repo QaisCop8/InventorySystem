@@ -170,7 +170,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
                   <p className="text-sm text-muted-foreground">{tr("سيصلك رمز تحقق من 6 أرقام على هذا البريد (صالح 15 دقيقة)")}</p>
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 h-12" disabled={isLoading}>
-                  {isLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري الإرسال...")}</> : tr("إرسال رمز التحقق")}
+                  {isLoading ? <><Loader2 className="me-2 h-4 w-4 animate-spin" />{tr("جاري الإرسال...")}</> : tr("إرسال رمز التحقق")}
                 </Button>
               </form>
             ) : (
@@ -185,7 +185,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
                   <p className="text-sm text-muted-foreground">{tr("أُرسل الرمز إلى: ")}<b dir="ltr">{email}</b></p>
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 h-12" disabled={isLoading || verificationCode.length !== 6}>
-                  {isLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري التحقق...")}</> : tr("تحقق من الرمز")}
+                  {isLoading ? <><Loader2 className="me-2 h-4 w-4 animate-spin" />{tr("جاري التحقق...")}</> : tr("تحقق من الرمز")}
                 </Button>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" className="flex-1 bg-transparent" disabled={isLoading || resendIn > 0} onClick={() => void sendCode()}>
@@ -202,7 +202,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
       {/* الخطوة 3: نافذة منبثقة بعد التحقق من الرمز */}
       <Dialog open={resetOpen} onOpenChange={(open) => { if (!resetLoading && !resetDone) setResetOpen(open) }}>
         <DialogContent dir={appDir()} className="w-[calc(100vw-2rem)] max-w-md" onPointerDownOutside={(event) => event.preventDefault()}>
-          <DialogHeader className="text-right">
+          <DialogHeader className="text-start">
             <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" />{tr("تعيين كلمة مرور جديدة")}</DialogTitle>
             <DialogDescription>{tr("للحساب ")}<b dir="ltr">{email}</b></DialogDescription>
           </DialogHeader>
@@ -246,7 +246,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="h-12 flex-1 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700" disabled={resetLoading}>
-                  {resetLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري الحفظ...")}</> : tr("حفظ كلمة المرور")}
+                  {resetLoading ? <><Loader2 className="me-2 h-4 w-4 animate-spin" />{tr("جاري الحفظ...")}</> : tr("حفظ كلمة المرور")}
                 </Button>
                 <Button type="button" variant="outline" className="h-12" disabled={resetLoading} onClick={() => setResetOpen(false)}>{tr("إلغاء")}</Button>
               </div>

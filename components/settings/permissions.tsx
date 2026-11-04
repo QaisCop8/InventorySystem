@@ -174,16 +174,16 @@ export default function Permissions() {
           <div><h1 className="text-lg font-bold">{tr("صلاحيات المستخدمين")}</h1><p className="mt-0.5 text-xs text-muted-foreground">{tr("خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.")}</p></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="ml-2 h-4 w-4" />{tr("نسخ صلاحيات")}</Button>
-          <Button variant="outline" onClick={() => void save(true)} disabled={!selectedUserId || !selectedBranchId || saving}><RotateCcw className="ml-2 h-4 w-4" />{tr("استعادة الموروث")}</Button>
-          <Button onClick={() => void save(false)} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Save className="ml-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button>
+          <Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="me-2 h-4 w-4" />{tr("نسخ صلاحيات")}</Button>
+          <Button variant="outline" onClick={() => void save(true)} disabled={!selectedUserId || !selectedBranchId || saving}><RotateCcw className="me-2 h-4 w-4" />{tr("استعادة الموروث")}</Button>
+          <Button onClick={() => void save(false)} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button>
         </div>
       </div>
 
       {branches.length === 0 ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.")}</div> : (
         <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
           <Card className="h-fit lg:sticky lg:top-4"><CardContent className="space-y-4 p-4">
-            <div><Label className="mb-2 block text-xs text-muted-foreground">{tr("1. اختر المستخدم")}</Label><div className="relative"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder={tr("بحث عن مستخدم...")} className="pr-9" /></div></div>
+            <div><Label className="mb-2 block text-xs text-muted-foreground">{tr("1. اختر المستخدم")}</Label><div className="relative"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder={tr("بحث عن مستخدم...")} className="ps-9" /></div></div>
             <div className="max-h-[360px] space-y-1 overflow-y-auto pe-1">
               {filteredUsers.map((user) => {
                 const id = String(user.user_id || user.id); const active = id === selectedUserId
@@ -208,7 +208,7 @@ export default function Permissions() {
 
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
         <DialogContent className="max-w-xl rounded-2xl" dir={appDir()}>
-          <DialogHeader className="pl-10">
+          <DialogHeader className="pe-10">
             <DialogTitle className="flex items-center gap-2"><Copy className="h-5 w-5 text-primary" />{tr("نسخ الصلاحيات إلى المستخدم الحالي")}</DialogTitle>
             <DialogDescription>{tr("اختر المستخدم والفرع المصدر. سيتم استبدال صلاحيات الهدف الحالية بنسخة من الصلاحيات الفعالة للمصدر.")}</DialogDescription>
           </DialogHeader>
@@ -231,7 +231,7 @@ export default function Permissions() {
           </div>
 
           <DialogFooter className="gap-2 sm:justify-start">
-            <Button onClick={() => void copyPermissions()} disabled={!sourceUserId || !sourceBranchId || copying || (sourceUserId === selectedUserId && sourceBranchId === selectedBranchId)}><Copy className="ml-2 h-4 w-4" />{copying ? tr("جاري النسخ...") : tr("نسخ وحفظ")}</Button>
+            <Button onClick={() => void copyPermissions()} disabled={!sourceUserId || !sourceBranchId || copying || (sourceUserId === selectedUserId && sourceBranchId === selectedBranchId)}><Copy className="me-2 h-4 w-4" />{copying ? tr("جاري النسخ...") : tr("نسخ وحفظ")}</Button>
             <Button variant="ghost" onClick={() => setCopyOpen(false)} disabled={copying}>{tr("إلغاء")}</Button>
           </DialogFooter>
         </DialogContent>

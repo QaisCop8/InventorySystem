@@ -104,7 +104,7 @@ export function ShippingAddressDialog({ open, onOpenChange, value, onSave, readO
         <DialogContent className="z-[3001] w-[min(640px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden rounded-2xl p-0" dir={appDir()}>
           <div className="flex items-center gap-3 bg-gradient-to-l from-sky-600 to-indigo-600 px-5 py-3 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Truck className="h-5 w-5" /></span>
-            <div className="text-right">
+            <div className="text-start">
               <DialogTitle className="text-base font-bold">{tr("عنوان الشحن")}</DialogTitle>
               <DialogDescription className="text-xs text-sky-50">{tr("بيانات التوصيل والمرسل إليه لهذا السند")}</DialogDescription>
             </div>

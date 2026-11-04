@@ -48,7 +48,6 @@ import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
 import { USER_FONT_BOOT_SCRIPT } from "@/lib/user-font"
 import { cookies } from "next/headers"
-import Script from "next/script"
 import { LANG_COOKIE, tr } from "@/lib/i18n"
 import { I18N_BUILD } from "@/lib/i18n-build"
 import { HydrationLanguageGate } from "@/components/i18n/hydration-language-gate"
@@ -99,8 +98,10 @@ export default async function RootLayout({
   const language = (await cookies()).get(LANG_COOKIE)?.value === "en" ? "en" : "ar"
   return (
     <html lang={language} dir={language === "en" ? "ltr" : "rtl"} suppressHydrationWarning>
+      {/* القاموس بسكربت حاجب في أول <head>: يُنفَّذ قبل وحدات التطبيق، فالتسميات المحسوبة عند تحميل الوحدات (القائمة
+          الجانبية، قوائم الحقول) تُترجم. next/script beforeInteractive لا يضمن ذلك في App Router (يُحمَّل غير متزامن). */}
+      <head>{language === "en" && <script src={`/locales/en.js?v=${I18N_BUILD}`} />}</head>
       <body className={`font-sans ${inter.variable} antialiased`} suppressHydrationWarning>
-        {language === "en" && <Script src={`/locales/en.js?v=${I18N_BUILD}`} strategy="beforeInteractive" />}
         {/* خط المستخدم المحفوظ قبل أول رسم (lib/user-font.ts) — لا وميض للحجم الافتراضي ولا انتظار للشبكة */}
         <script dangerouslySetInnerHTML={{ __html: USER_FONT_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

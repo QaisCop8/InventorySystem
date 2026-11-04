@@ -115,7 +115,7 @@ export default function YearEndClosing() {
           <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarCheck2 className="h-6 w-6 text-indigo-600" />{tr("إقفال السنة المالية")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{tr("يرحّل صافي الإيرادات والمصروفات إلى حساب الأرباح المدورة، ويقفل سندات السنة، وتنتقل أرصدة الميزانية للسنة الجديدة.")}</p>
         </div>
-        <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث")}</Button>
+        <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث")}</Button>
       </div>
 
       {/* شريط الخطوات */}
@@ -152,7 +152,7 @@ export default function YearEndClosing() {
             <div className="space-y-1.5 md:col-span-2"><Label>{tr("ملاحظة")}</Label><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr("اختياري")} /></div>
             <div className="flex justify-end md:col-span-2">
               <Button onClick={() => void runPreview()} disabled={loading || !retainedId}>
-                {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}{tr("فحص السنة")}<ArrowLeft className="mr-2 h-4 w-4" />
+                {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}{tr("فحص السنة")}<ArrowLeft className="ms-2 h-4 w-4" />
               </Button>
             </div>
           </CardContent>
@@ -191,9 +191,9 @@ export default function YearEndClosing() {
               {tr("أرصدة الميزانية المنقولة للسنة الجديدة: ")}<b>{preview.balance_sheet.accounts}</b>{tr(" حساب — مدين ")}<b className="font-mono">{money(preview.balance_sheet.debit)}</b>{tr(" / دائن ")}<b className="font-mono">{money(preview.balance_sheet.credit)}</b>{tr(" (تنتقل تلقائياً؛ لا حاجة لقيد افتتاحي)")}
             </div>
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(0)}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
+              <Button variant="outline" onClick={() => setStep(0)}><ArrowRight className="me-2 h-4 w-4" />{tr("رجوع")}</Button>
               <Button onClick={() => setStep(2)} disabled={!preview.can_close}>
-                {errors ? tr("{0} مانع", errors) : warnings ? tr("متابعة رغم {0} تنبيه", warnings) : tr("متابعة")}<ArrowLeft className="mr-2 h-4 w-4" />
+                {errors ? tr("{0} مانع", errors) : warnings ? tr("متابعة رغم {0} تنبيه", warnings) : tr("متابعة")}<ArrowLeft className="ms-2 h-4 w-4" />
               </Button>
             </div>
           </CardContent>
@@ -217,7 +217,7 @@ export default function YearEndClosing() {
                       {bucket.lines.map((line) => (
                         <tr key={line.key} className="border-t">
                           <td className="p-2"><span className="font-mono text-xs text-muted-foreground">{line.code}</span> {line.name}</td>
-                          <td className="p-2 text-xs">{line.cost_center_names.length ? line.cost_center_names.map((name) => <span key={name} className="ml-1 inline-block rounded bg-sky-50 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">{name}</span>) : <span className="text-muted-foreground">—</span>}</td>
+                          <td className="p-2 text-xs">{line.cost_center_names.length ? line.cost_center_names.map((name) => <span key={name} className="me-1 inline-block rounded bg-sky-50 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">{name}</span>) : <span className="text-muted-foreground">—</span>}</td>
                           <td className="p-2 text-end font-mono">{line.balance < 0 ? money(-line.balance) : ""}</td>
                           <td className="p-2 text-end font-mono">{line.balance > 0 ? money(line.balance) : ""}</td>
                         </tr>
@@ -233,9 +233,9 @@ export default function YearEndClosing() {
               </div>
             ))}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
+              <Button variant="outline" onClick={() => setStep(1)}><ArrowRight className="me-2 h-4 w-4" />{tr("رجوع")}</Button>
               <Button onClick={() => void execute()} disabled={running} className="bg-indigo-600 hover:bg-indigo-700">
-                {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Lock className="ml-2 h-4 w-4" />}{tr("إقفال السنة ")}{year}
+                {running ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Lock className="me-2 h-4 w-4" />}{tr("إقفال السنة ")}{year}
               </Button>
             </div>
           </CardContent>
@@ -275,7 +275,7 @@ export default function YearEndClosing() {
                         <td className="p-3 text-center">{active
                           ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">{tr("مقفلة")}</span>
                           : <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{tr("تم التراجع")}</span>}</td>
-                        <td className="p-3 text-end">{active && <Button size="sm" variant="outline" className="text-rose-600" onClick={() => void reverse(row)}><Undo2 className="ml-1 h-3.5 w-3.5" />{tr("تراجع")}</Button>}</td>
+                        <td className="p-3 text-end">{active && <Button size="sm" variant="outline" className="text-rose-600" onClick={() => void reverse(row)}><Undo2 className="me-1 h-3.5 w-3.5" />{tr("تراجع")}</Button>}</td>
                       </tr>
                     )
                   })}

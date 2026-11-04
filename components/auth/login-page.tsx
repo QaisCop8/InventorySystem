@@ -103,7 +103,7 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
                 <Label htmlFor="login-username" className="text-sm font-semibold text-slate-700">{tr("اسم المستخدم أو البريد الإلكتروني")}</Label>
                 <div className="relative">
                   <UserRound className="pointer-events-none absolute start-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                  <Input dir={credentialDirection} style={{ direction: credentialDirection, unicodeBidi: "plaintext" }} id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder={tr("أدخل اسم المستخدم")} className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 ps-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${credentialDirection === "ltr" ? "text-left" : "text-right"}`} required />
+                  <Input dir={credentialDirection} style={{ direction: credentialDirection, unicodeBidi: "plaintext" }} id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder={tr("أدخل اسم المستخدم")} className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 ps-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${credentialDirection === "ltr" ? "text-end" : "text-start"}`} required />
                 </div>
               </div>
 
@@ -114,7 +114,7 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
                 </div>
                 <div className="relative">
                   <LockKeyhole className="pointer-events-none absolute start-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                  <Input dir={credentialDirection} style={{ direction: credentialDirection, unicodeBidi: "plaintext" }} id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} placeholder={tr("أدخل كلمة المرور")} className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 pe-12 ps-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${credentialDirection === "ltr" ? "text-left" : "text-right"}`} required />
+                  <Input dir={credentialDirection} style={{ direction: credentialDirection, unicodeBidi: "plaintext" }} id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} placeholder={tr("أدخل كلمة المرور")} className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 pe-12 ps-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${credentialDirection === "ltr" ? "text-end" : "text-start"}`} required />
                   <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute end-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700" aria-label={showPassword ? tr("إخفاء كلمة المرور") : tr("إظهار كلمة المرور")}>
                     {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
                   </button>
@@ -127,7 +127,7 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
               </label>
 
               <Button type="submit" disabled={isLoading} className="group h-12 w-full rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-lg shadow-emerald-600/15 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-600/20">
-                {isLoading ? <><span className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />{tr("جاري التحقق...")}</> : <>{tr("دخول إلى النظام")}<ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
+                {isLoading ? <><span className="me-2 h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />{tr("جاري التحقق...")}</> : <>{tr("دخول إلى النظام")}<ArrowLeft className="ms-2 h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
               </Button>
               {footer && <div className="pt-3 text-center text-sm text-slate-500">{footer}</div>}
             </form>

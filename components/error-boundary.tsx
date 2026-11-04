@@ -63,7 +63,7 @@ function DefaultErrorFallback({ error, retry }: { error: Error; retry: () => voi
         <CardContent className="text-center space-y-4">
           <p className="text-sm text-muted-foreground">{tr("عذراً، حدث خطأ أثناء تحميل هذا المكون. يرجى المحاولة مرة أخرى.")}</p>
           {process.env.NODE_ENV === "development" && (
-            <details className="text-left text-xs bg-gray-100 p-2 rounded">
+            <details className="text-end text-xs bg-gray-100 p-2 rounded">
               <summary className="cursor-pointer font-medium">{tr("تفاصيل الخطأ")}</summary>
               <pre className="mt-2 whitespace-pre-wrap">{error.message}</pre>
             </details>

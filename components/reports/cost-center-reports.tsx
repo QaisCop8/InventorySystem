@@ -226,7 +226,7 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
           {visible.map((row) => (
             <Fragment key={row.id}>
               <tr className={`border-b ${row.details.length ? "bg-slate-50 font-bold" : "hover:bg-teal-50/60"}`}>
-                <td className="px-3 py-2.5">{row.code && <span className="ml-2 font-mono text-teal-700">{row.code}</span>}{row.name}</td>
+                <td className="px-3 py-2.5">{row.code && <span className="me-2 font-mono text-teal-700">{row.code}</span>}{row.name}</td>
                 <td className={num} dir="ltr">{fmt(row.opening)}</td>
                 <td className={`${num} text-emerald-700`} dir="ltr">{fmt(row.debit)}</td>
                 <td className={`${num} text-rose-700`} dir="ltr">{fmt(row.credit)}</td>
@@ -234,7 +234,7 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
               </tr>
               {row.details.map((detail) => (
                 <tr key={`${row.id}-${detail.id}`} className="border-b text-xs text-slate-600 hover:bg-teal-50/40">
-                  <td className="py-2 pe-3 ps-8">{detail.code && <span className="ml-2 font-mono">{detail.code}</span>}{detail.name}</td>
+                  <td className="py-2 pe-3 ps-8">{detail.code && <span className="me-2 font-mono">{detail.code}</span>}{detail.name}</td>
                   <td className={num} dir="ltr">{fmt(detail.opening)}</td>
                   <td className={num} dir="ltr">{fmt(detail.debit)}</td>
                   <td className={num} dir="ltr">{fmt(detail.credit)}</td>
@@ -333,8 +333,8 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
         title={<>{definition.title}</>}
         description={<>{needsCenters ? tr("تحليل الحركات المحمّلة على مراكز التكلفة") : tr("عرض الحركات مع مراكز التكلفة المحمّلة عليها")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!resultCount}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!resultCount}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!resultCount}><Download className="me-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!resultCount}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
@@ -378,9 +378,9 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
             {kind === "statement-by-cc" && <label className="flex cursor-pointer items-center gap-2"><Checkbox checked={filters.grouped} onCheckedChange={(value) => set({ grouped: value === true })} />{tr("مجمع حسب مركز التكلفة")}</label>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
+            <Button variant="outline" onClick={reset}><RefreshCcw className="me-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
             <Button data-report-apply onClick={() => void run()} disabled={running || loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-              {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
+              {running ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض النتائج")}
             </Button>
           </div>
         </div>

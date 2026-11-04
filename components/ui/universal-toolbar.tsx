@@ -173,14 +173,14 @@ export function UniversalToolbar({
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild><Button type="button" variant="outline" className="universal-toolbar-menu h-10 gap-2 rounded-xl border-slate-200 bg-slate-50 px-3 text-slate-700 hover:bg-slate-100"><Menu className="h-4 w-4" />{!veryCompact && tr("الأدوات")}</Button></DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="z-[100] min-w-48 [direction:rtl]">
-                {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={printAction}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
-                {onWhatsApp && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onWhatsApp}><MessageCircle className="ml-2 h-4 w-4 text-emerald-600" />{tr("واتساب")}</DropdownMenuItem>}
-                {onSms && <DropdownMenuItem disabled={isLoading || isSaving} onSelect={onSms}><MessageSquareText className="ml-2 h-4 w-4 text-sky-600" />{tr("رسالة SMS")}</DropdownMenuItem>}
-                {onClone && <DropdownMenuItem disabled={navigationBusy || !canClone} onSelect={onClone}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
-                {onReport && <DropdownMenuItem disabled={navigationBusy} onSelect={onReport}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
-                {onExportExcel && <DropdownMenuItem disabled={navigationBusy} onSelect={onExportExcel}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}
+                {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={printAction}><Printer className="me-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
+                {onWhatsApp && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onWhatsApp}><MessageCircle className="me-2 h-4 w-4 text-emerald-600" />{tr("واتساب")}</DropdownMenuItem>}
+                {onSms && <DropdownMenuItem disabled={isLoading || isSaving} onSelect={onSms}><MessageSquareText className="me-2 h-4 w-4 text-sky-600" />{tr("رسالة SMS")}</DropdownMenuItem>}
+                {onClone && <DropdownMenuItem disabled={navigationBusy || !canClone} onSelect={onClone}><Copy className="me-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
+                {onReport && <DropdownMenuItem disabled={navigationBusy} onSelect={onReport}><FileText className="me-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
+                {onExportExcel && <DropdownMenuItem disabled={navigationBusy} onSelect={onExportExcel}><Download className="me-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}
                 {onDelete && <DropdownMenuSeparator />}
-                {onDelete && <DropdownMenuItem disabled={isLoading || isSaving || !canDelete} onSelect={onDelete} className="text-rose-600 focus:text-rose-700"><Trash2 className="ml-2 h-4 w-4" />{labels.delete}</DropdownMenuItem>}
+                {onDelete && <DropdownMenuItem disabled={isLoading || isSaving || !canDelete} onSelect={onDelete} className="text-rose-600 focus:text-rose-700"><Trash2 className="me-2 h-4 w-4" />{labels.delete}</DropdownMenuItem>}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

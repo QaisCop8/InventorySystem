@@ -87,8 +87,8 @@ export default function LandedCosts() {
           <p className="mt-1 text-sm text-muted-foreground">{tr("وزّع الشحن والجمارك والتخليص والتأمين على أصناف فاتورة المشتريات لتصبح كلفة الصنف حقيقية في تقييم المخزون وأرباح الأصناف.")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button onClick={() => setMode("new")} disabled={!meta}><Plus className="ml-2 h-4 w-4" />{tr("مستند جديد")}</Button>
+          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button onClick={() => setMode("new")} disabled={!meta}><Plus className="me-2 h-4 w-4" />{tr("مستند جديد")}</Button>
         </div>
       </div>
 
@@ -220,8 +220,8 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold"><PackagePlus className="h-5 w-5 text-teal-600" />{tr("مستند تحميل تكاليف جديد")}</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
-          <Button onClick={() => void save()} disabled={saving || !purchase}><Save className="ml-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ وإنشاء القيد")}</Button>
+          <Button variant="outline" onClick={onBack}><ArrowRight className="me-2 h-4 w-4" />{tr("رجوع")}</Button>
+          <Button onClick={() => void save()} disabled={saving || !purchase}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ وإنشاء القيد")}</Button>
         </div>
       </div>
 
@@ -269,7 +269,7 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b px-4 py-2.5">
             <span className="font-bold">{tr("بنود التكاليف (فواتير الشحن والجمارك)")}</span>
-            <Button size="sm" variant="outline" onClick={() => setCharges((current) => [...current, emptyCharge("other")])}><Plus className="ml-1 h-3.5 w-3.5" />{tr("بند")}</Button>
+            <Button size="sm" variant="outline" onClick={() => setCharges((current) => [...current, emptyCharge("other")])}><Plus className="me-1 h-3.5 w-3.5" />{tr("بند")}</Button>
           </div>
           <div className="space-y-3 p-4">
             {charges.map((charge) => (
@@ -368,7 +368,7 @@ function PurchasePicker({ open, onOpenChange, onPick }: { open: boolean; onOpenC
         <DialogDescription>{tr("ابحث برقم الفاتورة أو اسم المورد أو السند اليدوي")}</DialogDescription>
         <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void run(search) }}>
           <Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث...")} />
-          <Button type="submit" variant="outline"><Search className="ml-1.5 h-4 w-4" />{tr("بحث")}</Button>
+          <Button type="submit" variant="outline"><Search className="me-1.5 h-4 w-4" />{tr("بحث")}</Button>
         </form>
         <div className="max-h-[55vh] overflow-auto rounded-lg border">
           {loading ? <div className="p-8 text-center text-sm text-muted-foreground">{tr("جاري تحميل البيانات...")}</div> : rows.length === 0 ? (
@@ -436,8 +436,8 @@ function LandedCostView({ id, meta, onBack }: { id: number; meta: Meta; onBack: 
           {cancelled && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{tr("ملغى")}</span>}
         </h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
-          {!cancelled && <Button variant="outline" className="text-rose-600" disabled={busy} onClick={() => void cancel()}><Ban className="ml-2 h-4 w-4" />{tr("إلغاء المستند")}</Button>}
+          <Button variant="outline" onClick={onBack}><ArrowRight className="me-2 h-4 w-4" />{tr("رجوع")}</Button>
+          {!cancelled && <Button variant="outline" className="text-rose-600" disabled={busy} onClick={() => void cancel()}><Ban className="me-2 h-4 w-4" />{tr("إلغاء المستند")}</Button>}
         </div>
       </div>
       <Card>

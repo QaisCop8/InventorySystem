@@ -478,7 +478,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                 <Button
                   key={account.id}
                   variant={currentIndex === idx ? "default" : "outline"}
-                  className="text-left h-auto p-3"
+                  className="text-end h-auto p-3"
                   onClick={() => {
                     setCurrentIndex(idx)
                     loadAccountToForm(account)

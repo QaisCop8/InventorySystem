@@ -451,7 +451,7 @@ export function AdvancedReportingDashboard() {
                           <p className="text-sm text-gray-600">{product.sales}{tr(" قطعة")}</p>
                         </div>
                       </div>
-                      <div className="text-left">
+                      <div className="text-end">
                         <p className="font-bold text-green-600">{product.revenue.toLocaleString("en-US")}{tr(" شيكل")}</p>
                       </div>
                     </div>

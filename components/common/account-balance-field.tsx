@@ -55,7 +55,7 @@ export default function AccountBalanceField({ accountId, refreshKey, label = "ا
         tabIndex={-1}
         title={title}
         dir="ltr"
-        className={`text-right font-mono ${inputClassName} ${denied ? "tracking-widest text-slate-400" : balance > 0.0005 ? "text-rose-700" : balance < -0.0005 ? "text-emerald-700" : ""} ${overLimit ? "border-rose-400" : ""}`}
+        className={`text-start font-mono ${inputClassName} ${denied ? "tracking-widest text-slate-400" : balance > 0.0005 ? "text-rose-700" : balance < -0.0005 ? "text-emerald-700" : ""} ${overLimit ? "border-rose-400" : ""}`}
       />
     </div>
   )

@@ -2471,7 +2471,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     onBlur={handleAccountCodeBlur}
                     onKeyDown={handleAccountCodeKeyDown}
                     placeholder=""
-                    className="text-right flex-1 font-mono text-lg font-semibold tracking-widest"
+                    className="text-start flex-1 font-mono text-lg font-semibold tracking-widest"
                     maxLength={10}
                   />
                   <Button
@@ -2491,7 +2491,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   value={formData.level_no}
                   onChange={(e) => setFormData({ ...formData, level_no: e.target.value })}
                   placeholder={tr("المستوى")}
-                  className="text-right"
+                  className="text-start"
                 />
               </div>
             </div>
@@ -2506,7 +2506,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   // الاسم الإنجليزي فارغ ⇐ يُعبّأ بالاسم العربي عند مغادرة الحقل
                   onBlur={() => setFormData((prev) => (!prev.name_lang2.trim() && prev.name.trim() ? { ...prev, name_lang2: prev.name.trim() } : prev))}
                   placeholder={tr("اسم الحساب")}
-                  className="text-right text-lg"
+                  className="text-start text-lg"
                 />
               </div>
               <div>
@@ -2515,7 +2515,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   value={formData.name_lang2}
                   onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })}
                   placeholder="Account name in English"
-                  className="text-right text-lg"
+                  className="text-start text-lg"
                 />
               </div>
             </div>
@@ -2846,7 +2846,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       value={formData.max_transaction_amount}
                       onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
                       placeholder="0"
-                      className="text-right"
+                      className="text-start"
                     />
                   </div>
                   <div>
@@ -2881,7 +2881,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       value={formData.max_balance_amount}
                       onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
                       placeholder="0"
-                      className="text-right"
+                      className="text-start"
                     />
                   </div>
                   <div>
@@ -3121,7 +3121,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform lg:hidden ${mobileTreeOpen ? "rotate-180" : ""}`} />
               </button>
               <span className="text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
-              <div className="mr-auto flex overflow-hidden rounded-md border border-slate-200 text-[11px] font-medium">
+              <div className="ms-auto flex overflow-hidden rounded-md border border-slate-200 text-[11px] font-medium">
                 {([["lists", "القوائم المالية"], ["parents", "الحسابات الأب"]] as const).map(([mode, label]) => (
                   <button
                     key={mode}
@@ -3250,7 +3250,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   value={newClassificationTypeName}
                   onChange={(e) => setNewClassificationTypeName(e.target.value)}
                   placeholder={tr("أدخل اسم النوع")}
-                  className="text-right"
+                  className="text-start"
                   autoFocus
                 />
               </div>
@@ -3325,7 +3325,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   value={newClassificationName}
                   onChange={(e) => setNewClassificationName(e.target.value)}
                   placeholder={tr("أدخل اسم التصنيف")}
-                  className="text-right"
+                  className="text-start"
                 />
               </div>
             </div>
@@ -3374,7 +3374,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   value={newCostCenterTypeName}
                   onChange={(e) => setNewCostCenterTypeName(e.target.value)}
                   placeholder={tr("أدخل اسم النوع")}
-                  className="text-right"
+                  className="text-start"
                   autoFocus
                 />
               </div>

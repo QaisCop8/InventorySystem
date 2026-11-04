@@ -121,7 +121,7 @@ export default function Salesmen() {
               <div className="grid grid-cols-1 gap-4">
                 
                 {/* Code */}
-                <div className="text-right">
+                <div className="text-start">
                   <Label className="erp-label text-start block">
                     {tr("كود المندوب *")}
                   </Label>
@@ -138,7 +138,7 @@ export default function Salesmen() {
                 </div>
 
                 {/* Name */}
-                <div className="text-right">
+                <div className="text-start">
                   <Label className="erp-label text-start block">
                     {tr("اسم المندوب *")}
                   </Label>

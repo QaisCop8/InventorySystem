@@ -278,7 +278,7 @@ export function QuickAccessFavorites() {
             <DialogTrigger asChild>
               <Button size="sm" variant="outline">
                 <Plus className="h-4 w-4" />
-                <span className="mr-2">{tr("إضافة")}</span>
+                <span className="ms-2">{tr("إضافة")}</span>
               </Button>
             </DialogTrigger>
             <DialogContent dir={appDir()}>

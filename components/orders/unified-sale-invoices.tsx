@@ -3486,7 +3486,7 @@ function UnifiedSaleInvoices({
                               formData: { ...prev.formData, order_number: e.target.value },
                             }))
                           }
-                          className="text-right font-medium text-sm h-9"
+                          className="text-start font-medium text-sm h-9"
                           dir={appDir()}
                           placeholder={""}
                           onBlur={handleOrderCodeBlur}
@@ -3636,7 +3636,7 @@ function UnifiedSaleInvoices({
                           }))
                         }}
                         onBlur={handleReferenceNumberBlur}
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                         maxLength={7}
                       />
@@ -3653,7 +3653,7 @@ function UnifiedSaleInvoices({
                             formData: { ...prev.formData, reference_number_date: e.target.value },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -3737,7 +3737,7 @@ function UnifiedSaleInvoices({
                                   formData: { ...prev.formData, customer_name: e.target.value },
                                 }))
                               }
-                              className="text-right h-11 flex-1"
+                              className="text-start h-11 flex-1"
                             />
                           </div>
                         </div>
@@ -3747,7 +3747,7 @@ function UnifiedSaleInvoices({
                           <Input
                             value={state.formData.customer_address ?? ""}
                             readOnly
-                            className="text-right h-11 bg-muted"
+                            className="text-start h-11 bg-muted"
                           />
                         </div>
 
@@ -3763,7 +3763,7 @@ function UnifiedSaleInvoices({
                                 formData: { ...prev.formData, sales_representative: e.target.value },
                               }))
                             }
-                            className="text-right h-11"
+                            className="text-start h-11"
                           />
                         </div>
 
@@ -3851,7 +3851,7 @@ function UnifiedSaleInvoices({
                                 formData: { ...prev.formData, delivery_date: e.target.value },
                               }))
                             }
-                            className="text-right h-11"
+                            className="text-start h-11"
                             dir={appDir()}
                           />
                         </div>
@@ -4008,7 +4008,7 @@ function UnifiedSaleInvoices({
                               formData: { ...prev.formData, general_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[90px] resize-none"
+                          className="text-start min-h-[90px] resize-none"
                           rows={3}
                           placeholder={tr("ملاحظة عامة على الفاتورة")}
                           dir={appDir()}
@@ -4025,7 +4025,7 @@ function UnifiedSaleInvoices({
                               formData: { ...prev.formData, internal_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات للاستخدام الداخلي فقط")}
                           dir={appDir()}
@@ -4041,7 +4041,7 @@ function UnifiedSaleInvoices({
                               formData: { ...prev.formData, delivery_notes: e.target.value },
                             }))
                           }
-                          className="text-right min-h-[100px] resize-none"
+                          className="text-start min-h-[100px] resize-none"
                           rows={4}
                           placeholder={tr("ملاحظات خاصة بالتسليم")}
                           dir={appDir()}
@@ -4107,7 +4107,7 @@ function UnifiedSaleInvoices({
                             },
                           }));
                         }}
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -4125,7 +4125,7 @@ function UnifiedSaleInvoices({
                           formData: { ...prev.formData, vat_percent: Number.parseFloat(e.target.value) || 0 },
                         }))
                       }
-                      className="text-right h-11"
+                      className="text-start h-11"
                       dir={appDir()}
                     />
                   </div>
@@ -4143,7 +4143,7 @@ function UnifiedSaleInvoices({
                             formData: { ...prev.formData, shipping_cost: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>
@@ -4159,7 +4159,7 @@ function UnifiedSaleInvoices({
                             formData: { ...prev.formData, other_charges: Number.parseFloat(e.target.value) || 0 },
                           }))
                         }
-                        className="text-right h-11"
+                        className="text-start h-11"
                         dir={appDir()}
                       />
                     </div>

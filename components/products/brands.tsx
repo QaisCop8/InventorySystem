@@ -178,11 +178,11 @@ export default function Brands() {
                 {form.id > 0 ? tr("تعديل العلامة التجارية") : tr("إضافة علامة تجارية جديدة")}
               </h3>
               <form className="space-y-4" onSubmit={handleSave}>
-                <div className="text-right">
-                  <Label className="text-right block">{tr("اسم العلامة التجارية *")}</Label>
+                <div className="text-start">
+                  <Label className="text-start block">{tr("اسم العلامة التجارية *")}</Label>
                   <Input
                     required
-                    className="text-right"
+                    className="text-start"
                     placeholder={tr("مثال: سامسونج")}
                     dir={appDir()}
                     maxLength={100}
@@ -191,10 +191,10 @@ export default function Brands() {
                   />
                 </div>
 
-                <div className="text-right">
-                  <Label className="text-right block">{tr("نوع العلامة التجارية *")}</Label>
+                <div className="text-start">
+                  <Label className="text-start block">{tr("نوع العلامة التجارية *")}</Label>
                   <Select dir={appDir()} value={form.brand_type_id} onValueChange={(value) => setForm({ ...form, brand_type_id: value })}>
-                    <SelectTrigger className="text-right">
+                    <SelectTrigger className="text-start">
                       <SelectValue placeholder={tr("اختر النوع")} />
                     </SelectTrigger>
                     <SelectContent>

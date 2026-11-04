@@ -180,7 +180,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
       <div className="flex items-center gap-3">
         <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">{index + 1}</span>
         <InternalItemImage item={item} size="sm" />
-        <div className="min-w-0 flex-1"><div className="truncate font-bold text-blue-700 dark:text-blue-400">{item.item_name || "-"}</div><div className="text-xs text-red-600">{item.unit_name || tr("بدون وحدة")}{item.barcode ? <span className="mr-2 font-mono text-muted-foreground">{item.barcode}</span> : null}</div></div>
+        <div className="min-w-0 flex-1"><div className="truncate font-bold text-blue-700 dark:text-blue-400">{item.item_name || "-"}</div><div className="text-xs text-red-600">{item.unit_name || tr("بدون وحدة")}{item.barcode ? <span className="ms-2 font-mono text-muted-foreground">{item.barcode}</span> : null}</div></div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {rules.columns.map((column) => <div key={column} className={`rounded-lg border px-2 py-1.5 ${column === rules.editable && allowed ? "col-span-2 border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30" : "bg-slate-50/60 dark:bg-slate-900/40"}`}>
@@ -214,8 +214,8 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
     {listError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{listError}</div>}
 
     <div className="flex flex-col gap-2 rounded-xl border bg-white p-3 shadow-sm sm:flex-row sm:items-center dark:bg-slate-950">
-      <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم الطلب، مقدم الطلب، الفرع أو الصنف...")} /></div>
-      <Button variant="outline" onClick={() => setOldestFirst((value) => !value)}><ArrowDownUp className="ml-2 h-4 w-4" />{oldestFirst ? tr("الأقدم أولاً") : tr("الأحدث أولاً")}</Button>
+      <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="ps-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم الطلب، مقدم الطلب، الفرع أو الصنف...")} /></div>
+      <Button variant="outline" onClick={() => setOldestFirst((value) => !value)}><ArrowDownUp className="me-2 h-4 w-4" />{oldestFirst ? tr("الأقدم أولاً") : tr("الأحدث أولاً")}</Button>
       <span className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{visible.length}{tr(" طلب")}</span>
     </div>
 
@@ -243,7 +243,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
           <div className="overflow-hidden rounded-xl border">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2 dark:bg-slate-900">
               <h3 className="font-bold">{tr("الأصناف ")}<span className="text-sm font-normal text-muted-foreground">({items.length})</span></h3>
-              {rules.fill && allowed && <Button size="sm" variant="outline" onClick={fillAll}><Copy className="ml-1.5 h-3.5 w-3.5" />{rules.fill.label}</Button>}
+              {rules.fill && allowed && <Button size="sm" variant="outline" onClick={fillAll}><Copy className="me-1.5 h-3.5 w-3.5" />{rules.fill.label}</Button>}
             </div>
             <div className="divide-y sm:hidden">
               {items.map((item, index) => renderItemCard(item, index))}
@@ -265,7 +265,7 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
                   const differs = rules.editable && rules.editable !== "qnty" && Number.isFinite(value) && value !== reference
                   return <tr key={item.id} className="border-t">
                     <td className="p-2 text-center text-muted-foreground">{index + 1}</td>
-                    <td className="p-2"><div className="flex items-center gap-3"><InternalItemImage item={item} size="sm" /><div className="min-w-0"><div className="truncate font-bold text-blue-700 dark:text-blue-400">{item.item_name || "-"}</div><div className="text-xs text-red-600">{item.unit_name || tr("بدون وحدة")}{item.barcode ? <span className="mr-2 font-mono text-muted-foreground">{item.barcode}</span> : null}</div></div></div></td>
+                    <td className="p-2"><div className="flex items-center gap-3"><InternalItemImage item={item} size="sm" /><div className="min-w-0"><div className="truncate font-bold text-blue-700 dark:text-blue-400">{item.item_name || "-"}</div><div className="text-xs text-red-600">{item.unit_name || tr("بدون وحدة")}{item.barcode ? <span className="ms-2 font-mono text-muted-foreground">{item.barcode}</span> : null}</div></div></div></td>
                     {rules.columns.map((column) => <td key={column} className="p-2 text-center">
                       {column === rules.editable && allowed
                         ? <Input ref={(element) => { inputRefs.current[index] = element }} aria-label={COLUMN_LABELS[column]} type="number" inputMode="decimal" min="0" className={`h-9 text-center font-semibold ${differs ? "border-amber-400 bg-amber-50" : ""}`} value={values[item.id] ?? ""} onFocus={(event) => event.target.select()} onChange={(event) => setValues((current) => ({ ...current, [item.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); const nextInput = inputRefs.current[index + 1]; if (nextInput) { nextInput.focus(); nextInput.select() } else void approve() } }} />
@@ -285,8 +285,8 @@ export default function InternalStagePage({ stageKey }: { stageKey: Exclude<Inte
           <span className="hidden text-xs text-muted-foreground sm:inline">{rules.editable && allowed ? tr("Enter للانتقال للصنف التالي — Enter على آخر صنف للاعتماد.") : tr("مراجعة فقط — لا توجد كميات قابلة للتعديل في هذه المرحلة.")}</span>
           <div className="grid grid-cols-2 gap-2 sm:flex [&>button:last-child]:col-span-2 sm:[&>button:last-child]:col-span-1">
             <Button variant="outline" onClick={() => setSelected(null)} disabled={saving}>{tr("إغلاق")}</Button>
-            {stageKey === "requestAudit" && canEditRequest && <Button variant="outline" onClick={() => void saveOnly()} disabled={saving || !dirty}><Save className="ml-2 h-4 w-4" />{tr("حفظ التعديلات")}</Button>}
-            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void approve()} disabled={saving || !allowed}><CheckCircle2 className="ml-2 h-4 w-4" />{saving ? tr("جارٍ الحفظ...") : approveLabel}</Button>
+            {stageKey === "requestAudit" && canEditRequest && <Button variant="outline" onClick={() => void saveOnly()} disabled={saving || !dirty}><Save className="me-2 h-4 w-4" />{tr("حفظ التعديلات")}</Button>}
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void approve()} disabled={saving || !allowed}><CheckCircle2 className="me-2 h-4 w-4" />{saving ? tr("جارٍ الحفظ...") : approveLabel}</Button>
           </div>
         </div>}
       </DialogContent>

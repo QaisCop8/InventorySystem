@@ -154,11 +154,11 @@ export default function BrandTypes() {
                 {form.id > 0 ? tr("تعديل نوع العلامة التجارية") : tr("إضافة نوع جديد")}
               </h3>
               <form className="space-y-4" onSubmit={handleSave}>
-                <div className="text-right">
-                  <Label className="text-right block">{tr("اسم النوع *")}</Label>
+                <div className="text-start">
+                  <Label className="text-start block">{tr("اسم النوع *")}</Label>
                   <Input
                     required
-                    className="text-right"
+                    className="text-start"
                     placeholder={tr("مثال: أجهزة كهربائية")}
                     dir={appDir()}
                     maxLength={100}

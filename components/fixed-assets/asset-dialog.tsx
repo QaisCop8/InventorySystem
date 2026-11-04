@@ -187,7 +187,7 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
             </div>
             <StatusBadge status={status} />
             {editable && <Button size="sm" className="shrink-0 bg-teal-600 hover:bg-teal-700" disabled={saving || !form.name || !form.category_id} onClick={() => void save(true)}>
-              <Rocket className="h-4 w-4 sm:ml-1.5" /><span className="hidden sm:inline">{tr("حفظ وتفعيل")}</span>
+              <Rocket className="h-4 w-4 sm:me-1.5" /><span className="hidden sm:inline">{tr("حفظ وتفعيل")}</span>
             </Button>}
           </div>
           {card && !editable && <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -197,7 +197,7 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
           </div>}
           {card && actionsFor.length > 0 && <div className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
             {actionsFor.map(key => <Button key={key} size="sm" variant="outline" disabled={saving || dirty()} onClick={() => setAction(key)}
-              className={cn("h-8 shrink-0", key === "dispose" && "border-rose-200 text-rose-700 hover:bg-rose-50")}>{actionIcons[key]}<span className="mr-1.5">{ACTION_LABELS[key]}</span></Button>)}
+              className={cn("h-8 shrink-0", key === "dispose" && "border-rose-200 text-rose-700 hover:bg-rose-50")}>{actionIcons[key]}<span className="ms-1.5">{ACTION_LABELS[key]}</span></Button>)}
           </div>}
         </div>
 
@@ -221,12 +221,12 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
 
             <TabsContent value="general" className="mt-0">
               <div className="grid gap-x-4 gap-y-3 @lg:grid-cols-2 @3xl:grid-cols-3">
-                <Field label={tr("رقم الأصل")} htmlFor="fa-no" hint={card ? undefined : tr("اتركه فارغاً للترقيم التلقائي")}><Input id="fa-no" dir="ltr" className="text-right" value={form.asset_no ?? ""} disabled={!editable} onChange={event => set({ asset_no: event.target.value })} placeholder="FA-00001" /></Field>
+                <Field label={tr("رقم الأصل")} htmlFor="fa-no" hint={card ? undefined : tr("اتركه فارغاً للترقيم التلقائي")}><Input id="fa-no" dir="ltr" className="text-start" value={form.asset_no ?? ""} disabled={!editable} onChange={event => set({ asset_no: event.target.value })} placeholder="FA-00001" /></Field>
                 <Field label={tr("اسم الأصل")} htmlFor="fa-name" required className="@3xl:col-span-2"><Input id="fa-name" value={form.name ?? ""} onChange={event => set({ name: event.target.value })} /></Field>
                 <Field label={tr("التصنيف")} htmlFor="fa-category" required><Select id="fa-category" value={form.category_id} disabled={!editable} options={toOptions(lookups.categories.filter(row => Number(row.status) === 1 || Number(row.id) === Number(form.category_id)))} onChange={value => applyCategoryDefaults(Number(value))} /></Field>
                 <Field label={tr("مكوّن من الأصل")} htmlFor="fa-parent" hint={tr("للمكونات بعمر مختلف (مصعد مبنى، محرك آلة)")}><Select id="fa-parent" value={form.parent_asset_id} disabled={!editable} options={parentOptions} clearable onChange={value => set({ parent_asset_id: value })} /></Field>
-                <Field label={tr("الباركود")} htmlFor="fa-barcode"><Input id="fa-barcode" dir="ltr" className="text-right" value={form.barcode ?? ""} onChange={event => set({ barcode: event.target.value })} /></Field>
-                <Field label={tr("الرقم التسلسلي")} htmlFor="fa-serial"><Input id="fa-serial" dir="ltr" className="text-right" value={form.serial_number ?? ""} onChange={event => set({ serial_number: event.target.value })} /></Field>
+                <Field label={tr("الباركود")} htmlFor="fa-barcode"><Input id="fa-barcode" dir="ltr" className="text-start" value={form.barcode ?? ""} onChange={event => set({ barcode: event.target.value })} /></Field>
+                <Field label={tr("الرقم التسلسلي")} htmlFor="fa-serial"><Input id="fa-serial" dir="ltr" className="text-start" value={form.serial_number ?? ""} onChange={event => set({ serial_number: event.target.value })} /></Field>
                 <Field label={tr("نهاية الكفالة")} htmlFor="fa-warranty"><Input id="fa-warranty" type="date" value={form.warranty_end_date ?? ""} onChange={event => set({ warranty_end_date: event.target.value })} /></Field>
                 <Field label={tr("الموديل")} htmlFor="fa-model"><Input id="fa-model" value={form.model ?? ""} onChange={event => set({ model: event.target.value })} /></Field>
                 <Field label={tr("الشركة المصنعة")} htmlFor="fa-maker"><Input id="fa-maker" value={form.manufacturer ?? ""} onChange={event => set({ manufacturer: event.target.value })} /></Field>
@@ -399,7 +399,7 @@ function DocumentsPanel({ assetId, documents, onChanged, onError }: { assetId: n
       <Field label={tr("تاريخ الانتهاء")} htmlFor="fa-doc-exp"><Input id="fa-doc-exp" type="date" value={expiry} onChange={event => setExpiry(event.target.value)} /></Field>
       <div>
         <input ref={input} type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.xls,.xlsx,.txt" onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file) }} />
-        <Button type="button" className="w-full" disabled={busy} onClick={() => input.current?.click()}>{busy ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <FileUp className="ml-2 h-4 w-4" />}{tr("رفع ملف (حتى 5MB)")}</Button>
+        <Button type="button" className="w-full" disabled={busy} onClick={() => input.current?.click()}>{busy ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <FileUp className="me-2 h-4 w-4" />}{tr("رفع ملف (حتى 5MB)")}</Button>
       </div>
     </div>
     <DataTable rows={documents} footer={false} maxHeight="calc(92dvh - 420px)" columns={[

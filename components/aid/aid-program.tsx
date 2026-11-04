@@ -156,18 +156,53 @@ export default function AidProgram() {
   }
 
   return (
-    <div dir={appDir()} className="space-y-4 p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white"><HeartHandshake className="h-6 w-6" /></span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-black text-slate-900">{tr("برامج المساعدات")}</h1>
-          <p className="text-sm text-slate-500">{tr("أنشطة القسائم بلا بطاقة: المستفيدون ورموز الصرف، والصرف من الكاشير بطريقة الدفع «قسيمة مساعدة».")}</p>
+    <main dir={appDir()} className="min-h-full space-y-4 bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950">
+      {/* نفس ترويسة شاشات النظام (الشيكات...): بطاقة متدرجة بأيقونة وعنوان ووصف والأزرار */}
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 p-5 text-white shadow-xl sm:p-7">
+        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+          <div className="flex items-start gap-4">
+            <span className="rounded-2xl bg-white/15 p-3 backdrop-blur"><HeartHandshake className="h-7 w-7" /></span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-black sm:text-3xl">{tr("برامج المساعدات")}</h1>
+              <p className="mt-1 max-w-2xl text-sm text-white/75">{tr("أنشطة القسائم بلا بطاقة: المستفيدون ورموز الصرف، والصرف من الكاشير بطريقة الدفع «قسيمة مساعدة».")}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" className="flex-1 bg-white/15 text-white hover:bg-white/25 sm:flex-none" onClick={() => void load()}><RefreshCw className="me-1 h-4 w-4" />{tr("تحديث")}</Button>
+            {canCreate && <Button className="flex-1 bg-white text-emerald-700 hover:bg-emerald-50 sm:flex-none" onClick={openNew}><Plus className="me-1 h-4 w-4" />{tr("نشاط جديد")}</Button>}
+          </div>
         </div>
-        <Button variant="outline" onClick={() => void load()}><RefreshCw className="ml-1 h-4 w-4" />{tr("تحديث")}</Button>
-        {canCreate && <Button onClick={openNew}><Plus className="ml-1 h-4 w-4" />{tr("نشاط جديد")}</Button>}
       </div>
 
-      <Card><CardContent className="p-0">
+      {/* الجوال: بطاقة لكل نشاط بدل جدول عريض */}
+      <div className="space-y-2 md:hidden">
+        {loading && <div className="rounded-2xl border bg-white p-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div>}
+        {!loading && !rows.length && <div className="rounded-2xl border bg-white p-6 text-center text-sm text-slate-500">{tr("لا توجد أنشطة بعد — أضف نشاطاً جديداً.")}</div>}
+        {rows.map((row) => (
+          <div key={row.id} role="button" tabIndex={0} onClick={() => setSelectedId(row.id)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedId(row.id) }}
+            className={`rounded-2xl border bg-white p-3 shadow-sm ${row.id === selectedId ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200"}`}>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-black text-slate-900">{row.name}</p>
+                <p className="truncate text-xs text-slate-500">{row.donor_name || row.donor_account_name}</p>
+                <p className="mt-0.5 text-[11px] tabular-nums text-slate-500" dir="ltr">{row.start_date} → {row.end_date}</p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${STATUS[row.status]?.tone}`}>{STATUS[row.status]?.label}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              {([[tr("الميزانية"), `${money(row.budget)} ${row.currency_code}`], [tr("غير موزّع"), money(row.unallocated)], [tr("المستفيدون"), String(row.participant_count)], [tr("المصروف"), money(row.redeemed)]] as const).map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-slate-50 px-2 py-1.5"><span className="block text-[11px] text-slate-500">{label}</span><b className="tabular-nums" dir="ltr">{value}</b></div>
+              ))}
+            </div>
+            {(canUpdate || canDelete) && <div className="mt-2 flex justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+              {canUpdate && <Button size="sm" variant="outline" onClick={() => void openEdit(row.id)}><Pencil className="me-1 h-4 w-4" />{tr("تعديل")}</Button>}
+              {canDelete && <Button size="sm" variant="outline" onClick={() => void remove(row)} aria-label={tr("حذف")}><Trash2 className="h-4 w-4 text-rose-600" /></Button>}
+            </div>}
+          </div>
+        ))}
+      </div>
+
+      <Card className="hidden md:block"><CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-slate-50 text-xs text-slate-600"><tr>
@@ -202,13 +237,15 @@ export default function AidProgram() {
 
       {selected && (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
-            {([["participants", "المستفيدون", Users], ["ledger", "الحركات", BookOpen], ["summary", "الدفاتر الثلاثة", Scale]] as const).map(([key, label, Icon]) => (
-              <button key={key} type="button" onClick={() => setTab(key)} className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold ${tab === key ? "bg-white text-emerald-700 shadow-sm" : "text-slate-600"}`}>
-                <Icon className="h-4 w-4" />{label}
-              </button>
-            ))}
-            <span className="mr-auto self-center px-3 text-sm font-bold text-slate-700">{selected.name}</span>
+          <div className="flex flex-col gap-2 rounded-xl bg-slate-100 p-1 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-3 gap-1 sm:flex">
+              {([["participants", "المستفيدون", Users], ["ledger", "الحركات", BookOpen], ["summary", "الدفاتر الثلاثة", Scale]] as const).map(([key, label, Icon]) => (
+                <button key={key} type="button" onClick={() => setTab(key)} className={`flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold sm:px-4 sm:text-sm ${tab === key ? "bg-white text-emerald-700 shadow-sm" : "text-slate-600"}`}>
+                  <Icon className="h-4 w-4 shrink-0" /><span className="truncate">{tr(label)}</span>
+                </button>
+              ))}
+            </div>
+            <span className="truncate px-3 pb-1 text-sm font-bold text-slate-700 sm:ms-auto sm:pb-0">{selected.name}</span>
           </div>
           {tab === "participants" && <ParticipantsTab activity={selected} canCreate={canCreate} canUpdate={canUpdate} onChanged={load} fail={fail} />}
           {tab === "ledger" && <LedgerTab activityId={selected.id} points={lookup.points} fail={fail} />}
@@ -253,7 +290,7 @@ export default function AidProgram() {
                 <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={draft.all_items} onChange={(e) => setDraft({ ...draft, all_items: e.target.checked })} />{tr("كل الأصناف مسموحة")}</label>
                 {!draft.all_items && <>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" size="sm" variant="outline" onClick={() => setPicker(true)}><Plus className="ml-1 h-4 w-4" />{tr("صنف")}</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setPicker(true)}><Plus className="me-1 h-4 w-4" />{tr("صنف")}</Button>
                     <select className="h-9 rounded-md border bg-white px-2 text-sm" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
                       <option value="">{tr("مجموعة أصناف…")}</option>
                       {lookup.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
@@ -290,7 +327,7 @@ export default function AidProgram() {
               <div className="space-y-1.5"><Label>{tr("ملاحظات")}</Label><Textarea value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /></div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDraft(null)}>{tr("إلغاء")}</Button>
-                <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
+                <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
               </div>
             </div>
           )}
@@ -305,7 +342,7 @@ export default function AidProgram() {
           }} />
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   )
 }
 
@@ -397,20 +434,20 @@ function ParticipantsTab({ activity, canCreate, canUpdate, onChanged, fail }: { 
 
   return (
     <Card><CardContent className="space-y-3 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] flex-1">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <div className="relative col-span-2 min-w-0 sm:min-w-[220px] sm:flex-1">
           <Search className="pointer-events-none absolute start-2 top-2.5 h-4 w-4 text-slate-400" />
-          <Input className="pr-8" placeholder={tr("بحث بالاسم أو الهوية أو الجوال أو الرمز")} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void load() }} />
+          <Input className="ps-8" placeholder={tr("بحث بالاسم أو الهوية أو الجوال أو الرمز")} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void load() }} />
         </div>
-        <Button variant="outline" onClick={() => void load()}><Search className="ml-1 h-4 w-4" />{tr("بحث")}</Button>
+        <Button variant="outline" onClick={() => void load()}><Search className="me-1 h-4 w-4" />{tr("بحث")}</Button>
         {canCreate && <>
-          <Button variant="outline" onClick={() => void downloadTemplate()}><Download className="ml-1 h-4 w-4" />{tr("نموذج Excel")}</Button>
-          <label className={`inline-flex h-10 cursor-pointer items-center gap-1 rounded-md bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700 ${importing ? "pointer-events-none opacity-60" : ""}`}>
+          <Button variant="outline" onClick={() => void downloadTemplate()}><Download className="me-1 h-4 w-4" />{tr("نموذج Excel")}</Button>
+          <label className={`inline-flex h-10 cursor-pointer items-center justify-center gap-1 rounded-md bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700 ${importing ? "pointer-events-none opacity-60" : ""}`}>
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}{tr("استيراد مستفيدين")}
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void importFile(file) }} />
           </label>
         </>}
-        {canUpdate && <Button variant="outline" onClick={() => setTopUp({ amount: String(Number(activity.amount_per_participant) || ""), all: !selected.length, note: "", requestId: crypto.randomUUID() })}><Wallet className="ml-1 h-4 w-4" />{tr("تعبئة رصيد")}{selected.length ? ` (${selected.length})` : ""}</Button>}
+        {canUpdate && <Button variant="outline" onClick={() => setTopUp({ amount: String(Number(activity.amount_per_participant) || ""), all: !selected.length, note: "", requestId: crypto.randomUUID() })}><Wallet className="me-1 h-4 w-4" />{tr("تعبئة رصيد")}{selected.length ? ` (${selected.length})` : ""}</Button>}
       </div>
 
       {importErrors.length > 0 && (
@@ -420,7 +457,35 @@ function ParticipantsTab({ activity, canCreate, canUpdate, onChanged, fail }: { 
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      {/* الجوال: بطاقة لكل مستفيد */}
+      <div className="space-y-2 md:hidden">
+        {loading && <div className="p-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div>}
+        {!loading && !rows.length && <p className="p-6 text-center text-sm text-slate-500">{tr("لا يوجد مستفيدون — استورد ملف Excel.")}</p>}
+        {!loading && rows.map((row) => (
+          <div key={row.id} className="rounded-2xl border border-slate-200 bg-white p-3">
+            <div className="flex items-start gap-2">
+              <input type="checkbox" className="mt-1" aria-label={tr("تحديد {0}", row.full_name)} checked={selected.includes(row.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold">{row.full_name}</p>
+                <p className="text-xs tabular-nums text-slate-500" dir="ltr">{row.national_id} · {row.phone} · {row.code_masked}</p>
+              </div>
+              {row.code_status === 3 ? <Badge variant="secondary">{tr("ملغى")}</Badge> : row.locked ? <Badge className="bg-amber-100 text-amber-800">{tr("مقفل")}</Badge> : <Badge className="bg-emerald-100 text-emerald-800">{tr("فعّال")}</Badge>}
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded-xl bg-slate-50 px-2 py-1.5"><span className="block text-[11px] text-slate-500">{tr("الموزّع")}</span><b className="tabular-nums">{money(row.allocated)}</b></div>
+              <div className="rounded-xl bg-slate-50 px-2 py-1.5"><span className="block text-[11px] text-slate-500">{tr("المصروف")}</span><b className="tabular-nums">{money(row.redeemed)}</b></div>
+              <div className="rounded-xl bg-emerald-50 px-2 py-1.5"><span className="block text-[11px] text-slate-500">{tr("الرصيد")}</span><b className="tabular-nums text-emerald-700">{money(row.balance)}</b></div>
+            </div>
+            {canUpdate && row.code_status !== 3 && <div className="mt-2 flex justify-end gap-1">
+              {row.locked && <Button size="sm" variant="outline" disabled={busyId === row.id} onClick={() => void rowAction(row, "unlock")}><Unlock className="me-1 h-4 w-4" />{tr("فك القفل")}</Button>}
+              <Button size="sm" variant="outline" disabled={busyId === row.id} onClick={() => void rowAction(row, "resend")}><Send className="me-1 h-4 w-4" />{tr("رقم سري جديد وإرساله")}</Button>
+              <Button size="sm" variant="outline" disabled={busyId === row.id} onClick={() => void rowAction(row, "cancel")} aria-label={tr("إلغاء الرمز")}><XCircle className="h-4 w-4 text-rose-600" /></Button>
+            </div>}
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-slate-50 text-xs text-slate-600"><tr>
             <th className="p-2"><input type="checkbox" aria-label={tr("تحديد الكل")} checked={rows.length > 0 && selected.length === rows.length} onChange={(e) => setSelected(e.target.checked ? rows.map((row) => row.id) : [])} /></th>
@@ -433,7 +498,7 @@ function ParticipantsTab({ activity, canCreate, canUpdate, onChanged, fail }: { 
             {!loading && rows.map((row) => (
               <tr key={row.id} className="border-t">
                 <td className="p-2 text-center"><input type="checkbox" aria-label={tr("تحديد {0}", row.full_name)} checked={selected.includes(row.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, row.id] : selected.filter((id) => id !== row.id))} /></td>
-                <td className="p-2 font-semibold">{row.full_name}{row.household_size ? <small className="mr-1 text-slate-500">({row.household_size}{tr(" أفراد)")}</small> : null}</td>
+                <td className="p-2 font-semibold">{row.full_name}{row.household_size ? <small className="ms-1 text-slate-500">({row.household_size}{tr(" أفراد)")}</small> : null}</td>
                 <td className="p-2 text-center tabular-nums" dir="ltr">{row.national_id}</td>
                 <td className="p-2 text-center tabular-nums" dir="ltr">{row.phone}</td>
                 <td className="p-2 text-center font-mono text-xs" dir="ltr">{row.code_masked}</td>
@@ -442,7 +507,7 @@ function ParticipantsTab({ activity, canCreate, canUpdate, onChanged, fail }: { 
                 <td className="p-2 text-center font-bold tabular-nums">{money(row.balance)}</td>
                 <td className="p-2 text-center">{row.sms_sent_at ? <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-600" aria-label={tr("أُرسلت")} /> : <span className="text-xs text-slate-400">{tr("لم تُرسل")}</span>}</td>
                 <td className="p-2 text-center">
-                  {row.code_status === 3 ? <Badge variant="secondary">{tr("ملغى")}</Badge> : row.locked ? <Badge className="bg-amber-100 text-amber-800"><Lock className="ml-1 h-3 w-3" />{tr("مقفل")}</Badge> : <Badge className="bg-emerald-100 text-emerald-800">{tr("فعّال")}</Badge>}
+                  {row.code_status === 3 ? <Badge variant="secondary">{tr("ملغى")}</Badge> : row.locked ? <Badge className="bg-amber-100 text-amber-800"><Lock className="me-1 h-3 w-3" />{tr("مقفل")}</Badge> : <Badge className="bg-emerald-100 text-emerald-800">{tr("فعّال")}</Badge>}
                 </td>
                 <td className="p-2 text-end whitespace-nowrap">
                   {canUpdate && row.code_status !== 3 && <>
@@ -477,7 +542,7 @@ function ParticipantsTab({ activity, canCreate, canUpdate, onChanged, fail }: { 
             <DialogDescription>{tr("لم تُرسل برسائل SMS. تُعرض هذه مرة واحدة فقط ولا تُحفظ الأرقام السرية — صدّرها أو سلّمها للمستفيدين الآن.")}</DialogDescription></DialogHeader>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-50 text-xs"><tr><th className="p-2 text-start">{tr("الاسم")}</th><th className="p-2">{tr("الجوال")}</th><th className="p-2">{tr("رمز الصرف")}</th><th className="p-2">{tr("الرقم السري")}</th><th className="p-2">{tr("الرصيد")}</th></tr></thead>
             <tbody>{credentials?.map((row) => <tr key={row.code} className="border-t"><td className="p-2">{row.full_name}</td><td className="p-2 text-center" dir="ltr">{row.phone}</td><td className="p-2 text-center font-mono" dir="ltr">{row.code}</td><td className="p-2 text-center font-mono font-bold" dir="ltr">{row.pin}</td><td className="p-2 text-center">{money(row.balance)}</td></tr>)}</tbody></table></div>
-          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => void exportCredentials()}><Download className="ml-1 h-4 w-4" />{tr("تصدير Excel")}</Button><Button onClick={() => setCredentials(null)}>{tr("تم")}</Button></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => void exportCredentials()}><Download className="me-1 h-4 w-4" />{tr("تصدير Excel")}</Button><Button onClick={() => setCredentials(null)}>{tr("تم")}</Button></div>
         </DialogContent>
       </Dialog>
     </CardContent></Card>
@@ -513,7 +578,7 @@ function LedgerTab({ activityId, points, fail }: { activityId: number; points: L
           </select></div>
         <div className="space-y-1"><Label className="text-xs">{tr("من")}</Label><Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></div>
         <div className="space-y-1"><Label className="text-xs">{tr("إلى")}</Label><Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></div>
-        <Button data-report-apply onClick={() => void load()}>{loading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Search className="ml-1 h-4 w-4" />}{tr("عرض")}</Button>
+        <Button data-report-apply onClick={() => void load()}>{loading ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Search className="me-1 h-4 w-4" />}{tr("عرض")}</Button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1000px] text-sm">
@@ -527,8 +592,8 @@ function LedgerTab({ activityId, points, fail }: { activityId: number; points: L
               <tr key={row.id} className="border-t">
                 <td className="p-2 text-center text-xs text-slate-500">{row.id}</td>
                 <td className="p-2 text-center text-xs tabular-nums" dir="ltr">{String(row.created_at).replace("T", " ").slice(0, 16)}</td>
-                <td className="p-2">{ENTRY_LABELS[row.entry_type] || row.entry_type}{row.reverses_id ? <small className="mr-1 text-slate-500">{tr("(يعكس #")}{row.reverses_id})</small> : null}</td>
-                <td className="p-2">{row.participant_name}{row.national_id ? <small className="mr-1 text-slate-500" dir="ltr">{row.national_id}</small> : null}</td>
+                <td className="p-2">{ENTRY_LABELS[row.entry_type] || row.entry_type}{row.reverses_id ? <small className="ms-1 text-slate-500">{tr("(يعكس #")}{row.reverses_id})</small> : null}</td>
+                <td className="p-2">{row.participant_name}{row.national_id ? <small className="ms-1 text-slate-500" dir="ltr">{row.national_id}</small> : null}</td>
                 <td className="p-2 text-center">{row.point_name}</td>
                 <td className="p-2 text-center font-mono text-xs">{row.vch_code}</td>
                 <td className="p-2 text-center font-bold tabular-nums">{money(row.amount)}</td>

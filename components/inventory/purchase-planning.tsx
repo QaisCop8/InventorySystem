@@ -263,10 +263,10 @@ export function PurchasePlanning() {
               <div className="w-48 shrink-0"><Dropdown id="purchase-planning-stock-filter" value={stockFilter} options={[{ value: "needs-order", label: tr("المقترح شراؤها") }, { value: "all", label: tr("كل الأصناف") }, { value: "out", label: tr("النافدة أو غير المتاحة") }]} optionLabel="label" optionValue="value" onChange={(event) => setStockFilter(String(event.value))} /></div>
             </div>
             {canCreatePurchaseOrder && <Button onClick={createPurchaseOrder} disabled={loading || selectedRows.length === 0}>
-              <ShoppingCart className="ml-2 h-4 w-4" />{tr(" إنشاء طلبية شراء للأصناف المحددة")}
+              <ShoppingCart className="me-2 h-4 w-4" />{tr(" إنشاء طلبية شراء للأصناف المحددة")}
             </Button>}
           </div>
-          <Table className="[&_th]:text-right" containerClassName="rounded-lg border lg:min-h-48 lg:flex-1 lg:overflow-auto">
+          <Table className="[&_th]:text-start" containerClassName="rounded-lg border lg:min-h-48 lg:flex-1 lg:overflow-auto">
             <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background"><TableRow>
               <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label={tr("تحديد الأصناف الظاهرة")} /></TableHead>
               <TableHead>{tr("الصنف")}</TableHead><TableHead>{tr("المورد")}</TableHead><TableHead>{tr("المتاح")}</TableHead><TableHead>{tr("الوارد بطلبات مفتوحة")}</TableHead><TableHead>{tr("مبيعات الفترة")}</TableHead><TableHead>{tr("متوسط يومي")}</TableHead><TableHead>{tr("تغطية المخزون")}</TableHead><TableHead>{tr("آخر سعر شراء")}</TableHead><TableHead className="min-w-28">{tr("الكمية المقترحة")}</TableHead>
@@ -282,7 +282,7 @@ export function PurchasePlanning() {
                     <TableCell>{formatNumber(finite(product.incoming_quantity))}</TableCell>
                     <TableCell>{formatNumber(finite(product.sold_quantity))}</TableCell>
                     <TableCell>{formatNumber(product.average_daily, 3)}</TableCell>
-                    <TableCell>{product.days_of_cover == null ? <Badge variant="outline">{tr("لا توجد مبيعات")}</Badge> : <span className={product.days_of_cover <= coverageDays ? "font-semibold text-amber-700" : ""}><CalendarClock className="ml-1 inline h-3.5 w-3.5" />{formatNumber(product.days_of_cover)}{tr(" يوم")}</span>}</TableCell>
+                    <TableCell>{product.days_of_cover == null ? <Badge variant="outline">{tr("لا توجد مبيعات")}</Badge> : <span className={product.days_of_cover <= coverageDays ? "font-semibold text-amber-700" : ""}><CalendarClock className="me-1 inline h-3.5 w-3.5" />{formatNumber(product.days_of_cover)}{tr(" يوم")}</span>}</TableCell>
                     <TableCell>{product.can_view_purchase_price ? `${formatNumber(finite(product.last_purchase_price))} ${product.purchase_currency_name || ""}` : <span className="text-muted-foreground">{tr("غير متاح")}</span>}</TableCell>
                     <TableCell><Input aria-label={tr("كمية الشراء المقترحة لـ {0}", product.product_name)} type="number" min="0" step="any" className="h-8 min-w-24 text-end" dir="ltr" value={quantities[product.id] ?? product.calculated_quantity} onChange={(event) => setQuantity(product.id, event.target.value)} /></TableCell>
                   </TableRow>)}

@@ -68,7 +68,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
             isMobile
               ? "fixed start-0 top-0 h-full z-50 transform transition-transform duration-300 ease-in-out"
               : "relative"
-          } ${isMobile ? (sidebarOpen ? "translate-x-0" : "translate-x-full") : "block"}`}
+          } ${isMobile ? (sidebarOpen ? "translate-x-0" : "rtl:translate-x-full ltr:-translate-x-full") : "block"}`}
         >
           <Sidebar
             isOpen={sidebarOpen}

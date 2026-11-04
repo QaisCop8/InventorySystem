@@ -44,7 +44,7 @@ export function PinpadPayButton({ machineId, amount, currency, batch, disabled, 
     <>
       <div className={`flex gap-1 ${className || ""}`}>
         <Button type="button" onClick={() => void pay()} disabled={disabled || busy || !(amount > 0)} className="flex-1 bg-sky-600 hover:bg-sky-700">
-          {busy ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <CreditCard className="ml-2 h-4 w-4" />}
+          {busy ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <CreditCard className="me-2 h-4 w-4" />}
           {busy ? tr("بانتظار تمرير البطاقة على الجهاز...") : tr("إرسال للجهاز")}
         </Button>
         <Button type="button" variant="outline" size="icon" title={tr("إعدادات جهاز الدفع")} onClick={() => setSettingsOpen("manual")} disabled={busy}>
@@ -123,7 +123,7 @@ export function PinpadSettingsDialog({ machineId, onClose, onSaved }: { machineI
         <div className="flex justify-end gap-2 border-t bg-slate-50 px-5 py-3 dark:bg-slate-800">
           <Button variant="outline" onClick={onClose} disabled={saving}>{tr("إلغاء")}</Button>
           <Button onClick={() => void save()} disabled={saving || missing} className="bg-sky-600 hover:bg-sky-700">
-            {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ وإعادة الإرسال")}
+            {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("حفظ وإعادة الإرسال")}
           </Button>
         </div>
       </div>

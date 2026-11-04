@@ -296,14 +296,14 @@ export default function APISettings() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-right p-3">{tr("اسم المفتاح")}</th>
-                      <th className="text-right p-3">{tr("المفتاح")}</th>
-                      <th className="text-right p-3">{tr("النوع")}</th>
-                      <th className="text-right p-3">{tr("البيئة")}</th>
-                      <th className="text-right p-3">{tr("الحالة")}</th>
-                      <th className="text-right p-3">{tr("آخر استخدام")}</th>
-                      <th className="text-right p-3">{tr("تاريخ الإنشاء")}</th>
-                      <th className="text-right p-3">{tr("الإجراءات")}</th>
+                      <th className="text-start p-3">{tr("اسم المفتاح")}</th>
+                      <th className="text-start p-3">{tr("المفتاح")}</th>
+                      <th className="text-start p-3">{tr("النوع")}</th>
+                      <th className="text-start p-3">{tr("البيئة")}</th>
+                      <th className="text-start p-3">{tr("الحالة")}</th>
+                      <th className="text-start p-3">{tr("آخر استخدام")}</th>
+                      <th className="text-start p-3">{tr("تاريخ الإنشاء")}</th>
+                      <th className="text-start p-3">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -395,12 +395,12 @@ export default function APISettings() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-right p-3">{tr("الطريقة")}</th>
-                          <th className="text-right p-3">{tr("المسار")}</th>
-                          <th className="text-right p-3">{tr("الوصف")}</th>
-                          <th className="text-right p-3">{tr("المعاملات")}</th>
-                          <th className="text-right p-3">{tr("الحالة")}</th>
-                          <th className="text-right p-3">{tr("الإجراءات")}</th>
+                          <th className="text-start p-3">{tr("الطريقة")}</th>
+                          <th className="text-start p-3">{tr("المسار")}</th>
+                          <th className="text-start p-3">{tr("الوصف")}</th>
+                          <th className="text-start p-3">{tr("المعاملات")}</th>
+                          <th className="text-start p-3">{tr("الحالة")}</th>
+                          <th className="text-start p-3">{tr("الإجراءات")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -555,13 +555,13 @@ export default function APISettings() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-right p-3">{tr("الاسم")}</th>
-                      <th className="text-right p-3">URL</th>
-                      <th className="text-right p-3">{tr("الأحداث")}</th>
-                      <th className="text-right p-3">{tr("الحالة")}</th>
-                      <th className="text-right p-3">{tr("آخر تشغيل")}</th>
-                      <th className="text-right p-3">{tr("معدل النجاح")}</th>
-                      <th className="text-right p-3">{tr("الإجراءات")}</th>
+                      <th className="text-start p-3">{tr("الاسم")}</th>
+                      <th className="text-start p-3">URL</th>
+                      <th className="text-start p-3">{tr("الأحداث")}</th>
+                      <th className="text-start p-3">{tr("الحالة")}</th>
+                      <th className="text-start p-3">{tr("آخر تشغيل")}</th>
+                      <th className="text-start p-3">{tr("معدل النجاح")}</th>
+                      <th className="text-start p-3">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -682,11 +682,11 @@ export default function APISettings() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-right p-3">{tr("عنوان IP")}</th>
-                          <th className="text-right p-3">{tr("السبب")}</th>
-                          <th className="text-right p-3">{tr("تاريخ الحظر")}</th>
-                          <th className="text-right p-3">{tr("بواسطة")}</th>
-                          <th className="text-right p-3">{tr("الإجراءات")}</th>
+                          <th className="text-start p-3">{tr("عنوان IP")}</th>
+                          <th className="text-start p-3">{tr("السبب")}</th>
+                          <th className="text-start p-3">{tr("تاريخ الحظر")}</th>
+                          <th className="text-start p-3">{tr("بواسطة")}</th>
+                          <th className="text-start p-3">{tr("الإجراءات")}</th>
                         </tr>
                       </thead>
                       <tbody>

@@ -248,11 +248,11 @@ export function WhatsAppDashboard() {
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowSendDialog(true)}>
-            <Send className="ml-2 h-4 w-4" />
+            <Send className="me-2 h-4 w-4" />
             {tr("إرسال رسالة")}
           </Button>
           <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
-            <FileText className="ml-2 h-4 w-4" />
+            <FileText className="me-2 h-4 w-4" />
             {tr("نموذج جديد")}
           </Button>
         </div>
@@ -329,7 +329,7 @@ export function WhatsAppDashboard() {
                       placeholder={tr("بحث...")}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pr-10 w-64"
+                      className="ps-10 w-64"
                     />
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -354,11 +354,11 @@ export function WhatsAppDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
-                    <TableHead className="text-right">{tr("المستلم")}</TableHead>
-                    <TableHead className="text-right">{tr("الرسالة")}</TableHead>
-                    <TableHead className="text-right">{tr("النوع")}</TableHead>
-                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-start">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{tr("المستلم")}</TableHead>
+                    <TableHead className="text-start">{tr("الرسالة")}</TableHead>
+                    <TableHead className="text-start">{tr("النوع")}</TableHead>
+                    <TableHead className="text-start">{tr("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -466,12 +466,12 @@ export function WhatsAppDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
-                    <TableHead className="text-right">{tr("العميل")}</TableHead>
-                    <TableHead className="text-right">{tr("الرسالة")}</TableHead>
-                    <TableHead className="text-right">{tr("النوع")}</TableHead>
-                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                    <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+                    <TableHead className="text-start">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{tr("العميل")}</TableHead>
+                    <TableHead className="text-start">{tr("الرسالة")}</TableHead>
+                    <TableHead className="text-start">{tr("النوع")}</TableHead>
+                    <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-start">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -566,7 +566,7 @@ export function WhatsAppDashboard() {
                 {tr("إلغاء")}
               </Button>
               <Button onClick={handleSendMessage} disabled={loading || !sendForm.phone || !sendForm.message}>
-                <Send className="ml-2 h-4 w-4" />
+                <Send className="me-2 h-4 w-4" />
                 {tr("إرسال")}
               </Button>
             </div>
@@ -661,7 +661,7 @@ export function WhatsAppDashboard() {
                   loading || !templateForm.template_name || !templateForm.template_code || !templateForm.content
                 }
               >
-                <FileText className="ml-2 h-4 w-4" />
+                <FileText className="me-2 h-4 w-4" />
                 {tr("إنشاء النموذج")}
               </Button>
             </div>

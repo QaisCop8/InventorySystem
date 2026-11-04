@@ -3242,7 +3242,7 @@ export default function UnifiedSalesDelivery({
     >
       <DialogContent
           inline={openFullscreen}
-          className={`sales-delivery-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1400px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:h-[92vh] sm:w-[96vw] xl:w-[92vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8 ${openFullscreen ? "!left-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}`}
+          className={`sales-delivery-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1400px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:h-[92vh] sm:w-[96vw] xl:w-[92vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8 ${openFullscreen ? "!end-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}`}
           dir={appDir()}
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -3569,7 +3569,7 @@ export default function UnifiedSalesDelivery({
                     value={form.customer_name}
                     onChange={(e) => onFormChange("customer_name", e.target.value)}
                     disabled={isLocked}
-                    className="text-right"
+                    className="text-start"
                   />
                 </div>
                 <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${form.status}`} className="col-span-1 grid gap-1.5" />
@@ -3814,7 +3814,7 @@ export default function UnifiedSalesDelivery({
                       onChange={(e) => onFormChange("phone", e.target.value)}
                       disabled={isLocked}
                       dir="ltr"
-                      className="text-right"
+                      className="text-start"
                     />
                   </div>
                   <div className="grid gap-1.5">
@@ -3937,7 +3937,7 @@ export default function UnifiedSalesDelivery({
                           value = form.discount_type === "amount" ? Math.min(value, totals.subtotal) : Math.min(value, 100)
                           onFormChange("discount_value", value)
                         }}
-                        className="text-right"
+                        className="text-start"
                         dir={appDir()}
                       />
                     </div>
@@ -3955,7 +3955,7 @@ export default function UnifiedSalesDelivery({
                       title={itemVat.enabled ? tr("الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للسند") : undefined}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onFormChange("vat_percent", Number.parseFloat(e.target.value) || 0)}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                     />
                   </div>
@@ -3977,7 +3977,7 @@ export default function UnifiedSalesDelivery({
                         }
                         setNetPayableDraft(null)
                       }}
-                      className="text-right font-bold"
+                      className="text-start font-bold"
                       dir={appDir()}
                     />
                   </div>
@@ -4336,7 +4336,7 @@ export default function UnifiedSalesDelivery({
           <AlertDialogContent dir={appDir()} className="z-[10050] max-w-md">
             <AlertDialogHeader>
               <AlertDialogTitle>{tr("تأكيد الحذف")}</AlertDialogTitle>
-              <AlertDialogDescription className="text-right">
+              <AlertDialogDescription className="text-start">
                 {form.status === 2 ? tr("السند مرحل، هل تريد إلغاءه منطقياً؟") : tr("هل تريد حذف هذا {0}؟", TITLE)}
               </AlertDialogDescription>
             </AlertDialogHeader>

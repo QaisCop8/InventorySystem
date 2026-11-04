@@ -476,7 +476,7 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-slate-50 p-3">
                   <div className="text-xs text-slate-600">{tr("ليس لديك ملف جاهز؟ حمّل النموذج واملأه ثم ارفعه.")}</div>
-                  <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="ml-1 h-4 w-4" />{tr("تحميل نموذج Excel")}</Button>
+                  <Button variant="outline" size="sm" onClick={downloadTemplate}><Download className="me-1 h-4 w-4" />{tr("تحميل نموذج Excel")}</Button>
                 </div>
                 {config.uploadExtras?.({ loadRows: loadRowsDirect, busy })}
                 <div className="rounded-xl border p-3">
@@ -489,7 +489,7 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
             {step === "mapping" && (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-slate-600"><Columns3 className="ml-1 inline h-4 w-4" />{tr("اربط كل حقل في النظام بعمود من ملفك — تمت المطابقة التلقائية حسب أسماء الأعمدة. ")}<b>{rawRows.length}</b>{tr(" سطر.")}</div>
+                  <div className="text-slate-600"><Columns3 className="me-1 inline h-4 w-4" />{tr("اربط كل حقل في النظام بعمود من ملفك — تمت المطابقة التلقائية حسب أسماء الأعمدة. ")}<b>{rawRows.length}</b>{tr(" سطر.")}</div>
                   {workbook && workbook.SheetNames.length > 1 && (
                     <label className="flex items-center gap-2 text-xs">{tr("الورقة")}
                       <select className="h-8 rounded-md border px-2" value={sheetName} onChange={async (event) => { setSheetName(event.target.value); try { await readSheet(workbook, event.target.value) } catch (cause: any) { setError(cause.message) } }}>
@@ -506,7 +506,7 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
                       const header = mapping[field.key]
                       const samples = header && header !== NONE ? rawRows.slice(0, 3).map((row) => row[header]).filter((value) => cellText(value) !== "") : []
                       return <tr key={field.key} className={`border-t ${field.required && (!header || header === NONE) ? "bg-amber-50/60" : ""}`}>
-                        <td className="px-3 py-2"><span className="font-semibold">{field.label}</span>{field.required && <span className="mr-1 text-rose-600">*</span>}{field.description && <div className="text-[11px] text-muted-foreground">{field.description}</div>}</td>
+                        <td className="px-3 py-2"><span className="font-semibold">{field.label}</span>{field.required && <span className="ms-1 text-rose-600">*</span>}{field.description && <div className="text-[11px] text-muted-foreground">{field.description}</div>}</td>
                         <td className="px-3 py-1.5">
                           <select className={`h-9 w-full rounded-md border px-2 ${header && header !== NONE ? "border-emerald-300 bg-emerald-50/50" : ""}`} value={header || NONE} onChange={(event) => setMapping((current) => ({ ...current, [field.key]: event.target.value }))}>
                             <option value={NONE}>{tr("— بدون —")}</option>
@@ -534,10 +534,10 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
                   {(["all", "errors", "valid"] as const).map((value) => <button key={value} type="button" onClick={() => { setFilter(value); setPage(0) }} className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === value ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"}`}>{value === "all" ? tr("الكل") : value === "errors" ? tr("الأخطاء ({0})", errorCount) : tr("الصحيحة")}</button>)}
                   <Input value={search} onChange={(event) => { setSearch(event.target.value); setPage(0) }} placeholder={tr("بحث في الأسطر...")} className="h-8 w-48" />
                   {validating && <span className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />{tr("جارٍ التحقق...")}</span>}
-                  <div className="mr-auto flex gap-2">
-                    {errorCount > 0 && <Button size="sm" variant="outline" onClick={downloadErrors}><Download className="ml-1 h-3.5 w-3.5" />{tr("تحميل الأخطاء")}</Button>}
-                    {errorCount > 0 && <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50" onClick={() => deleteRows(pending.filter((row) => rowState(row) === "error").map((row) => row.id))}><Trash2 className="ml-1 h-3.5 w-3.5" />{tr("حذف أسطر الأخطاء")}</Button>}
-                    <Button size="sm" variant="outline" onClick={() => void runValidation(rows)} disabled={validating}><RefreshCw className="ml-1 h-3.5 w-3.5" />{tr("إعادة التحقق")}</Button>
+                  <div className="ms-auto flex gap-2">
+                    {errorCount > 0 && <Button size="sm" variant="outline" onClick={downloadErrors}><Download className="me-1 h-3.5 w-3.5" />{tr("تحميل الأخطاء")}</Button>}
+                    {errorCount > 0 && <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50" onClick={() => deleteRows(pending.filter((row) => rowState(row) === "error").map((row) => row.id))}><Trash2 className="me-1 h-3.5 w-3.5" />{tr("حذف أسطر الأخطاء")}</Button>}
+                    <Button size="sm" variant="outline" onClick={() => void runValidation(rows)} disabled={validating}><RefreshCw className="me-1 h-3.5 w-3.5" />{tr("إعادة التحقق")}</Button>
                   </div>
                 </div>
                 <div className="min-h-0 flex-1 overflow-auto rounded-xl border">
@@ -610,7 +610,7 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
                 </div>
                 {failedRows.length > 0 && !importing && (
                   <div className="rounded-xl border">
-                    <div className="flex items-center justify-between border-b px-3 py-2"><b>{tr("الأسطر الفاشلة (")}{failedRows.length})</b><div className="flex gap-2"><Button size="sm" variant="outline" onClick={downloadErrors}><Download className="ml-1 h-3.5 w-3.5" />{tr("تحميل")}</Button><Button size="sm" onClick={backToFix}>{tr("تصحيحها وإعادة المحاولة")}</Button></div></div>
+                    <div className="flex items-center justify-between border-b px-3 py-2"><b>{tr("الأسطر الفاشلة (")}{failedRows.length})</b><div className="flex gap-2"><Button size="sm" variant="outline" onClick={downloadErrors}><Download className="me-1 h-3.5 w-3.5" />{tr("تحميل")}</Button><Button size="sm" onClick={backToFix}>{tr("تصحيحها وإعادة المحاولة")}</Button></div></div>
                     <div className="max-h-64 overflow-auto">{failedRows.slice(0, 200).map((row) => <div key={row.id} className="flex gap-3 border-b px-3 py-1.5 text-xs last:border-0"><span className="font-mono text-slate-500">{tr("السطر ")}{row.rowNumber}</span><span className="text-rose-700">{results.get(row.id)?.message}</span></div>)}</div>
                   </div>
                 )}
@@ -621,14 +621,14 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
           {/* التذييل */}
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-slate-50 px-4 py-3">
             <div className="flex gap-2">
-              {step === "mapping" && <Button variant="outline" onClick={() => setStep("upload")}><ArrowRight className="ml-1 h-4 w-4" />{tr("رجوع")}</Button>}
-              {step === "review" && <Button variant="outline" disabled={busy} onClick={() => (headers.length && fileName !== "بيانات جاهزة" ? setStep("mapping") : setStep("upload"))}><ArrowRight className="ml-1 h-4 w-4" />{tr("المطابقة")}</Button>}
+              {step === "mapping" && <Button variant="outline" onClick={() => setStep("upload")}><ArrowRight className="me-1 h-4 w-4" />{tr("رجوع")}</Button>}
+              {step === "review" && <Button variant="outline" disabled={busy} onClick={() => (headers.length && fileName !== "بيانات جاهزة" ? setStep("mapping") : setStep("upload"))}><ArrowRight className="me-1 h-4 w-4" />{tr("المطابقة")}</Button>}
               {step === "result" && !importing && <Button variant="outline" onClick={backToFix}>{tr("عرض الأسطر")}</Button>}
             </div>
             <div className="flex gap-2">
               {importing ? <Button variant="outline" onClick={() => abortRef.current?.abort()}>{tr("إيقاف")}</Button> : <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إغلاق")}</Button>}
-              {step === "mapping" && <Button disabled={busy || missingRequired.length > 0} onClick={() => void buildRows()} className="bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : null}{tr("التالي: مراجعة البيانات")}<ArrowLeft className="mr-1 h-4 w-4" /></Button>}
-              {step === "review" && <Button disabled={busy || validating || blocked || !validRows.length} onClick={() => void startImport()} className="bg-emerald-600 hover:bg-emerald-700"><Upload className="ml-1 h-4 w-4" />{config.importButtonLabel || tr("استيراد")} {validRows.length}{tr(" سطر")}{errorCount ? tr(" (تخطي {0} بها أخطاء)", errorCount) : ""}</Button>}
+              {step === "mapping" && <Button disabled={busy || missingRequired.length > 0} onClick={() => void buildRows()} className="bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : null}{tr("التالي: مراجعة البيانات")}<ArrowLeft className="ms-1 h-4 w-4" /></Button>}
+              {step === "review" && <Button disabled={busy || validating || blocked || !validRows.length} onClick={() => void startImport()} className="bg-emerald-600 hover:bg-emerald-700"><Upload className="me-1 h-4 w-4" />{config.importButtonLabel || tr("استيراد")} {validRows.length}{tr(" سطر")}{errorCount ? tr(" (تخطي {0} بها أخطاء)", errorCount) : ""}</Button>}
             </div>
           </div>
         </DialogContent>

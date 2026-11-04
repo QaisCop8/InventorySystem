@@ -176,14 +176,14 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className="cursor-pointer border-t hover:bg-emerald-50/40" onDoubleClick={() => onOpen(row.id)}>
-                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="mr-1 inline h-3.5 w-3.5 text-slate-400" aria-label={tr("جرد أعمى")} />}</td>
+                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="ms-1 inline h-3.5 w-3.5 text-slate-400" aria-label={tr("جرد أعمى")} />}</td>
                   <td className="p-3">{row.branch_name || "—"}</td>
                   <td className="p-3 font-semibold">{row.warehouse_name}</td>
                   <td className="p-3 font-mono" dir="ltr">{dateOnly(row.count_date)}</td>
                   <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${STATUS[row.status]?.className}`}>{STATUS[row.status]?.label}</span></td>
                   <td className="p-3 text-xs">
                     {row.sessions}
-                    {row.open_sessions > 0 && <span className="mr-1 rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-800">{tr("مفتوحة: ")}{row.open_session_nos}</span>}
+                    {row.open_sessions > 0 && <span className="ms-1 rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-800">{tr("مفتوحة: ")}{row.open_session_nos}</span>}
                   </td>
                   <td className="p-3">{row.lines.toLocaleString("en-US")}</td>
                   <td className="p-3">
@@ -658,13 +658,13 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
           <span key={session.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${SESSION_STATUS[session.status]?.className}`}>
             {session.session_no} — {session.user_name || tr("مستخدم")} · {SESSION_STATUS[session.status]?.label}
             {counting && session.status === 2 && !count.my_session && session.user_id === count.me && (
-              <button type="button" className="mr-1 underline" disabled={busy}
+              <button type="button" className="ms-1 underline" disabled={busy}
                 onClick={() => void runAction("reopen_session", { session_id: session.id }, `أُعيد فتح الجلسة رقم - ${session.session_no}`)}>{tr("إعادة فتح")}</button>
             )}
           </span>
         ))}
         {!count.sessions.length && <span className="text-slate-400">{tr("لا توجد جلسات بعد")}</span>}
-        {count.status === 2 && <span className="mr-auto font-bold text-amber-700">{tr("بانتظار الاعتماد وترحيل الفروقات من شاشة «اعتماد الجرد»")}</span>}
+        {count.status === 2 && <span className="ms-auto font-bold text-amber-700">{tr("بانتظار الاعتماد وترحيل الفروقات من شاشة «اعتماد الجرد»")}</span>}
       </div>
 
       {/* شريط المسح + الملخص */}
@@ -685,7 +685,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
               <Input value={scanQty} onChange={(event) => setScanQty(event.target.value)} inputMode="decimal" className="mt-1 h-10 text-center"
                 onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleScan() } }} />
             </div>
-            <Button onClick={() => void handleScan()} className="h-10 bg-emerald-600 hover:bg-emerald-700"><Plus className="ml-1 h-4 w-4" />{tr("إضافة")}</Button>
+            <Button onClick={() => void handleScan()} className="h-10 bg-emerald-600 hover:bg-emerald-700"><Plus className="me-1 h-4 w-4" />{tr("إضافة")}</Button>
           </div>
         ) : <div />}
         <div className="grid grid-cols-3 gap-2 rounded-2xl border bg-white p-3 text-center shadow-sm">
@@ -883,7 +883,7 @@ function HeaderButton({ icon: Icon, label, onClick, disabled, primary }: { icon:
   return (
     <Button type="button" onClick={onClick} disabled={disabled}
       className={primary ? "h-9 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" : "h-9 rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20"}>
-      <Icon className="ml-1.5 h-4 w-4" />{label}
+      <Icon className="me-1.5 h-4 w-4" />{label}
     </Button>
   )
 }
@@ -942,7 +942,7 @@ function SerialDialog({ line, countId, editable, hidden, onClose, onChanged }: {
                 <Input ref={inputRef} value={code} onChange={(event) => setCode(event.target.value)} disabled={busy} className="h-10 ps-9 font-mono" placeholder={tr("امسح الرقم التسلسلي ثم Enter")}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void scan() } }} />
               </div>
-              <Button onClick={() => void scan()} disabled={busy || !code.trim()} className="h-10 bg-violet-600 hover:bg-violet-700"><Plus className="ml-1 h-4 w-4" />{tr("جرد")}</Button>
+              <Button onClick={() => void scan()} disabled={busy || !code.trim()} className="h-10 bg-violet-600 hover:bg-violet-700"><Plus className="me-1 h-4 w-4" />{tr("جرد")}</Button>
             </div>
           )}
           <Input value={term} onChange={(event) => setTerm(event.target.value)} className="h-9" placeholder={tr("بحث في الأرقام")} />

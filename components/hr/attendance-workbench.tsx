@@ -132,7 +132,7 @@ export function DayEditDialog({ open, onOpenChange, day, employeeId, date, emplo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir={appDir()} className="max-w-xl">
-        <DialogHeader className="text-right">
+        <DialogHeader className="text-start">
           <DialogTitle>{day ? tr("تعديل سجل دوام") : tr("إضافة سجل دوام")}</DialogTitle>
           <DialogDescription>{employeeName} · {dayName(date)} {date}{day?.punches_count ? tr(" · {0} حركة بصمة", day.punches_count) : ""}</DialogDescription>
         </DialogHeader>
@@ -160,8 +160,8 @@ export function DayEditDialog({ open, onOpenChange, day, employeeId, date, emplo
         <p className="text-xs text-slate-500">{tr("التأخير والخروج المبكر والعمل الإضافي تُحتسب تلقائياً من الوردية والأوقات. السجل المعدّل يدوياً لا يُستبدل عند إعادة المعالجة إلا بطلب.")}</p>
         <Message text={error} />
         <DialogFooter className="flex-row-reverse justify-between gap-2 sm:justify-between">
-          <Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button>
-          {day?.id ? <Button variant="outline" className="text-rose-700" onClick={() => void remove()}><Trash2 className="ml-2 h-4 w-4" />{tr("حذف السجل")}</Button> : <span />}
+          <Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}{tr("حفظ")}</Button>
+          {day?.id ? <Button variant="outline" className="text-rose-700" onClick={() => void remove()}><Trash2 className="me-2 h-4 w-4" />{tr("حذف السجل")}</Button> : <span />}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -227,8 +227,8 @@ export function AttendanceProcessingPage() {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={filters.overwrite} onCheckedChange={(v) => setFilters({ ...filters, overwrite: v === true })} />{tr("إعادة معالجة السجلات المعدّلة يدوياً أيضاً")}</label>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void load()}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث العرض")}</Button>
-            <Button onClick={() => void process()} disabled={busy} className="bg-gradient-to-l from-teal-600 to-emerald-600">{busy ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Play className="ml-2 h-4 w-4" />}{tr("معالجة الحركات")}</Button>
+            <Button variant="outline" onClick={() => void load()}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث العرض")}</Button>
+            <Button onClick={() => void process()} disabled={busy} className="bg-gradient-to-l from-teal-600 to-emerald-600">{busy ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Play className="me-2 h-4 w-4" />}{tr("معالجة الحركات")}</Button>
           </div>
         </div>
       </div>
@@ -247,7 +247,7 @@ export function AttendanceProcessingPage() {
           {Object.entries(STATUS).filter(([key]) => count(key)).map(([key, meta]) => (
             <button key={key} type="button" onClick={() => setStatusFilter(key)} className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusFilter === key ? "bg-slate-800 text-white ring-slate-800" : meta.tone}`}>{meta.label} ({count(key)})</button>
           ))}
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث بالموظف أو القسم...")} className="mr-auto h-9 w-full rounded-xl sm:w-64" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث بالموظف أو القسم...")} className="ms-auto h-9 w-full rounded-xl sm:w-64" />
         </div>
         <div className="max-h-[60vh] overflow-auto">
           <table className="w-full min-w-[1150px] text-sm">
@@ -268,7 +268,7 @@ export function AttendanceProcessingPage() {
                   <td className={`px-3 py-2 font-mono ${row.late_minutes ? "font-bold text-amber-700" : "text-slate-300"}`} dir="ltr">{hm(row.late_minutes)}</td>
                   <td className={`px-3 py-2 font-mono ${row.early_leave_minutes ? "font-bold text-orange-700" : "text-slate-300"}`} dir="ltr">{hm(row.early_leave_minutes)}</td>
                   <td className={`px-3 py-2 font-mono ${row.overtime_minutes ? "font-bold text-indigo-700" : "text-slate-300"}`} dir="ltr">{hm(row.overtime_minutes)}</td>
-                  <td className="px-3 py-2"><StatusBadge status={row.status} />{row.is_manual && <span className="mr-1 text-[10px] font-bold text-violet-600" title={tr("معدّل يدوياً")}>✎</span>}</td>
+                  <td className="px-3 py-2"><StatusBadge status={row.status} />{row.is_manual && <span className="ms-1 text-[10px] font-bold text-violet-600" title={tr("معدّل يدوياً")}>✎</span>}</td>
                   <td className="px-2 py-2"><Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing(row)}><Pencil className="h-3.5 w-3.5" /></Button></td>
                 </tr>
               ))}
@@ -323,7 +323,7 @@ export function AttendanceEditorPage() {
             ))}
           </div>
           <Tabs defaultValue="days" dir={appDir()}>
-            <TabsList><TabsTrigger value="days"><CalendarDays className="ml-1 h-4 w-4" />{tr("أيام الشهر")}</TabsTrigger><TabsTrigger value="audit"><History className="ml-1 h-4 w-4" />{tr("سجل التعديلات (")}{audit.length})</TabsTrigger></TabsList>
+            <TabsList><TabsTrigger value="days"><CalendarDays className="me-1 h-4 w-4" />{tr("أيام الشهر")}</TabsTrigger><TabsTrigger value="audit"><History className="me-1 h-4 w-4" />{tr("سجل التعديلات (")}{audit.length})</TabsTrigger></TabsList>
             <TabsContent value="days">
               <div className={`${card} overflow-auto p-0`}>
                 <table className="w-full min-w-[1000px] text-sm">
@@ -342,7 +342,7 @@ export function AttendanceEditorPage() {
                           <td className="px-3 py-2 font-mono text-amber-700" dir="ltr">{row ? hm(row.late_minutes) : "—"}</td>
                           <td className="px-3 py-2 font-mono text-orange-700" dir="ltr">{row ? hm(row.early_leave_minutes) : "—"}</td>
                           <td className="px-3 py-2 font-mono text-indigo-700" dir="ltr">{row ? hm(row.overtime_minutes) : "—"}</td>
-                          <td className="px-3 py-2">{row ? <><StatusBadge status={row.status} />{row.is_manual && <span className="mr-1 text-[10px] font-bold text-violet-600" title={tr("معدّل يدوياً")}>✎</span>}</> : <span className="text-xs text-slate-400">{tr("لا سجل")}</span>}</td>
+                          <td className="px-3 py-2">{row ? <><StatusBadge status={row.status} />{row.is_manual && <span className="ms-1 text-[10px] font-bold text-violet-600" title={tr("معدّل يدوياً")}>✎</span>}</> : <span className="text-xs text-slate-400">{tr("لا سجل")}</span>}</td>
                           <td className="max-w-[180px] truncate px-3 py-2 text-xs text-slate-500">{row?.notes || ""}</td>
                           <td className="px-2 py-2"><Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing({ date, day: row || null })}>{row ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}</Button></td>
                         </tr>
@@ -431,7 +431,7 @@ function PayrollSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir={appDir()} className="max-w-2xl">
-        <DialogHeader className="text-right">
+        <DialogHeader className="text-start">
           <DialogTitle>{tr("احتساب حركات الدوام في الراتب")}</DialogTitle>
           <DialogDescription>{tr("الحركات المعتمدة فقط تدخل راتب الشهر عند فتح الراتب أو إعادة احتسابه. الأجر اليومي = الراتب الأساسي ÷ أيام الشهر، وأجر الساعة = اليومي ÷ ساعات اليوم. المبلغ المُدخل على الحركة يتقدّم على الاحتساب.")}</DialogDescription>
         </DialogHeader>
@@ -455,7 +455,7 @@ function PayrollSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           </div>
         )}
         {error && <Message text={error} />}
-        <DialogFooter><Button onClick={() => void save()} disabled={saving || !form}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
+        <DialogFooter><Button onClick={() => void save()} disabled={saving || !form}>{saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -533,12 +533,12 @@ export function AttendanceTransactionsPage() {
           <div><Label>{tr("الحالة")}</Label><select className={selectClass} value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">{tr("الكل")}</option><option value="pending">{tr("قيد الاعتماد")}</option><option value="approved">{tr("معتمدة")}</option><option value="rejected">{tr("مرفوضة")}</option></select></div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button onClick={() => { setForm({ ...emptyTransaction, trans_date: today() }); setOpen(true) }}><Plus className="ml-2 h-4 w-4" />{tr("حركة جديدة")}</Button>
-          <Button variant="outline" onClick={() => setGenerateOpen(true)}><Wand2 className="ml-2 h-4 w-4" />{tr("توليد من سجلات الدوام")}</Button>
-          <Button variant="outline" className="border-emerald-200 text-emerald-700" disabled={!selected.length} onClick={() => void setStatus("approved")}><ShieldCheck className="ml-2 h-4 w-4" />{tr("اعتماد المحدد (")}{selected.length})</Button>
-          <Button variant="outline" className="border-rose-200 text-rose-700" disabled={!selected.length} onClick={() => void setStatus("rejected")}><XCircle className="ml-2 h-4 w-4" />{tr("رفض المحدد")}</Button>
+          <Button onClick={() => { setForm({ ...emptyTransaction, trans_date: today() }); setOpen(true) }}><Plus className="me-2 h-4 w-4" />{tr("حركة جديدة")}</Button>
+          <Button variant="outline" onClick={() => setGenerateOpen(true)}><Wand2 className="me-2 h-4 w-4" />{tr("توليد من سجلات الدوام")}</Button>
+          <Button variant="outline" className="border-emerald-200 text-emerald-700" disabled={!selected.length} onClick={() => void setStatus("approved")}><ShieldCheck className="me-2 h-4 w-4" />{tr("اعتماد المحدد (")}{selected.length})</Button>
+          <Button variant="outline" className="border-rose-200 text-rose-700" disabled={!selected.length} onClick={() => void setStatus("rejected")}><XCircle className="me-2 h-4 w-4" />{tr("رفض المحدد")}</Button>
           <Button variant="ghost" disabled={!selected.length} onClick={() => void setStatus("pending")}>{tr("إعادة لقيد الاعتماد")}</Button>
-          <Button variant="outline" className="mr-auto" onClick={() => setSettingsOpen(true)}><Cog className="ml-2 h-4 w-4" />{tr("إعدادات الاحتساب في الراتب")}</Button>
+          <Button variant="outline" className="ms-auto" onClick={() => setSettingsOpen(true)}><Cog className="me-2 h-4 w-4" />{tr("إعدادات الاحتساب في الراتب")}</Button>
         </div>
         <p className="mt-2 text-xs text-slate-500">{tr("الحركات ")}<b>{tr("المعتمدة")}</b>{tr(" تُضاف للراتب أو تُخصم منه حسب نوعها عند فتح راتب الشهر أو إعادة احتسابه.")}</p>
       </div>
@@ -581,7 +581,7 @@ export function AttendanceTransactionsPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent dir={appDir()} className="max-w-lg">
-          <DialogHeader className="text-right"><DialogTitle>{form.id ? tr("تعديل حركة دوام") : tr("حركة دوام جديدة")}</DialogTitle></DialogHeader>
+          <DialogHeader className="text-start"><DialogTitle>{form.id ? tr("تعديل حركة دوام") : tr("حركة دوام جديدة")}</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2"><Label>{tr("الموظف *")}</Label><select className={selectClass} value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}><option value="">{tr("اختر الموظف")}</option>{lookups.employees.map((row) => <option key={row.id} value={row.id}>{row.employee_code} — {row.full_name}</option>)}</select></div>
             <div><Label>{tr("التاريخ *")}</Label><Input type="date" dir="ltr" className={inputClass} value={form.trans_date} onChange={(e) => setForm({ ...form, trans_date: e.target.value })} /></div>
@@ -590,14 +590,14 @@ export function AttendanceTransactionsPage() {
             <div><Label>{typeMeta.unit === "amount" ? tr("المبلغ *") : tr("المبلغ (اختياري)")}</Label><Input type="number" step="0.01" min="0" dir="ltr" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
             <div className="sm:col-span-2"><Label>{tr("ملاحظات")}</Label><Input className={inputClass} value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <PayrollSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
         <DialogContent dir={appDir()} className="max-w-md">
-          <DialogHeader className="text-right">
+          <DialogHeader className="text-start">
             <DialogTitle>{tr("توليد حركات من سجلات الدوام")}</DialogTitle>
             <DialogDescription>{tr("من ")}{filters.from}{tr(" إلى ")}{filters.to}{filters.employeeIds.length ? tr(" · {0} موظف", filters.employeeIds.length) : tr(" · كل الموظفين")}{tr(" — الحركات تُنشأ \"قيد الاعتماد\" ولا تتكرر لنفس اليوم.")}</DialogDescription>
           </DialogHeader>
@@ -607,7 +607,7 @@ export function AttendanceTransactionsPage() {
             ))}
             <div className="pt-2"><Label>{tr("تجاهل التأخير الأقل من (دقيقة)")}</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={generate.minLate} onChange={(e) => setGenerate({ ...generate, minLate: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button onClick={() => void runGenerate()} disabled={saving || !generate.types.length}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Wand2 className="ml-2 h-4 w-4" />}{tr("توليد")}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => void runGenerate()} disabled={saving || !generate.types.length}>{saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Wand2 className="me-2 h-4 w-4" />}{tr("توليد")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </HrPage>

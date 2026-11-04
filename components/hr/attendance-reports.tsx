@@ -47,7 +47,7 @@ function ReportFiltersBar({ value, lookups, onChange, onLoad }: { value: ReportF
     <div><Label>{tr("الموظفون")}</Label><select multiple className={`${selectClass} h-24`} value={value.employee_ids} onChange={e => onChange({ ...value, employee_ids: Array.from(e.target.selectedOptions, option => option.value) })}>{lookups.employees.map(employee => <option key={employee.id} value={employee.id}>{employee.employee_code} - {employee.full_name}</option>)}</select></div>
     <div><Label>{tr("القسم")}</Label><select className={selectClass} value={value.department_id} onChange={e => onChange({ ...value, department_id: e.target.value })}><option value="">{tr("كل الأقسام")}</option>{lookups.departments.map(item => <option key={item.id} value={item.id}>{item.department_name}</option>)}</select></div>
     <div><Label>{tr("الفرع")}</Label><select className={selectClass} value={value.branch_id} onChange={e => onChange({ ...value, branch_id: e.target.value })}><option value="">{tr("كل الفروع")}</option>{lookups.branches.map(item => <option key={item.id} value={item.id}>{item.branch_name}</option>)}</select></div>
-    <div className="flex items-end"><Button data-report-apply onClick={onLoad}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث التقرير")}</Button></div>
+    <div className="flex items-end"><Button data-report-apply onClick={onLoad}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث التقرير")}</Button></div>
   </div></ReportFilters>
 }
 

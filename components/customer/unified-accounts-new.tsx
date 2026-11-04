@@ -542,7 +542,7 @@ export default function UnifiedAccounts() {
                 </TabsContent>
 
                 <TabsContent value="related" className="space-y-4">
-                  <div className="text-right">
+                  <div className="text-start">
                     <h4 className="font-semibold mb-3">{tr("الحسابات ذات العلاقة على الحساب")}</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
@@ -582,7 +582,7 @@ export default function UnifiedAccounts() {
                 </TabsContent>
 
                 <TabsContent value="classification" className="space-y-4">
-                  <div className="text-right space-y-3">
+                  <div className="text-start space-y-3">
                     <div>
                       <Label className="mb-2 block">{tr("النوع")}</Label>
                       <p className="font-semibold">{
@@ -618,10 +618,10 @@ export default function UnifiedAccounts() {
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-sm" dir={appDir()}>
-          <DialogHeader className="text-right">
+          <DialogHeader className="text-start">
             <DialogTitle>{tr("تأكيد حذف الحساب")}</DialogTitle>
           </DialogHeader>
-          <p className="text-right text-slate-600 text-sm">
+          <p className="text-start text-slate-600 text-sm">
             {tr("هل أنت متأكد من حذف الحساب ")}<strong>{currentAccount?.account_name}</strong>{tr("؟ هذا الإجراء لا يمكن التراجع عنه.")}
           </p>
           <DialogFooter>

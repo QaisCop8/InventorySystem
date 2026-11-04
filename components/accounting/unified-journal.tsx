@@ -1248,7 +1248,7 @@ export default function UnifiedJournal({
                     {journalDiff !== 0 && tr(" — الفرق: {0}", journalDiff.toLocaleString("en-US"))}
                   </div>
                   <Button type="button" variant="outline" size="sm" disabled={isLocked} onClick={() => addJournalRow()}>
-                    <Plus className="ml-1 h-4 w-4" />
+                    <Plus className="me-1 h-4 w-4" />
                     {tr("إضافة سطر")}
                   </Button>
                 </div>
@@ -1331,7 +1331,7 @@ export default function UnifiedJournal({
               <TabsContent value="notes" className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
-                    <ListPlus className="ml-1 h-4 w-4" />
+                    <ListPlus className="me-1 h-4 w-4" />
                     {tr("إضافة ملاحظة")}
                   </Button>
                 </div>

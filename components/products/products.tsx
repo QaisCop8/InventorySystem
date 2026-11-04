@@ -745,7 +745,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, error: null }))}
           >
             <X className="h-4 w-4" />
@@ -760,7 +760,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, successMessage: null }))}
           >
             <X className="h-4 w-4" />
@@ -822,7 +822,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                       currentPage: 1,
                     }))
                   }
-                  className="pr-10"
+                  className="ps-10"
                 />
               </div>
             </div>
@@ -949,7 +949,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 }
                 }
               >
-                <Plus className="ml-2 h-4 w-4" />
+                <Plus className="me-2 h-4 w-4" />
                 {tr("إضافة صنف جديد")}
               </Button>
             </div>
@@ -959,18 +959,18 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-right w-12"></TableHead>
-                      <TableHead className="text-right">{tr("رقم الصنف")}</TableHead>
-                      <TableHead className="text-right">{tr("اسم الصنف")}</TableHead>
-                      <TableHead className="text-right">{tr("نوع الصنف")}</TableHead>
-                      <TableHead className="text-right">{tr("الوحدة")}</TableHead>
-                      <TableHead className="text-right">{tr("المستودع الافتراضي")}</TableHead>
-                      <TableHead className="text-right">{tr("المخزون الحالي")}</TableHead>
-                      <TableHead className="text-right">{tr("نقطة إعادة الطلب")}</TableHead>
-                      <TableHead className="text-right">{tr("آخر سعر شراء")}</TableHead>
-                      <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                      <TableHead className="text-right">{tr("حالة المخزون")}</TableHead>
-                      <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
+                      <TableHead className="text-start w-12"></TableHead>
+                      <TableHead className="text-start">{tr("رقم الصنف")}</TableHead>
+                      <TableHead className="text-start">{tr("اسم الصنف")}</TableHead>
+                      <TableHead className="text-start">{tr("نوع الصنف")}</TableHead>
+                      <TableHead className="text-start">{tr("الوحدة")}</TableHead>
+                      <TableHead className="text-start">{tr("المستودع الافتراضي")}</TableHead>
+                      <TableHead className="text-start">{tr("المخزون الحالي")}</TableHead>
+                      <TableHead className="text-start">{tr("نقطة إعادة الطلب")}</TableHead>
+                      <TableHead className="text-start">{tr("آخر سعر شراء")}</TableHead>
+                      <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                      <TableHead className="text-start">{tr("حالة المخزون")}</TableHead>
+                      <TableHead className="text-start">{tr("الإجراءات")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

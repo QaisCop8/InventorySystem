@@ -58,7 +58,7 @@ export function ChatWidget() {
           <header className="flex shrink-0 items-center gap-3 bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-3 text-white">
             {active ? (
               <>
-                <button type="button" onClick={chat.closeConversation} aria-label={tr("رجوع")} className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
+                <button type="button" onClick={chat.closeConversation} aria-label={tr("رجوع")} className="-ms-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <ChatAvatar name={active.full_name} size="sm" />

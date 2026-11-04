@@ -605,7 +605,7 @@ export default function ProductGroups() {
             </Button>
           </div>
           <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading}>
-            <Plus className="ml-2 h-4 w-4" />{tr(" إضافة مجموعة جديدة")}
+            <Plus className="me-2 h-4 w-4" />{tr(" إضافة مجموعة جديدة")}
           </Button>
         </div>
       </div>

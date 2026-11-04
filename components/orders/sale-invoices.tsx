@@ -504,7 +504,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
             onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
           >
-            <Plus className="ml-2 h-4 w-4" />
+            <Plus className="me-2 h-4 w-4" />
             {tr("فاتورة جديدة ")}<span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
           </Button>
         </div>
@@ -610,7 +610,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                       filters: { ...prev.filters, search: e.target.value },
                     }))
                   }
-                  className="pr-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                  className="ps-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -777,7 +777,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                   }))
                 }
               >
-                <Plus className="ml-2 h-4 w-4" />
+                <Plus className="me-2 h-4 w-4" />
                 {tr("إنشاء فاتورة جديدة")}
               </Button>
             </div>
@@ -901,15 +901,15 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="text-right p-4">##</th>
-                      <th className="text-right p-4">{tr("رقم الفاتورة")}</th>
-                      <th className="text-right p-4">{tr("التاريخ")}</th>
-                      <th className="text-right p-4">{tr("العميل")}</th>
-                      <th className="text-right p-4">{tr("الحالة")}</th>
-                      <th className="text-right p-4">{tr("السند اليدوي")}</th>
-                      <th className="text-right p-4">{tr("رقم طلبية العميل")}</th>
-                      <th className="text-right p-4">{tr("المبلغ")}</th>
-                      <th className="text-right p-4">{tr("استلمت بواسطة")}</th>
+                      <th className="text-start p-4">##</th>
+                      <th className="text-start p-4">{tr("رقم الفاتورة")}</th>
+                      <th className="text-start p-4">{tr("التاريخ")}</th>
+                      <th className="text-start p-4">{tr("العميل")}</th>
+                      <th className="text-start p-4">{tr("الحالة")}</th>
+                      <th className="text-start p-4">{tr("السند اليدوي")}</th>
+                      <th className="text-start p-4">{tr("رقم طلبية العميل")}</th>
+                      <th className="text-start p-4">{tr("المبلغ")}</th>
+                      <th className="text-start p-4">{tr("استلمت بواسطة")}</th>
                       <th className="text-center p-4">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>

@@ -176,7 +176,7 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
                   {storeName ? tr(" — المستودع: {0}", storeName) : ""}
                 </DialogDescription>
               </div>
-              <div className={`ml-12 rounded-xl px-3 py-1.5 text-center ${countOk ? "bg-emerald-500/90" : "bg-amber-500/90"}`}>
+              <div className={`me-12 rounded-xl px-3 py-1.5 text-center ${countOk ? "bg-emerald-500/90" : "bg-amber-500/90"}`}>
                 <div className="text-lg font-black leading-none">{count} / {required}</div>
                 <div className="text-[10px]">{tr("المُدخل / المطلوب")}</div>
               </div>
@@ -201,7 +201,7 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
                       placeholder={tr("امسح أو اكتب الرقم ثم Enter — يمكن لصق عدة أرقام")}
                       className="h-10"
                     />
-                    <Button type="button" onClick={addFromInput} disabled={!input.trim()} className="h-10 bg-indigo-600 hover:bg-indigo-700"><ListPlus className="ml-1 h-4 w-4" />{tr("إضافة")}</Button>
+                    <Button type="button" onClick={addFromInput} disabled={!input.trim()} className="h-10 bg-indigo-600 hover:bg-indigo-700"><ListPlus className="me-1 h-4 w-4" />{tr("إضافة")}</Button>
                   </div>
                   {direction === "in" && (
                     <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed bg-slate-50 p-2 text-xs">
@@ -252,7 +252,7 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
 
             {/* المتاح في المستودع (خروج/نقل) */}
             {isOut && (
-              <div className="flex min-h-0 flex-col gap-3 overflow-hidden border-t bg-slate-50/60 p-4 md:border-r md:border-t-0">
+              <div className="flex min-h-0 flex-col gap-3 overflow-hidden border-t bg-slate-50/60 p-4 md:border-s md:border-t-0">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-700">{tr("المتاح في ")}{storeName || tr("المستودع")} ({available.length})</span>
                   {!readOnly && count < required && available.length > 0 && <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={fillFromAvailable}>{tr("اختيار تلقائي (")}{Math.min(required - count, available.filter((item) => !selected.has(item.serial.toLowerCase())).length)})</Button>}
@@ -275,7 +275,7 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
                             <label className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-sky-50 ${checked ? "bg-sky-50" : ""}`}>
                               <input type="checkbox" disabled={readOnly} checked={checked} onChange={() => toggleAvailable(item.serial)} className="h-4 w-4 accent-indigo-600" />
                               <span className="font-mono font-semibold">{item.serial}</span>
-                              {item.vch_code && <span className="mr-auto text-[11px] text-slate-400">{item.vch_code}</span>}
+                              {item.vch_code && <span className="ms-auto text-[11px] text-slate-400">{item.vch_code}</span>}
                             </label>
                           </li>
                         )
@@ -292,7 +292,7 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
               {countOk ? tr("عدد الأرقام مطابق للكمية + البونص") : tr("عدد الأرقام يجب أن يساوي الكمية + البونص ({0}) — لن يُحفظ السند قبل ذلك", required)}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />{readOnly ? tr("إغلاق") : tr("إلغاء")}</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}><X className="me-1 h-4 w-4" />{readOnly ? tr("إغلاق") : tr("إلغاء")}</Button>
               {!readOnly && <Button type="button" onClick={() => { onSave(serials); onOpenChange(false) }} className="bg-indigo-600 hover:bg-indigo-700">{tr("حفظ الأرقام")}</Button>}
             </div>
           </div>

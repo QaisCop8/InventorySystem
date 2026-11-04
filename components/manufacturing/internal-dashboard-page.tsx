@@ -126,7 +126,7 @@ export default function InternalDashboardPage() {
             const step = INTERNAL_STEPS.find((candidate) => candidate.status === Number(row.internal_status))
             return <button key={row.id} type="button" onClick={() => step && workflow.permissions?.[step.permission] && openInternalSection(step.section)} className="flex w-full items-center justify-between gap-2 py-2 text-start text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
               <span className="min-w-0"><span className="block font-mono font-bold">{row.vch_code}</span><span className="block truncate text-xs text-muted-foreground">{INTERNAL_STATUS_LABELS[Number(row.internal_status)]} — {row.direction === "outgoing" ? tr("إلى {0}", workflow.branchName(row.manufacturing_branch_id)) : tr("من {0}", workflow.branchName(row.branch_id))}</span></span>
-              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"><Clock3 className="ml-1 inline h-3 w-3" />{ageLabel(row.stage_since)}</span>
+              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"><Clock3 className="me-1 inline h-3 w-3" />{ageLabel(row.stage_since)}</span>
             </button>
           })}
         </div>}

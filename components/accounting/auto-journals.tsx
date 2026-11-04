@@ -175,7 +175,7 @@ function ExecutePanel({ title, subtitle, children, onExecute, saving, disabled, 
       {children}
       <JournalLinks journals={journals} />
       <Button onClick={onExecute} disabled={saving || disabled} className="h-12 w-full bg-emerald-400 text-base font-black text-slate-950 hover:bg-emerald-300">
-        {saving ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="ml-2 h-5 w-5" />}{tr("تنفيذ القيود")}
+        {saving ? <Loader2 className="me-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="me-2 h-5 w-5" />}{tr("تنفيذ القيود")}
       </Button>
       {footer && <p className="text-center text-[11px] leading-5 text-slate-500">{footer}</p>}
     </aside>
@@ -202,7 +202,7 @@ function SelectableTable<T>({ title, hint, rows, keyOf, columns, selection, load
       <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
         <div><h2 className="font-black">{title}</h2><p className="text-xs text-slate-500">{hint}</p></div>
         <Button variant="outline" onClick={selection.toggleAll} disabled={!rows.length || loading}>
-          {selection.allSelected ? <X className="ml-2 h-4 w-4" /> : <CheckCheck className="ml-2 h-4 w-4" />}
+          {selection.allSelected ? <X className="me-2 h-4 w-4" /> : <CheckCheck className="me-2 h-4 w-4" />}
           {selection.allSelected ? tr("إلغاء تحديد الكل") : tr("تحديد الكل")}
         </Button>
       </div>
@@ -315,7 +315,7 @@ export function VisaCommissionJournalsPage() {
               {meta.card_types.filter((card) => Number(card.main_type || 1) === 1).map((card) => <option key={card.id} value={card.id}>{card.name}</option>)}
             </select>
           </Field>
-          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض الحركات")}</Button></div>
+          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض الحركات")}</Button></div>
         </div>
       </section>
       <section className="grid min-h-[460px] flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -552,7 +552,7 @@ export function AccountCurrencyTransferJournalsPage() {
             </select>
           </Field>
           <AccountPicker label={tr("الحساب (اختياري)")} accounts={meta.accounts} value={accountId} onChange={setAccountId} />
-          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("تنفيذ أولي")}</Button></div>
+          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("تنفيذ أولي")}</Button></div>
         </div>
       </section>
       <section className="grid min-h-[460px] flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -664,7 +664,7 @@ export function CurrencyDifferenceJournalsPage() {
           <Field label={tr("احتساب فرق العملة لغاية")}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
           <Field label={tr("العملة")}><CurrencySelect currencies={meta.currencies} value={currencyId} onChange={setCurrencyId} exclude={meta.base_currency_id} /></Field>
           <Field label={tr("سعر الصرف")}><Input type="number" step="0.0001" value={rate} onChange={(e) => setRate(e.target.value)} dir="ltr" /></Field>
-          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("تنفيذ أولي")}</Button></div>
+          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("تنفيذ أولي")}</Button></div>
         </div>
         {stale && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">{tr("تغيّرت المدخلات بعد الاحتساب — أعد الاحتساب قبل التنفيذ.")}</p>}
       </section>

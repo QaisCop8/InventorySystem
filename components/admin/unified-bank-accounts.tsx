@@ -394,11 +394,11 @@ export default function UnifiedBankAccounts({
                 <div className="flex flex-wrap gap-2">
                   {form.id <= 0 && (
                     <Button type="button" size="sm" variant={autoMode ? "secondary" : "default"} onClick={() => setAutoMode((value) => !value)}>
-                      <Wand2 className="ml-1 h-4 w-4" />{autoMode ? tr("إخفاء الانشاء الآلي") : tr("انشاء آلي")}
+                      <Wand2 className="me-1 h-4 w-4" />{autoMode ? tr("إخفاء الانشاء الآلي") : tr("انشاء آلي")}
                     </Button>
                   )}
                   <Button type="button" size="sm" variant="outline" onClick={() => setSettingsOpen(true)} title={tr("الحسابات الاب المستخدمة في الانشاء الآلي")}>
-                    <Settings className="ml-1 h-4 w-4" />{tr("اعدادات")}
+                    <Settings className="me-1 h-4 w-4" />{tr("اعدادات")}
                   </Button>
                 </div>
               </div>
@@ -612,7 +612,7 @@ export default function UnifiedBankAccounts({
                 action={
                   <Button type="button" size="sm" variant="ghost" onClick={() => setCommissionsOpen((value) => !value)} aria-expanded={commissionsOpen}>
                     {commissionsOpen ? tr("إخفاء") : tr("عرض")}
-                    <ChevronDown className={`mr-1 h-4 w-4 transition-transform ${commissionsOpen ? "-rotate-180" : ""}`} />
+                    <ChevronDown className={`ms-1 h-4 w-4 transition-transform ${commissionsOpen ? "-rotate-180" : ""}`} />
                   </Button>
                 }
               >
@@ -765,7 +765,7 @@ export default function UnifiedBankAccounts({
                             <td className="px-2 py-1.5">{row.bankName}</td>
                             <td className="px-2 py-1.5 font-mono">{row.branchCode}</td>
                             <td className="px-2 py-1.5">{row.branchName}</td>
-                            <td className="px-2 py-1.5">{row.currencyName}{exists && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{tr("يوجد حساب بنكي")}</span>}</td>
+                            <td className="px-2 py-1.5">{row.currencyName}{exists && <span className="ms-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{tr("يوجد حساب بنكي")}</span>}</td>
                           </tr>
                         )
                       })}

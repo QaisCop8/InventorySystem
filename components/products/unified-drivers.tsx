@@ -236,7 +236,7 @@ export default function UnifiedDrivers({
                     }}
                     ref={codeInputRef}
                     maxLength={8}
-                    className="text-right"
+                    className="text-start"
                   />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
@@ -247,7 +247,7 @@ export default function UnifiedDrivers({
                     value={form.name}
                     onChange={(e) => onFormChange("name", e.target.value.slice(0, 30))}
                     maxLength={30}
-                    className={`text-right ${hasDuplicateName ? "border-red-500" : ""}`}
+                    className={`text-start ${hasDuplicateName ? "border-red-500" : ""}`}
                     required
                   />
                 </div>
@@ -260,7 +260,7 @@ export default function UnifiedDrivers({
                     id="driver-phone"
                     value={form.phone}
                     onChange={(e) => onFormChange("phone", e.target.value)}
-                    className="text-right"
+                    className="text-start"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -270,7 +270,7 @@ export default function UnifiedDrivers({
                     type="date"
                     value={form.licence_expiry}
                     onChange={(e) => onFormChange("licence_expiry", e.target.value)}
-                    className="text-right"
+                    className="text-start"
                   />
                 </div>
                 <div className="grid gap-2">

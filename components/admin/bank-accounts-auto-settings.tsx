@@ -84,7 +84,7 @@ export default function BankAccountsAutoSettings({ open, onOpenChange, onSaved }
         {error && <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
-          <Button onClick={() => void save()} disabled={saving || loading}>{saving && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
+          <Button onClick={() => void save()} disabled={saving || loading}>{saving && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

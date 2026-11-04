@@ -43,8 +43,8 @@ export function PosDiscountDialog({subtotal,itemDiscount,customer,maximum,initia
    </section>
   </div>
   <div className="pos-payment-dialog-footer grid shrink-0 grid-cols-2 gap-2 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex sm:justify-center">
-   <Button className="pos-payment-confirm" disabled={!valid||subtotal<=0} onClick={()=>onApply(percent)}><Check className="ml-1 h-4 w-4"/>{tr("موافق F3")}</Button>
-   <Button data-dialog-close className="pos-payment-close" onClick={onClose}><X className="ml-1 h-4 w-4"/>{tr("إغلاق Esc")}</Button>
+   <Button className="pos-payment-confirm" disabled={!valid||subtotal<=0} onClick={()=>onApply(percent)}><Check className="me-1 h-4 w-4"/>{tr("موافق F3")}</Button>
+   <Button data-dialog-close className="pos-payment-close" onClick={onClose}><X className="me-1 h-4 w-4"/>{tr("إغلاق Esc")}</Button>
   </div>
  </DialogContent></Dialog>
 }
@@ -66,6 +66,6 @@ export function PosItemDiscountDialog({itemName,gross,maximum,initialPercent,onA
   <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-2"><Label htmlFor="pos-item-discount-amount">{tr("مبلغ الخصم")}</Label><Input id="pos-item-discount-amount" autoFocus onFocus={event=>event.target.select()} type="text" inputMode="decimal" value={amountText} onChange={event=>changeAmount(event.target.value)}/></div><div className="space-y-2"><Label htmlFor="pos-item-discount-percent">{tr("نسبة الخصم %")}</Label><Input id="pos-item-discount-percent" onFocus={event=>event.target.select()} type="text" inputMode="decimal" value={percentText} onChange={event=>changePercent(event.target.value)}/></div><div className="space-y-2"><Label htmlFor="pos-item-discount-net">{tr("الصافي")}</Label><Input id="pos-item-discount-net" onFocus={event=>event.target.select()} type="text" inputMode="decimal" value={netText} onChange={event=>changeNet(event.target.value)}/></div></div>
   <p className="text-sm">{tr("الصافي بعد الخصم: ")}<strong>{valid?Math.max(0,net).toFixed(2):"—"}</strong></p>
   {!valid&&<p role="alert" className="text-sm text-rose-700">{tr("يجب ألا يتجاوز الخصم قيمة الصنف أو ")}{limit}%.</p>}
-  <div className="pos-payment-dialog-footer grid grid-cols-2 gap-2 pt-3 sm:flex sm:justify-center"><Button className="pos-payment-confirm" disabled={!valid} onClick={()=>onApply(percent)}><Check className="ml-1 h-4 w-4"/>{tr("تطبيق الخصم")}</Button><Button data-dialog-close className="pos-payment-close" onClick={onClose}><X className="ml-1 h-4 w-4"/>{tr("إلغاء")}</Button></div>
+  <div className="pos-payment-dialog-footer grid grid-cols-2 gap-2 pt-3 sm:flex sm:justify-center"><Button className="pos-payment-confirm" disabled={!valid} onClick={()=>onApply(percent)}><Check className="me-1 h-4 w-4"/>{tr("تطبيق الخصم")}</Button><Button data-dialog-close className="pos-payment-close" onClick={onClose}><X className="me-1 h-4 w-4"/>{tr("إلغاء")}</Button></div>
  </DialogContent></Dialog>
 }

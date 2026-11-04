@@ -245,8 +245,8 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
         title={<>{definition.title}</>}
         description={<>{tr("ضريبة القيمة المضافة على المبيعات والمشتريات للفترة المحددة")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!hasData}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!hasData}><Download className="me-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
@@ -267,9 +267,9 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
             {kind === "sales" && <label className="flex cursor-pointer items-center gap-2"><Checkbox checked={filters.showNotes} onCheckedChange={(value) => set({ showNotes: value === true })} />{tr("إظهار الإشعارات (الدائنة والمدينة)")}</label>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
+            <Button variant="outline" onClick={reset}><RefreshCcw className="me-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
             <Button data-report-apply onClick={() => void run()} disabled={running || loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-              {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
+              {running ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض النتائج")}
             </Button>
           </div>
         </div>

@@ -192,21 +192,21 @@ export default function Warehouses() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">{tr("رمز المستودع")}</TableHead>
-                  <TableHead className="text-right">{tr("اسم المستودع")}</TableHead>
-                  <TableHead className="text-right">{tr("الموقع")}</TableHead>
-                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                  <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+                  <TableHead className="text-start">{tr("رمز المستودع")}</TableHead>
+                  <TableHead className="text-start">{tr("اسم المستودع")}</TableHead>
+                  <TableHead className="text-start">{tr("الموقع")}</TableHead>
+                  <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-start">{tr("إجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {warehouses.map((warehouse) => (
                   <TableRow key={warehouse.id} className="cursor-pointer" onDoubleClick={() => openEditDialog(warehouse)}>
-                    <TableCell className="text-right">{warehouse.warehouse_code}</TableCell>
-                    <TableCell className="text-right">{warehouse.warehouse_name}</TableCell>
-                    <TableCell className="text-right">{warehouse.location || "-"}</TableCell>
-                    <TableCell className="text-right">{warehouse.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-start">{warehouse.warehouse_code}</TableCell>
+                    <TableCell className="text-start">{warehouse.warehouse_name}</TableCell>
+                    <TableCell className="text-start">{warehouse.location || "-"}</TableCell>
+                    <TableCell className="text-start">{warehouse.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
+                    <TableCell className="text-start">
                       <Button
                         variant="outline"
                         size="sm"
@@ -274,7 +274,7 @@ export default function Warehouses() {
                 id="warehouse_name"
                 value={form.warehouse_name}
                 onChange={(e) => setForm((f) => ({ ...f, warehouse_name: e.target.value }))}
-                className="text-right"
+                className="text-start"
               />
             </div>
             <div>
@@ -291,7 +291,7 @@ export default function Warehouses() {
                 id="warehouse_location"
                 value={form.location}
                 onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                className="text-right"
+                className="text-start"
               />
             </div>
             <div>
@@ -301,7 +301,7 @@ export default function Warehouses() {
                 dir="ltr"
                 value={form.default_printer}
                 onChange={(e) => setForm((f) => ({ ...f, default_printer: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("اسم الطابعة كما يظهر في ويندوز")}
               />
               <p className="mt-1 text-xs text-muted-foreground">{tr("تُطبع عليها أصناف هذا المستودع عند \"طباعة حسب المستودع\" في الطلبية — فارغة: الطابعة الافتراضية في إعدادات الطباعة")}</p>
@@ -312,7 +312,7 @@ export default function Warehouses() {
                 id="warehouse_description"
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                className="text-right"
+                className="text-start"
               />
             </div>
             <div className="space-y-2">

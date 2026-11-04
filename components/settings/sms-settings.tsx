@@ -127,7 +127,7 @@ function ProviderTab({ form, setForm, busy, onSave }: { form: Settings; setForm:
             <div className="space-y-1.5"><Label>{tr("رمز نجاح الإرسال")}</Label><Input dir="ltr" value={form.success_codes} onChange={event => set({ success_codes: event.target.value })} placeholder="1001" /></div>
             <div className="space-y-1.5"><Label>{tr("مفتاح الدولة")}</Label><Input dir="ltr" value={form.country_code} onChange={event => set({ country_code: event.target.value })} placeholder="970" /><small className="text-xs text-muted-foreground">05xxxxxxxx ⇐ 9705xxxxxxxx</small></div>
           </div>
-          <div className="flex justify-end"><Button onClick={onSave} disabled={busy}><Save className="ml-2 h-4 w-4" />{tr("حفظ الإعدادات")}</Button></div>
+          <div className="flex justify-end"><Button onClick={onSave} disabled={busy}><Save className="me-2 h-4 w-4" />{tr("حفظ الإعدادات")}</Button></div>
         </CardContent>
       </Card>
       <Card>
@@ -136,8 +136,8 @@ function ProviderTab({ form, setForm, busy, onSave }: { form: Settings; setForm:
           <p className="text-xs text-muted-foreground">{tr("احفظ الإعدادات أولاً ثم أرسل رسالة تجريبية أو اعرض الرصيد.")}</p>
           <div className="space-y-1.5"><Label>{tr("رقم جوال للتجربة")}</Label><Input dir="ltr" value={testMobile} onChange={event => setTestMobile(event.target.value)} placeholder="05xxxxxxxx" /></div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => void test()} disabled={testing || !testMobile.trim()}>{testing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Send className="ml-2 h-4 w-4" />}{tr("رسالة تجريبية")}</Button>
-            <Button variant="outline" onClick={() => void balance()}><Wallet className="ml-2 h-4 w-4" />{tr("رصيد الرسائل")}</Button>
+            <Button variant="outline" onClick={() => void test()} disabled={testing || !testMobile.trim()}>{testing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Send className="me-2 h-4 w-4" />}{tr("رسالة تجريبية")}</Button>
+            <Button variant="outline" onClick={() => void balance()}><Wallet className="me-2 h-4 w-4" />{tr("رصيد الرسائل")}</Button>
           </div>
           {status && <p className={`flex items-start gap-2 rounded-xl px-3 py-2 text-sm ${status.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>{status.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0" />}{status.text}</p>}
         </CardContent>
@@ -172,7 +172,7 @@ function TemplatesTab({ templates, placeholders, busy, onSave, onDelete }: { tem
           </div>
           <div className="flex justify-end gap-2">
             {editing.id ? <Button variant="outline" onClick={() => setEditing({ name: "", message_text: "" })}>{tr("قالب جديد")}</Button> : null}
-            <Button disabled={busy || !editing.name?.trim() || !editing.message_text?.trim()} onClick={() => { onSave(editing); setEditing({ name: "", message_text: "" }) }}><Save className="ml-2 h-4 w-4" />{tr("حفظ القالب")}</Button>
+            <Button disabled={busy || !editing.name?.trim() || !editing.message_text?.trim()} onClick={() => { onSave(editing); setEditing({ name: "", message_text: "" }) }}><Save className="me-2 h-4 w-4" />{tr("حفظ القالب")}</Button>
           </div>
         </CardContent>
       </Card>
@@ -245,7 +245,7 @@ function LogTab() {
       <CardContent className="p-0">
         <form className="flex gap-2 border-b p-3" onSubmit={event => { event.preventDefault(); void load(search) }}>
           <Input value={search} onChange={event => setSearch(event.target.value)} placeholder={tr("بحث بالجوال أو العميل أو رقم الحركة")} />
-          <Button type="submit" variant="outline" data-report-apply><RefreshCw className={`ml-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("بحث")}</Button>
+          <Button type="submit" variant="outline" data-report-apply><RefreshCw className={`me-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("بحث")}</Button>
         </form>
         {rows.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">{loading ? tr("جاري تحميل البيانات...") : tr("لا توجد رسائل")}</div> : (
           <div className="overflow-x-auto">
@@ -255,7 +255,7 @@ function LogTab() {
                 {rows.map(row => (
                   <tr key={row.id} className="border-t align-top">
                     <td className="p-3 font-mono text-xs">{new Date(row.created_at).toLocaleString("en-GB", { hour12: false })}</td>
-                    <td className="p-3 font-mono text-xs">{row.document_code || "—"}{row.auto && <span className="mr-1 rounded bg-sky-100 px-1.5 text-[10px] font-bold text-sky-700">{tr("تلقائي")}</span>}</td>
+                    <td className="p-3 font-mono text-xs">{row.document_code || "—"}{row.auto && <span className="ms-1 rounded bg-sky-100 px-1.5 text-[10px] font-bold text-sky-700">{tr("تلقائي")}</span>}</td>
                     <td className="p-3">{row.party_name || "—"}</td>
                     <td className="p-3 font-mono" dir="ltr">{row.mobile}</td>
                     <td className="max-w-md p-3 text-xs text-slate-600">{row.message}</td>

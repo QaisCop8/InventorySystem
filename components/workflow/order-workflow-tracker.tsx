@@ -239,7 +239,7 @@ export function OrderWorkflowTracker({
         <CardContent className="p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span className="mr-3">{tr("جاري تحميل بيانات التتبع...")}</span>
+            <span className="ms-3">{tr("جاري تحميل بيانات التتبع...")}</span>
           </div>
         </CardContent>
       </Card>

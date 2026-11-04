@@ -267,7 +267,7 @@ export default function GeneralSettings() {
                         value={state.companyName}
                         onChange={(e) => setState((prev) => ({ ...prev, companyName: e.target.value }))}
                         placeholder="Noon ERP"
-                        className="text-right"
+                        className="text-start"
                         dir={appDir()}
                       />
                     </div>
@@ -278,7 +278,7 @@ export default function GeneralSettings() {
                         value={state.companyEmail}
                         onChange={(e) => setState((prev) => ({ ...prev, companyEmail: e.target.value }))}
                         placeholder="info@company.com"
-                        className="text-right"
+                        className="text-start"
                         dir={appDir()}
                       />
                     </div>
@@ -288,7 +288,7 @@ export default function GeneralSettings() {
                         value={state.companyPhone}
                         onChange={(e) => setState((prev) => ({ ...prev, companyPhone: e.target.value }))}
                         placeholder="+970599123456"
-                        className="text-right"
+                        className="text-start"
                         dir={appDir()}
                       />
                     </div>
@@ -298,7 +298,7 @@ export default function GeneralSettings() {
                         value={state.companyWebsite}
                         onChange={(e) => setState((prev) => ({ ...prev, companyWebsite: e.target.value }))}
                         placeholder="www.company.com"
-                        className="text-right"
+                        className="text-start"
                         dir={appDir()}
                       />
                     </div>
@@ -309,7 +309,7 @@ export default function GeneralSettings() {
                       value={state.companyAddress}
                       onChange={(e) => setState((prev) => ({ ...prev, companyAddress: e.target.value }))}
                       placeholder={tr("العنوان الكامل للشركة")}
-                      className="text-right"
+                      className="text-start"
                       dir={appDir()}
                       rows={3}
                     />
@@ -751,9 +751,9 @@ export default function GeneralSettings() {
                   <table className="w-full border border-gray-200 rounded-lg">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="text-right p-4 font-semibold text-gray-700 border-b">{tr("الوحدة")}</th>
-                        <th className="text-right p-4 font-semibold text-gray-700 border-b">{tr("المسمى الافتراضي")}</th>
-                        <th className="text-right p-4 font-semibold text-gray-700 border-b">{tr("المسمى الحالي")}</th>
+                        <th className="text-start p-4 font-semibold text-gray-700 border-b">{tr("الوحدة")}</th>
+                        <th className="text-start p-4 font-semibold text-gray-700 border-b">{tr("المسمى الافتراضي")}</th>
+                        <th className="text-start p-4 font-semibold text-gray-700 border-b">{tr("المسمى الحالي")}</th>
                         <th className="text-center p-4 font-semibold text-gray-700 border-b">{tr("الإجراءات")}</th>
                       </tr>
                     </thead>

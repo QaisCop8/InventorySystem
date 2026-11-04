@@ -147,7 +147,7 @@ export function GlobalSearch() {
         className="relative w-full max-w-sm justify-start text-sm text-muted-foreground bg-transparent"
         onClick={handleSearchButtonClick}
       >
-        <Search className="mr-2 h-4 w-4" />
+        <Search className="ms-2 h-4 w-4" />
         <span>{tr("البحث في النظام...")}</span>
         <kbd className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium opacity-100 hidden sm:inline-flex">
           <span className="text-xs">Ctrl</span>K
@@ -195,7 +195,7 @@ export function GlobalSearch() {
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                  <span className="mr-2 text-sm text-muted-foreground">{tr("جاري البحث...")}</span>
+                  <span className="ms-2 text-sm text-muted-foreground">{tr("جاري البحث...")}</span>
                 </div>
               ) : results.length > 0 ? (
                 <div className="space-y-2">

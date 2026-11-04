@@ -142,13 +142,13 @@ export default function Promotions() {
           <p className="mt-1 text-sm text-muted-foreground">{tr("أسعار خاصة للعملاء، خصومات لفترة، و«اشترِ واحصل مجاناً» — تُطبَّق تلقائياً في فاتورة وإرسالية المبيعات.")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button onClick={() => void openEditor()}><Plus className="ml-2 h-4 w-4" />{tr("عرض جديد")}</Button>
+          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button onClick={() => void openEditor()}><Plus className="me-2 h-4 w-4" />{tr("عرض جديد")}</Button>
         </div>
       </div>
 
       <Card><CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
-        <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم العرض أو اسمه...")} /></div>
+        <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="ps-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم العرض أو اسمه...")} /></div>
         <div className="flex overflow-hidden rounded-lg border text-xs">
           {[{ value: 0, label: tr("الكل") }, ...TYPES].map((type) => (
             <button key={type.value} type="button" onClick={() => setTypeFilter(type.value)} className={`px-3 py-2 ${typeFilter === type.value ? "bg-slate-800 text-white" : "hover:bg-slate-50"}`}>{type.label}</button>
@@ -161,7 +161,7 @@ export default function Promotions() {
           <Gift className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <h2 className="font-bold">{tr("لا توجد عروض")}</h2>
           <p className="mb-4 mt-1 text-sm text-muted-foreground">{tr("أضف أول عرض: سعر خاص لعميل، خصم موسمي، أو صنف مجاني.")}</p>
-          <Button onClick={() => void openEditor()}><Plus className="ml-2 h-4 w-4" />{tr("عرض جديد")}</Button>
+          <Button onClick={() => void openEditor()}><Plus className="me-2 h-4 w-4" />{tr("عرض جديد")}</Button>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -187,7 +187,7 @@ export default function Promotions() {
                     {Number(row.priority) > 0 && <span>{tr("أولوية ")}{row.priority}</span>}
                   </div>
                   <div className="flex gap-2 border-t pt-3">
-                    <Button size="sm" variant="outline" className="flex-1" onClick={() => void openEditor(row)}><Pencil className="ml-1.5 h-3.5 w-3.5" />{tr("تعديل")}</Button>
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => void openEditor(row)}><Pencil className="me-1.5 h-3.5 w-3.5" />{tr("تعديل")}</Button>
                     <Button size="sm" variant="outline" title={Number(row.status) === 2 ? tr("تفعيل") : tr("تجميد")} onClick={() => void toggleStatus(row)}>{Number(row.status) === 2 ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}</Button>
                     <Button size="sm" variant="outline" className="text-rose-600" title={tr("حذف")} onClick={() => void remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
@@ -366,7 +366,7 @@ function PromotionEditor({ draft: initial, onClose, onSaved }: { draft: Draft; o
           <div className="overflow-hidden rounded-xl border">
             <div className="flex items-center justify-between border-b bg-slate-50 px-3 py-2">
               <span className="font-bold">{type === 1 ? tr("الأصناف والأسعار الخاصة") : type === 2 ? tr("الخصومات") : tr("اشترِ ← واحصل مجاناً")}</span>
-              <Button size="sm" variant="outline" onClick={() => set({ items: [...draft.items, emptyItem()] })}><Plus className="ml-1 h-3.5 w-3.5" />{tr("سطر")}</Button>
+              <Button size="sm" variant="outline" onClick={() => set({ items: [...draft.items, emptyItem()] })}><Plus className="me-1 h-3.5 w-3.5" />{tr("سطر")}</Button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">

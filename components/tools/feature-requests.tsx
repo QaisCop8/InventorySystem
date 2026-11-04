@@ -164,7 +164,7 @@ export default function FeatureRequests() {
           <div className="grid gap-1.5">
             <Label htmlFor="request-details">{tr("التفاصيل *")}</Label>
             <Textarea id="request-details" value={details} onChange={(e) => setDetails(e.target.value)} rows={7} maxLength={10000} placeholder={tr("اشرح المشكلة أو التعديل أو التطوير المطلوب، وخطوات الوصول إليه إن أمكن...")} />
-            <span className="text-left text-[11px] text-muted-foreground" dir="ltr">{details.length} / 10000</span>
+            <span className="text-end text-[11px] text-muted-foreground" dir="ltr">{details.length} / 10000</span>
           </div>
 
           <div className="grid gap-1.5">
@@ -194,9 +194,9 @@ export default function FeatureRequests() {
             <h2 className="flex shrink-0 items-center gap-2 text-sm font-bold"><Inbox className="h-4 w-4 text-emerald-600" />{tr("الرسائل والطلبات السابقة")}</h2>
             <div className="relative flex-1">
               <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="pr-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث في التفاصيل أو الشاشة أو المرسل...")} />
+              <Input className="ps-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث في التفاصيل أو الشاشة أو المرسل...")} />
             </div>
-            <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+            <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
           </div>
 
           {statuses.length > 1 && (

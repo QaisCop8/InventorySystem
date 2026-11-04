@@ -92,7 +92,7 @@ export default function DocumentSettingsVerification() {
           <CardTitle className="flex items-center justify-between">
             <span>{tr("حالة إعدادات السندات")}</span>
             <Button onClick={runVerification} disabled={loading} size="sm" variant="outline">
-              <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               {tr("تحديث")}
             </Button>
           </CardTitle>

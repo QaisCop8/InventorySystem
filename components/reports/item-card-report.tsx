@@ -208,8 +208,8 @@ export function ItemCardReport() {
 
   return <ReportPage loading={loading || loadingProducts}>
     <ReportHeader icon={FileBarChart} category={tr("تقارير الأصناف")} title={tr("بطاقة صنف")} description={tr("حركة السندات والأرصدة التفصيلية لكل صنف")} actions={<>
-      <Button variant="outline" onClick={exportCsv} disabled={!hasReport || loading}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
-      <Button variant="outline" onClick={event => void printReportFrom(event.currentTarget)} disabled={!hasReport || loading}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
+      <Button variant="outline" onClick={exportCsv} disabled={!hasReport || loading}><Download className="me-2 h-4 w-4" />{tr("تصدير")}</Button>
+      <Button variant="outline" onClick={event => void printReportFrom(event.currentTarget)} disabled={!hasReport || loading}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>
     </>} />
     <ReportFilters>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -225,7 +225,7 @@ export function ItemCardReport() {
           <label className="flex items-center gap-2"><Checkbox checked={showBonus} onCheckedChange={checked => setShowBonus(checked === true)} />{tr("إظهار البونص في عمود مستقل")}</label>
           <label className="flex items-center gap-2"><Checkbox checked={showTransfers} onCheckedChange={checked => setShowTransfers(checked === true)} />{tr("إظهار التحويلات بين المستودعات المحددة")}</label>
         </div>
-        <Button data-report-apply onClick={runReport} disabled={loading || loadingProducts}>{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض التقرير")}</Button>
+        <Button data-report-apply onClick={runReport} disabled={loading || loadingProducts}>{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض التقرير")}</Button>
       </div>
     </ReportFilters>
     {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
@@ -240,7 +240,7 @@ export function ItemCardReport() {
           <div className="min-w-0"><p className="item-card-eyebrow">{tr("بطاقة حركة الصنف")}</p><h2>{activeProduct?.product_name || tr("اختر الأصناف واعرض التقرير")}</h2>
             {activeProduct && <p><bdi>{activeProduct.product_code}</bdi><span>{tr("الوحدة الرئيسية: ")}{activeProduct.main_unit || "—"}</span><span><bdi>{appliedPeriod.current?.fromDate}</bdi> — <bdi>{appliedPeriod.current?.toDate}</bdi></span></p>}
           </div>
-          <Button variant="outline" size="sm" disabled={!activeProduct || loading} onClick={() => activeProduct && selectProduct(activeProduct)}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button variant="outline" size="sm" disabled={!activeProduct || loading} onClick={() => activeProduct && selectProduct(activeProduct)}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
         </div>
         {reportProducts.length > 0 && <div className="item-card-mobile-picker print:hidden"><Label htmlFor="item-card-active">{tr("الصنف")}</Label><select id="item-card-active" value={activeProduct?.id || ""} onChange={event => { const product = reportProducts.find(item => item.id === Number(event.target.value)); if (product) selectProduct(product) }}>{reportProducts.map(product => <option key={product.id} value={product.id}>{product.product_code} — {product.product_name}</option>)}</select></div>}
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

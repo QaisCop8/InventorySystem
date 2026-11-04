@@ -119,7 +119,7 @@ export default function PageShortcutsSettings() {
         </div>
         {assignedCount > 0 && (
           <Button variant="outline" disabled={saving} onClick={async () => { if ((await confirmYesNo(tr("حذف جميع اختصاراتك؟")))) void save({}, "حُذفت جميع الاختصارات") }}>
-            <RotateCcw className="ml-2 h-4 w-4" />{tr("حذف الكل")}
+            <RotateCcw className="me-2 h-4 w-4" />{tr("حذف الكل")}
           </Button>
         )}
       </div>
@@ -147,7 +147,7 @@ export default function PageShortcutsSettings() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[220px] flex-1">
               <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("ابحث باسم الصفحة أو القسم أو الاختصار...")} className="pr-9" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("ابحث باسم الصفحة أو القسم أو الاختصار...")} className="ps-9" />
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <input type="checkbox" checked={onlyAssigned} onChange={(event) => setOnlyAssigned(event.target.checked)} className="h-4 w-4 accent-emerald-600" />
@@ -183,7 +183,7 @@ export default function PageShortcutsSettings() {
                           </div>
                           <div className="flex gap-1.5">
                             <Button type="button" size="sm" variant={isRecording ? "default" : "outline"} disabled={saving} onClick={() => { setMessage(null); setRecording(isRecording ? null : page.section) }}>
-                              <Pencil className="ml-1 h-3.5 w-3.5" />{isRecording ? tr("إلغاء") : combo ? tr("تغيير") : tr("تعيين")}
+                              <Pencil className="me-1 h-3.5 w-3.5" />{isRecording ? tr("إلغاء") : combo ? tr("تغيير") : tr("تعيين")}
                             </Button>
                             {combo && !isRecording && (
                               <Button type="button" size="sm" variant="ghost" title={tr("حذف الاختصار")} disabled={saving} onClick={() => { const { [page.section]: _removed, ...rest } = shortcuts; void save(rest, `أُزيل اختصار «${page.title}»`) }} className="text-slate-500 hover:bg-red-50 hover:text-red-600">

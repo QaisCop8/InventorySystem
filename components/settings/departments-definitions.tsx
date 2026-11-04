@@ -163,11 +163,11 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رقم الفرع")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم الفرع")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("العنوان")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("المسؤول")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("رقم الفرع")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم الفرع")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("العنوان")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("المسؤول")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -264,11 +264,11 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رقم القسم")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم القسم")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الفرع")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("المسؤول")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("رقم القسم")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم القسم")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الفرع")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("المسؤول")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -301,9 +301,9 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم المدينة")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم المدينة")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -330,11 +330,11 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رقم المستودع")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم المستودع")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الأقسام التابعة")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الطابعة")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("رقم المستودع")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم المستودع")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الأقسام التابعة")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الطابعة")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,10 +367,10 @@ function DepartmentsDefinitions() {
                 <table className="w-full mb-4">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("العملاء التابعين")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("العملاء التابعين")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -398,10 +398,10 @@ function DepartmentsDefinitions() {
                 <table className="w-full mb-4">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الموردين التابعين")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الموردين التابعين")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -429,10 +429,10 @@ function DepartmentsDefinitions() {
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الأصناف التابعة")}</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الأصناف التابعة")}</th>
+                      <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -461,12 +461,12 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رمز العملة")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم العملة")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("سعر البيع")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("سعر الشراء")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("سعر الصرف")}</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("رمز العملة")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("اسم العملة")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("سعر البيع")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("سعر الشراء")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("سعر الصرف")}</th>
+                    <th className="text-start p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -88,7 +88,7 @@ export default function SearchBrandDialog({ open, onOpenChange, type, brands, on
             </div>
             <div>
               <span className="text-sm font-medium">{tr("النوع:")}</span>
-              <span className="mr-2 text-sm">{type?.name || "-"}</span>
+              <span className="ms-2 text-sm">{type?.name || "-"}</span>
             </div>
           </div>
 
@@ -98,7 +98,7 @@ export default function SearchBrandDialog({ open, onOpenChange, type, brands, on
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={tr("ابحث باسم العلامة التجارية")}
-              className="text-right"
+              className="text-start"
             />
           </div>
 

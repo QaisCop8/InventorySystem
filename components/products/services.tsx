@@ -405,7 +405,7 @@ export function Services() {
       {state.error && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
-          <Button variant="ghost" size="sm" className="mr-auto" onClick={() => setState((prev) => ({ ...prev, error: null }))}>
+          <Button variant="ghost" size="sm" className="ms-auto" onClick={() => setState((prev) => ({ ...prev, error: null }))}>
             <X className="h-4 w-4" />
           </Button>
         </Alert>
@@ -415,7 +415,7 @@ export function Services() {
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">{state.successMessage}</AlertDescription>
-          <Button variant="ghost" size="sm" className="mr-auto" onClick={() => setState((prev) => ({ ...prev, successMessage: null }))}>
+          <Button variant="ghost" size="sm" className="ms-auto" onClick={() => setState((prev) => ({ ...prev, successMessage: null }))}>
             <X className="h-4 w-4" />
           </Button>
         </Alert>
@@ -455,7 +455,7 @@ export function Services() {
                   placeholder={tr("اسم الخدمة أو رمز الخدمة")}
                   value={state.filters.search}
                   onChange={(e) => setState((prev) => ({ ...prev, filters: { ...prev.filters, search: e.target.value }, currentPage: 1 }))}
-                  className="pr-10"
+                  className="ps-10"
                 />
               </div>
             </div>
@@ -580,7 +580,7 @@ export function Services() {
 
           {filteredProducts.length > 0 && (
             <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-center text-xs text-muted-foreground sm:text-right">
+              <p className="text-center text-xs text-muted-foreground sm:text-start">
                 {tr("عرض ")}{((state.currentPage - 1) * state.itemsPerPage + 1).toLocaleString("ar-u-nu-latn")}–{Math.min(state.currentPage * state.itemsPerPage, filteredProducts.length).toLocaleString("ar-u-nu-latn")}{tr(" من ")}{filteredProducts.length.toLocaleString("ar-u-nu-latn")}{tr(" خدمة")}
               </p>
               <div className="flex items-center justify-center gap-2">

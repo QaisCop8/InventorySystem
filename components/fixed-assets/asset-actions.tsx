@@ -148,7 +148,7 @@ export function AssetActionDialog({ action, asset, lookups, onClose, onDone }: {
       <DialogFooter className="gap-2">
         <Button variant="outline" onClick={onClose} disabled={saving}>{tr("إلغاء")}</Button>
         <Button onClick={() => void submit()} disabled={saving} className={action === "dispose" ? "bg-rose-600 hover:bg-rose-700" : "bg-teal-600 hover:bg-teal-700"}>
-          {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("تنفيذ")}
+          {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("تنفيذ")}
         </Button>
       </DialogFooter>
     </DialogContent>

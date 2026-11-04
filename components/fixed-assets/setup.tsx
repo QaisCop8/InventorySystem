@@ -34,7 +34,7 @@ function EditDialog({ title, open, saving, error, onClose, onSave, children }: {
       <div className="grid gap-4 sm:grid-cols-2" data-enter-tab-root="true">{children}</div>
       <DialogFooter className="gap-2">
         <Button variant="outline" onClick={onClose} disabled={saving}>{tr("إلغاء")}</Button>
-        <Button className="bg-teal-600 hover:bg-teal-700" onClick={onSave} disabled={saving}>{saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
+        <Button className="bg-teal-600 hover:bg-teal-700" onClick={onSave} disabled={saving}>{saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -71,7 +71,7 @@ export function CategoriesSetup({ lookups, onChanged }: { lookups: Lookups; onCh
     catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر الحذف")) }
   }
 
-  return <SectionCard title={tr("تصنيفات الأصول والربط المحاسبي")} icon={<FolderTree className="h-4 w-4" />} actions={<Button size="sm" onClick={() => { setError(""); setForm(blankCategory()) }}><Plus className="ml-1 h-4 w-4" />{tr("تصنيف جديد")}</Button>}>
+  return <SectionCard title={tr("تصنيفات الأصول والربط المحاسبي")} icon={<FolderTree className="h-4 w-4" />} actions={<Button size="sm" onClick={() => { setError(""); setForm(blankCategory()) }}><Plus className="me-1 h-4 w-4" />{tr("تصنيف جديد")}</Button>}>
     {error && !form && <Alert variant="destructive" className="mb-3 border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}
     <DataTable rows={lookups.categories} footer={false} onRowClick={row => { setError(""); setForm({ ...row }) }} columns={[
       { key: "code", label: tr("الرمز") },
@@ -161,7 +161,7 @@ export function LocationsSetup({ lookups, onChanged }: { lookups: Lookups; onCha
     catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر الحذف")) }
   }
 
-  return <SectionCard title={tr("المواقع (هرمية)")} icon={<MapPin className="h-4 w-4" />} actions={<Button size="sm" onClick={() => { setError(""); setForm(blankLocation()) }}><Plus className="ml-1 h-4 w-4" />{tr("موقع جديد")}</Button>}>
+  return <SectionCard title={tr("المواقع (هرمية)")} icon={<MapPin className="h-4 w-4" />} actions={<Button size="sm" onClick={() => { setError(""); setForm(blankLocation()) }}><Plus className="me-1 h-4 w-4" />{tr("موقع جديد")}</Button>}>
     {error && !form && <Alert variant="destructive" className="mb-3 border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}
     <DataTable rows={tree} footer={false} onRowClick={row => { setError(""); setForm({ ...row }) }} columns={[
       { key: "name", label: tr("الموقع"), render: row => <span style={{ paddingInlineStart: `${row.depth * 20}px` }} className="flex items-center gap-1.5">{row.depth > 0 && <span className="text-slate-300">└</span>}<b>{row.name}</b><small className="text-slate-400">{row.code}</small></span> },

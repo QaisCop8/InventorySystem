@@ -45,7 +45,7 @@ function Dropdown<T extends string>({ id, value, options, onChange, disabled }: 
 }
 
 function NumberInput({ id, value, onChange, min, max, step = 1 }: { id: string; value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number }) {
-  return <Input id={id} type="number" dir="ltr" className="text-right" min={min} max={max} step={step} value={value} onChange={event => onChange(event.target.value === "" ? 0 : Number(event.target.value))} />
+  return <Input id={id} type="number" dir="ltr" className="text-start" min={min} max={max} step={step} value={value} onChange={event => onChange(event.target.value === "" ? 0 : Number(event.target.value))} />
 }
 
 export function ReportPrintSettingsPanel({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
@@ -135,8 +135,8 @@ export function ReportPrintSettingsPanel({ onDirtyChange }: { onDirtyChange?: (d
           {dirty && <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-700">{tr("تعديلات غير محفوظة")}</span>}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => printReportSample(normalized, company)}><Printer className="ml-1.5 h-4 w-4" />{tr("طباعة تجريبية")}</Button>
-          <Button size="sm" className="bg-teal-600 hover:bg-teal-700" onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 className="ml-1.5 h-4 w-4 animate-spin" /> : <Save className="ml-1.5 h-4 w-4" />}{tr("حفظ")}</Button>
+          <Button variant="outline" size="sm" onClick={() => printReportSample(normalized, company)}><Printer className="me-1.5 h-4 w-4" />{tr("طباعة تجريبية")}</Button>
+          <Button size="sm" className="bg-teal-600 hover:bg-teal-700" onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 className="me-1.5 h-4 w-4 animate-spin" /> : <Save className="me-1.5 h-4 w-4" />}{tr("حفظ")}</Button>
         </div>
       </div>
       <Tabs value={tab} onValueChange={setTab} dir={appDir()} className="space-y-4">
@@ -178,8 +178,8 @@ export function ReportPrintSettingsPanel({ onDirtyChange }: { onDirtyChange?: (d
               <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={event => { const file = event.target.files?.[0]; if (file) pickImage(file) }} />
               {form.header_image ? <img src={form.header_image} alt={tr("صورة الترويسة")} className="max-h-28 w-full rounded-lg bg-slate-50 object-contain" /> : <p className="text-sm text-slate-500">{tr("ارفع صورة ترويسة كاملة (شعار وبيانات الشركة) بعرض الصفحة.")}</p>}
               <div className="flex flex-wrap items-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => imageInput.current?.click()}><ImagePlus className="ml-1.5 h-4 w-4" />{form.header_image ? tr("تغيير الصورة") : tr("رفع صورة")}</Button>
-                {form.header_image && <Button type="button" variant="ghost" size="sm" className="text-rose-600" onClick={() => update({ header_image: "" })}><Trash2 className="ml-1.5 h-4 w-4" />{tr("حذف")}</Button>}
+                <Button type="button" variant="outline" size="sm" onClick={() => imageInput.current?.click()}><ImagePlus className="me-1.5 h-4 w-4" />{form.header_image ? tr("تغيير الصورة") : tr("رفع صورة")}</Button>
+                {form.header_image && <Button type="button" variant="ghost" size="sm" className="text-rose-600" onClick={() => update({ header_image: "" })}><Trash2 className="me-1.5 h-4 w-4" />{tr("حذف")}</Button>}
                 <Field label={tr("ارتفاع الصورة (مم)")} htmlFor="rp-img-h" className="w-40"><NumberInput id="rp-img-h" value={form.header_image_height_mm} min={8} max={120} onChange={value => update({ header_image_height_mm: value })} /></Field>
               </div>
             </div> : <div className="grid gap-3 sm:grid-cols-2">

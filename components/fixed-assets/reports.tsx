@@ -182,7 +182,7 @@ export function FixedAssetReports({ lookups }: { lookups: Lookups }) {
       </button>)}
     </nav>
     <div className="min-w-0 space-y-4">
-      <SectionCard title={meta.label} actions={rows ? <><CsvButton onClick={() => exportCsv(report, columns, rows)} disabled={!rows.length} /><Button size="sm" variant="outline" onClick={print} disabled={!rows.length}><Printer className="ml-1 h-4 w-4" />{tr("طباعة")}</Button></> : null}>
+      <SectionCard title={meta.label} actions={rows ? <><CsvButton onClick={() => exportCsv(report, columns, rows)} disabled={!rows.length} /><Button size="sm" variant="outline" onClick={print} disabled={!rows.length}><Printer className="me-1 h-4 w-4" />{tr("طباعة")}</Button></> : null}>
         <p className="mb-3 text-xs text-slate-500">{meta.hint}</p>
         <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           {meta.range ? <>
@@ -195,7 +195,7 @@ export function FixedAssetReports({ lookups }: { lookups: Lookups }) {
             <Field label={tr("مركز التكلفة")} htmlFor="fa-rep-cc"><Select id="fa-rep-cc" value={filters.cost_center_id} clearable options={toOptions(lookups.costCenters)} onChange={value => set({ cost_center_id: value })} /></Field>
             {report === "register" && <Field label={tr("الحالة")} htmlFor="fa-rep-status"><Select id="fa-rep-status" value={filters.status} clearable options={recordOptions(ASSET_STATUSES)} onChange={value => set({ status: value })} /></Field>}
           </>}
-          <Button onClick={() => void run()} disabled={loading}>{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض")}</Button>
+          <Button onClick={() => void run()} disabled={loading}>{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض")}</Button>
         </div>
       </SectionCard>
       {error && <Alert variant="destructive" className="border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}

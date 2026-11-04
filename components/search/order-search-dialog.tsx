@@ -133,13 +133,13 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("النوع")}</TableHead>
-                    <TableHead className="text-right">{tr("رقم الطلبية")}</TableHead>
-                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
-                    <TableHead className="text-right">{tr("العميل/المورد")}</TableHead>
-                    <TableHead className="text-right">{tr("المبلغ")}</TableHead>
-                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                    <TableHead className="text-right">{tr("إجراء")}</TableHead>
+                    <TableHead className="text-start">{tr("النوع")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم الطلبية")}</TableHead>
+                    <TableHead className="text-start">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{tr("العميل/المورد")}</TableHead>
+                    <TableHead className="text-start">{tr("المبلغ")}</TableHead>
+                    <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-start">{tr("إجراء")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

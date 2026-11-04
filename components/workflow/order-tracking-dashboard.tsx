@@ -339,7 +339,7 @@ export function OrderTrackingDashboard() {
                             <p className="text-sm text-muted-foreground">{order.partner_name}</p>
                           </div>
                         </div>
-                        <div className="text-left">
+                        <div className="text-end">
                           <Badge variant="outline">{order.stage_name}</Badge>
                           <p className="text-sm text-muted-foreground mt-1">{Math.round(order.hours_in_stage)}{tr("س")}</p>
                         </div>
@@ -370,7 +370,7 @@ export function OrderTrackingDashboard() {
                             <p className="text-sm text-muted-foreground">{order.partner_name}</p>
                           </div>
                         </div>
-                        <div className="text-left">
+                        <div className="text-end">
                           <Badge variant="destructive">{order.stage_name}</Badge>
                           <p className="text-sm text-red-600 mt-1">{tr("متأخر ")}{Math.round(order.hours_overdue)}{tr("س")}</p>
                         </div>
@@ -440,7 +440,7 @@ export function OrderTrackingDashboard() {
                       placeholder={tr("البحث في الطلبيات...")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pr-10"
+                      className="ps-10"
                     />
                   </div>
                 </div>
@@ -531,7 +531,7 @@ export function OrderTrackingDashboard() {
                         <p className="text-sm text-muted-foreground mt-1">{Math.round(order.hours_in_stage)}{tr("س")}</p>
                       </div>
 
-                      <div className="text-left">
+                      <div className="text-end">
                         <p className="font-medium">
                           {order.total_amount?.toLocaleString("ar-SA-u-nu-latn", {
                             style: "currency",

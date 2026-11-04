@@ -338,7 +338,7 @@ export default function VoucherBookPermissions() {
               value={pickerSearch}
               onChange={(e) => setPickerSearch(e.target.value)}
               placeholder={tr("ابحث من خلال دفتر السندات")}
-              className="text-right"
+              className="text-start"
             />
 
             <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">

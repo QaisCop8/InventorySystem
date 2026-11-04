@@ -133,7 +133,7 @@ export function SerialMovementsReport() {
         description={<>{tr("الأرقام التسلسلية للأصناف وحالتها الحالية، مع كل السندات التي حرّكت كل رقم.")}</>}
         actions={
           <Button onClick={() => void load()} disabled={loading}>
-            <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             {tr("تحديث التقرير")}
           </Button>
         }
@@ -166,7 +166,7 @@ export function SerialMovementsReport() {
               <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 data-report-apply-on-enter
-                className="pr-9"
+                className="ps-9"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && void load()}
@@ -224,7 +224,7 @@ export function SerialMovementsReport() {
                     <td className="p-4">
                       {row.last_voucher_id ? (
                         <button
-                          className="text-right"
+                          className="text-start"
                           onClick={(event) => {
                             event.stopPropagation()
                             openVoucher(row.last_voucher_id, row.last_vch_type)

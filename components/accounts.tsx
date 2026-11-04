@@ -665,7 +665,7 @@ export default function Accounts() {
               </div>
               <div className="flex items-end">
                 <Button variant="outline" className="h-10 w-full rounded-xl border-emerald-200 bg-emerald-50 font-bold text-emerald-700 hover:bg-emerald-100" onClick={refreshAccounts}>
-                  <RefreshCw className="mr-2 h-4 w-4" />{tr(" تحديث")}
+                  <RefreshCw className="ms-2 h-4 w-4" />{tr(" تحديث")}
                 </Button>
               </div>
             </div>

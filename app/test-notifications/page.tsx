@@ -298,12 +298,12 @@ export default function TestNotificationsPage() {
                 >
                   {state.smsSending ? (
                     <>
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="me-2 h-4 w-4 animate-spin" />
                       {tr("جاري الإرسال...")}
                     </>
                   ) : (
                     <>
-                      <Send className="ml-2 h-4 w-4" />
+                      <Send className="me-2 h-4 w-4" />
                       {tr("إرسال SMS")}
                     </>
                   )}
@@ -370,12 +370,12 @@ export default function TestNotificationsPage() {
                 >
                   {state.whatsappSending ? (
                     <>
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="me-2 h-4 w-4 animate-spin" />
                       {tr("جاري الإرسال...")}
                     </>
                   ) : (
                     <>
-                      <Send className="ml-2 h-4 w-4" />
+                      <Send className="me-2 h-4 w-4" />
                       {tr("إرسال WhatsApp")}
                     </>
                   )}
@@ -425,12 +425,12 @@ export default function TestNotificationsPage() {
                 >
                   {state.reorderSending ? (
                     <>
-                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="me-2 h-4 w-4 animate-spin" />
                       {tr("جاري الفحص والإرسال...")}
                     </>
                   ) : (
                     <>
-                      <Send className="ml-2 h-4 w-4" />
+                      <Send className="me-2 h-4 w-4" />
                       {tr("فحص وإرسال الإشعارات")}
                     </>
                   )}

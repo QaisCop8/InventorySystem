@@ -807,8 +807,8 @@ export function AIChat() {
                           className={cn(
                             "group relative rounded-2xl px-4 py-2.5 shadow-sm",
                             isUser
-                              ? "rounded-br-md bg-emerald-600 text-white"
-                              : "rounded-bl-md border border-slate-200 bg-white text-slate-800 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100",
+                              ? "rounded-es-md bg-emerald-600 text-white"
+                              : "rounded-ee-md border border-slate-200 bg-white text-slate-800 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100",
                           )}
                         >
                           {isUser ? (
@@ -854,7 +854,7 @@ export function AIChat() {
                           )}
                         </div>
                       )}
-                      {message.at && <p className={cn("mt-1 px-1 text-[11px] text-slate-400", isUser ? "text-right" : "text-left")}>{formatTime(message.at)}</p>}
+                      {message.at && <p className={cn("mt-1 px-1 text-[11px] text-slate-400", isUser ? "text-start" : "text-end")}>{formatTime(message.at)}</p>}
                     </div>
                   </div>
                 )

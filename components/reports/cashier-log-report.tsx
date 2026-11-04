@@ -140,11 +140,11 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
       {reportType !== "followup" && <ReportMultiChoice label={tr("طريقة الدفع")} options={PAYMENT_METHODS.map((name, id) => ({ id, name }))} selected={filters.payment_methods.map(method => PAYMENT_METHODS.indexOf(method))} onChange={ids => setFilters(current => ({ ...current, payment_methods: ids.map(id => PAYMENT_METHODS[id]).filter(Boolean) }))} placeholder={tr("كل طرق الدفع")} />}
       <div className="mt-2 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 md:col-span-2 xl:col-span-5">
         <Button type="button" variant="outline" onClick={resetFilters} disabled={loading} className="min-w-32 rounded-xl border-slate-200 bg-white shadow-sm">
-          <RefreshCcw className="ml-2 h-4 w-4" />
+          <RefreshCcw className="me-2 h-4 w-4" />
           {tr("مسح الفلاتر")}
         </Button>
         <Button data-report-apply onClick={() => void load()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600 text-white shadow-lg shadow-teal-600/20 hover:from-teal-700 hover:to-emerald-700">
-          <Search className="ml-2 h-4 w-4" />
+          <Search className="me-2 h-4 w-4" />
           {tr("عرض النتائج")}
         </Button>
       </div>

@@ -125,7 +125,7 @@ export default function VoucherAuditReport() {
   return <ReportPage loading={loading}>
     <ReportHeader title={tr("تقرير ارشفة السندات")} icon={Archive} category={tr("الرقابة والتدقيق")}
       description={tr("كل ما حدث على السندات: الإدخال، التعديل، الترحيل، الإلغاء، الحذف، الطباعة (أصلية/نسخة/للتدقيق) والنسخ — مع نسخة السند قبل التعديل أو الحذف.")}
-      actions={<Button onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
+      actions={<Button onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {([["إجمالي العمليات", totals.all, Archive], ["تعديلات", totals.changes, FilePen], ["حذف وإلغاء", totals.deletes, Trash2], ["طباعة", totals.prints, Printer]] as const).map(([label, value, Icon]) =>
@@ -154,7 +154,7 @@ export default function VoucherAuditReport() {
           </select></div>
         <div><Label htmlFor="va-search">{tr("رقم السند / المستخدم")}</Label>
           <div className="relative mt-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="va-search" data-report-apply-on-enter className="pr-9" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} /></div></div>
+            <Input id="va-search" data-report-apply-on-enter className="ps-9" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} /></div></div>
         <Button data-report-apply onClick={() => void load()}>{tr("عرض")}</Button>
       </CardContent>
     </ReportFilters>
@@ -179,7 +179,7 @@ export default function VoucherAuditReport() {
             <td className="p-3">{row.branch_name || "-"}</td>
             <td className="p-3 font-mono" dir="ltr">{money(row.amount)}</td>
             <td className="p-3 text-xs text-muted-foreground">{[row.details?.channel === "pos" ? "نقطة البيع" : row.details?.channel, row.details?.copy_label, row.details?.phone].filter(Boolean).join(" · ") || "-"}</td>
-            <td className="p-3 print:hidden"><Button size="sm" variant="ghost" onClick={() => setSelected(row)}><Eye className="ml-1 h-4 w-4" />{tr("عرض")}</Button></td>
+            <td className="p-3 print:hidden"><Button size="sm" variant="ghost" onClick={() => setSelected(row)}><Eye className="me-1 h-4 w-4" />{tr("عرض")}</Button></td>
           </tr>)}</tbody>
         </table>
       </div>

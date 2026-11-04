@@ -524,20 +524,20 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("رقم الحساب *")}</Label>
-                    <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder={tr("رقم الحساب")} className="text-right" />
+                    <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder={tr("رقم الحساب")} className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("اسم الحساب (AR) *")}</Label>
-                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={tr("اسم الحساب")} className="text-right" />
+                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={tr("اسم الحساب")} className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("اسم الحساب (EN)")}</Label>
-                    <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} placeholder="Account name in English" className="text-right" />
+                    <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} placeholder="Account name in English" className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("نوع الحساب")}</Label>
                     <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر النوع")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -555,7 +555,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       value={formData.father_id || "__no_parent__"}
                       onValueChange={(val) => setFormData({ ...formData, father_id: val === "__no_parent__" ? "" : val })}
                     >
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("بدون")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -570,7 +570,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("المستوى")}</Label>
-                    <Input type="number" value={formData.level_no} onChange={(e) => setFormData({ ...formData, level_no: e.target.value })} placeholder="1" className="text-right" />
+                    <Input type="number" value={formData.level_no} onChange={(e) => setFormData({ ...formData, level_no: e.target.value })} placeholder="1" className="text-start" />
                   </div>
                 </div>
               </div>
@@ -581,7 +581,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("العملة")}</Label>
                     <Select value={formData.currency_id || "__no_currency__"} onValueChange={(val) => setFormData({ ...formData, currency_id: val === "__no_currency__" ? "" : val })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر العملة")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -600,7 +600,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       setFinancialListType(val)
                       setFormData({ ...formData, finanical_list_id: val })
                     }}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر القائمة")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -616,7 +616,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       <div>
                         <Label className="mb-2 block text-sm font-medium">{tr("اصول الميزانية")}</Label>
                         <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
-                          <SelectTrigger className="text-right">
+                          <SelectTrigger className="text-start">
                             <SelectValue placeholder={tr("اختر الأصول")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -632,7 +632,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       <div>
                         <Label className="mb-2 block text-sm font-medium">{tr("خصموم الميزانية")}</Label>
                         <Select value={formData.finanical_list_liabilities_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val === "__no_selection__" ? "" : val })}>
-                          <SelectTrigger className="text-right">
+                          <SelectTrigger className="text-start">
                             <SelectValue placeholder={tr("اختر الخصوم")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -652,7 +652,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("قائمة الدخل")}</Label>
                       <Select value={formData.finanical_list_income_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val === "__no_selection__" ? "" : val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر من قائمة الدخل")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -671,7 +671,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div className="md:col-span-2">
                       <Label className="mb-2 block text-sm font-medium">{tr("تقييم البضاعة")}</Label>
                       <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر طريقة التقييم")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -689,7 +689,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("السماح بعمل حركة بغير عملته")}</Label>
                     <Select value={String(formData.allow_trans_with_diff_curr || 0)} onValueChange={(val) => setFormData({ ...formData, allow_trans_with_diff_curr: val === "1" })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر الخيار")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -719,7 +719,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("الشركة")}</Label>
                     <Select value={(formData as any).company_id || "__no_company__"} onValueChange={(val) => setFormData({ ...formData, ...( { company_id: val === "__no_company__" ? "" : val } as any) })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر الشركة")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -735,7 +735,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("مركز الكلفة الافتراضي")}</Label>
                     <Select value={(formData as any).cost_center_id || "__no_cost_center__"} onValueChange={(val) => setFormData({ ...formData, ...( { cost_center_id: val === "__no_cost_center__" ? "" : val } as any) })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر مركز الكلفة")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -750,7 +750,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("رقم الحساب في التقرير الموحد")}</Label>
-                    <Input value={formData.unified_report_account_no} onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })} placeholder={tr("رقم الحساب")} className="text-right" />
+                    <Input value={formData.unified_report_account_no} onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })} placeholder={tr("رقم الحساب")} className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("صورة الحساب (اختياري)")}</Label>
@@ -784,12 +784,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("الحد الأقصى للحركة")}</Label>
-                    <Input type="number" value={formData.max_transaction_amount} onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })} placeholder="0" className="text-right" />
+                    <Input type="number" value={formData.max_transaction_amount} onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })} placeholder="0" className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للحركة")}</Label>
                     <Select value={formData.max_transaction_amount_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_transaction_amount_action: val })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر الإجراء")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -801,12 +801,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("الحد الأقصى للرصيد")}</Label>
-                    <Input type="number" value={formData.max_balance_amount} onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })} placeholder="0" className="text-right" />
+                    <Input type="number" value={formData.max_balance_amount} onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })} placeholder="0" className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للرصيد")}</Label>
                     <Select value={formData.max_balance_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_balance_action: val })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر الإجراء")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -819,7 +819,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 </div>
                 <div>
                   <Label className="mb-2 block text-sm font-medium">{tr("ملاحظات")}</Label>
-                  <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder={tr("أدخل الملاحظات هنا")} className="text-right" />
+                  <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder={tr("أدخل الملاحظات هنا")} className="text-start" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Checkbox 
@@ -861,12 +861,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("نسبة تجاوز الميزانية (%)")}</Label>
-                    <Input type="number" value={formData.budget_exceeding_perc} onChange={(e) => setFormData({ ...formData, budget_exceeding_perc: e.target.value })} placeholder="0" className="text-right" />
+                    <Input type="number" value={formData.budget_exceeding_perc} onChange={(e) => setFormData({ ...formData, budget_exceeding_perc: e.target.value })} placeholder="0" className="text-start" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الميزانية")}</Label>
                     <Select value={formData.budget_exceeding_action || "0"} onValueChange={(val) => setFormData({ ...formData, budget_exceeding_action: val })}>
-                      <SelectTrigger className="text-right">
+                      <SelectTrigger className="text-start">
                         <SelectValue placeholder={tr("اختر الإجراء")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -926,7 +926,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 <Button
                   key={account.id}
                   variant={currentIndex === idx ? "default" : "outline"}
-                  className="text-left h-auto p-3"
+                  className="text-end h-auto p-3"
                   onClick={() => {
                     setCurrentIndex(idx)
                     loadAccountToForm(account)
@@ -1002,20 +1002,20 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("رقم الحساب *")}</Label>
-                      <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder={tr("رقم الحساب")} className="text-right" />
+                      <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder={tr("رقم الحساب")} className="text-start" />
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("اسم الحساب (AR) *")}</Label>
-                      <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={tr("اسم الحساب")} className="text-right" />
+                      <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder={tr("اسم الحساب")} className="text-start" />
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("اسم الحساب (EN)")}</Label>
-                      <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} placeholder="Account name in English" className="text-right" />
+                      <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} placeholder="Account name in English" className="text-start" />
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("نوع الحساب")}</Label>
                       <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر النوع")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1033,7 +1033,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                         value={formData.father_id || "__no_parent__"}
                         onValueChange={(val) => setFormData({ ...formData, father_id: val === "__no_parent__" ? "" : val })}
                       >
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("بدون")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1048,7 +1048,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("المستوى")}</Label>
-                      <Input type="number" value={formData.level_no} onChange={(e) => setFormData({ ...formData, level_no: e.target.value })} placeholder="1" className="text-right" />
+                      <Input type="number" value={formData.level_no} onChange={(e) => setFormData({ ...formData, level_no: e.target.value })} placeholder="1" className="text-start" />
                     </div>
                   </div>
                 </div>
@@ -1059,7 +1059,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("العملة")}</Label>
                       <Select value={formData.currency_id || "__no_currency__"} onValueChange={(val) => setFormData({ ...formData, currency_id: val === "__no_currency__" ? "" : val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر العملة")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1078,7 +1078,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                         setFinancialListType(val)
                         setFormData({ ...formData, finanical_list_id: val })
                       }}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر القائمة")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1094,7 +1094,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                         <div>
                           <Label className="mb-2 block text-sm font-medium">{tr("اصول الميزانية")}</Label>
                           <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
-                            <SelectTrigger className="text-right">
+                            <SelectTrigger className="text-start">
                               <SelectValue placeholder={tr("اختر الأصول")} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1110,7 +1110,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                         <div>
                           <Label className="mb-2 block text-sm font-medium">{tr("خصموم الميزانية")}</Label>
                           <Select value={formData.finanical_list_liabilities_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val === "__no_selection__" ? "" : val })}>
-                            <SelectTrigger className="text-right">
+                            <SelectTrigger className="text-start">
                               <SelectValue placeholder={tr("اختر الخصوم")} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1130,7 +1130,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       <div>
                         <Label className="mb-2 block text-sm font-medium">{tr("قائمة الدخل")}</Label>
                         <Select value={formData.finanical_list_income_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val === "__no_selection__" ? "" : val })}>
-                          <SelectTrigger className="text-right">
+                          <SelectTrigger className="text-start">
                             <SelectValue placeholder={tr("اختر من قائمة الدخل")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -1149,7 +1149,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       <div className="md:col-span-2">
                         <Label className="mb-2 block text-sm font-medium">{tr("تقييم البضاعة")}</Label>
                         <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
-                          <SelectTrigger className="text-right">
+                          <SelectTrigger className="text-start">
                             <SelectValue placeholder={tr("اختر طريقة التقييم")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -1167,7 +1167,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("السماح بعمل حركة بغير عملته")}</Label>
                       <Select value={String(formData.allow_trans_with_diff_curr || 0)} onValueChange={(val) => setFormData({ ...formData, allow_trans_with_diff_curr: val === "1" })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الخيار")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1197,7 +1197,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("الشركة")}</Label>
                       <Select value={(formData as any).company_id || "__no_company__"} onValueChange={(val) => setFormData({ ...formData, ...( { company_id: val === "__no_company__" ? "" : val } as any) })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الشركة")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1213,7 +1213,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("مركز الكلفة الافتراضي")}</Label>
                       <Select value={(formData as any).cost_center_id || "__no_cost_center__"} onValueChange={(val) => setFormData({ ...formData, ...( { cost_center_id: val === "__no_cost_center__" ? "" : val } as any) })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر مركز الكلفة")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1228,7 +1228,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("رقم الحساب في التقرير الموحد")}</Label>
-                      <Input value={formData.unified_report_account_no} onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })} placeholder={tr("رقم الحساب")} className="text-right" />
+                      <Input value={formData.unified_report_account_no} onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })} placeholder={tr("رقم الحساب")} className="text-start" />
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("صورة الحساب (اختياري)")}</Label>
@@ -1262,12 +1262,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("الحد الأقصى للحركة")}</Label>
-                      <Input type="number" value={formData.max_transaction_amount} onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })} placeholder="0" className="text-right" />
+                      <Input type="number" value={formData.max_transaction_amount} onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })} placeholder="0" className="text-start" />
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للحركة")}</Label>
                       <Select value={formData.max_transaction_amount_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_transaction_amount_action: val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الإجراء")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1279,12 +1279,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("الحد الأقصى للرصيد")}</Label>
-                      <Input type="number" value={formData.max_balance_amount} onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })} placeholder="0" className="text-right" />
+                      <Input type="number" value={formData.max_balance_amount} onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })} placeholder="0" className="text-start" />
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للرصيد")}</Label>
                       <Select value={formData.max_balance_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_balance_action: val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الإجراء")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1297,7 +1297,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">{tr("ملاحظات")}</Label>
-                    <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder={tr("أدخل الملاحظات هنا")} className="text-right" />
+                    <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder={tr("أدخل الملاحظات هنا")} className="text-start" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Checkbox 
@@ -1340,7 +1340,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للحركة")}</Label>
                       <Select value={formData.max_transaction_amount_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_transaction_amount_action: val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الإجراء")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1353,7 +1353,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للرصيد")}</Label>
                       <Select value={formData.max_balance_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_balance_action: val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الإجراء")} />
                         </SelectTrigger>
                         <SelectContent>
@@ -1366,7 +1366,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <div>
                       <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الميزانية")}</Label>
                       <Select value={formData.budget_exceeding_action || "0"} onValueChange={(val) => setFormData({ ...formData, budget_exceeding_action: val })}>
-                        <SelectTrigger className="text-right">
+                        <SelectTrigger className="text-start">
                           <SelectValue placeholder={tr("اختر الإجراء")} />
                         </SelectTrigger>
                         <SelectContent>

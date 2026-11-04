@@ -140,8 +140,8 @@ export function ExpiryBalancesReport() {
         title={<>{tr("أرصدة الأصناف حسب تاريخ الصلاحية")}</>}
         description={<>{tr("رصيد كل صنف موزّعاً على تواريخ الصلاحية والأرقام التشغيلية في كل مستودع، مع الأيام المتبقية")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="me-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
@@ -171,7 +171,7 @@ export function ExpiryBalancesReport() {
             <label className="flex cursor-pointer items-center gap-2" title={tr("إظهار أرصدة بلا تاريخ صلاحية للأصناف المختارة")}><Checkbox checked={includeNoExpiry} onCheckedChange={(value) => setIncludeNoExpiry(value === true)} />{tr("إظهار الأرصدة بلا صلاحية")}</label>
           </div>
           <Button data-report-apply onClick={() => void loadReport()} disabled={loading || loadingFilters} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-            {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
+            {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض النتائج")}
           </Button>
         </div>
       </ReportFilters>

@@ -411,7 +411,7 @@ export default function UnifiedCampaigns({
     />
   )
   const numberInput = (id: string, value: number, onChange: (value: number) => void, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
-    <Input id={id} type="number" dir="ltr" className="text-right" value={value} onChange={event => onChange(event.target.value === "" ? 0 : Number(event.target.value))} {...props} />
+    <Input id={id} type="number" dir="ltr" className="text-start" value={value} onChange={event => onChange(event.target.value === "" ? 0 : Number(event.target.value))} {...props} />
   )
   const cardClass = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
   const cardTitle = (icon: React.ReactNode, title: string, hint?: string) => (
@@ -471,7 +471,7 @@ export default function UnifiedCampaigns({
                 <section className={cardClass}>
                   {cardTitle(<Megaphone size={18} />, tr("تعريف الحملة"), tr("الاسم والنوع والفئة السعرية"))}
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2"><Label htmlFor="campaign-code">{tr("رمز الحملة *")}</Label><Input id="campaign-code" dir="ltr" className="text-right" value={form.code} onChange={event => update({ code: event.target.value })} maxLength={40} /></div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-code">{tr("رمز الحملة *")}</Label><Input id="campaign-code" dir="ltr" className="text-start" value={form.code} onChange={event => update({ code: event.target.value })} maxLength={40} /></div>
                     <div className="grid gap-2"><Label htmlFor="campaign-name">{tr("اسم الحملة *")}</Label><Input id="campaign-name" ref={nameRef} value={form.name} onChange={event => update({ name: event.target.value })} maxLength={160} /></div>
                     <div className="grid gap-2"><Label htmlFor="campaign-type">{tr("نوع الحملة")}</Label>{dropdown("campaign-type", form.type_id, campaignTypeOptions, typeId => update({ type_id: typeId, ...(typeId === 5 ? { max_campaigns: 1, condition_items_val: Math.max(1, Math.floor(Number(form.condition_items_val) || 1)) } : {}) }))}</div>
                     <div className="grid gap-2"><Label htmlFor="campaign-price-class">{tr("الفئة السعرية")}</Label>{dropdown("campaign-price-class", form.price_class, priceClasses, value => update({ price_class: value }), true)}</div>

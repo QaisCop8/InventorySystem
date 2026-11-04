@@ -112,7 +112,7 @@ export default function SearchCostCenterDialog({ open, onOpenChange, type, costC
               <DialogTitle className="text-lg font-bold text-white">{tr("بحث مراكز التكلفة")}</DialogTitle>
               <DialogDescription className="text-xs text-emerald-50/90">{tr("اختر مركز تكلفة من النوع المحدد")}</DialogDescription>
             </div>
-            <span className="ml-8 shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{tr("النوع: ")}{type?.name || "—"}</span>
+            <span className="me-8 shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{tr("النوع: ")}{type?.name || "—"}</span>
           </div>
         </div>
 

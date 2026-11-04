@@ -104,12 +104,12 @@ export function FinancialSettings() {
         <Button onClick={handleSave} disabled={saving}>
           {saving ? (
             <>
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              <Loader2 className="me-2 h-4 w-4 animate-spin" />
               {tr("جاري الحفظ...")}
             </>
           ) : (
             <>
-              <Save className="ml-2 h-4 w-4" />
+              <Save className="me-2 h-4 w-4" />
               {tr("حفظ التغييرات")}
             </>
           )}

@@ -131,12 +131,12 @@ export default function QADashboardSimple() {
         <Button onClick={startScan} disabled={isScanning} className="bg-blue-600 hover:bg-blue-700">
           {isScanning ? (
             <>
-              <Zap className="mr-2 h-4 w-4 animate-spin" />
+              <Zap className="ms-2 h-4 w-4 animate-spin" />
               {tr("جاري الفحص...")}
             </>
           ) : (
             <>
-              <Zap className="mr-2 h-4 w-4" />
+              <Zap className="ms-2 h-4 w-4" />
               {tr("بدء الفحص")}
             </>
           )}

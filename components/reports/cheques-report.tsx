@@ -91,7 +91,7 @@ function ChequesReport({ view }: { view: View }) {
         category={tr("تقارير الشيكات")}
         title={config.title}
         description={config.description}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!body.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!body.length}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
@@ -127,7 +127,7 @@ function ChequesReport({ view }: { view: View }) {
           </div>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="me-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 

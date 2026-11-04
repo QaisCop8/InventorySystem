@@ -66,7 +66,7 @@ export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b bg-background/95 p-4 backdrop-blur">
           <div className="flex items-center gap-2 text-lg font-bold"><Grid3X3 className="h-5 w-5 text-emerald-600"/>{tr("قائمة التطبيقات")}</div>
           <div className="relative min-w-[220px] flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={tr("ابحث عن شاشة...")} className="h-10 w-full rounded-xl border bg-muted/30 ps-10 pe-3 outline-none focus:border-emerald-500"/></div>
-          <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)}>{editing ? <Check className="ml-2 h-4 w-4"/> : <Pencil className="ml-2 h-4 w-4"/>}{editing ? tr("تم الحفظ") : tr("تخصيص قائمتي")}</Button>
+          <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)}>{editing ? <Check className="me-2 h-4 w-4"/> : <Pencil className="me-2 h-4 w-4"/>}{editing ? tr("تم الحفظ") : tr("تخصيص قائمتي")}</Button>
           <Button size="icon" variant="ghost" onClick={() => setOpen(false)}><X className="h-5 w-5"/></Button>
         </div>
 

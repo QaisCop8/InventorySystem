@@ -249,7 +249,7 @@ export function LotOpener() {
                   placeholder={tr("رقم الدفعة أو اسم المنتج")}
                   value={filters.search}
                   onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                  className="pr-10"
+                  className="ps-10"
                 />
               </div>
             </div>
@@ -290,7 +290,7 @@ export function LotOpener() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-right p-3 font-semibold">
+                    <th className="text-start p-3 font-semibold">
                       <input
                         type="checkbox"
                         checked={selectedLots.length === lots.length && lots.length > 0}
@@ -298,13 +298,13 @@ export function LotOpener() {
                         className="rounded"
                       />
                     </th>
-                    <th className="text-right p-3 font-semibold">{tr("رقم الدفعة")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("المنتج")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("الكمية")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تاريخ الإنتاج")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تاريخ الانتهاء")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("حالة الصلاحية")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تاريخ الإنشاء")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("رقم الدفعة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("المنتج")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("الكمية")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تاريخ الإنتاج")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تاريخ الانتهاء")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("حالة الصلاحية")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تاريخ الإنشاء")}</th>
                   </tr>
                 </thead>
                 <tbody>

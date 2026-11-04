@@ -116,7 +116,7 @@ export function MessageLog() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && fetchLogs()}
-                  className="pr-10"
+                  className="ps-10"
                 />
               </div>
             </div>
@@ -168,11 +168,11 @@ export function MessageLog() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-right">{tr("رقم الهاتف")}</TableHead>
-                      <TableHead className="text-right">{tr("النوع")}</TableHead>
-                      <TableHead className="text-right">{tr("المحتوى")}</TableHead>
-                      <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                      <TableHead className="text-right">{tr("التاريخ")}</TableHead>
+                      <TableHead className="text-start">{tr("رقم الهاتف")}</TableHead>
+                      <TableHead className="text-start">{tr("النوع")}</TableHead>
+                      <TableHead className="text-start">{tr("المحتوى")}</TableHead>
+                      <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                      <TableHead className="text-start">{tr("التاريخ")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -80,8 +80,8 @@ export function RestaurantFloor(p: Props) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {p.canTakeaway && locations.length > 0 && <Button className="h-10 bg-violet-600 hover:bg-violet-700" disabled={p.busy} onClick={p.onNewTakeaway}><ShoppingBag className="ml-1 h-4 w-4" />{tr("سفري جديد")}</Button>}
-          {p.canCustody && locations.length > 0 && <Button variant="outline" className="h-10" onClick={p.onCustody}><Wallet className="ml-1 h-4 w-4" />{tr("العهدة")}</Button>}
+          {p.canTakeaway && locations.length > 0 && <Button className="h-10 bg-violet-600 hover:bg-violet-700" disabled={p.busy} onClick={p.onNewTakeaway}><ShoppingBag className="me-1 h-4 w-4" />{tr("سفري جديد")}</Button>}
+          {p.canCustody && locations.length > 0 && <Button variant="outline" className="h-10" onClick={p.onCustody}><Wallet className="me-1 h-4 w-4" />{tr("العهدة")}</Button>}
           <Button variant="outline" size="icon" className="h-10 w-10" onClick={p.onRefresh} disabled={p.loading} title={tr("تحديث")}><RefreshCw className={`h-4 w-4 ${p.loading ? "animate-spin" : ""}`} /></Button>
         </div>
       </header>
@@ -104,7 +104,7 @@ export function RestaurantFloor(p: Props) {
                 <button key={location.id} type="button" onClick={() => p.onLocationFilter(location.id)}
                   className={`h-10 shrink-0 rounded-full px-4 text-sm font-bold transition ${active ? "text-white shadow" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}
                   style={active ? { backgroundColor: location.color || "#e11d48" } : undefined}>
-                  {location.name} <span className="mr-1 text-xs opacity-75">{tables.filter((t) => t.location_id === location.id).length}</span>
+                  {location.name} <span className="ms-1 text-xs opacity-75">{tables.filter((t) => t.location_id === location.id).length}</span>
                 </button>
               )
             })}
@@ -133,7 +133,7 @@ export function RestaurantFloor(p: Props) {
                   className="rounded-2xl border-2 border-violet-200 bg-card p-3 text-start shadow-sm transition hover:border-violet-400 active:scale-[0.98]">
                   <div className="flex items-center justify-between gap-1">
                     <span className="truncate font-extrabold">{row.takeaway_name || tr("سفري")}</span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground"><Clock className="ml-0.5 inline h-3 w-3" />{elapsed(row.opened_at, now)}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground"><Clock className="me-0.5 inline h-3 w-3" />{elapsed(row.opened_at, now)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">{row.order_no} · {row.items_count}{tr(" صنف")}</div>
                   <div className="mt-1 text-base font-black text-violet-700 dark:text-violet-300">{money(row.remaining)}</div>
@@ -166,10 +166,10 @@ export function RestaurantFloor(p: Props) {
                         <div className="space-y-0.5">
                           <div className="text-base font-black text-amber-700 dark:text-amber-300">{money(table.remaining)}</div>
                           <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
-                            <span><Clock className="ml-0.5 inline h-3 w-3" />{elapsed(table.opened_at, now)}</span>
-                            <span><Users className="ml-0.5 inline h-3 w-3" />{table.guests}/{table.seats}</span>
+                            <span><Clock className="me-0.5 inline h-3 w-3" />{elapsed(table.opened_at, now)}</span>
+                            <span><Users className="me-0.5 inline h-3 w-3" />{table.guests}/{table.seats}</span>
                           </div>
-                          {table.merged_with && <div className="truncate text-[11px] font-semibold text-blue-700"><Combine className="ml-0.5 inline h-3 w-3" />{tr("مع ")}{table.merged_with}</div>}
+                          {table.merged_with && <div className="truncate text-[11px] font-semibold text-blue-700"><Combine className="me-0.5 inline h-3 w-3" />{tr("مع ")}{table.merged_with}</div>}
                           {table.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(table.paid_amount)}</div>}
                         </div>
                       ) : (

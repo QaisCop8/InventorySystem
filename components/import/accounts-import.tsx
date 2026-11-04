@@ -118,7 +118,7 @@ function AccountTemplatePicker({ loadRows, busy, currencyId, initialType, autoLo
           {ACCOUNT_TEMPLATE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
         </select>
         <Button type="button" variant="secondary" size="sm" disabled={busy || loading} onClick={() => void load()}>
-          {loading && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr(" تحميل الهيكل للمراجعة")}
+          {loading && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr(" تحميل الهيكل للمراجعة")}
         </Button>
       </div>
       {error && <div className="mt-2 text-sm text-red-600">{error}</div>}

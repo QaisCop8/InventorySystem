@@ -2808,7 +2808,7 @@ export function CompactProductForm({
                             const arabicName = e.target.value.trim()
                             if (arabicName && !String(formData.product_name_en || "").trim()) updateFormData("product_name_en", arabicName)
                           }}
-                          className="text-right"
+                          className="text-start"
                           placeholder={isService ? tr("اسم الخدمة باللغة العربية") : tr("اسم الصنف باللغة العربية")}
                           required
                         />
@@ -2822,7 +2822,7 @@ export function CompactProductForm({
                           id="product_name_en"
                           value={formData.product_name_en}
                           onChange={(e) => updateFormData("product_name_en", e.target.value)}
-                          className="text-left"
+                          className="text-end"
                           placeholder={isService ? tr("اسم الخدمة بالإنجليزية") : tr("اسم الصنف بالإنجليزية")}
                         />
                       </div>
@@ -3132,7 +3132,7 @@ export function CompactProductForm({
                 <>
                   <TabsContent value="attributes">
                     <Card>
-                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />{tr("المتغيرات والخصائص")}</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="ml-2 h-4 w-4" />{tr("إضافة متغير")}</Button></div></CardHeader>
+                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />{tr("المتغيرات والخصائص")}</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="me-2 h-4 w-4" />{tr("إضافة متغير")}</Button></div></CardHeader>
                       <CardContent className="space-y-3">
                         {!(formData.attributes || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, attributes: [{ name: "", values: [] }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-violet-400 hover:text-violet-700">{tr("+ إضافة أول متغير للصنف")}</button>}
                         {(formData.attributes || []).map((attribute, index) => {
@@ -3228,7 +3228,7 @@ export function CompactProductForm({
                               step="0.01"
                               value={formData.length}
                               onChange={(e) => updateFormData("length", Number.parseFloat(e.target.value) || 1)}
-                              className="text-right"
+                              className="text-start"
                             />
                           </div>
                           <div>
@@ -3241,7 +3241,7 @@ export function CompactProductForm({
                               step="0.01"
                               value={formData.width}
                               onChange={(e) => updateFormData("width", Number.parseFloat(e.target.value) || 0)}
-                              className="text-right"
+                              className="text-start"
                             />
                           </div>
                           <div>
@@ -3252,7 +3252,7 @@ export function CompactProductForm({
                               id="height"
                               value={formData.height}
                               onChange={(e) => updateFormData("height", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                               placeholder=""
                             />
                           </div>
@@ -3264,7 +3264,7 @@ export function CompactProductForm({
                               id="density"
                               value={formData.density}
                               onChange={(e) => updateFormData("density", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                               placeholder=""
                             />
                           </div>
@@ -3276,7 +3276,7 @@ export function CompactProductForm({
                               id="color"
                               value={formData.color}
                               onChange={(e) => updateFormData("color", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                               placeholder={tr("لون الصنف")}
                             />
                           </div>
@@ -3305,14 +3305,14 @@ export function CompactProductForm({
                               step="0.01"
                               value={formData.last_purchase_price}
                               onChange={(e) => updateFormData("last_purchase_price", Number.parseFloat(e.target.value) || 0)}
-                              className="text-right"
+                              className="text-start"
                               disabled
                             />
                           </div>
                           {/* تُحدَّث تلقائياً من فاتورة/إرسالية المشتريات (lib/last-purchase.ts) */}
                           <div>
                             <Label htmlFor="last_purchase_date" className="text-sm font-medium">{tr("تاريخ آخر شراء")}</Label>
-                            <Input id="last_purchase_date" value={String((formData as any).last_purchase_date || "").slice(0, 10)} className="text-right" disabled readOnly />
+                            <Input id="last_purchase_date" value={String((formData as any).last_purchase_date || "").slice(0, 10)} className="text-start" disabled readOnly />
                           </div>
                           <div>
                             <Label htmlFor="last_purchase_currency" className="text-sm font-medium">{tr("عملة آخر شراء")}</Label>
@@ -3324,7 +3324,7 @@ export function CompactProductForm({
                                 const currency: any = definitionsRef.current.currencies.find((item: any) => Number(item.id) === currencyId)
                                 return currency?.currency_code || currency?.currency_name || String(currencyId)
                               })()}
-                              className="text-right"
+                              className="text-start"
                               disabled
                               readOnly
                             />
@@ -3340,7 +3340,7 @@ export function CompactProductForm({
                               step="0.0001"
                               value={formData.minimum_order_quantity ?? 0}
                               onChange={(e) => updateFormData("minimum_order_quantity", Number.parseFloat(e.target.value) || 0)}
-                              className="text-right"
+                              className="text-start"
                             />
                           </div>
                           <div>
@@ -3375,7 +3375,7 @@ export function CompactProductForm({
                               step="0.01"
                               value={formData.tax_rate}
                               onChange={(e) => updateFormData("tax_rate", Number.parseFloat(e.target.value) || 0)}
-                              className="text-right"
+                              className="text-start"
                             />
                           </div>
                         </div>
@@ -3677,7 +3677,7 @@ export function CompactProductForm({
                             id="notes"
                             value={formData.notes}
                             onChange={(e) => updateFormData("notes", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             rows={3}
                             placeholder={tr("أي ملاحظات أو تفاصيل إضافية حول الصنف")}
                           />
@@ -3689,7 +3689,7 @@ export function CompactProductForm({
                             value={formData.transaction_notes ?? ""}
                             maxLength={100}
                             onChange={(e) => updateFormData("transaction_notes", e.target.value.slice(0, 100))}
-                            className="text-right"
+                            className="text-start"
                             rows={3}
                             placeholder={tr("ملاحظة تظهر عند اختيار الصنف في الحركات")}
                           />
@@ -3713,13 +3713,13 @@ export function CompactProductForm({
                   </TabsContent>
                   {!isService && <TabsContent value="related">
                     <Card>
-                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("الأصناف التابعة")}</CardTitle><Button type="button" onClick={() => setRelatedProductSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />{tr("إضافة صنف")}</Button></div></CardHeader>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("الأصناف التابعة")}</CardTitle><Button type="button" onClick={() => setRelatedProductSearchOpen(true)} disabled={!formData.id}><Plus className="me-2 h-4 w-4" />{tr("إضافة صنف")}</Button></div></CardHeader>
                       <CardContent><div className="mb-4 max-w-xl"><Label>{tr("إضافة الأصناف التابعة")}</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>{tr("عدم المعالجة")}</option><option value={2}>{tr("إضافة الأصناف التابعة فقط")}</option><option value={3}>{tr("إضافة الصنف والاصناف التابعة")}</option><option value={4}>{tr("اختيار يدوي من الاصناف التابعة")}</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة أصناف تابعة.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} cellEditEnded={onRelatedCellEditEnded} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("F7: حذف الصف المحدد")}</p></CardContent>
                     </Card>
                   </TabsContent>}
                   {!isService && <TabsContent value="manufacturing-components">
                     <Card>
-                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("مكونات التصنيع")}</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />{tr("إضافة مكون")}</Button></div></CardHeader>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("مكونات التصنيع")}</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="me-2 h-4 w-4" />{tr("إضافة مكون")}</Button></div></CardHeader>
                       <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة مكونات التصنيع.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.")}</p></CardContent>
                     </Card>
                   </TabsContent>}

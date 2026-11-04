@@ -176,7 +176,7 @@ export default function ChequeBookLeafSearch({ open, onOpenChange, bankAccountId
       >
         <div className="flex flex-col gap-3 sm:gap-4">
           <div className="flex flex-col gap-2 rounded-xl bg-gradient-to-r from-slate-50 via-white to-blue-50/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 text-center sm:text-right">
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 text-center sm:text-start">
               {tr("بحث دفاتر الشيكات")}
             </h2>
             <Button

@@ -73,9 +73,9 @@ export default function FixedAssetsModule() {
         <div><h1 className="text-xl font-black">{tr("الأصول الثابتة")}</h1><p className="text-xs text-emerald-50/85">{tr("دفتر فرعي مرتبط بالأستاذ العام: الاقتناء، الإهلاك، النقل، الاستبعاد")}</p></div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => { setLoading(true); void load() }}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث")}</Button>
-        <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" disabled={setupMissing} onClick={() => setInvoiceOpen(true)}><FileInput className="ml-2 h-4 w-4" />{tr("من فاتورة مشتريات")}</Button>
-        <Button className="bg-white font-bold text-emerald-700 hover:bg-emerald-50" disabled={setupMissing} onClick={() => openAsset(null)}><Plus className="ml-2 h-4 w-4" />{tr("أصل جديد")}</Button>
+        <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => { setLoading(true); void load() }}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث")}</Button>
+        <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" disabled={setupMissing} onClick={() => setInvoiceOpen(true)}><FileInput className="me-2 h-4 w-4" />{tr("من فاتورة مشتريات")}</Button>
+        <Button className="bg-white font-bold text-emerald-700 hover:bg-emerald-50" disabled={setupMissing} onClick={() => openAsset(null)}><Plus className="me-2 h-4 w-4" />{tr("أصل جديد")}</Button>
       </div>
     </header>
 
@@ -175,7 +175,7 @@ function AssetList({ assets, lookups, onOpen }: { assets: Row[]; lookups: Lookup
   }, [assets, search, category, status, location])
   const columns: Column[] = [
     { key: "asset_no", label: tr("رقم الأصل"), render: row => <b className="font-mono">{row.asset_no}</b>, csv: row => row.asset_no },
-    { key: "name", label: tr("الأصل"), render: row => <span>{row.parent_asset_no && <small className="ml-1 rounded bg-violet-100 px-1.5 text-violet-700">{tr("مكوّن ")}{row.parent_asset_no}</small>}{row.name}</span>, csv: row => row.name },
+    { key: "name", label: tr("الأصل"), render: row => <span>{row.parent_asset_no && <small className="me-1 rounded bg-violet-100 px-1.5 text-violet-700">{tr("مكوّن ")}{row.parent_asset_no}</small>}{row.name}</span>, csv: row => row.name },
     { key: "category_name", label: tr("التصنيف") },
     { key: "acquisition_date", label: tr("الاقتناء"), render: row => day(row.acquisition_date), csv: row => day(row.acquisition_date) },
     { key: "location_name", label: tr("الموقع") },
@@ -187,7 +187,7 @@ function AssetList({ assets, lookups, onOpen }: { assets: Row[]; lookups: Lookup
   ]
   return <SectionCard title={tr("سجل الأصول ({0})", filtered.length)} actions={<CsvButton onClick={() => exportCsv("fixed-assets", columns, filtered)} disabled={!filtered.length} />}>
     <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="relative"><Search className="absolute start-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pr-9" value={search} onChange={event => setSearch(event.target.value)} placeholder={tr("رقم، اسم، رقم تسلسلي، باركود…")} /></div>
+      <div className="relative"><Search className="absolute start-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="ps-9" value={search} onChange={event => setSearch(event.target.value)} placeholder={tr("رقم، اسم، رقم تسلسلي، باركود…")} /></div>
       <Select id="fa-list-cat" value={category} clearable placeholder={tr("كل التصنيفات")} options={toOptions(lookups.categories)} onChange={value => setCategory(value)} />
       <Select id="fa-list-status" value={status} clearable placeholder={tr("كل الحالات")} options={recordOptions(ASSET_STATUSES)} onChange={value => setStatus(value)} />
       <Select id="fa-list-loc" value={location} clearable placeholder={tr("كل المواقع")} options={toOptions(lookups.locations)} onChange={value => setLocation(value)} />
@@ -232,7 +232,7 @@ function TransactionLog({ lookups }: { lookups: Lookups }) {
       <Field label={tr("إلى")} htmlFor="fa-tx-to"><Input id="fa-tx-to" type="date" value={filters.to} onChange={event => setFilters({ ...filters, to: event.target.value })} /></Field>
       <Field label={tr("نوع الحركة")} htmlFor="fa-tx-type"><Select id="fa-tx-type" value={filters.types} clearable placeholder={tr("كل الأنواع")} options={recordOptions(TRANSACTION_TYPES)} onChange={value => setFilters({ ...filters, types: value })} /></Field>
       <Field label={tr("التصنيف")} htmlFor="fa-tx-cat"><Select id="fa-tx-cat" value={filters.category_id} clearable placeholder={tr("كل التصنيفات")} options={toOptions(lookups.categories)} onChange={value => setFilters({ ...filters, category_id: value })} /></Field>
-      <Button onClick={() => void run()} disabled={loading}>{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض")}</Button>
+      <Button onClick={() => void run()} disabled={loading}>{loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض")}</Button>
     </div>
     {error && <Alert variant="destructive" className="mb-3 border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}
     <DataTable rows={rows ?? []} columns={columns} empty={loading ? tr("جاري التحميل…") : tr("لا توجد حركات")} />

@@ -228,12 +228,12 @@ export function LotStatusManager() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-right p-3 font-semibold">{tr("رقم الدفعة")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("المنتج")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("الحالة الحالية")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("الكمية الحالية")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("تاريخ آخر تغيير")}</th>
-                    <th className="text-right p-3 font-semibold">{tr("الإجراءات")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("رقم الدفعة")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("المنتج")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("الحالة الحالية")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("الكمية الحالية")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("تاريخ آخر تغيير")}</th>
+                    <th className="text-start p-3 font-semibold">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>

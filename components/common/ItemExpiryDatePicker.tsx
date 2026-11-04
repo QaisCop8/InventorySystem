@@ -198,15 +198,15 @@ export default function ItemExpiryDatePicker({
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-1.5">
               <Label>{tr("الكمية")}</Label>
-              <Input value={requiredQuantity} readOnly disabled className="text-right" />
+              <Input value={requiredQuantity} readOnly disabled className="text-start" />
             </div>
             <div className="grid gap-1.5">
               <Label>{tr("الوحدة")}</Label>
-              <Input value={unitName} readOnly disabled className="text-right" />
+              <Input value={unitName} readOnly disabled className="text-start" />
             </div>
             <div className="grid gap-1.5">
               <Label>{tr("المستودع")}</Label>
-              <Input value={warehouseName} readOnly disabled className="text-right" />
+              <Input value={warehouseName} readOnly disabled className="text-start" />
             </div>
           </div>
 

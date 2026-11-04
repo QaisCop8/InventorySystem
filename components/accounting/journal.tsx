@@ -615,7 +615,7 @@ export default function Journal() {
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("ابحث برقم السند...")}
               />
             </div>
@@ -625,7 +625,7 @@ export default function Journal() {
                 value={searchDraft.currencyId}
                 onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر العملة")} />
                 </SelectTrigger>
                 <SelectContent>

@@ -112,7 +112,7 @@ function KpiCard({ title, value, currency, icon, tone, footer, spark, sparkKey }
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-xs font-bold text-slate-500">{title}</p>
-        <p className="mt-2 truncate text-[26px] font-black leading-none tracking-tight text-slate-900 dark:text-white" dir="ltr">{value}{currency && <span className="mr-1 text-xs font-bold text-slate-400"> {currency}</span>}</p>
+        <p className="mt-2 truncate text-[26px] font-black leading-none tracking-tight text-slate-900 dark:text-white" dir="ltr">{value}{currency && <span className="ms-1 text-xs font-bold text-slate-400"> {currency}</span>}</p>
       </div>
       <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white shadow-sm", tone)}>{icon}</span>
     </div>
@@ -236,7 +236,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs text-emerald-50/90"><CalendarDays className="h-3.5 w-3.5" />{dateText}</p>
           <h1 className="mt-1.5 break-words text-xl font-black leading-tight text-white drop-shadow-sm sm:text-[28px]">{greeting()}{user?.fullName || user?.username ? tr("، {0}", user?.fullName || user?.username) : ""}</h1>
-          <p className="mt-1 text-sm text-emerald-50/90">{company || tr("لوحة المعلومات")}{scopeLabel && <span className="mr-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{scopeLabel}</span>}</p>
+          <p className="mt-1 text-sm text-emerald-50/90">{company || tr("لوحة المعلومات")}{scopeLabel && <span className="ms-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{scopeLabel}</span>}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {data?.scope.canSwitch && <div className="flex rounded-xl bg-white/15 p-1 text-xs font-bold ring-1 ring-white/20 backdrop-blur" role="group" aria-label={tr("نطاق الفروع")}>
@@ -329,7 +329,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
               { label: tr("عدد الفواتير"), value: k.invoicesMonth, tone: "text-slate-900 dark:text-white", count: true },
               { label: tr("متوسط الفاتورة"), value: avgTicket, tone: "text-slate-900 dark:text-white" },
             ].map(row => <li key={row.label} className={cn("flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm", row.strong ? "bg-teal-50 dark:bg-teal-950/40" : "bg-slate-50 dark:bg-slate-800/60")}>
-              <span className="text-slate-600 dark:text-slate-300">{row.label}{row.hint && <small className="mr-1.5 text-[11px] text-slate-400">{row.hint}</small>}</span>
+              <span className="text-slate-600 dark:text-slate-300">{row.label}{row.hint && <small className="ms-1.5 text-[11px] text-slate-400">{row.hint}</small>}</span>
               <b dir="ltr" className={row.tone}>{row.count ? fmt(row.value) : fmt(row.value, 2)}</b>
             </li>)}
           </ul>}

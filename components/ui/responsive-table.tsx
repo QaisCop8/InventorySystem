@@ -50,7 +50,7 @@ export function ResponsiveTable({ data, columns, title, onRowClick }: Responsive
                 <thead>
                   <tr className="border-b">
                     {columns.map((column) => (
-                      <th key={column.key} className="text-right p-4 font-semibold">
+                      <th key={column.key} className="text-start p-4 font-semibold">
                         {column.label}
                       </th>
                     ))}

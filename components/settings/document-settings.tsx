@@ -622,7 +622,7 @@ export default function DocumentSettings() {
                           <strong>{tr("الموظف:")}</strong>{tr(" أحمد علي")}
                         </p>
                       </div>
-                      <div className="text-left">
+                      <div className="text-end">
                         <p>
                           <strong>{tr("مجموع الكميات:")}</strong> 2
                         </p>

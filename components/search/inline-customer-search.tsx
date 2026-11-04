@@ -129,7 +129,7 @@ export function InlineCustomerSearch({
           value={searchTerm}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className="pr-10"
+          className="ps-10"
           onFocus={() => {
             if (searchTerm.length >= 2) setIsOpen(true)
           }}

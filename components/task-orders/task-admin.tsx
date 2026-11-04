@@ -111,7 +111,7 @@ export function TaskAdmin() {
             <TabsTrigger value="step-types" className="gap-2 rounded-lg py-2.5">{tr("انواع الخطوات")}</TabsTrigger>
             <TabsTrigger value="workflows" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"><GitBranch className="h-4 w-4" />{tr("مخطط سير العمل")}</TabsTrigger>
           </TabsList>
-          <Button variant="outline" size="sm" onClick={() => void loadAll()}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث البيانات")}</Button>
+          <Button variant="outline" size="sm" onClick={() => void loadAll()}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث البيانات")}</Button>
         </div>
         <TabsContent value="sections" className="mt-4 w-full">
           <SectionsAdmin sections={sections} branches={branches} departments={departments} users={users} userId={userId} onChanged={loadAll} />
@@ -270,7 +270,7 @@ function SectionsAdmin({
                 <div className="font-semibold text-slate-800">
                   {section.name}
                   {!section.is_active && (
-                    <Badge variant="outline" className="mr-2 border-red-200 text-red-500">
+                    <Badge variant="outline" className="ms-2 border-red-200 text-red-500">
                       {tr("معطّل")}
                     </Badge>
                   )}
@@ -287,7 +287,7 @@ function SectionsAdmin({
                 {section.members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between text-sm">
                     <span>
-                      {m.full_name} {m.is_manager && <Badge className="mr-1 bg-indigo-50 text-indigo-700 border-indigo-200">{tr("مدير القسم")}</Badge>}
+                      {m.full_name} {m.is_manager && <Badge className="ms-1 bg-indigo-50 text-indigo-700 border-indigo-200">{tr("مدير القسم")}</Badge>}
                     </span>
                     <Button size="icon" variant="ghost" onClick={() => removeMember(section.id, m.user_id)}>
                       <Trash2 className="h-3.5 w-3.5 text-red-500" />
@@ -417,7 +417,7 @@ function StepTypesAdmin({ stepTypes, onChanged }: { stepTypes: TaskStepType[]; o
     setNewName("")
     onChanged()
   }
-  return <Card><CardHeader><CardTitle className="text-base">{tr("انواع الخطوات")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex gap-2"><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder={tr("اسم نوع خطوة جديد")} /><Button onClick={() => void add()}><Plus className="ml-2 h-4 w-4" />{tr("إضافة")}</Button></div>{stepTypes.map((type) => { const draft = drafts[type.id] || type; return <div key={type.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto]"><Input value={draft.name} onChange={(event) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, name: event.target.value } }))} /><Label className="flex items-center gap-2"><Checkbox checked={draft.mandatory} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, mandatory: checked === true } }))} />{tr("اجباري")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.show_all_items} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, show_all_items: checked === true } }))} />{tr("إظهار كافة أصناف الطلبية")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.print_barcode} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, print_barcode: checked === true } }))} />{tr("طباعة باركود")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.attachment_required} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, attachment_required: checked === true } }))} />{tr("المرفق اجباري")}</Label><Button onClick={() => void save(draft)} disabled={saving === type.id}><Save className="ml-2 h-4 w-4" />{tr("حفظ")}</Button></div>})}</CardContent></Card>
+  return <Card><CardHeader><CardTitle className="text-base">{tr("انواع الخطوات")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex gap-2"><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder={tr("اسم نوع خطوة جديد")} /><Button onClick={() => void add()}><Plus className="me-2 h-4 w-4" />{tr("إضافة")}</Button></div>{stepTypes.map((type) => { const draft = drafts[type.id] || type; return <div key={type.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto]"><Input value={draft.name} onChange={(event) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, name: event.target.value } }))} /><Label className="flex items-center gap-2"><Checkbox checked={draft.mandatory} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, mandatory: checked === true } }))} />{tr("اجباري")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.show_all_items} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, show_all_items: checked === true } }))} />{tr("إظهار كافة أصناف الطلبية")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.print_barcode} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, print_barcode: checked === true } }))} />{tr("طباعة باركود")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.attachment_required} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, attachment_required: checked === true } }))} />{tr("المرفق اجباري")}</Label><Button onClick={() => void save(draft)} disabled={saving === type.id}><Save className="me-2 h-4 w-4" />{tr("حفظ")}</Button></div>})}</CardContent></Card>
 }
 
 function WorkflowsAdmin({

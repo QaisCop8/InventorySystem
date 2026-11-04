@@ -372,12 +372,12 @@ export default function Branches() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("رقم الفرع")}</TableHead>
-                    <TableHead className="text-right">{tr("اسم الفرع")}</TableHead>
-                    <TableHead className="text-right">{tr("رمز الفرع")}</TableHead>
-                    <TableHead className="text-right">{tr("البنك")}</TableHead>
-                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                  <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم الفرع")}</TableHead>
+                    <TableHead className="text-start">{tr("اسم الفرع")}</TableHead>
+                    <TableHead className="text-start">{tr("رمز الفرع")}</TableHead>
+                    <TableHead className="text-start">{tr("البنك")}</TableHead>
+                    <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-start">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -387,12 +387,12 @@ export default function Branches() {
                       className="cursor-pointer"
                       onDoubleClick={() => openEditBranchDialog(branch, index)}
                     >
-                      <TableCell className="text-right">{branch.branch_code}</TableCell>
-                      <TableCell className="text-right">{branch.branch_name}</TableCell>
-                      <TableCell className="text-right">{branch.branch_symbol || "-"}</TableCell>
-                      <TableCell className="text-right">{banks.find((bank) => bank.id === branch.bank_id)?.bank_name || "-"}</TableCell>
-                      <TableCell className="text-right">{branch.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-start">{branch.branch_code}</TableCell>
+                      <TableCell className="text-start">{branch.branch_name}</TableCell>
+                      <TableCell className="text-start">{branch.branch_symbol || "-"}</TableCell>
+                      <TableCell className="text-start">{banks.find((bank) => bank.id === branch.bank_id)?.bank_name || "-"}</TableCell>
+                      <TableCell className="text-start">{branch.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
+                      <TableCell className="text-start">
                         <Button
                           variant="outline"
                           size="sm"

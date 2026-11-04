@@ -647,7 +647,7 @@ export default function VirtualAccounts() {
                         ? `${warehouseDefaults[config.field]} / ${warehouseDefaults[config.nameField] || ''}`
                         : ''
                     }
-                    className="text-right"
+                    className="text-start"
                   />
                   <Button
                     type="button"

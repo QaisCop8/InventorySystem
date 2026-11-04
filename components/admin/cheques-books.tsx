@@ -351,27 +351,27 @@ export default function ChequesBooks() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("رقم الدفتر")}</TableHead>
-                    <TableHead className="text-right">{tr("رقم الحساب البنكي")}</TableHead>
-                    <TableHead className="text-right">{tr("اسم الحساب البنكي")}</TableHead>
-                    <TableHead className="text-right">{tr("العملة")}</TableHead>
-                    <TableHead className="text-right">{tr("تاريخ الاصدار")}</TableHead>
-                    <TableHead className="text-right">{tr("عدد الشيكات")}</TableHead>
-                    <TableHead className="text-right">{tr("المتوفر")}</TableHead>
-                    <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم الدفتر")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم الحساب البنكي")}</TableHead>
+                    <TableHead className="text-start">{tr("اسم الحساب البنكي")}</TableHead>
+                    <TableHead className="text-start">{tr("العملة")}</TableHead>
+                    <TableHead className="text-start">{tr("تاريخ الاصدار")}</TableHead>
+                    <TableHead className="text-start">{tr("عدد الشيكات")}</TableHead>
+                    <TableHead className="text-start">{tr("المتوفر")}</TableHead>
+                    <TableHead className="text-start">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredBooks.map(({ book, index }) => (
                     <TableRow key={book.id} className="cursor-pointer" onDoubleClick={() => openEditDialog(book, index)}>
-                      <TableCell className="text-right">{book.code}</TableCell>
-                      <TableCell className="text-right">{book.bank_account_code}</TableCell>
-                      <TableCell className="text-right">{book.bank_account_name}</TableCell>
-                      <TableCell className="text-right">{book.currency_name || book.currency_code}</TableCell>
-                      <TableCell className="text-right">{book.insert_date?.slice(0, 10)}</TableCell>
-                      <TableCell className="text-right">{book.cheques_count || 0}</TableCell>
-                      <TableCell className="text-right">{book.available_count || 0}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-start">{book.code}</TableCell>
+                      <TableCell className="text-start">{book.bank_account_code}</TableCell>
+                      <TableCell className="text-start">{book.bank_account_name}</TableCell>
+                      <TableCell className="text-start">{book.currency_name || book.currency_code}</TableCell>
+                      <TableCell className="text-start">{book.insert_date?.slice(0, 10)}</TableCell>
+                      <TableCell className="text-start">{book.cheques_count || 0}</TableCell>
+                      <TableCell className="text-start">{book.available_count || 0}</TableCell>
+                      <TableCell className="text-start">
                         <Button
                           variant="outline"
                           size="sm"

@@ -162,7 +162,7 @@ export function RestaurantOrder(p: Props) {
     <div dir={appDir()} className="flex h-full min-h-0 flex-col bg-muted/20">
       {/* الشريط العلوي */}
       <header className="flex flex-wrap items-center gap-2 border-b bg-gradient-to-l from-rose-700 to-orange-600 px-2 py-2 text-white sm:px-3">
-        <Button variant="secondary" className="h-11 px-4 text-base font-extrabold" onClick={p.onBack}><ArrowRight className="ml-1 h-5 w-5" />{tr("رجوع")}</Button>
+        <Button variant="secondary" className="h-11 px-4 text-base font-extrabold" onClick={p.onBack}><ArrowRight className="me-1 h-5 w-5" />{tr("رجوع")}</Button>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           {isTakeaway ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 text-sm font-extrabold">
@@ -209,7 +209,7 @@ export function RestaurantOrder(p: Props) {
                       <div className="flex items-start gap-2">
                         <span className="min-w-[2.6rem] rounded-lg bg-slate-100 px-1.5 py-1 text-center text-sm font-black dark:bg-slate-800">{qtyText(item.quantity)}</span>
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold leading-tight">{item.product_name}{item.unit_name ? <span className="text-xs font-normal text-muted-foreground"> ({item.unit_name})</span> : null}{item.is_table_service && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">{tr("خدمة الطاولة")}</span>}</div>
+                          <div className="font-bold leading-tight">{item.product_name}{item.unit_name ? <span className="text-xs font-normal text-muted-foreground"> ({item.unit_name})</span> : null}{item.is_table_service && <span className="ms-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-950 dark:text-amber-300">{tr("خدمة الطاولة")}</span>}</div>
                           <AddonChips addons={item.addons} />
                           {item.note && <div className="mt-0.5 text-xs text-orange-700">{item.note}</div>}
                           <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
@@ -221,13 +221,13 @@ export function RestaurantOrder(p: Props) {
                       </div>
                       {!paid && item.is_table_service && (
                         <div className="mt-1.5 flex gap-1.5">
-                          <Button size="sm" variant="outline" className="h-8 flex-1 text-red-600 hover:text-red-700" disabled={p.busy} onClick={() => p.onRemoveService(item)}><X className="ml-1 h-3.5 w-3.5" />{tr("حذف الخدمة")}</Button>
+                          <Button size="sm" variant="outline" className="h-8 flex-1 text-red-600 hover:text-red-700" disabled={p.busy} onClick={() => p.onRemoveService(item)}><X className="me-1 h-3.5 w-3.5" />{tr("حذف الخدمة")}</Button>
                         </div>
                       )}
                       {canEdit && (
                         <div className="mt-1.5 flex gap-1.5">
-                          {can("editItems") && (product?.addonGroups.length || item.addons?.length) ? <Button size="sm" variant="outline" className="h-8 flex-1" disabled={p.busy} onClick={() => p.onItemAddons(item)}><Sparkles className="ml-1 h-3.5 w-3.5" />{tr("إضافات")}</Button> : null}
-                          <Button size="sm" variant="outline" className="h-8 flex-1" disabled={p.busy} onClick={() => p.onEditItem(item)}><Pencil className="ml-1 h-3.5 w-3.5" />{tr("تعديل")}</Button>
+                          {can("editItems") && (product?.addonGroups.length || item.addons?.length) ? <Button size="sm" variant="outline" className="h-8 flex-1" disabled={p.busy} onClick={() => p.onItemAddons(item)}><Sparkles className="me-1 h-3.5 w-3.5" />{tr("إضافات")}</Button> : null}
+                          <Button size="sm" variant="outline" className="h-8 flex-1" disabled={p.busy} onClick={() => p.onEditItem(item)}><Pencil className="me-1 h-3.5 w-3.5" />{tr("تعديل")}</Button>
                         </div>
                       )}
                     </div>
@@ -238,7 +238,7 @@ export function RestaurantOrder(p: Props) {
 
             {pending.length > 0 && (
               <div className="space-y-1.5 rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50/60 p-2 dark:bg-rose-950/20">
-                <div className="flex items-center justify-between text-xs font-extrabold text-rose-700"><span><ChefHat className="ml-1 inline h-4 w-4" />{tr("جديد — لم يُرسل بعد")}</span><span>{money(p.pendingTotal)}</span></div>
+                <div className="flex items-center justify-between text-xs font-extrabold text-rose-700"><span><ChefHat className="me-1 inline h-4 w-4" />{tr("جديد — لم يُرسل بعد")}</span><span>{money(p.pendingTotal)}</span></div>
                 {pending.map((line) => {
                   const product = p.productById.get(line.productId)
                   return (
@@ -247,7 +247,7 @@ export function RestaurantOrder(p: Props) {
                         <div className="min-w-0 flex-1">
                           <button type="button" className="block w-full text-start font-bold leading-tight" onClick={() => p.onEditPending(line.key)}>
                             {line.name}{line.unitName ? <span className="text-xs font-normal text-muted-foreground"> ({line.unitName})</span> : null}
-                            {line.relatedOf && <span className="mr-1 rounded bg-sky-100 px-1 text-[10px] font-semibold text-sky-700"><Link2 className="ml-0.5 inline h-3 w-3" />{tr("تابع")}</span>}
+                            {line.relatedOf && <span className="ms-1 rounded bg-sky-100 px-1 text-[10px] font-semibold text-sky-700"><Link2 className="me-0.5 inline h-3 w-3" />{tr("تابع")}</span>}
                           </button>
                           <AddonChips addons={line.addons} />
                           {line.note && <div className="mt-0.5 text-xs text-orange-700">{line.note}</div>}
@@ -261,7 +261,7 @@ export function RestaurantOrder(p: Props) {
                           <span className="w-9 text-center font-black">{qtyText(line.quantity)}</span>
                           <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => p.onPendingQty(line.key, 1)}><Plus className="h-4 w-4" /></Button>
                         </div>
-                        {product?.addonGroups.length ? <Button size="sm" variant="outline" className="h-8 flex-1" onClick={() => p.onPendingAddons(line.key)}><Sparkles className="ml-1 h-3.5 w-3.5" />{tr("إضافات")}</Button> : <span className="flex-1" />}
+                        {product?.addonGroups.length ? <Button size="sm" variant="outline" className="h-8 flex-1" onClick={() => p.onPendingAddons(line.key)}><Sparkles className="me-1 h-3.5 w-3.5" />{tr("إضافات")}</Button> : <span className="flex-1" />}
                       </div>
                     </div>
                   )
@@ -290,11 +290,11 @@ export function RestaurantOrder(p: Props) {
             </div>
             {pending.length > 0 ? (
               <Button className="h-12 w-full bg-rose-600 text-base font-extrabold hover:bg-rose-700" disabled={p.busy} onClick={p.onSend}>
-                {p.busy ? <Loader2 className="ml-1 h-5 w-5 animate-spin" /> : <Send className="ml-1 h-5 w-5" />}{tr("إرسال للمطبخ (")}{pending.length})
+                {p.busy ? <Loader2 className="me-1 h-5 w-5 animate-spin" /> : <Send className="me-1 h-5 w-5" />}{tr("إرسال للمطبخ (")}{pending.length})
               </Button>
             ) : (
               <Button className="h-12 w-full bg-emerald-600 text-base font-extrabold hover:bg-emerald-700" disabled={p.busy || !hasRemaining || !can("pay")} onClick={p.onPay}>
-                <CreditCard className="ml-1 h-5 w-5" />{tr("دفع الحساب")}
+                <CreditCard className="me-1 h-5 w-5" />{tr("دفع الحساب")}
               </Button>
             )}
             <div className="grid grid-cols-3 gap-1.5">
@@ -320,7 +320,7 @@ export function RestaurantOrder(p: Props) {
               {[{ name: "all", label: tr("الكل"), count: p.totalProducts }, ...p.categories.map((row) => ({ name: row.name, label: row.name, count: row.count }))].map((row) => (
                 <button key={row.name} type="button" onClick={() => p.onCategory(row.name)}
                   className={`h-10 shrink-0 rounded-full px-4 text-sm font-bold transition ${p.category === row.name ? "bg-rose-600 text-white shadow" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>
-                  {row.label} <span className="mr-0.5 text-xs opacity-70">{row.count}</span>
+                  {row.label} <span className="ms-0.5 text-xs opacity-70">{row.count}</span>
                 </button>
               ))}
             </div>

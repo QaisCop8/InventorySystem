@@ -1741,7 +1741,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                 id="search-name"
                 value={searchFilters.name}
                 onChange={(e) => setSearchFilters((prev) => ({ ...prev, name: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("ابحث بالاسم...")}
               />
             </div>
@@ -1751,7 +1751,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                 value={searchFilters.city}
                 onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, city: value }))}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر المدينة")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -1777,7 +1777,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                   setSearchFilters((prev) => ({ ...prev, status: value }))
                 }
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر الحالة")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -1795,7 +1795,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                   setSearchFilters((prev) => ({ ...prev, salesman: value }))
                 }
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر المندوب")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -2035,7 +2035,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                             setNotificationSettings({ ...notificationSettings, preferred_phone: e.target.value })
                           }
                           placeholder="05xxxxxxxx"
-                          className="text-right"
+                          className="text-start"
                         />
                       </div>
 

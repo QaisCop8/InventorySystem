@@ -340,11 +340,11 @@ export default function BankAccounts() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">{tr("رقم الحساب")}</TableHead>
-                    <TableHead className="text-right">{tr("اسم الحساب")}</TableHead>
-                    <TableHead className="text-right">{tr("الفرع")}</TableHead>
-                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
-                    <TableHead className="text-right">{tr("إجراءات")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم الحساب")}</TableHead>
+                    <TableHead className="text-start">{tr("اسم الحساب")}</TableHead>
+                    <TableHead className="text-start">{tr("الفرع")}</TableHead>
+                    <TableHead className="text-start">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-start">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -354,13 +354,13 @@ export default function BankAccounts() {
                       className="cursor-pointer"
                       onDoubleClick={() => openEditDialog(account, index)}
                     >
-                      <TableCell className="text-right">{account.code}</TableCell>
-                      <TableCell className="text-right">{account.name}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-start">{account.code}</TableCell>
+                      <TableCell className="text-start">{account.name}</TableCell>
+                      <TableCell className="text-start">
                         {branches.find((b) => b.id === account.branch_id)?.branch_name || "-"}
                       </TableCell>
-                      <TableCell className="text-right">{account.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-start">{account.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
+                      <TableCell className="text-start">
                         <Button
                           variant="outline"
                           size="sm"

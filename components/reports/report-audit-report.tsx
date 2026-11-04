@@ -76,7 +76,7 @@ export default function ReportAuditReport() {
   return <ReportPage loading={loading}>
     <ReportHeader title={tr("تقرير ارشفة التقارير")} icon={FileBarChart} category={tr("الرقابة والتدقيق")}
       description={tr("من فتح أي تقرير ومتى، وبأي فلاتر عرضه، ومن طبعه أو حفظه PDF أو أرسله بواتساب ولمن.")}
-      actions={<Button onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
+      actions={<Button onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {([["فتح/عرض", totals.runs, Eye], ["طباعة", totals.prints, Printer], ["PDF / واتساب", totals.shared, MessageCircle], ["مستخدمون", totals.users, FileBarChart]] as const).map(([label, value, Icon]) =>
@@ -104,7 +104,7 @@ export default function ReportAuditReport() {
           </select></div>
         <div><Label htmlFor="ra-search">{tr("بحث بالفلاتر / العنوان")}</Label>
           <div className="relative mt-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="ra-search" data-report-apply-on-enter className="pr-9" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} placeholder={tr("مثال: اسم عميل أو حساب")} /></div></div>
+            <Input id="ra-search" data-report-apply-on-enter className="ps-9" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} placeholder={tr("مثال: اسم عميل أو حساب")} /></div></div>
         <Button data-report-apply onClick={() => void load()}>{tr("عرض")}</Button>
       </CardContent>
     </ReportFilters>

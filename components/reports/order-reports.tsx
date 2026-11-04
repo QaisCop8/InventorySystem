@@ -93,7 +93,7 @@ export function OrderReports() {
         category={tr("تقارير الطلبيات")}
         title={tr("ملخص الطلبيات")}
         description={tr("مؤشرات الطلبيات في الفترة: العدد والقيمة والمفتوح والمتأخر، الحركة الشهرية، أعلى العملاء والأصناف")}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!data}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!data}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
@@ -105,7 +105,7 @@ export function OrderReports() {
           <ReportMultiChoice label={tr("الفرع")} options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("كل الفروع")} />
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="me-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 
@@ -152,13 +152,13 @@ export function OrderReports() {
             <Panel title={tr("أعلى العملاء/الموردين قيمةً")}>
               <table className="w-full text-sm">
                 <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("الاسم")}</th><th className="p-1.5 text-center">{tr("الطلبيات")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th></tr></thead>
-                <tbody>{data.topParties.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5"><Users className="ml-1 inline h-3.5 w-3.5 text-slate-400" />{row.party_name || "—"}</td><td className="p-1.5 text-center">{row.orders}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
+                <tbody>{data.topParties.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5"><Users className="me-1 inline h-3.5 w-3.5 text-slate-400" />{row.party_name || "—"}</td><td className="p-1.5 text-center">{row.orders}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
               </table>
             </Panel>
             <Panel title={tr("أكثر الأصناف طلباً")}>
               <table className="w-full text-sm">
                 <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("الصنف")}</th><th className="p-1.5 text-end">{tr("الكمية")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th></tr></thead>
-                <tbody>{data.topItems.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5">{row.product_name}<small className="mr-1 font-mono text-slate-400">{row.product_code}</small></td><td className="p-1.5 text-end font-mono" dir="ltr">{qty(row.quantity)}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
+                <tbody>{data.topItems.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5">{row.product_name}<small className="ms-1 font-mono text-slate-400">{row.product_code}</small></td><td className="p-1.5 text-end font-mono" dir="ltr">{qty(row.quantity)}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
               </table>
             </Panel>
           </div>

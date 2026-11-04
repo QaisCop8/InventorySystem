@@ -381,7 +381,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
 
         <DialogHeader>
           <div className="flex justify-between items-center">
-            <DialogTitle className="text-right">{tr("طلبية مبيعات سريعة")}</DialogTitle>
+            <DialogTitle className="text-start">{tr("طلبية مبيعات سريعة")}</DialogTitle>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">{tr("F2: بحث عميل")}</Badge>
               <Badge variant="outline" className="text-xs">{tr("F3: بحث صنف")}</Badge>
@@ -392,13 +392,13 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         <form onSubmit={handleSaveOrder} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="text-right block mb-2">{tr("العميل *")}</Label>
+              <Label className="text-start block mb-2">{tr("العميل *")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={customer?.name || ""}
                   readOnly
                   placeholder={tr("-- اختر العميل --")}
-                  className="text-right"
+                  className="text-start"
                 />
                 <Button type="button" variant="outline" size="icon" onClick={() => setShowCustomerSearch(true)}>
                   <UserSearch className="h-4 w-4" />
@@ -406,17 +406,17 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
               </div>
             </div>
             <div>
-              <Label className="text-right block mb-2">{tr("تاريخ الطلبية")}</Label>
+              <Label className="text-start block mb-2">{tr("تاريخ الطلبية")}</Label>
               <Input
                 type="date"
                 value={orderDate}
                 onChange={(e) => setOrderDate(e.target.value)}
-                className="text-right"
+                className="text-start"
               />
             </div>
             <div className="md:col-span-2">
-              <Label className="text-right block mb-2">{tr("ملاحظات")}</Label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="text-right" />
+              <Label className="text-start block mb-2">{tr("ملاحظات")}</Label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="text-start" />
             </div>
           </div>
 
@@ -433,13 +433,13 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
               {items.map((item) => (
                 <div key={item.rowId} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 border rounded-lg items-end">
                   <div className="md:col-span-2">
-                    <Label className="text-right block mb-1 text-sm">{tr("اسم الصنف")}</Label>
+                    <Label className="text-start block mb-1 text-sm">{tr("اسم الصنف")}</Label>
                     <div className="rounded-md border bg-muted px-3 py-2 text-sm text-start min-h-[38px]">
                       {item.product_name || "—"}
                     </div>
                   </div>
                   <div>
-                    <Label className="text-right block mb-1 text-sm">{tr("الكمية")}</Label>
+                    <Label className="text-start block mb-1 text-sm">{tr("الكمية")}</Label>
                     <Input
                       type="number"
                       value={item.qty}
@@ -447,27 +447,27 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
                       onFocus={() => openMeasurementDialog(item)}
                       onClick={() => openMeasurementDialog(item)}
                       readOnly={Number(item.measurment_id || 1) !== 1}
-                      className="text-right"
+                      className="text-start"
                     />
                   </div>
                   <div>
-                    <Label className="text-right block mb-1 text-sm">{tr("السعر")}</Label>
+                    <Label className="text-start block mb-1 text-sm">{tr("السعر")}</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={item.price}
                       onChange={(e) => updateItem(item.rowId, "price", e.target.value)}
-                      className="text-right"
+                      className="text-start"
                     />
                   </div>
                   <div>
-                    <Label className="text-right block mb-1 text-sm">{tr("الخصم")}</Label>
+                    <Label className="text-start block mb-1 text-sm">{tr("الخصم")}</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={item.discount}
                       onChange={(e) => updateItem(item.rowId, "discount", e.target.value)}
-                      className="text-right"
+                      className="text-start"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2">

@@ -173,7 +173,7 @@ export default function RestaurantTables() {
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pr-9" placeholder={tr("بحث باسم الطاولة")} value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="ps-9" placeholder={tr("بحث باسم الطاولة")} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={locationFilter} onValueChange={setLocationFilter}>
           <SelectTrigger className="sm:w-64"><SelectValue placeholder={tr("الموقع")} /></SelectTrigger>
@@ -237,7 +237,7 @@ export default function RestaurantTables() {
           {formError && <div className="rounded-md bg-red-50 p-2 text-sm text-red-700">{formError}</div>}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => void close()}>{tr("إغلاق")}</Button>
-            {!readOnly && <Button onClick={saveForm} disabled={saving}>{saving && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>}
+            {!readOnly && <Button onClick={saveForm} disabled={saving}>{saving && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -259,7 +259,7 @@ export default function RestaurantTables() {
           {formError && <div className="rounded-md bg-red-50 p-2 text-sm text-red-700">{formError}</div>}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => void close()}>{tr("إغلاق")}</Button>
-            <Button onClick={saveBulk} disabled={saving}>{saving && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("إضافة")}</Button>
+            <Button onClick={saveBulk} disabled={saving}>{saving && <Loader2 className="me-1 h-4 w-4 animate-spin" />}{tr("إضافة")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -720,7 +720,7 @@ export function TaskBoard() {
               disabled={loadingTasks}
               className="h-10 rounded-xl"
             >
-              <RefreshCw className={cn("ml-2 h-4 w-4", loadingTasks && "animate-spin")} />
+              <RefreshCw className={cn("me-2 h-4 w-4", loadingTasks && "animate-spin")} />
               {tr("تحديث")}
             </Button>
             {userId && (
@@ -1000,7 +1000,7 @@ export function TaskBoard() {
                           style={{ touchAction: draggable ? "none" : "auto" }}
                           className={cn(
                             "group relative w-full rounded-xl border border-s-4 bg-white p-3.5 text-start shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
-                            PRIORITY_CARD_ACCENT[t.item_priority]?.split(" ")[0] || "border-r-blue-500",
+                            PRIORITY_CARD_ACCENT[t.item_priority]?.split(" ")[0] || "border-s-blue-500",
                             sla?.overdue && "ring-1 ring-red-200",
                             draggedTaskId === t.id && "opacity-50",
                           )}
@@ -1225,7 +1225,7 @@ export function TaskBoard() {
                             <div className="text-sm font-medium">
                               {instance.step_label} <span className="text-xs text-slate-400">({instance.section_name})</span>
                               {instance.step_type !== "normal" && (
-                                <Badge variant="outline" className="mr-1 text-[10px]">
+                                <Badge variant="outline" className="ms-1 text-[10px]">
                                   {STEP_TYPE_LABELS[instance.step_type]}
                                 </Badge>
                               )}
@@ -1448,7 +1448,7 @@ export function TaskBoard() {
               {tr("إلغاء")}
             </Button>
             <Button onClick={confirmNoteAction} disabled={actionBusy}>
-              {actionBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />} {(noteDialog?.action === "start" || noteDialog?.action === "complete" || noteDialog?.action === "stop" || noteDialog?.action === "force_complete") ? tr("تم") : tr("تأكيد")}
+              {actionBusy && <Loader2 className="me-1 h-4 w-4 animate-spin" />} {(noteDialog?.action === "start" || noteDialog?.action === "complete" || noteDialog?.action === "stop" || noteDialog?.action === "force_complete") ? tr("تم") : tr("تأكيد")}
             </Button>
           </DialogFooter>
         </DialogContent>

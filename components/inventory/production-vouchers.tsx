@@ -715,7 +715,7 @@ function TransferDialog({ production, warehouses, busy, onClose, onSubmit }: {
   return (
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose() }}>
       <DialogContent dir={appDir()} className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto" onPointerDownOutside={(event) => event.preventDefault()}>
-        <DialogHeader className="text-right"><DialogTitle className="flex items-center gap-2"><ArrowLeftRight className="h-5 w-5 text-sky-600" />{tr("نقل الى مستودع — ")}{production.code}</DialogTitle></DialogHeader>
+        <DialogHeader className="text-start"><DialogTitle className="flex items-center gap-2"><ArrowLeftRight className="h-5 w-5 text-sky-600" />{tr("نقل الى مستودع — ")}{production.code}</DialogTitle></DialogHeader>
         {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm font-semibold text-rose-700">{error}</p>}
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1"><Label>{tr("من مستودع")}</Label><Input disabled value={production.finished_store_name || ""} /></div>
@@ -771,7 +771,7 @@ function ProductionCodeSearch({ branchId, onClose, onPick }: { branchId: number 
   return (
     <Dialog open onOpenChange={(value) => { if (!value) onClose() }}>
       <DialogContent dir={appDir()} className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-3xl overflow-hidden" onPointerDownOutside={(event) => event.preventDefault()}>
-        <DialogHeader className="text-right"><DialogTitle>{tr("بحث سندات الانتاج")}</DialogTitle></DialogHeader>
+        <DialogHeader className="text-start"><DialogTitle>{tr("بحث سندات الانتاج")}</DialogTitle></DialogHeader>
         <div className="flex gap-2">
           <Input autoFocus value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void run(q) } }} placeholder={tr("رقم السند، الصنف، الملاحظات")} />
           <Button onClick={() => void run(q)} disabled={loading} className="gap-1">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{tr("بحث")}</Button>

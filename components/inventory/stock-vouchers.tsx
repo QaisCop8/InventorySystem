@@ -776,7 +776,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("ابحث برقم السند...")}
               />
             </div>

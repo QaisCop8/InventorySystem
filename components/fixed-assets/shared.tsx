@@ -126,7 +126,7 @@ export function Field({ label, htmlFor, children, hint, className, required }: {
 }
 
 export function NumberField({ id, value, onChange, min, step = "any", disabled }: { id: string; value: any; onChange: (value: string) => void; min?: number; step?: string; disabled?: boolean }) {
-  return <Input id={id} type="number" dir="ltr" className="text-right" min={min} step={step} value={value ?? ""} disabled={disabled} onChange={event => onChange(event.target.value)} />
+  return <Input id={id} type="number" dir="ltr" className="text-start" min={min} step={step} value={value ?? ""} disabled={disabled} onChange={event => onChange(event.target.value)} />
 }
 
 const STATUS_TONES: Record<string, string> = {
@@ -174,19 +174,19 @@ export function DataTable({ columns, rows, onRowClick, empty = "لا توجد ب
   return <div className="overflow-auto rounded-xl border border-slate-200 dark:border-slate-800" style={{ maxHeight }}>
     <table className="w-full min-w-max text-sm">
       <thead className="sticky top-0 z-10 bg-slate-800 text-white dark:bg-slate-950">
-        <tr>{columns.map(column => <th key={column.key} className={cn("whitespace-nowrap px-3 py-2.5 text-xs font-bold", column.numeric ? "text-left" : "text-right")}>{column.label}</th>)}</tr>
+        <tr>{columns.map(column => <th key={column.key} className={cn("whitespace-nowrap px-3 py-2.5 text-xs font-bold", column.numeric ? "text-end" : "text-start")}>{column.label}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((row, index) => <tr key={row.id ?? index} onClick={onRowClick ? () => onRowClick(row) : undefined}
           className={cn("border-b border-slate-100 transition dark:border-slate-800", index % 2 && "bg-slate-50/60 dark:bg-slate-900/40", onRowClick && "cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-950/30", selectedId != null && row.id === selectedId && "!bg-teal-100 dark:!bg-teal-900/40")}>
-          {columns.map(column => <td key={column.key} className={cn("whitespace-nowrap px-3 py-2", column.numeric && "text-left font-mono tabular-nums")} dir={column.numeric ? "ltr" : undefined}>
+          {columns.map(column => <td key={column.key} className={cn("whitespace-nowrap px-3 py-2", column.numeric && "text-end font-mono tabular-nums")} dir={column.numeric ? "ltr" : undefined}>
             {column.render ? column.render(row) : column.numeric ? money(row[column.key]) : row[column.key] ?? ""}
           </td>)}
         </tr>)}
         {!rows.length && <tr><td colSpan={columns.length} className="py-14 text-center text-slate-400"><Inbox className="mx-auto mb-2 h-8 w-8" />{empty}</td></tr>}
       </tbody>
       {hasTotals && <tfoot className="sticky bottom-0 bg-slate-100 font-black dark:bg-slate-800">
-        <tr>{columns.map((column, index) => <td key={column.key} className={cn("whitespace-nowrap px-3 py-2", column.numeric && "text-left font-mono tabular-nums")} dir={column.numeric ? "ltr" : undefined}>
+        <tr>{columns.map((column, index) => <td key={column.key} className={cn("whitespace-nowrap px-3 py-2", column.numeric && "text-end font-mono tabular-nums")} dir={column.numeric ? "ltr" : undefined}>
           {column.total ? money(totals[column.key]) : index === 0 ? tr("الإجمالي ({0})", rows.length) : ""}
         </td>)}</tr>
       </tfoot>}

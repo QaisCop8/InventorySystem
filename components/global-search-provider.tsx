@@ -72,7 +72,7 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
       <Dialog open={searchType === "products"} onOpenChange={(open) => !open && closeSearch()}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-right">{tr("البحث عن الأصناف")}</DialogTitle>
+            <DialogTitle className="text-start">{tr("البحث عن الأصناف")}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[75vh]">
             <ProductSearch onSelect={handleProductSelect} onClose={closeSearch} isModal={false} />
@@ -84,7 +84,7 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
       <Dialog open={searchType === "customers-suppliers"} onOpenChange={(open) => !open && closeSearch()}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-right">{tr("البحث عن العملاء والموردين")}</DialogTitle>
+            <DialogTitle className="text-start">{tr("البحث عن العملاء والموردين")}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[75vh]">
             <CustomerSupplierSearch

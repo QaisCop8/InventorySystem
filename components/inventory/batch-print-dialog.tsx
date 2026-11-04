@@ -523,7 +523,7 @@ export function BatchPrintDialog() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button className="bg-purple-600 hover:bg-purple-700">
-            <Printer className="ml-2 h-4 w-4" />
+            <Printer className="me-2 h-4 w-4" />
             {tr("طباعة تفاصيل باتش")}
           </Button>
         </DialogTrigger>
@@ -737,7 +737,7 @@ export function BatchPrintDialog() {
                           size="sm"
                           title={tr("طباعة مباشرة على {0}", printSettings.default_printer)}
                         >
-                          <Printer className="ml-2 h-4 w-4" />
+                          <Printer className="me-2 h-4 w-4" />
                           {tr("طباعة مباشرة")}
                         </Button>
                       )}
@@ -747,7 +747,7 @@ export function BatchPrintDialog() {
                         size="sm"
                         className="border-2 border-green-600 text-green-600 hover:bg-green-50 bg-white shadow-md animate-pulse"
                       >
-                        <Eye className="ml-2 h-4 w-4" />
+                        <Eye className="me-2 h-4 w-4" />
                         {tr("معاينة قبل الطباعة")}
                       </Button>
                     </div>
@@ -857,7 +857,7 @@ export function BatchPrintDialog() {
                           className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-4 transform hover:scale-105"
                           title={tr("طباعة مباشرة على {0}", printSettings.default_printer)}
                         >
-                          <Printer className="ml-3 h-6 w-6" />
+                          <Printer className="me-3 h-6 w-6" />
                           <div className="flex flex-col items-start">
                             <span className="font-bold text-lg">{tr("طباعة مباشرة")}</span>
                             <span className="text-sm opacity-90">{tr("على الطابعة الافتراضية")}</span>
@@ -871,7 +871,7 @@ export function BatchPrintDialog() {
                         variant="outline"
                         className="border-3 border-green-600 text-green-600 hover:bg-green-50 bg-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-4 transform hover:scale-105"
                       >
-                        <Eye className="ml-3 h-6 w-6" />
+                        <Eye className="me-3 h-6 w-6" />
                         <div className="flex flex-col items-start">
                           <span className="font-bold text-lg">{tr("معاينة قبل الطباعة")}</span>
                           <span className="text-sm opacity-75">{tr("مع إمكانية الطباعة")}</span>
@@ -883,7 +883,7 @@ export function BatchPrintDialog() {
                         size="lg"
                         className="bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-4 transform hover:scale-105"
                       >
-                        <Printer className="ml-3 h-6 w-6" />
+                        <Printer className="me-3 h-6 w-6" />
                         <div className="flex flex-col items-start">
                           <span className="font-bold text-lg">{tr("طباعة عادية")}</span>
                           <span className="text-sm opacity-90">{tr("مع اختيار الطابعة")}</span>
@@ -946,7 +946,7 @@ export function BatchPrintDialog() {
 
                     <div className="flex justify-between">
                       <span className="font-bold">{tr("اسم الصنف:")}</span>
-                      <span className="text-left">{batchDetails.product_name}</span>
+                      <span className="text-end">{batchDetails.product_name}</span>
                     </div>
 
                     {batchDetails.color_code && (
@@ -959,7 +959,7 @@ export function BatchPrintDialog() {
                     {batchDetails.model_name && (
                       <div className="flex justify-between">
                         <span className="font-bold">{tr("اسم الموديل:")}</span>
-                        <span className="text-left">{batchDetails.model_name}</span>
+                        <span className="text-end">{batchDetails.model_name}</span>
                       </div>
                     )}
 
@@ -984,7 +984,7 @@ export function BatchPrintDialog() {
 
                     <div className="flex justify-between">
                       <span className="font-bold">{tr("المستودع:")}</span>
-                      <span className="text-left">{batchDetails.warehouse_name || tr("غير محدد")}</span>
+                      <span className="text-end">{batchDetails.warehouse_name || tr("غير محدد")}</span>
                     </div>
 
                     {batchDetails.floor && (
@@ -1036,7 +1036,7 @@ export function BatchPrintDialog() {
                     }}
                     className="bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                   >
-                    <Printer className="ml-2 h-4 w-4" />
+                    <Printer className="me-2 h-4 w-4" />
                     {tr("طباعة مباشرة على ")}{printSettings.default_printer}
                   </Button>
                 )}
@@ -1048,7 +1048,7 @@ export function BatchPrintDialog() {
                   }}
                   className="bg-green-600 hover:bg-green-700 text-white shadow-md"
                 >
-                  <Printer className="ml-2 h-4 w-4" />
+                  <Printer className="me-2 h-4 w-4" />
                   {tr("طباعة مع اختيار الطابعة")}
                 </Button>
 

@@ -105,7 +105,7 @@ export default function OrderApprovalPage() {
             disabled={loading}
             className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
           >
-            <RefreshCw className={cn("ml-2 h-4 w-4", loading && "animate-spin")} />
+            <RefreshCw className={cn("me-2 h-4 w-4", loading && "animate-spin")} />
             {tr("تحديث")}
           </Button>
         </div>

@@ -58,7 +58,7 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
             </div>
           </div>
           <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-            <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}
+            <RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}
           </Button>
         </div>
       </div>
@@ -98,7 +98,7 @@ function ApprovalList({ onOpen }: { onOpen: (id: number) => void }) {
             <tbody>
               {visible.map((row) => (
                 <tr key={row.id} className="cursor-pointer border-t hover:bg-emerald-50/40" onDoubleClick={() => onOpen(row.id)}>
-                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="mr-1 inline h-3.5 w-3.5 text-slate-400" aria-label={tr("جرد أعمى")} />}</td>
+                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="ms-1 inline h-3.5 w-3.5 text-slate-400" aria-label={tr("جرد أعمى")} />}</td>
                   <td className="p-3">{row.branch_name || "—"}</td>
                   <td className="p-3 font-semibold">{row.warehouse_name}</td>
                   <td className="p-3 font-mono" dir="ltr">{dateOnly(row.count_date)}</td>
@@ -273,18 +273,18 @@ function ApprovalDetail({ countId, onBack }: { countId: number; onBack: () => vo
                     {count.status === 1 && session.status === 1 && (
                       <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" disabled={busy}
                         onClick={() => setConfirm({ message: tr("إنهاء الجلسة رقم - {0} ({1}) نيابة عنه؟", session.session_no, session.user_name || "مستخدم"), run: () => void run("finish_session", { session_id: session.id }) })}>
-                        <CheckCircle2 className="ml-1 h-3.5 w-3.5" />{tr("إنهاء")}
+                        <CheckCircle2 className="me-1 h-3.5 w-3.5" />{tr("إنهاء")}
                       </Button>
                     )}
                     {count.status === 1 && session.status === 2 && (
                       <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" disabled={busy} onClick={() => void run("reopen_session", { session_id: session.id })}>
-                        <RotateCcw className="ml-1 h-3.5 w-3.5" />{tr("إعادة فتح")}
+                        <RotateCcw className="me-1 h-3.5 w-3.5" />{tr("إعادة فتح")}
                       </Button>
                     )}
                     {count.status === 1 && session.status !== 3 && (
-                      <Button size="sm" variant="outline" className="mr-1 h-7 rounded-lg text-xs text-rose-600" disabled={busy}
+                      <Button size="sm" variant="outline" className="ms-1 h-7 rounded-lg text-xs text-rose-600" disabled={busy}
                         onClick={() => setConfirm({ message: tr("إلغاء الجلسة رقم - {0} وحذف كل كمياتها من الجرد؟", session.session_no), run: () => void run("cancel_session", { session_id: session.id }) })}>
-                        <XCircle className="ml-1 h-3.5 w-3.5" />{tr("إلغاء")}
+                        <XCircle className="me-1 h-3.5 w-3.5" />{tr("إلغاء")}
                       </Button>
                     )}
                   </td>
@@ -395,7 +395,7 @@ function HeaderButton({ icon: Icon, label, onClick, disabled, primary }: { icon:
   return (
     <Button type="button" onClick={onClick} disabled={disabled}
       className={primary ? "h-9 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" : "h-9 rounded-xl border border-white/30 bg-white/10 text-white hover:bg-white/20"}>
-      <Icon className="ml-1.5 h-4 w-4" />{label}
+      <Icon className="me-1.5 h-4 w-4" />{label}
     </Button>
   )
 }

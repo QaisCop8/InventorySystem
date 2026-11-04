@@ -113,14 +113,14 @@ export function DepreciationRuns({ lookups, onChanged }: { lookups: Lookups; onC
         <Field label={tr("الدفتر")}><Input value="الدفتر المحاسبي" disabled /></Field>
         <Field label={tr("تاريخ الترحيل")} htmlFor="fa-run-date"><Input id="fa-run-date" type="date" value={postingDate} onChange={event => setPostingDate(event.target.value)} /></Field>
         <Field label={tr("ملاحظات")} htmlFor="fa-run-notes"><Input id="fa-run-notes" value={notes} onChange={event => setNotes(event.target.value)} /></Field>
-        <Button onClick={() => void calculate()} disabled={busy !== "" || !period}>{busy === "preview" ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}{tr("احتساب")}</Button>
+        <Button onClick={() => void calculate()} disabled={busy !== "" || !period}>{busy === "preview" ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Calculator className="me-2 h-4 w-4" />}{tr("احتساب")}</Button>
       </div>
       <p className="mt-2 text-[11px] text-slate-500">{tr("يشمل التشغيل كل الإهلاك المخطط غير المعتمد حتى الفترة المختارة (بما فيها الأشهر السابقة الفائتة) لأصول الفرع الحالي، ويُنشئ قيد إهلاك واحداً مجمّعاً حسب الحسابات ومراكز التكلفة.")}</p>
     </SectionCard>
 
     {preview && <SectionCard title={tr("مراجعة قبل الترحيل")} actions={<>
       <CsvButton onClick={() => exportCsv(`depreciation-${period}`, previewColumns, preview)} disabled={!preview.length} />
-      <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void post()} disabled={busy !== "" || !preview.length}>{busy === "post" ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Send className="ml-2 h-4 w-4" />}{tr("ترحيل وإنشاء القيد")}</Button>
+      <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void post()} disabled={busy !== "" || !preview.length}>{busy === "post" ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Send className="me-2 h-4 w-4" />}{tr("ترحيل وإنشاء القيد")}</Button>
     </>}>
       <div className="mb-3 grid gap-3 sm:grid-cols-3">
         <Stat label={tr("إجمالي الإهلاك")} value={money(total)} tone="teal" />
@@ -140,7 +140,7 @@ export function DepreciationRuns({ lookups, onChanged }: { lookups: Lookups; onC
         { key: "status", label: tr("الحالة"), render: row => <StatusBadge status={row.status} /> },
         { key: "journal_codes", label: tr("القيود"), render: row => (row.journal_codes ?? []).join("، ") },
         { key: "reversal_codes", label: tr("قيود العكس"), render: row => (row.reversal_codes ?? []).join("، ") },
-        { key: "actions", label: "", render: row => row.status === "POSTED" ? <Button size="sm" variant="ghost" className="text-rose-600" disabled={busy !== ""} onClick={event => { event.stopPropagation(); setReverseRun(row) }}><RotateCcw className="ml-1 h-4 w-4" />{tr("عكس")}</Button> : null },
+        { key: "actions", label: "", render: row => row.status === "POSTED" ? <Button size="sm" variant="ghost" className="text-rose-600" disabled={busy !== ""} onClick={event => { event.stopPropagation(); setReverseRun(row) }}><RotateCcw className="me-1 h-4 w-4" />{tr("عكس")}</Button> : null },
       ]} empty={tr("لم يتم ترحيل أي إهلاك بعد")} />
     </SectionCard>
 

@@ -88,7 +88,7 @@ export default function PeriodLocks() {
           <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarX2 className="h-6 w-6 text-rose-600" />{tr("إقفال الفترات")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{tr("بعد إقفال فترة لا يمكن إضافة أو تعديل أو ترحيل أو إلغاء أو حذف أي سند بتاريخ داخلها — لفرع محدد أو لكل الفروع.")}</p>
         </div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+        <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
       </div>
 
       {lockedUntil && (
@@ -105,7 +105,7 @@ export default function PeriodLocks() {
               const range = monthRange(option.offset)
               return <Button key={option.label} size="sm" variant="outline" disabled={saving}
                 onClick={async () => { if ((await confirmYesNo(tr("إقفال {0} ← {1} لكل الفروع؟", range.from, range.to)))) void lockPeriod({ branch_id: "", from_date: range.from, to_date: range.to, note: option.label }) }}>
-                <Lock className="ml-1.5 h-3.5 w-3.5" />{option.label}</Button>
+                <Lock className="me-1.5 h-3.5 w-3.5" />{option.label}</Button>
             })}
           </div>
           <div className="grid gap-3 border-t pt-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1.5fr_auto] lg:items-end">
@@ -119,7 +119,7 @@ export default function PeriodLocks() {
             <div className="space-y-1.5"><Label>{tr("من تاريخ")}</Label><Input type="date" value={form.from_date} onChange={(event) => setForm({ ...form, from_date: event.target.value })} /></div>
             <div className="space-y-1.5"><Label>{tr("إلى تاريخ")}</Label><Input type="date" value={form.to_date} onChange={(event) => setForm({ ...form, to_date: event.target.value })} /></div>
             <div className="space-y-1.5"><Label>{tr("ملاحظة")}</Label><Input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder={tr("مثلاً: إقفال بعد التدقيق")} /></div>
-            <Button disabled={saving || !form.from_date || !form.to_date} onClick={() => void lockPeriod()}><Plus className="ml-1.5 h-4 w-4" />{tr("إقفال الفترة")}</Button>
+            <Button disabled={saving || !form.from_date || !form.to_date} onClick={() => void lockPeriod()}><Plus className="me-1.5 h-4 w-4" />{tr("إقفال الفترة")}</Button>
           </div>
         </CardContent>
       </Card>
@@ -151,9 +151,9 @@ export default function PeriodLocks() {
                       <td className="p-3">
                         <div className="flex justify-end gap-1.5">
                           {row.is_active
-                            ? <Button size="sm" variant="outline" disabled={saving} onClick={() => setActive(row, false)}><LockOpen className="ml-1 h-3.5 w-3.5" />{tr("فتح")}</Button>
+                            ? <Button size="sm" variant="outline" disabled={saving} onClick={() => setActive(row, false)}><LockOpen className="me-1 h-3.5 w-3.5" />{tr("فتح")}</Button>
                             : <>
-                                <Button size="sm" variant="outline" disabled={saving} onClick={() => setActive(row, true)}><Lock className="ml-1 h-3.5 w-3.5" />{tr("إقفال")}</Button>
+                                <Button size="sm" variant="outline" disabled={saving} onClick={() => setActive(row, true)}><Lock className="me-1 h-3.5 w-3.5" />{tr("إقفال")}</Button>
                                 <Button size="sm" variant="outline" className="text-rose-600" disabled={saving} onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
                               </>}
                         </div>

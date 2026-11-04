@@ -2517,7 +2517,7 @@ function Definitions() {
                     <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة فرع جديد")}</h3>
                     <form className="space-y-4" onSubmit={handleAddBranch}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("رقم الفرع")}</Label>
                           <Input
                             readOnly
@@ -2527,7 +2527,7 @@ function Definitions() {
                             value={branchForm.branch_code}
                           />
                         </div>
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("اسم الفرع *")}</Label>
                           <Input
                             required
@@ -2541,7 +2541,7 @@ function Definitions() {
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("رمز الفرع *")}</Label>
                           <select
                             required
@@ -2558,7 +2558,7 @@ function Definitions() {
                           </select>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("رقم الهاتف")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -2569,7 +2569,7 @@ function Definitions() {
                           onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
                         />
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("العنوان")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -2580,7 +2580,7 @@ function Definitions() {
                           onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
                         />
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("مسؤول الفرع")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -2675,7 +2675,7 @@ function Definitions() {
                     <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة قسم جديد")}</h3>
                     <form className="space-y-4" onSubmit={handleAddDepartment}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("رمز القسم")}</Label>
                           <Input
                             readOnly
@@ -2685,7 +2685,7 @@ function Definitions() {
                             value={departmentForm.department_code}
                           />
                         </div>
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("اسم القسم *")}</Label>
                           <Input
                             required
@@ -2698,7 +2698,7 @@ function Definitions() {
                           />
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("تابع لفرع")}</Label>
                         <div className="invoice-currency-dropdown-wrap w-full">
                           <PrimeDropdown
@@ -2715,7 +2715,7 @@ function Definitions() {
                           />
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("مسؤول القسم")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -2802,7 +2802,7 @@ function Definitions() {
                 {showTaxClassificationForm && (
                   <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleSaveTaxClassification}>
-                      <div className="text-right grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="text-start grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف الضريبي")}</Label>
                           <Input className="erp-input text-start" placeholder={tr("مثال: ضريبة سنوية")} dir={appDir()}
@@ -2852,7 +2852,7 @@ function Definitions() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colors[index % colors.length] }} />
-                          <div className="text-right min-w-0">
+                          <div className="text-start min-w-0">
                             <h4 className="font-medium text-sm truncate">{item.name}</h4>
                             <p className="text-xs text-muted-foreground">{tr("النسبة: ")}{Number(item.tax_percent ?? 0).toFixed(2)}%</p>
                           </div>
@@ -2915,7 +2915,7 @@ function Definitions() {
                   <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
                     <h3 className="font-heading font-semibold mb-4 text-start">{editingUnitId ? tr("تعديل الوحدة") : tr("إضافة وحدة جديدة")}</h3>
                     <form className="space-y-4" onSubmit={handleAddUnit}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم الوحدة *")}</Label>
                         <Input
                           required
@@ -2926,7 +2926,7 @@ function Definitions() {
                           onChange={(e) => setUnitForm({ ...unitForm, unit_name: e.target.value })}
                         />
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("الاسم الإنجليزي للوحدة")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -3025,7 +3025,7 @@ function Definitions() {
                   <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
                     <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة مدينة جديدة")}</h3>
                     <form className="space-y-4" onSubmit={handleAddCity}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم المدينة *")}</Label>
                         <Input
                           required
@@ -3064,7 +3064,7 @@ function Definitions() {
                       dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="text-right">
+                        <div className="text-start">
                           <h4 className="font-medium">{city.name}</h4>
                         </div>
                         <div className="flex items-center gap-2">
@@ -3129,7 +3129,7 @@ function Definitions() {
                     <form className="space-y-4" onSubmit={handleAddPrice}>
                       <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
 
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("اسم الفئة *")}</Label>
                           <Input
                             required
@@ -3140,7 +3140,7 @@ function Definitions() {
                             onChange={(e) => setPriceForm({ ...priceForm, name: e.target.value })}
                           />
                         </div>
-                        <div className="text-right">
+                        <div className="text-start">
                           <Label className="erp-label text-start block">{tr("اسم الفئة en")}</Label>
                           <Input
                             className="erp-input text-start"
@@ -3152,7 +3152,7 @@ function Definitions() {
                         </div>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("الوصف")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -3256,14 +3256,14 @@ function Definitions() {
                 {showCustomerCategoryForm && (
                   <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddCustomerCategories}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف")}</Label>
                         <Input className="erp-input text-start" placeholder={tr("مثال: العملاء الجملة")} dir={appDir()}
                           value={customercategoryForm.name}
                           onChange={(e) => setCustomercategoryForm({ ...customercategoryForm, name: e.target.value })}
                         />
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-sm text-start block">{tr("نسبة الخصم (%)")}</Label>
                         <Input
                           type="number"
@@ -3309,7 +3309,7 @@ function Definitions() {
                       <div className="flex items-center justify-between">
                         <div className="flex min-w-0 items-center gap-2 text-start">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                          <div className="text-right">
+                          <div className="text-start">
                             <h4 className="font-medium text-sm">{category.name}</h4>
                             <p className="text-xs text-muted-foreground">{tr("خصم ")}{category.discount}%</p>
                           </div>
@@ -3361,14 +3361,14 @@ function Definitions() {
                 {showSupplierCategoryForm && (
                   <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddSupplierCategories}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف")}</Label>
                         <Input className="erp-input text-start" placeholder={tr("مثال: موردين أوروبيين")} dir={appDir()}
                           value={suppliercategoryForm.name}
                           onChange={(e) => setSuppliercategoryForm({ ...suppliercategoryForm, name: e.target.value })}
                         />
                       </div>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-sm text-start block">{tr("شروط الدفع")}</Label>
                         <Input className="erp-input text-start" placeholder={tr("مثال: 30 يوم")} dir={appDir()}
                           value={suppliercategoryForm.paymentterms}
@@ -3402,7 +3402,7 @@ function Definitions() {
                       <div className="flex items-center justify-between">
                         <div className="flex min-w-0 items-center gap-2 text-start">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                          <div className="text-right">
+                          <div className="text-start">
                             <h4 className="font-medium text-sm">{category.name}</h4>
                             <p className="text-xs text-muted-foreground">{category.paymentterms}</p>
                           </div>
@@ -3452,7 +3452,7 @@ function Definitions() {
                 {showProductCategoryForm && (
                   <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddProductCategories}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف")}</Label>
                         <Input className="erp-input text-start" placeholder={tr("مثال: مواد غذائية")} dir={appDir()}
                           value={productcategoryForm.name}
@@ -3487,7 +3487,7 @@ function Definitions() {
                       <div className="flex items-center justify-between">
                         <div className="flex min-w-0 items-center gap-2 text-start">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                          <div className="text-right">
+                          <div className="text-start">
                             <h4 className="font-medium text-sm">{category.name}</h4>
                           </div>
                         </div>
@@ -3534,7 +3534,7 @@ function Definitions() {
                 {showLicenseTypeForm && (
                   <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddLicenseType}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-sm text-start block">{tr("اسم نوع الرخصة")}</Label>
                         <Input
                           className="erp-input text-start"
@@ -3572,7 +3572,7 @@ function Definitions() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                          <div className="text-right">
+                          <div className="text-start">
                             <h4 className="font-medium text-sm">{type.name}</h4>
                           </div>
                         </div>
@@ -3624,7 +3624,7 @@ function Definitions() {
                       {incomeStatementItemForm.id > 0 ? tr("تعديل بند قائمة الدخل") : tr("إضافة بند جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveIncomeStatementItem}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم البند *")}</Label>
                         <Input
                           required
@@ -3733,7 +3733,7 @@ function Definitions() {
                       {balanceSheetAssetItemForm.id > 0 ? tr("تعديل بند أصول الميزانية") : tr("إضافة بند جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveBalanceSheetAssetItem}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم البند *")}</Label>
                         <Input
                           required
@@ -3842,7 +3842,7 @@ function Definitions() {
                       {balanceSheetLiabilityItemForm.id > 0 ? tr("تعديل بند خصوم الميزانية") : tr("إضافة بند جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveBalanceSheetLiabilityItem}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم البند *")}</Label>
                         <Input
                           required
@@ -3952,7 +3952,7 @@ function Definitions() {
                       {costCenterTypeForm.id > 0 ? tr("تعديل نوع مركز التكلفة") : tr("إضافة نوع جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveCostCenterType}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم النوع *")}</Label>
                         <Input
                           required
@@ -4061,7 +4061,7 @@ function Definitions() {
                       {costCenterForm.id > 0 ? tr("تعديل مركز التكلفة") : tr("إضافة مركز تكلفة جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveCostCenter}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم المركز *")}</Label>
                         <Input
                           required
@@ -4074,7 +4074,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("نوع مركز التكلفة *")}</Label>
                         <Select
                           dir={appDir()}
@@ -4094,7 +4094,7 @@ function Definitions() {
                         </Select>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("المركز الأب (اختياري)")}</Label>
                         <Select
                           dir={appDir()}
@@ -4217,7 +4217,7 @@ function Definitions() {
                       {accountClassificationTypeForm.id > 0 ? tr("تعديل نوع التصنيف") : tr("إضافة نوع جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveAccountClassificationType}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم النوع *")}</Label>
                         <Input
                           required
@@ -4326,7 +4326,7 @@ function Definitions() {
                       {accountClassificationForm.id > 0 ? tr("تعديل تصنيف الحساب") : tr("إضافة تصنيف جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveAccountClassification}>
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("اسم التصنيف *")}</Label>
                         <Input
                           required
@@ -4339,7 +4339,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-start">
                         <Label className="erp-label text-start block">{tr("نوع التصنيف *")}</Label>
                         <Select
                           dir={appDir()}

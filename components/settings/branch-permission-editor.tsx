@@ -490,8 +490,8 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setVisible(true)} disabled={!visibleItems.length}><CheckCheck className="ml-1.5 h-4 w-4" />{tr("تفعيل الظاهر")}</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setVisible(false)} disabled={!visibleItems.length}><X className="ml-1.5 h-4 w-4" />{tr("تعطيل الظاهر")}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVisible(true)} disabled={!visibleItems.length}><CheckCheck className="me-1.5 h-4 w-4" />{tr("تفعيل الظاهر")}</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVisible(false)} disabled={!visibleItems.length}><X className="me-1.5 h-4 w-4" />{tr("تعطيل الظاهر")}</Button>
           </div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
@@ -529,7 +529,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                     <div className="flex items-center gap-3">
                       <div className="hidden h-1.5 w-28 overflow-hidden rounded-full bg-muted sm:block"><div className="h-full rounded-full bg-primary/60" style={{ width: `${sectionItems.length ? (sectionGranted / sectionItems.length) * 100 : 0}%` }} /></div>
                       <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => onChange(set(sectionItems, !allOn))}>
-                        {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
+                        {allOn ? <X className="me-1.5 h-4 w-4" /> : <CheckCheck className="me-1.5 h-4 w-4" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
                       </Button>
                     </div>
                   </header>
@@ -656,7 +656,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                       <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
                         aria-label={tr("{0} كل صلاحيات {1}", allOn ? "إلغاء" : "تفعيل", section.title)}
                         onClick={() => onChange(setFilePermissionValues(sectionRows, values, "all", !allOn))}>
-                        {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
+                        {allOn ? <X className="me-1.5 h-4 w-4" /> : <CheckCheck className="me-1.5 h-4 w-4" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
                       </Button>
                     </div>
                   </header>
@@ -802,7 +802,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                       <div className="min-w-0"><h3 className="truncate text-sm font-bold">{group.module}</h3><p className="text-[11px] text-muted-foreground tabular-nums">{group.screens.length}{tr(" شاشة · ")}{groupGranted}/{groupItems.length}{tr(" مفعّلة")}</p></div>
                     </div>
                     <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 text-xs" onClick={() => onChange(set(groupItems, !allOn))}>
-                      {allOn ? <X className="ml-1 h-3.5 w-3.5" /> : <CheckCheck className="ml-1 h-3.5 w-3.5" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
+                      {allOn ? <X className="me-1 h-3.5 w-3.5" /> : <CheckCheck className="me-1 h-3.5 w-3.5" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
                     </Button>
                   </header>
                   <ul className="divide-y">
@@ -853,7 +853,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                     <div><h3 className="text-sm font-bold">{group.category}</h3><p className="text-xs text-muted-foreground">{groupGranted}{tr(" من ")}{groupItems.length}{tr(" مفعّلة")}</p></div>
                   </div>
                   <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => onChange(set(groupItems, !allOn))}>
-                    {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
+                    {allOn ? <X className="me-1.5 h-4 w-4" /> : <CheckCheck className="me-1.5 h-4 w-4" />}{allOn ? tr("إلغاء الكل") : tr("تفعيل الكل")}
                   </Button>
                 </header>
                 <ul className="divide-y">

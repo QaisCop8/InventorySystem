@@ -121,7 +121,7 @@ export function InlineProductSearch({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder={placeholder}
-          className="pr-10"
+          className="ps-10"
           onFocus={() => {
             if (searchTerm.length >= 2) setIsOpen(true)
           }}

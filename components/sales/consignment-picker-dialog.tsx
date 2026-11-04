@@ -96,7 +96,7 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
         <div className="shrink-0 bg-gradient-to-l from-violet-700 to-indigo-600 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><PackageSearch className="h-5 w-5" /></span>
-            <div className="text-right">
+            <div className="text-start">
               <DialogTitle className="text-base font-bold">{forType === 15 ? tr("اختيار ارسالية برسم البيع للمرتجع") : tr("فاتورة من ارسالية برسم البيع")}</DialogTitle>
               <DialogDescription className="text-xs text-violet-50">
                 {forType === 15 ? tr("يُرجَع المتبقي (غير المفوتر) من الارسالية إلى المستودع — مرتجع واحد لكل ارسالية") : tr("تُفوتر الأصناف من المتبقي في الارسالية — يمكن عمل أكثر من فاتورة من نفس الارسالية")}
@@ -157,9 +157,9 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">{preview ? <>{tr("الارسالية {0} — المندوب: {1}", preview.header.vch_code, preview.header.salesman_name || "—")}{forType === 12 && <span className="mr-3">{tr("تم تحديد ")}{selectedLineIds.length}{tr(" من ")}{preview.lines.length}{tr(" صنف")}</span>}</> : ""}</div>
+          <div className="text-xs text-slate-500">{preview ? <>{tr("الارسالية {0} — المندوب: {1}", preview.header.vch_code, preview.header.salesman_name || "—")}{forType === 12 && <span className="ms-3">{tr("تم تحديد ")}{selectedLineIds.length}{tr(" من ")}{preview.lines.length}{tr(" صنف")}</span>}</> : ""}</div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />{tr("إلغاء")}</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}><X className="me-1 h-4 w-4" />{tr("إلغاء")}</Button>
             <Button disabled={!preview || (forType === 12 && selectedLineIds.length === 0)} onClick={confirmSelection} className="bg-violet-600 hover:bg-violet-700">{tr("اعتماد الارسالية")}</Button>
           </div>
         </div>

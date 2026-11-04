@@ -70,7 +70,7 @@ export function SmsSendDialog({ open, onOpenChange, docKey, documentId }: { open
         <DialogContent dir={appDir()} className="z-[3001] w-[min(560px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden rounded-2xl p-0">
           <div className="flex items-center gap-3 bg-gradient-to-l from-sky-600 to-cyan-600 px-5 py-3 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><MessageSquareText className="h-5 w-5" /></span>
-            <div className="text-right">
+            <div className="text-start">
               <DialogTitle className="text-base font-bold">{tr("رسالة SMS للعميل")}</DialogTitle>
               <DialogDescription className="text-xs text-sky-50">{preview ? `${preview.party_name || "—"} · ${preview.code}` : tr("جاري التحميل…")}</DialogDescription>
             </div>
@@ -97,7 +97,7 @@ export function SmsSendDialog({ open, onOpenChange, docKey, documentId }: { open
           <div className="flex justify-end gap-2 border-t bg-slate-50 px-5 py-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إغلاق")}</Button>
             <Button onClick={() => void send()} disabled={sending || loading || !mobile.trim() || !message.trim() || preview?.enabled === false} className="bg-sky-600 hover:bg-sky-700">
-              {sending ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Send className="ml-2 h-4 w-4" />}{tr("إرسال")}
+              {sending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Send className="me-2 h-4 w-4" />}{tr("إرسال")}
             </Button>
           </div>
         </DialogContent>

@@ -560,7 +560,7 @@ export default function Suppliers() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
-          <Button variant="ghost" size="sm" className="mr-auto" onClick={() => setError(null)}>
+          <Button variant="ghost" size="sm" className="ms-auto" onClick={() => setError(null)}>
             <X className="h-4 w-4" />
           </Button>
         </Alert>
@@ -660,7 +660,7 @@ export default function Suppliers() {
                 id="search-name"
                 value={searchFilters.name}
                 onChange={(e) => setSearchFilters((prev) => ({ ...prev, name: e.target.value }))}
-                className="text-right"
+                className="text-start"
                 placeholder={tr("ابحث بالاسم...")}
               />
             </div>
@@ -670,7 +670,7 @@ export default function Suppliers() {
                 value={searchFilters.city}
                 onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, city: value === "all" ? "" : value }))}
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر المدينة")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -696,7 +696,7 @@ export default function Suppliers() {
                   setSearchFilters((prev) => ({ ...prev, status: value === "all" ? "" : value }))
                 }
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر الحالة")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -714,7 +714,7 @@ export default function Suppliers() {
                   setSearchFilters((prev) => ({ ...prev, salesman: value === "all" ? "" : value }))
                 }
               >
-                <SelectTrigger className="text-right">
+                <SelectTrigger className="text-start">
                   <SelectValue placeholder={tr("اختر المندوب")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -860,7 +860,7 @@ export default function Suppliers() {
                               id="supplier_code"
                               value={formData.supplier_code}
                               onChange={(e) => updateField("supplier_code", e.target.value)}
-                              className="text-right"
+                              className="text-start"
                               placeholder={tr("رقم المورد")}
                               readOnly
                             />
@@ -926,7 +926,7 @@ export default function Suppliers() {
                             type="date"
                             value={formData.registration_date}
                             onChange={(e) => updateField("registration_date", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                           />
                         </div>
                       </div>
@@ -941,7 +941,7 @@ export default function Suppliers() {
                             id="supplier_name"
                             value={formData.name}
                             onChange={(e) => updateField("name", e.target.value)}
-                            className={`text-right ${validationErrors.supplier_name ? "border-red-500" : ""}`}
+                            className={`text-start ${validationErrors.supplier_name ? "border-red-500" : ""}`}
                             placeholder={tr("أدخل اسم المورد")}
                             required
                           />
@@ -971,7 +971,7 @@ export default function Suppliers() {
                             id="mobile1"
                             value={formData.mobile1}
                             onChange={(e) => updateField("mobile1", e.target.value)}
-                            className={`text-right ${validationErrors.mobile1 ? "border-red-500" : ""}`}
+                            className={`text-start ${validationErrors.mobile1 ? "border-red-500" : ""}`}
                             placeholder={tr("رقم الجوال الأول")}
                             required
                           />
@@ -987,7 +987,7 @@ export default function Suppliers() {
                             id="mobile2"
                             value={formData.mobile2}
                             onChange={(e) => updateField("mobile2", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("رقم الجوال الثاني")}
                           />
                         </div>
@@ -999,7 +999,7 @@ export default function Suppliers() {
                             id="whatsapp1"
                             value={formData.whatsapp1}
                             onChange={(e) => updateField("whatsapp1", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("رقم واتساب الأول")}
                           />
                         </div>
@@ -1011,7 +1011,7 @@ export default function Suppliers() {
                             id="whatsapp2"
                             value={formData.whatsapp2}
                             onChange={(e) => updateField("whatsapp2", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("رقم واتساب الثاني")}
                           />
                         </div>
@@ -1027,7 +1027,7 @@ export default function Suppliers() {
                             type="email"
                             value={formData.email}
                             onChange={(e) => updateField("email", e.target.value)}
-                            className={`text-right ${validationErrors.email ? "border-red-500" : ""}`}
+                            className={`text-start ${validationErrors.email ? "border-red-500" : ""}`}
                             placeholder={tr("البريد الإلكتروني")}
                           />
                           {validationErrors.email && (
@@ -1056,7 +1056,7 @@ export default function Suppliers() {
                             id="city"
                             value={formData.city}
                             onChange={(e) => updateField("city", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("المدينة")}
                           />
                         </div>
@@ -1068,7 +1068,7 @@ export default function Suppliers() {
                             id="address"
                             value={formData.address}
                             onChange={(e) => updateField("address", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("العنوان التفصيلي")}
                           />
                         </div>
@@ -1094,7 +1094,7 @@ export default function Suppliers() {
                             id="business_nature"
                             value={formData.business_nature}
                             onChange={(e) => updateField("business_nature", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("طبيعة العمل")}
                           />
                         </div>
@@ -1145,7 +1145,7 @@ export default function Suppliers() {
                             id="web_username"
                             value={formData.web_username}
                             onChange={(e) => updateField("web_username", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("اسم المستخدم")}
                           />
                         </div>
@@ -1158,7 +1158,7 @@ export default function Suppliers() {
                             type="password"
                             value={formData.web_password}
                             onChange={(e) => updateField("web_password", e.target.value)}
-                            className="text-right"
+                            className="text-start"
                             placeholder={tr("كلمة المرور")}
                           />
                         </div>
@@ -1180,7 +1180,7 @@ export default function Suppliers() {
                           id="transaction_notes"
                           value={formData.transaction_notes}
                           onChange={(e) => updateField("transaction_notes", e.target.value)}
-                          className="text-right"
+                          className="text-start"
                           placeholder={tr("ملاحظات خاصة بالحركة المالية")}
                           rows={3}
                         />
@@ -1193,7 +1193,7 @@ export default function Suppliers() {
                           id="general_notes"
                           value={formData.general_notes}
                           onChange={(e) => updateField("general_notes", e.target.value)}
-                          className="text-right"
+                          className="text-start"
                           placeholder={tr("ملاحظات عامة")}
                           rows={3}
                         />

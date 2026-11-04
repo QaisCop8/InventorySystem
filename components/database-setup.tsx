@@ -42,7 +42,7 @@ export function DatabaseSetup() {
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={setupDatabase} disabled={status === "loading"} className="w-full">
-          {status === "loading" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {status === "loading" && <Loader2 className="ms-2 h-4 w-4 animate-spin" />}
           {tr("إعداد قاعدة البيانات")}
         </Button>
 

@@ -281,8 +281,8 @@ export default function RestaurantLocations() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="ml-1 h-4 w-4" />{tr("تحديث")}</Button>
-          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={addLocation}><Plus className="ml-1 h-4 w-4" />{tr("إضافة موقع")}</Button>}
+          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="me-1 h-4 w-4" />{tr("تحديث")}</Button>
+          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={addLocation}><Plus className="me-1 h-4 w-4" />{tr("إضافة موقع")}</Button>}
         </div>
       </div>
       {licenseRequest.element}
@@ -291,7 +291,7 @@ export default function RestaurantLocations() {
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pr-9" placeholder={tr("بحث بالاسم أو الرقم")} value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="ps-9" placeholder={tr("بحث بالاسم أو الرقم")} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={branchFilter} onValueChange={setBranchFilter}>
           <SelectTrigger className="sm:w-56"><SelectValue placeholder={tr("الفرع")} /></SelectTrigger>
@@ -326,8 +326,8 @@ export default function RestaurantLocations() {
                 {!configured(row) && <div className="col-span-2 text-amber-600">{tr("إعدادات البيع غير مكتملة — لا يمكن البيع على هذا الموقع")}</div>}
               </div>
               <div className="mt-auto flex justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => openForm(toForm(row))}><Edit className="ml-1 h-4 w-4" />{canUpdate ? tr("تعديل") : tr("عرض")}</Button>
-                {canDelete && <Button size="sm" variant="outline" className="text-red-600" onClick={() => void remove(row)}><Trash2 className="ml-1 h-4 w-4" />{tr("حذف")}</Button>}
+                <Button size="sm" variant="outline" onClick={() => openForm(toForm(row))}><Edit className="me-1 h-4 w-4" />{canUpdate ? tr("تعديل") : tr("عرض")}</Button>
+                {canDelete && <Button size="sm" variant="outline" className="text-red-600" onClick={() => void remove(row)}><Trash2 className="me-1 h-4 w-4" />{tr("حذف")}</Button>}
               </div>
             </div>
           ))}
@@ -344,7 +344,7 @@ export default function RestaurantLocations() {
                 <DialogTitle className="truncate text-lg font-bold text-white">{form.id ? tr("تعديل موقع — {0}", form.name || "") : tr("إضافة موقع جديد")}</DialogTitle>
                 <DialogDescription className="text-xs text-emerald-50/90">{tr("الصالة أو الطابق وإعدادات البيع الخاصة به · Enter للانتقال للحقل التالي")}</DialogDescription>
               </div>
-              <div className="ml-8 flex shrink-0 items-center gap-2">
+              <div className="me-8 flex shrink-0 items-center gap-2">
                 <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{tr("الرقم: ")}{form.code || tr("تلقائي")}</span>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${form.active ? "bg-white text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{form.active ? tr("نشط") : tr("موقوف")}</span>
               </div>
@@ -434,7 +434,7 @@ export default function RestaurantLocations() {
             <span className="hidden text-xs text-muted-foreground sm:inline"><kbd className="rounded border px-1">F3</kbd>{tr(" حفظ · ")}<kbd className="rounded border px-1">Enter</kbd>{tr(" التالي ·")}<kbd className="rounded border px-1">Esc</kbd>{tr(" إغلاق")}</span>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => void closeForm()}>{tr("إغلاق")}</Button>
-              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}{tr("حفظ (F3)")}</Button>}
+              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="me-1 h-4 w-4 animate-spin" /> : <Save className="me-1 h-4 w-4" />}{tr("حفظ (F3)")}</Button>}
             </div>
           </div>
         </DialogContent>

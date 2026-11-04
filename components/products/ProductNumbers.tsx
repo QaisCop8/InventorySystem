@@ -134,7 +134,7 @@ export default function ProductNumbers({
                             className="h-10 rounded-xl bg-white text-start"
                         />
                         <Button type="button" onClick={() => void add()} disabled={!draft.trim() || checking} className="h-10 shrink-0 rounded-xl bg-emerald-600 px-4 hover:bg-emerald-700">
-                            {checking ? <Loader2 className="ml-1.5 h-4 w-4 animate-spin" /> : <Plus className="ml-1.5 h-4 w-4" />}{tr("إضافة")}
+                            {checking ? <Loader2 className="me-1.5 h-4 w-4 animate-spin" /> : <Plus className="me-1.5 h-4 w-4" />}{tr("إضافة")}
                         </Button>
                     </div>
                     {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">{error}</p>}

@@ -77,7 +77,7 @@ export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { op
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto" data-enter-tab-root="true">
         {!line ? <>
           <div className="flex gap-2">
-            <div className="relative flex-1"><Search className="absolute start-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="pr-9" data-enter-action value={search} placeholder={tr("رقم الفاتورة أو الصنف أو المورد…")} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void load() }} /></div>
+            <div className="relative flex-1"><Search className="absolute start-3 top-2.5 h-4 w-4 text-slate-400" /><Input className="ps-9" data-enter-action value={search} placeholder={tr("رقم الفاتورة أو الصنف أو المورد…")} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void load() }} /></div>
             <Button variant="outline" onClick={() => void load()} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : tr("بحث")}</Button>
           </div>
           {!supported ? <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{tr("هيكل فواتير المشتريات في هذه الشركة لا يدعم الرسملة المباشرة — أدخل الأصل يدوياً بمصدر \"فاتورة مشتريات\".")}</p> :
@@ -117,7 +117,7 @@ export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { op
       <DialogFooter className="gap-2">
         <Button variant="outline" onClick={onClose} disabled={saving}>{tr("إغلاق")}</Button>
         {line && <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void submit()} disabled={saving || !form.category_id || !form.name}>
-          {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("إنشاء ")}{Math.max(1, Math.round(n(form.count)))}{tr(" أصل")}
+          {saving && <Loader2 className="me-2 h-4 w-4 animate-spin" />}{tr("إنشاء ")}{Math.max(1, Math.round(n(form.count)))}{tr(" أصل")}
         </Button>}
       </DialogFooter>
     </DialogContent>

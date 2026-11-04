@@ -101,7 +101,7 @@ const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { max
 const day = (value: unknown) => (value ? new Date(String(value)).toLocaleDateString("en-GB") : "—")
 const monthStart = () => `${new Date().toISOString().slice(0, 7)}-01`
 const today = () => new Date().toISOString().slice(0, 10)
-const alignClass = (align?: Align) => (align === "end" ? "text-left" : align === "center" ? "text-center" : "text-right")
+const alignClass = (align?: Align) => (align === "end" ? "text-end" : align === "center" ? "text-center" : "text-start")
 
 function cell(column: Column, row: Record<string, any>) {
   const value = row[column.key]
@@ -168,7 +168,7 @@ export function OrdersReport({ view }: { view: View }) {
         category={tr("تقارير الطلبيات")}
         title={config.title}
         description={config.description}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
@@ -184,7 +184,7 @@ export function OrdersReport({ view }: { view: View }) {
           {view !== "backlog" && <ReportMultiChoice label={tr("حالة الطلبية")} options={STATUS_OPTIONS} selected={filters.statuses} onChange={(statuses) => setFilters({ ...filters, statuses })} placeholder={tr("كل الحالات")} />}
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="me-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 

@@ -357,16 +357,16 @@ export function ProductReports() {
                 <table className="erp-table">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("التاريخ")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("رقم السند")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية الداخلة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية الخارجة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الرصيد")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("السعر")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الإجمالي")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الملاحظات")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("التاريخ")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("رقم السند")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية الداخلة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية الخارجة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الرصيد")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("السعر")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الإجمالي")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الملاحظات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -419,18 +419,18 @@ export function ProductReports() {
                 <table className="erp-table">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("رقم الصنف")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الباركود")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("اسم الصنف")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("المجموعة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية المتاحة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية المحجوزة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الرصيد الفعلي")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الحد الأدنى")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الحد الأقصى")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("متوسط التكلفة")}</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">{tr("القيمة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("رقم الصنف")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الباركود")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("اسم الصنف")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("المجموعة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية المتاحة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية المحجوزة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الرصيد الفعلي")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الحد الأدنى")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الحد الأقصى")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("متوسط التكلفة")}</th>
+                      <th className="text-start p-3 font-semibold text-gray-700">{tr("القيمة")}</th>
                       <th className="text-center p-3 font-semibold text-gray-700">{tr("الحالة")}</th>
                     </tr>
                   </thead>

@@ -65,7 +65,7 @@ function Dropdown<T extends string>({ id, value, options, onChange, disabled }: 
 }
 
 function NumberInput({ id, value, onChange, min, max, step = 1 }: { id: string; value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number }) {
-  return <Input id={id} type="number" dir="ltr" className="text-right" min={min} max={max} step={step} value={value} onChange={event => onChange(event.target.value === "" ? 0 : Number(event.target.value))} />
+  return <Input id={id} type="number" dir="ltr" className="text-start" min={min} max={max} step={step} value={value} onChange={event => onChange(event.target.value === "" ? 0 : Number(event.target.value))} />
 }
 
 export default function PrintSettings() {
@@ -248,9 +248,9 @@ export default function PrintSettings() {
         </div>
       </div>
       {!reportMode && <div className="flex flex-wrap gap-2">
-        {isOverride && <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => void resetToGeneral()} disabled={saving}><RotateCcw className="ml-2 h-4 w-4" />{tr("استخدام الإعدادات العامة")}</Button>}
-        <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => void testPrint()} disabled={testing}>{testing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Printer className="ml-2 h-4 w-4" />}{tr("طباعة تجريبية")}</Button>
-        <Button className="bg-teal-500 font-bold text-white hover:bg-teal-400" onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button>
+        {isOverride && <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => void resetToGeneral()} disabled={saving}><RotateCcw className="me-2 h-4 w-4" />{tr("استخدام الإعدادات العامة")}</Button>}
+        <Button variant="outline" className="border-white/25 bg-white/10 text-white hover:bg-white/20" onClick={() => void testPrint()} disabled={testing}>{testing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Printer className="me-2 h-4 w-4" />}{tr("طباعة تجريبية")}</Button>
+        <Button className="bg-teal-500 font-bold text-white hover:bg-teal-400" onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}{tr("حفظ")}</Button>
       </div>}
     </header>
 
@@ -311,7 +311,7 @@ export default function PrintSettings() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={tr("طريقة الطباعة")} htmlFor="print-method" className="sm:col-span-2"><Dropdown id="print-method" value={form.print_method} options={METHOD_OPTIONS} onChange={value => update({ print_method: value })} /></Field>
-                <Field label={tr("اسم الطابعة")} htmlFor="print-printer" hint={tr("اتركه فارغاً لاستخدام الطابعة الافتراضية في خدمة الطباعة أو في ويندوز")}><Input id="print-printer" dir="ltr" className="text-right" value={form.printer_name} onChange={event => update({ printer_name: event.target.value })} placeholder={tr("الطابعة الافتراضية")} /></Field>
+                <Field label={tr("اسم الطابعة")} htmlFor="print-printer" hint={tr("اتركه فارغاً لاستخدام الطابعة الافتراضية في خدمة الطباعة أو في ويندوز")}><Input id="print-printer" dir="ltr" className="text-start" value={form.printer_name} onChange={event => update({ printer_name: event.target.value })} placeholder={tr("الطابعة الافتراضية")} /></Field>
                 <Field label={tr("عدد النسخ")} htmlFor="print-copies"><NumberInput id="print-copies" value={form.copies} min={1} max={10} onChange={value => update({ copies: value })} /></Field>
                 <Field label={tr("عناوين النسخ")} htmlFor="print-copy-labels" hint={tr("مفصولة بفاصلة، مثال: الأصل, نسخة العميل")} className="sm:col-span-2"><Input id="print-copy-labels" value={form.copy_labels} onChange={event => update({ copy_labels: event.target.value })} placeholder={tr("الأصل, نسخة")} /></Field>
               </div>

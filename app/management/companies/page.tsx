@@ -573,7 +573,7 @@ export default function ManagementCompaniesPage() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent dir={appDir()} className="cp-dialog max-w-md">
           <style dangerouslySetInnerHTML={{ __html: css }} />
-          <DialogHeader className="text-right">
+          <DialogHeader className="text-start">
             <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-emerald-700" />{tr("اضافة شركة جديدة")}</DialogTitle>
             <DialogDescription className="text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً.") : tr("أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")) : tr("تُرسل للموافقة من إدارة النظام قبل تفعيلها.")}</DialogDescription>
           </DialogHeader>
@@ -629,7 +629,7 @@ export default function ManagementCompaniesPage() {
       <Dialog open={showTrialDialog} onOpenChange={setShowTrialDialog}>
         <DialogContent dir={appDir()} className="cp-dialog max-w-md">
           <style dangerouslySetInnerHTML={{ __html: css }} />
-          <DialogHeader className="text-right">
+          <DialogHeader className="text-start">
             <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Gift className="h-5 w-5 text-violet-700" />{tr("شركة تجريبية")}</DialogTitle>
             <DialogDescription className="text-stone-500">{tr("تجربة كاملة للنظام بلا انتظار موافقة.")}</DialogDescription>
           </DialogHeader>

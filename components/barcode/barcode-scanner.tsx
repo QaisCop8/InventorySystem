@@ -345,7 +345,7 @@ export function BarcodeScanner() {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, successMessage: null }))}
           >
             <X className="h-4 w-4" />
@@ -361,7 +361,7 @@ export function BarcodeScanner() {
           <Button
             variant="ghost"
             size="sm"
-            className="mr-auto"
+            className="ms-auto"
             onClick={() => setState((prev) => ({ ...prev, error: null }))}
           >
             <X className="h-4 w-4" />
@@ -438,7 +438,7 @@ export function BarcodeScanner() {
                 {state.isScanning && (
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 border-2 border-primary/30 rounded-lg">
-                      <div className="absolute top-1/2 end-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-32 border-2 border-primary rounded-lg">
+                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-32 border-2 border-primary rounded-lg">
                         <div className="absolute top-0 end-0 w-8 h-8 border-t-4 border-e-4 border-primary rounded-se-lg"></div>
                         <div className="absolute top-0 start-0 w-8 h-8 border-t-4 border-s-4 border-primary rounded-ss-lg"></div>
                         <div className="absolute bottom-0 end-0 w-8 h-8 border-b-4 border-e-4 border-primary rounded-ee-lg"></div>
@@ -594,7 +594,7 @@ export function BarcodeScanner() {
                     <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                       <div>
                         <span className="font-mono text-sm">{scan.code}</span>
-                        <Badge variant="outline" className="mr-2 text-xs">
+                        <Badge variant="outline" className="ms-2 text-xs">
                           {scan.format}
                         </Badge>
                       </div>

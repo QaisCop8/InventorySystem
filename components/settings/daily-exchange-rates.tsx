@@ -279,7 +279,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
           <span className="hidden text-xs text-slate-500 sm:block">{tr("Enter للانتقال بين الحقول · F3 للحفظ")}</span>
           <div className="flex w-full gap-2 sm:w-auto">
             <Button id="daily-rates-save" onClick={handleSave} disabled={saving || loading || rows.length === 0} className="h-11 flex-1 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700 sm:h-10 sm:w-32 sm:flex-none">
-              {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
+              {saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
               {tr("حفظ")}
             </Button>
             <Button variant="outline" onClick={handleClose} disabled={saving} className="h-11 flex-1 rounded-xl sm:h-10 sm:w-28 sm:flex-none">

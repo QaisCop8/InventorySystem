@@ -136,7 +136,7 @@ export function InternalStepper({ settings, counts, permissions, current, compac
           <span className={`block whitespace-nowrap font-semibold ${compact ? "text-[11px]" : "text-xs"}`}>{step.short}</span>
           {!compact && <span className={`block whitespace-nowrap text-[10px] ${active ? "text-emerald-50" : "text-muted-foreground"}`}>{SIDE_LABELS[step.side]}</span>}
         </span>
-        {!compact && count != null && step.status > 1 && <span className={`mr-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${active ? "bg-white text-emerald-700" : count ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500"}`}>{count}</span>}
+        {!compact && count != null && step.status > 1 && <span className={`ms-auto rounded-full px-2 py-0.5 text-[11px] font-bold ${active ? "bg-white text-emerald-700" : count ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-500"}`}>{count}</span>}
         {!compact && !allowed && <Lock className="h-3 w-3 shrink-0 opacity-60" />}
       </>
       return <div key={step.key} className="flex items-center gap-1">
@@ -179,7 +179,7 @@ export function InternalLockedState({ title, message }: { title: string; message
 }
 
 export function RefreshButton({ loading, onClick }: { loading?: boolean; onClick: () => void }) {
-  return <Button variant="outline" onClick={onClick} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+  return <Button variant="outline" onClick={onClick} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
 }
 
 // بطاقة الطلب الموحدة في كل المراحل.
@@ -198,9 +198,9 @@ export function InternalRequestCard({ request, branchName, warehouseName, action
         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${late ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}><Clock3 className="h-3 w-3" />{ageLabel(since)}</span>
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900">
-        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">{tr("من (مقدم الطلب)")}</div><div className={`truncate font-semibold ${!incoming && highlightBranchId != null ? "text-emerald-700" : ""}`}>{branchName(request.branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="ml-1 inline h-3 w-3" />{warehouseName(request.to_store_id)}</div></div>
+        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">{tr("من (مقدم الطلب)")}</div><div className={`truncate font-semibold ${!incoming && highlightBranchId != null ? "text-emerald-700" : ""}`}>{branchName(request.branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="me-1 inline h-3 w-3" />{warehouseName(request.to_store_id)}</div></div>
         <ArrowLeft className="h-4 w-4 shrink-0 text-emerald-600" />
-        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">{tr("إلى (المطلوب منه)")}</div><div className={`truncate font-semibold ${incoming ? "text-emerald-700" : ""}`}>{branchName(request.manufacturing_branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="ml-1 inline h-3 w-3" />{warehouseName(request.destination_warehouse_id)}</div></div>
+        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">{tr("إلى (المطلوب منه)")}</div><div className={`truncate font-semibold ${incoming ? "text-emerald-700" : ""}`}>{branchName(request.manufacturing_branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="me-1 inline h-3 w-3" />{warehouseName(request.destination_warehouse_id)}</div></div>
       </div>
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="inline-flex items-center gap-1 text-muted-foreground"><User className="h-3.5 w-3.5" />{request.requester_name || "-"}</span>

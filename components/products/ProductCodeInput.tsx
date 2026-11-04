@@ -111,7 +111,7 @@ const ProductCodeInput = ({
                     }
                     }
                     placeholder=""
-                    className="text-right w-full"
+                    className="text-start w-full"
                     maxLength={10}
                     onBlur={handleProductCodeBlur}
                 />

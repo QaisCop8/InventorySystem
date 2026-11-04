@@ -192,7 +192,7 @@ export default function BulkItems() {
           <div className="grid gap-1.5"><Label>{tr("إلى رقم صنف")}</Label><Input value={filters.codeTo || ""} onChange={(event) => setFilter("codeTo", event.target.value)} onBlur={(event) => setFilter("codeTo", Util.adjustCode(event.target.value.trim(), 10))} dir="ltr" /></div>
           <div className="flex items-end gap-2 sm:col-span-2">
             <Button onClick={() => void load()} disabled={loading} data-report-apply>
-              {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض الأصناف")}
+              {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Search className="me-2 h-4 w-4" />}{tr("عرض الأصناف")}
             </Button>
             <Button variant="outline" onClick={() => { setFilters({ itemKind: "", status: "" }); setRows([]); setSelected(new Set()); setSearched(false) }}>{tr("مسح الفلاتر")}</Button>
           </div>
@@ -226,11 +226,11 @@ export default function BulkItems() {
                     <tr key={row.id} className={`border-t ${selected.has(row.id) ? "" : "opacity-50"}`}>
                       <td className="p-2 text-center"><Checkbox checked={selected.has(row.id)} onCheckedChange={(value) => setSelected((current) => { const set = new Set(current); if (value === true) set.add(row.id); else set.delete(row.id); return set })} aria-label={tr("تحديد {0}", row.product_name)} /></td>
                       <td className="p-2 font-mono text-xs">{row.product_code}</td>
-                      <td className="p-2">{row.product_name}{Number(row.type) === 2 && <span className="mr-1 rounded bg-sky-100 px-1 text-[10px] text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{tr("خدمة")}</span>}</td>
+                      <td className="p-2">{row.product_name}{Number(row.type) === 2 && <span className="ms-1 rounded bg-sky-100 px-1 text-[10px] text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{tr("خدمة")}</span>}</td>
                       <td className="p-2 text-xs text-muted-foreground">{row.group_name || "—"}</td>
                       <td className="p-2 text-xs text-muted-foreground">{typeLabel(row.product_type)}</td>
                       <td className="p-2 text-center text-xs">{ITEM_STATUS_OPTIONS.find((option) => option.value === Number(row.status))?.label || "—"}</td>
-                      <td className="p-2 text-end tabular-nums" dir="ltr">{money(row.sale_price)}{row.price_unit_name && <span className="ml-1 text-[11px] text-muted-foreground">{row.price_unit_name}</span>}</td>
+                      <td className="p-2 text-end tabular-nums" dir="ltr">{money(row.sale_price)}{row.price_unit_name && <span className="me-1 text-[11px] text-muted-foreground">{row.price_unit_name}</span>}</td>
                       {priceActive && <td className="p-2 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400" dir="ltr">{money(next)}</td>}
                     </tr>
                   )
@@ -287,7 +287,7 @@ export default function BulkItems() {
           </section>
 
           <Button className="h-11 w-full" onClick={() => void apply()} disabled={applying || !selected.size}>
-            {applying ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Wand2 className="ml-2 h-4 w-4" />}{tr("تطبيق على ")}{selected.size}{tr(" صنف")}
+            {applying ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Wand2 className="me-2 h-4 w-4" />}{tr("تطبيق على ")}{selected.size}{tr(" صنف")}
           </Button>
         </aside>
       </div>
