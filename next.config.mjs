@@ -34,6 +34,9 @@ const nextConfig = {
     : {}),
 
   experimental: {
+    // middleware.ts (بوابة الجلسة) يجعل Next ينسخ جسم كل طلب API، والنسخة مقطوعة عند 10MB افتراضياً — فحفظ صنف
+    // بصورة من كاميرا الجوال وسندات بمرفقات كان يصل للمسار مقطوعاً («Unexpected end of JSON input»).
+    middlewareClientMaxBodySize: '100mb',
     // These libraries expose large barrel files. Rewriting named imports to
     // per-module imports reduces compiler work and client bundle parsing.
     optimizePackageImports: [
