@@ -436,7 +436,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 8
+const PERMISSION_SYNC_VERSION = 9
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -996,6 +996,39 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       }
     }
     await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [taskOrdersMigration])
+  }
+
+  // برامج المساعدات (2026-11-03): صلاحيات جديدة لم تُمنح لأحد في الشركات القائمة فلم تظهر الشاشة. مرة واحدة لكل شركة:
+  // لأدوار المدير/مدير النظام، ولمن يملك تعريف نقاط البيع أو الحملات (الصرف يتم من الكاشير) — مستخدمين وأدواراً وبالفروع.
+  const aidProgramMigration = "aid-program-access-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [aidProgramMigration])).length) {
+    const targetNames = transactionActionsFor("aid_program").map((action) => transactionPermissionName("aid_program", action))
+    const sourceNames = [POS_CASHIER_PERMISSIONS.createPoint, POS_CASHIER_PERMISSIONS.editPoint, POS_CASHIER_PERMISSIONS.createCampaign, POS_CASHIER_PERMISSIONS.editCampaign]
+    for (const [table, keys] of [
+      ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+      ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+    ] as const) {
+      const columns = keys.join(",")
+      const selected = keys.map((key) => `granted.${key}`).join(",")
+      await client.query(
+        `INSERT INTO ${table} (${columns}, access_id, is_granted)
+         SELECT DISTINCT ${selected}, target.id, TRUE
+         FROM access_list target
+         JOIN access_list source ON LOWER(BTRIM(source.name)) = ANY(SELECT LOWER(BTRIM(n)) FROM unnest($2::text[]) n)
+         JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+         WHERE target.name = ANY($1::text[])
+         ON CONFLICT (${columns}, access_id) DO NOTHING`,
+        [targetNames, sourceNames],
+      )
+    }
+    await client.query(
+      `INSERT INTO role_permissions (role_id, access_id, is_granted)
+       SELECT r.id, a.id, TRUE FROM job_roles r CROSS JOIN access_list a
+       WHERE LOWER(BTRIM(r.name)) IN ('مدير', 'admin', 'administrator', 'مدير النظام', 'مسؤول النظام') AND a.name = ANY($1::text[])
+       ON CONFLICT (role_id, access_id) DO NOTHING`,
+      [targetNames],
+    )
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [aidProgramMigration])
   }
 
   // Name-based fallback for tenant databases whose locally-created access ids
