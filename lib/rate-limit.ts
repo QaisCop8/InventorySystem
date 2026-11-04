@@ -19,7 +19,7 @@ const RULES: Rule[] = [
 
 const hits = new Map<string, { count: number; resetAt: number }>()
 
-function clientIp(request: NextRequest) {
+export function clientIp(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
   return forwarded || request.headers.get("x-real-ip") || "unknown"
 }

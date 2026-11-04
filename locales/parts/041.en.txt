@@ -1,0 +1,21 @@
+Site activity
+Couldn't load site activity
+No activity
+Last active {0} min ago
+Last active {0} h ago
+Last active {0} days ago
+Active users today
+Visits today
+Active = used the system in the last {0} minutes and hasn't logged out. Refreshes every minute.
+Name, email or company
+No matching users
+Last activity
+Last login
+Visits / active days
+Visits
+Active days
+Visits per day
+Visits (logins)
+Active users
+Visitors
+Active

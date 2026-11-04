@@ -152,6 +152,29 @@ export function ensureManagementTables(): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS idx_management_login_audit_company_date ON management_login_audit (company_id, logged_at DESC)`
       await sql`CREATE INDEX IF NOT EXISTS idx_management_login_audit_email_date ON management_login_audit (LOWER(user_email), logged_at DESC)`
 
+      // حضور مستخدمي الشركات (lib/user-presence.ts): آخر نشاط لكل مستخدم + سجل يومي لعدد المستخدمين النشطين
+      await sql`
+        CREATE TABLE IF NOT EXISTS management_user_presence (
+          db_name VARCHAR(100) NOT NULL,
+          tenant_user_id INTEGER NOT NULL,
+          last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_ip VARCHAR(64),
+          logged_out_at TIMESTAMPTZ,
+          PRIMARY KEY (db_name, tenant_user_id)
+        )
+      `
+      await sql`
+        CREATE TABLE IF NOT EXISTS management_user_activity_daily (
+          activity_date DATE NOT NULL,
+          db_name VARCHAR(100) NOT NULL,
+          tenant_user_id INTEGER NOT NULL,
+          first_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_seen_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          pings INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (activity_date, db_name, tenant_user_id)
+        )
+      `
+
       // ارتباط موظف شركة بحساب إدارة عام (اختياري — يُضبَط فقط عبر مسار إنشاء المستخدم الجديد
       // ثنائي القاعدة، انظر lib/permissions.ts وخطة الصلاحيات) — نشِط/متوقف مقيَّد بهذه العلاقة
       // (شركة بعينها) لا بالحساب العام نفسه (users.is_active محجوز لمسؤول المنصة فقط).

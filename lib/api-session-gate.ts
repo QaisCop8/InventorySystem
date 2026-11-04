@@ -14,7 +14,7 @@ const CACHE_MAX = 5_000
 const validated = new Map<string, { userId: string; until: number }>()
 
 export type ApiSessionResult =
-  | { ok: true; userId: string }
+  | { ok: true; userId: string; dbName: string }
   | { ok: false; status: number; error: string }
 
 function cacheKey(dbName: string, token: string) {
@@ -41,7 +41,7 @@ export async function checkApiSession(request: NextRequest): Promise<ApiSessionR
   const now = Date.now()
   for (const token of tokens) {
     const cached = validated.get(cacheKey(dbName, token))
-    if (cached && cached.until > now) return { ok: true, userId: cached.userId }
+    if (cached && cached.until > now) return { ok: true, userId: cached.userId, dbName }
   }
 
   try {
@@ -57,7 +57,7 @@ export async function checkApiSession(request: NextRequest): Promise<ApiSessionR
       if (!row || new Date(row.expires_at) < new Date()) continue
       if (validated.size >= CACHE_MAX) validated.clear()
       validated.set(cacheKey(dbName, token), { userId: String(row.user_id), until: now + CACHE_TTL_MS })
-      return { ok: true, userId: String(row.user_id) }
+      return { ok: true, userId: String(row.user_id), dbName }
     }
   } catch (error: any) {
     // قاعدة بلا جدول tenant_sessions بعد (لم يسجّل أحد الدخول إليها): لا جلسة. غير ذلك (انقطاع الاتصال) خطأ مؤقت.

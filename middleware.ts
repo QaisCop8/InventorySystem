@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { checkApiSession, forgetApiSession } from "@/lib/api-session-gate"
-import { rateLimitRetryAfter } from "@/lib/rate-limit"
+import { clientIp, rateLimitRetryAfter } from "@/lib/rate-limit"
+import { markLoggedOut, touchPresence } from "@/lib/user-presence"
 
 // كل مسارات /api تتطلب جلسة شركة صالحة (lib/api-session-gate.ts) ما عدا القائمة العامة أدناه.
 // مسارات الإدارة (/api/management) لها جلستها الخاصة (mgmt_session) وتتحقق منها بنفسها.
@@ -30,11 +31,17 @@ export async function middleware(request: NextRequest) {
       { status: 429, headers: { "Retry-After": String(retryAfter) } },
     )
   }
-  if (pathname === "/api/auth/logout") forgetApiSession(request)
+  if (pathname === "/api/auth/logout") {
+    // خروج المستخدم يظهر فوراً في «سجل الدخول للموقع» بلوحة الإدارة بدل انتظار انتهاء نافذة الاتصال
+    const session = await checkApiSession(request).catch(() => null)
+    if (session?.ok) markLoggedOut(session.dbName, session.userId)
+    forgetApiSession(request)
+  }
   if (isPublic(pathname)) return NextResponse.next()
 
   const session = await checkApiSession(request)
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status })
+  touchPresence(session.dbName, session.userId, clientIp(request))
 
   // هوية المستخدم من الجلسة فقط: x-user-id كان يُقرأ كما أرسله المتصفح (الكاشير وأرشيف السندات) فيمكن انتحال أي مستخدم
   const headers = new Headers(request.headers)
