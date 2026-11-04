@@ -37,6 +37,9 @@ export async function middleware(request: NextRequest) {
     if (session?.ok) markLoggedOut(session.dbName, session.userId)
     forgetApiSession(request)
   }
+  // رفع بطيء (جوال): Next ينسخ جسم الطلب للـmiddleware، وإن أكملنا قبل وصوله كاملاً يصل للمسار مقطوعاً
+  // («Failed to parse body as FormData» / «Unexpected end of JSON input»). قراءة نسختنا للنهاية تضمن اكتمال الجسم أولاً.
+  if (request.body) await request.arrayBuffer().catch(() => undefined)
   if (isPublic(pathname)) return NextResponse.next()
 
   const session = await checkApiSession(request)
