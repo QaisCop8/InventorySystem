@@ -31,7 +31,27 @@ export async function POST(request: NextRequest) {
     const auth = await authorizeTransaction(request, "manager_attachment", "create")
     if (!auth.ok) return auth.response
     await ensureManagerAttachmentsTable()
-    const form = await request.formData()
+    // الجسم يُقرأ خاماً ثم يُحلَّل: إن فشل التحليل (حدث من الجوال على الخادم الحي) نعرض ما وصل فعلاً للتشخيص
+    const contentType = request.headers.get("content-type") || ""
+    const raw = await request.arrayBuffer()
+    let form: FormData
+    try {
+      form = await new Response(raw, { headers: { "content-type": contentType } }).formData()
+    } catch (parseError: any) {
+      const diagnostics = {
+        contentType: contentType.slice(0, 120),
+        declared: request.headers.get("content-length"),
+        received: raw.byteLength,
+        transferEncoding: request.headers.get("transfer-encoding"),
+        userAgent: (request.headers.get("user-agent") || "").slice(0, 160),
+        head: Buffer.from(raw.slice(0, 160)).toString("latin1"),
+      }
+      console.error("[manager-attachments] formData parse failed", parseError?.message, diagnostics)
+      return NextResponse.json({
+        error: `تعذر قراءة المرفقات (وصل ${diagnostics.received} من ${diagnostics.declared ?? "?"} بايت، ${diagnostics.contentType.split(";")[0] || "بلا نوع"})`,
+        diagnostics,
+      }, { status: 400 })
+    }
     const docType = String(form.get("doc_type") || "")
     if (!(docType in MANAGER_ATTACHMENT_TYPES)) return NextResponse.json({ error: "اختر نوع المستند (فاتورة مشتريات أو سند قبض)" }, { status: 400 })
     const supplierId = Number(form.get("supplier_id") || 0)
