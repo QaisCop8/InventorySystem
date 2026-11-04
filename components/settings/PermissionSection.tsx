@@ -1,3 +1,4 @@
+import { tr } from "@/lib/i18n"
 import React from "react"
 
 interface PermissionSectionProps {
@@ -11,12 +12,12 @@ interface PermissionSectionProps {
 }
 
 const actionLabels: Record<string, string> = {
-  view: "عرض",
-  add: "إضافة",
-  edit: "تعديل/حذف",
-  orders: "عرض",
-  export: "تصدير",
-  print: "طباعة",
+  view: tr("عرض"),
+  add: tr("إضافة"),
+  edit: tr("تعديل/حذف"),
+  orders: tr("عرض"),
+  export: tr("تصدير"),
+  print: tr("طباعة"),
 }
 
 const PermissionSection: React.FC<PermissionSectionProps> = ({
@@ -34,7 +35,7 @@ const PermissionSection: React.FC<PermissionSectionProps> = ({
       <h4 className="font-semibold">{title}</h4>
       <div className="grid grid-cols-[200px_repeat(auto-fit,minmax(80px,1fr))] gap-4 p-4 bg-gray-50 rounded-lg">
         {/* Header Row */}
-        <div className="font-medium text-sm">الوحدة</div>
+        <div className="font-medium text-sm">{tr("الوحدة")}</div>
         {allActions.map((action) => (
           <div className="font-medium text-sm" key={action}>
             {actionLabels[action] || action}

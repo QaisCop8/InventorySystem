@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from "react"
 import { ThemeLoader } from "@/components/theme-loader"
 import { beginSaving, isVoucherSaveRequest } from "@/lib/saving-lock"
+import { isEnglish, translatePayload, tr } from "@/lib/i18n"
 import { POS_RESUME_KEY, shouldResumePos } from "@/lib/pos-offline"
 interface ModulePermissions {
   add?: boolean
@@ -110,13 +111,36 @@ function installTenantFetchPatch() {
       // حفظ/تعديل/حذف سند: يُقفل المنيو الجانبي حتى انتهاء الطلب (lib/saving-lock.ts)
       if (isVoucherSaveRequest(input, init)) {
         const endSaving = beginSaving()
-        return originalFetch(input, init).finally(endSaving)
+        return originalFetch(input, init).then((response) => translateApiResponse(input, response)).finally(endSaving)
       }
-      return originalFetch(input, init)
+      return originalFetch(input, init).then((response) => translateApiResponse(input, response))
     }) as typeof window.fetch
     ;(window as any).__tenantFetchPatched = true
   }
 }
+
+// الواجهة بالإنجليزية: رسائل الخادم (error/message...) عربية دائماً، تُترجم هنا بالقاموس قبل وصولها للشاشات.
+// الردود الكبيرة (تقارير، قوائم) تمر كما هي دون قراءة إضافية — رسائلها في الردود الصغيرة.
+const TRANSLATE_MAX_BYTES = 64 * 1024
+async function translateApiResponse(input: RequestInfo | URL, response: Response): Promise<Response> {
+  if (!isEnglish()) return response
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+  if (!/^(\/api\/|https?:\/\/[^/]+\/api\/)/.test(url) || !(response.headers.get("content-type") || "").includes("application/json")) return response
+  const length = Number(response.headers.get("content-length") || 0)
+  if (length > TRANSLATE_MAX_BYTES) return response
+  try {
+    const text = await response.clone().text()
+    if (text.length > TRANSLATE_MAX_BYTES || !/[؀-ۿ]/.test(text)) return response
+    const translated = JSON.stringify(translatePayload(JSON.parse(text)))
+    if (translated === text) return response
+    const headers = new Headers(response.headers)
+    headers.delete("content-length")
+    return new Response(translated, { status: response.status, statusText: response.statusText, headers })
+  } catch {
+    return response
+  }
+}
+
 installTenantFetchPatch()
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -450,7 +474,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }, 100);
         fetchSettings();
       } else {
-        throw new Error(result.error || "فشل في تسجيل الدخول")
+        throw new Error(result.error || tr("فشل في تسجيل الدخول"))
       }
     } catch (error) {
       console.error("[v0] Login error:", error)

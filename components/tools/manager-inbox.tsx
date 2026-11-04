@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Bot, Download, Eye, FileText, Image as ImageIcon, Inbox, Loader2, RefreshCw, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -26,7 +27,7 @@ const monthStart = () => { const d = new Date(); return `${d.getFullYear()}-${St
 
 async function fetchFile(row: Row) {
   const response = await fetch(`/api/manager-attachments/${row.id}`, { cache: "no-store" })
-  if (!response.ok) throw new Error((await response.json().catch(() => ({})))?.error || `تعذر تحميل ${row.file_name}`)
+  if (!response.ok) throw new Error((await response.json().catch(() => ({})))?.error || tr("تعذر تحميل {0}", row.file_name))
   return response.blob()
 }
 
@@ -66,12 +67,12 @@ export default function ManagerInbox() {
       const query = new URLSearchParams({ from, to, doc_type: docType, status })
       const response = await fetch(`/api/manager-attachments?${query}`, { cache: "no-store" })
       const data = await response.json().catch(() => [])
-      if (!response.ok) throw new Error(data?.error || "تعذر تحميل الرسائل")
+      if (!response.ok) throw new Error(data?.error || tr("تعذر تحميل الرسائل"))
       setRows(Array.isArray(data) ? data : [])
       setSelected(new Set())
     } catch (error) {
       setRows([])
-      show("error", error instanceof Error ? error.message : "تعذر تحميل الرسائل")
+      show("error", error instanceof Error ? error.message : tr("تعذر تحميل الرسائل"))
     } finally {
       setLoading(false)
     }
@@ -97,7 +98,7 @@ export default function ManagerInbox() {
       saveBlob(await fetchFile(row), row.file_name)
       markRead(row.id)
     } catch (error) {
-      show("error", error instanceof Error ? error.message : "تعذر تنزيل المرفق")
+      show("error", error instanceof Error ? error.message : tr("تعذر تنزيل المرفق"))
     } finally {
       setBusyId(null)
     }
@@ -111,7 +112,7 @@ export default function ManagerInbox() {
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
       markRead(row.id)
     } catch (error) {
-      show("error", error instanceof Error ? error.message : "تعذر عرض المرفق")
+      show("error", error instanceof Error ? error.message : tr("تعذر عرض المرفق"))
     } finally {
       setBusyId(null)
     }
@@ -120,7 +121,7 @@ export default function ManagerInbox() {
   // تنزيل المحدد: ملف واحد مباشرة، وأكثر من ملف في ملف مضغوط واحد (أسماء مكررة تُرقَّم)
   const downloadSelected = async () => {
     const chosen = visible.filter((row) => selected.has(row.id))
-    if (!chosen.length) return show("info", "حدد مرفقاً واحداً على الأقل")
+    if (!chosen.length) return show("info", tr("حدد مرفقاً واحداً على الأقل"))
     if (chosen.length === 1) return download(chosen[0])
     setZipping(true)
     try {
@@ -136,24 +137,24 @@ export default function ManagerInbox() {
       saveBlob(await zip.generateAsync({ type: "blob" }), `بريد رسائل الموظفين ${new Date().toISOString().slice(0, 10)}.zip`)
       setRows((current) => current.map((row) => selected.has(row.id) && !row.read_at ? { ...row, read_at: new Date().toISOString() } : row))
     } catch (error) {
-      show("error", error instanceof Error ? error.message : "تعذر تنزيل المرفقات")
+      show("error", error instanceof Error ? error.message : tr("تعذر تنزيل المرفقات"))
     } finally {
       setZipping(false)
     }
   }
 
   const remove = async (row: Row) => {
-    if (!(await confirmYesNo(`حذف المرفق "${row.file_name}" نهائياً من قاعدة البيانات؟`))) return
+    if (!(await confirmYesNo(tr("حذف المرفق \"{0}\" نهائياً من قاعدة البيانات؟", row.file_name)))) return
     setBusyId(row.id)
     try {
       const response = await fetch(`/api/manager-attachments/${row.id}`, { method: "DELETE" })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذر حذف المرفق")
+      if (!response.ok) throw new Error(data.error || tr("تعذر حذف المرفق"))
       setRows((current) => current.filter((item) => item.id !== row.id))
       setSelected((current) => { const next = new Set(current); next.delete(row.id); return next })
-      show("success", "تمت العملية بنجاح — حُذف المرفق من قاعدة البيانات")
+      show("success", tr("تمت العملية بنجاح — حُذف المرفق من قاعدة البيانات"))
     } catch (error) {
-      show("error", error instanceof Error ? error.message : "تعذر حذف المرفق")
+      show("error", error instanceof Error ? error.message : tr("تعذر حذف المرفق"))
     } finally {
       setBusyId(null)
     }
@@ -163,7 +164,7 @@ export default function ManagerInbox() {
   const removeSelected = async () => {
     const chosen = visible.filter((row) => selected.has(row.id))
     if (!chosen.length) return
-    if (!(await confirmYesNo(`حذف ${chosen.length} مرفق محدد نهائياً من قاعدة البيانات؟`))) return
+    if (!(await confirmYesNo(tr("حذف {0} مرفق محدد نهائياً من قاعدة البيانات؟", chosen.length)))) return
     setDeleting(true)
     const removed: number[] = []
     let lastError = ""
@@ -172,7 +173,7 @@ export default function ManagerInbox() {
         try {
           const response = await fetch(`/api/manager-attachments/${row.id}`, { method: "DELETE" })
           const data = await response.json().catch(() => ({}))
-          if (!response.ok) throw new Error(data.error || "تعذر حذف المرفق")
+          if (!response.ok) throw new Error(data.error || tr("تعذر حذف المرفق"))
           removed.push(row.id)
         } catch (error) {
           lastError = error instanceof Error ? error.message : "تعذر حذف المرفق"
@@ -181,8 +182,8 @@ export default function ManagerInbox() {
       const gone = new Set(removed)
       setRows((current) => current.filter((item) => !gone.has(item.id)))
       setSelected((current) => new Set([...current].filter((id) => !gone.has(id))))
-      if (removed.length === chosen.length) show("success", `تمت العملية بنجاح — حُذف ${removed.length} مرفق من قاعدة البيانات`)
-      else show("error", `حُذف ${removed.length} من ${chosen.length} — ${lastError}`)
+      if (removed.length === chosen.length) show("success", tr("تمت العملية بنجاح — حُذف {0} مرفق من قاعدة البيانات", removed.length))
+      else show("error", tr("حُذف {0} من {1} — {2}", removed.length, chosen.length, lastError))
     } finally {
       setDeleting(false)
     }
@@ -194,7 +195,7 @@ export default function ManagerInbox() {
     try {
       // "سند قبض" المُرسَل للمدير يعني مستند دفعٍ يجب صرفه ⇐ يُعالَج كسند صرف (لا قبض)
       const documentType = row.doc_type === "receipt_voucher" ? "payment" : "purchase_invoice"
-      const typeLabel = documentType === "payment" ? "سند صرف" : MANAGER_ATTACHMENT_TYPES[row.doc_type]
+      const typeLabel = documentType === "payment" ? tr("سند صرف") : MANAGER_ATTACHMENT_TYPES[row.doc_type]
       const hint = [typeLabel, row.supplier_name ? `الحساب: ${row.supplier_name}${row.supplier_code ? ` (${row.supplier_code})` : ""}` : "", row.note || ""].filter(Boolean).join(" — ")
       // المساعد الذكي في تبويب متصفح جديد (يبقى بريد رسائل الموظفين مفتوحاً) — يستلم معرّف المرفق عبر sessionStorage
       // (ai_process_attachment) ويقرؤه الخادم من قاعدة البيانات مباشرة. يُفتح قبل أي await حتى لا يحجبه المتصفح.
@@ -202,7 +203,7 @@ export default function ManagerInbox() {
       await fetch(`/api/manager-attachments/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "processed" }) })
       setRows((current) => current.map((item) => item.id === row.id ? { ...item, processed_at: new Date().toISOString(), read_at: item.read_at || new Date().toISOString() } : item))
     } catch (error) {
-      show("error", error instanceof Error ? error.message : "تعذرت معالجة المرفق")
+      show("error", error instanceof Error ? error.message : tr("تعذرت معالجة المرفق"))
     } finally {
       setBusyId(null)
     }
@@ -212,23 +213,23 @@ export default function ManagerInbox() {
   const totalSize = rows.reduce((sum, row) => sum + Number(row.file_size || 0), 0)
 
   return (
-    <div className="space-y-4 p-4" dir="rtl">
+    <div className="space-y-4 p-4" dir={appDir()}>
       <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
-        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 start-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Inbox /></div>
             <div>
-              <p className="text-xs font-semibold text-emerald-50/90">أدوات</p>
-              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">بريد رسائل الموظفين</h1>
-              <p className="mt-1 text-sm text-emerald-50/85">مرفقات فواتير المشتريات وسندات القبض المرسلة للمدير — نزّلها أو عالجها بالمساعد الذكي أو احذفها</p>
+              <p className="text-xs font-semibold text-emerald-50/90">{tr("أدوات")}</p>
+              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">{tr("بريد رسائل الموظفين")}</h1>
+              <p className="mt-1 text-sm text-emerald-50/85">{tr("مرفقات فواتير المشتريات وسندات القبض المرسلة للمدير — نزّلها أو عالجها بالمساعد الذكي أو احذفها")}</p>
             </div>
           </div>
           <div className="flex gap-3 text-center text-xs">
-            <div className="rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur"><div className="text-lg font-black">{rows.filter((row) => !row.processed_at).length}</div>بانتظار المعالجة</div>
-            <div className="rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur"><div className="text-lg font-black">{sizeText(totalSize)}</div>حجم المرفقات</div>
+            <div className="rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur"><div className="text-lg font-black">{rows.filter((row) => !row.processed_at).length}</div>{tr("بانتظار المعالجة")}</div>
+            <div className="rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur"><div className="text-lg font-black">{sizeText(totalSize)}</div>{tr("حجم المرفقات")}</div>
           </div>
         </div>
       </header>
@@ -236,41 +237,41 @@ export default function ManagerInbox() {
       <Messages innerRef={messagesRef} />
 
       <section className="grid gap-3 rounded-2xl border bg-background p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6">
-        <div className="grid gap-1.5"><Label>من تاريخ</Label><Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div>
-        <div className="grid gap-1.5"><Label>إلى تاريخ</Label><Input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div>
+        <div className="grid gap-1.5"><Label>{tr("من تاريخ")}</Label><Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div>
+        <div className="grid gap-1.5"><Label>{tr("إلى تاريخ")}</Label><Input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div>
         <div className="grid gap-1.5">
-          <Label>نوع المستند</Label>
+          <Label>{tr("نوع المستند")}</Label>
           <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={docType} onChange={(event) => setDocType(event.target.value)}>
-            <option value="">الكل</option>
+            <option value="">{tr("الكل")}</option>
             {Object.entries(MANAGER_ATTACHMENT_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
         <div className="grid gap-1.5">
-          <Label>الحالة</Label>
+          <Label>{tr("الحالة")}</Label>
           <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
-            <option value="">الكل</option>
-            <option value="new">بانتظار المعالجة</option>
-            <option value="processed">تمت المعالجة</option>
+            <option value="">{tr("الكل")}</option>
+            <option value="new">{tr("بانتظار المعالجة")}</option>
+            <option value="processed">{tr("تمت المعالجة")}</option>
           </select>
         </div>
         <div className="grid gap-1.5 sm:col-span-2">
-          <Label>بحث</Label>
+          <Label>{tr("بحث")}</Label>
           <div className="flex gap-2">
-            <div className="relative flex-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="الحساب، الملف، المرسل، الملاحظة..." /></div>
-            <Button variant="outline" onClick={() => void load()} disabled={loading} data-report-apply><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
+            <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("الحساب، الملف، المرسل، الملاحظة...")} /></div>
+            <Button variant="outline" onClick={() => void load()} disabled={loading} data-report-apply><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
           </div>
         </div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border bg-background shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2.5">
-          <span className="text-sm">{selected.size ? <>محدد <b>{selected.size}</b> ({sizeText(selectedSize)})</> : <>{visible.length} مرفق</>}</span>
+          <span className="text-sm">{selected.size ? <>{tr("محدد ")}<b>{selected.size}</b> ({sizeText(selectedSize)})</> : <>{visible.length}{tr(" مرفق")}</>}</span>
           <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void downloadSelected()} disabled={!selected.size || zipping}>
-            {zipping ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Download className="ml-1 h-4 w-4" />}تنزيل المحدد
+            {zipping ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Download className="ml-1 h-4 w-4" />}{tr("تنزيل المحدد")}
           </Button>
           <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => void removeSelected()} disabled={!selected.size || deleting}>
-            {deleting ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Trash2 className="ml-1 h-4 w-4" />}حذف المحدد
+            {deleting ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Trash2 className="ml-1 h-4 w-4" />}{tr("حذف المحدد")}
           </Button>
           </div>
         </div>
@@ -278,15 +279,15 @@ export default function ManagerInbox() {
           <table className="w-full min-w-[980px] text-sm">
             <thead className="bg-muted/30 text-xs text-muted-foreground">
               <tr>
-                <th className="w-10 p-2 text-center"><Checkbox checked={allChecked} onCheckedChange={(value) => toggleAll(value === true)} aria-label="تحديد الكل" /></th>
-                <th className="p-2 text-right">المستند</th>
-                <th className="p-2 text-right">الحساب</th>
-                <th className="p-2 text-right">المرفق</th>
-                <th className="p-2 text-right">ملاحظة</th>
-                <th className="p-2 text-right">المرسل / الفرع</th>
-                <th className="p-2 text-right">التاريخ</th>
-                <th className="p-2 text-center">الحالة</th>
-                <th className="w-64 p-2 text-center">إجراءات</th>
+                <th className="w-10 p-2 text-center"><Checkbox checked={allChecked} onCheckedChange={(value) => toggleAll(value === true)} aria-label={tr("تحديد الكل")} /></th>
+                <th className="p-2 text-start">{tr("المستند")}</th>
+                <th className="p-2 text-start">{tr("الحساب")}</th>
+                <th className="p-2 text-start">{tr("المرفق")}</th>
+                <th className="p-2 text-start">{tr("ملاحظة")}</th>
+                <th className="p-2 text-start">{tr("المرسل / الفرع")}</th>
+                <th className="p-2 text-start">{tr("التاريخ")}</th>
+                <th className="p-2 text-center">{tr("الحالة")}</th>
+                <th className="w-64 p-2 text-center">{tr("إجراءات")}</th>
               </tr>
             </thead>
             <tbody>
@@ -295,11 +296,11 @@ export default function ManagerInbox() {
                 const isImage = row.mime_type?.startsWith("image/")
                 return (
                   <tr key={row.id} className={`border-t align-middle ${selected.has(row.id) ? "bg-blue-50/60 dark:bg-blue-950/20" : !row.read_at ? "font-semibold" : ""}`}>
-                    <td className="p-2 text-center"><Checkbox checked={selected.has(row.id)} onCheckedChange={(value) => toggle(row.id, value === true)} aria-label={`تحديد ${row.file_name}`} /></td>
+                    <td className="p-2 text-center"><Checkbox checked={selected.has(row.id)} onCheckedChange={(value) => toggle(row.id, value === true)} aria-label={tr("تحديد {0}", row.file_name)} /></td>
                     <td className="p-2">{MANAGER_ATTACHMENT_TYPES[row.doc_type] || row.doc_type}</td>
                     <td className="p-2">{row.supplier_name || "—"}{row.supplier_code && <div className="font-mono text-[11px] font-normal text-muted-foreground">{row.supplier_code}</div>}</td>
                     <td className="p-2">
-                      <button type="button" onClick={() => void preview(row)} className="flex max-w-[14rem] items-center gap-1.5 text-right text-blue-700 hover:underline dark:text-blue-400" title="عرض">
+                      <button type="button" onClick={() => void preview(row)} className="flex max-w-[14rem] items-center gap-1.5 text-start text-blue-700 hover:underline dark:text-blue-400" title={tr("عرض")}>
                         {isImage ? <ImageIcon className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0" />}
                         <span className="truncate">{row.file_name}</span>
                       </button>
@@ -310,15 +311,15 @@ export default function ManagerInbox() {
                     <td className="whitespace-nowrap p-2 font-normal" dir="ltr">{dateText(row.created_at)}</td>
                     <td className="p-2 text-center">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${row.processed_at ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"}`} title={row.processed_at ? `${row.processed_by_name || ""} ${dateText(row.processed_at)}` : ""}>
-                        {row.processed_at ? "تمت المعالجة" : "بانتظار المعالجة"}
+                        {row.processed_at ? tr("تمت المعالجة") : tr("بانتظار المعالجة")}
                       </span>
                     </td>
                     <td className="p-2">
                       <div className="flex justify-center gap-1.5">
-                        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => void preview(row)} disabled={busy} title="عرض"><Eye className="h-4 w-4" /></Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2.5" onClick={() => void download(row)} disabled={busy}><Download className="ml-1 h-4 w-4" />تنزيل</Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2.5 text-red-600 hover:text-red-700" onClick={() => void remove(row)} disabled={busy}><Trash2 className="ml-1 h-4 w-4" />حذف</Button>
-                        <Button size="sm" className="h-8 px-2.5" onClick={() => void processRow(row)} disabled={busy}>{busy ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Bot className="ml-1 h-4 w-4" />}معالجة</Button>
+                        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => void preview(row)} disabled={busy} title={tr("عرض")}><Eye className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="outline" className="h-8 px-2.5" onClick={() => void download(row)} disabled={busy}><Download className="ml-1 h-4 w-4" />{tr("تنزيل")}</Button>
+                        <Button size="sm" variant="outline" className="h-8 px-2.5 text-red-600 hover:text-red-700" onClick={() => void remove(row)} disabled={busy}><Trash2 className="ml-1 h-4 w-4" />{tr("حذف")}</Button>
+                        <Button size="sm" className="h-8 px-2.5" onClick={() => void processRow(row)} disabled={busy}>{busy ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Bot className="ml-1 h-4 w-4" />}{tr("معالجة")}</Button>
                       </div>
                     </td>
                   </tr>
@@ -327,7 +328,7 @@ export default function ManagerInbox() {
             </tbody>
           </table>
         </div>
-        {!loading && visible.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground"><Inbox className="mx-auto mb-2 h-10 w-10 text-emerald-500" />لا توجد رسائل</div>}
+        {!loading && visible.length === 0 && <div className="py-14 text-center text-sm text-muted-foreground"><Inbox className="mx-auto mb-2 h-10 w-10 text-emerald-500" />{tr("لا توجد رسائل")}</div>}
         {loading && <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
       </section>
     </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useMemo, useState } from "react"
 import { Keyboard, Loader2, Pencil, RotateCcw, Search, X } from "lucide-react"
@@ -45,13 +46,13 @@ export default function PageShortcutsSettings() {
     try {
       const response = await fetch("/api/settings/page-shortcuts", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shortcuts: next }) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذر حفظ الاختصارات")
+      if (!response.ok) throw new Error(data.error || tr("تعذر حفظ الاختصارات"))
       setShortcuts(data.shortcuts)
       window.dispatchEvent(new CustomEvent(PAGE_SHORTCUTS_CHANGED, { detail: data.shortcuts }))
       setMessage({ tone: "success", text: successText })
     } catch (error) {
       setShortcuts(previous)
-      setMessage({ tone: "error", text: error instanceof Error ? error.message : "تعذر حفظ الاختصارات" })
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : tr("تعذر حفظ الاختصارات") })
     } finally {
       setSaving(false)
     }
@@ -78,7 +79,7 @@ export default function PageShortcutsSettings() {
       const combo = comboFromEvent(event)
       if (!combo) return // مفتاح تعديل وحده (Ctrl/Alt/Shift) ⇐ انتظار بقية الاختصار
       const problem = comboProblem(combo)
-      if (problem) { setRecordError(`${problem} — جرّب اختصاراً آخر`); return }
+      if (problem) { setRecordError(tr("{0} — جرّب اختصاراً آخر", problem)); return }
       const owner = Object.entries(shortcuts).find(([section, value]) => value === combo && section !== recording)?.[0]
       const next: PageShortcuts = { ...shortcuts, [recording]: combo }
       if (owner) delete next[owner]
@@ -110,24 +111,24 @@ export default function PageShortcutsSettings() {
   const assignedCount = pages.filter((page) => shortcuts[page.section]).length
 
   return (
-    <div className="w-full max-w-full space-y-6" dir="rtl">
+    <div className="w-full max-w-full space-y-6" dir={appDir()}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold"><Keyboard className="h-7 w-7 text-emerald-600" />اختصارات الصفحات</h1>
-          <p className="mt-1 text-sm text-muted-foreground">اربط أي صفحة باختصار من لوحة المفاتيح لفتحها مباشرة من أي مكان في النظام. الاختصارات خاصة بك.</p>
+          <h1 className="flex items-center gap-2 text-3xl font-bold"><Keyboard className="h-7 w-7 text-emerald-600" />{tr("اختصارات الصفحات")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("اربط أي صفحة باختصار من لوحة المفاتيح لفتحها مباشرة من أي مكان في النظام. الاختصارات خاصة بك.")}</p>
         </div>
         {assignedCount > 0 && (
-          <Button variant="outline" disabled={saving} onClick={async () => { if ((await confirmYesNo("حذف جميع اختصاراتك؟"))) void save({}, "حُذفت جميع الاختصارات") }}>
-            <RotateCcw className="ml-2 h-4 w-4" />حذف الكل
+          <Button variant="outline" disabled={saving} onClick={async () => { if ((await confirmYesNo(tr("حذف جميع اختصاراتك؟")))) void save({}, "حُذفت جميع الاختصارات") }}>
+            <RotateCcw className="ml-2 h-4 w-4" />{tr("حذف الكل")}
           </Button>
         )}
       </div>
 
       <Card>
         <CardContent className="space-y-3 p-4 text-sm text-slate-600 dark:text-slate-300">
-          <p>اضغط «تعيين» ثم اضغط الاختصار المطلوب. يجب أن يبدأ بـ <Combo combo="Ctrl" /> أو <Combo combo="Alt" /> مع حرف أو رقم (مثل <Combo combo="Ctrl+Alt+S" /> أو <Combo combo="Alt+1" />)، أو مفتاح F غير مستخدم (مثل <Combo combo="F7" />).</p>
-          <p className="text-xs text-muted-foreground">Esc يلغي التعيين، Backspace يحذف الاختصار. إن كان الاختصار مستخدماً لصفحة أخرى يُنقل للصفحة الجديدة.</p>
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">اختصارات المتصفح (مثل <Combo combo="Ctrl+F" /> <Combo combo="Ctrl+D" /> <Combo combo="Ctrl+R" /> <Combo combo="Ctrl+1" /> <Combo combo="F7" />) يمكن تعيينها، ويُلغى عمل المتصفح لها داخل النظام. باستثناء ما ينفّذه Chrome نفسه ولا يمكن لأي موقع إيقافه: <Combo combo="Ctrl+W" /> <Combo combo="Ctrl+T" /> <Combo combo="Ctrl+N" /> <Combo combo="Ctrl+Shift+N" /> <Combo combo="Ctrl+Shift+T" /> <Combo combo="Ctrl+Shift+W" /> <Combo combo="Alt+F4" />، واختصارات النظام نفسه (الحفظ F3، الطباعة Ctrl+P، النسخ واللصق...).</p>
+          <p>{tr("اضغط «تعيين» ثم اضغط الاختصار المطلوب. يجب أن يبدأ بـ ")}<Combo combo="Ctrl" />{tr(" أو ")}<Combo combo="Alt" />{tr(" مع حرف أو رقم (مثل ")}<Combo combo="Ctrl+Alt+S" />{tr(" أو ")}<Combo combo="Alt+1" />{tr(")، أو مفتاح F غير مستخدم (مثل ")}<Combo combo="F7" />).</p>
+          <p className="text-xs text-muted-foreground">{tr("Esc يلغي التعيين، Backspace يحذف الاختصار. إن كان الاختصار مستخدماً لصفحة أخرى يُنقل للصفحة الجديدة.")}</p>
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{tr("اختصارات المتصفح (مثل ")}<Combo combo="Ctrl+F" /> <Combo combo="Ctrl+D" /> <Combo combo="Ctrl+R" /> <Combo combo="Ctrl+1" /> <Combo combo="F7" />{tr(") يمكن تعيينها، ويُلغى عمل المتصفح لها داخل النظام. باستثناء ما ينفّذه Chrome نفسه ولا يمكن لأي موقع إيقافه: ")}<Combo combo="Ctrl+W" /> <Combo combo="Ctrl+T" /> <Combo combo="Ctrl+N" /> <Combo combo="Ctrl+Shift+N" /> <Combo combo="Ctrl+Shift+T" /> <Combo combo="Ctrl+Shift+W" /> <Combo combo="Alt+F4" />{tr("، واختصارات النظام نفسه (الحفظ F3، الطباعة Ctrl+P، النسخ واللصق...).")}</p>
         </CardContent>
       </Card>
 
@@ -140,25 +141,25 @@ export default function PageShortcutsSettings() {
       <Card>
         <CardHeader className="gap-3">
           <CardTitle className="flex flex-wrap items-center justify-between gap-3">
-            <span>الصفحات ({assignedCount} اختصار)</span>
-            {saving && <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />جارٍ الحفظ...</span>}
+            <span>{tr("الصفحات (")}{assignedCount}{tr(" اختصار)")}</span>
+            {saving && <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />{tr("جارٍ الحفظ...")}</span>}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[220px] flex-1">
-              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الصفحة أو القسم أو الاختصار..." className="pr-9" />
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("ابحث باسم الصفحة أو القسم أو الاختصار...")} className="pr-9" />
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <input type="checkbox" checked={onlyAssigned} onChange={(event) => setOnlyAssigned(event.target.checked)} className="h-4 w-4 accent-emerald-600" />
-              المعيَّنة فقط
+              {tr("المعيَّنة فقط")}
             </label>
           </div>
         </CardHeader>
         <CardContent>
           {!loaded ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />جاري تحميل البيانات...</div>
+            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{tr("جاري تحميل البيانات...")}</div>
           ) : !groups.length ? (
-            <p className="py-12 text-center text-sm text-muted-foreground">لا توجد صفحات مطابقة</p>
+            <p className="py-12 text-center text-sm text-muted-foreground">{tr("لا توجد صفحات مطابقة")}</p>
           ) : (
             <div className="space-y-6">
               {groups.map(([group, items]) => (
@@ -177,15 +178,15 @@ export default function PageShortcutsSettings() {
                           </div>
                           <div className="flex min-w-[140px] justify-end">
                             {isRecording
-                              ? <span className="animate-pulse text-sm font-bold text-amber-700 dark:text-amber-300">اضغط الاختصار... (Esc للإلغاء)</span>
-                              : combo ? <Combo combo={combo} /> : <span className="text-xs text-muted-foreground">بلا اختصار</span>}
+                              ? <span className="animate-pulse text-sm font-bold text-amber-700 dark:text-amber-300">{tr("اضغط الاختصار... (Esc للإلغاء)")}</span>
+                              : combo ? <Combo combo={combo} /> : <span className="text-xs text-muted-foreground">{tr("بلا اختصار")}</span>}
                           </div>
                           <div className="flex gap-1.5">
                             <Button type="button" size="sm" variant={isRecording ? "default" : "outline"} disabled={saving} onClick={() => { setMessage(null); setRecording(isRecording ? null : page.section) }}>
-                              <Pencil className="ml-1 h-3.5 w-3.5" />{isRecording ? "إلغاء" : combo ? "تغيير" : "تعيين"}
+                              <Pencil className="ml-1 h-3.5 w-3.5" />{isRecording ? tr("إلغاء") : combo ? tr("تغيير") : tr("تعيين")}
                             </Button>
                             {combo && !isRecording && (
-                              <Button type="button" size="sm" variant="ghost" title="حذف الاختصار" disabled={saving} onClick={() => { const { [page.section]: _removed, ...rest } = shortcuts; void save(rest, `أُزيل اختصار «${page.title}»`) }} className="text-slate-500 hover:bg-red-50 hover:text-red-600">
+                              <Button type="button" size="sm" variant="ghost" title={tr("حذف الاختصار")} disabled={saving} onClick={() => { const { [page.section]: _removed, ...rest } = shortcuts; void save(rest, `أُزيل اختصار «${page.title}»`) }} className="text-slate-500 hover:bg-red-50 hover:text-red-600">
                                 <X className="h-4 w-4" />
                               </Button>
                             )}

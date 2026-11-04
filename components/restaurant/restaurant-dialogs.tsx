@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, Loader2, Minus, Plus, Trash2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -56,7 +57,7 @@ export function TablePickerDialog(props: {
   const toggle = (id: number) => setSelected((current) => multiple ? (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]) : [id])
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col">
+      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col">
         <DialogHeader><DialogTitle>{title}</DialogTitle>{description && <DialogDescription>{description}</DialogDescription>}</DialogHeader>
         {children}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
@@ -70,18 +71,18 @@ export function TablePickerDialog(props: {
                     <button key={table.id} type="button" onClick={() => toggle(table.id)}
                       className={`rounded-lg border-2 p-2 text-center text-sm transition ${active ? "border-teal-600 bg-teal-50 ring-2 ring-teal-200" : table.order_id ? "border-amber-300 bg-amber-50" : "border-emerald-200 bg-emerald-50/60"}`}>
                       <div className="font-bold">{table.name}</div>
-                      <div className="text-xs text-muted-foreground">{table.order_id ? `${money(table.remaining)}` : "فارغة"}</div>
+                      <div className="text-xs text-muted-foreground">{table.order_id ? `${money(table.remaining)}` : tr("فارغة")}</div>
                     </button>
                   )
                 })}
               </div>
             </div>
           ))}
-          {!groups.length && <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">لا توجد طاولات متاحة</div>}
+          {!groups.length && <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">{tr("لا توجد طاولات متاحة")}</div>}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button disabled={!selected.length || busy} onClick={() => onConfirm(selected)}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{confirmLabel || "تأكيد"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+          <Button disabled={!selected.length || busy} onClick={() => onConfirm(selected)}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{confirmLabel || tr("تأكيد")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -108,28 +109,28 @@ export function ItemEditDialog(props: {
   const minimum = canReduce ? Math.max(line.minQuantity, 0) : line.quantity
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
+      <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-sm">
         <DialogHeader><DialogTitle>{line.name}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2"><Label>الكمية</Label><Stepper value={quantity} onChange={(value) => setQuantity(Math.max(minimum, value))} /></div>
-          {line.minQuantity > 0 && <p className="text-xs text-amber-700">مدفوع منه {qtyText(line.minQuantity)} — لا تقل الكمية عن ذلك</p>}
+          <div className="flex items-center justify-between gap-2"><Label>{tr("الكمية")}</Label><Stepper value={quantity} onChange={(value) => setQuantity(Math.max(minimum, value))} /></div>
+          {line.minQuantity > 0 && <p className="text-xs text-amber-700">{tr("مدفوع منه ")}{qtyText(line.minQuantity)}{tr(" — لا تقل الكمية عن ذلك")}</p>}
           {line.units && line.units.length > 1 && (
             <div className="space-y-1">
-              <Label>الوحدة</Label>
+              <Label>{tr("الوحدة")}</Label>
               <Select value={String(unitId ?? "")} onValueChange={(value) => setUnitId(Number(value) || null)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{line.units.map((unit) => <SelectItem key={String(unit.unitId)} value={String(unit.unitId ?? "")}>{unit.unitName} — {money(unit.price)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           )}
-          {canDiscount && <div className="flex items-center justify-between gap-2"><Label>خصم %</Label><Input type="number" min={0} max={100} className="w-24" value={discount} onChange={(e) => setDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))} /></div>}
-          <div className="space-y-1"><Label>ملاحظة للمطبخ</Label><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="بدون بصل، حار..." /></div>
+          {canDiscount && <div className="flex items-center justify-between gap-2"><Label>{tr("خصم %")}</Label><Input type="number" min={0} max={100} className="w-24" value={discount} onChange={(e) => setDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))} /></div>}
+          <div className="space-y-1"><Label>{tr("ملاحظة للمطبخ")}</Label><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("بدون بصل، حار...")} /></div>
         </div>
         <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between">
-          {canDelete ? <Button variant="outline" className="text-red-600" disabled={busy} onClick={onDelete}><Trash2 className="ml-1 h-4 w-4" />حذف</Button> : <span />}
+          {canDelete ? <Button variant="outline" className="text-red-600" disabled={busy} onClick={onDelete}><Trash2 className="ml-1 h-4 w-4" />{tr("حذف")}</Button> : <span />}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button disabled={busy || !(quantity > 0)} onClick={() => onSave({ quantity, discount, note, unitId })}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+            <Button disabled={busy || !(quantity > 0)} onClick={() => onSave({ quantity, discount, note, unitId })}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />{tr("حفظ")}</Button>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -143,14 +144,14 @@ export function LineQuantities({ items, values, onChange }: { items: OrderItem[]
   return (
     <div className="max-h-[45vh] space-y-2 overflow-y-auto">
       <div className="flex justify-end gap-2">
-        <Button size="sm" variant="ghost" onClick={() => onChange(Object.fromEntries(open.map((item) => [item.id, item.remaining_quantity])))}>تحديد الكل</Button>
-        <Button size="sm" variant="ghost" onClick={() => onChange({})}>إلغاء التحديد</Button>
+        <Button size="sm" variant="ghost" onClick={() => onChange(Object.fromEntries(open.map((item) => [item.id, item.remaining_quantity])))}>{tr("تحديد الكل")}</Button>
+        <Button size="sm" variant="ghost" onClick={() => onChange({})}>{tr("إلغاء التحديد")}</Button>
       </div>
       {open.map((item) => (
         <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2">
           <div className="min-w-0 flex-1">
             <div className="truncate font-semibold">{item.product_name}</div>
-            <div className="text-xs text-muted-foreground">المتاح {qtyText(item.remaining_quantity)} × {money(item.price * (1 - item.discount / 100))}</div>
+            <div className="text-xs text-muted-foreground">{tr("المتاح ")}{qtyText(item.remaining_quantity)} × {money(item.price * (1 - item.discount / 100))}</div>
           </div>
           <Stepper value={values[item.id] || 0} max={item.remaining_quantity} onChange={(value) => onChange({ ...values, [item.id]: value })} />
         </div>
@@ -181,11 +182,11 @@ export function PayScopeDialog(props: {
   const amount = amountFor(lines)
   const total = amountFor(remainingItems.map((item) => ({ item, quantity: item.remaining_quantity })))
   const partial = lines.some((line) => line.quantity < line.item.remaining_quantity - 0.00001) || lines.length < remainingItems.length
-  const tabs: { key: PayScope["mode"]; label: string }[] = [{ key: "all", label: "كامل الحساب" }, { key: "items", label: "أصناف محددة" }, { key: "equal", label: "تقسيم بالتساوي" }]
+  const tabs: { key: PayScope["mode"]; label: string }[] = [{ key: "all", label: tr("كامل الحساب") }, { key: "items", label: tr("أصناف محددة") }, { key: "equal", label: tr("تقسيم بالتساوي") }]
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
-        <DialogHeader><DialogTitle>دفع حساب الطاولة</DialogTitle><DialogDescription>المتبقي على الطاولة {money(total)} {currencyCode}</DialogDescription></DialogHeader>
+      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
+        <DialogHeader><DialogTitle>{tr("دفع حساب الطاولة")}</DialogTitle><DialogDescription>{tr("المتبقي على الطاولة ")}{money(total)} {currencyCode}</DialogDescription></DialogHeader>
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
           {tabs.map((tab) => (
             <button key={tab.key} type="button" onClick={() => setScope({ ...scope, mode: tab.key })}
@@ -193,20 +194,20 @@ export function PayScopeDialog(props: {
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {scope.mode === "all" && <p className="rounded-lg bg-emerald-50 p-4 text-center text-sm">سيتم دفع كامل المتبقي وإغلاق الطاولة.</p>}
+          {scope.mode === "all" && <p className="rounded-lg bg-emerald-50 p-4 text-center text-sm">{tr("سيتم دفع كامل المتبقي وإغلاق الطاولة.")}</p>}
           {scope.mode === "items" && <LineQuantities items={items} values={scope.quantities} onChange={(quantities) => setScope({ ...scope, quantities })} />}
           {scope.mode === "equal" && (
             <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
-              <div className="space-y-1"><Label className="flex items-center gap-1"><Users className="h-4 w-4" />عدد الأشخاص</Label><Input type="number" min={1} value={scope.people} onChange={(e) => setScope({ ...scope, people: Math.max(1, Math.trunc(Number(e.target.value) || 1)) })} /></div>
-              <div className="space-y-1"><Label>يدفع الآن عن</Label><Input type="number" min={1} max={scope.people} value={scope.share} onChange={(e) => setScope({ ...scope, share: Math.max(1, Math.min(scope.people, Math.trunc(Number(e.target.value) || 1))) })} /></div>
-              <p className="col-span-2 text-xs text-muted-foreground">حصة كل شخص ≈ {money(total / Math.max(1, scope.people))} {currencyCode}. بعد كل دفعة يُحسب الباقي على من تبقى.</p>
+              <div className="space-y-1"><Label className="flex items-center gap-1"><Users className="h-4 w-4" />{tr("عدد الأشخاص")}</Label><Input type="number" min={1} value={scope.people} onChange={(e) => setScope({ ...scope, people: Math.max(1, Math.trunc(Number(e.target.value) || 1)) })} /></div>
+              <div className="space-y-1"><Label>{tr("يدفع الآن عن")}</Label><Input type="number" min={1} max={scope.people} value={scope.share} onChange={(e) => setScope({ ...scope, share: Math.max(1, Math.min(scope.people, Math.trunc(Number(e.target.value) || 1))) })} /></div>
+              <p className="col-span-2 text-xs text-muted-foreground">{tr("حصة كل شخص ≈ ")}{money(total / Math.max(1, scope.people))} {currencyCode}{tr(". بعد كل دفعة يُحسب الباقي على من تبقى.")}</p>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between rounded-lg bg-slate-900 px-4 py-3 text-white"><span>المبلغ المطلوب الآن</span><strong className="text-lg">{money(amount)} {currencyCode}</strong></div>
+        <div className="flex items-center justify-between rounded-lg bg-slate-900 px-4 py-3 text-white"><span>{tr("المبلغ المطلوب الآن")}</span><strong className="text-lg">{money(amount)} {currencyCode}</strong></div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button disabled={!lines.length || !(amount > 0) || busy} onClick={() => onContinue(lines, partial)}>متابعة للدفع</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+          <Button disabled={!lines.length || !(amount > 0) || busy} onClick={() => onContinue(lines, partial)}>{tr("متابعة للدفع")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -226,15 +227,15 @@ export function AddonsDialog(props: {
   // كل مجموعة مطلوبة: قيمة واحدة على الأقل
   const save = () => {
     const missing = groups.filter((group) => !picked.some((addon) => addon.group === group.name)).map((group) => group.name)
-    if (missing.length) { setError(`اختر قيمة من: ${missing.join("، ")}`); return }
+    if (missing.length) { setError(tr("اختر قيمة من: {0}", missing.join("، "))); return }
     onSave(picked, text.trim())
   }
   const has = (group: string, value: string) => picked.some((addon) => addon.group === group && addon.value === value)
   const toggle = (group: string, value: string) => { setError(""); setPicked((current) => has(group, value) ? current.filter((addon) => !(addon.group === group && addon.value === value)) : [...current, { group, value }]) }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
-        <DialogHeader><DialogTitle>إضافات — {title}</DialogTitle><DialogDescription>اختر الإضافات لتظهر على الطلب وفي قسيمة المطبخ</DialogDescription></DialogHeader>
+      <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col">
+        <DialogHeader><DialogTitle>{tr("إضافات — ")}{title}</DialogTitle><DialogDescription>{tr("اختر الإضافات لتظهر على الطلب وفي قسيمة المطبخ")}</DialogDescription></DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
           {groups.map((group) => (
             <div key={group.name}>
@@ -252,13 +253,13 @@ export function AddonsDialog(props: {
               </div>
             </div>
           ))}
-          {!groups.length && <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">لا توجد إضافات معرّفة لهذا الصنف (تُعرّف من تبويب "المتغيرات والخصائص" في تعريف الصنف)</p>}
+          {!groups.length && <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">{tr("لا توجد إضافات معرّفة لهذا الصنف (تُعرّف من تبويب \"المتغيرات والخصائص\" في تعريف الصنف)")}</p>}
           {error && <p className="rounded-md bg-red-50 p-2 text-sm font-semibold text-red-700">{error}</p>}
-          <div className="space-y-1"><Label>ملاحظة للمطبخ</Label><Textarea rows={2} value={text} onChange={(event) => setText(event.target.value)} placeholder="بدون بصل، حار..." /></div>
+          <div className="space-y-1"><Label>{tr("ملاحظة للمطبخ")}</Label><Textarea rows={2} value={text} onChange={(event) => setText(event.target.value)} placeholder={tr("بدون بصل، حار...")} /></div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button disabled={busy} onClick={save}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+          <Button disabled={busy} onClick={save}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />{tr("حفظ")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -279,7 +280,7 @@ export function ValueDialog(props: {
     if (kind === "number") {
       const number = Number(text)
       if (text.trim() === "" || !Number.isFinite(number) || (min !== undefined && number < min) || (max !== undefined && number > max)) {
-        setError(`أدخل رقماً${min !== undefined && max !== undefined ? ` بين ${min} و${max}` : " صالحاً"}`)
+        setError(tr("أدخل رقماً{0}", min !== undefined && max !== undefined ? ` بين ${min} و${max}` : " صالحاً"))
         return
       }
     }
@@ -287,7 +288,7 @@ export function ValueDialog(props: {
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
+      <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-sm">
         <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
@@ -296,7 +297,7 @@ export function ValueDialog(props: {
               <Input autoFocus className="h-12 text-lg font-bold" type={kind === "number" ? "number" : "text"} inputMode={kind === "number" ? "decimal" : undefined}
                 min={min} max={max} value={text} placeholder={placeholder} onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) => { setText(event.target.value); setError("") }} onKeyDown={(event) => { if (event.key === "Enter") submit() }} />
-              {suffix && <span className="absolute left-3 top-3 text-lg font-bold text-muted-foreground">{suffix}</span>}
+              {suffix && <span className="absolute end-3 top-3 text-lg font-bold text-muted-foreground">{suffix}</span>}
             </div>
           </div>
           {presets && presets.length > 0 && (
@@ -311,8 +312,8 @@ export function ValueDialog(props: {
           {error && <p className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</p>}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button className="h-11" disabled={busy} onClick={submit}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />حفظ</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+          <Button className="h-11" disabled={busy} onClick={submit}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}<Check className="ml-1 h-4 w-4" />{tr("حفظ")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

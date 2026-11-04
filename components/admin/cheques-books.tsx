@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { BookOpen as BookIcon } from "lucide-react"
@@ -197,8 +198,8 @@ export default function ChequesBooks() {
   }
 
   const validateForm = (data: ChequeBookRecord): string | null => {
-    if (!data.code.trim()) return "رقم الدفتر مطلوب"
-    if (!data.bank_account_id) return "رقم الحساب البنكي مطلوب"
+    if (!data.code.trim()) return tr("رقم الدفتر مطلوب")
+    if (!data.bank_account_id) return tr("رقم الحساب البنكي مطلوب")
     return null
   }
 
@@ -221,7 +222,7 @@ export default function ChequesBooks() {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        setErrorMessages([responseError.error || "فشل في حفظ دفتر الشيكات"])
+        setErrorMessages([responseError.error || tr("فشل في حفظ دفتر الشيكات")])
         return
       }
       await fetchBooks()
@@ -231,7 +232,7 @@ export default function ChequesBooks() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ دفتر الشيكات"])
+      setErrorMessages([tr("فشل في حفظ دفتر الشيكات")])
     } finally {
       setIsSaving(false)
     }
@@ -249,7 +250,7 @@ export default function ChequesBooks() {
       if (!response.ok) {
         const error = await response.json()
         setShowDeleteConfirm(false)
-        setErrorMessages([error.error || "فشل في حذف دفتر الشيكات"])
+        setErrorMessages([error.error || tr("فشل في حذف دفتر الشيكات")])
         return
       }
       setErrorMessages([])
@@ -273,7 +274,7 @@ export default function ChequesBooks() {
     } catch (error) {
       console.error(error)
       setShowDeleteConfirm(false)
-      setErrorMessages(["فشل في حذف دفتر الشيكات"])
+      setErrorMessages([tr("فشل في حذف دفتر الشيكات")])
     } finally {
       setIsSaving(false)
     }
@@ -304,42 +305,42 @@ export default function ChequesBooks() {
   const usedCheques = visibleBooks.reduce((sum, b) => sum + (b.used_count || 0), 0)
 
   return (
-    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir={appDir()}>
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={BookIcon}
-        title="دفاتر الشيكات"
-        subtitle="إدارة دفاتر الشيكات البنكية وإصدار الشيكات"
-        addLabel="إضافة دفتر شيكات"
+        title={tr("دفاتر الشيكات")}
+        subtitle={tr("إدارة دفاتر الشيكات البنكية وإصدار الشيكات")}
+        addLabel={tr("إضافة دفتر شيكات")}
         onNew={openNewDialog}
         addDisabled={loading}
       />
 
       <VoucherStats stats={[
-        { label: "إجمالي دفاتر الشيكات", value: <>{visibleBooks.length} <small className="text-xs font-semibold text-slate-400">({totalCheques.toLocaleString("en-US")} شيك)</small></> },
-        { label: "الشيكات المتوفرة", value: availableCheques.toLocaleString("en-US") },
-        { label: "الشيكات المستخدمة", value: usedCheques.toLocaleString("en-US") },
+        { label: tr("إجمالي دفاتر الشيكات"), value: <>{visibleBooks.length} <small className="text-xs font-semibold text-slate-400">({totalCheques.toLocaleString("en-US")}{tr(" شيك)")}</small></> },
+        { label: tr("الشيكات المتوفرة"), value: availableCheques.toLocaleString("en-US") },
+        { label: tr("الشيكات المستخدمة"), value: usedCheques.toLocaleString("en-US") },
       ]} />
 
       <Card>
         <CardHeader>
-          <CardTitle>دفاتر الشيكات</CardTitle>
+          <CardTitle>{tr("دفاتر الشيكات")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xl font-semibold">دفاتر الشيكات</div>
-                <p className="text-sm text-muted-foreground">إدارة دفاتر الشيكات البنكية وإصدار الشيكات</p>
+                <div className="text-xl font-semibold">{tr("دفاتر الشيكات")}</div>
+                <p className="text-sm text-muted-foreground">{tr("إدارة دفاتر الشيكات البنكية وإصدار الشيكات")}</p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="relative">
-                  <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="بحث برقم الدفتر أو اسم الحساب"
+                    placeholder={tr("بحث برقم الدفتر أو اسم الحساب")}
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    className="min-w-[260px] pr-9"
+                    className="min-w-[260px] ps-9"
                     disabled={loading}
                   />
                 </div>
@@ -350,14 +351,14 @@ export default function ChequesBooks() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">رقم الدفتر</TableHead>
-                    <TableHead className="text-right">رقم الحساب البنكي</TableHead>
-                    <TableHead className="text-right">اسم الحساب البنكي</TableHead>
-                    <TableHead className="text-right">العملة</TableHead>
-                    <TableHead className="text-right">تاريخ الاصدار</TableHead>
-                    <TableHead className="text-right">عدد الشيكات</TableHead>
-                    <TableHead className="text-right">المتوفر</TableHead>
-                    <TableHead className="text-right">إجراءات</TableHead>
+                    <TableHead className="text-right">{tr("رقم الدفتر")}</TableHead>
+                    <TableHead className="text-right">{tr("رقم الحساب البنكي")}</TableHead>
+                    <TableHead className="text-right">{tr("اسم الحساب البنكي")}</TableHead>
+                    <TableHead className="text-right">{tr("العملة")}</TableHead>
+                    <TableHead className="text-right">{tr("تاريخ الاصدار")}</TableHead>
+                    <TableHead className="text-right">{tr("عدد الشيكات")}</TableHead>
+                    <TableHead className="text-right">{tr("المتوفر")}</TableHead>
+                    <TableHead className="text-right">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -387,7 +388,7 @@ export default function ChequesBooks() {
                   {filteredBooks.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center text-muted-foreground">
-                        {loading ? "جاري التحميل..." : "لا توجد نتائج"}
+                        {loading ? tr("جاري التحميل...") : tr("لا توجد نتائج")}
                       </TableCell>
                     </TableRow>
                   )}

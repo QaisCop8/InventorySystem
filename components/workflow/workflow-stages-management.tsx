@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 
@@ -34,10 +35,10 @@ interface WorkflowStage {
 }
 
 const stageTypeOptions = [
-  { value: "start", label: "مرحلة بداية", icon: Circle },
-  { value: "normal", label: "مرحلة عادية", icon: Clock },
-  { value: "conditional", label: "مرحلة شرطية", icon: AlertCircle },
-  { value: "end", label: "مرحلة نهاية", icon: CheckCircle },
+  { value: "start", label: tr("مرحلة بداية"), icon: Circle },
+  { value: "normal", label: tr("مرحلة عادية"), icon: Clock },
+  { value: "conditional", label: tr("مرحلة شرطية"), icon: AlertCircle },
+  { value: "end", label: tr("مرحلة نهاية"), icon: CheckCircle },
 ]
 
 const iconOptions = [
@@ -135,11 +136,11 @@ export function WorkflowStagesManagement() {
         resetForm()
         setShowForm(false)
       } else {
-        showAlert(result.error || "حدث خطأ أثناء الحفظ")
+        showAlert(result.error || tr("حدث خطأ أثناء الحفظ"))
       }
     } catch (error) {
       console.error("Error saving stage:", error)
-      showAlert("حدث خطأ أثناء الحفظ")
+      showAlert(tr("حدث خطأ أثناء الحفظ"))
     } finally {
       setSaving(false)
     }
@@ -147,7 +148,7 @@ export function WorkflowStagesManagement() {
 
   // حذف المرحلة
   const handleDelete = async (stageId: number) => {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذه المرحلة؟"))) return
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذه المرحلة؟")))) return
 
     try {
       const response = await fetch(`/api/workflow/stages/${stageId}`, {
@@ -159,11 +160,11 @@ export function WorkflowStagesManagement() {
       if (response.ok) {
         await fetchStages()
       } else {
-        showAlert(result.error || "حدث خطأ أثناء الحذف")
+        showAlert(result.error || tr("حدث خطأ أثناء الحذف"))
       }
     } catch (error) {
       console.error("Error deleting stage:", error)
-      showAlert("حدث خطأ أثناء الحذف")
+      showAlert(tr("حدث خطأ أثناء الحذف"))
     }
   }
 
@@ -216,7 +217,7 @@ export function WorkflowStagesManagement() {
   return (
     <div className="p-6 dir-rtl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-primary">إدارة مراحل العمل</h1>
+        <h1 className="text-2xl font-heading font-bold text-primary">{tr("إدارة مراحل العمل")}</h1>
         <Button
           className="erp-btn-primary"
           onClick={() => {
@@ -224,8 +225,8 @@ export function WorkflowStagesManagement() {
             setShowForm(true)
           }}
         >
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة مرحلة جديدة
+          <Plus className="h-4 w-4 me-2" />
+          {tr("إضافة مرحلة جديدة")}
         </Button>
       </div>
 
@@ -246,35 +247,35 @@ export function WorkflowStagesManagement() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>{editingStage ? "تعديل المرحلة" : "إضافة مرحلة جديدة"}</CardTitle>
+            <CardTitle>{editingStage ? tr("تعديل المرحلة") : tr("إضافة مرحلة جديدة")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label className="erp-label">رمز المرحلة *</Label>
+                  <Label className="erp-label">{tr("رمز المرحلة *")}</Label>
                   <Input
                     value={formData.stage_code}
                     onChange={(e) => updateFormField("stage_code", e.target.value)}
                     className="erp-input"
-                    placeholder="مثال: STAGE_001"
+                    placeholder={tr("مثال: STAGE_001")}
                     required
                   />
                 </div>
 
                 <div>
-                  <Label className="erp-label">اسم المرحلة *</Label>
+                  <Label className="erp-label">{tr("اسم المرحلة *")}</Label>
                   <Input
                     value={formData.stage_name}
                     onChange={(e) => updateFormField("stage_name", e.target.value)}
                     className="erp-input"
-                    placeholder="مثال: مراجعة الطلبية"
+                    placeholder={tr("مثال: مراجعة الطلبية")}
                     required
                   />
                 </div>
 
                 <div>
-                  <Label className="erp-label">الاسم بالإنجليزية</Label>
+                  <Label className="erp-label">{tr("الاسم بالإنجليزية")}</Label>
                   <Input
                     value={formData.stage_name_en}
                     onChange={(e) => updateFormField("stage_name_en", e.target.value)}
@@ -284,7 +285,7 @@ export function WorkflowStagesManagement() {
                 </div>
 
                 <div>
-                  <Label className="erp-label">نوع المرحلة *</Label>
+                  <Label className="erp-label">{tr("نوع المرحلة *")}</Label>
                   <Select value={formData.stage_type} onValueChange={(value) => updateFormField("stage_type", value)}>
                     <SelectTrigger className="erp-input">
                       <SelectValue />
@@ -303,7 +304,7 @@ export function WorkflowStagesManagement() {
                 </div>
 
                 <div>
-                  <Label className="erp-label">لون المرحلة</Label>
+                  <Label className="erp-label">{tr("لون المرحلة")}</Label>
                   <div className="flex gap-2 mt-2">
                     {colorOptions.map((color) => (
                       <button
@@ -321,7 +322,7 @@ export function WorkflowStagesManagement() {
                 </div>
 
                 <div>
-                  <Label className="erp-label">أيقونة المرحلة</Label>
+                  <Label className="erp-label">{tr("أيقونة المرحلة")}</Label>
                   <Select value={formData.icon_name} onValueChange={(value) => updateFormField("icon_name", value)}>
                     <SelectTrigger className="erp-input">
                       <SelectValue />
@@ -337,7 +338,7 @@ export function WorkflowStagesManagement() {
                 </div>
 
                 <div>
-                  <Label className="erp-label">الحد الأقصى للمدة (بالساعات)</Label>
+                  <Label className="erp-label">{tr("الحد الأقصى للمدة (بالساعات)")}</Label>
                   <Input
                     type="number"
                     value={formData.max_duration_hours}
@@ -349,12 +350,12 @@ export function WorkflowStagesManagement() {
               </div>
 
               <div>
-                <Label className="erp-label">وصف المرحلة</Label>
+                <Label className="erp-label">{tr("وصف المرحلة")}</Label>
                 <Textarea
                   value={formData.description}
                   onChange={(e) => updateFormField("description", e.target.value)}
                   className="erp-input"
-                  placeholder="وصف تفصيلي للمرحلة..."
+                  placeholder={tr("وصف تفصيلي للمرحلة...")}
                   rows={3}
                 />
               </div>
@@ -365,7 +366,7 @@ export function WorkflowStagesManagement() {
                     checked={formData.requires_approval}
                     onCheckedChange={(checked) => updateFormField("requires_approval", checked)}
                   />
-                  <Label>تتطلب موافقة</Label>
+                  <Label>{tr("تتطلب موافقة")}</Label>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -373,7 +374,7 @@ export function WorkflowStagesManagement() {
                     checked={formData.auto_advance}
                     onCheckedChange={(checked) => updateFormField("auto_advance", checked)}
                   />
-                  <Label>انتقال تلقائي</Label>
+                  <Label>{tr("انتقال تلقائي")}</Label>
                 </div>
               </div>
 
@@ -386,10 +387,10 @@ export function WorkflowStagesManagement() {
                     resetForm()
                   }}
                 >
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
                 <Button type="submit" className="erp-btn-primary" disabled={saving}>
-                  {saving ? "جاري الحفظ..." : "حفظ المرحلة"}
+                  {saving ? tr("جاري الحفظ...") : tr("حفظ المرحلة")}
                 </Button>
               </div>
             </form>
@@ -405,7 +406,7 @@ export function WorkflowStagesManagement() {
       ) : stages.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
-            <p className="text-muted-foreground">لا توجد مراحل محددة بعد</p>
+            <p className="text-muted-foreground">{tr("لا توجد مراحل محددة بعد")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -432,11 +433,11 @@ export function WorkflowStagesManagement() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">رمز المرحلة</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{tr("رمز المرحلة")}</Label>
                     <p className="font-mono">{currentStage.stage_code}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">نوع المرحلة</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{tr("نوع المرحلة")}</Label>
                     <Badge variant="outline">
                       {stageTypeOptions.find((opt) => opt.value === currentStage.stage_type)?.label}
                     </Badge>
@@ -445,16 +446,16 @@ export function WorkflowStagesManagement() {
 
                 {currentStage.description && (
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">الوصف</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{tr("الوصف")}</Label>
                     <p className="text-sm">{currentStage.description}</p>
                   </div>
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                  {currentStage.requires_approval && <Badge variant="secondary">تتطلب موافقة</Badge>}
-                  {currentStage.auto_advance && <Badge variant="secondary">انتقال تلقائي</Badge>}
+                  {currentStage.requires_approval && <Badge variant="secondary">{tr("تتطلب موافقة")}</Badge>}
+                  {currentStage.auto_advance && <Badge variant="secondary">{tr("انتقال تلقائي")}</Badge>}
                   {currentStage.max_duration_hours && (
-                    <Badge variant="outline">حد أقصى: {currentStage.max_duration_hours} ساعة</Badge>
+                    <Badge variant="outline">{tr("حد أقصى: ")}{currentStage.max_duration_hours}{tr(" ساعة")}</Badge>
                   )}
                 </div>
               </CardContent>
@@ -464,7 +465,7 @@ export function WorkflowStagesManagement() {
           {/* قائمة جميع المراحل */}
           <Card>
             <CardHeader>
-              <CardTitle>جميع المراحل ({stages.length})</CardTitle>
+              <CardTitle>{tr("جميع المراحل (")}{stages.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">

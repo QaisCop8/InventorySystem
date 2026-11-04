@@ -1,0 +1,300 @@
+Number of custodies
+Number of invoices:
+Cashier custodies per shift: opening, expected and handed-over cash and the difference, sales and payments, and tobacco custody
+Tobacco custody
+New opening
+Tobacco difference (quantity)
+Cash difference
+Vouchers
+All cashiers
+All points
+No custodies in the selected period
+No tobacco custody for this shift
+Received
+Handed over
+Too many results, only the latest transactions are shown; narrow the period or filters
+Restaurant reports
+Item deletions/reductions
+Custody transactions
+Cancelled orders
+All actions
+Everything users do on the restaurant screen: opening, receiving and handing over custody, opening tables, adding and deleting items, discounts, moving and merging, payment and cancellation
+No actions for the selected period and filters
+Last used
+Performance of each user who opened orders: orders, takeaway, cancelled, guests, revenue and average order
+Total revenue
+Total times used
+Guests
+Revenue
+Tables/customer
+Table
+Orders
+Orders, guests and revenue by the hour the order was opened — to find busy times
+Paid quantities and their value for each item, with the number of orders and average price
+Paid
+Seats
+Waiter
+Waiter/user
+Order status
+Table number
+Working hours
+Takeaway
+Dine-in
+Dine-in and takeaway
+Number of tables
+Number of orders
+Number of locations
+Each order: type, location, tables, guests, waiter, time, duration, status, amount paid and invoices
+For each hall/location: dine-in, takeaway and cancelled orders, guests, revenue, average order and duration
+For each table: times used, guests, revenue, average order, average seating time and last use
+Average order
+Average duration
+Times used
+Of which takeaway
+Order type
+— the quantity cannot be less than that
+. After each payment the remainder is split among those left.
+Enter a number{0}
+Specific items
+Add-ons —
+Clear selection
+Choose the add-ons to show on the order and the kitchen ticket
+Choose a value from: {0}
+Amount due now
+Remaining on the table
+No onions, spicy...
+Split equally
+Share per person ≈
+Discount %
+Pay the table bill
+The full remainder will be paid and the table closed.
+Number of people
+Empty
+Full bill
+No add-ons are defined for this item (defined in the "Variants and attributes" tab of the item definition)
+No tables available
+Continue to payment
+Paid of it
+Note for the kitchen
+Paying now for
+— complete them from the locations screen so the items appear and payment is possible.
+Total open
+Sales settings are incomplete for the location:
+Choose a table to open or continue its order
+New takeaway
+Empty tables
+Occupied tables
+Takeaway orders
+Open takeaway orders
+Empty for
+Opened ·
+No matching tables
+There are no active locations for this branch. Define locations and tables from the restaurants menu.
+with
+seats
+Maximum discount rate %
+Add location
+Add a new location
+Sales settings
+Sales settings are incomplete — you cannot sell at this location
+Choose the book
+Optional: if left empty, the user's default accounts for the location currency are used, then the system accounts (as in the cashier).
+Location name *
+Show a print prompt when sending the order to the kitchen
+Next ·
+Order
+Required fields: {0}
+Number:
+Halls, floors and outdoor areas — each location has its own branch and sales settings (independent of the cashier)
+The hall or floor and its sales settings · Enter to move to the next field
+Main hall
+A suspended location doesn't appear on the restaurant screen
+Administrator email
+System manager email
+Permission approval emails
+No service
+Added automatically when any table in this location is opened, at its price in the price category, and posted to the "sales account" defined in the service.
+Edit location — {0}
+Unable to load locations
+Unable to load the screen data
+Unable to delete the location
+Unable to save the location
+There are unsaved changes to the location. Do you want to continue without saving?
+Delete location "{0}"?
+Payment accounts
+Save ·
+Save (F3)
+Table service
+Kitchen and status options
+Ask before printing when sending to the kitchen
+Table
+Print the invoice after payment
+Print kitchen tickets by item group printer
+When a permission that isn't granted is requested on the restaurant screen: an activation code is sent to these two emails, or the system manager/administrator types their PIN on the screen directly.
+Each item group is printed on its own printer
+You do not have permission to view restaurant locations.
+No locations defined
+Optional notes
+Generated automatically and cannot be edited
++ New
+Send to kitchen (
+Search for an item by name or code
+Order
+Order (
+The order is empty — choose items from the menu
+Continue
+Edit name
+New — not sent yet
+Delete service
+Table service
+Order discount
+Pay the bill
+On the table
+Unmerge
+Has add-ons
+Has linked items
+Paid {0}
+{0} of the linked items of {1} are not available in this location's menu and were skipped
+The items were sent but kitchen printing failed: {0}
+Items not available in this location's menu: {0}
+Cancel order
+To table
+Choose add-ons for "{0}" before paying: {1}
+Choose an empty table to move the order to
+Takeaway order name
+Customer name/number
+Customer name/number (optional)
+Linked items —
+Paying more than the amount is allowed for cash only
+Empty tables are added to the order, and occupied ones move their whole order (items and payments) into this order
+Moved table:
+The order is no longer open
+No price
+Convert the takeaway order to a table
+Payment failed; review the message
+Unable to load tables
+Unable to load the order
+Unable to load the custody
+Kitchen printing failed
+The items were sent to the table
+The order was sent to the kitchen. Do you want to print the kitchen tickets?
+The table was closed
+The order was cancelled
+The order discount was updated
+The table service was deleted
+Invoice {0}{1}{2} saved
+The tables were merged
+The items were split
+Table {0} was separated
+The table was moved
+The operation completed but printing failed: {0}
+There are items that haven't been sent yet. Do you want to ignore them and go back to the tables?
+There are items that haven't been sent to the table yet. Do you want to continue and ignore them?
+Set the quantities then choose the table: an empty table gets a new order, an occupied one gets the items added to its order
+Set the quantity of at least one item
+Delete {0} from the table?
+Table bill
+Merge
+Merge tables
+Cancellation reason *
+Takeaway{0}
+Print bill
+New takeaway order
+Which location's custody?
+Open the table
+Open table
+Split
+Split items to another table
+Separate table {0} from the order?
+You do not have permission to add items to the table
+You do not have permission to open the restaurant screen in the current branch.
+You do not have permission to pay the table bill
+You do not have permission to open a table
+The total of the payment details is less than the amount due
+Previously paid
+Order discount rate
+Move
+Move table
+You must open or receive the custody on this location before paying
+" to "
+". Existing names are skipped.
+{0} tables added, and {1} skipped because of duplicate names
+Add table
+Add group
+Add a group of tables
+To number
+Choose the location
+Table name/number *
+Table name/number is required
+Shape
+Restaurants
+Location *
+Name prefix
+Search by table name
+Edit table
+Unable to delete the table
+Unable to save the table
+Define the tables for each location: name/number, number of seats and shape
+There are unsaved changes to the table. Do you want to continue without saving?
+Delete table "{0}" from {1}?
+Round
+Number of seats
+Define at least one location from the "Locations" screen before adding tables.
+No tables defined
+You do not have permission to view restaurant tables.
+Example: "
+Square
+Rectangular
+Occupied
+From number
+Active
+{0}: your balance is {1} {2}. Redemption code {3} and PIN {4}. Do not share the PIN with anyone.
+The participant has used up the allowed number of redemptions
+Incorrect PIN ({0} attempts left)
+The code is locked after repeated wrong attempts — try again after {0} minutes or ask the program administration to unlock it
+The participant does not exist or their code is cancelled
+The aid activity period has ended
+Unable to generate a unique code
+This transaction was already redeemed
+The code was locked after 5 wrong attempts
+The participant's balance is insufficient
+Incorrect redemption code
+The redemption code is cancelled
+The aid activity currency differs from the point-of-sale currency
+No mobile number
+Invalid voucher amount
+The voucher amount exceeds the available amount ({0}) — the participant's balance or the value of the allowed items
+The activity's unallocated budget is not enough for this amount
+The aid activity is not active
+The aid activity does not exist
+The aid activity has not started yet
+This point of sale is not approved for this activity
+{0} is not set. Please fill it in the point-of-sale definition or the default user or system accounts matching the point-of-sale currency.
+The customer must be chosen when paying by cheque or on account
+Sales by payment method
+Tobacco custody (quantities)
+The customer cannot be chosen: there are items priced zero for the customer's price category
+Discount card {0} expired on {1}
+Discount card {0} starts on {1}
+Discount card {0} is for customer {1}
+Discount card {0} is not valid in this branch ({1})
+Discount card {0} is suspended
+The usage count of discount card {0} has been used up ({1})
+The invoice amount must be more than {0} to use the discount card
+<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title><style> @page{size:80mm auto;margin:0} *{box-sizing:border-box;margin:0;padding:0} body{width:80mm;padding:4mm 3mm;font-family:Tahoma,Arial,sans-serif;color:#000;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact} .logo{display:block;width:22mm;height:22mm;margin:0 auto 1.5mm;object-fit:contain} h1{font-size:15px;font-weight:800;margin-bottom:0.5mm} .info{font-size:10px;color:#333;line-height:1.5} hr{margin:2mm 0;border:0;border-top:1px solid #999} .qr{display:block;width:66mm;height:66mm;margin:2mm auto;image-rendering:pixelated} .thanks{margin-top:1.5mm;font-size:11px;font-weight:700} .hint{font-size:9px;color:#333} </style></head><body> {0} {1} {2} <hr> <img class="qr" src="{3}" alt="QR"> <div class="hint">Scan the code to view the full invoice details</div> <div class="thanks">Thank you for shopping with us</div> </body></html>
+<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style> *{box-sizing:border-box}body{margin:0;padding:28px;background:#edf2f4;color:#172c37;font-family:"Segoe UI",Tahoma,Arial,sans-serif}.sheet{width:min(100%,760px);margin:auto;background:#fff;border:1px solid #dce5e9;border-radius:18px;overflow:hidden;box-shadow:0 16px 48px #18374718}.top{height:8px;background:linear-gradient(90deg,#10a889,#087f73,#174b5a)}.content{padding:30px}.brand{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:22px;border-bottom:1px solid #e4ecef}.company{display:flex;align-items:center;gap:14px}.logo{max-width:88px;max-height:64px;object-fit:contain}.company h1{margin:0;font-size:20px}.company p,.meta small,.muted{margin:5px 0 0;color:#71838c;font-size:12px}.badge{padding:9px 13px;border-radius:999px;background:#e8f5f1;color:#087f73;font-size:12px;font-weight:700}.title{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:22px 0}.title h2{margin:0;font-size:24px}.code{text-align:right}.code small{display:block;color:#71838c;font-size:11px}.code strong{font:700 18px Consolas,monospace;color:#087f73}.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:20px}.meta>div{padding:12px;border:1px solid #e3eaed;border-radius:11px;background:#fafcfc}.meta b{display:block;margin-top:5px;font-size:13px}.table-wrap{overflow:auto;border:1px solid #dce5e9;border-radius:12px}table{width:100%;border-collapse:collapse;min-width:680px}th{padding:11px 12px;background:#173b49;color:white;text-align:left;font-size:11px}td{padding:12px;border-bottom:1px solid #e7edef;font-size:12px}tbody tr:nth-child(even){background:#f7fafb}.item strong,.item small{display:block}.item small{margin-top:4px;color:#71838c;font-size:10px}.index{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:7px;border-radius:7px;background:#e7f4f0;color:#087f73;font-size:10px;font-weight:700}.amount{font-weight:700;white-space:nowrap}.summary{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;margin-top:22px}.notes{padding:14px;border-radius:12px;background:#f5f8f9;color:#52666f;font-size:12px;line-height:1.8}.totals{padding:16px;border:1px solid #dce5e9;border-radius:13px}.total-row,.payment{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:12px}.total-row.sub{color:#61747d}.total-row.final{margin-top:8px;padding-top:13px;border-top:1px solid #dce5e9;color:#087f73;font-size:18px;font-weight:800}.payments{margin-top:12px;padding-top:10px;border-top:1px dashed #d5e1e5}.payments h3{margin:0 0 5px;font-size:11px}.footer{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:14px;border-top:1px solid #e4ecef;color:#71838c;font-size:10px}.footer b{color:#087f73}@page{size:auto;margin:0}@media(max-width:600px){body{padding:0;background:white}.sheet{border:0;border-radius:0;box-shadow:none}.content{padding:18px}.meta{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:1fr}.title h2{font-size:20px}}@media print{body{padding:0;background:#fff}.sheet{width:100%;border:0;border-radius:0;box-shadow:none}.content{padding:0}.top{height:5px}.footer{break-inside:avoid}} </style></head><body><main class="sheet"><div class="top"></div><div class="content"><header class="brand"><div class="company">{0}<div><h1>{1}</h1><p>{2}{3}</p>{4}</div></div><span class="badge">{5}</span></header><section class="title"><div><p class="muted">{6}</p><h2>{7}</h2></div><div class="code"><small>Invoice number</small><strong>{8}</strong></div></section><section class="meta"><div><small>Date and time</small><b>{9}</b></div><div><small>Customer</small><b>{10}</b></div><div><small>Cashier</small><b>{11}</b></div>{12}<div><small>Currency</small><b>{13}</b></div></section><div class="table-wrap"><table><thead><tr><th>Item</th><th>Quantity</th><th>Price incl. tax</th><th>Discount</th><th>Campaign discount</th><th>Total</th></tr></thead><tbody>{14}</tbody></table></div><section class="summary"><div class="notes">{15}<p class="muted">Prices include VAT.</p></div><div class="totals"><div class="total-row sub"><span>Items total</span><b>{16} {17}</b></div><div class="total-row sub"><span>Item discount</span><b>− {18} {19}</b></div><div class="total-row sub"><span>Campaign discount</span><b>− {20} {21}</b></div><div class="total-row sub"><span>Invoice discount</span><b>− {22} {23}</b></div><div class="total-row sub"><span>Tax (included in the price)</span><b>{24} {25}</b></div><div class="total-row final"><span>{26}</span><b>{27} {28}</b></div>{29}{30}</div> </section><footer class="footer"><span>{31}</span><b>{32}</b></footer></div></main></body></html>
+Sales return notice
+The print service timed out
+Unable to connect to the print service on this device
+Gift issue voucher
+Sales invoice
+The print service was not found on this device
+Payment exchange rates for the same currency do not match
+Invalid receipt voucher exchange rate or amount
+Complete the sales settings of location "{0}" from the locations screen: {1}
+Choose the add-ons of item "{0}": {1}
+The order is no longer open; refresh the screen
+You do not have the {0} permission in this branch
+No valid exchange rate for the table service price currency {0}
+Complete monitoring of system health, error diagnosis and performance
+Diagnostics and monitoring center

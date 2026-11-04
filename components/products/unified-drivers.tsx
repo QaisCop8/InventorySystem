@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -186,7 +187,7 @@ export default function UnifiedDrivers({
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
           className="w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0"
-          dir="rtl"
+          dir={appDir()}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
@@ -209,7 +210,7 @@ export default function UnifiedDrivers({
 
           <div className="rounded-b-3xl bg-background px-6 py-6">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل بيانات سائق" : "إضافة سائق جديد"}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل بيانات سائق") : tr("إضافة سائق جديد")}</DialogTitle>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -221,7 +222,7 @@ export default function UnifiedDrivers({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="driver-code">رقم السائق</Label>
+                  <Label htmlFor="driver-code">{tr("رقم السائق")}</Label>
                   <Input
                     id="driver-code"
                     value={form.driver_code}
@@ -239,7 +240,7 @@ export default function UnifiedDrivers({
                   />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
-                  <Label htmlFor="driver-name">اسم السائق *</Label>
+                  <Label htmlFor="driver-name">{tr("اسم السائق *")}</Label>
                   <Input
                     id="driver-name"
                     ref={nameInputRef}
@@ -254,7 +255,7 @@ export default function UnifiedDrivers({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="driver-phone">رقم الهاتف</Label>
+                  <Label htmlFor="driver-phone">{tr("رقم الهاتف")}</Label>
                   <Input
                     id="driver-phone"
                     value={form.phone}
@@ -263,7 +264,7 @@ export default function UnifiedDrivers({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="driver-licence-expiry">تاريخ انتهاء الرخصة</Label>
+                  <Label htmlFor="driver-licence-expiry">{tr("تاريخ انتهاء الرخصة")}</Label>
                   <Input
                     id="driver-licence-expiry"
                     type="date"
@@ -273,14 +274,14 @@ export default function UnifiedDrivers({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="driver-license-type">نوع الرخصة *</Label>
+                  <Label htmlFor="driver-license-type">{tr("نوع الرخصة *")}</Label>
                   <PrimeDropdown
                     inputId="driver-license-type"
                     value={form.license_type_id || null}
                     options={licenseTypes.map((item) => ({ label: item.name, value: item.id }))}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر نوع الرخصة"
+                    placeholder={tr("اختر نوع الرخصة")}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
@@ -293,13 +294,13 @@ export default function UnifiedDrivers({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="driver-status">الحالة</Label>
+                  <Label htmlFor="driver-status">{tr("الحالة")}</Label>
                   <PrimeDropdown
                     inputId="driver-status"
                     value={form.status || "نشط"}
                     options={[
-                      { label: "نشط", value: "نشط" },
-                      { label: "غير نشط", value: "غير نشط" },
+                      { label: tr("نشط"), value: "نشط" },
+                      { label: tr("غير نشط"), value: "غير نشط" },
                     ]}
                     optionLabel="label"
                     optionValue="value"
@@ -320,7 +321,7 @@ export default function UnifiedDrivers({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
-        message={deleteConfirmMessage || "هل تريد حذف هذا السائق؟"}
+        message={deleteConfirmMessage || tr("هل تريد حذف هذا السائق؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

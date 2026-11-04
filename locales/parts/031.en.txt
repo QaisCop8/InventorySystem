@@ -1,0 +1,300 @@
+, and the reset code reaches their email.
+"Forgot password"
+Last sign-in
+Last sign-in today
+Enter the full name
+Total users
+Email notifications
+In-system notifications
+Add user
+Add a new user
+Reactivate user
+Suspend user (inactive)
+Suspend user {0}? They won't be able to sign in to the company until reactivated.
+Choose the default screen
+Choose the department
+Full name
+Full name *
+Name, department, branch and job role
+Search users...
+Email *
+The email is used as the sign-in name
+Role
+Job role *
+Default screen on sign-in
+Department *
+Active users
+Inactive users
+Users and permissions
+Personal information
+Edit permissions
+Edit user
+Unable to change the user status
+System preferences
+The user was created but the email couldn't be sent to {0} (email settings aren't configured). The user can later use "Forgot password?" after email is set up.
+The user was created and notified by email — they sign in with their current account password.
+The user was created and an invitation email was sent to {0} to set the password.
+User suspended
+User reactivated
+Loading user settings...
+All roles
+All departments
+Account status and notifications
+An unknown error occurred while saving the user
+An error occurred saving the user:
+User number
+User number {0}
+The user is taken to this screen directly after signing in, per their permissions
+The user will receive an invitation email to set their own password
+Open the screen in full screen
+Failed to fetch user data
+Failed to save the user
+The password isn't changed from here — the user sets it themselves from the sign-in screen via
+No password needed — the user will receive an invitation email with a code to set their own password.
+New user
+Active user
+Sign-in information
+A copy of notifications by email
+The user number is generated automatically in sequence
+The job role must be chosen
+The department must be chosen
+Applied to the voucher, account, customer, item and service screens
+Can sign in to the system
+, warehouses and other settings to all the selected users.
+. On save, the accounts are applied to
+Enter or Tab to move, Shift to go back, F2 to search, and Delete to clear
+Choose the user and branch to show and edit the settings
+Choose one or more branches
+Choose one or more users
+Choose one or more users and one or more branches
+Choose a user first
+Other settings
+Default accounts and warehouses
+A price entered manually in sales vouchers is treated as tax-inclusive and converted to tax-exclusive
+The price entered includes tax
+Branches *
+Users *
+Default item warehouse in vouchers
+Default warehouses
+Applied to the user (for all branches)
+Unable to load branches
+The user's voucher entry preferences
+Returned cheques account
+Incoming cheques account
+Cash and bank accounts for each currency, and default warehouses — for one or several users and branches at once
+currencies
+in
+Who are the settings applied to?
+user ×
+Finished goods warehouse in the production voucher
+Raw materials warehouse in the production voucher
+Showing settings of
+Search by voucher book
+Choose a user to show their permissions
+User *
+Voucher book search
+Select books
+Set the voucher books allowed for each user and their default book
+Apply to all
+Voucher books
+Default voucher book
+The current user's permissions will be replaced with the source user's permissions for all voucher types.
+User permissions on voucher books
+Copy voucher book permissions from another user
+Copy from user
+Copy from another user
+Columns shown in the voucher
+Columns shown in print
+Column settings saved successfully
+Number column
+Failed to load the settings
+Failed to save the settings
+Include purchase return transactions in item cost calculations
+Fill the cheque number automatically in the payment voucher
+Choose the working months
+Last purchase price
+Show items with quantity = 0 in item search
+Show thousand separators in quantities, prices and amounts
+Take the price from
+Give the item a new sequential serial number on purchase
+Continue confirming orders when production materials aren't available
+Negative sign for the balance
+Main barcode
+Check for cheques whose current status is returned for this account
+Check when entering the cheque
+Check on save
+First in, first out
+Credit balance
+Debit balance
+Allow issuing payment vouchers with values above the cash balance
+Allow negative quantities in item balances
+Item-level tax
+Receipts, payments and entries
+Default value for the barcode column data
+Serial numbers report / default value of the "days before" filter
+General settings saved successfully
+The status of an endorsed cheque that is returned is always "returned"
+Working year *
+Working month *
+Print by warehouse in the order
+General / production item cost calculation method
+Item cost calculation method in receipt/issue/usage vouchers
+Serial length
+Decimal places in quantities, prices and amounts
+Don't check
+Don't allow entering cheques manually in the payment voucher
+When checking for cheques whose current status is returned for this account, per the option chosen here
+Working period
+Failed to save the general settings
+Serial warranties start after the sale by
+Average prices
+Item group mandatory in the item definition file
+From the relation to the main unit
+From the unit
+Prevent selling a serial while an older unsold serial exists
+Each line's tax rate = the item's rate (its tax classification), and the voucher's tax = the sum of the line taxes — in deliveries, invoices and sales orders
+The working year must be chosen
+At least one working month must be chosen
+Adds a button to the sales order that splits its items by their warehouses and prints each group on its warehouse's default printer
+Keyboard shortcuts
+Shortcuts
+Choose a template
+Type the message text or choose a template
+Unable to load the message
+Message sent successfully
+characters ·
+The messaging service is not enabled — enable it from Settings ← SMS settings
+message
+SMS to the customer
+No templates
+Search by group code or name
+Item group search
+Approve order
+Completed on
+Search by order number or customer name
+No customer
+Approval failed
+Order {0} was approved and is now ready
+Order {0} will be approved and the actual order status changed to "ready". Do you want to continue?
+Orders whose items have all completed the workflow and are waiting for final approval to become ready
+Order approval failed
+Failed to fetch the orders available for approval
+No orders are ready for approval right now
+No orders match the search
+Actual execution time
+Execution failed
+Deletion failed
+Checked and approved
+Print barcode
+The operation failed
+Failed to fetch the order items
+No items
+Do you want to delete this item from the order?
+Specific items ({0})
+Work departments
+Add transition
+Add step
+Add workflow
+Add member
+Show all order items
+To step
+Choose one or more items
+Workflow name
+New step type name
+Assigned members
+Departments and their members
+Departments and members
+Transitions (from ← to)
+The branch and department were already added
+Department (from the department definitions)
+Attachment mandatory
+Step types
+Invalid data
+Incomplete data
+Assign to
+Step label
+Unable to create the department
+Unable to add
+Unable to create
+Unable to edit
+Unable to save
+Disable
+More than 3 elements were selected
+Workflow steps saved
+Step type saved
+By item group
+Save edit
+Save steps and transitions
+steps ·
+Steps of "
+items use this version — saving creates a new version without affecting the running items.
+Print barcode
+When the expected working time is exceeded
+Failed to fetch the management data
+Old
+All transitions are now unconditional. More than one outgoing transition from the same step = parallel branching.
+Whole department
+No departments defined yet — add them first from the definitions, then come back to this page
+Nothing
+No members yet
+For a specific item
+Each step requires a label and a department
+Workflow chart
+Expected working time
+The expected working time must be a number between 0 and 999
+Manager
+Workflow paths
+Specific user
+Disabled
+From step
+Step type
+This is an old inactive version — for viewing only.
+Are you sure you want to delete the workflow "{0}"?
+The user must be chosen when assigning to a specific user
+At least one item must be chosen
+The item group must be specified
+Exists
+3 days
+Week
+My departments
+Created by
+Work on it was paused temporarily
+Force close
+Clear filter
+Force finish
+Finish task
+Stop task
+Pause
+Choose the workflow
+Click to filter
+Order
+Order — {0} items
+The timer is running now
+Finished within
+Tasks not yet claimed appear in "My departments"
+System
+Waiting to be claimed and started
+Start
+Start task
+Confirm transfer
+Confirm force rejection
+Track order items through workflow stages with execution time recorded live
+Administrative transfer
+Close failed
+The order was force-closed
+The stage was finished for all the order's items
+Operation completed successfully
+All the order's items were rejected at this stage
+In the workflow
+Within {0}
+Force reject
+Force rejection (administrative) — the task returns to the previous stage even if work has started on it
+Item number, title, customer or order number
+Reason for returning the task to the previous stage (required)
+Transfer reason (required)
+Force rejection reason (required)
+Events log
+All tasks of this order will be cancelled entirely and the linked actual order closed permanently. Do you want to confirm the force close?
+Show only tasks late past the completion time (SLA)
+Unassigned
+Failed to finish the task

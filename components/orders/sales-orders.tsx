@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
@@ -96,10 +97,10 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     try {
       const response = await fetch(`/api/order-drafts/${order.source_draft_id}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل المسودة")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل المسودة"))
       setSourceDraft(data)
     } catch (error: any) {
-      setDraftError(error.message || "تعذر تحميل المسودة")
+      setDraftError(error.message || tr("تعذر تحميل المسودة"))
     } finally {
       setDraftLoading(false)
     }
@@ -336,7 +337,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       console.log("response  ", response)
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data?.error || (!isPurchase ? "فشل في تحميل طلبيات المبيعات" : "فشل في تحميل طلبيات المشتريات"));
+        throw new Error(data?.error || (!isPurchase ? tr("فشل في تحميل طلبيات المبيعات") : tr("فشل في تحميل طلبيات المشتريات")));
       }
 
       const numberedData = Array.isArray(data)
@@ -350,7 +351,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     } catch (err) {
       setState(prev => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+        error: err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"),
         salesOrders: [],
       }));
     } finally {
@@ -364,23 +365,23 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       notCompleted: {
-        label: "غير جاهزة",
+        label: tr("غير جاهزة"),
         variant: "secondary",
         className: "bg-amber-100 text-amber-800 border-amber-200",
       },
       Completed: {
-        label: "جاهزة",
+        label: tr("جاهزة"),
         variant: "secondary",
         className: "bg-emerald-100 text-emerald-800 border-emerald-200",
       },
-      cancelled: { label: "ملغاة", variant: "secondary", className: "bg-red-100 text-red-800 border-red-200" },
+      cancelled: { label: tr("ملغاة"), variant: "secondary", className: "bg-red-100 text-red-800 border-red-200" },
       sentPartially: {
-        label: "مرسلة جزئيا",
+        label: tr("مرسلة جزئيا"),
         variant: "secondary",
         className: "bg-blue-100 text-blue-800 border-blue-200",
       },
       sent: {
-        label: "مرسلة كليا",
+        label: tr("مرسلة كليا"),
         variant: "secondary",
         className: "bg-blue-100 text-blue-800 border-blue-200",
       },
@@ -418,9 +419,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
   const getFinancialStatusBadge = (status: string) => {
     const statusConfig = {
-      paid: { label: "مدفوع", className: "bg-green-100 text-green-800 border-green-200" },
-      partial: { label: "مدفوع جزئياً", className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-      unpaid: { label: "غير مدفوع", className: "bg-red-100 text-red-800 border-red-200" },
+      paid: { label: tr("مدفوع"), className: "bg-green-100 text-green-800 border-green-200" },
+      partial: { label: tr("مدفوع جزئياً"), className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+      unpaid: { label: tr("غير مدفوع"), className: "bg-red-100 text-red-800 border-red-200" },
     }
 
     const config = statusConfig[status as keyof typeof statusConfig] || { label: status, className: "" }
@@ -467,9 +468,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
   const getOrderSourceBadge = (source: string) => {
     const sourceConfig = {
-      manual: { label: "إدخال يدوي", className: "bg-blue-100 text-blue-800 border-blue-200" },
-      customer_portal: { label: "من العملاء", className: "bg-green-100 text-green-800 border-green-200" },
-      api_import: { label: "استيراد API", className: "bg-purple-100 text-purple-800 border-purple-200" },
+      manual: { label: tr("إدخال يدوي"), className: "bg-blue-100 text-blue-800 border-blue-200" },
+      customer_portal: { label: tr("من العملاء"), className: "bg-green-100 text-green-800 border-green-200" },
+      api_import: { label: tr("استيراد API"), className: "bg-purple-100 text-purple-800 border-purple-200" },
     }
 
     const config = sourceConfig[source as keyof typeof sourceConfig] || {
@@ -536,8 +537,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
-          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى طلبيات المشتريات</p>
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("لا يوجد صلاحية")}</h2>
+          <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى طلبيات المشتريات")}</p>
         </div>
       </div>
     )
@@ -545,25 +546,25 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   // التحميل الأول فقط يملأ الصفحة؛ إعادة الجلب (بحث/بعد الحفظ) تُظهر طبقة تحميل فوق القائمة فتبقى الفلاتر ظاهرة
   if (state.loading && !state.salesOrders.length && !searching) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل البيانات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل البيانات...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full max-w-full space-y-6" dir="rtl">
+    <div className="w-full max-w-full space-y-6" dir={appDir()}>
       {state.error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
       {/* Header Section — نفس ترويسة شاشات الحركات (VoucherListHero) */}
       <VoucherListHero
-        title={isPurchase ? "طلبيات المشتريات" : "طلبيات المبيعات"}
-        subtitle={isPurchase ? "إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية" : "إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية"}
-        category="الطلبيات"
+        title={isPurchase ? tr("طلبيات المشتريات") : tr("طلبيات المبيعات")}
+        subtitle={isPurchase ? tr("إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية") : tr("إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية")}
+        category={tr("الطلبيات")}
         icon={ShoppingCart}
-        addLabel="طلبية جديدة"
+        addLabel={tr("طلبية جديدة")}
         onNew={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
       />
 
@@ -573,11 +574,11 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-700 text-sm font-medium">إجمالي الطلبيات</p>
+                <p className="text-blue-700 text-sm font-medium">{tr("إجمالي الطلبيات")}</p>
                 <p className="text-3xl font-bold text-blue-900">{analytics.totalOrders}</p>
                 <div className="flex items-center mt-2">
                   <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                  <span className="text-blue-600 text-xs">+{analytics.weeklyGrowth}% هذا الأسبوع</span>
+                  <span className="text-blue-600 text-xs">+{analytics.weeklyGrowth}{tr("% هذا الأسبوع")}</span>
                 </div>
               </div>
               <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-blue-200 flex items-center justify-center">
@@ -591,11 +592,11 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-700 text-sm font-medium">قيد التنفيذ</p>
+                <p className="text-amber-700 text-sm font-medium">{tr("قيد التنفيذ")}</p>
                 <p className="text-3xl font-bold text-amber-900">{analytics.pendingOrders}</p>
                 <div className="flex items-center mt-2">
                   <Clock className="h-4 w-4 text-amber-500" />
-                  <span className="text-amber-600 text-xs">يحتاج متابعة</span>
+                  <span className="text-amber-600 text-xs">{tr("يحتاج متابعة")}</span>
                 </div>
               </div>
               <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-amber-200 flex items-center justify-center">
@@ -609,12 +610,12 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-700 text-sm font-medium">مكتملة</p>
+                <p className="text-emerald-700 text-sm font-medium">{tr("مكتملة")}</p>
                 <p className="text-3xl font-bold text-emerald-900">{analytics.completedOrders}</p>
                 <div className="flex items-center mt-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500" />
                   <span className="text-emerald-600 text-xs">
-                    معدل الإنجاز {analytics.totalOrders ? Math.round((analytics.completedOrders / analytics.totalOrders) * 100) : 0}%
+                    {tr("معدل الإنجاز ")}{analytics.totalOrders ? Math.round((analytics.completedOrders / analytics.totalOrders) * 100) : 0}%
                   </span>
                 </div>
               </div>
@@ -629,11 +630,11 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-700 text-sm font-medium">إجمالي القيمة</p>
+                <p className="text-purple-700 text-sm font-medium">{tr("إجمالي القيمة")}</p>
                 <p className="text-3xl font-bold text-purple-900">{analytics.totalValue.toLocaleString("en-US")}</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="h-4 w-4 text-purple-500" />
-                  <span className="text-purple-600 text-xs">متوسط {analytics.avgOrderValue.toLocaleString("en-US")} </span>
+                  <span className="text-purple-600 text-xs">{tr("متوسط ")}{analytics.avgOrderValue.toLocaleString("en-US")} </span>
                 </div>
               </div>
               <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-purple-200 flex items-center justify-center">
@@ -649,17 +650,17 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-800">
             <Filter className="h-5 w-5" />
-            البحث والتصفية المتقدمة
+            {tr("البحث والتصفية المتقدمة")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4" onKeyDown={searchOnEnter(() => void runSearch())}>
             <div className="lg:col-span-2">
-              <Label className="text-slate-700 font-medium">البحث الذكي</Label>
+              <Label className="text-slate-700 font-medium">{tr("البحث الذكي")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة..."
+                  placeholder={tr("رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة...")}
                   value={filterDraft.search}
                   onChange={(e) => setDraftFilter({ search: e.target.value })}
                   className="pr-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
@@ -668,7 +669,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">حالة الطلبية</Label>
+              <Label className="text-slate-700 font-medium">{tr("حالة الطلبية")}</Label>
               <Select
                 value={filterDraft.status}
                 onValueChange={(value) => setDraftFilter({ status: value })}
@@ -677,11 +678,11 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">جميع الحالات</SelectItem>
-                  <SelectItem value="1">غير جاهزة</SelectItem>
-                  <SelectItem value="2">جاهزة</SelectItem>
-                  <SelectItem value="3">مرسلة جزئيا</SelectItem>
-                  <SelectItem value="4">مرسلة كليا</SelectItem>
+                  <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="1">{tr("غير جاهزة")}</SelectItem>
+                  <SelectItem value="2">{tr("جاهزة")}</SelectItem>
+                  <SelectItem value="3">{tr("مرسلة جزئيا")}</SelectItem>
+                  <SelectItem value="4">{tr("مرسلة كليا")}</SelectItem>
 
                 </SelectContent>
               </Select>
@@ -690,7 +691,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
 
             <div>
-              <Label className="text-slate-700 font-medium">قرار الإدارة</Label>
+              <Label className="text-slate-700 font-medium">{tr("قرار الإدارة")}</Label>
               <Select
                 value={filterDraft.order_source}
                 onValueChange={(value) => setDraftFilter({ order_source: value })}
@@ -699,18 +700,18 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">جميع الحالات</SelectItem>
-                  <SelectItem value="1">مقبول</SelectItem>
-                  <SelectItem value="2">مرفوض</SelectItem>
-                  <SelectItem value="3">مؤجل</SelectItem>
-                  <SelectItem value="4">معتمدة</SelectItem>
-                  <SelectItem value="5">مدققة</SelectItem>
+                  <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="1">{tr("مقبول")}</SelectItem>
+                  <SelectItem value="2">{tr("مرفوض")}</SelectItem>
+                  <SelectItem value="3">{tr("مؤجل")}</SelectItem>
+                  <SelectItem value="4">{tr("معتمدة")}</SelectItem>
+                  <SelectItem value="5">{tr("مدققة")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">من تاريخ</Label>
+              <Label className="text-slate-700 font-medium">{tr("من تاريخ")}</Label>
               <Input
                 type="date"
                 value={filterDraft.dateFrom}
@@ -720,7 +721,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">إلى تاريخ</Label>
+              <Label className="text-slate-700 font-medium">{tr("إلى تاريخ")}</Label>
               <Input
                 type="date"
                 value={filterDraft.dateTo}
@@ -737,20 +738,20 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 size="sm"
                 onClick={() => handleViewChange("grid")}
               >
-                شبكة
+                {tr("شبكة")}
               </Button>
               <Button
                 variant={state.currentView === "list" ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleViewChange("list")}
               >
-                قائمة
+                {tr("قائمة")}
               </Button>
             </div>
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={resetFilters} className="bg-white">
-                إعادة تعيين
+                {tr("إعادة تعيين")}
               </Button>
               <VoucherSearchButton onClick={() => void runSearch()} loading={searching} />
             </div>
@@ -764,16 +765,16 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           <div role="status" aria-live="polite" className="absolute inset-0 z-[2] flex items-start justify-center rounded-[inherit] bg-white/70 pt-24 backdrop-blur-[1px] dark:bg-slate-900/70">
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
               <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-              جاري تحميل البيانات...
+              {tr("جاري تحميل البيانات...")}
             </div>
           </div>
         )}
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-slate-800">قائمة الطلبيات</CardTitle>
+              <CardTitle className="text-slate-800">{tr("قائمة الطلبيات")}</CardTitle>
               <CardDescription className="text-slate-600">
-                عرض {filteredOrders.length} من أصل {state.salesOrders.length} طلبية
+                {tr("عرض ")}{filteredOrders.length}{tr(" من أصل ")}{state.salesOrders.length}{tr(" طلبية")}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -788,12 +789,12 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="created_at-desc">الأحدث أولاً</SelectItem>
-                  <SelectItem value="created_at-asc">الأقدم أولاً</SelectItem>
-                  <SelectItem value="total_amount-desc">الأعلى قيمة</SelectItem>
-                  <SelectItem value="total_amount-asc">الأقل قيمة</SelectItem>
-                  <SelectItem value="customer_name-asc">اسم العميل أ-ي</SelectItem>
-                  <SelectItem value="customer_name-desc">اسم العميل ي-أ</SelectItem>
+                  <SelectItem value="created_at-desc">{tr("الأحدث أولاً")}</SelectItem>
+                  <SelectItem value="created_at-asc">{tr("الأقدم أولاً")}</SelectItem>
+                  <SelectItem value="total_amount-desc">{tr("الأعلى قيمة")}</SelectItem>
+                  <SelectItem value="total_amount-asc">{tr("الأقل قيمة")}</SelectItem>
+                  <SelectItem value="customer_name-asc">{tr("اسم العميل أ-ي")}</SelectItem>
+                  <SelectItem value="customer_name-desc">{tr("اسم العميل ي-أ")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -805,9 +806,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <div className="mx-auto h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                 <ShoppingCart className="h-12 w-12 text-slate-400" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">لا توجد طلبيات</h3>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">{tr("لا توجد طلبيات")}</h3>
               <p className="text-slate-600 mb-6">
-                لم يتم العثور على أي طلبات تطابق معايير البحث
+                {tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}
               </p>
               <Button
                 className="flex items-center gap-2"
@@ -821,7 +822,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 }
               >
                 <Plus className="ml-2 h-4 w-4" />
-                إنشاء طلبية جديدة
+                {tr("إنشاء طلبية جديدة")}
               </Button>
             </div>
           ) : state.currentView === "grid" ? (
@@ -894,7 +895,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-slate-500" />
                             <span className="text-slate-600 text-sm">
-                              تسليم: {formatDateToBritish(order.delivery_datetime)}
+                              {tr("تسليم: ")}{formatDateToBritish(order.delivery_datetime)}
                             </span>
                           </div>
                         )}
@@ -903,7 +904,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-slate-500" />
                             <span className="text-slate-600 text-sm">
-                              المرحلة: {order.current_stage}
+                              {tr("المرحلة: ")}{order.current_stage}
                             </span>
                           </div>
                         )}
@@ -920,7 +921,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                               onClick={() => void openSourceDraft(order)}
                             >
                               <FileText className="ml-1 h-4 w-4" />
-                              فتح المسودة
+                              {tr("فتح المسودة")}
                             </Button>
                           )}
                           <Button
@@ -957,15 +958,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
                       <th className="text-right p-4">##</th>
-                      <th className="text-right p-4">رقم الطلبية</th>
-                      <th className="text-right p-4">التاريخ</th>
-                      <th className="text-right p-4">العميل</th>
-                      <th className="text-right p-4">الحالة</th>
-                      <th className="text-right p-4">السند اليدوي</th>
-                      <th className="text-right p-4">رقم طلبية العميل</th>
-                      <th className="text-right p-4">المبلغ</th>
-                      <th className="text-right p-4">استلمت بواسطة</th>
-                      <th className="text-center p-4">الإجراءات</th>
+                      <th className="text-right p-4">{tr("رقم الطلبية")}</th>
+                      <th className="text-right p-4">{tr("التاريخ")}</th>
+                      <th className="text-right p-4">{tr("العميل")}</th>
+                      <th className="text-right p-4">{tr("الحالة")}</th>
+                      <th className="text-right p-4">{tr("السند اليدوي")}</th>
+                      <th className="text-right p-4">{tr("رقم طلبية العميل")}</th>
+                      <th className="text-right p-4">{tr("المبلغ")}</th>
+                      <th className="text-right p-4">{tr("استلمت بواسطة")}</th>
+                      <th className="text-center p-4">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
 
@@ -1009,7 +1010,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                                 onClick={() => void openSourceDraft(order)}
                               >
                                 <FileText className="ml-1 h-4 w-4" />
-                                فتح المسودة
+                                {tr("فتح المسودة")}
                               </Button>
                             )}
                             <Button
@@ -1044,11 +1045,11 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => p - 1)}
               >
-                السابق
+                {tr("السابق")}
               </Button>
 
               <div className="text-sm text-slate-600">
-                صفحة {currentPage} من {totalPages}
+                {tr("صفحة ")}{currentPage}{tr(" من ")}{totalPages}
               </div>
 
               <Button
@@ -1056,7 +1057,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p) => p + 1)}
               >
-                التالي
+                {tr("التالي")}
               </Button>
             </div>
           )}
@@ -1091,15 +1092,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         />
       )}
       <Dialog open={!!sourceDraft} onOpenChange={(open) => !open && setSourceDraft(null)}>
-        <DialogContent className="max-h-[94vh] w-[calc(100%-1rem)] max-w-[1400px] overflow-x-hidden overflow-y-auto p-0" dir="rtl">
+        <DialogContent className="max-h-[94vh] w-[calc(100%-1rem)] max-w-[1400px] overflow-x-hidden overflow-y-auto p-0" dir={appDir()}>
           <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4">
-            <DialogTitle>المسودة الأصلية {sourceDraft?.draft_number}</DialogTitle>
+            <DialogTitle>{tr("المسودة الأصلية ")}{sourceDraft?.draft_number}</DialogTitle>
           </DialogHeader>
           {sourceDraft && <DraftOrderForm initialDraft={sourceDraft} readOnly />}
         </DialogContent>
       </Dialog>
       {draftError && (
-        <div className="fixed bottom-5 left-5 z-[100] rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
+        <div className="fixed bottom-5 end-5 z-[100] rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
           {draftError}
         </div>
       )}

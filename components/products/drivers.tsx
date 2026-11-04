@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -100,12 +101,12 @@ export default function Drivers() {
     if (!silent) setError(null)
     try {
       const res = await fetch("/api/drivers")
-      if (!res.ok) throw new Error("فشل في تحميل السائقين")
+      if (!res.ok) throw new Error(tr("فشل في تحميل السائقين"))
       const data: Driver[] = await res.json()
       setDrivers(data)
       return data
     } catch (err: any) {
-      if (!silent) setError(err.message || "حدث خطأ")
+      if (!silent) setError(err.message || tr("حدث خطأ"))
       return []
     } finally {
       if (!silent) setLoading(false)
@@ -205,11 +206,11 @@ export default function Drivers() {
     if (!(form.id > 0 ? canUpdate : canCreate)) return false
     if (!canSaveForm) {
       if (hasDuplicateName) {
-        setValidationError("اسم السائق مكرر لا يمكن الاستمرار")
+        setValidationError(tr("اسم السائق مكرر لا يمكن الاستمرار"))
       } else if (!form.license_type_id) {
-        setValidationError("يرجى اختيار نوع الرخصة")
+        setValidationError(tr("يرجى اختيار نوع الرخصة"))
       } else {
-        setValidationError("يرجى إدخال اسم السائق")
+        setValidationError(tr("يرجى إدخال اسم السائق"))
       }
       return false
     }
@@ -230,7 +231,7 @@ export default function Drivers() {
         body: JSON.stringify(payload),
       })
       if (!response.ok) {
-        let errorMessage = "فشل في حفظ السائق"
+        let errorMessage = tr("فشل في حفظ السائق")
         try {
           const errorPayload = await response.json()
           errorMessage = errorPayload?.error || errorPayload?.message || errorMessage
@@ -250,7 +251,7 @@ export default function Drivers() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
-      setValidationError(error instanceof Error ? error.message : "فشل في حفظ السائق")
+      setValidationError(error instanceof Error ? error.message : tr("فشل في حفظ السائق"))
     } finally {
       setIsSaving(false)
     }
@@ -261,7 +262,7 @@ export default function Drivers() {
     try {
       const response = await fetch(`/api/drivers/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
-        let errorMessage = "فشل في حذف السائق"
+        let errorMessage = tr("فشل في حذف السائق")
         try {
           const errorPayload = await response.json()
           errorMessage = errorPayload?.error || errorPayload?.message || errorMessage
@@ -285,11 +286,11 @@ export default function Drivers() {
         setIsNewMode(true)
       }
       setShowDeleteConfirm(false)
-      setDeleteConfirmMessage("هل تريد حذف هذا السائق؟")
+      setDeleteConfirmMessage(tr("هل تريد حذف هذا السائق؟"))
       setDeleteError("")
     } catch (error) {
       console.error(error)
-      const message = error instanceof Error ? error.message : "حدث خطأ أثناء الحذف"
+      const message = error instanceof Error ? error.message : tr("حدث خطأ أثناء الحذف")
       setDeleteConfirmMessage(message)
       setDeleteError(message)
       setShowDeleteConfirm(true)
@@ -384,7 +385,7 @@ export default function Drivers() {
 
   const handleDelete = useCallback(() => {
     if (!canDelete) return
-    setDeleteConfirmMessage("هل تريد حذف هذا السائق؟")
+    setDeleteConfirmMessage(tr("هل تريد حذف هذا السائق؟"))
     setDeleteError("")
     setShowDeleteConfirm(true)
   }, [canDelete])
@@ -397,7 +398,7 @@ export default function Drivers() {
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">جاري تحميل السائقين...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل السائقين...")}</p>
         </div>
       </div>
     )
@@ -407,27 +408,27 @@ export default function Drivers() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-destructive">خطأ: {error}</p>
-          <Button onClick={() => void fetchDrivers()} variant="outline">إعادة المحاولة</Button>
+          <p className="mb-4 text-destructive">{tr("خطأ: ")}{error}</p>
+          <Button onClick={() => void fetchDrivers()} variant="outline">{tr("إعادة المحاولة")}</Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full space-y-6 p-6" dir="rtl">
+    <div className="w-full space-y-6 p-6" dir={appDir()}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-xl font-semibold">
             <UserCog className="h-5 w-5 text-primary" />
-            السائقين
+            {tr("السائقين")}
           </div>
-          <div className="text-sm text-muted-foreground">إدارة بيانات السائقين وتراخيصهم</div>
+          <div className="text-sm text-muted-foreground">{tr("إدارة بيانات السائقين وتراخيصهم")}</div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="بحث برقم أو اسم السائق أو رقم الهاتف"
+              placeholder={tr("بحث برقم أو اسم السائق أو رقم الهاتف")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="min-w-[260px]"
@@ -435,11 +436,11 @@ export default function Drivers() {
             />
             <Button variant="outline" size="sm" disabled={loading || !canView}>
               <Search className="h-4 w-4" />
-              بحث
+              {tr("بحث")}
             </Button>
           </div>
           <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading || !canCreate}>
-            <Plus className="ml-2 h-4 w-4" /> إضافة سائق جديد
+            <Plus className="ml-2 h-4 w-4" />{tr(" إضافة سائق جديد")}
           </Button>
         </div>
       </div>
@@ -450,12 +451,12 @@ export default function Drivers() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-4 text-right font-semibold">رقم السائق</th>
-                  <th className="p-4 text-right font-semibold">اسم السائق</th>
-                  <th className="p-4 text-right font-semibold">رقم الهاتف</th>
-                  <th className="p-4 text-right font-semibold">نوع الرخصة</th>
-                  <th className="p-4 text-right font-semibold">تاريخ انتهاء الرخصة</th>
-                  <th className="p-4 text-right font-semibold">الحالة</th>
+                  <th className="p-4 text-start font-semibold">{tr("رقم السائق")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("اسم السائق")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("رقم الهاتف")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("نوع الرخصة")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("تاريخ انتهاء الرخصة")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("الحالة")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -468,16 +469,16 @@ export default function Drivers() {
                     <td className="p-4">{driver.licence_expiry || "-"}</td>
                     <td className="p-4">
                       {driver.status === "نشط" ? (
-                        <Badge className="bg-green-100 text-green-800">نشط</Badge>
+                        <Badge className="bg-green-100 text-green-800">{tr("نشط")}</Badge>
                       ) : (
-                        <Badge className="bg-red-100 text-red-800">غير نشط</Badge>
+                        <Badge className="bg-red-100 text-red-800">{tr("غير نشط")}</Badge>
                       )}
                     </td>
                   </tr>
                 ))}
                 {filteredDrivers.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">لا يوجد سائقين مسجلين</td>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">{tr("لا يوجد سائقين مسجلين")}</td>
                   </tr>
                 )}
               </tbody>
@@ -517,7 +518,7 @@ export default function Drivers() {
 
       <ConfirmDialogYesNo
         visible={showUnsavedConfirm}
-        message="تم تعديل السجل هل تريد الحفظ؟"
+        message={tr("تم تعديل السجل هل تريد الحفظ؟")}
         onConfirm={handleUnsavedConfirm}
         onCancel={handleDiscardUnsaved}
         onBack={handleCancelUnsaved}

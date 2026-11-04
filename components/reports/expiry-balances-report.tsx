@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { Fragment, useMemo, useState } from "react"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 import { useInventoryFilters } from "./inventory-filters"
@@ -34,10 +35,10 @@ type Row = {
 const today = () => new Date().toISOString().slice(0, 10)
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const STATUS: Record<Row["status"], { label: string; tone: string; row: string }> = {
-  expired: { label: "منتهي", tone: "bg-rose-100 text-rose-700 ring-rose-200", row: "bg-rose-50/60" },
-  near: { label: "قريب الانتهاء", tone: "bg-amber-100 text-amber-800 ring-amber-200", row: "bg-amber-50/50" },
-  valid: { label: "ساري", tone: "bg-emerald-100 text-emerald-700 ring-emerald-200", row: "" },
-  none: { label: "بلا صلاحية", tone: "bg-slate-100 text-slate-600 ring-slate-200", row: "" },
+  expired: { label: tr("منتهي"), tone: "bg-rose-100 text-rose-700 ring-rose-200", row: "bg-rose-50/60" },
+  near: { label: tr("قريب الانتهاء"), tone: "bg-amber-100 text-amber-800 ring-amber-200", row: "bg-amber-50/50" },
+  valid: { label: tr("ساري"), tone: "bg-emerald-100 text-emerald-700 ring-emerald-200", row: "" },
+  none: { label: tr("بلا صلاحية"), tone: "bg-slate-100 text-slate-600 ring-slate-200", row: "" },
 }
 
 export function ExpiryBalancesReport() {
@@ -67,13 +68,13 @@ export function ExpiryBalancesReport() {
       if (toExpiry) params.set("to_expiry", toExpiry)
       if (includeNoExpiry) params.set("include_no_expiry", "1")
       const response = await fetch(`/api/reports/expiry-balances?${params}`, { cache: "no-store" })
-      const data = await response.json().catch(() => ({ error: `تعذر قراءة استجابة الخادم (${response.status})` }))
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      const data = await response.json().catch(() => ({ error: tr("تعذر قراءة استجابة الخادم ({0})", response.status) }))
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(data.rows || [])
       setHasRun(true)
     } catch (cause) {
       setRows([])
-      setError(cause instanceof Error ? cause.message : "تعذر تحميل التقرير")
+      setError(cause instanceof Error ? cause.message : tr("تعذر تحميل التقرير"))
     } finally {
       setLoading(false)
     }
@@ -100,7 +101,7 @@ export function ExpiryBalancesReport() {
   const countBy = (key: Row["status"]) => visibleRows.filter((row) => row.status === key).length
 
   const exportCsv = () => {
-    const header = ["رقم الصنف", "اسم الصنف", "الوحدة", "المستودع", "تاريخ الصلاحية", "الرقم التشغيلي", "الرصيد", "الأيام المتبقية", "الحالة"]
+    const header = [tr("رقم الصنف"), tr("اسم الصنف"), tr("الوحدة"), tr("المستودع"), tr("تاريخ الصلاحية"), tr("الرقم التشغيلي"), tr("الرصيد"), tr("الأيام المتبقية"), tr("الحالة")]
     const body = visibleRows.map((row) => [row.product_code, row.product_name, row.main_unit, row.warehouse_name, row.expiry_date || "", row.batch_no, row.quantity, row.days_left ?? "", STATUS[row.status].label])
     const csv = [header, ...body].map((values) => values.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")).join("\n")
     const link = document.createElement("a")
@@ -112,9 +113,9 @@ export function ExpiryBalancesReport() {
 
   const daysText = (row: Row) => {
     if (row.days_left == null) return "—"
-    if (row.days_left < 0) return `منتهي منذ ${Math.abs(row.days_left)} يوم`
-    if (row.days_left === 0) return "ينتهي اليوم"
-    return `${row.days_left} يوم`
+    if (row.days_left < 0) return tr("منتهي منذ {0} يوم", Math.abs(row.days_left))
+    if (row.days_left === 0) return tr("ينتهي اليوم")
+    return tr("{0} يوم", row.days_left)
   }
 
   const renderRow = (row: Row, index: number, nested = false) => (
@@ -135,42 +136,42 @@ export function ExpiryBalancesReport() {
     <ReportPage loading={loading || loadingFilters}>
       <ReportHeader
         icon={CalendarClock}
-        category="تقارير الأصناف"
-        title={<>أرصدة الأصناف حسب تاريخ الصلاحية</>}
-        description={<>رصيد كل صنف موزّعاً على تواريخ الصلاحية والأرقام التشغيلية في كل مستودع، مع الأيام المتبقية</>}
+        category={tr("تقارير الأصناف")}
+        title={<>{tr("أرصدة الأصناف حسب تاريخ الصلاحية")}</>}
+        description={<>{tr("رصيد كل صنف موزّعاً على تواريخ الصلاحية والأرقام التشغيلية في كل مستودع، مع الأيام المتبقية")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4" />تصدير</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
       <ReportFilters>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {controls}
-          <div className="space-y-2"><Label>الرصيد حتى تاريخ</Label><Input type="date" lang="en" dir="ltr" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("الرصيد حتى تاريخ")}</Label><Input type="date" lang="en" dir="ltr" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl" /></div>
           <div className="space-y-2">
-            <Label>حالة الصلاحية</Label>
+            <Label>{tr("حالة الصلاحية")}</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="expired">منتهي</SelectItem>
-                <SelectItem value="near">قريب الانتهاء</SelectItem>
-                <SelectItem value="valid">ساري</SelectItem>
+                <SelectItem value="all">{tr("الكل")}</SelectItem>
+                <SelectItem value="expired">{tr("منتهي")}</SelectItem>
+                <SelectItem value="near">{tr("قريب الانتهاء")}</SelectItem>
+                <SelectItem value="valid">{tr("ساري")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2"><Label>قريب الانتهاء خلال (يوم)</Label><Input type="number" min={1} dir="ltr" value={nearDays} onChange={(event) => setNearDays(event.target.value)} className="rounded-xl text-right" /></div>
-          <div className="space-y-2"><Label>الصلاحية من</Label><Input type="date" lang="en" dir="ltr" value={fromExpiry} onChange={(event) => setFromExpiry(event.target.value)} className="rounded-xl" /></div>
-          <div className="space-y-2"><Label>الصلاحية إلى</Label><Input type="date" lang="en" dir="ltr" value={toExpiry} onChange={(event) => setToExpiry(event.target.value)} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("قريب الانتهاء خلال (يوم)")}</Label><Input type="number" min={1} dir="ltr" value={nearDays} onChange={(event) => setNearDays(event.target.value)} className="rounded-xl text-start" /></div>
+          <div className="space-y-2"><Label>{tr("الصلاحية من")}</Label><Input type="date" lang="en" dir="ltr" value={fromExpiry} onChange={(event) => setFromExpiry(event.target.value)} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("الصلاحية إلى")}</Label><Input type="date" lang="en" dir="ltr" value={toExpiry} onChange={(event) => setToExpiry(event.target.value)} className="rounded-xl" /></div>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4 text-sm">
-            <label className="flex cursor-pointer items-center gap-2"><Checkbox checked={groupByProduct} onCheckedChange={(value) => setGroupByProduct(value === true)} />تجميع حسب الصنف</label>
-            <label className="flex cursor-pointer items-center gap-2" title="إظهار أرصدة بلا تاريخ صلاحية للأصناف المختارة"><Checkbox checked={includeNoExpiry} onCheckedChange={(value) => setIncludeNoExpiry(value === true)} />إظهار الأرصدة بلا صلاحية</label>
+            <label className="flex cursor-pointer items-center gap-2"><Checkbox checked={groupByProduct} onCheckedChange={(value) => setGroupByProduct(value === true)} />{tr("تجميع حسب الصنف")}</label>
+            <label className="flex cursor-pointer items-center gap-2" title={tr("إظهار أرصدة بلا تاريخ صلاحية للأصناف المختارة")}><Checkbox checked={includeNoExpiry} onCheckedChange={(value) => setIncludeNoExpiry(value === true)} />{tr("إظهار الأرصدة بلا صلاحية")}</label>
           </div>
           <Button data-report-apply onClick={() => void loadReport()} disabled={loading || loadingFilters} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-            {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض النتائج
+            {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
           </Button>
         </div>
       </ReportFilters>
@@ -178,24 +179,24 @@ export function ExpiryBalancesReport() {
       {(error || filterError) && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error || filterError}</p>}
 
       <section className="grid shrink-0 grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-4">
-        <ReportSummaryCard label="عدد الدفعات">{visibleRows.length.toLocaleString("en-US")}</ReportSummaryCard>
-        <ReportSummaryCard label={`منتهي (${countBy("expired")} دفعة)`}>{qty(sumBy("expired"))}</ReportSummaryCard>
-        <ReportSummaryCard label={`قريب الانتهاء (${countBy("near")} دفعة)`}>{qty(sumBy("near"))}</ReportSummaryCard>
-        <ReportSummaryCard label={`ساري (${countBy("valid")} دفعة)`}>{qty(sumBy("valid"))}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("عدد الدفعات")}>{visibleRows.length.toLocaleString("en-US")}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("منتهي ({0} دفعة)", countBy("expired"))}>{qty(sumBy("expired"))}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("قريب الانتهاء ({0} دفعة)", countBy("near"))}>{qty(sumBy("near"))}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("ساري ({0} دفعة)", countBy("valid"))}>{qty(sumBy("valid"))}</ReportSummaryCard>
       </section>
 
       <section className="report-results">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div>
-            <h2 className="font-bold">الأرصدة حسب الصلاحية حتى {toDate}</h2>
-            <p className="text-xs text-muted-foreground">{groups.length.toLocaleString("en-US")} صنف · {visibleRows.length.toLocaleString("en-US")} دفعة</p>
+            <h2 className="font-bold">{tr("الأرصدة حسب الصلاحية حتى ")}{toDate}</h2>
+            <p className="text-xs text-muted-foreground">{groups.length.toLocaleString("en-US")}{tr(" صنف · ")}{visibleRows.length.toLocaleString("en-US")}{tr(" دفعة")}</p>
           </div>
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث بالصنف أو الرقم التشغيلي أو المستودع..." className="w-full rounded-xl sm:w-80" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث بالصنف أو الرقم التشغيلي أو المستودع...")} className="w-full rounded-xl sm:w-80" />
         </div>
         <div className="report-table-scroll">
           <table className="w-full min-w-[900px] text-sm">
             <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-              <tr>{["رقم الصنف", "اسم الصنف", "المستودع", "تاريخ الصلاحية", "الرقم التشغيلي", "الرصيد", "المتبقي", "الحالة"].map((label) => <th key={label} className="whitespace-nowrap px-3 py-3 text-right text-xs">{label}</th>)}</tr>
+              <tr>{["رقم الصنف", "اسم الصنف", "المستودع", "تاريخ الصلاحية", "الرقم التشغيلي", "الرصيد", "المتبقي", "الحالة"].map((label) => <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs">{label}</th>)}</tr>
             </thead>
             <tbody>
               {groupByProduct
@@ -205,14 +206,14 @@ export function ExpiryBalancesReport() {
                         <td className="px-3 py-2 font-mono font-bold text-teal-800">{group.product.product_code}</td>
                         <td className="px-3 py-2 font-black" colSpan={4}>{group.product.product_name}</td>
                         <td className="px-3 py-2 font-black tabular-nums" dir="ltr">{qty(group.total)} <span className="text-xs font-normal text-slate-500">{group.product.main_unit}</span></td>
-                        <td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>{group.rows.length} دفعة</td>
+                        <td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>{group.rows.length}{tr(" دفعة")}</td>
                       </tr>
                       {group.rows.map((row, index) => renderRow(row, index, true))}
                     </Fragment>
                   ))
                 : visibleRows.map((row, index) => renderRow(row, index))}
               {!loading && !visibleRows.length && (
-                <tr><td colSpan={8} className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{hasRun ? "لا توجد أرصدة مطابقة" : "اختر الفلاتر ثم اضغط عرض النتائج"}</td></tr>
+                <tr><td colSpan={8} className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{hasRun ? tr("لا توجد أرصدة مطابقة") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}</td></tr>
               )}
             </tbody>
           </table>

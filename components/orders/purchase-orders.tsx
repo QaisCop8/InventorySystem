@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/components/auth/auth-context"
@@ -96,12 +97,12 @@ interface PurchaseOrder {
 }
 
 const reportColumns = [
-  { key: "order_number", label: "رقم الطلبية", width: "120px" },
-  { key: "order_date", label: "التاريخ", width: "120px" },
-  { key: "supplier_name", label: "اسم المورد", width: "200px" },
-  { key: "workflow_status", label: "الحالة", width: "100px" },
-  { key: "total_amount", label: "المبلغ الإجمالي", width: "120px" },
-  { key: "salesman", label: "المندوب", width: "120px" },
+  { key: "order_number", label: tr("رقم الطلبية"), width: "120px" },
+  { key: "order_date", label: tr("التاريخ"), width: "120px" },
+  { key: "supplier_name", label: tr("اسم المورد"), width: "200px" },
+  { key: "workflow_status", label: tr("الحالة"), width: "100px" },
+  { key: "total_amount", label: tr("المبلغ الإجمالي"), width: "120px" },
+  { key: "salesman", label: tr("المندوب"), width: "120px" },
 ]
 
 export function PurchaseOrders() {
@@ -240,18 +241,18 @@ export function PurchaseOrders() {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: {
-        label: "قيد التنفيذ",
+        label: tr("قيد التنفيذ"),
         variant: "secondary",
         className: "bg-amber-100 text-amber-800 border-amber-200",
       },
       completed: {
-        label: "مكتملة",
+        label: tr("مكتملة"),
         variant: "secondary",
         className: "bg-emerald-100 text-emerald-800 border-emerald-200",
       },
-      cancelled: { label: "ملغاة", variant: "secondary", className: "bg-red-100 text-red-800 border-red-200" },
+      cancelled: { label: tr("ملغاة"), variant: "secondary", className: "bg-red-100 text-red-800 border-red-200" },
       processing: {
-        label: "قيد المعالجة",
+        label: tr("قيد المعالجة"),
         variant: "secondary",
         className: "bg-blue-100 text-blue-800 border-blue-200",
       },
@@ -272,9 +273,9 @@ export function PurchaseOrders() {
 
   const getFinancialStatusBadge = (status: string) => {
     const statusConfig = {
-      paid: { label: "مدفوع", className: "bg-green-100 text-green-800 border-green-200" },
-      partial: { label: "مدفوع جزئياً", className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-      unpaid: { label: "غير مدفوع", className: "bg-red-100 text-red-800 border-red-200" },
+      paid: { label: tr("مدفوع"), className: "bg-green-100 text-green-800 border-green-200" },
+      partial: { label: tr("مدفوع جزئياً"), className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+      unpaid: { label: tr("غير مدفوع"), className: "bg-red-100 text-red-800 border-red-200" },
     }
 
     const config = statusConfig[status as keyof typeof statusConfig] || { label: status, className: "" }
@@ -327,9 +328,9 @@ export function PurchaseOrders() {
 
   const getOrderSourceBadge = (source: string) => {
     const sourceConfig = {
-      manual: { label: "إدخال يدوي", className: "bg-blue-100 text-blue-800 border-blue-200" },
-      supplier_portal: { label: "من الموردين", className: "bg-green-100 text-green-800 border-green-200" },
-      api_import: { label: "استيراد API", className: "bg-purple-100 text-purple-800 border-purple-200" },
+      manual: { label: tr("إدخال يدوي"), className: "bg-blue-100 text-blue-800 border-blue-200" },
+      supplier_portal: { label: tr("من الموردين"), className: "bg-green-100 text-green-800 border-green-200" },
+      api_import: { label: tr("استيراد API"), className: "bg-purple-100 text-purple-800 border-purple-200" },
     }
 
     const config = sourceConfig[source as keyof typeof sourceConfig] || {
@@ -363,11 +364,11 @@ export function PurchaseOrders() {
 
   async function handleSaveOrder(order: PurchaseOrder, isNewRecord: boolean): Promise<void> {
     if (!order.supplier_name.trim()) {
-      throw new Error("اسم المورد مطلوب")
+      throw new Error(tr("اسم المورد مطلوب"))
     }
 
     if (!order.order_number.trim()) {
-      throw new Error("رقم الطلبية مطلوب")
+      throw new Error(tr("رقم الطلبية مطلوب"))
     }
 
     const method = isNewRecord ? "POST" : "PUT"
@@ -383,15 +384,15 @@ export function PurchaseOrders() {
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "فشل في حفظ بيانات الطلبية")
+      throw new Error(errorData.message || tr("فشل في حفظ بيانات الطلبية"))
     }
 
     await fetchPurchaseOrders()
   }
 
   async function handleDeleteOrder(order: PurchaseOrder): Promise<void> {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذه الطلبية؟"))) {
-      throw new Error("تم إلغاء العملية")
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذه الطلبية؟")))) {
+      throw new Error(tr("تم إلغاء العملية"))
     }
 
     const response = await fetch(`/api/purchase-orders/${order.id}`, {
@@ -399,7 +400,7 @@ export function PurchaseOrders() {
     })
 
     if (!response.ok) {
-      throw new Error("فشل في حذف الطلبية")
+      throw new Error(tr("فشل في حذف الطلبية"))
     }
 
     await fetchPurchaseOrders()
@@ -450,14 +451,14 @@ export function PurchaseOrders() {
       setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/purchase-orders")
       if (!response.ok) {
-        throw new Error("فشل في تحميل طلبات الشراء")
+        throw new Error(tr("فشل في تحميل طلبات الشراء"))
       }
       const data = await response.json()
       setState((prev) => ({ ...prev, purchaseOrders: Array.isArray(data) ? data : [] }))
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+        error: err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"),
         purchaseOrders: [],
       }))
     } finally {
@@ -525,10 +526,10 @@ export function PurchaseOrders() {
 
   if (state.loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل طلبات الشراء...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل طلبات الشراء...")}</p>
         </div>
       </div>
     )
@@ -539,33 +540,33 @@ export function PurchaseOrders() {
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="text-lg text-red-600">{state.error}</div>
         <Button onClick={fetchPurchaseOrders} variant="outline">
-          إعادة المحاولة
+          {tr("إعادة المحاولة")}
         </Button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-purple-50 min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-purple-50 min-h-screen" dir={appDir()}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            طلبات الشراء
+            {tr("طلبات الشراء")}
           </h1>
-          <p className="text-slate-600 mt-2 text-lg">إدارة وتتبع جميع طلبات الشراء من الموردين</p>
+          <p className="text-slate-600 mt-2 text-lg">{tr("إدارة وتتبع جميع طلبات الشراء من الموردين")}</p>
         </div>
         <div className="flex gap-3">
           <SearchButton type="purchases" onSelectPurchaseOrder={handleSearchOrder} variant="outline" size="default" />
           <Button variant="outline" className="bg-white shadow-sm" onClick={handleReport}>
             <FileText className="ml-2 h-4 w-4" />
-            تقرير
+            {tr("تقرير")}
           </Button>
           <Button
             className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg"
             onClick={handleNewOrder}
           >
             <Plus className="ml-2 h-4 w-4" />
-            طلبية جديدة
+            {tr("طلبية جديدة")}
           </Button>
         </div>
       </div>
@@ -575,11 +576,11 @@ export function PurchaseOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium">إجمالي الطلبات</p>
+                <p className="text-purple-100 text-sm font-medium">{tr("إجمالي الطلبات")}</p>
                 <p className="text-3xl font-bold">{analytics.totalOrders}</p>
                 <div className="flex items-center mt-2">
                   <ArrowUpRight className="h-4 w-4 text-purple-200" />
-                  <span className="text-purple-200 text-sm">+{analytics.weeklyGrowth}% هذا الأسبوع</span>
+                  <span className="text-purple-200 text-sm">+{analytics.weeklyGrowth}{tr("% هذا الأسبوع")}</span>
                 </div>
               </div>
               <div className="h-12 w-12 bg-purple-400 rounded-full flex items-center justify-center">
@@ -593,11 +594,11 @@ export function PurchaseOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium">قيد التنفيذ</p>
+                <p className="text-amber-100 text-sm font-medium">{tr("قيد التنفيذ")}</p>
                 <p className="text-3xl font-bold">{analytics.pendingOrders}</p>
                 <div className="flex items-center mt-2">
                   <Clock className="h-4 w-4 text-amber-200" />
-                  <span className="text-amber-200 text-sm">يحتاج متابعة</span>
+                  <span className="text-amber-200 text-sm">{tr("يحتاج متابعة")}</span>
                 </div>
               </div>
               <div className="h-12 w-12 bg-amber-400 rounded-full flex items-center justify-center">
@@ -611,12 +612,12 @@ export function PurchaseOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium">مكتملة</p>
+                <p className="text-emerald-100 text-sm font-medium">{tr("مكتملة")}</p>
                 <p className="text-3xl font-bold">{analytics.completedOrders}</p>
                 <div className="flex items-center mt-2">
                   <CheckCircle className="h-4 w-4 text-emerald-200" />
                   <span className="text-emerald-200 text-sm">
-                    معدل الإنجاز {Math.round((analytics.completedOrders / analytics.totalOrders) * 100)}%
+                    {tr("معدل الإنجاز ")}{Math.round((analytics.completedOrders / analytics.totalOrders) * 100)}%
                   </span>
                 </div>
               </div>
@@ -631,11 +632,11 @@ export function PurchaseOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-pink-100 text-sm font-medium">إجمالي القيمة</p>
+                <p className="text-pink-100 text-sm font-medium">{tr("إجمالي القيمة")}</p>
                 <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString("en-US")}</p>
                 <div className="flex items-center mt-2">
                   <TrendingUp className="h-4 w-4 text-pink-200" />
-                  <span className="text-pink-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString("en-US")} ريال</span>
+                  <span className="text-pink-200 text-sm">{tr("متوسط ")}{analytics.avgOrderValue.toLocaleString("en-US")}{tr(" ريال")}</span>
                 </div>
               </div>
               <div className="h-12 w-12 bg-pink-400 rounded-full flex items-center justify-center">
@@ -650,17 +651,17 @@ export function PurchaseOrders() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-800">
             <Filter className="h-5 w-5" />
-            البحث والتصفية المتقدمة
+            {tr("البحث والتصفية المتقدمة")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
             <div className="lg:col-span-2">
-              <Label className="text-slate-700 font-medium">البحث الذكي</Label>
+              <Label className="text-slate-700 font-medium">{tr("البحث الذكي")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الطلبية، اسم المورد، أو المندوب..."
+                  placeholder={tr("رقم الطلبية، اسم المورد، أو المندوب...")}
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -674,7 +675,7 @@ export function PurchaseOrders() {
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">حالة الطلبية</Label>
+              <Label className="text-slate-700 font-medium">{tr("حالة الطلبية")}</Label>
               <Select
                 value={state.filters.status}
                 onValueChange={(value) =>
@@ -688,17 +689,17 @@ export function PurchaseOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="pending">قيد التنفيذ</SelectItem>
-                  <SelectItem value="processing">قيد المعالجة</SelectItem>
-                  <SelectItem value="completed">مكتملة</SelectItem>
-                  <SelectItem value="cancelled">ملغاة</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="pending">{tr("قيد التنفيذ")}</SelectItem>
+                  <SelectItem value="processing">{tr("قيد المعالجة")}</SelectItem>
+                  <SelectItem value="completed">{tr("مكتملة")}</SelectItem>
+                  <SelectItem value="cancelled">{tr("ملغاة")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">الحالة المالية</Label>
+              <Label className="text-slate-700 font-medium">{tr("الحالة المالية")}</Label>
               <Select
                 value={state.filters.financial_status}
                 onValueChange={(value) =>
@@ -712,16 +713,16 @@ export function PurchaseOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="paid">مدفوع</SelectItem>
-                  <SelectItem value="partial">مدفوع جزئياً</SelectItem>
-                  <SelectItem value="unpaid">غير مدفوع</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="paid">{tr("مدفوع")}</SelectItem>
+                  <SelectItem value="partial">{tr("مدفوع جزئياً")}</SelectItem>
+                  <SelectItem value="unpaid">{tr("غير مدفوع")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">حالة سير العمل</Label>
+              <Label className="text-slate-700 font-medium">{tr("حالة سير العمل")}</Label>
               <Select
                 value={state.filters.workflow_status}
                 onValueChange={(value) =>
@@ -735,17 +736,17 @@ export function PurchaseOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="في الانتظار">في الانتظار</SelectItem>
-                  <SelectItem value="قيد المراجعة">قيد المراجعة</SelectItem>
-                  <SelectItem value="تم الموافقة">تم الموافقة</SelectItem>
-                  <SelectItem value="مرفوض">مرفوض</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="في الانتظار">{tr("في الانتظار")}</SelectItem>
+                  <SelectItem value="قيد المراجعة">{tr("قيد المراجعة")}</SelectItem>
+                  <SelectItem value="تم الموافقة">{tr("تم الموافقة")}</SelectItem>
+                  <SelectItem value="مرفوض">{tr("مرفوض")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">من تاريخ</Label>
+              <Label className="text-slate-700 font-medium">{tr("من تاريخ")}</Label>
               <Input
                 type="date"
                 value={state.filters.dateFrom}
@@ -760,7 +761,7 @@ export function PurchaseOrders() {
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">إلى تاريخ</Label>
+              <Label className="text-slate-700 font-medium">{tr("إلى تاريخ")}</Label>
               <Input
                 type="date"
                 value={state.filters.dateTo}
@@ -775,7 +776,7 @@ export function PurchaseOrders() {
             </div>
 
             <div>
-              <Label className="text-slate-700 font-medium">مصدر الطلبية</Label>
+              <Label className="text-slate-700 font-medium">{tr("مصدر الطلبية")}</Label>
               <Select
                 value={state.filters.order_source}
                 onValueChange={(value) =>
@@ -789,10 +790,10 @@ export function PurchaseOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المصادر</SelectItem>
-                  <SelectItem value="manual">إدخال يدوي</SelectItem>
-                  <SelectItem value="supplier_portal">من الموردين</SelectItem>
-                  <SelectItem value="api_import">استيراد API</SelectItem>
+                  <SelectItem value="all">{tr("جميع المصادر")}</SelectItem>
+                  <SelectItem value="manual">{tr("إدخال يدوي")}</SelectItem>
+                  <SelectItem value="supplier_portal">{tr("من الموردين")}</SelectItem>
+                  <SelectItem value="api_import">{tr("استيراد API")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -805,19 +806,19 @@ export function PurchaseOrders() {
                 size="sm"
                 onClick={() => setState((prev) => ({ ...prev, currentView: "grid" }))}
               >
-                شبكة
+                {tr("شبكة")}
               </Button>
               <Button
                 variant={state.currentView === "list" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setState((prev) => ({ ...prev, currentView: "list" }))}
               >
-                قائمة
+                {tr("قائمة")}
               </Button>
             </div>
 
             <Button variant="outline" onClick={resetFilters} className="bg-white">
-              إعادة تعيين
+              {tr("إعادة تعيين")}
             </Button>
           </div>
         </CardContent>
@@ -827,9 +828,9 @@ export function PurchaseOrders() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-slate-800">قائمة الطلبات</CardTitle>
+              <CardTitle className="text-slate-800">{tr("قائمة الطلبات")}</CardTitle>
               <CardDescription className="text-slate-600">
-                عرض {filteredOrders.length} من أصل {state.purchaseOrders.length} طلبية
+                {tr("عرض ")}{filteredOrders.length}{tr(" من أصل ")}{state.purchaseOrders.length}{tr(" طلبية")}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -844,12 +845,12 @@ export function PurchaseOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="created_at-desc">الأحدث أولاً</SelectItem>
-                  <SelectItem value="created_at-asc">الأقدم أولاً</SelectItem>
-                  <SelectItem value="total_amount-desc">الأعلى قيمة</SelectItem>
-                  <SelectItem value="total_amount-asc">الأقل قيمة</SelectItem>
-                  <SelectItem value="supplier_name-asc">اسم المورد أ-ي</SelectItem>
-                  <SelectItem value="supplier_name-desc">اسم المورد ي-أ</SelectItem>
+                  <SelectItem value="created_at-desc">{tr("الأحدث أولاً")}</SelectItem>
+                  <SelectItem value="created_at-asc">{tr("الأقدم أولاً")}</SelectItem>
+                  <SelectItem value="total_amount-desc">{tr("الأعلى قيمة")}</SelectItem>
+                  <SelectItem value="total_amount-asc">{tr("الأقل قيمة")}</SelectItem>
+                  <SelectItem value="supplier_name-asc">{tr("اسم المورد أ-ي")}</SelectItem>
+                  <SelectItem value="supplier_name-desc">{tr("اسم المورد ي-أ")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -861,11 +862,11 @@ export function PurchaseOrders() {
               <div className="mx-auto h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                 <Package className="h-12 w-12 text-slate-400" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">لا توجد طلبات</h3>
-              <p className="text-slate-600 mb-6">لم يتم العثور على أي طلبات تطابق معايير البحث</p>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">{tr("لا توجد طلبات")}</h3>
+              <p className="text-slate-600 mb-6">{tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}</p>
               <Button className="bg-gradient-to-r from-purple-600 to-pink-600" onClick={handleNewOrder}>
                 <Plus className="ml-2 h-4 w-4" />
-                إنشاء طلبية جديدة
+                {tr("إنشاء طلبية جديدة")}
               </Button>
             </div>
           ) : state.currentView === "grid" ? (
@@ -899,7 +900,7 @@ export function PurchaseOrders() {
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-slate-500" />
                         <span className={`font-bold text-lg ${getPriorityColor(order.total_amount)}`}>
-                          {order.total_amount?.toLocaleString("en-US")} {order.currency_code || "ريال"}
+                          {order.total_amount?.toLocaleString("en-US")} {order.currency_code || tr("ريال")}
                         </span>
                       </div>
 
@@ -918,7 +919,7 @@ export function PurchaseOrders() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-slate-500" />
                           <span className="text-slate-600 text-sm">
-                            تسليم: {formatDateToBritish(order.delivery_datetime)}
+                            {tr("تسليم: ")}{formatDateToBritish(order.delivery_datetime)}
                           </span>
                         </div>
                       )}
@@ -926,7 +927,7 @@ export function PurchaseOrders() {
                       {order.current_stage && (
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-slate-500" />
-                          <span className="text-slate-600 text-sm">المرحلة: {order.current_stage}</span>
+                          <span className="text-slate-600 text-sm">{tr("المرحلة: ")}{order.current_stage}</span>
                         </div>
                       )}
                     </div>
@@ -958,17 +959,17 @@ export function PurchaseOrders() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="text-right p-4 font-semibold text-slate-700">رقم الطلبية</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">التاريخ</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المورد</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الحالة</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الحالة المالية</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">سير العمل</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الأولوية</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المصدر</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المبلغ</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المندوب</th>
-                    <th className="text-center p-4 font-semibold text-slate-700">الإجراءات</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("رقم الطلبية")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("التاريخ")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المورد")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("الحالة")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("الحالة المالية")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("سير العمل")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("الأولوية")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المصدر")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المبلغ")}</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">{tr("المندوب")}</th>
+                    <th className="text-center p-4 font-semibold text-slate-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -988,7 +989,7 @@ export function PurchaseOrders() {
                       <td className="p-4">{order.order_source && getOrderSourceBadge(order.order_source)}</td>
                       <td className="p-4">
                         <span className={`font-bold ${getPriorityColor(order.total_amount)}`}>
-                          {order.total_amount?.toLocaleString("en-US")} {order.currency_code || "ريال"}
+                          {order.total_amount?.toLocaleString("en-US")} {order.currency_code || tr("ريال")}
                         </span>
                       </td>
                       <td className="p-4 text-slate-600">{order.salesman}</td>
@@ -1026,7 +1027,7 @@ export function PurchaseOrders() {
 
       {/* Report Generator */}
       <ReportGenerator
-        title="تقرير طلبات الشراء"
+        title={tr("تقرير طلبات الشراء")}
         data={state.purchaseOrders}
         columns={reportColumns}
         isOpen={state.showReport}

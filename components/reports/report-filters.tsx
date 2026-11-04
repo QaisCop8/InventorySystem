@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useId, useRef, useState, type ReactNode } from "react"
 import { ChevronDown, Filter, Pin, PinOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,18 +18,18 @@ export function ReportFilters({ children, title = "فلاتر التقرير" }:
     trigger.current?.focus()
   }
 
-  return <section dir="rtl" className="report-filters shrink-0 rounded-xl border border-slate-200 bg-background dark:border-slate-800 print:hidden">
+  return <section dir={appDir()} className="report-filters shrink-0 rounded-xl border border-slate-200 bg-background dark:border-slate-800 print:hidden">
     <div className="report-filters-bar">
       <h2 className="min-w-0 flex-1">
-        <button ref={trigger} type="button" id={`${id}-trigger`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)} className="flex w-full items-center gap-2 rounded-lg py-2 text-right font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
+        <button ref={trigger} type="button" id={`${id}-trigger`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)} className="flex w-full items-center gap-2 rounded-lg py-2 text-start font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
           <Filter className="h-4 w-4 text-teal-600" aria-hidden="true" />
           <span className="flex-1">{title}</span>
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       </h2>
-      <Button type="button" variant="ghost" size="sm" aria-pressed={pinned} aria-label="تثبيت الفلاتر" title={pinned ? "إلغاء تثبيت الفلاتر" : "إبقاء الفلاتر مفتوحة بعد عرض التقرير"} onClick={() => { setPinned(value => !value); if (!pinned) setOpen(true) }} className={pinned ? "bg-teal-600 text-white hover:bg-teal-700 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"}>
+      <Button type="button" variant="ghost" size="sm" aria-pressed={pinned} aria-label={tr("تثبيت الفلاتر")} title={pinned ? tr("إلغاء تثبيت الفلاتر") : tr("إبقاء الفلاتر مفتوحة بعد عرض التقرير")} onClick={() => { setPinned(value => !value); if (!pinned) setOpen(true) }} className={pinned ? "bg-teal-600 text-white hover:bg-teal-700 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"}>
         {pinned ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
-        <span className="mr-1">تثبيت</span>
+        <span className="mr-1">{tr("تثبيت")}</span>
       </Button>
     </div>
     <div id={id} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="report-filters-body"

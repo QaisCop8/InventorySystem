@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,98 +16,98 @@ import {
 type ReportKey = "register" | "movement" | "depreciation" | "acquisitions" | "additions" | "revaluations" | "transfers" | "disposals" | "by-location" | "by-cost-center" | "reconciliation"
 
 const REPORTS: { key: ReportKey; label: string; range: boolean; hint: string }[] = [
-  { key: "register", label: "سجل الأصول", range: false, hint: "التكلفة والإهلاك المتراكم والقيمة الدفترية لكل أصل في تاريخ معيّن" },
-  { key: "movement", label: "حركة الأصول", range: true, hint: "رصيد افتتاحي + اقتناء + إضافات − استبعاد = رصيد ختامي لكل تصنيف" },
-  { key: "depreciation", label: "الإهلاك", range: true, hint: "الإهلاك المعتمد والمخطط لكل أصل حسب الفترة" },
-  { key: "acquisitions", label: "الاقتناءات", range: true, hint: "الأصول المقتناة والأرصدة الافتتاحية" },
-  { key: "additions", label: "الإضافات الرأسمالية", range: true, hint: "التكاليف المضافة على الأصول القائمة" },
-  { key: "revaluations", label: "إعادة التقييم والانخفاض", range: true, hint: "حركات إعادة التقييم وانخفاض القيمة" },
-  { key: "transfers", label: "نقل الأصول", range: true, hint: "سجل النقل بين الفروع والمواقع والعهدة" },
-  { key: "disposals", label: "الاستبعادات", range: true, hint: "الأصول المستبعدة مع الربح أو الخسارة" },
-  { key: "by-location", label: "حسب الموقع", range: false, hint: "القيم الدفترية مجمّعة حسب الموقع" },
-  { key: "by-cost-center", label: "حسب مركز التكلفة", range: false, hint: "القيم الدفترية مجمّعة حسب مركز التكلفة" },
-  { key: "reconciliation", label: "المطابقة مع الأستاذ العام", range: false, hint: "مقارنة أرصدة الدفتر الفرعي للأصول مع حسابات الأستاذ العام" },
+  { key: "register", label: tr("سجل الأصول"), range: false, hint: tr("التكلفة والإهلاك المتراكم والقيمة الدفترية لكل أصل في تاريخ معيّن") },
+  { key: "movement", label: tr("حركة الأصول"), range: true, hint: tr("رصيد افتتاحي + اقتناء + إضافات − استبعاد = رصيد ختامي لكل تصنيف") },
+  { key: "depreciation", label: tr("الإهلاك"), range: true, hint: tr("الإهلاك المعتمد والمخطط لكل أصل حسب الفترة") },
+  { key: "acquisitions", label: tr("الاقتناءات"), range: true, hint: tr("الأصول المقتناة والأرصدة الافتتاحية") },
+  { key: "additions", label: tr("الإضافات الرأسمالية"), range: true, hint: tr("التكاليف المضافة على الأصول القائمة") },
+  { key: "revaluations", label: tr("إعادة التقييم والانخفاض"), range: true, hint: tr("حركات إعادة التقييم وانخفاض القيمة") },
+  { key: "transfers", label: tr("نقل الأصول"), range: true, hint: tr("سجل النقل بين الفروع والمواقع والعهدة") },
+  { key: "disposals", label: tr("الاستبعادات"), range: true, hint: tr("الأصول المستبعدة مع الربح أو الخسارة") },
+  { key: "by-location", label: tr("حسب الموقع"), range: false, hint: tr("القيم الدفترية مجمّعة حسب الموقع") },
+  { key: "by-cost-center", label: tr("حسب مركز التكلفة"), range: false, hint: tr("القيم الدفترية مجمّعة حسب مركز التكلفة") },
+  { key: "reconciliation", label: tr("المطابقة مع الأستاذ العام"), range: false, hint: tr("مقارنة أرصدة الدفتر الفرعي للأصول مع حسابات الأستاذ العام") },
 ]
 
 const columnsFor = (key: ReportKey, lookups: Lookups): Column[] => {
   const describeLocation = (value: Row | null | undefined) => describe(value, lookups)
-  const asset: Column[] = [{ key: "asset_no", label: "رقم الأصل" }, { key: "asset_name", label: "الأصل" }, { key: "category_name", label: "التصنيف" }]
+  const asset: Column[] = [{ key: "asset_no", label: tr("رقم الأصل") }, { key: "asset_name", label: tr("الأصل") }, { key: "category_name", label: tr("التصنيف") }]
   const transaction: Column[] = [
-    { key: "transaction_no", label: "رقم الحركة" },
-    { key: "transaction_date", label: "التاريخ", render: row => day(row.transaction_date), csv: row => day(row.transaction_date) },
+    { key: "transaction_no", label: tr("رقم الحركة") },
+    { key: "transaction_date", label: tr("التاريخ"), render: row => day(row.transaction_date), csv: row => day(row.transaction_date) },
     ...asset,
   ]
   switch (key) {
     case "register": return [
-      { key: "asset_no", label: "رقم الأصل" }, { key: "name", label: "الأصل" }, { key: "category_name", label: "التصنيف" },
-      { key: "acquisition_date", label: "الاقتناء", render: row => day(row.acquisition_date), csv: row => day(row.acquisition_date) },
-      { key: "location_name", label: "الموقع" }, { key: "cost_center_name", label: "مركز التكلفة" },
-      { key: "status", label: "الحالة", render: row => <StatusBadge status={row.status} />, csv: row => (ASSET_STATUSES as Row)[row.status] },
-      { key: "cost", label: "التكلفة", numeric: true, total: true },
-      { key: "accumulated_depreciation", label: "الإهلاك المتراكم", numeric: true, total: true },
-      { key: "net_book_value", label: "القيمة الدفترية", numeric: true, total: true },
+      { key: "asset_no", label: tr("رقم الأصل") }, { key: "name", label: tr("الأصل") }, { key: "category_name", label: tr("التصنيف") },
+      { key: "acquisition_date", label: tr("الاقتناء"), render: row => day(row.acquisition_date), csv: row => day(row.acquisition_date) },
+      { key: "location_name", label: tr("الموقع") }, { key: "cost_center_name", label: tr("مركز التكلفة") },
+      { key: "status", label: tr("الحالة"), render: row => <StatusBadge status={row.status} />, csv: row => (ASSET_STATUSES as Row)[row.status] },
+      { key: "cost", label: tr("التكلفة"), numeric: true, total: true },
+      { key: "accumulated_depreciation", label: tr("الإهلاك المتراكم"), numeric: true, total: true },
+      { key: "net_book_value", label: tr("القيمة الدفترية"), numeric: true, total: true },
     ]
     case "movement": return [
-      { key: "category_name", label: "التصنيف" },
-      { key: "opening_cost", label: "تكلفة أول المدة", numeric: true, total: true },
-      { key: "acquisitions", label: "اقتناء", numeric: true, total: true },
-      { key: "additions", label: "إضافات", numeric: true, total: true },
-      { key: "revaluations", label: "إعادة تقييم", numeric: true, total: true },
-      { key: "disposals_cost", label: "استبعاد", numeric: true, total: true },
-      { key: "closing_cost", label: "تكلفة آخر المدة", numeric: true, total: true },
-      { key: "opening_accumulated", label: "متراكم أول المدة", numeric: true, total: true },
-      { key: "depreciation", label: "إهلاك الفترة", numeric: true, total: true },
-      { key: "impairment", label: "انخفاض قيمة", numeric: true, total: true },
-      { key: "disposals_accumulated", label: "متراكم المستبعد", numeric: true, total: true },
-      { key: "closing_accumulated", label: "متراكم آخر المدة", numeric: true, total: true },
-      { key: "nbv", label: "القيمة الدفترية", numeric: true, render: row => money(n(row.closing_cost) - n(row.closing_accumulated)), csv: row => n(row.closing_cost) - n(row.closing_accumulated) },
+      { key: "category_name", label: tr("التصنيف") },
+      { key: "opening_cost", label: tr("تكلفة أول المدة"), numeric: true, total: true },
+      { key: "acquisitions", label: tr("اقتناء"), numeric: true, total: true },
+      { key: "additions", label: tr("إضافات"), numeric: true, total: true },
+      { key: "revaluations", label: tr("إعادة تقييم"), numeric: true, total: true },
+      { key: "disposals_cost", label: tr("استبعاد"), numeric: true, total: true },
+      { key: "closing_cost", label: tr("تكلفة آخر المدة"), numeric: true, total: true },
+      { key: "opening_accumulated", label: tr("متراكم أول المدة"), numeric: true, total: true },
+      { key: "depreciation", label: tr("إهلاك الفترة"), numeric: true, total: true },
+      { key: "impairment", label: tr("انخفاض قيمة"), numeric: true, total: true },
+      { key: "disposals_accumulated", label: tr("متراكم المستبعد"), numeric: true, total: true },
+      { key: "closing_accumulated", label: tr("متراكم آخر المدة"), numeric: true, total: true },
+      { key: "nbv", label: tr("القيمة الدفترية"), numeric: true, render: row => money(n(row.closing_cost) - n(row.closing_accumulated)), csv: row => n(row.closing_cost) - n(row.closing_accumulated) },
     ]
     case "depreciation": return [
-      { key: "period", label: "الفترة" }, ...asset, { key: "cost_center_name", label: "مركز التكلفة" },
-      { key: "depreciation_amount", label: "الإهلاك", numeric: true, total: true },
-      { key: "accumulated_depreciation", label: "المتراكم", numeric: true },
-      { key: "closing_book_value", label: "القيمة الدفترية", numeric: true },
-      { key: "status", label: "الحالة", render: row => <StatusBadge status={row.status} />, csv: row => row.status },
-      { key: "run_no", label: "التشغيل" }, { key: "journal_code", label: "القيد" },
+      { key: "period", label: tr("الفترة") }, ...asset, { key: "cost_center_name", label: tr("مركز التكلفة") },
+      { key: "depreciation_amount", label: tr("الإهلاك"), numeric: true, total: true },
+      { key: "accumulated_depreciation", label: tr("المتراكم"), numeric: true },
+      { key: "closing_book_value", label: tr("القيمة الدفترية"), numeric: true },
+      { key: "status", label: tr("الحالة"), render: row => <StatusBadge status={row.status} />, csv: row => row.status },
+      { key: "run_no", label: tr("التشغيل") }, { key: "journal_code", label: tr("القيد") },
     ]
     case "disposals": return [
       ...transaction,
-      { key: "disposal_type", label: "النوع", render: row => (DISPOSAL_TYPES as Row)[row.disposal_type] ?? row.disposal_type, csv: row => (DISPOSAL_TYPES as Row)[row.disposal_type] },
-      { key: "cost", label: "التكلفة", numeric: true, total: true, render: row => money(-n(row.cost_delta)), csv: row => -n(row.cost_delta) },
-      { key: "acc", label: "المتراكم", numeric: true, render: row => money(-n(row.accumulated_delta)), csv: row => -n(row.accumulated_delta) },
-      { key: "disposal_nbv", label: "القيمة الدفترية", numeric: true, total: true },
-      { key: "sale_amount", label: "قيمة البيع", numeric: true, total: true },
-      { key: "gain_loss", label: "ربح / خسارة", numeric: true, total: true, render: row => <span className={n(row.gain_loss) < 0 ? "text-rose-600" : "text-emerald-700"}>{money(row.gain_loss)}</span>, csv: row => row.gain_loss },
-      { key: "journal_code", label: "القيد" }, { key: "notes", label: "السبب" },
+      { key: "disposal_type", label: tr("النوع"), render: row => (DISPOSAL_TYPES as Row)[row.disposal_type] ?? row.disposal_type, csv: row => (DISPOSAL_TYPES as Row)[row.disposal_type] },
+      { key: "cost", label: tr("التكلفة"), numeric: true, total: true, render: row => money(-n(row.cost_delta)), csv: row => -n(row.cost_delta) },
+      { key: "acc", label: tr("المتراكم"), numeric: true, render: row => money(-n(row.accumulated_delta)), csv: row => -n(row.accumulated_delta) },
+      { key: "disposal_nbv", label: tr("القيمة الدفترية"), numeric: true, total: true },
+      { key: "sale_amount", label: tr("قيمة البيع"), numeric: true, total: true },
+      { key: "gain_loss", label: tr("ربح / خسارة"), numeric: true, total: true, render: row => <span className={n(row.gain_loss) < 0 ? "text-rose-600" : "text-emerald-700"}>{money(row.gain_loss)}</span>, csv: row => row.gain_loss },
+      { key: "journal_code", label: tr("القيد") }, { key: "notes", label: tr("السبب") },
     ]
     case "transfers": return [
       ...transaction,
-      { key: "from", label: "من", render: row => describeLocation(row.old_value), csv: row => describeLocation(row.old_value) },
-      { key: "to", label: "إلى", render: row => describeLocation(row.new_value), csv: row => describeLocation(row.new_value) },
-      { key: "notes", label: "السبب" },
+      { key: "from", label: tr("من"), render: row => describeLocation(row.old_value), csv: row => describeLocation(row.old_value) },
+      { key: "to", label: tr("إلى"), render: row => describeLocation(row.new_value), csv: row => describeLocation(row.new_value) },
+      { key: "notes", label: tr("السبب") },
     ]
     case "by-location":
     case "by-cost-center": return [
-      { key: "name", label: key === "by-location" ? "الموقع" : "مركز التكلفة" },
-      { key: "count", label: "عدد الأصول" },
-      { key: "cost", label: "التكلفة", numeric: true, total: true },
-      { key: "accumulated", label: "الإهلاك المتراكم", numeric: true, total: true },
-      { key: "nbv", label: "القيمة الدفترية", numeric: true, total: true },
+      { key: "name", label: key === "by-location" ? tr("الموقع") : tr("مركز التكلفة") },
+      { key: "count", label: tr("عدد الأصول") },
+      { key: "cost", label: tr("التكلفة"), numeric: true, total: true },
+      { key: "accumulated", label: tr("الإهلاك المتراكم"), numeric: true, total: true },
+      { key: "nbv", label: tr("القيمة الدفترية"), numeric: true, total: true },
     ]
     case "reconciliation": return [
-      { key: "code", label: "الحساب" }, { key: "name", label: "اسم الحساب" },
-      { key: "kind", label: "النوع", render: row => row.kind === "ASSET" ? "تكلفة الأصول" : "إهلاك متراكم", csv: row => row.kind },
-      { key: "subledger", label: "الدفتر الفرعي", numeric: true, total: true },
-      { key: "general_ledger", label: "الأستاذ العام", numeric: true, total: true },
-      { key: "difference", label: "الفرق", numeric: true, total: true, render: row => <span className={Math.abs(n(row.difference)) > 0.009 ? "font-black text-rose-600" : "text-emerald-700"}>{money(row.difference)}</span>, csv: row => row.difference },
+      { key: "code", label: tr("الحساب") }, { key: "name", label: tr("اسم الحساب") },
+      { key: "kind", label: tr("النوع"), render: row => row.kind === "ASSET" ? "تكلفة الأصول" : "إهلاك متراكم", csv: row => row.kind },
+      { key: "subledger", label: tr("الدفتر الفرعي"), numeric: true, total: true },
+      { key: "general_ledger", label: tr("الأستاذ العام"), numeric: true, total: true },
+      { key: "difference", label: tr("الفرق"), numeric: true, total: true, render: row => <span className={Math.abs(n(row.difference)) > 0.009 ? "font-black text-rose-600" : "text-emerald-700"}>{money(row.difference)}</span>, csv: row => row.difference },
     ]
     default: return [
       ...transaction,
-      { key: "transaction_type", label: "النوع", render: row => transactionLabel(row.transaction_type), csv: row => transactionLabel(row.transaction_type) },
-      { key: "amount", label: "المبلغ", numeric: true, total: true },
-      { key: "cost_delta", label: "أثر التكلفة", numeric: true, total: true },
-      { key: "accumulated_delta", label: "أثر المتراكم", numeric: true, total: true },
-      { key: "journal_code", label: "القيد" }, { key: "notes", label: "ملاحظات" },
+      { key: "transaction_type", label: tr("النوع"), render: row => transactionLabel(row.transaction_type), csv: row => transactionLabel(row.transaction_type) },
+      { key: "amount", label: tr("المبلغ"), numeric: true, total: true },
+      { key: "cost_delta", label: tr("أثر التكلفة"), numeric: true, total: true },
+      { key: "accumulated_delta", label: tr("أثر المتراكم"), numeric: true, total: true },
+      { key: "journal_code", label: tr("القيد") }, { key: "notes", label: tr("ملاحظات") },
     ]
   }
 }
@@ -142,7 +143,7 @@ export function FixedAssetReports({ lookups }: { lookups: Lookups }) {
       const data = await api<Row>(`/api/fixed-assets/reports?${params}`)
       setRows(key === "by-location" || key === "by-cost-center" ? data.groups : data.rows)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر إعداد التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر إعداد التقرير"))
     } finally {
       setLoading(false)
     }
@@ -174,31 +175,31 @@ export function FixedAssetReports({ lookups }: { lookups: Lookups }) {
   }
 
   return <div className="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
-    <nav className="space-y-1 rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900" aria-label="التقارير">
+    <nav className="space-y-1 rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-900" aria-label={tr("التقارير")}>
       {REPORTS.map(item => <button key={item.key} type="button" onClick={() => { setReport(item.key); setRows(null) }}
-        className={cn("flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-sm transition", report === item.key ? "bg-slate-900 font-bold text-white dark:bg-teal-700" : "hover:bg-slate-100 dark:hover:bg-slate-800")}>
+        className={cn("flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm transition", report === item.key ? "bg-slate-900 font-bold text-white dark:bg-teal-700" : "hover:bg-slate-100 dark:hover:bg-slate-800")}>
         <FileBarChart className="h-4 w-4 shrink-0 opacity-70" />{item.label}
       </button>)}
     </nav>
     <div className="min-w-0 space-y-4">
-      <SectionCard title={meta.label} actions={rows ? <><CsvButton onClick={() => exportCsv(report, columns, rows)} disabled={!rows.length} /><Button size="sm" variant="outline" onClick={print} disabled={!rows.length}><Printer className="ml-1 h-4 w-4" />طباعة</Button></> : null}>
+      <SectionCard title={meta.label} actions={rows ? <><CsvButton onClick={() => exportCsv(report, columns, rows)} disabled={!rows.length} /><Button size="sm" variant="outline" onClick={print} disabled={!rows.length}><Printer className="ml-1 h-4 w-4" />{tr("طباعة")}</Button></> : null}>
         <p className="mb-3 text-xs text-slate-500">{meta.hint}</p>
         <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           {meta.range ? <>
-            <Field label="من تاريخ" htmlFor="fa-rep-from"><Input id="fa-rep-from" type="date" value={filters.from} onChange={event => set({ from: event.target.value })} /></Field>
-            <Field label="إلى تاريخ" htmlFor="fa-rep-to"><Input id="fa-rep-to" type="date" value={filters.to} onChange={event => set({ to: event.target.value })} /></Field>
-          </> : <Field label="حتى تاريخ" htmlFor="fa-rep-asof"><Input id="fa-rep-asof" type="date" value={filters.as_of} onChange={event => set({ as_of: event.target.value })} /></Field>}
+            <Field label={tr("من تاريخ")} htmlFor="fa-rep-from"><Input id="fa-rep-from" type="date" value={filters.from} onChange={event => set({ from: event.target.value })} /></Field>
+            <Field label={tr("إلى تاريخ")} htmlFor="fa-rep-to"><Input id="fa-rep-to" type="date" value={filters.to} onChange={event => set({ to: event.target.value })} /></Field>
+          </> : <Field label={tr("حتى تاريخ")} htmlFor="fa-rep-asof"><Input id="fa-rep-asof" type="date" value={filters.as_of} onChange={event => set({ as_of: event.target.value })} /></Field>}
           {report !== "reconciliation" && <>
-            <Field label="التصنيف" htmlFor="fa-rep-cat"><Select id="fa-rep-cat" value={filters.category_id} clearable options={toOptions(lookups.categories)} onChange={value => set({ category_id: value })} /></Field>
-            <Field label="الموقع" htmlFor="fa-rep-loc"><Select id="fa-rep-loc" value={filters.location_id} clearable options={toOptions(lookups.locations)} onChange={value => set({ location_id: value })} /></Field>
-            <Field label="مركز التكلفة" htmlFor="fa-rep-cc"><Select id="fa-rep-cc" value={filters.cost_center_id} clearable options={toOptions(lookups.costCenters)} onChange={value => set({ cost_center_id: value })} /></Field>
-            {report === "register" && <Field label="الحالة" htmlFor="fa-rep-status"><Select id="fa-rep-status" value={filters.status} clearable options={recordOptions(ASSET_STATUSES)} onChange={value => set({ status: value })} /></Field>}
+            <Field label={tr("التصنيف")} htmlFor="fa-rep-cat"><Select id="fa-rep-cat" value={filters.category_id} clearable options={toOptions(lookups.categories)} onChange={value => set({ category_id: value })} /></Field>
+            <Field label={tr("الموقع")} htmlFor="fa-rep-loc"><Select id="fa-rep-loc" value={filters.location_id} clearable options={toOptions(lookups.locations)} onChange={value => set({ location_id: value })} /></Field>
+            <Field label={tr("مركز التكلفة")} htmlFor="fa-rep-cc"><Select id="fa-rep-cc" value={filters.cost_center_id} clearable options={toOptions(lookups.costCenters)} onChange={value => set({ cost_center_id: value })} /></Field>
+            {report === "register" && <Field label={tr("الحالة")} htmlFor="fa-rep-status"><Select id="fa-rep-status" value={filters.status} clearable options={recordOptions(ASSET_STATUSES)} onChange={value => set({ status: value })} /></Field>}
           </>}
-          <Button onClick={() => void run()} disabled={loading}>{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض</Button>
+          <Button onClick={() => void run()} disabled={loading}>{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض")}</Button>
         </div>
       </SectionCard>
       {error && <Alert variant="destructive" className="border-rose-200 bg-rose-50 text-rose-700"><AlertDescription>{error}</AlertDescription></Alert>}
-      {rows && <DataTable rows={rows} columns={columns} empty="لا توجد بيانات لهذه الفلاتر" />}
+      {rows && <DataTable rows={rows} columns={columns} empty={tr("لا توجد بيانات لهذه الفلاتر")} />}
     </div>
   </div>
 }

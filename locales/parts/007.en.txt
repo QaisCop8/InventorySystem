@@ -1,0 +1,300 @@
+· Subscription amount:
+· WhatsApp:
+Unsuspend
+New permission name
+New category name
+Approving this company records the subscription payment (outside the system) and activates it for a full year as if payment were completed. Continue?
+Prices
+Subscription expired
+Companies
+Companies awaiting approval
+Permissions (
+Back to my companies
+Categories (
+Awaiting approval
+Sales card — approval is equivalent to completing payment
+No category
+Subscription expiry date:
+Unable to add the permission
+Unable to add the category
+Unable to approve the company
+Unable to connect to the server
+Unable to update the user status
+Unable to load companies
+Unable to load permissions
+Unable to load users
+Unable to load all companies
+Unable to load permission categories
+Unable to update the permission
+Unable to update the category
+Unable to perform the action
+Unable to delete the permission
+Unable to delete the category
+Unable to reject the company
+Permission definitions
+Sign-in log
+License requests
+You do not have permission to access this page
+No companies
+No companies awaiting approval
+Site administrator
+Database size:
+Send your request to the sales team and we'll contact you to complete the subscription; your company is activated for a full year as soon as it's approved.
+Complete your subscription to
+Leave your details and we'll contact you as soon as possible.
+Secure, encrypted connection
+Contact us
+Pay {0} {1} now
+Pay online now and your company is activated immediately, or talk to the sales team and we'll help you choose what suits you.
+Request a call from sales
+Annual subscription
+Online payment is not available right now — contact sales.
+Talk to sales
+Unable to send the request
+Unable to load payment options
+Instant activation
+Your request has been sent
+Paid and company created
+One last step
+Secure payment via Lahza
+Message us on WhatsApp
+You'll be taken to the secure payment gateway to enter your card details — we don't keep your card details
+The sales team will contact you soon, and the company is activated for a full year as soon as management approves it.
+Number of users, branches, or any question…
+Our team is ready to answer your questions and help you subscribe.
+To complete the subscription, send your request to the sales team using the form beside this, and we'll contact you to arrange payment and activate the company.
+Renewed yearly
+— the payment is saved and you won't be asked to pay again.
+— date
+{0} — the subscription ends on {1}
+Send your request to the sales team and the company is activated for a full year as soon as it's approved.
+Send your request to sales; activated after approval
+Created
+days — instant approval, no waiting
+days from now — on
+Send to sales
+Complete payment
+Create and send to sales
+Choose a company to continue to its system, or add a new or trial company.
+Pay online and get activated immediately
+Pay the subscription online and the company is activated immediately.
+Add a new company
+Retry
+Pay by card through the secure Lahza gateway, and the company is created immediately after successful payment.
+Pay and create the company
+The number required for the license — approved with the company request by system administration and can be increased later.
+Awaiting payment
+with one click
+After creation, send a card to the sales team, and the company is activated for a full year as soon as it's approved.
+Companies portal
+Company approval delayed
+A full trial of the system with no waiting for approval.
+Sent to system administration for approval before activation.
+Retry failed
+Activated after system administration approval
+Annual subscription cost
+The trial company was created and approved automatically — it expires on {0}
+Payment received — the company database is being prepared and approved automatically; it will be ready in a moment.
+Created
+Paid
+The company was converted to a full version
+The subscription was extended
+Contact system administration.
+Approving the company
+Redirecting to payment...
+Ready to sign in
+An error occurred while creating the company
+An error occurred while creating the trial company
+Open company
+The company is approved immediately with no waiting, and expires automatically after
+Trial company
+Company approval failed
+Awaiting approval
+No companies yet — add your first company to start using the system
+to extend the subscription
+to convert to a full version
+Free for
+Trial version
+Test mode: use the card
+Subscription ends
+Go to my companies
+Back to my companies
+Verification failed
+Paid — creating your company…
+Paid and company created 🎉
+Verifying payment…
+is ready, and its subscription is valid for one year.
+Company
+Payment not completed
+The payment reference is missing from the link
+We're confirming the payment with the Lahza gateway.
+The company database is being prepared; this may take a minute.
+Add your company
+Type it again
+Create a management account, add your company or try a trial company for 10 days, and work with inventory, sales, accounts and reports from one place.
+Create your account
+Create your account ✨
+Or start with a trial company right away
+Simple setup
+Create account
+Start managing your company
+Start for free
+Enter the system
+Name, email and password
+Go to sign in
+Quick start
+Sign in
+Encryption and permissions
+Account created successfully! 🎉
+Creating the account…
+Good
+An error occurred while creating the account
+New management account
+Data protection
+One minute and you start managing your companies from one portal
+Weak
+in minutes
+Strong
+Each company with an isolated database
+The password and its confirmation do not match
+The passwords do not match
+The passwords match
+Already have an account?
+from one account
+You can now sign in to the management portal and add your first company.
+Unable to confirm the email
+Email confirmed successfully
+Confirming your email...
+Invalid confirmation link
+Enter a new order
+Add item
+Price *
+Customer data
+Install the app
+Installed
+The app was installed successfully on your device
+Install the app on your device for quick access
+An error occurred while saving the order
+View orders
+Additional notes...
+Please choose the customer and add items to the order
+Please fill in all the item data
+Manage your personal information and account settings
+Profile
+Code:
+Created on:
+Number of items:
+Search categories...
+Description:
+Click "New category" to add a new category
+Update category
+Active category
+Category details
+Loading categories...
+Error in {0} category: {1}
+Error changing the category status: {0}
+Error deleting the category: {0}
+Category list
+A short description of the category
+← Back to the main menu
+Search items by name, number, barcode or note with advanced filters for groups and warehouses
+Find items, customers and suppliers easily and smartly
+Search customers and suppliers by name, number or city with filters for category, salesman and status
+Start searching for items
+Start searching for customers and suppliers
+Verify voucher settings
+This page shows the status of all voucher settings in the system and checks that each voucher type is set up correctly
+Connection String (optional)
+DSN (optional)
+Last test
+Enter the Pervasive database connection details
+Manage Pervasive database connections via ODBC or API
+Pervasive Database settings
+New connection
+Connection name
+Connection name *
+Username *
+Database name *
+Saved connections
+Timeout (seconds)
+Edit connection
+Connection created successfully
+Connection updated successfully
+Connection deleted successfully
+Retry count
+Test failed
+Failed to test the connection
+Failed to load connections
+Failed to delete the connection
+Failed to save the connection
+A list of all configured Pervasive connections
+No saved connections. Create a new connection to start.
+Succeeded
+Test succeeded
+Connection type *
+Are you sure you want to delete this connection?
+Accumulated account balances in currencies other than the account currency: each foreign balance is closed and re-recorded in the account currency through the currency conversion account.
+Credit balances
+Debit balances
+Any difference between the two sides' base-currency values stays in the currency conversion account. Cancelling one of the entries from the journal voucher screen cancels the other.
+Recalculate by exchange rates
+Revalue the balances of balance-sheet accounts subject to currency difference at a new exchange rate, and record the difference as a gain or loss on the currency difference account.
+Deselect all
+To date
+Search by account number or name...
+Calculate the currency difference up to
+Choose the currency
+Choose the currency and exchange rate, then press Preliminary run
+Choose at least one transaction
+Choose the currency conversion account
+Choose at least one account
+Press Preliminary run to calculate the balances
+Selected balances
+Balances in other currencies
+Total
+Card
+Date
+Account
+Account (optional)
+Destination account
+Source account
+Balance {0}
+Balance in base currency
+Balance up to date
+Valued balance
+Balance: debit positive, credit negative. Exchange rates can be edited before running.
+Currency
+Commission
+Selected commission
+Customer
+Automatic entries
+Created entries
+All
+Amount
+Transferred amount
+Transferred amount {0}
+Amount received
+Amount received {0}
+Type
+In base currency
+Entry date
+Select
+Select all
+The commission is calculated from the card type settings (a rate or a flat amount with a cap). If any transaction fails, no entry is created.
+Account currency conversion
+Transfer an amount from an account in one currency to an account in another currency through the currency conversion account, with two linked entries, each in a single currency.
+Only credit card transactions without a commission entry are shown.
+Unable to calculate the balances
+Unable to calculate the currency difference
+Unable to load the data
+Unable to load the transactions
+Unable to complete the operation
+Unable to post the entry
+Unable to post the entries
+The date, currency or exchange rate changed — recalculate before running
+The inputs changed after the calculation — recalculate before running.
+Preliminary run
+Run the transfer
+Post the entries
+Post commission entries
+Post currency difference entries

@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useRef, useCallback,useEffect } from "react";
 import DataGridView from "../common/DataGridView";
 import Button from "../common/Button";
@@ -130,7 +131,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                 aria-modal="true"
                 aria-labelledby="warehouse-picker-title"
                 className="flex h-[min(90dvh,650px)] max-h-[calc(100dvh-1rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-                dir="rtl"
+                dir={appDir()}
             >
                 <header className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-l from-emerald-800 via-emerald-700 to-teal-700 px-4 py-3 text-white sm:px-6 sm:py-4">
                     <div className="flex min-w-0 items-center gap-3">
@@ -138,8 +139,8 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                             <WarehouseIcon className="h-5 w-5" />
                         </span>
                         <div className="min-w-0">
-                            <h3 id="warehouse-picker-title" className="truncate text-base font-bold sm:text-lg">اختيار المستودع</h3>
-                            <p className="mt-0.5 text-xs text-emerald-100 sm:text-sm">حدد المستودع ثم اضغط موافق أو انقر مرتين</p>
+                            <h3 id="warehouse-picker-title" className="truncate text-base font-bold sm:text-lg">{tr("اختيار المستودع")}</h3>
+                            <p className="mt-0.5 text-xs text-emerald-100 sm:text-sm">{tr("حدد المستودع ثم اضغط موافق أو انقر مرتين")}</p>
                         </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -148,18 +149,18 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                             onClick={() => window.open("/admin/definitions?section=warehouses&new=1", "_blank", "noopener,noreferrer")}
                         >
                             <Plus className="ml-1 h-4 w-4" />
-                            <span className="hidden sm:inline">إضافة مستودع</span>
-                            <span className="sm:hidden">إضافة</span>
+                            <span className="hidden sm:inline">{tr("إضافة مستودع")}</span>
+                            <span className="sm:hidden">{tr("إضافة")}</span>
                         </Button>
-                        <button type="button" aria-label="إغلاق" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/15 hover:text-white">
+                        <button type="button" aria-label={tr("إغلاق")} onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/15 hover:text-white">
                             <X className="h-5 w-5" />
                         </button>
                     </div>
                 </header>
 
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-50/70 px-4 py-2.5 text-xs text-slate-600 sm:px-6 sm:text-sm">
-                    <span>المستودعات المتاحة</span>
-                    <span className="shrink-0 rounded-full bg-white px-3 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-100">{availableStores.length} مستودع</span>
+                    <span>{tr("المستودعات المتاحة")}</span>
+                    <span className="shrink-0 rounded-full bg-white px-3 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-100">{availableStores.length}{tr(" مستودع")}</span>
                 </div>
 
                 <main className="min-h-0 flex-1 p-3 sm:p-5">
@@ -167,7 +168,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                         <div className="h-full overflow-y-auto p-2 md:hidden">
                             {availableStores.length === 0 ? (
                                 <div className="flex h-full min-h-40 items-center justify-center rounded-lg border border-dashed border-slate-300 px-5 text-center text-sm text-slate-500">
-                                    لا توجد مستودعات متاحة
+                                    {tr("لا توجد مستودعات متاحة")}
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -182,7 +183,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                                                     setSelectedStore(store);
                                                     selectedStoreRef.current = store;
                                                 }}
-                                                className={`w-full rounded-xl border p-3 text-right transition ${isSelected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 bg-white hover:border-emerald-200 hover:bg-slate-50"}`}
+                                                className={`w-full rounded-xl border p-3 text-start transition ${isSelected ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 bg-white hover:border-emerald-200 hover:bg-slate-50"}`}
                                             >
                                                 <div className="flex items-center justify-between gap-3">
                                                     <span className="truncate font-bold text-slate-900">{store.warehouse_name}</span>
@@ -191,7 +192,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 flex items-center justify-between border-t border-slate-200/80 pt-2 text-xs">
-                                                    <span className="text-slate-500">رقم المستودع</span>
+                                                    <span className="text-slate-500">{tr("رقم المستودع")}</span>
                                                     <span className="font-semibold tabular-nums text-slate-700" dir="ltr">{store.id}</span>
                                                 </div>
                                             </button>
@@ -209,8 +210,8 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                                 scheme={{
                                     isReport: true,
                                     columns: [
-                                        { header: "رقم المستودع", name: "id", width: 120, isReadOnly: true },
-                                        { header: "اسم المستودع", name: "warehouse_name", width: "*", isReadOnly: true },
+                                        { header: tr("رقم المستودع"), name: "id", width: 120, isReadOnly: true },
+                                        { header: tr("اسم المستودع"), name: "warehouse_name", width: "*", isReadOnly: true },
                                     ],
                                 }}
                                 selectionChanged={handleSelectionChange}
@@ -223,8 +224,8 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                 <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <div className="min-w-0 text-xs text-slate-500 sm:text-sm">
                         {selectedStore ? (
-                            <span className="block truncate"><span className="font-semibold text-slate-700">المستودع المحدد:</span> {selectedStore.warehouse_name}</span>
-                        ) : "لم يتم تحديد مستودع"}
+                            <span className="block truncate"><span className="font-semibold text-slate-700">{tr("المستودع المحدد:")}</span> {selectedStore.warehouse_name}</span>
+                        ) : tr("لم يتم تحديد مستودع")}
                     </div>
                     <div className="flex w-full gap-2 sm:w-auto">
                         <Button
@@ -232,10 +233,10 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                             disabled={!selectedStore}
                             onClick={confirmSelection}
                         >
-                            <Check className="ml-2 h-4 w-4" /> موافق
+                            <Check className="ml-2 h-4 w-4" />{tr(" موافق")}
                         </Button>
                         <Button className="!m-0 !min-h-10 !flex-1 !rounded-xl !border-slate-300 !bg-white !px-6 !font-semibold !text-slate-700 hover:!bg-slate-100 sm:!flex-none" variant="outline" onClick={onClose}>
-                            إغلاق
+                            {tr("إغلاق")}
                         </Button>
                     </div>
                 </footer>

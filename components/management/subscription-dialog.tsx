@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useMemo, useState } from "react"
 import { CalendarClock, CreditCard, Loader2, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -58,11 +59,11 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
     try {
       const response = await fetch("/api/management/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference }) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذّر التحقق من الدفع")
+      if (!response.ok) throw new Error(data.error || tr("تعذّر التحقق من الدفع"))
       if (data.status === "approved") { setVerificationReference(""); onDone(data.expiryDate || null) }
-      else setError(closedText || data.message || "لم تكتمل عملية الدفع")
+      else setError(closedText || data.message || tr("لم تكتمل عملية الدفع"))
     } catch (e) {
-      setError(closedText || (e instanceof Error ? e.message : "تعذّر التحقق من الدفع"))
+      setError(closedText || (e instanceof Error ? e.message : tr("تعذّر التحقق من الدفع")))
     } finally {
       setBusy(false)
     }
@@ -78,7 +79,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
         body: JSON.stringify({ purpose, number_of_users: counts.users, number_of_branches: counts.branches, number_of_pos_points: counts.posPoints, number_of_restaurant_locations: counts.restaurantLocations }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذّر بدء عملية الدفع")
+      if (!response.ok) throw new Error(data.error || tr("تعذّر بدء عملية الدفع"))
       // الحوار يُخفى أثناء نافذة لحظة (الحوار المشروط يمنع النقر خارجه) ثم يعود بالنتيجة
       setPopupOpen(true)
       await openLahzaPopup({
@@ -90,7 +91,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
     } catch (e) {
       setPopupOpen(false)
       setBusy(false)
-      setError(e instanceof Error ? e.message : "تعذّر بدء عملية الدفع")
+      setError(e instanceof Error ? e.message : tr("تعذّر بدء عملية الدفع"))
     }
   }
 
@@ -98,52 +99,52 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
   const field = (label: string, value: string, set: (value: string) => void, min: number) => (
     <div className="space-y-2">
       <label className="text-xs font-bold text-slate-600">{label}</label>
-      <input type="number" min={min} value={value} disabled={!editable || busy} onChange={(event) => set(event.target.value)} className="cp-field text-right tabular-nums disabled:opacity-60" />
+      <input type="number" min={min} value={value} disabled={!editable || busy} onChange={(event) => set(event.target.value)} className="cp-field text-start tabular-nums disabled:opacity-60" />
     </div>
   )
 
   return (
     <Dialog open={!popupOpen} onOpenChange={(open) => { if (!open && !busy) onClose() }}>
-      <DialogContent dir="rtl" className="cp-dialog max-w-lg">
+      <DialogContent dir={appDir()} className="cp-dialog max-w-lg">
         <DialogHeader className="text-right">
           <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900">
             {purpose === "upgrade" ? <Sparkles className="h-5 w-5 text-violet-700" /> : <CalendarClock className="h-5 w-5 text-emerald-700" />}
-            {purpose === "upgrade" ? "التحويل إلى نسخة حقيقية" : "تمديد الاشتراك"}
+            {purpose === "upgrade" ? tr("التحويل إلى نسخة حقيقية") : tr("تمديد الاشتراك")}
           </DialogTitle>
           <DialogDescription className="text-stone-500">
-            {company.name} — {purpose === "upgrade" ? "اختر الترخيص المطلوب وادفع الاشتراك السنوي، وتبقى كل بياناتك كما هي." : "اشتراك سنة جديدة بنفس الترخيص الحالي."}
+            {company.name} — {purpose === "upgrade" ? tr("اختر الترخيص المطلوب وادفع الاشتراك السنوي، وتبقى كل بياناتك كما هي.") : tr("اشتراك سنة جديدة بنفس الترخيص الحالي.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {field("عدد المستخدمين", users, setUsers, 1)}
-          {field("عدد الفروع", branches, setBranches, 1)}
-          {field("عدد نقاط البيع", posPoints, setPosPoints, 0)}
-          {field("مواقع المطاعم", restaurants, setRestaurants, 0)}
+          {field(tr("عدد المستخدمين"), users, setUsers, 1)}
+          {field(tr("عدد الفروع"), branches, setBranches, 1)}
+          {field(tr("عدد نقاط البيع"), posPoints, setPosPoints, 0)}
+          {field(tr("مواقع المطاعم"), restaurants, setRestaurants, 0)}
         </div>
 
         <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
           {quote.lines.filter((line) => line.amount > 0).map((line) => (
             <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
           ))}
-          <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>الإجمالي</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
+          <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>{tr("الإجمالي")}</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
           <div className="flex items-start gap-2 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-6 text-slate-700">
             <CalendarClock className="mt-1 h-4 w-4 shrink-0 text-cyan-700" />
             <span>
-              مدة الاشتراك الجديد: من <b>{formatDate(period.start)}</b> إلى <b>{formatDate(period.end)}</b>
-              {period.fromExpiry ? <span className="block text-stone-500">تبدأ من نهاية الاشتراك الحالي، فلا تخسر الأيام المتبقية.</span> : null}
+              {tr("مدة الاشتراك الجديد: من ")}<b>{formatDate(period.start)}</b>{tr(" إلى ")}<b>{formatDate(period.end)}</b>
+              {period.fromExpiry ? <span className="block text-stone-500">{tr("تبدأ من نهاية الاشتراك الحالي، فلا تخسر الأيام المتبقية.")}</span> : null}
             </span>
           </div>
-          {testMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+          {testMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700">{tr("وضع تجريبي: البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
         </div>
 
         {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">إلغاء</button>
-          {verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-[#ece3d3] px-4 text-sm font-bold text-slate-700 transition hover:bg-stone-100">إعادة التحقق دون إعادة الدفع</button>}
+          <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{tr("إلغاء")}</button>
+          {verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-[#ece3d3] px-4 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{tr("إعادة التحقق دون إعادة الدفع")}</button>}
           {!verificationReference && <button type="button" disabled={busy || !(quote.total > 0)} onClick={() => void pay()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}{tr("الدفع عبر الانترنت")}
           </button>}
         </DialogFooter>
       </DialogContent>

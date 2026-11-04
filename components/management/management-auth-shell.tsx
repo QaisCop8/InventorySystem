@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type { ReactNode } from "react"
 import { Boxes, ShieldCheck, Sparkles } from "lucide-react"
 import { PoweredBy } from "@/components/brand/powered-by"
@@ -14,15 +15,15 @@ interface ManagementAuthShellProps {
 
 export function ManagementAuthShell({ eyebrow, title, description, children, compact = false }: ManagementAuthShellProps) {
   return (
-    <main dir="rtl" className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-[#f6f7fb] px-4 py-8 text-slate-950 sm:px-6">
+    <main dir={appDir()} className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-[#f6f7fb] px-4 py-8 text-slate-950 sm:px-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(99,102,241,0.11),transparent_30%),radial-gradient(circle_at_88%_92%,rgba(168,85,247,0.10),transparent_32%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.28] [background-image:linear-gradient(rgba(99,102,241,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.045)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(circle_at_center,black,transparent_74%)]" />
 
       <div className={`relative z-10 w-full ${compact ? "max-w-[470px]" : "max-w-[500px]"}`}>
         <header className="mb-5 flex items-center justify-center gap-3">
           <div className="relative flex h-11 w-11 items-center justify-center rounded-[14px] bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/20">
-            <span className="text-2xl font-black leading-none" aria-hidden="true">ن</span>
-            <span className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-violet-100 bg-white text-violet-600 shadow-sm"><Sparkles className="h-3 w-3" /></span>
+            <span className="text-2xl font-black leading-none" aria-hidden="true">{tr("ن")}</span>
+            <span className="absolute -end-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-violet-100 bg-white text-violet-600 shadow-sm"><Sparkles className="h-3 w-3" /></span>
           </div>
           <div><div className="text-base font-black tracking-tight">Noon ERP</div><div className="text-[9px] font-bold tracking-[0.22em] text-slate-400">NOON MANAGEMENT CLOUD</div></div>
         </header>
@@ -39,7 +40,7 @@ export function ManagementAuthShell({ eyebrow, title, description, children, com
           </div>
         </section>
 
-        <footer className="mt-5 flex flex-col items-center gap-1.5 text-[10px] text-slate-400"><span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />اتصال مشفّر وآمن — بيانات شركاتك محمية</span><PoweredBy /></footer>
+        <footer className="mt-5 flex flex-col items-center gap-1.5 text-[10px] text-slate-400"><span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />{tr("اتصال مشفّر وآمن — بيانات شركاتك محمية")}</span><PoweredBy /></footer>
       </div>
     </main>
   )

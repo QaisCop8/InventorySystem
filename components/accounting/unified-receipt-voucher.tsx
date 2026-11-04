@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
@@ -359,10 +360,10 @@ const CHEQUE_FIELD_ORDER = ["bank_account", "cheq_num", "bank_no", "branch_no", 
 
 // مطابق لـ validateCheck في QabdVoucher.js: لا يسمح بإضافة سطر جديد إلا إذا كان السطر الحالي مكتملاً.
 const validateChequeRow = (row: VoucherChequeRow | undefined): string | null => {
-  if (!row) return "بيانات الشيك غير مكتملة"
-  if (!row.bank_account?.trim() && !row.bank_no?.trim()) return "يجب إدخال رقم الحساب أو البنك"
-  if (!row.cheq_num?.trim()) return "يجب إدخال رقم الشيك"
-  if (!row.amount || Number(row.amount) <= 0) return "يجب إدخال مبلغ الشيك"
+  if (!row) return tr("بيانات الشيك غير مكتملة")
+  if (!row.bank_account?.trim() && !row.bank_no?.trim()) return tr("يجب إدخال رقم الحساب أو البنك")
+  if (!row.cheq_num?.trim()) return tr("يجب إدخال رقم الشيك")
+  if (!row.amount || Number(row.amount) <= 0) return tr("يجب إدخال مبلغ الشيك")
   return null
 }
 
@@ -518,8 +519,8 @@ export default function UnifiedReceiptVoucher({
   // إعداد "عدم السماح بادخال شيكات يدويا في سند الصرف" (vouchers-general-settings.tsx) — عند
   // تفعيله يُصبح رقم الشيك للقراءة فقط ولا يُختار إلا من دفتر شيكات الحساب البنكي المحدد.
   const forceChequeBookLeaf = isPayment && disallowManualChequeEntryInPayment
-  const customerLabel = isReceipt ? "المقبوض منه" : "المدفوع له"
-  const customerNameLabel = isReceipt ? "اسم المقبوض منه" : "اسم المدفوع له"
+  const customerLabel = isReceipt ? tr("المقبوض منه") : tr("المدفوع له")
+  const customerNameLabel = isReceipt ? tr("اسم المقبوض منه") : tr("اسم المدفوع له")
   // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
   const isPosted = form.status === 2
   // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
@@ -661,7 +662,7 @@ export default function UnifiedReceiptVoucher({
     const response = await fetch(`/api/receipts/${voucherId}`, { cache: "no-store" })
     const record = await response.json().catch(() => null)
     if (!response.ok || !record?.id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || "تعذر عرض السند", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || tr("تعذر عرض السند"), life: 3000 }])
       return
     }
     onNavigateRecord?.(record)
@@ -683,7 +684,7 @@ export default function UnifiedReceiptVoucher({
       const data = await response.json()
       if (requestId !== codeRequestRef.current) return
       if (!response.ok) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || tr("تعذر تحديد رقم السند"), life: 3000 }])
         return
       }
       if (data.code && data.code !== form.vch_code) {
@@ -732,7 +733,7 @@ export default function UnifiedReceiptVoucher({
   const currencyOptions = useMemo(
     () =>
       currencies.map((c) => ({
-        label: c.currency_name || c.currency_code || "غير محدد",
+        label: c.currency_name || c.currency_code || tr("غير محدد"),
         value: Number(c.currency_id ?? c.id),
       })),
     [currencies],
@@ -768,7 +769,7 @@ export default function UnifiedReceiptVoucher({
       const response = await fetch(`/api/receipts/navigation/${effectiveDirection}?${query.toString()}`, { cache: "no-store" })
       const record = await response.json()
       if (!response.ok) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record.error || "تعذر التنقل بين السندات", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record.error || tr("تعذر التنقل بين السندات"), life: 3000 }])
         return
       }
       if (record?.id) onNavigateRecord?.(record)
@@ -880,14 +881,14 @@ export default function UnifiedReceiptVoucher({
     const diffCurrMode = Number(account.allow_trans_with_diff_curr)
     if (diffCurrMode === 2) {
       toast({
-        title: "تعذر اختيار الحساب",
-        description: "عملة السند تختلف عن عملة الحساب لا يمكن اختياره",
+        title: tr("تعذر اختيار الحساب"),
+        description: tr("عملة السند تختلف عن عملة الحساب لا يمكن اختياره"),
         variant: "destructive",
       })
       return false
     }
     if (diffCurrMode === 1) {
-      toast({ title: "تنبيه", description: "عملة السند تختلف عن عملة الحساب" })
+      toast({ title: tr("تنبيه"), description: tr("عملة السند تختلف عن عملة الحساب") })
     }
     return true
   }
@@ -918,7 +919,7 @@ export default function UnifiedReceiptVoucher({
       }
     } else {
       patchJournalRow(index, { account_id: null, account_code: code, account_name: "" })
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بهذا الرقم: ${code}`, life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("لا يوجد حساب بهذا الرقم: {0}", code), life: 3000 }])
     }
   }
 
@@ -950,7 +951,7 @@ export default function UnifiedReceiptVoucher({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "account_code", width: 130, minWidth: 110 },
+        { header: tr("رقم الحساب"), name: "account_code", width: 130, minWidth: 110 },
         {
           name: "btnSearch",
           header: " ",
@@ -966,12 +967,12 @@ export default function UnifiedReceiptVoucher({
           },
           visible: true,
         },
-        { header: "اسم الحساب", name: "account_name", width: "*", minWidth: 180, isReadOnly: true },
-        { header: "المبلغ", name: "amount", width: 110, dataType: "Number" },
-        { header: "ملاحظات", name: "note", width: 260, minWidth: 200 },
+        { header: tr("اسم الحساب"), name: "account_name", width: "*", minWidth: 180, isReadOnly: true },
+        { header: tr("المبلغ"), name: "amount", width: 110, dataType: "Number" },
+        { header: tr("ملاحظات"), name: "note", width: 260, minWidth: 200 },
         {
           name: "btnCostCenter",
-          header: "مراكز التكلفة",
+          header: tr("مراكز التكلفة"),
           width: 90,
           buttonBody: "button",
           align: "center",
@@ -986,7 +987,7 @@ export default function UnifiedReceiptVoucher({
           width: 50,
           buttonBody: "button",
           align: "center",
-          title: "حذف السطر (F7)",
+          title: tr("حذف السطر (F7)"),
           iconType: "delete",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => removeJournalRow(ctx.row.index),
@@ -1027,7 +1028,7 @@ export default function UnifiedReceiptVoucher({
     if (colName === "account_code") {
       const value = String(grid.getCellData(row, e.col, false) ?? "")
       if (Util.isSpaceOrSymbols(value) || Util.isArabic(value) || !Util.isCodeFormat(value)) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "رقم الحساب يجب أن يكون أحرف/أرقام إنجليزية فقط بدون مسافات", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("رقم الحساب يجب أن يكون أحرف/أرقام إنجليزية فقط بدون مسافات"), life: 3000 }])
         return
       }
       resolveJournalAccountByCode(row, value)
@@ -1214,14 +1215,14 @@ export default function UnifiedReceiptVoucher({
   const openChequeImage = async (index: number) => {
     const row = chequesRef.current[index]
     if (!row) return
-    const title = `الشيك رقم ${row.cheq_num || ""}${row.bank_name ? ` — ${row.bank_name}` : ""}`
+    const title = tr("الشيك رقم {0}{1}", row.cheq_num || "", row.bank_name ? ` — ${row.bank_name}` : "")
     if (row.front_image || row.back_image) { setChequeImage({ title, front: row.front_image || "", back: row.back_image || "" }); return }
     if (!row.has_image || !form.id) { showChequeMessage("لا توجد صورة لهذا الشيك — تُحفظ الصور عند قراءة الشيك بقارئ الشيكات", "warn"); return }
     setChequeImage({ title, front: "", back: "", loading: true })
     try {
       const response = await fetch(`/api/receipts/${form.id}/cheque-image?cheq_num=${encodeURIComponent(row.cheq_num || "")}&bank_id=${Number(row.bank_id) || 0}`, { cache: "no-store" })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data?.error || "تعذر تحميل صورة الشيك")
+      if (!response.ok) throw new Error(data?.error || tr("تعذر تحميل صورة الشيك"))
       setChequeImage({ title, front: data.front_image || "", back: data.back_image || "" })
     } catch (error: any) {
       setChequeImage(null)
@@ -1237,7 +1238,7 @@ export default function UnifiedReceiptVoucher({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "bank_account", width: 160, isReadOnly: isPayment },
+        { header: tr("رقم الحساب"), name: "bank_account", width: 160, isReadOnly: isPayment },
         {
           name: "btnSearchBankAccount",
           header: " ",
@@ -1255,7 +1256,7 @@ export default function UnifiedReceiptVoucher({
           // القبض يستقبل شيكات من بنوك/فروع عملاء خارجية فيبقى على بحث البنك/الفرع اليدوي أدناه.
           visible: isPayment,
         },
-        { header: "رقم الشيك", name: "cheq_num", width: 160, isReadOnly: forceChequeBookLeaf },
+        { header: tr("رقم الشيك"), name: "cheq_num", width: 160, isReadOnly: forceChequeBookLeaf },
         {
           name: "btnSearchChequeLeaf",
           header: " ",
@@ -1267,7 +1268,7 @@ export default function UnifiedReceiptVoucher({
           onClick: (e: any, ctx: any) => {
             if (isLocked) return
             if (!cheques[ctx.row.index]?.bank_account_id) {
-              messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب اولا", life: 3000 }])
+              messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب تحديد رقم الحساب اولا"), life: 3000 }])
               return
             }
             setChequeSearchRow(ctx.row.index)
@@ -1275,7 +1276,7 @@ export default function UnifiedReceiptVoucher({
           },
           visible: isPayment,
         },
-        { header: "البنك", name: "bank_no", width: 80, maxLength: 4, isReadOnly: isPayment },
+        { header: tr("البنك"), name: "bank_no", width: 80, maxLength: 4, isReadOnly: isPayment },
         {
           name: "btnSearchBank",
           header: " ",
@@ -1293,8 +1294,8 @@ export default function UnifiedReceiptVoucher({
           // البنكي المختار (resolveBankBranchFromAccount).
           visible: isReceipt,
         },
-        { header: "اسم البنك", name: "bank_name", width: 120, isReadOnly: true },
-        { header: "الفرع", name: "branch_no", width: 80, maxLength: 4, isReadOnly: isPayment },
+        { header: tr("اسم البنك"), name: "bank_name", width: 120, isReadOnly: true },
+        { header: tr("الفرع"), name: "branch_no", width: 80, maxLength: 4, isReadOnly: isPayment },
         {
           name: "btnSearchBranch",
           header: " ",
@@ -1310,8 +1311,8 @@ export default function UnifiedReceiptVoucher({
           },
           visible: isReceipt,
         },
-        { header: "اسم الفرع", name: "branch_name", width: 110, isReadOnly: true },
-        { header: "يستحق في", name: "due_date", width: 130, dataType: "Date", format: "dd/MM/yyyy" },
+        { header: tr("اسم الفرع"), name: "branch_name", width: 110, isReadOnly: true },
+        { header: tr("يستحق في"), name: "due_date", width: 130, dataType: "Date", format: "dd/MM/yyyy" },
         {
           name: "btnDueDate",
           header: " ",
@@ -1327,11 +1328,11 @@ export default function UnifiedReceiptVoucher({
           },
           visible: true,
         },
-        { header: "المبلغ", name: "amount", width: 90, dataType: "Number" },
-        { header: "اسم صاحب الشيك", name: "cheq_owner_name", width: "*", minWidth: 110 },
+        { header: tr("المبلغ"), name: "amount", width: 90, dataType: "Number" },
+        { header: tr("اسم صاحب الشيك"), name: "cheq_owner_name", width: "*", minWidth: 110 },
         {
           name: "btnChequeImage",
-          header: "صورة",
+          header: tr("صورة"),
           width: 55,
           buttonBody: "button",
           align: "center",
@@ -1410,7 +1411,7 @@ export default function UnifiedReceiptVoucher({
         {
           severity: "warn",
           summary: "",
-          detail: "الحساب البنكي المختار لا يملك فرعاً معرَّفاً في تعريف الحسابات البنكية — يرجى تحديد الفرع هناك أولاً",
+          detail: tr("الحساب البنكي المختار لا يملك فرعاً معرَّفاً في تعريف الحسابات البنكية — يرجى تحديد الفرع هناك أولاً"),
           life: 4000,
         },
       ])
@@ -1419,7 +1420,7 @@ export default function UnifiedReceiptVoucher({
         {
           severity: "warn",
           summary: "",
-          detail: "تعذّر تحديد بنك الفرع المرتبط بهذا الحساب البنكي",
+          detail: tr("تعذّر تحديد بنك الفرع المرتبط بهذا الحساب البنكي"),
           life: 4000,
         },
       ])
@@ -1444,7 +1445,7 @@ export default function UnifiedReceiptVoucher({
     if (colName === "bank_account" || colName === "cheq_num") {
       const text = String(value ?? "")
       if (text && (Util.isSpaceOrSymbols(text) || Util.isArabic(text) || !Util.isCodeFormat(text))) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "الحقل يجب أن يحتوي أحرف/أرقام إنجليزية فقط بدون مسافات", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("الحقل يجب أن يحتوي أحرف/أرقام إنجليزية فقط بدون مسافات"), life: 3000 }])
         return
       }
     }
@@ -1477,7 +1478,7 @@ export default function UnifiedReceiptVoucher({
         // مطابق لطلب المستخدم: إبقاء التركيز على الخلية دون فتح نافذة البحث تلقائياً، مع مسح
         // القيمة المدخلة وعرض رسالة الخطأ (بخلاف نمط البنك/الفرع اللذين يفتحان البحث تلقائياً).
         patchChequeRow(row, { bank_account: "", bank_account_id: null } as any)
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "الحساب البنكي المدخل غير موجود", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("الحساب البنكي المدخل غير موجود"), life: 3000 }])
       }
       return
     }
@@ -1532,7 +1533,7 @@ export default function UnifiedReceiptVoucher({
       }
       const parsed = value instanceof Date ? value : new Date(value)
       if (Number.isNaN(parsed.getTime())) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "تاريخ الاستحقاق غير صحيح", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("تاريخ الاستحقاق غير صحيح"), life: 3000 }])
         patchChequeRow(row, { due_date: chequesRef.current[row]?.due_date || "" } as any)
         return
       }
@@ -1565,7 +1566,7 @@ export default function UnifiedReceiptVoucher({
     // لا يمكن تحديد الفرع قبل تحديد البنك — أي مفتاح (كتابة، F10، Tab/Enter...) يُمنع ويُنبَّه المستخدم.
     if (colName === "branch_no" && !chequesRef.current[row]?.bank_id) {
       e.preventDefault()
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد البنك اولا", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب تحديد البنك اولا"), life: 3000 }])
       return
     }
 
@@ -1646,7 +1647,7 @@ export default function UnifiedReceiptVoucher({
           .reduce((sum, row) => sum + Number(row.amount || 0), 0)
         const remaining = Math.round((Number(form.check_amount || 0) - enteredWithoutEmptyRow) * 100) / 100
         if (remaining <= 0) {
-          messagesRef.current?.show?.([{ severity: "info", summary: "", detail: "تم إدخال كامل مبلغ الشيكات، لا حاجة لسطر إضافي", life: 3000 }])
+          messagesRef.current?.show?.([{ severity: "info", summary: "", detail: tr("تم إدخال كامل مبلغ الشيكات، لا حاجة لسطر إضافي"), life: 3000 }])
           return
         }
         const nextChequeNum = previousRow.cheq_num && /^\d+$/.test(previousRow.cheq_num)
@@ -1682,7 +1683,7 @@ export default function UnifiedReceiptVoucher({
       const remainingSoFar = Math.round((Number(form.check_amount || 0) - enteredTotalSoFar) * 100) / 100
       if (remainingSoFar <= 0) {
         messagesRef.current?.show?.([
-          { severity: "info", summary: "", detail: "تم إدخال كامل مبلغ الشيكات، لا حاجة لسطر إضافي", life: 3000 },
+          { severity: "info", summary: "", detail: tr("تم إدخال كامل مبلغ الشيكات، لا حاجة لسطر إضافي"), life: 3000 },
         ])
         return
       }
@@ -1774,7 +1775,7 @@ export default function UnifiedReceiptVoucher({
       if (colName === "cheq_num" && forceChequeBookLeaf) {
         if (!currentRow?.cheq_num?.trim()) {
           if (!currentRow?.bank_account_id) {
-            messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب اولا", life: 3000 }])
+            messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب تحديد رقم الحساب اولا"), life: 3000 }])
             return
           }
           setChequeSearchRow(row)
@@ -1890,12 +1891,12 @@ export default function UnifiedReceiptVoucher({
     if (user?.id && currencyId && branchId) {
       try {
         const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}&branch_id=${branchId}`, { cache: "no-store" })
-        if (!response.ok) throw new Error("تعذر تحميل الحسابات الافتراضية")
+        if (!response.ok) throw new Error(tr("تعذر تحميل الحسابات الافتراضية"))
         const data = await response.json()
         row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null
       } catch (error) {
         console.error("Failed to fetch branch account defaults", error)
-        if (requestId === defaultAccountsRequest.current) messagesRef.current?.show?.([{ severity: "error", detail: "تعذر تحميل الحسابات الافتراضية", life: 5000 }])
+        if (requestId === defaultAccountsRequest.current) messagesRef.current?.show?.([{ severity: "error", detail: tr("تعذر تحميل الحسابات الافتراضية"), life: 5000 }])
       }
     }
     if (requestId !== defaultAccountsRequest.current || latestFormRef.current.id !== voucherId) return
@@ -2061,7 +2062,7 @@ export default function UnifiedReceiptVoucher({
           inline={fullscreenEnabled && dialogOpen}
           className="voucher-form flex h-[90dvh] min-h-0 w-full max-w-[1850px] flex-col overflow-hidden p-0"
           hideCloseButton
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
@@ -2072,12 +2073,12 @@ export default function UnifiedReceiptVoucher({
         >
           <button
             type="button"
-            aria-label="إغلاق"
+            aria-label={tr("إغلاق")}
             onClick={() => guardedAction(() => {
               codeRequestRef.current += 1
               onOpenChange(false)
             })}
-            className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
+            className="universal-dialog-close absolute end-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           >
             <X className="h-4 w-4" />
           </button>
@@ -2120,7 +2121,7 @@ export default function UnifiedReceiptVoucher({
                 {form.id > 0 ? (
                   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
                 ) : (
-                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{tr("مسودة")}</span>
                 )}
                 {statusBadge && (
                   <span
@@ -2145,19 +2146,19 @@ export default function UnifiedReceiptVoucher({
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
                     <FileText className="h-3.5 w-3.5" />
                   </span>
-                  تفاصيل السند
+                  {tr("تفاصيل السند")}
                 </div>
                 <div className="grid gap-3">
                   {/* دفتر/رقم/تاريخ/فرع السند بشبكة 2×2 داخل "تفاصيل السند" — نفس ترتيب إرسالية المبيعات. */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                      <Label>دفتر السندات *</Label>
+                      <Label>{tr("دفتر السندات *")}</Label>
                       <PrimeDropdown
                         value={form.vch_book_id}
                         options={voucherBooks}
                         optionLabel="name"
                         optionValue="id"
-                        placeholder="اختر"
+                        placeholder={tr("اختر")}
                         filter
                         disabled={isLocked}
                         className="invoice-currency-dropdown w-full"
@@ -2168,7 +2169,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-code">رقم السند *</Label>
+                      <Label htmlFor="vch-code">{tr("رقم السند *")}</Label>
                       <div className="flex min-w-0 items-center gap-1.5">
                         <Input
                           id="vch-code"
@@ -2182,7 +2183,7 @@ export default function UnifiedReceiptVoucher({
                       </div>
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-date">تاريخ السند *</Label>
+                      <Label htmlFor="vch-date">{tr("تاريخ السند *")}</Label>
                       <DateTimeControl
                         id="vch-date"
                         ref={dateInputRef}
@@ -2198,13 +2199,13 @@ export default function UnifiedReceiptVoucher({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                      <Label>العملة *</Label>
+                      <Label>{tr("العملة *")}</Label>
                       <PrimeDropdown
                         value={form.currency_id}
                         options={currencyOptions}
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="اختر العملة"
+                        placeholder={tr("اختر العملة")}
                         filter
                         disabled={isLocked}
                         className="invoice-currency-dropdown w-full"
@@ -2215,7 +2216,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-rate">سعر الصرف *</Label>
+                      <Label htmlFor="vch-rate">{tr("سعر الصرف *")}</Label>
                       <Input
                         id="vch-rate"
                         type="number"
@@ -2227,7 +2228,7 @@ export default function UnifiedReceiptVoucher({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-manual-code">سند يدوي</Label>
+                      <Label htmlFor="vch-manual-code">{tr("سند يدوي")}</Label>
                       <Input
                         id="vch-manual-code"
                         value={form.manual_voucher}
@@ -2236,7 +2237,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
+                      <Label htmlFor="vch-manual-date">{tr("تاريخ السند اليدوي")}</Label>
                       <DateTimeControl
                         id="vch-manual-date"
                         value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
@@ -2254,7 +2255,7 @@ export default function UnifiedReceiptVoucher({
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
                       <User className="h-3.5 w-3.5" />
                     </span>
-                    تفاصيل العميل
+                    {tr("تفاصيل العميل")}
                   </div>
                   {isReceipt && (
                     // نفس زر "تسديد الفواتير" في فاتورة المبيعات (unified-sales-delivery.tsx). span بدور زر لا <button>:
@@ -2264,7 +2265,7 @@ export default function UnifiedReceiptVoucher({
                         role="button"
                         tabIndex={form.id > 0 ? 0 : -1}
                         aria-disabled={!(form.id > 0)}
-                        title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"}
+                        title={form.id > 0 ? tr("تسديد الفواتير") : tr("احفظ السند أولاً")}
                         onClick={() => { if (form.id > 0) setBillsPaymentOpen(true) }}
                         onKeyDown={(event) => {
                           if ((event.key === "Enter" || event.key === " ") && form.id > 0) {
@@ -2275,7 +2276,7 @@ export default function UnifiedReceiptVoucher({
                         }}
                       >
                         <Wallet className="h-3.5 w-3.5 text-emerald-600" />
-                        تسديد الفواتير
+                        {tr("تسديد الفواتير")}
                       </span>
                     </Button>
                   )}
@@ -2310,7 +2311,7 @@ export default function UnifiedReceiptVoucher({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                      label="على حساب"
+                      label={tr("على حساب")}
                       valueMode="id"
                       value={numberValue(form.to_account_id)}
                       onValueChange={(v) => onFormChange("to_account_id", v ? Number(v) : null)}
@@ -2323,7 +2324,7 @@ export default function UnifiedReceiptVoucher({
                   </div>
                   <div className={isPayment ? "grid gap-2 sm:grid-cols-3" : "grid gap-2 sm:grid-cols-4"}>
                     <div className="grid gap-1.5">
-                      <Label>المبلغ *</Label>
+                      <Label>{tr("المبلغ *")}</Label>
                       <Input
                         type="number"
                         value={numberValue(form.amount)}
@@ -2337,7 +2338,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>نقدي</Label>
+                      <Label>{tr("نقدي")}</Label>
                       <Input
                         type="number"
                         value={numberValue(form.cash_amount)}
@@ -2348,7 +2349,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>شيكات</Label>
+                      <Label>{tr("شيكات")}</Label>
                       <Input
                         type="number"
                         value={numberValue(form.check_amount)}
@@ -2367,7 +2368,7 @@ export default function UnifiedReceiptVoucher({
                     {/* بطاقات آخر الحقول — يأخذ ما تبقى بعد النقدي والشيكات */}
                     {!isPayment && (
                       <div className="grid gap-1.5">
-                        <Label>بطاقات</Label>
+                        <Label>{tr("بطاقات")}</Label>
                         <Input
                           type="number"
                           value={numberValue(form.credit_card_amount)}
@@ -2388,7 +2389,7 @@ export default function UnifiedReceiptVoucher({
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 ring-1 ring-slate-200">
                   <MessageSquare className="h-3.5 w-3.5" />
                 </span>
-                الملاحظة
+                {tr("الملاحظة")}
               </div>
               <Input
                 id="vch-note"
@@ -2414,15 +2415,15 @@ export default function UnifiedReceiptVoucher({
             </fieldset>
             <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-                <TabsTrigger value="main" className={voucherTabTriggerClass}>الرئيسية</TabsTrigger>
-                <TabsTrigger value="cheques" className={voucherTabTriggerClass}>الشيكات</TabsTrigger>
+                <TabsTrigger value="main" className={voucherTabTriggerClass}>{tr("الرئيسية")}</TabsTrigger>
+                <TabsTrigger value="cheques" className={voucherTabTriggerClass}>{tr("الشيكات")}</TabsTrigger>
                 {!isPayment && (
-                  <TabsTrigger value="card" className={voucherTabTriggerClass}>تفاصيل البطاقة</TabsTrigger>
+                  <TabsTrigger value="card" className={voucherTabTriggerClass}>{tr("تفاصيل البطاقة")}</TabsTrigger>
                 )}
-                <TabsTrigger value="journal" className={voucherTabTriggerClass}>الحسابات</TabsTrigger>
-                <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
-                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>المرفقات</TabsTrigger>
-                <TabsTrigger value="extra" className={voucherTabTriggerClass}>الحقول الإضافية</TabsTrigger>
+                <TabsTrigger value="journal" className={voucherTabTriggerClass}>{tr("الحسابات")}</TabsTrigger>
+                <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
+                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
+                <TabsTrigger value="extra" className={voucherTabTriggerClass}>{tr("الحقول الإضافية")}</TabsTrigger>
               </TabsList>
 
               {/* الرئيسية */}
@@ -2433,11 +2434,11 @@ export default function UnifiedReceiptVoucher({
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
                       <Wallet className="h-3.5 w-3.5" />
                     </span>
-                    الحسابات الافتراضية
+                    {tr("الحسابات الافتراضية")}
                   </div>
                 <div className={isPayment ? "grid gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-3"}>
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                    label="حساب الصندوق"
+                    label={tr("حساب الصندوق")}
                     valueMode="id"
                     value={numberValue(form.cash_account_id)}
                     onValueChange={(v) => onFormChange("cash_account_id", v ? Number(v) : null)}
@@ -2447,7 +2448,7 @@ export default function UnifiedReceiptVoucher({
                     requiredTypeValues={[1]}
                   />
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                    label="حساب صندوق الشيكات"
+                    label={tr("حساب صندوق الشيكات")}
                     valueMode="id"
                     // سند الصرف: يُعطَّل أمام الإدخال اليدوي لكن يبقى معروضاً — قيمته تُعبَّأ آلياً
                     // (jary_account_id الخاص بالحساب البنكي المختار في شبكة الشيكات) عبر المزامنة أعلاه.
@@ -2460,7 +2461,7 @@ export default function UnifiedReceiptVoucher({
                   />
                   {!isPayment && (
                     <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                      label="حساب البطاقات"
+                      label={tr("حساب البطاقات")}
                       valueMode="id"
                       value={numberValue(form.credit_card_account_id)}
                       onValueChange={(v) => onFormChange("credit_card_account_id", v ? Number(v) : null)}
@@ -2473,13 +2474,13 @@ export default function UnifiedReceiptVoucher({
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>تصنيف الدفعة</Label>
+                    <Label>{tr("تصنيف الدفعة")}</Label>
                     <PrimeDropdown
                       value={form.payment_classification_id}
                       options={paymentClassifications}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
@@ -2490,13 +2491,13 @@ export default function UnifiedReceiptVoucher({
                     />
                   </div>
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>مندوب المبيعات</Label>
+                    <Label>{tr("مندوب المبيعات")}</Label>
                     <PrimeDropdown
                       value={form.salesman_id}
                       options={salesmen}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
@@ -2517,17 +2518,17 @@ export default function UnifiedReceiptVoucher({
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {isReceipt && (
                     <Button type="button" variant="outline" size="sm" onClick={() => void readChequesFromReader()}
-                      title="قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashService)"
+                      title={tr("قراءة الشيكات بجهاز قارئ الشيكات عبر خدمة الكاشير (CashService)")}
                       className={chequeReading ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"}>
                       {chequeReading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <ScanLine className="ml-1 h-4 w-4" />}
                       {chequeReading
-                        ? `${chequeReaderPhase === "connecting" ? "الاتصال بخدمة الكاشير…" : chequeReaderPhase === "launching" ? "تشغيل خدمة الكاشير…" : "بانتظار قارئ الشيكات…"} (إلغاء)`
-                        : "قراءة الشيكات"}
+                        ? tr("{0} (إلغاء)", chequeReaderPhase === "connecting" ? "الاتصال بخدمة الكاشير…" : chequeReaderPhase === "launching" ? "تشغيل خدمة الكاشير…" : "بانتظار قارئ الشيكات…")
+                        : tr("قراءة الشيكات")}
                     </Button>
                   )}
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>
                     <Plus className="ml-1 h-4 w-4" />
-                    إضافة شيك
+                    {tr("إضافة شيك")}
                   </Button>
                 </div>
                 <div className="receipt-grid-scroll w-full max-w-full">
@@ -2550,7 +2551,7 @@ export default function UnifiedReceiptVoucher({
                   )}
                 </div>
                 <div className={`text-sm font-semibold ${chequesTotal === Number(form.check_amount || 0) ? "text-emerald-700" : "text-rose-600"}`}>
-                  إجمالي الشيكات: {chequesTotal.toLocaleString("en-US")}
+                  {tr("إجمالي الشيكات: ")}{chequesTotal.toLocaleString("en-US")}
                 </div>
               </fieldset>
               </TabsContent>
@@ -2561,13 +2562,13 @@ export default function UnifiedReceiptVoucher({
                 <fieldset disabled={isLocked} className="contents">
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>نوع البطاقة</Label>
+                    <Label>{tr("نوع البطاقة")}</Label>
                     <PrimeDropdown
                       value={card.card_type_id}
                       options={cardTypeOptions}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
@@ -2578,11 +2579,11 @@ export default function UnifiedReceiptVoucher({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>رقم البطاقة</Label>
+                    <Label>{tr("رقم البطاقة")}</Label>
                     <Input value={card.card_no} readOnly={card.card_entry === "pinpad"} onChange={(e) => patchCard({ card_no: e.target.value })} maxLength={50} />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>تاريخ انتهاء البطاقة</Label>
+                    <Label>{tr("تاريخ انتهاء البطاقة")}</Label>
                     <Input
                       type="date"
                       value={card.expire_date ? card.expire_date.slice(0, 10) : ""}
@@ -2592,17 +2593,17 @@ export default function UnifiedReceiptVoucher({
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label>المبلغ</Label>
+                    <Label>{tr("المبلغ")}</Label>
                     <Input value={numberValue(form.credit_card_amount)} readOnly disabled />
                   </div>
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>العملة</Label>
+                    <Label>{tr("العملة")}</Label>
                     <PrimeDropdown
                       value={card.currency_id}
                       options={currencyOptions}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       disabled
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
@@ -2614,15 +2615,15 @@ export default function UnifiedReceiptVoucher({
                   <div className="space-y-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
                     {card.card_entry === "pinpad" ? (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                        <span className="font-bold text-emerald-700">✓ تمت العملية على جهاز الدفع</span>
-                        <span>رقم الموافقة: <b dir="ltr">{card.card_auth_code || "-"}</b></span>
-                        {card.card_trans_id && <span>رقم الحركة: <b dir="ltr">{card.card_trans_id}</b></span>}
-                        {card.card_terminal_id && <span>الجهاز: <b dir="ltr">{card.card_terminal_id}</b></span>}
-                        {!isLocked && <button type="button" className="mr-auto text-rose-600 underline" onClick={() => patchCard({ card_no: "", ...CLEAR_PINPAD })}>إلغاء الربط والإدخال يدوياً</button>}
+                        <span className="font-bold text-emerald-700">{tr("✓ تمت العملية على جهاز الدفع")}</span>
+                        <span>{tr("رقم الموافقة: ")}<b dir="ltr">{card.card_auth_code || "-"}</b></span>
+                        {card.card_trans_id && <span>{tr("رقم الحركة: ")}<b dir="ltr">{card.card_trans_id}</b></span>}
+                        {card.card_terminal_id && <span>{tr("الجهاز: ")}<b dir="ltr">{card.card_terminal_id}</b></span>}
+                        {!isLocked && <button type="button" className="mr-auto text-rose-600 underline" onClick={() => patchCard({ card_no: "", ...CLEAR_PINPAD })}>{tr("إلغاء الربط والإدخال يدوياً")}</button>}
                       </div>
                     ) : (
                       <>
-                        <p className="text-xs text-slate-600">هذه البطاقة مربوطة بجهاز الدفع — اضغط «إرسال للجهاز» ليُرسل مبلغ البطاقات ويمرّر العميل بطاقته، أو أدخل الرقم يدوياً.</p>
+                        <p className="text-xs text-slate-600">{tr("هذه البطاقة مربوطة بجهاز الدفع — اضغط «إرسال للجهاز» ليُرسل مبلغ البطاقات ويمرّر العميل بطاقته، أو أدخل الرقم يدوياً.")}</p>
                         <PinpadPayButton
                           machineId={cardPinpadMachine}
                           amount={Number(form.credit_card_amount || 0)}
@@ -2653,11 +2654,11 @@ export default function UnifiedReceiptVoucher({
                 <fieldset disabled={isLocked} className="contents">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-500">
-                    تُستخدم عند توزيع مبلغ السند على أكثر من حساب مقابل بدلاً من حقل "على حساب" وحده. اختيار حساب يفعّل زر مراكز التكلفة الخاص به.
+                    {tr("تُستخدم عند توزيع مبلغ السند على أكثر من حساب مقابل بدلاً من حقل \"على حساب\" وحده. اختيار حساب يفعّل زر مراكز التكلفة الخاص به.")}
                   </p>
                   <Button type="button" variant="outline" size="sm" onClick={addJournalRow}>
                     <Plus className="ml-1 h-4 w-4" />
-                    إضافة سطر
+                    {tr("إضافة سطر")}
                   </Button>
                 </div>
                 <div className="receipt-grid-scroll w-full max-w-full">
@@ -2677,8 +2678,8 @@ export default function UnifiedReceiptVoucher({
                   />
                 </div>
                 <div className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                  إجمالي الحسابات: {journalTotal.toLocaleString("en-US")}
-                  {journalDiff !== 0 && journalTotal > 0 && ` — الفرق عن المبلغ الإجمالي: ${journalDiff.toLocaleString("en-US")}`}
+                  {tr("إجمالي الحسابات: ")}{journalTotal.toLocaleString("en-US")}
+                  {journalDiff !== 0 && journalTotal > 0 && tr(" — الفرق عن المبلغ الإجمالي: {0}", journalDiff.toLocaleString("en-US"))}
                 </div>
               </fieldset>
               </TabsContent>
@@ -2689,7 +2690,7 @@ export default function UnifiedReceiptVoucher({
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
                     <ListPlus className="ml-1 h-4 w-4" />
-                    إضافة ملاحظة
+                    {tr("إضافة ملاحظة")}
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -2714,7 +2715,7 @@ export default function UnifiedReceiptVoucher({
                       </Button>
                     </div>
                   ))}
-                  {notes.length === 0 && <p className="py-4 text-center text-sm text-slate-400">لا توجد ملاحظات</p>}
+                  {notes.length === 0 && <p className="py-4 text-center text-sm text-slate-400">{tr("لا توجد ملاحظات")}</p>}
                 </div>
               </fieldset>
               </TabsContent>
@@ -2729,7 +2730,7 @@ export default function UnifiedReceiptVoucher({
               {/* الحقول الإضافية */}
               <TabsContent value="extra" className="mt-4 min-h-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <fieldset disabled={isLocked} className="contents">
-                <p className="py-4 text-center text-sm text-slate-400">لا توجد حقول إضافية معرّفة لهذا النوع من السندات</p>
+                <p className="py-4 text-center text-sm text-slate-400">{tr("لا توجد حقول إضافية معرّفة لهذا النوع من السندات")}</p>
               </fieldset>
               </TabsContent>
             </Tabs>
@@ -2766,10 +2767,10 @@ export default function UnifiedReceiptVoucher({
       />
 
       <Dialog open={!!chequeImage} onOpenChange={(open) => { if (!open) setChequeImage(null) }}>
-        <DialogContent dir="rtl" className="max-w-4xl">
+        <DialogContent dir={appDir()} className="max-w-4xl">
           <DialogHeader><DialogTitle>{chequeImage?.title}</DialogTitle></DialogHeader>
           {chequeImage?.loading ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="ml-2 h-5 w-5 animate-spin" />جاري تحميل الصورة…</div>
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground"><Loader2 className="ml-2 h-5 w-5 animate-spin" />{tr("جاري تحميل الصورة…")}</div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {([["وجه الشيك", chequeImage?.front], ["ظهر الشيك", chequeImage?.back]] as const).map(([label, image]) => (
@@ -2777,7 +2778,7 @@ export default function UnifiedReceiptVoucher({
                   <p className="text-sm font-semibold text-slate-600">{label}</p>
                   {image
                     ? <img src={chequeImageSrc(image)} alt={label} className="w-full rounded-lg border bg-white object-contain" />
-                    : <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-xs text-slate-400">لا توجد صورة</div>}
+                    : <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-xs text-slate-400">{tr("لا توجد صورة")}</div>}
                 </div>
               ))}
             </div>
@@ -2869,7 +2870,7 @@ export default function UnifiedReceiptVoucher({
         open={dueDatePickerOpen}
         onOpenChange={setDueDatePickerOpen}
         value={dueDateRow !== null ? cheques[dueDateRow]?.due_date : null}
-        title="تاريخ استحقاق الشيك"
+        title={tr("تاريخ استحقاق الشيك")}
         onSelect={(isoDate) => {
           if (dueDateRow !== null) {
             const row = dueDateRow
@@ -2881,9 +2882,9 @@ export default function UnifiedReceiptVoucher({
 
       <ConfirmDialogYesNo
         useAppDialog
-        title={`تأكيد حذف ${title}`}
+        title={tr("تأكيد حذف {0}", title)}
         visible={showDeleteConfirm}
-        message={isPosted ? "السند معتمد هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
+        message={isPosted ? tr("السند معتمد هل تريد الغاؤه منطقياً؟") : tr("هل تريد حذف هذا {0}؟", title)}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -2892,15 +2893,15 @@ export default function UnifiedReceiptVoucher({
         open={voucherSearchOpen}
         onOpenChange={setVoucherSearchOpen}
         vchType={Number(form.vch_type)}
-        title={isReceipt ? "سندات القبض" : "سندات الصرف"}
+        title={isReceipt ? tr("سندات القبض") : tr("سندات الصرف")}
         accountLabel={customerLabel}
         onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
       />
       <ConfirmDialogYesNo
         useAppDialog
-        title="حفظ التغييرات"
+        title={tr("حفظ التغييرات")}
         visible={showUnsavedConfirm}
-        message="تم تعديل البيانات، هل تريد الحفظ؟"
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
         showBack
         onConfirm={() => {
           setShowUnsavedConfirm(false)

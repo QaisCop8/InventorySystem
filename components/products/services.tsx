@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useRef, useMemo } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Wrench as WrenchIcon } from "lucide-react"
@@ -249,14 +250,14 @@ export function Services() {
       const response = await fetch("/api/inventory/products?type=services")
       const data = await response.json()
       if (!response.ok) {
-        const errorMessage = data?.error || "فشل في تحميل الخدمات"
+        const errorMessage = data?.error || tr("فشل في تحميل الخدمات")
         throw new Error(errorMessage)
       }
       setState((prev) => ({ ...prev, products: Array.isArray(data) ? data : [] }))
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+        error: err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"),
         products: [],
       }))
     } finally {
@@ -346,7 +347,7 @@ export function Services() {
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || "فشل في تغيير حالة الخدمة")
+        throw new Error(data.error || tr("فشل في تغيير حالة الخدمة"))
       }
 
       setState((prev) => ({
@@ -357,13 +358,13 @@ export function Services() {
       }))
       toast.current?.show({
         severity: "success",
-        summary: "تم الحفظ",
-        detail: isCurrentlyInactive ? "تم إلغاء التجميد" : "تم التجميد",
+        summary: tr("تم الحفظ"),
+        detail: isCurrentlyInactive ? tr("تم إلغاء التجميد") : tr("تم التجميد"),
         life: 3000,
       })
     } catch (err) {
       console.error("[Services] Toggle freeze error:", err)
-      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : "حدث خطأ أثناء تغيير الحالة" }))
+      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : tr("حدث خطأ أثناء تغيير الحالة") }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
     }
@@ -381,8 +382,8 @@ export function Services() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
-          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى الخدمات</p>
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("لا يوجد صلاحية")}</h2>
+          <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى الخدمات")}</p>
         </div>
       </div>
     )
@@ -390,17 +391,17 @@ export function Services() {
 
   if (state.loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الخدمات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الخدمات...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="voucher-list-page min-h-screen space-y-4 bg-background p-3 sm:space-y-5 sm:p-5" dir="rtl">
+    <div className="voucher-list-page min-h-screen space-y-4 bg-background p-3 sm:space-y-5 sm:p-5" dir={appDir()}>
       {state.error && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
@@ -421,11 +422,11 @@ export function Services() {
       )}
 
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={WrenchIcon}
-        title="إدارة الخدمات"
-        subtitle="إدارة الخدمات المتاحة في النظام"
-        addLabel="خدمة جديدة"
+        title={tr("إدارة الخدمات")}
+        subtitle={tr("إدارة الخدمات المتاحة في النظام")}
+        addLabel={tr("خدمة جديدة")}
         onNew={() => canCreate && setState((prev) => ({
               ...prev,
               showDialog: true,
@@ -437,21 +438,21 @@ export function Services() {
         addDisabled={!canCreate}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي الخدمات</>, value: <>{serviceStats.totalServices}</> }, { label: <>الخدمات النشطة</>, value: <>{serviceStats.activeServices}</> }, { label: <>الخدمات غير النشطة</>, value: <>{serviceStats.inactiveServices}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي الخدمات")}</>, value: <>{serviceStats.totalServices}</> }, { label: <>{tr("الخدمات النشطة")}</>, value: <>{serviceStats.activeServices}</> }, { label: <>{tr("الخدمات غير النشطة")}</>, value: <>{serviceStats.inactiveServices}</> }]} />
 
       <Card>
         <CardHeader>
-          <CardTitle>قائمة الخدمات</CardTitle>
-          <CardDescription>عرض {paginatedProducts.length} من أصل {filteredProducts.length} خدمة</CardDescription>
+          <CardTitle>{tr("قائمة الخدمات")}</CardTitle>
+          <CardDescription>{tr("عرض ")}{paginatedProducts.length}{tr(" من أصل ")}{filteredProducts.length}{tr(" خدمة")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <div className="min-w-0 space-y-1.5">
-              <Label>البحث</Label>
+              <Label>{tr("البحث")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="اسم الخدمة أو رمز الخدمة"
+                  placeholder={tr("اسم الخدمة أو رمز الخدمة")}
                   value={state.filters.search}
                   onChange={(e) => setState((prev) => ({ ...prev, filters: { ...prev.filters, search: e.target.value }, currentPage: 1 }))}
                   className="pr-10"
@@ -459,7 +460,7 @@ export function Services() {
               </div>
             </div>
             <div className="min-w-0 space-y-1.5">
-              <Label>الحالة</Label>
+              <Label>{tr("الحالة")}</Label>
               <Select
                 value={state.filters.status}
                 onValueChange={(value) => setState((prev) => ({ ...prev, filters: { ...prev.filters, status: value }, currentPage: 1 }))}
@@ -468,10 +469,10 @@ export function Services() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="نشط">نشط</SelectItem>
-                  <SelectItem value="غير نشط">غير نشط</SelectItem>
-                  <SelectItem value="متوقف">متوقف</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                  <SelectItem value="غير نشط">{tr("غير نشط")}</SelectItem>
+                  <SelectItem value="متوقف">{tr("متوقف")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -481,8 +482,8 @@ export function Services() {
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-          <CardTitle>الخدمات</CardTitle>
-          <Badge variant="secondary">{filteredProducts.length.toLocaleString("ar-u-nu-latn")} خدمة</Badge>
+          <CardTitle>{tr("الخدمات")}</CardTitle>
+          <Badge variant="secondary">{filteredProducts.length.toLocaleString("ar-u-nu-latn")}{tr(" خدمة")}</Badge>
         </CardHeader>
         <CardContent className="space-y-3 px-3 sm:px-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:hidden">
@@ -504,13 +505,13 @@ export function Services() {
                     </div>
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-3 text-xs">
-                    <div className="min-w-0"><dt className="text-muted-foreground">التصنيف</dt><dd className="mt-0.5 truncate font-semibold">{product.category || "—"}</dd></div>
-                    <div className="min-w-0"><dt className="text-muted-foreground">آخر سعر شراء</dt><dd className="mt-0.5 font-semibold" dir="ltr">{Number(product.last_purchase_price || 0).toLocaleString("en-US")}</dd></div>
+                    <div className="min-w-0"><dt className="text-muted-foreground">{tr("التصنيف")}</dt><dd className="mt-0.5 truncate font-semibold">{product.category || "—"}</dd></div>
+                    <div className="min-w-0"><dt className="text-muted-foreground">{tr("آخر سعر شراء")}</dt><dd className="mt-0.5 font-semibold" dir="ltr">{Number(product.last_purchase_price || 0).toLocaleString("en-US")}</dd></div>
                   </dl>
                   {canUpdate && (
                     <div className="mt-3 flex justify-end gap-2 border-t pt-3">
-                      {canUpdate && <Button variant="outline" size="sm" className="min-h-9 gap-2" onClick={() => handleEditProduct(product)}><Edit className="h-4 w-4" />تعديل</Button>}
-                      {canUpdate && <Button variant="outline" size="sm" className="min-h-9 gap-2" onClick={() => handleToggleFreeze(product)} aria-label={active ? "تجميد الخدمة" : "إلغاء تجميد الخدمة"}><Warehouse className="h-4 w-4" />{active ? "تجميد" : "تفعيل"}</Button>}
+                      {canUpdate && <Button variant="outline" size="sm" className="min-h-9 gap-2" onClick={() => handleEditProduct(product)}><Edit className="h-4 w-4" />{tr("تعديل")}</Button>}
+                      {canUpdate && <Button variant="outline" size="sm" className="min-h-9 gap-2" onClick={() => handleToggleFreeze(product)} aria-label={active ? tr("تجميد الخدمة") : tr("إلغاء تجميد الخدمة")}><Warehouse className="h-4 w-4" />{active ? tr("تجميد") : tr("تفعيل")}</Button>}
                     </div>
                   )}
                 </article>
@@ -519,16 +520,16 @@ export function Services() {
           </div>
 
           <div className="hidden overflow-x-auto xl:block">
-            <table className="w-full min-w-[900px] text-right text-sm">
+            <table className="w-full min-w-[900px] text-start text-sm">
               <thead>
                 <tr>
                   <th className="py-3 px-2 w-12"></th>
-                  <th className="py-3 px-2">رمز الخدمة</th>
-                  <th className="py-3 px-2">اسم الخدمة</th>
-                  <th className="py-3 px-2">التصنيف</th>
-                  <th className="py-3 px-2">أخر سعر شراء</th>
-                  <th className="py-3 px-2">الحالة</th>
-                  <th className="py-3 px-2">إجراءات</th>
+                  <th className="py-3 px-2">{tr("رمز الخدمة")}</th>
+                  <th className="py-3 px-2">{tr("اسم الخدمة")}</th>
+                  <th className="py-3 px-2">{tr("التصنيف")}</th>
+                  <th className="py-3 px-2">{tr("أخر سعر شراء")}</th>
+                  <th className="py-3 px-2">{tr("الحالة")}</th>
+                  <th className="py-3 px-2">{tr("إجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -551,15 +552,15 @@ export function Services() {
                     </td>
                     <td className="py-3 px-2">
                       <div className="flex gap-2">
-                        {canUpdate && <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} aria-label={`تعديل ${product.product_name}`}>
+                        {canUpdate && <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)} aria-label={tr("تعديل {0}", product.product_name)}>
                           <Edit className="h-4 w-4" />
                         </Button>}
                         {canUpdate && <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleToggleFreeze(product)}
-                          title={product.status === "غير نشط" ? "إلغاء التجميد" : "تجميد"}
-                          aria-label={`${product.status === "غير نشط" ? "إلغاء تجميد" : "تجميد"} ${product.product_name}`}
+                          title={product.status === "غير نشط" ? tr("إلغاء التجميد") : tr("تجميد")}
+                          aria-label={tr("{0} {1}", product.status === "غير نشط" ? "إلغاء تجميد" : "تجميد", product.product_name)}
                         >
                           <Warehouse className="h-4 w-4" />
                         </Button>}
@@ -573,19 +574,19 @@ export function Services() {
 
           {paginatedProducts.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">لا توجد خدمات مطابقة لبحثك.</p>
+              <p className="text-muted-foreground">{tr("لا توجد خدمات مطابقة لبحثك.")}</p>
             </div>
           )}
 
           {filteredProducts.length > 0 && (
             <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-center text-xs text-muted-foreground sm:text-right">
-                عرض {((state.currentPage - 1) * state.itemsPerPage + 1).toLocaleString("ar-u-nu-latn")}–{Math.min(state.currentPage * state.itemsPerPage, filteredProducts.length).toLocaleString("ar-u-nu-latn")} من {filteredProducts.length.toLocaleString("ar-u-nu-latn")} خدمة
+                {tr("عرض ")}{((state.currentPage - 1) * state.itemsPerPage + 1).toLocaleString("ar-u-nu-latn")}–{Math.min(state.currentPage * state.itemsPerPage, filteredProducts.length).toLocaleString("ar-u-nu-latn")}{tr(" من ")}{filteredProducts.length.toLocaleString("ar-u-nu-latn")}{tr(" خدمة")}
               </p>
               <div className="flex items-center justify-center gap-2">
-                <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage <= 1} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}>السابق</Button>
+                <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage <= 1} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}>{tr("السابق")}</Button>
                 <span className="min-w-16 text-center text-xs font-semibold tabular-nums">{state.currentPage.toLocaleString("ar-u-nu-latn")} / {totalPages.toLocaleString("ar-u-nu-latn")}</span>
-                <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage >= totalPages} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}>التالي</Button>
+                <Button variant="outline" size="sm" className="min-h-9" disabled={state.currentPage >= totalPages} onClick={() => setState((prev) => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}>{tr("التالي")}</Button>
               </div>
             </div>
           )}
@@ -596,16 +597,16 @@ export function Services() {
         visible={state.confirmDialogVisible}
         message={state.pendingFreezeProduct
           ? (state.pendingFreezeProduct.status === "غير نشط" || state.pendingFreezeProduct.status === 2 || state.pendingFreezeProduct.status === "2"
-            ? `هل تريد إلغاء التجميد للخدمة "${state.pendingFreezeProduct.product_name}"؟`
-            : `هل تريد تجميد الخدمة "${state.pendingFreezeProduct.product_name}"؟`)
-          : "هل أنت متأكد؟"}
+            ? tr("هل تريد إلغاء التجميد للخدمة \"{0}\"؟", state.pendingFreezeProduct.product_name)
+            : tr("هل تريد تجميد الخدمة \"{0}\"؟", state.pendingFreezeProduct.product_name))
+          : tr("هل أنت متأكد؟")}
         onConfirm={confirmFreezeToggle}
         onCancel={cancelFreezeToggle}
         isCompact
       />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open, error: null, ...(open ? {} : { editingProduct: null, formData: initialFormData }) }))}>
-        <DialogContent inline={fullscreenEnabled && state.showDialog} className="h-[92vh] max-h-[760px] w-[96vw] max-w-[1100px] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
+        <DialogContent inline={fullscreenEnabled && state.showDialog} className="h-[92vh] max-h-[760px] w-[96vw] max-w-[1100px] overflow-hidden p-0" dir={appDir()} onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
           <CompactServiceForm
             visible={state.showDialog}
             editingProduct={state.editingProduct}

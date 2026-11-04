@@ -1,0 +1,300 @@
+Edit income statement item
+Edit account classification
+Edit cost center
+Edit classification type
+Edit cost center type
+Unable to connect to the server, please try again
+Unable to update the item status
+Unable to update the classification status
+Unable to update the category status
+Unable to update the city status
+Unable to update the warehouse status
+Unable to update the type status
+Unable to update the unit status
+Unable to update the cost center status
+Unable to delete the item
+Unable to delete the classification
+Unable to delete the category
+Unable to delete the city
+Unable to delete the warehouse
+Unable to delete the type
+Unable to delete the unit
+Unable to delete the account classification
+Unable to delete the cost center
+Unable to delete the license type
+Unable to delete the account classification type
+Classification added successfully
+Currency added successfully
+Category added successfully
+Branch added successfully
+Department added successfully
+City added successfully
+Warehouse added successfully
+Unit added successfully
+Balance sheet asset item added
+Balance sheet liability item added
+Income statement item added
+Account classification added
+Cost center added
+Classification type added
+License type added successfully
+Cost center type added
+Classification unfrozen
+Category unfrozen
+City unfrozen
+Warehouse unfrozen
+Unit unfrozen
+Balance sheet asset item unfrozen
+Balance sheet liability item unfrozen
+Income statement item unfrozen
+Account classification unfrozen
+Cost center unfrozen
+Account classification type unfrozen
+Cost center type unfrozen
+Updated successfully
+Classification frozen
+Category frozen
+City frozen
+Warehouse frozen
+Unit frozen
+Balance sheet asset item frozen
+Balance sheet liability item frozen
+Income statement item frozen
+Account classification frozen
+Cost center frozen
+Account classification type frozen
+Cost center type frozen
+Category updated successfully
+Branch data updated successfully
+Department updated successfully
+City updated successfully
+Warehouse updated successfully
+Balance sheet asset item updated
+Balance sheet liability item updated
+Income statement item updated
+Account classification updated
+Cost center updated
+Classification type updated
+Cost center type updated
+Classification deleted
+Category deleted
+City deleted
+Warehouse deleted
+Unit deleted
+Balance sheet asset item deleted
+Balance sheet liability item deleted
+Income statement item deleted
+Account classification deleted
+License type deleted
+Account classification type deleted
+Cost center type deleted
+Loading definitions...
+An error occurred while saving the item
+An error occurred while saving the classification
+An error occurred while saving the currency
+An error occurred while saving the branch
+An error occurred while saving the department
+An error occurred while saving the city
+An error occurred while saving the warehouse
+An error occurred while saving the type
+An error occurred while saving the cost center
+An error occurred while saving the classification type
+An error occurred while saving the license type
+Delete item
+Delete classification
+Delete category
+Delete city
+Delete center
+Delete unit
+Delete license type
+Save item
+Save classification
+Save category
+Save department
+Save city
+Save center
+Save unit
+Branch symbol *
+The branch symbol is used by another branch
+The branch symbol is required
+Department code
+Unfreeze failed
+Freeze failed
+Operation failed
+Status update failed
+Failed to save the unit
+Failed to save the price category
+Failed to unfreeze
+Failed to freeze the classification
+Failed to update the item status
+Failed to update the classification status
+Failed to update the category status
+Failed to update the city status
+Failed to update the warehouse status
+Failed to update the type status
+Failed to update the unit status
+Failed to update the cost center status
+Failed to delete the item
+Failed to delete the classification
+Failed to delete the category
+Failed to delete the city
+Failed to delete the unit
+Failed to delete the cost center
+Failed to delete the classification type
+Failed to delete the license type
+Failed to save the item
+Failed to save the cost center
+Failed to save the account classification type
+Financial statements, cost centers
+The tax value must not exceed 100
+No address
+Example: 30 days
+Example: sales management
+Example: sales revenue
+Example: cash
+Example: wholesale customers
+Example: accounting
+Example: asset classification
+Example: customer accounts
+Example: accounts payable
+Example: public license
+Example: annual tax
+Example: Tulkarm
+Example: Ramallah branch
+Example: carton
+Example: administrative cost center
+Example: food supplies
+Example: European suppliers
+Cities, warehouses, licenses, classifications
+Cost centers (
+Branch manager
+Department manager
+Retail
+Duplicate
+Discount rate (%)
+Cost center type *
+Are you sure you want to delete this license type?
+Are you sure you want to delete this balance sheet asset item?
+Are you sure you want to delete this balance sheet liability item?
+Are you sure you want to delete this income statement item?
+Are you sure you want to delete this tax classification?
+Are you sure you want to delete this classification?
+Are you sure you want to delete this center?
+Are you sure you want to delete this category?
+Are you sure you want to delete this city?
+Are you sure you want to delete this unit?
+Units, price categories, classifications
+Category description
+Please enter the item name
+Please enter the classification name
+Please enter the branch name
+Please enter the department name
+Please enter the city name
+Please enter the warehouse name
+Please enter the cost center name
+Please enter the license type name
+Please enter the currency code and name
+Please choose the classification type
+Please choose the cost center type
+Please wait until the page finishes loading
+Ahmad Mohammad
+Choose the manager
+City name
+Sub-departments
+Departments linked to the branch
+Departments, branches and definitions
+Classifications
+Linked customers
+Main branch
+Accounting
+Cities
+Manager
+Linked suppliers
+Department employees
+Branch data
+Department data
+Save data
+Khaled Mohammad
+Department number
+Ali Hasan
+Nablus branch
+Mohammad Ahmad
+Automatic FIFO
+Total voucher types
+Total fields
+Batch settings:
+Mandatory batch
+Expiry date required
+Voucher type details
+All voucher types were set up successfully and can be used in the system
+Verified successfully
+{0} of {1} voucher types verified
+Checking the voucher settings...
+All voucher settings are active!
+Voucher settings status
+Screen fields
+Print fields
+Required fields
+Verification error
+Vouchers that need setup:
+Vouchers not set up
+Vouchers set up
+Failed to verify the voucher settings
+Failed to run the verification
+to add the default settings
+Negative stock allowed
+Completion rate
+Please run the script
+5,000 shekels
+Black
+Total amount:
+If the batch is mandatory: choosing the batch is required in every transaction
+If the batch is optional: the total quantity is increased and decreased
+Credit note
+Debit note
+Reorder fields
+Batch and lot settings
+Voucher settings
+Choose the print order
+Choose the order type
+Automatic FIFO selection
+Restore defaults
+Field name
+Company name
+The batch is mandatory in the transaction
+Fields shown in the voucher
+Allow negative stock
+Count
+The company's full address
+Display title
+Employee:
+Expiry date required
+Customize voucher display
+Print order
+Print order by
+Display order
+Entry sequence
+Ascending (A-Z)
+The settings were reset to the default values
+Reset
+Voucher settings saved successfully
+Descending (Z-A)
+Additional display options
+Barcode number
+Payment voucher
+Show the salesman name
+Show the employee name
+Show the voucher barcode
+Show in print
+Show the quantities total
+Failed to load the voucher settings
+Failed to save the voucher settings
+Dell laptop
+Preview
+Voucher preview
+Item note
+Sample note
+Note:
+Saved
+FIFO picks the batches with the oldest expiry date first
+Order type

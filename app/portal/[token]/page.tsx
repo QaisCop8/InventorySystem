@@ -1,8 +1,9 @@
+import { tr } from "@/lib/i18n"
 import type { Metadata } from "next"
 import CustomerPortalView from "@/components/customer-portal/portal-view"
 
 export const metadata: Metadata = {
-  title: "كشف الحساب",
+  title: tr("كشف الحساب"),
   robots: { index: false, follow: false },
 }
 

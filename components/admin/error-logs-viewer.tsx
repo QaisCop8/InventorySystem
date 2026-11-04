@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,7 +42,7 @@ export function ErrorLogsViewer() {
   }
 
   const clearLogs = async () => {
-    if ((await confirmYesNo("هل أنت متأكد من حذف جميع السجلات؟"))) {
+    if ((await confirmYesNo(tr("هل أنت متأكد من حذف جميع السجلات؟")))) {
       ErrorHandler.clearLogs()
       setLogs([])
     }
@@ -78,21 +79,21 @@ export function ErrorLogsViewer() {
   const infoCount = logs.filter((log) => log.level === "info").length
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">سجلات الأخطاء</h2>
+        <h2 className="text-2xl font-bold">{tr("سجلات الأخطاء")}</h2>
         <div className="flex gap-2">
           <Button onClick={loadLogs} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 ml-2" />
-            تحديث
+            <RefreshCw className="h-4 w-4 me-2" />
+            {tr("تحديث")}
           </Button>
           <Button onClick={exportLogs} variant="outline" size="sm">
-            <Download className="h-4 w-4 ml-2" />
-            تصدير
+            <Download className="h-4 w-4 me-2" />
+            {tr("تصدير")}
           </Button>
           <Button onClick={clearLogs} variant="destructive" size="sm">
-            <Trash2 className="h-4 w-4 ml-2" />
-            مسح الكل
+            <Trash2 className="h-4 w-4 me-2" />
+            {tr("مسح الكل")}
           </Button>
         </div>
       </div>
@@ -103,7 +104,7 @@ export function ErrorLogsViewer() {
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-500" />
               <div>
-                <p className="text-sm text-muted-foreground">أخطاء</p>
+                <p className="text-sm text-muted-foreground">{tr("أخطاء")}</p>
                 <p className="text-2xl font-bold text-red-500">{errorCount}</p>
               </div>
             </div>
@@ -115,7 +116,7 @@ export function ErrorLogsViewer() {
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-500" />
               <div>
-                <p className="text-sm text-muted-foreground">تحذيرات</p>
+                <p className="text-sm text-muted-foreground">{tr("تحذيرات")}</p>
                 <p className="text-2xl font-bold text-yellow-500">{warningCount}</p>
               </div>
             </div>
@@ -127,7 +128,7 @@ export function ErrorLogsViewer() {
             <div className="flex items-center gap-2">
               <Info className="h-5 w-5 text-blue-500" />
               <div>
-                <p className="text-sm text-muted-foreground">معلومات</p>
+                <p className="text-sm text-muted-foreground">{tr("معلومات")}</p>
                 <p className="text-2xl font-bold text-blue-500">{infoCount}</p>
               </div>
             </div>
@@ -138,7 +139,7 @@ export function ErrorLogsViewer() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <div>
-                <p className="text-sm text-muted-foreground">المجموع</p>
+                <p className="text-sm text-muted-foreground">{tr("المجموع")}</p>
                 <p className="text-2xl font-bold">{logs.length}</p>
               </div>
             </div>
@@ -148,16 +149,16 @@ export function ErrorLogsViewer() {
 
       <Tabs value={selectedLevel} onValueChange={(value) => setSelectedLevel(value as any)}>
         <TabsList>
-          <TabsTrigger value="all">الكل</TabsTrigger>
-          <TabsTrigger value="error">أخطاء</TabsTrigger>
-          <TabsTrigger value="warning">تحذيرات</TabsTrigger>
-          <TabsTrigger value="info">معلومات</TabsTrigger>
+          <TabsTrigger value="all">{tr("الكل")}</TabsTrigger>
+          <TabsTrigger value="error">{tr("أخطاء")}</TabsTrigger>
+          <TabsTrigger value="warning">{tr("تحذيرات")}</TabsTrigger>
+          <TabsTrigger value="info">{tr("معلومات")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value={selectedLevel} className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>السجلات ({logs.length})</CardTitle>
+              <CardTitle>{tr("السجلات (")}{logs.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[600px]">
@@ -172,14 +173,14 @@ export function ErrorLogsViewer() {
                             {new Date(log.timestamp).toLocaleString("en-GB")}
                           </span>
                         </div>
-                        {log.userId && <Badge variant="outline">المستخدم: {log.userId}</Badge>}
+                        {log.userId && <Badge variant="outline">{tr("المستخدم: ")}{log.userId}</Badge>}
                       </div>
 
                       <p className="font-medium">{log.message}</p>
 
                       {log.context && Object.keys(log.context).length > 0 && (
                         <details className="text-sm">
-                          <summary className="cursor-pointer text-muted-foreground">السياق</summary>
+                          <summary className="cursor-pointer text-muted-foreground">{tr("السياق")}</summary>
                           <pre className="mt-2 bg-muted p-2 rounded text-xs overflow-x-auto">
                             {JSON.stringify(log.context, null, 2)}
                           </pre>
@@ -188,17 +189,17 @@ export function ErrorLogsViewer() {
 
                       {log.stack && (
                         <details className="text-sm">
-                          <summary className="cursor-pointer text-muted-foreground">تفاصيل الخطأ</summary>
+                          <summary className="cursor-pointer text-muted-foreground">{tr("تفاصيل الخطأ")}</summary>
                           <pre className="mt-2 bg-muted p-2 rounded text-xs overflow-x-auto">{log.stack}</pre>
                         </details>
                       )}
 
-                      {log.url && <p className="text-xs text-muted-foreground">الصفحة: {log.url}</p>}
+                      {log.url && <p className="text-xs text-muted-foreground">{tr("الصفحة: ")}{log.url}</p>}
                     </div>
                   ))}
 
                   {logs.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">لا توجد سجلات للعرض</div>
+                    <div className="text-center py-8 text-muted-foreground">{tr("لا توجد سجلات للعرض")}</div>
                   )}
                 </div>
               </ScrollArea>

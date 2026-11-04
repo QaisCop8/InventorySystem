@@ -1,0 +1,300 @@
+Choose the month...
+Choose the employee and salary item
+Choose the employee...
+Choose...
+Exemption name
+Bracket name
+Department name
+Department name is required
+The salary item name and accounting account are required
+Type to search the records...
+Basic
+Departments
+Additions
+Tax exemption
+Tax exemptions
+Name (ar)
+Name (ar) *
+Name (en) *
+Name in English
+Item
+Item - {0} is duplicated
+Gender
+Marital status
+Exemption maximum *
+The account is subject to currency differences
+Deductions
+Basic salary
+Allow transactions in a different currency
+Tax
+Permanent address
+Department is required
+Default value *
+Annual value
+Manager
+Region
+Employees
+Rate %
+Default rate *
+Phone
+Job
+Job is required
+End of service
+Hourly
+Salary item
+Employee salary items
+Closing date
+Hiring date
+Date of birth
+Upload image
+Unable to calculate salaries
+Unable to delete the employee
+Unable to save the tax exemption
+Unable to save the salary item
+Employee definition
+Education
+Tax deduction details
+Account details
+Salary details
+Monthly salary reports
+Employee and payroll reports
+Employee salary items report
+Employee salary items report
+Parent account
+Parent account is required
+Salary payment account
+Deduction
+Deduction from salary
+Permanent
+Part-time
+Male
+Link additions and deductions to employee files
+Card number
+Card number on the device
+The employee number, name, hiring date and department are required
+ID number
+Passport number
+Housing
+Yearly
+Personal
+Salary month
+Monthly
+Employee photo
+Income tax
+Exemption nature *
+Calculation method *
+Number of records:
+Number of employees
+At work
+Account currency is required
+Salary currency
+Salary currency is required
+Inactive
+Open the month
+Open and close a month's payroll
+Bank branch
+Tax law
+Tax law *
+Tax law is required
+Income tax laws
+Exemption value *
+Income tax deductions statement
+Payroll statement
+Temporary
+Fixed amount
+Married
+Department manager
+Divorced
+Open
+Employee files and job and financial data
+Service ended
+Transportation
+Rate
+Exemption type *
+Item type
+Item type *
+Maximum type *
+Salary type
+Contract type
+Amount type *
+Are you sure you want to delete the employee?
+Do you want to delete the record?
+At least one salary item must be added
+Added to the gross salary
+Daily
+Holiday name
+Holiday name *
+The holiday name and date are required
+Public holidays
+Employees assigned
+The end date must be after the start date
+Edit public holiday
+Unable to assign the holiday
+Unable to delete the holiday
+Unable to save the holiday
+Define public holidays and assign them temporarily to employee schedules and shifts
+Define a public holiday
+The holiday was assigned to {0} employees
+Assign to shifts
+New holiday
+Paid holiday
+Eid al-Fitr
+Such as Eid al-Fitr, Eid al-Adha and national holidays
+Paid
+employee
+Do you want to delete the holiday?
+Gross salary
+Close payroll
+Close payroll and post the accounting entry
+General search
+Job title
+Unable to connect to the server
+Unable to load salaries
+Unable to complete the operation ({0})
+Payroll closed successfully
+The payroll entry was posted successfully - entry number {0}
+Post the payroll entry
+All the salaries shown are closed
+Payroll entry
+There are no salaries for the operation
+Do you want to close all the salaries shown?
+Do you want to post the entry for the closed salaries shown?
+A department linked to a valid branch must be chosen
+August
+March
+Sorting
+May
+September
+Attendance overtime
+Saving recalculates it
+October
+November
+July
+Salary status
+June
+Attendance deductions
+February
+Invert selection
+Open a month's payroll
+Filter by selection
+December
+January
+Clear sorting
+Already open
+April
+. Click the button again to cancel.
+· suspended
+(next day)
+The priority for determining an employee's shift when processing attendance: the daily roster ← schedule rules (employee then department) ← the weekly schedule. An empty cell means falling back to the weekly schedule.
+Offset per employee (days)
+Overtime after
+Choose the employees
+Type the shift codes in order separated by commas, and OFF for rest days. The pattern repeats over the period, and the offset spreads employees across different stages to ensure coverage.
+Break (minutes)
+Name *
+Start
+Weekly schedules
+Available codes:
+Hours
+Next period
+Previous period
+Color
+Duration
+Clear
+Employees *
+Pattern *
+End
+Shifts and roster
+Time
+Plan employee shifts day by day as in hospitals: morning/evening/night shifts and 24-hour shifts, rotation patterns, and coverage tracking for each shift
+Rotate pattern
+Rotate a shift pattern
+Apply pattern
+Fill the whole row
+Edit shift
+Apply failed
+Coverage
+Roster
+Delete shift {0}?
+m
+Cycle
+Rest
+Grace
+Morning
+Lateness grace period
+Quick brush:
+Shift templates
+No shifts — add shifts such as morning (M), evening (E), night (N) and 24-hour shift (D)
+No shifts defined — add them from the "Shift templates" tab (e.g. M morning 07:00-15:00, E evening 15:00-23:00, N night 23:00-07:00).
+No active employees
+Night
+Split
+Evening
+Clear (falls back to the weekly schedule)
+On-call / standby
+New shift
+Morning shift
+Active shift
+Brush mode is on: click any cell to assign
+Overtime counted after (minutes)
+Set up attendance from date to date
+Choose the employee or department
+Choose the shift
+Choose the shift or mark the day as a holiday
+Choose an employee or department and set the period
+Shift name
+Shift name *
+Break in minutes
+Grace in minutes
+Shifts and weekly schedules
+Apply to
+Apply to all similar days
+Apply to all employees
+Edit work schedule
+Unable to edit the work schedule
+Unable to delete the shift
+Unable to save the shift
+Unable to save the work schedule
+Define working times and link each employee to a shift for each day of the week
+Define shifts
+Define a shift
+Extends to the next day
+Daily work schedule
+New period schedule
+Break minutes
+Grace minutes
+The shift code and name are required
+Holiday
+Holiday on this day
+Work period
+Active
+How it works
+Scope
+Do you want to delete the shift?
+Start time
+End time
+The employee's weekly schedule is later used to compare device transactions with the shift time and calculate lateness, early leaving and overtime.
+Total exemptions
+Add a tax exemption
+Amount exemptions
+Rate exemptions
+Name (en)
+Define and manage exemptions linked to income tax laws
+Exemption nature
+Exemption value
+Exemption type
+The Arabic and English names must be entered
+The exemption nature must be chosen
+The tax law must be chosen
+Add a tax bracket
+Maximum deduction
+The maximum deduction must be less than 999999
+Complete bracket no. {0}
+Add bracket
+Law name
+Law name *
+Name in English
+Name in English *
+Accounting account
+Tax brackets
+The tax brackets overlap; cannot continue

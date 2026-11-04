@@ -1,0 +1,300 @@
+The document is finished — to edit the sessions reopen the count first.
+Search by item or lot number, name or barcode
+Cut-off date
+Refresh book quantities
+The count was approved
+Loading the count...
+Ready for approval
+Blind count
+Count sessions
+Surplus ({0})
+Issue voucher {0}
+Receipt voucher {0}
+Adjustment vouchers: {0}
+Serial
+Shortage ({0})
+No sessions
+There are no count sessions for this document
+No count documents awaiting approval
+No approved documents
+Cannot approve
+No user has entered quantities yet
+Review the count sessions and sum their quantities, then post the differences — after all sessions are finished
+Count reconciliation
+Count reconciliation no.
+The count must be finished for session no. -
+Showing the first
+— use search or the barcode to reach an item
+(open)
+{0} — not in the books in this warehouse (surplus)
+{0} numbers
+{0}: {1} lots/sizes — enter the quantity on the right line or add a new lot
+Enter the counted quantity on the new line
+Added during the count
+An item was added to the count
+The lot was added
+Total sessions
+Hide book quantities and serials from counters during the count, and show them only on review
+Add a lot / size / variant for this item
+Add a lot / size to the count
+Add to count
+Cancel the count
+Cancel the count document? No differences will be posted.
+Create and start the count
+Finish count session no. - {0}? Your quantities are saved and combined with the other sessions on approval.
+Finish my session ({0})
+Import Excel
+Item / lot name
+Treat its quantity as zero (issued as shortage)
+Height *
+Count
+The lot exists
+Lot number *
+Length *
+Width *
+Differences appear after the count is finished
+Pieces
+Quantity / pieces
+Book quantity = the balance at the end of this day; transactions after it don't affect the differences.
+The book quantity is calculated from this branch's transactions on this warehouse only, and adjustment vouchers are created on the same branch.
+Counted
+Warehouse *
+The file must contain the «Item number» and «Counted quantity» columns (or «Counted pieces» for measured items)
+Scan the barcode or serial number or type the item number
+Scan the serial number then Enter
+Go to the existing line to enter its quantity
+Barcode / item number / serial number (Enter to add)
+Awaiting approval and posting of differences from the «Approve count» screen
+Search by item number, name or barcode, lot, or serial number
+Search the numbers
+No dimensions
+No lot
+Expiry date *
+Cut-off date (count date) *
+Ignore them (their balances stay as they are)
+Post
+Post count differences
+Include items with a zero balance
+Count created
+{0} count lines generated
+Serial number counted
+Your session quantities were saved
+There are unsaved quantities, do you want to leave without saving?
+Adding...
+Posting...
+Count
+Stock counts
+New count
+Count no.
+New stock count
+Count sessions:
+My session no. -
+{0} lines updated{1}
+Delete the added line
+Delete this line added during the count?
+Permanently delete the count document with all its counted quantities?
+Save*
+Issue voucher book (shortage)
+Receipt voucher book (surplus)
+Extra — not in the books
+Extra (not in the books)
+Surplus (
+Surplus:
+line —
+lines not counted — how should they be treated?
+Expiry
+Shortage (
+Shortage:
+A physical count for each branch and warehouse at a cut-off date — by lots, sizes and serial numbers — then posting the differences with adjustment vouchers
+Number of pieces
+On posting: book serial numbers not counted are issued with the issue voucher, and extra numbers are received with the receipt voucher.
+Counting
+Difference value
+My quantity{0}
+No numbers
+No matching items
+No sessions yet
+You have no open session — a new session starts with the first quantity you save
+No count documents — start with «New count»
+No number scanned yet
+Example: end of quarter count
+User
+Scanned numbers
+Open:
+Missing
+Size {0}
+Cancelled
+Finished — review
+Finished
+Present
+otherwise they are added when scanned by barcode if they actually exist
+This size is counted by pieces, and the quantity = the item's measurement type formula.
+A goods issue voucher for the shortage and a goods receipt voucher for the surplus are created on the count branch at the cut-off date and posted, at the item's average cost on that date — each line with its lot (expiry/lot number/variant), size, piece count and serial numbers.
+Add a new transaction
+Add a new inventory transaction
+Unit cost
+Product *
+Inventory transaction added successfully
+Transaction selected: {0} - {1}
+An error occurred adding the inventory transaction
+Inventory transactions
+Inventory transactions log
+Out
+Failed to add the inventory transaction
+In
+Add internal delivery
+Add goods issue voucher
+Add goods receipt voucher
+Add usage voucher
+Internal delivery
+Internal deliveries
+Item - {0} has features and attributes that must be specified; the voucher cannot be saved
+Unable to load the voucher details
+Goods issue voucher
+Goods receipt voucher
+Usage voucher
+Goods issue vouchers
+Goods receipt vouchers
+Usage vouchers
+Failed to delete/cancel the voucher
+A delivery to the same warehouse cannot be made
+The lot number must be entered for item: {0}
+The quantity must be entered for each item
+The expiry date must be entered for item: {0}
+At least one item must be entered
+The warehouse must be chosen
+The sending and receiving warehouses must be chosen
+The warehouse must be chosen for each item
+The expense account and purchases account must be chosen for each item
+Please check the expiry date of item - {0}
+Recalculate prices
+Choose the price category
+Serial numbers
+Items
+Required quantity
+The quantity for item - {0} - doesn't match the measurement type formula (length×width×height×count by type)
+Variants and attributes
+To warehouse *
+Confirm price recalculation
+Confirm cancelling {0}
+Confirm currency change
+Invalid expiry date
+The item expiry date is earlier than today
+Item expiry date
+Changing the currency changes the exchange rate; do you want to change the prices accordingly?
+Item account details
+Item quantity details
+{0} items pasted from voucher {1}
+Voucher {0} copied ({1} items)
+Purchases account
+Expense account
+Save the changes to {0}
+The barcode entered doesn't exist
+The item number entered doesn't exist
+Purchases account number
+Expense account number
+All item prices will be recalculated by the chosen price category; do you want to continue?
+View and edit variants and attributes
+No copied voucher to paste
+Quantities total
+Item notes
+Amounts summary
+From warehouse *
+This item has no serial number
+The height must be entered for item - {0}
+The length must be entered for item - {0}
+The count must be entered for item - {0}
+The width must be entered for item - {0}
+The warehouse must be specified first
+The voucher must be saved before copying it
+· safety backup #{0}
+). Everything entered after that time will be lost. A safety backup is taken automatically before restoring, then the server restarts (about a minute).
+Last successful backup
+Safety before restore
+Restore
+Restore a backup
+Type the database name
+Storage is not set up. Add these variables in Render: BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY_ID, BACKUP_S3_SECRET_ACCESS_KEY (and BACKUP_S3_REGION).
+Database
+Backups
+Backups
+with the data of backup #
+Unable to load backups
+In progress
+Permanently delete backup #{0}?
+All data will be replaced in
+Backup log
+Restore operations
+All databases
+None
+No backups yet
+to confirm
+Scheduled
+from backup #
+Back up now
+Back up everything now
+An automatic daily backup of each company and the management database, kept for
+days in Neon Object Storage
+without the old password — applied in all their companies and all their sessions are ended.
+Confirm the new password
+The new password is applied to your account in all companies, and your sessions on other devices are ended.
+Unable to change the password
+Set a new password for the user
+Set password: {0}
+The new password and its confirmation do not match
+The new password must be at least 6 characters
+Current password
+· Current limit:
+· Actually used:
+Limit at request time:
+Approved number
+Users
+Awaiting approval
+Confirm rejection
+Edit license
+Unable to update the license
+Unable to load requests
+Unable to process the request
+Increase
+Rejection reason (required)
+Pending increase request
+Licensed branches
+Licensed users
+Licensed restaurant locations
+Licensed points of sale
+All requests
+No requests
+Rejected
+Approved (+{0})
+Decision note:
+Restaurant locations
+Points of sale
+Messages and improvements inbox
+Unable to update the status
+Unable to load messages
+Message status
+Problem, change and development requests from all customers.
+No messages yet.
+ILS — Shekel
+JOD — Dinar
+USD — Dollar
+Set LAHZA_SECRET_KEY on the server and a base price greater than zero to enable it. Without it new companies stay awaiting your approval.
+Contact sales (shown on the payment options page)
+Payment via Lahza is not enabled
+Payment via Lahza is enabled{0}
+Base price
+Unable to load prices
+Unable to save prices
+Prices saved
+Save prices
+WhatsApp number
+yearly
+When creating a new company the user pays the annual subscription by card, and the company is created automatically after successful payment.
+per extra branch
+per extra user
+per restaurant location
+per point of sale
+Example: 5 users, two branches, a point of sale, a restaurant location =
+Includes one user and one branch
+Re-verify without paying again
+Choose the license you need and pay the annual subscription; all your data stays as it is.

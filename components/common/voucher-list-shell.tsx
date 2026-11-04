@@ -23,8 +23,8 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
 }) {
   return (
     <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
-      <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+      <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 start-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
       <div className="relative flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">

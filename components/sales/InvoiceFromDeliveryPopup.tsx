@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -67,8 +68,8 @@ export default function InvoiceFromDeliveryPopup({
   const isSalesInvoice = voucherType === SALES_INVOICE_TYPE
   const allowedAccountTypes = isSalesInvoice ? [2,3, 5] : [2,3, 5]
   const sourceDeliveryTypes = isSalesInvoice ? SALES_DELIVERY_TYPES : PURCHASE_DELIVERY_TYPES
-  const title = isSalesInvoice ? "تحميل عناصر من إرسالية مبيعات" : "تحميل عناصر من إرسالية مشتريات"
-  const deliveryLabel = isSalesInvoice ? "إرسالية مبيعات" : "إرسالية مشتريات"
+  const title = isSalesInvoice ? tr("تحميل عناصر من إرسالية مبيعات") : tr("تحميل عناصر من إرسالية مشتريات")
+  const deliveryLabel = isSalesInvoice ? tr("إرسالية مبيعات") : tr("إرسالية مشتريات")
 
   const selectedDelivery = useMemo(
     () => deliveries.find((delivery) => delivery.id === selectedDeliveryId) || null,
@@ -139,13 +140,13 @@ export default function InvoiceFromDeliveryPopup({
           isReadOnly: true,
           body: (cell: any) => <span className="block text-center text-sm">{cell.row.index + 1}</span>,
         },
-        { header: "رقم الإرسالية", name: "vch_code", width: 130, isReadOnly: true },
-        { header: "التاريخ", name: "vch_date", width: '*', isReadOnly: true },
-        { header: "العملة", name: "currency_code", width: 110, isReadOnly: true },
-        { header: "سعر الصرف", name: "rate", width: 110, isReadOnly: true },
-        { header: "المبلغ", name: "amount", width: 100, isReadOnly: true },
+        { header: tr("رقم الإرسالية"), name: "vch_code", width: 130, isReadOnly: true },
+        { header: tr("التاريخ"), name: "vch_date", width: '*', isReadOnly: true },
+        { header: tr("العملة"), name: "currency_code", width: 110, isReadOnly: true },
+        { header: tr("سعر الصرف"), name: "rate", width: 110, isReadOnly: true },
+        { header: tr("المبلغ"), name: "amount", width: 100, isReadOnly: true },
         {
-          header: "الإجراء",
+          header: tr("الإجراء"),
           name: "actions",
           width: 110,
           isReadOnly: true,
@@ -166,7 +167,7 @@ export default function InvoiceFromDeliveryPopup({
                     }
                   }}
                   disabled={added}
-                  title={added ? "تمت الإضافة بالفعل" : "أضف عناصر هذه الإرسالية"}
+                  title={added ? tr("تمت الإضافة بالفعل") : tr("أضف عناصر هذه الإرسالية")}
                 >←</button>
                 <button
                   type="button"
@@ -175,7 +176,7 @@ export default function InvoiceFromDeliveryPopup({
                     e.stopPropagation()
                     handleRemoveDeliveryItems(row.id)
                   }}
-                  title="إزالة عناصر هذه الإرسالية"
+                  title={tr("إزالة عناصر هذه الإرسالية")}
                 >→</button>
               </div>
             )
@@ -190,17 +191,17 @@ export default function InvoiceFromDeliveryPopup({
     () => ({
       name: "SelectedItemsScheme",
       columns: [
-        { header: "الصنف", name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
-        { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
-        { header: "الوحدة", name: "unit", width: 90, isReadOnly: true },
+        { header: tr("الصنف"), name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
+        { header: tr("الكمية"), name: "quantity", width: 90, isReadOnly: true },
+        { header: tr("الوحدة"), name: "unit", width: 90, isReadOnly: true },
         {
-          header: "السعر",
+          header: tr("السعر"),
           name: "unit_price",
           width: 110,
           isReadOnly: true,
           body: (cell: any) => <span>{Number(cell.row.dataItem.unit_price || 0).toFixed(2)}</span>,
         },
-        { header: "الإرسالية", name: "source_voucher_code", width: 120, isReadOnly: true },
+        { header: tr("الإرسالية"), name: "source_voucher_code", width: 120, isReadOnly: true },
       ],
     }),
     [selectedDeliveryItems],
@@ -236,12 +237,12 @@ export default function InvoiceFromDeliveryPopup({
       const response = await fetch(`/api/sales-vouchers/delivery-list?${query.toString()}`)
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data?.error || "فشل في جلب الإرساليات")
+        throw new Error(data?.error || tr("فشل في جلب الإرساليات"))
       }
       setDeliveries(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error("InvoiceFromDeliveryPopup loadDeliveries error:", err)
-      setError((err as Error).message || "حدث خطأ عند جلب الإرساليات")
+      setError((err as Error).message || tr("حدث خطأ عند جلب الإرساليات"))
     } finally {
       setLoading(false)
     }
@@ -255,10 +256,10 @@ export default function InvoiceFromDeliveryPopup({
       const response = await fetch(`/api/sales-vouchers/${deliveryId}`)
       const data = await response.json()
       if (!response.ok || data?.error) {
-        throw new Error(data?.error || "فشل في جلب عناصر الإرسالية")
+        throw new Error(data?.error || tr("فشل في جلب عناصر الإرسالية"))
       }
       if (Number(data.status) !== 2) {
-        throw new Error("يجب اختيار إرسالية معتمدة")
+        throw new Error(tr("يجب اختيار إرسالية معتمدة"))
       }
       const items = Array.isArray(data.items) ? data.items.map((item: any) => ({
         product_id: Number(item.product_id || null),
@@ -298,7 +299,7 @@ export default function InvoiceFromDeliveryPopup({
       return items
     } catch (err) {
       console.error("InvoiceFromDeliveryPopup loadDeliveryItems error:", err)
-      setItemsError((err as Error).message || "حدث خطأ عند جلب عناصر الإرسالية")
+      setItemsError((err as Error).message || tr("حدث خطأ عند جلب عناصر الإرسالية"))
       return []
     } finally {
       setItemsLoading(false)
@@ -343,13 +344,13 @@ export default function InvoiceFromDeliveryPopup({
           event.preventDefault()
         }}
       >
-        <div className="flex h-full min-h-0 min-w-0 flex-col bg-slate-50" dir="rtl">
+        <div className="flex h-full min-h-0 min-w-0 flex-col bg-slate-50" dir={appDir()}>
           <div className="shrink-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-3 text-white shadow-md sm:px-5 sm:py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="flex items-center gap-2 text-lg font-extrabold sm:text-xl"><span className="rounded-xl bg-white/15 p-2 ring-1 ring-white/20"><Truck className="h-4 w-4 sm:h-5 sm:w-5" /></span>{title}</p>
                 <p className="mt-1 hidden text-xs text-emerald-50 sm:block sm:text-sm">
-                  اختر {isSalesInvoice ? "العميل" : "المورد"} أولاً ثم حدد إرسالية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
+                  {tr("اختر ")}{isSalesInvoice ? tr("العميل") : tr("المورد")}{tr(" أولاً ثم حدد إرسالية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.")}
                 </p>
               </div>
             </div>
@@ -358,22 +359,22 @@ export default function InvoiceFromDeliveryPopup({
           <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
-                <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />{isSalesInvoice ? "العميل" : "المورد"}</Label>
+                <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />{isSalesInvoice ? tr("العميل") : tr("المورد")}</Label>
                 {selectedCustomer ? (
                   <div className="space-y-2">
                     <div className="rounded-xl bg-emerald-50/70 px-3 py-2">
                       <div className="text-sm font-semibold">{selectedCustomer.name}</div>
-                      <div className="text-sm text-slate-600">رقم الحساب: {selectedCustomer.code}</div>
+                      <div className="text-sm text-slate-600">{tr("رقم الحساب: ")}{selectedCustomer.code}</div>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => setCustomerSearchOpen(true)}>
-                      تغيير {isSalesInvoice ? "العميل" : "المورد"}
+                      {tr("تغيير ")}{isSalesInvoice ? tr("العميل") : tr("المورد")}
                     </Button>
                   </div>
                 ) : (
                   <div>
-                    <p className="mb-3 text-sm text-slate-600">لم يتم اختيار {isSalesInvoice ? "عميل" : "مورد"} بعد.</p>
+                    <p className="mb-3 text-sm text-slate-600">{tr("لم يتم اختيار ")}{isSalesInvoice ? tr("عميل") : tr("مورد")}{tr(" بعد.")}</p>
                     <Button size="sm" onClick={() => setCustomerSearchOpen(true)}>
-                      اختر {isSalesInvoice ? "العميل" : "المورد"}
+                      {tr("اختر ")}{isSalesInvoice ? tr("العميل") : tr("المورد")}
                     </Button>
                   </div>
                 )}
@@ -381,23 +382,23 @@ export default function InvoiceFromDeliveryPopup({
 
               <div className="rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
                 <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><PackageCheck className="h-4 w-4 text-emerald-600" />{deliveryLabel}</Label>
-                <p className="text-sm text-slate-600">اختر إرسالية لتنزيل سطور البضاعة إلى الفاتورة.</p>
+                <p className="text-sm text-slate-600">{tr("اختر إرسالية لتنزيل سطور البضاعة إلى الفاتورة.")}</p>
                 <div className="mt-2 rounded-xl bg-teal-50/70 px-3 py-2 text-sm text-slate-600">
-                  {selectedDelivery ? `${deliveryLabel} المحددة: ${selectedDelivery.vch_code}` : `لم يتم اختيار ${deliveryLabel} بعد.`}
+                  {selectedDelivery ? tr("{0} المحددة: {1}", deliveryLabel, selectedDelivery.vch_code) : tr("لم يتم اختيار {0} بعد.", deliveryLabel)}
                 </div>
               </div>
             </div>
 
             <div className="grid min-w-0 gap-4">
               <div className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
-                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">الإرساليات الجاهزة</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{deliveries.length}</span></div>
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">{tr("الإرساليات الجاهزة")}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{deliveries.length}</span></div>
                 <div className={standardGridShell}>
                   {loading ? (
-                    <div className="text-sm text-slate-500">جاري تحميل الإرساليات...</div>
+                    <div className="text-sm text-slate-500">{tr("جاري تحميل الإرساليات...")}</div>
                   ) : error ? (
                     <div className="text-sm text-red-600">{error}</div>
                   ) : deliveries.length === 0 ? (
-                    <div className="text-sm text-slate-500">لا توجد إرساليات متاحة.</div>
+                    <div className="text-sm text-slate-500">{tr("لا توجد إرساليات متاحة.")}</div>
                   ) : (
                     <DataGridView
                       dataSource={deliveries.map((delivery, index) => ({ ...delivery, index }))}
@@ -425,14 +426,14 @@ export default function InvoiceFromDeliveryPopup({
               </div>
 
               <div className="min-w-0 rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
-                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">العناصر المحددة</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{selectedDeliveryItems.length}</span></div>
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">{tr("العناصر المحددة")}</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{selectedDeliveryItems.length}</span></div>
                 <div className={standardGridShell}>
                   {itemsLoading ? (
-                    <div className="text-sm text-slate-500">جاري تحميل عناصر الإرسالية...</div>
+                    <div className="text-sm text-slate-500">{tr("جاري تحميل عناصر الإرسالية...")}</div>
                   ) : itemsError ? (
                     <div className="text-sm text-red-600">{itemsError}</div>
                   ) : selectedDeliveryItems.length === 0 ? (
-                    <div className="text-sm text-slate-500">لم يتم إضافة عناصر بعد.</div>
+                    <div className="text-sm text-slate-500">{tr("لم يتم إضافة عناصر بعد.")}</div>
                   ) : (
                     <DataGridView
                       dataSource={selectedDeliveryItems}
@@ -459,9 +460,9 @@ export default function InvoiceFromDeliveryPopup({
 
           <div className="mt-auto shrink-0 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
             <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => handleClose()}>إلغاء</Button>
+              <Button variant="outline" onClick={() => handleClose()}>{tr("إلغاء")}</Button>
               <Button className="bg-emerald-600 px-6 hover:bg-emerald-700" disabled={!selectedCustomer || selectedDeliveryItems.length === 0 || itemsLoading} onClick={handleConfirm}>
-                تأكيد العناصر
+                {tr("تأكيد العناصر")}
               </Button>
             </div>
           </div>

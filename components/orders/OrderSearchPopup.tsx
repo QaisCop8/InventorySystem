@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +44,7 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                 const endpoint = type >= 3 ? `/api/vouchers/sales?type=${type}` : `/api/orders/sales?type=${type}`;
                 const response = await fetch(endpoint);
                 const data = await response.json();
-                if (!response.ok || !Array.isArray(data)) throw new Error(data?.error || "تعذر تحميل الطلبيات");
+                if (!response.ok || !Array.isArray(data)) throw new Error(data?.error || tr("تعذر تحميل الطلبيات"));
                 console.log("Fetched orders data:", data);
                 if (!cancelled) {
                     // Ensure we have an array
@@ -120,12 +121,12 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
         isReport: true,
         columns: [
             { header: "##", name: "ser", width: 50 },
-            { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 160 },
-            { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 },
-            { header: "اسم العميل", name: "customer_name", width: "*" },
-            { header: "السند اليدوي", name: "reference_number", width: 130 },
-            { header: "رقم طلبية العميل", name: "customer_order_no", width: 130 },
-            { header: "المبلغ", name: "amount", width: 110 },
+            { header: type === 3 ? tr("رقم الفاتورة") : tr("رقم الطلبية"), name: "order_number", width: 160 },
+            { header: type === 3 ? tr("تاريخ الفاتورة") : tr("تاريخ الطلبية"), name: "order_date", width: 130 },
+            { header: tr("اسم العميل"), name: "customer_name", width: "*" },
+            { header: tr("السند اليدوي"), name: "reference_number", width: 130 },
+            { header: tr("رقم طلبية العميل"), name: "customer_order_no", width: 130 },
+            { header: tr("المبلغ"), name: "amount", width: 110 },
         ],
     }), [type]);
 
@@ -168,18 +169,18 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
         <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 p-0 sm:items-center sm:px-4 sm:py-6">
             <div
                 className="flex h-[100dvh] max-h-[100dvh] w-full max-w-6xl flex-col overflow-y-auto rounded-none border-0 bg-white p-3 shadow-2xl overscroll-contain sm:h-auto sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-lg sm:border sm:p-6"
-                dir="rtl"
+                dir={appDir()}
             >
-                <h3 className="mb-4 shrink-0 text-lg font-semibold text-right">
-                    {type === 3 ? "بحث الفواتير" : type === 1 ? "بحث طلبيات المبيعات" : "بحث طلبيات المشتريات"}
+                <h3 className="mb-4 shrink-0 text-lg font-semibold text-start">
+                    {type === 3 ? tr("بحث الفواتير") : type === 1 ? tr("بحث طلبيات المبيعات") : tr("بحث طلبيات المشتريات")}
                 </h3>
 
                 <Input
                     type="text"
-                    placeholder={type === 3 ? "ابحث عن فاتورة..." : "ابحث عن طلبية..."}
+                    placeholder={type === 3 ? tr("ابحث عن فاتورة...") : tr("ابحث عن طلبية...")}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="mb-4 shrink-0 p-2 border border-gray-300 rounded w-full text-right"
+                    className="mb-4 shrink-0 p-2 border border-gray-300 rounded w-full text-start"
                     ref={searchInputRef}
                 />
 
@@ -199,12 +200,12 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
 
                                     columns: [
                                         { header: "##", name: "ser", width: 50,isReadOnly:true },
-                                        { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 160,isReadOnly:true },
-                                        { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 ,isReadOnly:true},
-                                        { header: "اسم العميل", name: "customer_name", width: "*" ,isReadOnly:true},
-                                        { header: "السند اليدوي", name: "reference_number", width: 130,isReadOnly:true },
-                                        { header: "رقم طلبية العميل", name: "customer_order_no", width: 130,isReadOnly:true },
-                                        { header: "المبلغ", name: "amount", width: 110 },
+                                        { header: type === 3 ? tr("رقم الفاتورة") : tr("رقم الطلبية"), name: "order_number", width: 160,isReadOnly:true },
+                                        { header: type === 3 ? tr("تاريخ الفاتورة") : tr("تاريخ الطلبية"), name: "order_date", width: 130 ,isReadOnly:true},
+                                        { header: tr("اسم العميل"), name: "customer_name", width: "*" ,isReadOnly:true},
+                                        { header: tr("السند اليدوي"), name: "reference_number", width: 130,isReadOnly:true },
+                                        { header: tr("رقم طلبية العميل"), name: "customer_order_no", width: 130,isReadOnly:true },
+                                        { header: tr("المبلغ"), name: "amount", width: 110 },
                                     ],
                                 }}
                                 onRowClick={handleRowClick}
@@ -216,9 +217,9 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
 
                 <div className="sticky bottom-0 z-10 mt-3 flex shrink-0 justify-center gap-2 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:static sm:mt-4 sm:border-0 sm:bg-transparent sm:py-0">
                     <Button className="erp-btn-primary search-button" onClick={() => selectedOrder && handleRowDoubleClick(selectedOrder)} >
-                        موافق
+                        {tr("موافق")}
                     </Button>
-                    <Button variant="outline" onClick={onClose} className="search-button">إغلاق</Button>
+                    <Button variant="outline" onClick={onClose} className="search-button">{tr("إغلاق")}</Button>
                 </div>
             </div>
         </div>

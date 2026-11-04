@@ -1,0 +1,300 @@
+Asset register
+Asset register ({0})
+Asset transactions log
+Net book value
+All assets
+All types
+All classifications
+All locations
+No assets — add a new asset or capitalize from a purchase invoice
+No active assets yet
+No overdue depreciation
+Drafts
+Component
+From a purchase invoice
+Additions
+Revaluation and impairment
+Period depreciation
+Disposal
+Acquisition
+General ledger
+Disposed assets with gain or loss
+Acquired assets and opening balances
+Capital additions
+Approved and planned depreciation for each asset by period
+Disposals
+Acquisitions
+Costs added to existing assets
+Cost, accumulated depreciation and book value of each asset at a given date
+Sub-ledger
+Book values grouped by location
+Book values grouped by cost center
+Reconciliation with the general ledger
+Unable to prepare the report
+Closing cost
+Opening cost
+Up to date
+Revaluation and impairment transactions
+Asset movement
+By location
+By cost center
+Gain / loss
+Opening balance + acquisition + additions − disposal = closing balance for each classification
+Transfer log between branches, locations and custody
+No data for these filters
+Closing accumulated
+Opening accumulated
+Disposed accumulated
+Compare the asset sub-ledger balances with the general ledger accounts
+Asset transfers
+Turn it off for land and works of art
+Start by defining classifications such as: vehicles, buildings, furniture, computers, machines, land
+Parent classification
+Fields marked with * are mandatory
+Accounting link
+Default policy
+Default useful life (months)
+Default residual value %
+Locations (hierarchical)
+New asset classification
+New classification
+Asset classifications and accounting link
+Edit classification {0}
+Edit location {0}
+Delete classification {0}?
+Delete location {0}?
+Asset account
+Default depreciation method
+Depreciable
+Example: Nablus branch ← Building A ← Floor 2 ← IT department ← Server room
+Depreciation expense
+New location
+Declining balance rate %
+Belongs to
+Total ({0})
+Setup
+Search customers, products, orders, settings...
+Start typing a search term
+Global system search
+Search the system...
+Try searching with different words or check the spelling
+Purchase order
+No results for "
+Product
+Available shortcuts
+Search screen opened
+Sales orders screen opened
+Purchase orders screen opened
+Sales order
+Purchase order
+SN from the device settings
+Public TCP
+Last read
+Add attendance device
+Attendance device setup
+Choose the device first
+Choose the employee
+Break
+Device name
+Device name *
+The device name, code and serial number are required
+Default
+Device
+Attendance
+ADMS serial number *
+Code on the device
+Address
+Source
+Port
+Employee
+Fingerprint
+Card
+Edit device
+Unable to delete the device
+Unable to save the device
+Unable to save the attendance record
+Unable to read the device
+Define fingerprint devices and link them to branches
+{0} transactions read
+Reading...
+Device active
+Save record
+Save attendance record
+Check-out
+Overtime check-out
+Overtime check-in
+ADMS link
+Employee number
+Employee number on the device *
+The employee number and transaction time are required
+Device transaction codes
+Verification method
+IP address / host
+Active
+Read transactions
+Read from the device
+Read and save check-in and check-out transactions and review them before approval
+All devices
+Device type
+Do you want to delete the device?
+Face
+Transaction time
+Transaction time *
+Shortfall days
+Total difference
+Total duration
+Total required
+Employee name
+Days
+Difference {0}
+Duration {0}
+Required {0}
+Employees
+Refresh report
+Employee details
+Details of all check-in/check-out pairs, duration and difference compared with the required hours
+Loading the report...
+Check-out {0} - type
+Check-out {0} - time
+Check-in {0} - type
+Check-in {0} - time
+Employee attendance summary
+Employee attendance detailed
+Daily employee attendance log
+All departments
+Total difference
+Total duration
+Total required
+Check-out time
+Check-in time
+— transactions are created "pending approval" and are not repeated for the same day.
+· {0} fingerprint transactions
+· {0} employees
+· all employees
+Returned to pending approval
+Days in month
+Leave
+Unpaid leave
+Paid leave
+Sick leave
+Add attendance record
+Return to pending approval
+Also reprocess manually edited records
+Payroll calculation settings
+Include approved attendance transactions in payroll
+Include attendance transactions in payroll
+Choose the employee and month to show their attendance record
+Entitlement:
+Approve selected (
+Lateness, early leaving and overtime are calculated automatically from the shift and times. A manually edited record isn't replaced on reprocessing unless requested.
+Date *
+Only approved transactions enter the month's payroll when the payroll is opened or recalculated. Daily wage = basic salary ÷ days in month, and hourly wage = daily ÷ hours per day. An amount entered on the transaction takes precedence over the calculation.
+Month
+Overtime, lateness and absence deductions, leaves, bonuses and penalties and night shift allowance — manually or automatically from attendance records, with an approval cycle
+All (
+Amount (optional)
+Approved
+Employee *
+Shift
+Search by employee or department...
+Night shift allowance
+Missing fingerprint
+No shift / rest
+Lateness and early leaving (hours × hourly wage), absence and unpaid leave (days × daily wage), penalty.
+The start date is after the end date
+Ignore lateness of less than (minutes)
+Refresh view
+Convert fingerprint transactions into a daily attendance record for each employee by their shift: check-in and check-out, lateness, early leaving, overtime and absence
+Added to or deducted from the salary by type when the month's payroll is opened or recalculated.
+Edit attendance transaction
+Edit attendance record
+Edit attendance records
+Update failed
+Generation failed
+Unable to load the settings
+Processing failed
+Automatic by times
+The selected transactions were approved
+{0} transactions generated (pending approval) from processed attendance records
+Transaction saved
+The selected transactions were rejected
+{0} days processed for {1} employees{2}
+Generate
+Generate transactions from attendance records
+Generate from attendance records
+Penalty / administrative deduction
+Present
+Delete the transaction?
+Delete record
+Attendance transactions
+New transaction
+New attendance transaction
+Attendance entitlements account (debit)
+Attendance deductions account (credit)
+Lateness deduction
+Early leaving deduction
+Absence deduction
+Deduction:
+Reject selected
+Account code
+hour
+Edit reason *
+An edit reason is required (recorded in the edit log)
+Reason for deleting the day's record?
+Edit log (
+Number of days *
+Number of hours *
+Public holiday
+Overtime
+Overtime (hours × hourly wage × factor), holiday overtime, bonus, night shift allowance.
+Holiday overtime
+Work without a shift
+Work on a holiday
+Absent
+Pending approval
+All employees
+No effect:
+No edits this month
+No records — choose the period and press "Process transactions"
+No record
+Amount
+Late
+Example: forgot the fingerprint on check-out — confirmed by the manager
+Review and correct an employee's monthly attendance record: add a day, edit check-in and check-out or the shift, record a leave or assignment — with a full edit log
+Process transactions
+Process check-in and check-out transactions
+Approved
+Edited manually
+Leave / permission
+Leave/permission, paid leave, sick leave. The two accounts are required to post the payroll entry when there are transactions.
+Bonus
+Work assignment
+Transaction type *
+Rest day
+Job name
+Jobs
+Item name
+Value
+Salary items
+Taxable
+Calculation method
+Employee management system
+Amount type
+Widowed
+Single
+Complete the required fields
+Complete the required tax exemption fields
+Female
+Total additions
+Total deductions and tax
+Total net salaries
+Manage monthly periods before calculating salaries
+Add a new tax exemption
+Add salary item
+Add a new line
+Addition to salary
+Close the selected month
+Stop all transactions
+Calculate salaries
+Choose the item...
+Choose the month

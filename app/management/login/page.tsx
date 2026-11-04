@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -27,12 +28,12 @@ export default function ManagementLoginPage() {
 
     const data = await response.json()
     if (!response.ok) {
-      throw new Error(data.error || "حدث خطأ في تسجيل الدخول")
+      throw new Error(data.error || tr("حدث خطأ في تسجيل الدخول"))
     }
 
     // مسؤول المنصة ينتقل إلى لوحة الإدارة؛ بقية المستخدمين يختارون الشركة من "شركاتي".
     router.push(data.user?.is_platform_admin ? "/management/admin" : "/management/companies")
   }
 
-  return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-300 transition-colors hover:text-emerald-200">إنشاء مستخدم جديد</Link>} />
+  return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-300 transition-colors hover:text-emerald-200">{tr("إنشاء مستخدم جديد")}</Link>} />
 }

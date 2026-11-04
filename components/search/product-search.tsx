@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import { Search, Filter, X, Package, Barcode, Hash, Eye, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -142,7 +143,7 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
       <div className="search-header">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
-          <h2 className="search-title">البحث عن الأصناف</h2>
+          <h2 className="search-title">{tr("البحث عن الأصناف")}</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -152,7 +153,7 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
             className="flex items-center gap-2"
           >
             <Filter className="h-4 w-4" />
-            فلاتر
+            {tr("فلاتر")}
           </Button>
           {isModal && onClose && (
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -164,13 +165,13 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="ابحث بالاسم، الرقم، الباركود، أو الملاحظة..."
+          placeholder={tr("ابحث بالاسم، الرقم، الباركود، أو الملاحظة...")}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input pr-10"
+          className="search-input ps-10"
         />
       </div>
 
@@ -178,21 +179,21 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
       {showFilters && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">فلاتر البحث المتقدم</CardTitle>
+            <CardTitle className="text-sm">{tr("فلاتر البحث المتقدم")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="search-filters">
               <div className="space-y-2">
-                <Label>مجموعة الأصناف</Label>
+                <Label>{tr("مجموعة الأصناف")}</Label>
                 <Select
                   value={filters.category}
                   onValueChange={(value) => setFilters((prev) => ({ ...prev, category: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر المجموعة" />
+                    <SelectValue placeholder={tr("اختر المجموعة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع المجموعات</SelectItem>
+                    <SelectItem value="all">{tr("جميع المجموعات")}</SelectItem>
                     {categories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
@@ -203,16 +204,16 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
               </div>
 
               <div className="space-y-2">
-                <Label>الحالة</Label>
+                <Label>{tr("الحالة")}</Label>
                 <Select
                   value={filters.status}
                   onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر الحالة" />
+                    <SelectValue placeholder={tr("اختر الحالة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع الحالات</SelectItem>
+                    <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
                     {statuses.map((status) => (
                       <SelectItem key={status} value={status}>
                         {status}
@@ -223,25 +224,25 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
               </div>
 
               <div className="space-y-2">
-                <Label>المستودع</Label>
+                <Label>{tr("المستودع")}</Label>
                 <Select
                   value={filters.warehouse}
                   onValueChange={(value) => setFilters((prev) => ({ ...prev, warehouse: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر المستودع" />
+                    <SelectValue placeholder={tr("اختر المستودع")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع المستودعات</SelectItem>
-                    <SelectItem value="main">المستودع الرئيسي</SelectItem>
-                    <SelectItem value="secondary">المستودع الفرعي</SelectItem>
+                    <SelectItem value="all">{tr("جميع المستودعات")}</SelectItem>
+                    <SelectItem value="main">{tr("المستودع الرئيسي")}</SelectItem>
+                    <SelectItem value="secondary">{tr("المستودع الفرعي")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex items-end">
                 <Button variant="outline" onClick={clearFilters} className="w-full bg-transparent">
-                  مسح الفلاتر
+                  {tr("مسح الفلاتر")}
                 </Button>
               </div>
             </div>
@@ -253,7 +254,7 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
       <div>
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
-            {loading ? "جاري البحث..." : `تم العثور على ${filteredProducts.length} صنف`}
+            {loading ? tr("جاري البحث...") : tr("تم العثور على {0} صنف", filteredProducts.length)}
           </p>
           {debouncedSearchTerm && (
             <Badge variant="secondary" className="flex items-center gap-1">
@@ -271,20 +272,20 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>لم يتم العثور على أصناف مطابقة</p>
+              <p>{tr("لم يتم العثور على أصناف مطابقة")}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">رقم الصنف</TableHead>
-                  <TableHead className="text-right">اسم الصنف</TableHead>
-                  <TableHead className="text-right">الباركود</TableHead>
-                  <TableHead className="text-right">المجموعة</TableHead>
-                  <TableHead className="text-right">الوحدة</TableHead>
-                  <TableHead className="text-right">آخر سعر شراء</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">الإجراءات</TableHead>
+                  <TableHead className="text-right">{tr("رقم الصنف")}</TableHead>
+                  <TableHead className="text-right">{tr("اسم الصنف")}</TableHead>
+                  <TableHead className="text-right">{tr("الباركود")}</TableHead>
+                  <TableHead className="text-right">{tr("المجموعة")}</TableHead>
+                  <TableHead className="text-right">{tr("الوحدة")}</TableHead>
+                  <TableHead className="text-right">{tr("آخر سعر شراء")}</TableHead>
+                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -308,7 +309,7 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
                         )}
                         {product.created_at && (
                           <div className="text-xs text-muted-foreground">
-                            أُنشئ: {formatDateToBritish(product.created_at)}
+                            {tr("أُنشئ: ")}{formatDateToBritish(product.created_at)}
                           </div>
                         )}
                       </div>
@@ -333,12 +334,12 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{product.main_unit || "قطعة"}</span>
+                      <span className="text-sm">{product.main_unit || tr("قطعة")}</span>
                     </TableCell>
                     <TableCell>
                       {product.last_purchase_price ? (
                         <div className="text-sm font-medium">
-                          {product.last_purchase_price.toLocaleString("en-US")} {product.currency || "ريال"}
+                          {product.last_purchase_price.toLocaleString("en-US")} {product.currency || tr("ريال")}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">-</span>

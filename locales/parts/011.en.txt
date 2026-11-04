@@ -1,0 +1,300 @@
+Deferred outgoing cheques account *
+Returned cheques account *
+Cheques under collection account *
+Collection commission account *
+Account number *
+Currency code
+Returned cheques currency
+Collection cheques currency
+The returned cheques commission, the collection cheques commission and their currencies.
+Returned cheques commission value
+Collection cheques commission value
+Post-dated cheque deposit period (days)
+Allowed due period for deposit (days)
+Post-dated cheque periods
+Do you want to delete this bank account?
+The bank must be chosen
+The branch must be chosen
+At least one currency must be chosen
+A bank account exists
+Edit bank
+This name is already in use. Please choose another name.
+This number is already in use. Please choose another number.
+Do you want to delete this bank?
+4 digits, e.g. 0001
+Add a new branch
+Edit branch
+The branch number is required and must be 1 to 4 digits only.
+No banks available
+This code is already in use. Please choose another code.
+Do you want to delete this branch?
+The bank number must be entered
+(add)
+Void the cheque or return the cheque status to available
+Return to available
+Issue cheques automatically
+User
+To cheque number *
+Confirm deletion
+Void
+Clear the cheque list
+Delete cheque
+Save changes
+Bank account number *
+Book number *
+Too many cheques (maximum {0} at once)
+A cheque that has actually been used cannot be deleted
+No bank account with this number: {0}
+From cheque number *
+From cheque number must have the same length and number of digits as to cheque number
+Invalid cheque number range
+Do you want to delete this cheque book?
+You must specify from cheque number, to cheque number or the number of cheques
+Card holidays
+Card name (ar) *
+Card name (en) *
+Sunday
+Wednesday
+Monday
+Basic data
+Tuesday
+Friday
+Maximum commission
+Accounting account *
+Thursday
+Link with bank machines
+Saturday
+Payment terminal (machine) *
+Commission account
+Intermediary account *
+Commission value
+Card type *
+Commission type *
+Do you want to delete this credit card?
+Total warehouses
+Add warehouse
+The printer name as it appears in Windows
+Warehouse name
+Warehouse name is required
+Name in English
+Default printer
+Warehouses
+Active warehouses
+Disabled warehouses
+Location
+Description
+This warehouse's items are printed on it when "Print by warehouse" is used in the order — empty: the default printer in the print settings
+Applied to voucher items from this warehouse if the item has no cost centers of its own (item ← warehouse ← item account).
+Edit warehouse
+Warehouse code
+Failed to delete the warehouse
+Failed to save the warehouse
+No warehouses
+Default cost centers
+Are you sure you want to delete this warehouse?
+Generated automatically
+Enter to send · Shift+Enter for a new line · 📎 attach an invoice or voucher (image/PDF) to enter it · complete vouchers are saved directly in your default book
+Ready commands
+Send
+Attach an invoice or voucher (image/PDF) to enter it — you can write its type in the message
+Reuse the request
+Voice dictation
+Stop recording
+Mention the currency if it's not the base currency.
+Mention the voucher type, the customer's name or account code, and the amount.
+Allow the browser to use the microphone and try again.
+Type your request or dictate it — I'll create the voucher and save it directly without leaving this page, or answer your questions about sales and inventory.
+Type your request... e.g. receipt voucher from customer Ahmad cash 200
+Lines
+Items
+Low-stock items
+Total in the document
+Credit
+Customer "{0}" doesn't exist in the system. Do you want to define the customer and then enter {1}?
+Customer "{0}" doesn't exist in the system. Do you want to define the customer and then enter the sales order draft?
+Conversation
+Debit
+Debit = credit
+Smart assistant
+The microphone is on — speak, then press stop
+The AI service was slow to respond (it may be busy right now). Send the request again in a moment.
+Confirm
+Edit
+Unable to create the document
+Unable to create the draft
+Unable to convert the voice recording
+Unable to convert the speech to text
+Unable to define the customer
+Unable to save {0}: {1}
+Unable to save the document
+Unable to save the journal voucher: {0}
+Unable to read the attachment
+Define the missing customer
+{0} added successfully
+Defining the customer was cancelled and the document created.
+Confirmed
+Customer {0} was defined with number {1}. Completing the document...
+{0} saved successfully
+The journal voucher was saved from the attachment (unapproved) — review it then post it
+Processing your request...
+{0} account
+Save unapproved
+Document number
+Payment voucher
+Cash payment voucher
+Cash receipt voucher
+Cash and cheques receipt voucher
+Vouchers, orders and queries in natural language
+Payment cheques: the bank account, amount and due date — the cheque number is taken from the cheque book if not mentioned.
+Receipt cheques: cheque number, amount, bank, branch and due date.
+Payment method
+The internal goods request
+Internal goods request
+Sorry, a connection error occurred. Please try again.
+View document
+not found
+Sales invoice
+Purchase invoice
+Open the invoice for review
+Failed to get a response
+I read {0} but did not match any item with the system
+I read {0} from the attachment — review it then save it
+I read {0} from the attachment: {1}
+I read a journal voucher ({0} lines) but didn't match some accounts with the chart of accounts — it was not saved
+I read a journal voucher but found no account lines in it
+How can I help you today?
+There is no default currency for defining the customer
+No documents yet
+Audio can't be recorded in this browser. Use the iPhone keyboard microphone or Safari.
+No, cancel
+I didn't recognise the document type. Write its type in the message (sales invoice / purchase invoice / receipt voucher / payment voucher / journal voucher) and attach it again.
+The Gemini key is not set. Add GOOGLE_GENERATIVE_AI_API_KEY to the .env.local file and restart the server.
+for a more accurate result
+What was created in this session
+New conversation
+The sales order draft
+Sales order draft
+Sales summary
+Yes, define the customer and save
+Your default book and default accounts in the active branch are used.
+Search by name or code...
+Search for a product or choose from the low-stock products
+Get recommendations for all products that need reordering
+Choose a product to get recommendations
+Choose a product to get smart recommendations
+Product name
+Press "Generate recommendations" for a full analysis
+Search for a product
+Smart recommendations
+Current stock
+Available stock
+Products that will be covered (
+Smart inventory recommendations
+Full recommendations
+Full inventory recommendations
+AI-powered recommendations for managing inventory efficiently
+Single-product recommendations
+Generate recommendations
+Generating recommendations...
+SAR
+Unit price
+Product code
+Reorder level
+Product information
+other products...
+Products that need reordering
+and
+Last year
+Total products
+Trends
+Monthly trends
+Predictive analysis
+Confidence:
+Current:
+Expected demand:
+Optimal:
+Most active products
+Warning
+Advanced inventory analytics
+Filter
+Reorder alerts
+Demand forecasts
+Loading analytics...
+Category status
+Critical
+movement
+Forecast accuracy
+SAR
+Comprehensive insights and predictive inventory analytics
+Rising
+Healthy
+Normal
+View details
+Inventory value
+Average reorder days
+Low stock
+Stock levels by category
+Turnover rate
+Inventory turnover rate
+from last week
+from last quarter
+from last month
+products need reordering
+Falling
+Enter text or number
+Enter a value and press "Create barcode"
+Bottom
+Top
+Barcode settings
+Create barcode
+Create a custom barcode for products
+Dimensions:
+Height
+Generated barcode
+Width
+Value:
+Type:
+Download
+Barcode created successfully
+Barcode value copied
+Font size
+Show text
+Failed to create the barcode
+Failed to copy the value
+Customize the barcode look and type
+Barcode value
+No barcode
+Line color
+Background color
+Preview and download the barcode
+Text position
+Barcode generator
+Copy value
+Barcode type
+Please enter the barcode value
+Barcode management
+Barcode scanner
+Scan, create and manage product barcodes
+Other
+Last purchase price:
+Last scan
+Enter the barcode number
+Enter the barcode manually
+Barcode scanner settings
+Stop scanning
+Choose the camera
+Use the camera to scan barcodes automatically
+Press "Start scanning" to turn on the camera
+Barcode:
+Automatic product search
+Product search
+Camera
+Camera off
+Current stock:
+Matching product
+Time:
+Start scanning
+Scan delay (milliseconds)
+Enable sound
+Product found: {0}
+An error occurred while searching

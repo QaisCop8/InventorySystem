@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -75,12 +76,12 @@ export function BatchLogReport() {
       allowGrouping: false,
       columns: [
         { header: "##", name: "ser", width: 50, visible: true },
-        { header: "رقم الصنف", name: "product_code", width: 120, visible: true },
-        { header: "اسم الصنف", name: "product_name", width: '*', minWidth: 120, visible: true },
-        { header: "الرقم التشغيلي", name: "batch_number", width: 250, visible: true },
-        { header: "اسم المستخدم", name: "user_name", width: 150, visible: true },
-        { header: "التاريخ", name: "log_date", width: 250, visible: true },
-        { header: "الحالة", name: "batch_status", width: 170, visible: true },
+        { header: tr("رقم الصنف"), name: "product_code", width: 120, visible: true },
+        { header: tr("اسم الصنف"), name: "product_name", width: '*', minWidth: 120, visible: true },
+        { header: tr("الرقم التشغيلي"), name: "batch_number", width: 250, visible: true },
+        { header: tr("اسم المستخدم"), name: "user_name", width: 150, visible: true },
+        { header: tr("التاريخ"), name: "log_date", width: 250, visible: true },
+        { header: tr("الحالة"), name: "batch_status", width: 170, visible: true },
       ]
     }
   }
@@ -112,7 +113,7 @@ export function BatchLogReport() {
 
   return (
     <ReportPage loading={loading}>
-<ReportHeader title="أرشفة حركات الرقم التشغيلي" />
+<ReportHeader title={tr("أرشفة حركات الرقم التشغيلي")} />
       <Card>
         <ProductSearchPopup
           visible={showItemSearch}
@@ -139,7 +140,7 @@ export function BatchLogReport() {
           <ReportFilters><div className="flex flex-wrap gap-4 items-end">
             {/* رقم الصنف */}
             <div className="flex flex-col flex-1 min-w-[280px]">
-              <label className="text-sm mb-1">رقم الصنف</label>
+              <label className="text-sm mb-1">{tr("رقم الصنف")}</label>
               <div className="flex gap-2 items-center">
 
                 <Input
@@ -148,7 +149,7 @@ export function BatchLogReport() {
                     setFilters((prev) => ({ ...prev, product_id: e.target.value }))
                   }
                   className="text-right font-medium h-11 flex-1"
-                  dir="rtl"
+                  dir={appDir()}
                   maxLength={8}
                 />
                 <Button
@@ -173,13 +174,13 @@ export function BatchLogReport() {
 
             {/* الرقم التشغيلي */}
             <div className="flex flex-col flex-1 min-w-[240px]">
-              <label className="text-sm mb-1">الرقم التشغيلي</label>
+              <label className="text-sm mb-1">{tr("الرقم التشغيلي")}</label>
               <Input
                 value={filters.batch_number}
                 onChange={(e) =>
                   setFilters((prev) => ({ ...prev, batch_number: e.target.value }))
                 }
-                placeholder="ابحث عن رقم تشغيلي..."
+                placeholder={tr("ابحث عن رقم تشغيلي...")}
                 maxLength={30}
                 className="h-11 w-full"
               />
@@ -187,7 +188,7 @@ export function BatchLogReport() {
 
             {/* من تاريخ */}
             <div className="flex flex-col flex-1 min-w-[140px]">
-              <label className="text-sm mb-1">من تاريخ</label>
+              <label className="text-sm mb-1">{tr("من تاريخ")}</label>
               <Input
                 type="date"
                 value={filters.from_date}
@@ -200,7 +201,7 @@ export function BatchLogReport() {
 
             {/* إلى تاريخ */}
             <div className="flex flex-col flex-1 min-w-[140px]">
-              <label className="text-sm mb-1">إلى تاريخ</label>
+              <label className="text-sm mb-1">{tr("إلى تاريخ")}</label>
               <Input
                 type="date"
                 value={filters.to_date}
@@ -217,7 +218,7 @@ export function BatchLogReport() {
                 onClick={fetchLogs}
                 className="h-11 w-full sm:w-auto flex items-center justify-center"
               >
-                <Search className="ml-2 h-4 w-4" /> بحث
+                <Search className="ml-2 h-4 w-4" />{tr(" بحث")}
               </Button>
             </div>
           </div></ReportFilters>

@@ -1,0 +1,300 @@
+Frozen
+Saved successfully
+Brand type updated
+Brand type deleted
+An error occurred
+Delete type
+Save type
+Delete failed
+Failed to update the status
+Failed to load brand types
+Failed to delete the type
+Failed to save the type
+No types yet
+Example: electrical appliances
+Are you sure you want to delete this type?
+Please enter the type name
+Add brand
+Add a new brand
+Brand name *
+Brands (
+Edit brand
+Brand added
+Brand updated
+Brand deleted
+Delete brand
+Save brand
+Failed to load brands
+Failed to delete the brand
+Failed to save the brand
+No brands yet
+Example: Samsung
+Brand type *
+Are you sure you want to delete this brand?
+Please enter the brand name
+Please choose the brand type
+Manage company cars and their license data
+Add a new car
+Car name
+The car name is duplicated; cannot continue
+Cars
+Search by car number, name or plate number
+License expiry date
+Loading cars...
+Error:
+Car number
+Plate number
+Failed to load cars
+Failed to delete the car
+Failed to save the car
+No cars registered
+Do you want to delete this car?
+Please enter the car name
+{0} is empty: it will be cleared in all the items after this item (not deleted). Do you want to continue?
++ Add the item's first variant
++ Create the value “
++ Create the variant “
+F7: delete the selected row
+Minimum order quantity
+Any additional notes or details about the item
+Remove value
+Add linked items
+Add linked items only
+Add the item and its linked items
+Add variant
+Add component
+Search or type a value
+Search or type a variant
+Unstable connection
+Save the item first to add linked items.
+Save the item first to add manufacturing components.
+Choose the classification
+Choose the tax classification
+Choose the group
+Choose a variant first
+Choose the item type
+Choose the measurement type
+Choose a manufacturing component
+Choose manually from the linked items
+Sale prices
+Service name *
+Service name in English
+Service name in Arabic
+Item name *
+Item name in English
+Item name in Arabic
+Printer name in Windows
+Unit name
+Add the price on selection
+Linked items
+Barcode {0} is duplicated in units {1} and {2}
+Attribute {0} is duplicated
+Attributes *
+Original number
+The number entered is a service number; the details can't be shown
+The number entered is an item number; its details can't be shown
+Price includes tax
+The linked item is already added
+The item is deleted; its data can't be shown
+Relation to main
+The relation to the main unit must be a number between 0.000001 and 100000
+Brand
+Measurements
+Density
+The quantity is calculated automatically from the dimensions and count for non-standard measured components, and can be edited directly for standard components.
+Variant *
+Warehouse {0} is duplicated
+Default warehouse in transactions
+Basic information and definition
+Unit {0} with category {1} is duplicated
+Unit {0} is duplicated
+A 7-digit item barcode like 2000001. The next six digits in the scale barcode represent the quantity divided by 1000.
+Scale barcode
+Duplicate barcode
+Service search
+Trading goods
+Manufactured goods
+None
+Unspecified
+Confirm copying the account
+Last purchase date
+Work in progress
+Edit service
+Edit item
+Unable to create the variant
+Unable to load the item
+Unable to load some item definitions. You can continue working or retry.
+Unable to load the item data
+Unable to load the item data. Check the connection then try again.
+Unable to generate the item number. Check the connection then try again.
+Unable to delete the item
+Unable to copy the account to the items
+Unsaved changes
+Warehouse details
+Variant or value created
+Copied
+The account was updated in {0} items
+Item deleted successfully ✅
+Operation completed successfully ✅
+Cost center status
+Minimum
+Maximum
+Delete item
+Production account
+Sales account
+Expense account in the usage voucher
+Closing inventory valuation account
+Opening inventory valuation account
+Sales returns account
+Purchase returns account
+New service
+Service received
+Service provided
+Linked item options
+Tobacco
+Service number *
+Warehouse number
+Item number *
+Currency number
+Category number
+Manufacturer number
+Purchase price and tax
+The selected {0} will be copied to all the items after this item (not deleted). Do you want to continue?
+New item
+Service image
+Whole number
+Don't print on kitchen and restaurant tickets
+Don't process
+Decimal
+Last purchase currency
+Sale currency
+Purchase currency
+Failed to save the linked items
+Failed to save the manufacturing components
+Failed to delete the item
+Failed to save the product
+The operation failed
+Reorder quantity
+The item itself cannot be added as a linked item
+The item itself cannot be added as a manufacturing component
+No item to delete
+You do not have item view permission
+You do not have permission to add an item
+You do not have permission to edit an item
+You do not have permission to delete an item
+Item not found
+Production supplies
+Item color
+With "Print on the main stock" enabled in the cashier and restaurant: the item slip is printed on this printer, and if left empty on the item group's printer.
+Duplicate manufacturing component
+Manufacturing components
+Notes shown in transactions
+Additional notes and details
+A note shown when the item is chosen in transactions
+Raw materials
+Consumables
+Success
+Copy {0} to all following items
+Copy to all items
+Copy this account to all following items
+Service type
+Item type
+Brand type
+Measurement type
+Cost center type
+Do you want to delete this item?
+The sale price unit {0} isn't added to the item units. Choose one of the item units.
+Item quantity counting unit
+Sold by electronic scale
+This stays a single item; the required variant attributes are chosen when it is added to any transaction.
+Each component's quantity must be greater than zero
+The service name must be entered
+The item name must be entered
+The service number must be entered
+At least one sale price must be entered
+At least one unit must be entered
+Write the attribute name and add at least one value
+Included in the "tobacco custody" in the cashier: the cashier receives its quantity when opening the custody and hands over the remainder when handing it over.
+Only English digits and letters are allowed (maximum 10 characters)
+Create a template linking several customers to several items within a specific period.
+Add template
+Start by adding the first customer and item template.
+Search by template number or name...
+Unable to load templates
+Loading templates...
+View and edit
+Customers
+Failed to load templates (HTTP {0})
+Frozen
+The customer and item templates route isn't loaded on the server
+Customer and item templates
+Enter the customer name
+Enter the customer number or press new
+Total customers
+Choose the city
+Customer name is required
+Hebron
+New customers this month
+Active customers
+Jerusalem
+Mobile
+Registration date
+Edit customer: {0}
+Customers report
+Invalid data format
+Loading customer data...
+In progress...
+Jenin
+Database connection error
+Error generating the customer number
+Ramallah
+Customer number is required
+Mobile number 1
+Tulkarm
+Failed to load customer data
+Failed to generate a new number
+Failed to delete the customer
+Failed to save the customer data
+Notes for transactions and invoices
+General notes about the customer
+Nablus
+Are you sure you want to delete this customer?
+Active {0}
+New {0}
+Inactive {0}
+SMS only
+SMS and WhatsApp
+{0} management
+Customer portal management -
+Send automatic notifications to the customer about their order status via SMS or WhatsApp
+Send a daily summary of all orders
+Automatic notification settings
+Order cancelled
+Create a new link
+Choose the notifications you want to send automatically:
+Choose the salesman
+Order received
+Audit and review
+Dammam
+The number entered is not a {0}
+Riyadh
+Taif
+Medina
+Subscriber
+Buraydah
+Tabuk
+Order preparation
+Unable to create the portal link
+Unable to load the {0} record
+Enable notifications
+The link was created and copied:
+Record deleted successfully
+Notification settings saved successfully
+Data saved successfully
+Ready to ship
+Jeddah
+All cities
+All salesmen
+Hail
+An error occurred while saving the {0} data
+An error occurred while searching for {0}

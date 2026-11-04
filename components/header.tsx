@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
+import { LanguageToggle } from "@/components/i18n/language-toggle";
 import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
 import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus, KeyRound, MapPin } from "lucide-react";
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog";
@@ -109,7 +111,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       setSwitchingCompanyName(null);
       // العودة للشركة السابقة: لا شيء إضافي مطلوب هنا فعلياً — عنصر <select> مربوط بـcurrentCompanyId
       // الذي لم يتغيّر (لم يُعَد تعيينه بعد نجاح فعلي فقط)، فيعرض تلقائياً الشركة السابقة نفسها.
-      toast({ title: "تعذّر فتح الشركة", description: result.error || "تعذّر فتح الشركة", variant: "destructive" });
+      toast({ title: tr("تعذّر فتح الشركة"), description: result.error || tr("تعذّر فتح الشركة"), variant: "destructive" });
       return;
     }
     window.location.href = `/?company=${companyId}`;
@@ -144,11 +146,11 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     input.value = "";
     if (!file) return;
     if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
-      toast({ title: "ملف غير صالح", description: "يرجى اختيار ملف صورة", variant: "destructive" });
+      toast({ title: tr("ملف غير صالح"), description: tr("يرجى اختيار ملف صورة"), variant: "destructive" });
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "حجم الصورة كبير", description: "الحد الأقصى لحجم الصورة 2 ميجابايت", variant: "destructive" });
+      toast({ title: tr("حجم الصورة كبير"), description: tr("الحد الأقصى لحجم الصورة 2 ميجابايت"), variant: "destructive" });
       return;
     }
 
@@ -157,7 +159,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       const imageData = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ""));
-        reader.onerror = () => reject(new Error("تعذّرت قراءة الصورة"));
+        reader.onerror = () => reject(new Error(tr("تعذّرت قراءة الصورة")));
         reader.readAsDataURL(file);
       });
       const response = await fetch("/api/settings/user", {
@@ -166,11 +168,11 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         body: JSON.stringify({ user_id: user?.id, avatar_url: imageData }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "تعذّر حفظ الصورة");
+      if (!response.ok) throw new Error(result.error || tr("تعذّر حفظ الصورة"));
       setAvatarUrl(imageData);
-      toast({ title: "تم تحديث الصورة الشخصية" });
+      toast({ title: tr("تم تحديث الصورة الشخصية") });
     } catch (error) {
-      toast({ title: "تعذّر تحديث الصورة", description: error instanceof Error ? error.message : "حدث خطأ غير متوقع", variant: "destructive" });
+      toast({ title: tr("تعذّر تحديث الصورة"), description: error instanceof Error ? error.message : tr("حدث خطأ غير متوقع"), variant: "destructive" });
     } finally {
       setAvatarSaving(false);
     }
@@ -204,7 +206,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         setIsLoadingBranches(true);
         // فروع المستخدم فقط (عضوية user_branches) — نفس الفروع المتاحة له في الحركات
         const response = await fetch("/api/branches?scope=mine", { signal: controller.signal });
-        if (!response.ok) throw new Error("فشل في تحميل الفروع");
+        if (!response.ok) throw new Error(tr("فشل في تحميل الفروع"));
         const data = await response.json();
         const normalized = Array.isArray(data) ? data : [];
         setBranches(normalized);
@@ -239,71 +241,71 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
   }, [activeDepartment, setActiveDepartmentContext, user?.department]);
 
   const sectionTitles: Record<string, string> = {
-    "home-dashboard": "الرئيسية",
-    dashboard: "الرئيسية",
-    "order-tracking": "متابعة الطلبيات",
-    customers: "إدارة العملاء",
-    suppliers: "إدارة الموردين",
-    products: "الأصناف",
-    services: "الخدمات",
-    "product-groups": "مجموعات الأصناف",
-    definitions: "التعريفات",
-    "sales-orders": "طلبيات المبيعات",
-    "draft-sales-order": "مسودات طلبيات المبيعات",
-    "order-confirmation": "تأكيد الطلبيات",
-    "order-checklists": "قوائم تحقق الطلبيات",
-    "purchase-orders": "طلبيات المشتريات",
-    "exchange-rates": "أسعار الصرف اليومية",
-    "order-reports": "ملخص الطلبيات",
-    "orders-detailed-report": "تقرير الطلبيات تفصيلي",
-    "orders-total-report": "تقرير الطلبيات إجمالي",
-    "orders-by-item-report": "الطلبيات حسب الصنف",
-    "orders-by-party-report": "الطلبيات حسب العميل/المورد",
-    "orders-backlog-report": "الطلبيات غير المسلّمة",
-    "orders-by-salesman-report": "الطلبيات حسب المندوب",
-    "product-reports": "تقارير الأصناف والخدمات",
-    "item-balances-report": "أرصدة الأصناف بتاريخ معين",
-    "item-valuation-report": "تقييم البضاعة بتاريخ معين",
-    "item-card-report": "بطاقة صنف",
-    "receivables-statement-report": "بيان حساب الذمة",
-    "accounting-statement-report": "بيان حساب محاسبي",
-    "vouchers-report": "تقرير السندات",
-    "transactions-report": "تقرير الحركات",
-    "trial-balance-report": "ميزان المراجعة",
-    "balance-sheet-report": "ميزانية عمومية",
-    "income-statement-report": "قائمة الدخل",
-    cheques: "الشيكات",
-    "cheque-operations": "عمليات الشيكات",
-    "cheque-deposit-bulk": "إيداع الشيكات",
-    "visa-commission-journals": "قيود عمولة الفيزا",
-    "currency-transfer-journal": "قيد تحويل عملة",
-    "account-currency-transfer-journals": "قيود تحويل عملة حساب",
-    "currency-difference-journals": "قيود فرق عملة",
-    "cheque-endorse-bulk": "تجيير الشيكات",
-    "outgoing-cheque-clear-bulk": "إخراج الشيكات الصادرة",
-    "cheque-payment-vouchers": "سند صرف شيكات",
-    "pos-cashier": "كاشير نقطة البيع",
-    "restaurant-locations": "مواقع المطعم",
-    "restaurant-tables": "طاولات المطعم",
-    "restaurant-pos": "شاشة المطعم",
-    "restaurant-monitor-report": "مراقبة المطعم",
-    "restaurant-tables-report": "تقرير الطاولات",
-    "restaurant-orders-report": "طلبات المطعم تفصيلي",
-    "restaurant-items-report": "الأصناف المباعة في المطعم",
-    "restaurant-waiters-report": "المطعم حسب النادل",
-    "restaurant-locations-report": "المطعم حسب الموقع",
-    "restaurant-hours-report": "أوقات الذروة في المطعم",
-    "pos-points-settings": "إعداد نقاط البيع",
-    "user-settings": "المستخدمين",
-    "font-settings": "إعدادات الخطوط",
-    "print-settings": "إعدادات الطباعة",
-    "sms-settings": "إعدادات الرسائل SMS",
-    "pos-custody-report": "تقرير عهد البيع بالتجزئة",
-    "voucher-settings": "إعدادات السندات وطباعتها",
-    "system-settings": "إعدادات النظام",
-    permissions: "الصلاحيات",
-    "user-default-accounts": "اعدادات",
-    "api-settings": "إعدادات API والتكامل",
+    "home-dashboard": tr("الرئيسية"),
+    dashboard: tr("الرئيسية"),
+    "order-tracking": tr("متابعة الطلبيات"),
+    customers: tr("إدارة العملاء"),
+    suppliers: tr("إدارة الموردين"),
+    products: tr("الأصناف"),
+    services: tr("الخدمات"),
+    "product-groups": tr("مجموعات الأصناف"),
+    definitions: tr("التعريفات"),
+    "sales-orders": tr("طلبيات المبيعات"),
+    "draft-sales-order": tr("مسودات طلبيات المبيعات"),
+    "order-confirmation": tr("تأكيد الطلبيات"),
+    "order-checklists": tr("قوائم تحقق الطلبيات"),
+    "purchase-orders": tr("طلبيات المشتريات"),
+    "exchange-rates": tr("أسعار الصرف اليومية"),
+    "order-reports": tr("ملخص الطلبيات"),
+    "orders-detailed-report": tr("تقرير الطلبيات تفصيلي"),
+    "orders-total-report": tr("تقرير الطلبيات إجمالي"),
+    "orders-by-item-report": tr("الطلبيات حسب الصنف"),
+    "orders-by-party-report": tr("الطلبيات حسب العميل/المورد"),
+    "orders-backlog-report": tr("الطلبيات غير المسلّمة"),
+    "orders-by-salesman-report": tr("الطلبيات حسب المندوب"),
+    "product-reports": tr("تقارير الأصناف والخدمات"),
+    "item-balances-report": tr("أرصدة الأصناف بتاريخ معين"),
+    "item-valuation-report": tr("تقييم البضاعة بتاريخ معين"),
+    "item-card-report": tr("بطاقة صنف"),
+    "receivables-statement-report": tr("بيان حساب الذمة"),
+    "accounting-statement-report": tr("بيان حساب محاسبي"),
+    "vouchers-report": tr("تقرير السندات"),
+    "transactions-report": tr("تقرير الحركات"),
+    "trial-balance-report": tr("ميزان المراجعة"),
+    "balance-sheet-report": tr("ميزانية عمومية"),
+    "income-statement-report": tr("قائمة الدخل"),
+    cheques: tr("الشيكات"),
+    "cheque-operations": tr("عمليات الشيكات"),
+    "cheque-deposit-bulk": tr("إيداع الشيكات"),
+    "visa-commission-journals": tr("قيود عمولة الفيزا"),
+    "currency-transfer-journal": tr("قيد تحويل عملة"),
+    "account-currency-transfer-journals": tr("قيود تحويل عملة حساب"),
+    "currency-difference-journals": tr("قيود فرق عملة"),
+    "cheque-endorse-bulk": tr("تجيير الشيكات"),
+    "outgoing-cheque-clear-bulk": tr("إخراج الشيكات الصادرة"),
+    "cheque-payment-vouchers": tr("سند صرف شيكات"),
+    "pos-cashier": tr("كاشير نقطة البيع"),
+    "restaurant-locations": tr("مواقع المطعم"),
+    "restaurant-tables": tr("طاولات المطعم"),
+    "restaurant-pos": tr("شاشة المطعم"),
+    "restaurant-monitor-report": tr("مراقبة المطعم"),
+    "restaurant-tables-report": tr("تقرير الطاولات"),
+    "restaurant-orders-report": tr("طلبات المطعم تفصيلي"),
+    "restaurant-items-report": tr("الأصناف المباعة في المطعم"),
+    "restaurant-waiters-report": tr("المطعم حسب النادل"),
+    "restaurant-locations-report": tr("المطعم حسب الموقع"),
+    "restaurant-hours-report": tr("أوقات الذروة في المطعم"),
+    "pos-points-settings": tr("إعداد نقاط البيع"),
+    "user-settings": tr("المستخدمين"),
+    "font-settings": tr("إعدادات الخطوط"),
+    "print-settings": tr("إعدادات الطباعة"),
+    "sms-settings": tr("إعدادات الرسائل SMS"),
+    "pos-custody-report": tr("تقرير عهد البيع بالتجزئة"),
+    "voucher-settings": tr("إعدادات السندات وطباعتها"),
+    "system-settings": tr("إعدادات النظام"),
+    permissions: tr("الصلاحيات"),
+    "user-default-accounts": tr("اعدادات"),
+    "api-settings": tr("إعدادات API والتكامل"),
   };
 
   // عنوان الشاشة + مسارها بالقائمة (مثال: المبيعات › الحركات)
@@ -324,7 +326,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
   return (
     <header
       className="user-typography relative flex h-14 items-center gap-2 border-b border-emerald-100/70 bg-gradient-to-b from-white to-emerald-50/40 px-3 shadow-[0_6px_20px_-16px_rgba(16,185,129,0.35)] md:h-16 md:gap-4 md:px-5 dark:border-white/5 dark:from-slate-900 dark:to-slate-900"
-      dir="rtl"
+      dir={appDir()}
     >
       {/* لا backdrop-filter ولا z-index على <header>: كلاهما يحصر نافذة التطبيقات (position:fixed بملء الشاشة)
           داخل حدود الشريط بدل الشاشة كلها. */}
@@ -337,7 +339,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         <RefButton
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
           onClick={onMenuClick}
-          aria-label="القائمة"
+          aria-label={tr("القائمة")}
         >
           <Icons.Menu />
         </RefButton>
@@ -360,10 +362,10 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
         {/* الفرع والقسم والشركة — كبسولة واحدة */}
         <div className="hidden items-center divide-x divide-x-reverse divide-emerald-100 rounded-full border border-emerald-100/80 bg-emerald-50/50 xl:flex dark:divide-white/10 dark:border-white/10 dark:bg-white/5">
-          <label className="flex items-center gap-1.5 px-3 py-1.5" title="الفرع النشط">
+          <label className="flex items-center gap-1.5 px-3 py-1.5" title={tr("الفرع النشط")}>
             <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
             <select
-              className="max-w-[130px] cursor-pointer bg-transparent text-right text-sm font-medium outline-none"
+              className="max-w-[130px] cursor-pointer bg-transparent text-start text-sm font-medium outline-none"
               value={activeBranchId?.toString() || ""}
               onChange={(event) => {
                 const selected = branches.find((branch) => branch.id === Number(event.target.value));
@@ -372,7 +374,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               disabled={isLoadingBranches || branches.length === 0}
             >
               {branches.length === 0 ? (
-                <option value="">لا توجد فروع</option>
+                <option value="">{tr("لا توجد فروع")}</option>
               ) : (
                 branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
@@ -382,13 +384,13 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               )}
             </select>
             <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] text-emerald-700/80 shadow-sm dark:bg-white/10 dark:text-emerald-200">
-              {activeDepartment || user?.department || "القسم"}
+              {activeDepartment || user?.department || tr("القسم")}
             </span>
           </label>
 
           {/* الشركة الحالية — التبديل يعيد تحميل النظام على الشركة الجديدة */}
           {myCompanies.length > 0 && (
-            <label className="flex items-center gap-1.5 px-3 py-1.5" title="الشركة">
+            <label className="flex items-center gap-1.5 px-3 py-1.5" title={tr("الشركة")}>
               <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
               <select
                 className="max-w-[150px] cursor-pointer truncate bg-transparent text-sm font-medium text-card-foreground outline-none"
@@ -402,7 +404,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
                   return (
                     <option key={c.id} value={c.id} disabled={disabled}>
                       {c.name}
-                      {expired ? " (منتهي الاشتراك)" : c.status !== "approved" ? " (غير جاهزة)" : ""}
+                      {expired ? tr(" (منتهي الاشتراك)") : c.status !== "approved" ? tr(" (غير جاهزة)") : ""}
                     </option>
                   );
                 })}
@@ -417,17 +419,17 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <RefButton className={toolButtonClass} onClick={() => setExchangeRatesOpen(true)} aria-label="اسعار الصرف اليومية">
+                <RefButton className={toolButtonClass} onClick={() => setExchangeRatesOpen(true)} aria-label={tr("اسعار الصرف اليومية")}>
                   <ArrowLeftRight className="h-[18px] w-[18px]" />
                 </RefButton>
               </TooltipTrigger>
-              <TooltipContent side="bottom">اسعار الصرف اليومية</TooltipContent>
+              <TooltipContent side="bottom">{tr("اسعار الصرف اليومية")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <RefButton className={toolButtonClass} aria-label="الإشعارات">
+              <RefButton className={toolButtonClass} aria-label={tr("الإشعارات")}>
                 <Icons.Bell className="h-[18px] w-[18px]" />
               </RefButton>
             </DropdownMenuTrigger>
@@ -441,6 +443,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
             <DisplayModeMenu userId={user?.id} />
           </div>
 
+          <LanguageToggle />
           <QuickThemeToggle />
         </div>
 
@@ -448,7 +451,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <RefButton className="flex h-auto items-center gap-2 rounded-full p-1 transition hover:bg-emerald-50/70 md:py-1 md:pl-1 md:pr-3 dark:hover:bg-white/5">
-              <div className="hidden min-w-0 max-w-36 text-right xl:block">
+              <div className="hidden min-w-0 max-w-36 text-start xl:block">
                 <p className="truncate text-sm font-semibold leading-tight text-slate-700 dark:text-slate-200">{user?.fullName}</p>
                 <p className="truncate text-[11px] leading-tight text-slate-400">{user?.email}</p>
               </div>
@@ -460,7 +463,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 md:w-56">
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1 text-right">
+              <div className="flex flex-col space-y-1 text-start">
                 <p className="text-sm font-medium leading-none">{user?.fullName}</p>
                 <p className="text-xs leading-none text-muted-foreground">{user?.role}</p>
                 <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
@@ -468,12 +471,12 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
             </DropdownMenuLabel>
 
             {/* الشاشات الصغيرة: البحث والفرع والشركة مخفية من الشريط العلوي، فتُعرض هنا. */}
-            <div className="space-y-2 border-t px-2 py-2 text-right xl:hidden" dir="rtl" onKeyDown={(event) => event.stopPropagation()}>
+            <div className="space-y-2 border-t px-2 py-2 text-start xl:hidden" dir={appDir()} onKeyDown={(event) => event.stopPropagation()}>
               <div className="md:hidden">
                 <GlobalSearch onNavigate={onSectionChange} />
               </div>
               <label className="block text-xs text-muted-foreground">
-                الفرع
+                {tr("الفرع")}
                 <select
                   className="mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                   value={activeBranchId?.toString() || ""}
@@ -483,12 +486,12 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
                   }}
                   disabled={isLoadingBranches || branches.length === 0}
                 >
-                  {branches.length === 0 ? <option value="">لا توجد فروع</option> : branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
+                  {branches.length === 0 ? <option value="">{tr("لا توجد فروع")}</option> : branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
                 </select>
               </label>
               {myCompanies.length > 0 && (
                 <label className="block text-xs text-muted-foreground">
-                  الشركة
+                  {tr("الشركة")}
                   <select
                     className="mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                     value={currentCompanyId ?? ""}
@@ -497,7 +500,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
                   >
                     {myCompanies.map((c) => {
                       const expired = isCompanyExpired(c);
-                      return <option key={c.id} value={c.id} disabled={c.status !== "approved" || expired}>{c.name}{expired ? " (منتهي الاشتراك)" : c.status !== "approved" ? " (غير جاهزة)" : ""}</option>;
+                      return <option key={c.id} value={c.id} disabled={c.status !== "approved" || expired}>{c.name}{expired ? tr(" (منتهي الاشتراك)") : c.status !== "approved" ? tr(" (غير جاهزة)") : ""}</option>;
                     })}
                   </select>
                 </label>
@@ -508,26 +511,26 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
 
             <DropdownMenuItem onSelect={(event) => { event.preventDefault(); avatarInputRef.current?.click(); }} disabled={avatarSaving} className="justify-center cursor-pointer">
               <ImagePlus className="ml-2 h-4 w-4" />
-              {avatarSaving ? "جاري حفظ الصورة..." : "تغيير صورة المستخدم"}
+              {avatarSaving ? tr("جاري حفظ الصورة...") : tr("تغيير صورة المستخدم")}
             </DropdownMenuItem>
 
             <DropdownMenuItem onSelect={() => setChangePasswordOpen(true)} className="justify-center cursor-pointer">
               <KeyRound className="ml-2 h-4 w-4" />
-              تغيير كلمة المرور
+              {tr("تغيير كلمة المرور")}
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => onSettingsClick?.()} className="justify-center cursor-pointer">
-              الإعدادات
+              {tr("الإعدادات")}
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => router.push("/management/companies")} className="justify-center cursor-pointer">
-              شركاتي
+              {tr("شركاتي")}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 justify-center cursor-pointer">
-              تسجيل الخروج
+              {tr("تسجيل الخروج")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -539,7 +542,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       {loggingOut && (
         <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-          <p className="text-sm font-medium text-slate-700">جاري تسجيل الخروج يرجى الانتظار...</p>
+          <p className="text-sm font-medium text-slate-700">{tr("جاري تسجيل الخروج يرجى الانتظار...")}</p>
         </div>
       )}
 
@@ -547,7 +550,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
         <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
           <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
           <p className="text-sm font-medium text-slate-700">
-            جاري التحويل للشركة - {switchingCompanyName} - يرجى الانتظار ...
+            {tr("جاري التحويل للشركة - ")}{switchingCompanyName}{tr(" - يرجى الانتظار ...")}
           </p>
         </div>
       )}

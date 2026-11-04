@@ -13,6 +13,8 @@ const RULES: Rule[] = [
   { path: "/api/management/auth/signup", limit: 5, windowMs: 15 * MINUTE },
   { path: "/api/management/auth/change-password", limit: 10, windowMs: 15 * MINUTE },
   { path: "/api/permission-approvals", limit: 60, windowMs: 5 * MINUTE },
+  // تخمين رموز قسائم المساعدة (القفل بعد 5 أرقام سرية خاطئة يحمي الرمز الواحد، وهذا يحمي من تجربة رموز كثيرة)
+  { path: "/api/aid/verify", limit: 60, windowMs: 5 * MINUTE },
 ]
 
 const hits = new Map<string, { count: number; resetAt: number }>()

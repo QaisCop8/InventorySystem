@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -51,9 +52,9 @@ interface AccountCostCentersProps {
 
 const requiredLabel = (value: number | string | null | undefined) => {
   const normalized = Number(value ?? 0)
-  if (normalized === 2) return "اجباري"
-  if (normalized === 3) return "ممنوع"
-  return "اختياري"
+  if (normalized === 2) return tr("اجباري")
+  if (normalized === 3) return tr("ممنوع")
+  return tr("اختياري")
 }
 
 export default function AccountCostCenters({ open, onOpenChange, account, value, onChange }: AccountCostCentersProps) {
@@ -152,16 +153,16 @@ export default function AccountCostCenters({ open, onOpenChange, account, value,
     () => ({
       name: "AccountCostCenterScheme",
       columns: [
-        { header: "نوع المركز", name: "name", width: 160, minWidth: 130, isReadOnly: true },
-        { header: "مركز التكلفة الافتراضي", name: "cost_center_name", width: '*', minWidth: 130, isReadOnly: true },
-        { header: "اجباري", name: "required_label", width: 90, isReadOnly: true },
+        { header: tr("نوع المركز"), name: "name", width: 160, minWidth: 130, isReadOnly: true },
+        { header: tr("مركز التكلفة الافتراضي"), name: "cost_center_name", width: '*', minWidth: 130, isReadOnly: true },
+        { header: tr("اجباري"), name: "required_label", width: 90, isReadOnly: true },
         {
           name: "btnSearch",
           header: " ",
           width: 55,
           buttonBody: "button",
           align: "center",
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           className: "btn-search",
           isReadOnly: true,
@@ -183,7 +184,7 @@ export default function AccountCostCenters({ open, onOpenChange, account, value,
           width: 55,
           buttonBody: "button",
           align: "center",
-          title: "حذف",
+          title: tr("حذف"),
           iconType: "delete",
           className: "btn-delete",
           isReadOnly: true,
@@ -238,30 +239,30 @@ export default function AccountCostCenters({ open, onOpenChange, account, value,
       <DialogContent
         hideCloseButton
         className="w-[88vw] max-w-4xl max-h-[78vh] overflow-hidden p-3 sm:p-4"
-        dir="rtl"
+        dir={appDir()}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
         <div className="flex h-full flex-col gap-2">
           <div className="flex items-start justify-between gap-3 border-b pb-2">
             <div>
-              <h2 className="text-base font-bold text-blue-700">مراكز الكلفة</h2>
+              <h2 className="text-base font-bold text-blue-700">{tr("مراكز الكلفة")}</h2>
               <p className="text-sm text-slate-600">
-                {account ? `${account.code} / ${account.name}` : "لا يوجد حساب محدد"}
+                {account ? `${account.code} / ${account.name}` : tr("لا يوجد حساب محدد")}
               </p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="h-7 w-7 p-0" title="إغلاق">
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="h-7 w-7 p-0" title={tr("إغلاق")}>
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="rounded-md border border-slate-300 overflow-hidden flex-1 min-h-0" dir="rtl">
+          <div className="rounded-md border border-slate-300 overflow-hidden flex-1 min-h-0" dir={appDir()}>
             {rows.length > 0 ? (
               <div className="h-full min-h-0 overflow-auto">
                 <DataGridView scheme={costCenterScheme} dataSource={rows} defaultRowHeight={34} />
               </div>
             ) : (
               <div className="h-full min-h-0 flex items-center justify-center bg-slate-50">
-                  <p className="text-slate-500 text-sm">{loading ? "جارٍ تحميل مراكز الكلفة..." : "لا توجد بيانات مراكز كلفة"}</p>
+                  <p className="text-slate-500 text-sm">{loading ? tr("جارٍ تحميل مراكز الكلفة...") : tr("لا توجد بيانات مراكز كلفة")}</p>
               </div>
             )}
           </div>
@@ -286,10 +287,10 @@ export default function AccountCostCenters({ open, onOpenChange, account, value,
               }}
               className="min-w-20"
             >
-              موافق
+              {tr("موافق")}
             </Button>
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="min-w-20">
-              الغاء
+              {tr("الغاء")}
             </Button>
           </div>
         </div>

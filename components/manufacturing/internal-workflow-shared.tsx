@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { ArrowLeft, Building2, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, FilePlus2, LayoutDashboard, Lock, PackageCheck, RefreshCw, Send, ShieldCheck, Truck, User, Warehouse } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -30,18 +31,18 @@ export type InternalStep = {
 
 // مصدر واحد لتعريف مراحل سير طلب البضاعة الداخلي — تستخدمه كل الشاشات (المراحل، لوحة المتابعة، الإعدادات).
 export const INTERNAL_STEPS: InternalStep[] = [
-  { key: "request", status: 1, title: "طلب بضاعة داخلي", short: "الطلب", description: "إنشاء طلبات البضاعة من الفروع الأخرى ومتابعتها.", section: "internal-manufacturing-request", icon: FilePlus2, side: "requester", permission: "create" },
-  { key: "requestAudit", status: 2, title: "تدقيق طلب البضاعة", short: "تدقيق الطلب", description: "مراجعة أصناف الطلب وكمياته قبل إرساله للفرع المطلوب منه البضاعة.", section: "internal-manufacturing-request-audit", icon: ShieldCheck, side: "requester", permission: "requestAudit", setting: "requestAudit", action: "requestAudit", verb: "تدقيق الطلب", done: "تم تدقيق الطلب" },
-  { key: "preparation", status: 3, title: "تجهيز الطلبات", short: "التجهيز", description: "إدخال الكميات المجهزة فعلياً لكل صنف في الطلبات الواردة لفرعك.", section: "internal-manufacturing-preparation", icon: PackageCheck, side: "supplier", permission: "prepare", setting: "preparation", action: "prepare", verb: "تجهيز الطلب", done: "تم تجهيز الطلب" },
-  { key: "readyAudit", status: 4, title: "تدقيق الطلبات الجاهزة", short: "تدقيق الجاهز", description: "مطابقة الكميات المجهزة قبل الإرسال وتصحيحها عند الحاجة.", section: "internal-manufacturing-ready-audit", icon: ClipboardCheck, side: "supplier", permission: "readyAudit", setting: "readyAudit", action: "readyAudit", verb: "اعتماد التدقيق", done: "تم تدقيق الطلب الجاهز" },
-  { key: "send", status: 5, title: "إرسال الطلبات", short: "الإرسال", description: "تأكيد خروج البضاعة المجهزة إلى الفرع مقدم الطلب.", section: "internal-manufacturing-send", icon: Send, side: "supplier", permission: "send", setting: "send", action: "send", verb: "إرسال الطلب", done: "تم إرسال الطلب" },
-  { key: "receive", status: 6, title: "استلام الطلبات", short: "الاستلام", description: "إدخال الكميات المستلمة فعلياً — يُنشأ سند الإرسالية الداخلية تلقائياً.", section: "internal-manufacturing-receive", icon: Truck, side: "requester", permission: "receive", setting: "receive", action: "receive", verb: "استلام الطلب", done: "تم استلام الطلب" },
-  { key: "receivedAudit", status: 7, title: "تدقيق البضاعة المستلمة", short: "تدقيق المستلم", description: "المراجعة النهائية للبضاعة المستلمة وإغلاق الطلب.", section: "internal-manufacturing-received-audit", icon: CheckCircle2, side: "requester", permission: "receivedAudit", setting: "receivedAudit", action: "receivedAudit", verb: "إغلاق الطلب", done: "تم إغلاق الطلب" },
+  { key: "request", status: 1, title: tr("طلب بضاعة داخلي"), short: "الطلب", description: tr("إنشاء طلبات البضاعة من الفروع الأخرى ومتابعتها."), section: "internal-manufacturing-request", icon: FilePlus2, side: "requester", permission: "create" },
+  { key: "requestAudit", status: 2, title: tr("تدقيق طلب البضاعة"), short: "تدقيق الطلب", description: tr("مراجعة أصناف الطلب وكمياته قبل إرساله للفرع المطلوب منه البضاعة."), section: "internal-manufacturing-request-audit", icon: ShieldCheck, side: "requester", permission: "requestAudit", setting: "requestAudit", action: "requestAudit", verb: "تدقيق الطلب", done: "تم تدقيق الطلب" },
+  { key: "preparation", status: 3, title: tr("تجهيز الطلبات"), short: "التجهيز", description: tr("إدخال الكميات المجهزة فعلياً لكل صنف في الطلبات الواردة لفرعك."), section: "internal-manufacturing-preparation", icon: PackageCheck, side: "supplier", permission: "prepare", setting: "preparation", action: "prepare", verb: "تجهيز الطلب", done: "تم تجهيز الطلب" },
+  { key: "readyAudit", status: 4, title: tr("تدقيق الطلبات الجاهزة"), short: "تدقيق الجاهز", description: tr("مطابقة الكميات المجهزة قبل الإرسال وتصحيحها عند الحاجة."), section: "internal-manufacturing-ready-audit", icon: ClipboardCheck, side: "supplier", permission: "readyAudit", setting: "readyAudit", action: "readyAudit", verb: "اعتماد التدقيق", done: "تم تدقيق الطلب الجاهز" },
+  { key: "send", status: 5, title: tr("إرسال الطلبات"), short: "الإرسال", description: tr("تأكيد خروج البضاعة المجهزة إلى الفرع مقدم الطلب."), section: "internal-manufacturing-send", icon: Send, side: "supplier", permission: "send", setting: "send", action: "send", verb: "إرسال الطلب", done: "تم إرسال الطلب" },
+  { key: "receive", status: 6, title: tr("استلام الطلبات"), short: "الاستلام", description: tr("إدخال الكميات المستلمة فعلياً — يُنشأ سند الإرسالية الداخلية تلقائياً."), section: "internal-manufacturing-receive", icon: Truck, side: "requester", permission: "receive", setting: "receive", action: "receive", verb: "استلام الطلب", done: "تم استلام الطلب" },
+  { key: "receivedAudit", status: 7, title: tr("تدقيق البضاعة المستلمة"), short: "تدقيق المستلم", description: tr("المراجعة النهائية للبضاعة المستلمة وإغلاق الطلب."), section: "internal-manufacturing-received-audit", icon: CheckCircle2, side: "requester", permission: "receivedAudit", setting: "receivedAudit", action: "receivedAudit", verb: "إغلاق الطلب", done: "تم إغلاق الطلب" },
 ]
 
-export const INTERNAL_STATUS_LABELS: Record<number, string> = { 1: "مسودة", 2: "بانتظار التدقيق", 3: "بانتظار التجهيز", 4: "بانتظار تدقيق الجاهز", 5: "بانتظار الإرسال", 6: "بانتظار الاستلام", 7: "بانتظار تدقيق المستلم", 8: "مكتمل" }
-export const INTERNAL_ACTION_LABELS: Record<string, string> = { create: "إنشاء الطلب", update: "تعديل الطلب", delete: "حذف الطلب", requestAudit: "تدقيق الطلب", prepare: "تجهيز الطلب", readyAudit: "تدقيق الجاهز", send: "إرسال الطلب", receive: "استلام الطلب", receivedAudit: "إغلاق الطلب" }
-export const SIDE_LABELS = { requester: "فرع مقدم الطلب", supplier: "الفرع المطلوب منه البضاعة" } as const
+export const INTERNAL_STATUS_LABELS: Record<number, string> = { 1: tr("مسودة"), 2: tr("بانتظار التدقيق"), 3: tr("بانتظار التجهيز"), 4: tr("بانتظار تدقيق الجاهز"), 5: tr("بانتظار الإرسال"), 6: tr("بانتظار الاستلام"), 7: tr("بانتظار تدقيق المستلم"), 8: tr("مكتمل") }
+export const INTERNAL_ACTION_LABELS: Record<string, string> = { create: tr("إنشاء الطلب"), update: tr("تعديل الطلب"), delete: tr("حذف الطلب"), requestAudit: tr("تدقيق الطلب"), prepare: tr("تجهيز الطلب"), readyAudit: tr("تدقيق الجاهز"), send: tr("إرسال الطلب"), receive: tr("استلام الطلب"), receivedAudit: tr("إغلاق الطلب") }
+export const SIDE_LABELS = { requester: tr("فرع مقدم الطلب"), supplier: tr("الفرع المطلوب منه البضاعة") } as const
 
 /** هل المرحلة ضمن السير؟ مع "استلام البضاعة تلقائي" لا مراحل بعد التجهيز. */
 export const isAfterAutoReceive = (step: InternalStep, settings: InternalSettings | null) => Boolean(settings?.autoReceive) && step.status > 3
@@ -57,10 +58,10 @@ export function ageLabel(value: unknown) {
   const time = new Date(String(value || "")).getTime()
   if (!Number.isFinite(time)) return "-"
   const hours = Math.max(0, (Date.now() - time) / 3_600_000)
-  if (hours < 1) return "منذ أقل من ساعة"
-  if (hours < 24) return `منذ ${Math.floor(hours)} ساعة`
+  if (hours < 1) return tr("منذ أقل من ساعة")
+  if (hours < 24) return tr("منذ {0} ساعة", Math.floor(hours))
   const days = Math.floor(hours / 24)
-  return days === 1 ? "منذ يوم" : days === 2 ? "منذ يومين" : `منذ ${days} أيام`
+  return days === 1 ? tr("منذ يوم") : days === 2 ? tr("منذ يومين") : tr("منذ {0} أيام", days)
 }
 export const isOverdue = (value: unknown, days = 2) => {
   const time = new Date(String(value || "")).getTime()
@@ -121,7 +122,7 @@ export function useInternalWorkflow(): WorkflowContext {
 // شريط مراحل السير — نفسه في رأس كل شاشة، وبحجم مصغّر داخل نافذة الطلب لإظهار موقعه الحالي.
 export function InternalStepper({ settings, counts, permissions, current, compact = false, requestStatus }: { settings: InternalSettings | null; counts?: Record<number, number>; permissions?: WorkflowContext["permissions"]; current?: InternalStepKey | "dashboard"; compact?: boolean; requestStatus?: number }) {
   const steps = INTERNAL_STEPS.filter((step) => isStepEnabled(step, settings))
-  return <div className="internal-stepper flex items-stretch gap-1 overflow-x-auto pb-1" dir="rtl">
+  return <div className="internal-stepper flex items-stretch gap-1 overflow-x-auto pb-1" dir={appDir()}>
     {steps.map((step, index) => {
       const Icon = step.icon
       const active = current === step.key || (requestStatus != null && requestStatus === step.status)
@@ -131,7 +132,7 @@ export function InternalStepper({ settings, counts, permissions, current, compac
       const tone = active ? "border-emerald-500 bg-emerald-600 text-white shadow-sm" : passed ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-600"
       const content = <>
         <span className={`flex shrink-0 items-center justify-center rounded-full ${compact ? "h-6 w-6" : "h-8 w-8"} ${active ? "bg-white/20" : passed ? "bg-emerald-100" : "bg-slate-100"}`}>{passed ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span>
-        <span className="min-w-0 text-right leading-tight">
+        <span className="min-w-0 text-start leading-tight">
           <span className={`block whitespace-nowrap font-semibold ${compact ? "text-[11px]" : "text-xs"}`}>{step.short}</span>
           {!compact && <span className={`block whitespace-nowrap text-[10px] ${active ? "text-emerald-50" : "text-muted-foreground"}`}>{SIDE_LABELS[step.side]}</span>}
         </span>
@@ -158,7 +159,7 @@ export function InternalPageHeader({ title, description, icon: Icon, sideLabel, 
           <h1 className="text-xl font-bold leading-tight">{title}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
           {(sideLabel || branchLabel) && <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {branchLabel && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-700"><Building2 className="h-3.5 w-3.5" />الفرع النشط: <b>{branchLabel}</b></span>}
+            {branchLabel && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-700"><Building2 className="h-3.5 w-3.5" />{tr("الفرع النشط: ")}<b>{branchLabel}</b></span>}
             {sideLabel && <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-sky-800 ring-1 ring-sky-100">{sideLabel}</span>}
           </div>}
         </div>
@@ -178,7 +179,7 @@ export function InternalLockedState({ title, message }: { title: string; message
 }
 
 export function RefreshButton({ loading, onClick }: { loading?: boolean; onClick: () => void }) {
-  return <Button variant="outline" onClick={onClick} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
+  return <Button variant="outline" onClick={onClick} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
 }
 
 // بطاقة الطلب الموحدة في كل المراحل.
@@ -188,7 +189,7 @@ export function InternalRequestCard({ request, branchName, warehouseName, action
   const items: any[] = request.items || []
   const incoming = highlightBranchId != null && Number(request.manufacturing_branch_id) === Number(highlightBranchId)
   return <div className={`group flex flex-col rounded-xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md dark:bg-slate-950 ${late ? "border-amber-300" : "border-slate-200"}`}>
-    <button type="button" onClick={onOpen} className="flex flex-1 flex-col gap-3 p-4 text-right">
+    <button type="button" onClick={onOpen} className="flex flex-1 flex-col gap-3 p-4 text-start">
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-mono text-base font-bold tracking-wide text-slate-900 dark:text-slate-100">{request.vch_code}</div>
@@ -197,13 +198,13 @@ export function InternalRequestCard({ request, branchName, warehouseName, action
         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${late ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}><Clock3 className="h-3 w-3" />{ageLabel(since)}</span>
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900">
-        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">من (مقدم الطلب)</div><div className={`truncate font-semibold ${!incoming && highlightBranchId != null ? "text-emerald-700" : ""}`}>{branchName(request.branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="ml-1 inline h-3 w-3" />{warehouseName(request.to_store_id)}</div></div>
+        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">{tr("من (مقدم الطلب)")}</div><div className={`truncate font-semibold ${!incoming && highlightBranchId != null ? "text-emerald-700" : ""}`}>{branchName(request.branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="ml-1 inline h-3 w-3" />{warehouseName(request.to_store_id)}</div></div>
         <ArrowLeft className="h-4 w-4 shrink-0 text-emerald-600" />
-        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">إلى (المطلوب منه)</div><div className={`truncate font-semibold ${incoming ? "text-emerald-700" : ""}`}>{branchName(request.manufacturing_branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="ml-1 inline h-3 w-3" />{warehouseName(request.destination_warehouse_id)}</div></div>
+        <div className="min-w-0 flex-1"><div className="text-[10px] text-muted-foreground">{tr("إلى (المطلوب منه)")}</div><div className={`truncate font-semibold ${incoming ? "text-emerald-700" : ""}`}>{branchName(request.manufacturing_branch_id)}</div><div className="truncate text-muted-foreground"><Warehouse className="ml-1 inline h-3 w-3" />{warehouseName(request.destination_warehouse_id)}</div></div>
       </div>
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="inline-flex items-center gap-1 text-muted-foreground"><User className="h-3.5 w-3.5" />{request.requester_name || "-"}</span>
-        <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">{items.length} أصناف</span>
+        <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">{items.length}{tr(" أصناف")}</span>
       </div>
       {items.length > 0 && <div className="flex items-center gap-1.5">
         {items.slice(0, 5).map((item) => <InternalItemImage key={item.id} item={item} size="sm" />)}

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -119,7 +120,7 @@ export default function ManagementAdminPage() {
       const data = await res.json()
       setCompanies(Array.isArray(data) ? data : [])
     } catch {
-      setError("تعذّر تحميل الشركات")
+      setError(tr("تعذّر تحميل الشركات"))
     } finally {
       setLoading(false)
     }
@@ -131,7 +132,7 @@ export default function ManagementAdminPage() {
       const data = await res.json()
       setAllCompanies(Array.isArray(data) ? data : [])
     } catch {
-      setError("تعذّر تحميل جميع الشركات")
+      setError(tr("تعذّر تحميل جميع الشركات"))
     }
   }
 
@@ -141,7 +142,7 @@ export default function ManagementAdminPage() {
       const data = await res.json()
       setUsers(Array.isArray(data) ? data : [])
     } catch {
-      setError("تعذّر تحميل المستخدمين")
+      setError(tr("تعذّر تحميل المستخدمين"))
     }
   }
 
@@ -151,7 +152,7 @@ export default function ManagementAdminPage() {
       const data = await res.json()
       setAccessCategories(Array.isArray(data) ? data : [])
     } catch {
-      setError("تعذّر تحميل فئات الصلاحيات")
+      setError(tr("تعذّر تحميل فئات الصلاحيات"))
     }
   }
 
@@ -161,7 +162,7 @@ export default function ManagementAdminPage() {
       const data = await res.json()
       setAccessDefinitions(Array.isArray(data) ? data : [])
     } catch {
-      setError("تعذّر تحميل الصلاحيات")
+      setError(tr("تعذّر تحميل الصلاحيات"))
     }
   }
 
@@ -185,13 +186,13 @@ export default function ManagementAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر إضافة الفئة")
+        setError(data.error || tr("تعذّر إضافة الفئة"))
         return
       }
       setNewCategoryName("")
       await loadAccessCategories()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setPermBusy(false)
     }
@@ -209,14 +210,14 @@ export default function ManagementAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر تعديل الفئة")
+        setError(data.error || tr("تعذّر تعديل الفئة"))
         return
       }
       setEditingCategoryId(null)
       await loadAccessCategories()
       await loadAccessDefinitions()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setPermBusy(false)
     }
@@ -229,12 +230,12 @@ export default function ManagementAdminPage() {
       const res = await fetch(`/api/management/admin/access-definitions/categories/${id}`, { method: "DELETE" })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر حذف الفئة")
+        setError(data.error || tr("تعذّر حذف الفئة"))
         return
       }
       await loadAccessCategories()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setPermBusy(false)
     }
@@ -252,14 +253,14 @@ export default function ManagementAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر إضافة الصلاحية")
+        setError(data.error || tr("تعذّر إضافة الصلاحية"))
         return
       }
       setNewAccessName("")
       setNewAccessCategoryId("")
       await loadAccessDefinitions()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setPermBusy(false)
     }
@@ -280,13 +281,13 @@ export default function ManagementAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر تعديل الصلاحية")
+        setError(data.error || tr("تعذّر تعديل الصلاحية"))
         return
       }
       setEditingAccessId(null)
       await loadAccessDefinitions()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setPermBusy(false)
     }
@@ -299,12 +300,12 @@ export default function ManagementAdminPage() {
       const res = await fetch(`/api/management/admin/access-definitions/${id}`, { method: "DELETE" })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر حذف الصلاحية")
+        setError(data.error || tr("تعذّر حذف الصلاحية"))
         return
       }
       await loadAccessDefinitions()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setPermBusy(false)
     }
@@ -321,12 +322,12 @@ export default function ManagementAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر تنفيذ الإجراء")
+        setError(data.error || tr("تعذّر تنفيذ الإجراء"))
         return
       }
       await loadAllCompanies()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setSubscriptionBusyId(null)
     }
@@ -341,12 +342,12 @@ export default function ManagementAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر تحديث حالة المستخدم")
+        setError(data.error || tr("تعذّر تحديث حالة المستخدم"))
         return
       }
       await loadUsers()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setBusyId(null)
     }
@@ -357,16 +358,16 @@ export default function ManagementAdminPage() {
     setError("")
     try {
       const lead = companies.find((company) => company.id === id)?.lead_phone
-      if (lead && !window.confirm("اعتماد هذه الشركة يسجّل دفع الاشتراك (خارج النظام) ويفعّلها لسنة كاملة كأنه تم إتمام الدفع. متابعة؟")) return
+      if (lead && !window.confirm(tr("اعتماد هذه الشركة يسجّل دفع الاشتراك (خارج النظام) ويفعّلها لسنة كاملة كأنه تم إتمام الدفع. متابعة؟"))) return
       const res = await fetch(`/api/management/admin/companies/${id}/approve`, { method: "POST" })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر اعتماد الشركة")
+        setError(data.error || tr("تعذّر اعتماد الشركة"))
         return
       }
       await load()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setBusyId(null)
     }
@@ -379,12 +380,12 @@ export default function ManagementAdminPage() {
       const res = await fetch(`/api/management/admin/companies/${id}/reject`, { method: "POST" })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "تعذّر رفض الشركة")
+        setError(data.error || tr("تعذّر رفض الشركة"))
         return
       }
       await load()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setBusyId(null)
     }
@@ -400,23 +401,23 @@ export default function ManagementAdminPage() {
 
   if (forbidden) {
     return (
-      <div dir="rtl" className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50 px-4 text-center">
+      <div dir={appDir()} className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50 px-4 text-center">
         <ShieldAlert className="h-12 w-12 text-red-400" />
-        <p className="text-slate-600">لا تملك صلاحية الوصول لهذه الصفحة</p>
+        <p className="text-slate-600">{tr("لا تملك صلاحية الوصول لهذه الصفحة")}</p>
         <Link href="/management/companies" className="text-sm text-violet-600 hover:underline">
-          العودة لشركاتي
+          {tr("العودة لشركاتي")}
         </Link>
       </div>
     )
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-10">
+    <div dir={appDir()} className="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-slate-800">لوحة التحكم</h1>
+          <h1 className="text-xl font-bold text-slate-800">{tr("لوحة التحكم")}</h1>
           <Link href="/management/companies" className="flex items-center gap-1 text-sm text-slate-500 hover:underline">
-            <ArrowRight className="h-4 w-4" /> شركاتي
+            <ArrowRight className="h-4 w-4" />{tr(" شركاتي")}
           </Link>
         </div>
 
@@ -425,19 +426,19 @@ export default function ManagementAdminPage() {
             onClick={() => setTab("pending")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pending" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            الشركات بانتظار الموافقة
+            {tr("الشركات بانتظار الموافقة")}
           </button>
           <button
             onClick={() => setTab("companies")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "companies" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            الشركات
+            {tr("الشركات")}
           </button>
           <button
             onClick={() => setTab("licenses")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "licenses" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            طلبات الترخيص
+            {tr("طلبات الترخيص")}
             {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0) > 0 && (
               <span className="mr-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
                 {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0)}
@@ -448,37 +449,37 @@ export default function ManagementAdminPage() {
             onClick={() => setTab("users")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            المستخدمون
+            {tr("المستخدمون")}
           </button>
           <button
             onClick={() => setTab("login-report")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "login-report" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            سجل الدخول
+            {tr("سجل الدخول")}
           </button>
           <button
             onClick={() => setTab("permissions")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "permissions" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            تعريف الصلاحيات
+            {tr("تعريف الصلاحيات")}
           </button>
           <button
             onClick={() => setTab("pricing")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "pricing" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            الأسعار
+            {tr("الأسعار")}
           </button>
           <button
             onClick={() => setTab("feature-requests")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "feature-requests" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            بريد الرسائل والتحسينات
+            {tr("بريد الرسائل والتحسينات")}
           </button>
           <button
             onClick={() => setTab("backups")}
             className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium ${tab === "backups" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            النسخ الاحتياطي
+            {tr("النسخ الاحتياطي")}
           </button>
         </div>
         {tab === "backups" && <BackupsPanel />}
@@ -490,7 +491,7 @@ export default function ManagementAdminPage() {
 
         {tab === "pending" &&
           (companies.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا توجد شركات بانتظار الموافقة</div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">{tr("لا توجد شركات بانتظار الموافقة")}</div>
           ) : (
             <div className="space-y-3">
               {companies.map((company) => (
@@ -502,22 +503,22 @@ export default function ManagementAdminPage() {
                     </div>
                     {company.lead_phone && (
                       <div className="mt-2 space-y-1 text-xs text-slate-600">
-                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">بطاقة للمبيعات — الاعتماد يعادل إتمام الدفع</span>
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">{tr("بطاقة للمبيعات — الاعتماد يعادل إتمام الدفع")}</span>
                         <div>
-                          الهاتف: <span dir="ltr">{company.lead_phone}</span>
-                          {company.lead_whatsapp && <> · واتساب: <span dir="ltr">{company.lead_whatsapp}</span></>}
-                          {company.quote_total != null && <> · مبلغ الاشتراك: <span dir="ltr" className="font-semibold">{Number(company.quote_total).toFixed(2)} {company.quote_currency}</span></>}
+                          {tr("الهاتف: ")}<span dir="ltr">{company.lead_phone}</span>
+                          {company.lead_whatsapp && <>{tr(" · واتساب: ")}<span dir="ltr">{company.lead_whatsapp}</span></>}
+                          {company.quote_total != null && <>{tr(" · مبلغ الاشتراك: ")}<span dir="ltr" className="font-semibold">{Number(company.quote_total).toFixed(2)} {company.quote_currency}</span></>}
                         </div>
-                        {company.lead_notes && <div className="text-slate-500">ملاحظات: {company.lead_notes}</div>}
+                        {company.lead_notes && <div className="text-slate-500">{tr("ملاحظات: ")}{company.lead_notes}</div>}
                       </div>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <Button size="sm" variant="outline" className="gap-1 border-red-200 text-red-600 hover:bg-red-50" disabled={busyId === company.id} onClick={() => handleReject(company.id)}>
-                      <X className="h-4 w-4" /> رفض
+                      <X className="h-4 w-4" />{tr(" رفض")}
                     </Button>
                     <Button size="sm" className="gap-1" disabled={busyId === company.id} onClick={() => handleApprove(company.id)}>
-                      {busyId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} اعتماد
+                      {busyId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{tr(" اعتماد")}
                     </Button>
                   </div>
                 </div>
@@ -527,19 +528,19 @@ export default function ManagementAdminPage() {
 
         {tab === "companies" &&
           (allCompanies.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا توجد شركات</div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">{tr("لا توجد شركات")}</div>
           ) : (
             <div className="space-y-3">
               {allCompanies.map((company) => {
                 const expired = isCompanyExpired(company)
                 const statusLabel =
                   company.status === "approved"
-                    ? "معتمدة"
+                    ? tr("معتمدة")
                     : company.status === "pending"
-                      ? "بانتظار الموافقة"
+                      ? tr("بانتظار الموافقة")
                       : company.status === "rejected"
-                        ? "مرفوضة"
-                        : "موقوفة"
+                        ? tr("مرفوضة")
+                        : tr("موقوفة")
                 const statusClasses =
                   company.status === "approved"
                     ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
@@ -558,7 +559,7 @@ export default function ManagementAdminPage() {
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses}`}>{statusLabel}</span>
                         {expired && (
                           <span className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
-                            <Clock className="h-3 w-3" /> الاشتراك منتهي
+                            <Clock className="h-3 w-3" />{tr(" الاشتراك منتهي")}
                           </span>
                         )}
                       </div>
@@ -569,12 +570,12 @@ export default function ManagementAdminPage() {
                       )}
                       <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
                         <Database className="h-3.5 w-3.5 text-violet-600" />
-                        مساحة قاعدة البيانات: <span dir="ltr" className="font-semibold tabular-nums text-slate-800">{formatDatabaseStorage(company.storage_bytes)}</span>
+                        {tr("مساحة قاعدة البيانات: ")}<span dir="ltr" className="font-semibold tabular-nums text-slate-800">{formatDatabaseStorage(company.storage_bytes)}</span>
                       </div>
                       {company.expiry_date && (
                         <div className={"mt-1 flex items-center gap-1 text-sm " + (expired ? "font-medium text-rose-600" : "text-slate-500")}>
                           <Clock className="h-3.5 w-3.5" />
-                          تاريخ انتهاء الاشتراك: {new Date(company.expiry_date).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
+                          {tr("تاريخ انتهاء الاشتراك: ")}{new Date(company.expiry_date).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
                         </div>
                       )}
                     </div>
@@ -598,7 +599,7 @@ export default function ManagementAdminPage() {
                           ) : (
                             <Ban className="h-3.5 w-3.5" />
                           )}
-                          {company.status === "stopped" ? "إلغاء الإيقاف" : "إيقاف"}
+                          {company.status === "stopped" ? tr("إلغاء الإيقاف") : tr("إيقاف")}
                         </Button>
                       )}
 
@@ -610,7 +611,7 @@ export default function ManagementAdminPage() {
                           onClick={() => handleSubscriptionAction(company.id, "extend")}
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
-                          تمديد الاشتراك
+                          {tr("تمديد الاشتراك")}
                         </Button>
                       )}
                     </div>
@@ -626,7 +627,7 @@ export default function ManagementAdminPage() {
 
         {tab === "users" &&
           (users.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا يوجد مستخدمون</div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">{tr("لا يوجد مستخدمون")}</div>
           ) : (
             <div className="space-y-3">
               {users.map((user) => (
@@ -636,12 +637,12 @@ export default function ManagementAdminPage() {
                       {user.full_name}
                       {user.is_platform_admin && (
                         <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">
-                          مسؤول الموقع
+                          {tr("مسؤول الموقع")}
                         </span>
                       )}
                       {!user.is_active && (
                         <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
-                          موقوف
+                          {tr("موقوف")}
                         </span>
                       )}
                     </div>
@@ -649,7 +650,7 @@ export default function ManagementAdminPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="outline" className="gap-1 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setPasswordUser(user)}>
-                    <KeyRound className="h-4 w-4" /> تغيير كلمة المرور
+                    <KeyRound className="h-4 w-4" />{tr(" تغيير كلمة المرور")}
                   </Button>
                   <Button
                     size="sm"
@@ -662,11 +663,11 @@ export default function ManagementAdminPage() {
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : user.is_active ? (
                       <>
-                        <UserX className="h-4 w-4" /> إيقاف
+                        <UserX className="h-4 w-4" />{tr(" إيقاف")}
                       </>
                     ) : (
                       <>
-                        <UserCheck className="h-4 w-4" /> تفعيل
+                        <UserCheck className="h-4 w-4" />{tr(" تفعيل")}
                       </>
                     )}
                   </Button>
@@ -680,12 +681,12 @@ export default function ManagementAdminPage() {
         {tab === "permissions" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-3 font-semibold text-slate-800">الفئات ({accessCategories.length})</h2>
+              <h2 className="mb-3 font-semibold text-slate-800">{tr("الفئات (")}{accessCategories.length})</h2>
               <div className="mb-3 flex gap-2">
                 <input
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="اسم الفئة الجديدة"
+                  placeholder={tr("اسم الفئة الجديدة")}
                   className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
                 />
                 <Button size="sm" disabled={permBusy || !newCategoryName.trim()} onClick={handleAddCategory}>
@@ -738,12 +739,12 @@ export default function ManagementAdminPage() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-3 font-semibold text-slate-800">الصلاحيات ({accessDefinitions.length})</h2>
+              <h2 className="mb-3 font-semibold text-slate-800">{tr("الصلاحيات (")}{accessDefinitions.length})</h2>
               <div className="mb-3 space-y-2">
                 <input
                   value={newAccessName}
                   onChange={(e) => setNewAccessName(e.target.value)}
-                  placeholder="اسم الصلاحية الجديدة"
+                  placeholder={tr("اسم الصلاحية الجديدة")}
                   className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
                 />
                 <div className="flex gap-2">
@@ -752,7 +753,7 @@ export default function ManagementAdminPage() {
                     onChange={(e) => setNewAccessCategoryId(e.target.value)}
                     className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
                   >
-                    <option value="">بلا فئة</option>
+                    <option value="">{tr("بلا فئة")}</option>
                     {accessCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -780,7 +781,7 @@ export default function ManagementAdminPage() {
                           onChange={(e) => setEditingAccessCategoryId(e.target.value)}
                           className="w-full rounded border border-slate-200 px-2 py-1 text-sm"
                         >
-                          <option value="">بلا فئة</option>
+                          <option value="">{tr("بلا فئة")}</option>
                           {accessCategories.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name}
@@ -788,14 +789,14 @@ export default function ManagementAdminPage() {
                           ))}
                         </select>
                         <Button size="sm" variant="outline" disabled={permBusy} onClick={() => handleSaveAccess(item.id)}>
-                          <Check className="h-3.5 w-3.5" /> حفظ
+                          <Check className="h-3.5 w-3.5" />{tr(" حفظ")}
                         </Button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
                           <div>{item.name}</div>
-                          <div className="text-xs text-slate-400">{item.category_name || "بلا فئة"}</div>
+                          <div className="text-xs text-slate-400">{item.category_name || tr("بلا فئة")}</div>
                         </div>
                         <div className="flex gap-1">
                           <Button

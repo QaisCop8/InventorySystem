@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountNumberFormat } from "@/lib/decimals"
 
 import { useEffect, useMemo, useState } from "react"
@@ -73,14 +74,14 @@ export function ReceivablesAgingReport() {
     try {
       const response = await fetch("/api/reports/receivables-aging?meta=1", { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل خيارات التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل خيارات التقرير"))
       const next: Meta = { ...emptyMeta, ...(data.meta || {}) }
       setMeta(next)
       setPeriods(next.periods?.length ? next.periods : emptyMeta.periods)
       setResultPeriods(next.periods?.length ? next.periods : emptyMeta.periods)
       setFilters((current) => ({ ...current, accountIds: next.accounts.map((account) => Number(account.id)), currencyId: Number(next.currencies[0]?.id || 0) }))
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل خيارات التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل خيارات التقرير"))
     } finally {
       setLoading(false)
     }
@@ -88,7 +89,7 @@ export function ReceivablesAgingReport() {
   useEffect(() => { void loadMeta() }, [])
 
   const run = async () => {
-    if (!filters.accountIds.length) { setError("اختر ذمة واحدة على الأقل"); return }
+    if (!filters.accountIds.length) { setError(tr("اختر ذمة واحدة على الأقل")); return }
     setRunning(true)
     setError("")
     try {
@@ -101,12 +102,12 @@ export function ReceivablesAgingReport() {
       if (filters.salesmanIds.length) params.set("salesman_ids", filters.salesmanIds.join(","))
       const response = await fetch(`/api/reports/receivables-aging?${params}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل تقرير تعمير الذمم")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل تقرير تعمير الذمم"))
       setRows(data.rows || [])
       setResultPeriods(data.periods || periods)
       setHasRun(true)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل تقرير تعمير الذمم")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل تقرير تعمير الذمم"))
     } finally {
       setRunning(false)
     }
@@ -135,16 +136,16 @@ export function ReceivablesAgingReport() {
   }
   const applyPeriods = async (persist: boolean) => {
     const list = parsedDraft()
-    if (!list) { setPeriodsError("خطأ في الفترات المدخلة، الرجاء إدخال فترات متصاعدة بأيام موجبة"); return }
+    if (!list) { setPeriodsError(tr("خطأ في الفترات المدخلة، الرجاء إدخال فترات متصاعدة بأيام موجبة")); return }
     if (persist) {
       setSavingPeriods(true)
       try {
         const response = await fetch("/api/reports/receivables-aging", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ periods: list }) })
         const data = await response.json()
-        if (!response.ok) throw new Error(data.error || "تعذر حفظ الفترات")
+        if (!response.ok) throw new Error(data.error || tr("تعذر حفظ الفترات"))
         setMeta((current) => ({ ...current, periods: list }))
       } catch (reason) {
-        setPeriodsError(reason instanceof Error ? reason.message : "تعذر حفظ الفترات")
+        setPeriodsError(reason instanceof Error ? reason.message : tr("تعذر حفظ الفترات"))
         return
       } finally {
         setSavingPeriods(false)
@@ -167,7 +168,7 @@ export function ReceivablesAgingReport() {
   const currencyLabel = String(meta.currencies.find((currency: any) => Number(currency.id) === filters.currencyId)?.currency_code || "")
 
   const exportCsv = () => {
-    const header = ["رقم الحساب", "اسم الحساب", "المندوب", "الهاتف", "الرصيد", ...(showCheques ? ["الشيكات", "رصيد التعمير"] : []), ...labels, "آخر حركة", "تاريخ آخر حركة"]
+    const header = [tr("رقم الحساب"), tr("اسم الحساب"), tr("المندوب"), tr("الهاتف"), tr("الرصيد"), ...(showCheques ? ["الشيكات", "رصيد التعمير"] : []), ...labels, tr("آخر حركة"), tr("تاريخ آخر حركة")]
     const body = visibleRows.map((row) => [row.account_code, row.account_name, row.salesman_name, row.phone, row.balance, ...(showCheques ? [row.cheques, row.aging_balance] : []), ...row.buckets, row.last_vch_code, row.last_vch_date])
     const csv = [header, ...body].map((values) => values.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")).join("\n")
     const link = document.createElement("a")
@@ -181,36 +182,36 @@ export function ReceivablesAgingReport() {
     <ReportPage loading={loading || running}>
       <ReportHeader
         icon={Clock3}
-        category="تقارير محاسبية"
-        title={<>تقرير تعمير الذمم</>}
-        description={<>توزيع أرصدة العملاء والموردين على فترات عمر الدين حتى تاريخ محدد</>}
+        category={tr("تقارير محاسبية")}
+        title={<>{tr("تقرير تعمير الذمم")}</>}
+        description={<>{tr("توزيع أرصدة العملاء والموردين على فترات عمر الدين حتى تاريخ محدد")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4" />تصدير</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
       <ReportFilters>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
-          <ReportMultiChoice label="الذمم" options={meta.accounts} selected={filters.accountIds} onChange={(accountIds) => setFilters({ ...filters, accountIds })} placeholder={loading ? "جاري التحميل..." : "جميع الذمم"} />
+          <ReportMultiChoice label={tr("الذمم")} options={meta.accounts} selected={filters.accountIds} onChange={(accountIds) => setFilters({ ...filters, accountIds })} placeholder={loading ? tr("جاري التحميل...") : tr("جميع الذمم")} />
           <div className="space-y-2">
-            <Label>بتاريخ</Label>
+            <Label>{tr("بتاريخ")}</Label>
             <div className="relative">
-              <CalendarRange className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-teal-600" />
-              <Input type="date" value={filters.toDate} onChange={(event) => setFilters({ ...filters, toDate: event.target.value })} className="rounded-xl pr-9" />
+              <CalendarRange className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-teal-600" />
+              <Input type="date" value={filters.toDate} onChange={(event) => setFilters({ ...filters, toDate: event.target.value })} className="rounded-xl ps-9" />
             </div>
           </div>
           <ReportCurrencyFilter currencies={meta.currencies} value={filters.currencyId} onChange={(currencyId) => setFilters({ ...filters, currencyId })} />
-          <ReportMultiChoice label="الفروع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder="جميع الفروع المتاحة" />
-          <ReportMultiChoice label="المندوبون" options={meta.salesmen} selected={filters.salesmanIds} onChange={(salesmanIds) => setFilters({ ...filters, salesmanIds })} placeholder="جميع المندوبين" />
+          <ReportMultiChoice label={tr("الفروع")} options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("جميع الفروع المتاحة")} />
+          <ReportMultiChoice label={tr("المندوبون")} options={meta.salesmen} selected={filters.salesmanIds} onChange={(salesmanIds) => setFilters({ ...filters, salesmanIds })} placeholder={tr("جميع المندوبين")} />
           <div className="space-y-2">
-            <Label>نوع الرصيد</Label>
+            <Label>{tr("نوع الرصيد")}</Label>
             <Select value={filters.behavior} onValueChange={(behavior) => setFilters({ ...filters, behavior })}>
               <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="debit">أرصدة مدينة (ذمم مستحقة لنا)</SelectItem>
-                <SelectItem value="credit">أرصدة دائنة (مستحقة علينا)</SelectItem>
-                <SelectItem value="all">كل الأرصدة</SelectItem>
+                <SelectItem value="debit">{tr("أرصدة مدينة (ذمم مستحقة لنا)")}</SelectItem>
+                <SelectItem value="credit">{tr("أرصدة دائنة (مستحقة علينا)")}</SelectItem>
+                <SelectItem value="all">{tr("كل الأرصدة")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -218,28 +219,28 @@ export function ReceivablesAgingReport() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-500">فترات التعمير:</span>
+            <span className="text-xs font-bold text-slate-500">{tr("فترات التعمير:")}</span>
             {periodLabels(periods).map((label) => (
               <span key={label} className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200" dir="ltr">{label}</span>
             ))}
-            <Button type="button" variant="outline" size="sm" className="h-7 rounded-full" onClick={openPeriods}><Settings2 className="ml-1 h-3.5 w-3.5" />تعديل الفترات</Button>
+            <Button type="button" variant="outline" size="sm" className="h-7 rounded-full" onClick={openPeriods}><Settings2 className="ml-1 h-3.5 w-3.5" />{tr("تعديل الفترات")}</Button>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-sm">
-            <label className="flex cursor-pointer items-center gap-2" title="احتساب الشيكات الواردة غير المحصّلة ضمن رصيد الذمة (والصادرة غير المصروفة)">
+            <label className="flex cursor-pointer items-center gap-2" title={tr("احتساب الشيكات الواردة غير المحصّلة ضمن رصيد الذمة (والصادرة غير المصروفة)")}>
               <Checkbox checked={filters.includeCheques} onCheckedChange={(value) => setFilters({ ...filters, includeCheques: value === true })} />
-              احتساب الشيكات
+              {tr("احتساب الشيكات")}
             </label>
             <label className="flex cursor-pointer items-center gap-2">
               <Checkbox checked={filters.showZero} onCheckedChange={(value) => setFilters({ ...filters, showZero: value === true })} />
-              إظهار الأرصدة الصفرية
+              {tr("إظهار الأرصدة الصفرية")}
             </label>
           </div>
         </div>
 
         <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />مسح الفلاتر</Button>
+          <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
           <Button data-report-apply onClick={() => void run()} disabled={running || loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-            {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض النتائج
+            {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
           </Button>
         </div>
       </ReportFilters>
@@ -247,14 +248,14 @@ export function ReceivablesAgingReport() {
       {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <ReportSummaryCard label="إجمالي الأرصدة">{money.format(totalBalance)}</ReportSummaryCard>
-        <ReportSummaryCard label={`ضمن الفترة الأولى (${labels[0]} يوم)`}>{money.format(bucketTotals[0] || 0)}</ReportSummaryCard>
-        <ReportSummaryCard label="متأخر (بعد الفترة الأولى)">{money.format(overdueTotal)}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("إجمالي الأرصدة")}>{money.format(totalBalance)}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("ضمن الفترة الأولى ({0} يوم)", labels[0])}>{money.format(bucketTotals[0] || 0)}</ReportSummaryCard>
+        <ReportSummaryCard label={tr("متأخر (بعد الفترة الأولى)")}>{money.format(overdueTotal)}</ReportSummaryCard>
       </section>
 
       {hasRun && totalAbs > 0 && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2 text-xs font-bold text-slate-500">توزيع الأرصدة على الفترات</p>
+          <p className="mb-2 text-xs font-bold text-slate-500">{tr("توزيع الأرصدة على الفترات")}</p>
           <div className="flex h-3 overflow-hidden rounded-full bg-slate-100" dir="ltr">
             {bucketTotals.map((value, index) => Math.abs(value) > 0 && (
               <div key={index} title={`${labels[index]}: ${money.format(value)}`} className={BAR_TONES[toneIndex(index, labels.length)]} style={{ width: `${(Math.abs(value) / totalAbs) * 100}%` }} />
@@ -263,7 +264,7 @@ export function ReceivablesAgingReport() {
           <div className="mt-3 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
             {labels.map((label, index) => (
               <div key={label} className={`rounded-xl px-3 py-2 ${toneFor(index, labels.length)}`}>
-                <p className="text-[11px] font-bold" dir="ltr">{label} يوم</p>
+                <p className="text-[11px] font-bold" dir="ltr">{label}{tr(" يوم")}</p>
                 <p className="font-black tabular-nums" dir="ltr">{money.format(bucketTotals[index] || 0)}</p>
                 <p className="text-[11px] opacity-80">{totalAbs ? Math.round((Math.abs(bucketTotals[index] || 0) / totalAbs) * 100) : 0}%</p>
               </div>
@@ -275,20 +276,20 @@ export function ReceivablesAgingReport() {
       <section className="report-results">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div>
-            <h2 className="font-bold">تعمير الذمم بتاريخ {filters.toDate}{currencyLabel ? ` · ${currencyLabel}` : ""}</h2>
-            <p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")} ذمة</p>
+            <h2 className="font-bold">{tr("تعمير الذمم بتاريخ ")}{filters.toDate}{currencyLabel ? ` · ${currencyLabel}` : ""}</h2>
+            <p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")}{tr(" ذمة")}</p>
           </div>
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث برقم أو اسم الذمة أو المندوب..." className="w-full rounded-xl sm:w-80" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث برقم أو اسم الذمة أو المندوب...")} className="w-full rounded-xl sm:w-80" />
         </div>
         <div className="report-table-scroll">
           <table className="w-full min-w-[980px] text-sm">
             <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
               <tr>
                 {["#", "رقم الحساب", "اسم الحساب", "المندوب", "الرصيد", ...(showCheques ? ["الشيكات", "رصيد التعمير"] : [])].map((label) => (
-                  <th key={label} className="whitespace-nowrap px-3 py-3 text-right text-xs">{label}</th>
+                  <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs">{label}</th>
                 ))}
-                {labels.map((label) => <th key={label} className="whitespace-nowrap px-3 py-3 text-right text-xs" dir="ltr">{label}</th>)}
-                <th className="whitespace-nowrap px-3 py-3 text-right text-xs">آخر حركة</th>
+                {labels.map((label) => <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs" dir="ltr">{label}</th>)}
+                <th className="whitespace-nowrap px-3 py-3 text-start text-xs">{tr("آخر حركة")}</th>
               </tr>
             </thead>
             <tbody>
@@ -299,7 +300,7 @@ export function ReceivablesAgingReport() {
                   <td className="px-3 py-2.5 font-semibold">
                     {row.account_name}
                     {row.credit_limit != null && Math.abs(row.aging_balance) > row.credit_limit && (
-                      <span className="mr-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700" title={`سقف الرصيد ${money.format(row.credit_limit)}`}>تجاوز السقف</span>
+                      <span className="mr-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700" title={tr("سقف الرصيد {0}", money.format(row.credit_limit))}>{tr("تجاوز السقف")}</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-600">{row.salesman_name || "—"}</td>
@@ -315,13 +316,13 @@ export function ReceivablesAgingReport() {
                 </tr>
               ))}
               {!running && !visibleRows.length && (
-                <tr><td colSpan={7 + labels.length} className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{hasRun ? "لا توجد أرصدة" : "اختر الفلاتر ثم اضغط عرض النتائج"}</td></tr>
+                <tr><td colSpan={7 + labels.length} className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{hasRun ? tr("لا توجد أرصدة") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}</td></tr>
               )}
             </tbody>
             {visibleRows.length > 0 && (
               <tfoot className="sticky bottom-0 bg-slate-100 font-black">
                 <tr>
-                  <td className="px-3 py-3" colSpan={4}>الإجمالي</td>
+                  <td className="px-3 py-3" colSpan={4}>{tr("الإجمالي")}</td>
                   <td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.balance, 0))}</td>
                   {showCheques && <td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.cheques, 0))}</td>}
                   {showCheques && <td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(totalBalance)}</td>}
@@ -335,30 +336,30 @@ export function ReceivablesAgingReport() {
       </section>
 
       <Dialog open={periodsOpen} onOpenChange={setPeriodsOpen}>
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent dir={appDir()} className="max-w-md">
           <DialogHeader className="text-right">
-            <DialogTitle>تعديل فترات التعمير</DialogTitle>
-            <DialogDescription>أدخل نهاية كل فترة بالأيام بشكل متصاعد — تُضاف تلقائياً فترة أخيرة "فأكثر".</DialogDescription>
+            <DialogTitle>{tr("تعديل فترات التعمير")}</DialogTitle>
+            <DialogDescription>{tr("أدخل نهاية كل فترة بالأيام بشكل متصاعد — تُضاف تلقائياً فترة أخيرة \"فأكثر\".")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {draftPeriods.map((value, index) => {
               const previous = index === 0 ? 0 : Number(draftPeriods[index - 1]) || 0
               return (
                 <div key={index} className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 text-xs font-bold text-slate-500">من يوم {previous + 1} إلى</span>
-                  <Input type="number" min={1} value={value} dir="ltr" className="h-9 text-right" onChange={(event) => setDraftPeriods((list) => list.map((item, i) => (i === index ? event.target.value : item)))} />
-                  <span className="text-xs text-slate-500">يوم</span>
+                  <span className="w-24 shrink-0 text-xs font-bold text-slate-500">{tr("من يوم ")}{previous + 1}{tr(" إلى")}</span>
+                  <Input type="number" min={1} value={value} dir="ltr" className="h-9 text-start" onChange={(event) => setDraftPeriods((list) => list.map((item, i) => (i === index ? event.target.value : item)))} />
+                  <span className="text-xs text-slate-500">{tr("يوم")}</span>
                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-rose-600" disabled={draftPeriods.length <= 1} onClick={() => setDraftPeriods((list) => list.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               )
             })}
-            <Button type="button" variant="outline" size="sm" disabled={draftPeriods.length >= 12} onClick={() => setDraftPeriods((list) => [...list, String((Number(list[list.length - 1]) || 0) + 30)])}><Plus className="ml-1 h-4 w-4" />إضافة فترة</Button>
-            <p className="text-xs text-slate-500">الفترة الأخيرة: من يوم {(Number(draftPeriods[draftPeriods.length - 1]) || 0) + 1} فأكثر</p>
+            <Button type="button" variant="outline" size="sm" disabled={draftPeriods.length >= 12} onClick={() => setDraftPeriods((list) => [...list, String((Number(list[list.length - 1]) || 0) + 30)])}><Plus className="ml-1 h-4 w-4" />{tr("إضافة فترة")}</Button>
+            <p className="text-xs text-slate-500">{tr("الفترة الأخيرة: من يوم ")}{(Number(draftPeriods[draftPeriods.length - 1]) || 0) + 1}{tr(" فأكثر")}</p>
             {periodsError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{periodsError}</p>}
           </div>
           <DialogFooter className="gap-2 sm:justify-start">
-            <Button type="button" onClick={() => void applyPeriods(true)} disabled={savingPeriods}>{savingPeriods && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}حفظ كافتراضي</Button>
-            <Button type="button" variant="outline" onClick={() => void applyPeriods(false)}>تطبيق على هذا العرض</Button>
+            <Button type="button" onClick={() => void applyPeriods(true)} disabled={savingPeriods}>{savingPeriods && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ كافتراضي")}</Button>
+            <Button type="button" variant="outline" onClick={() => void applyPeriods(false)}>{tr("تطبيق على هذا العرض")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

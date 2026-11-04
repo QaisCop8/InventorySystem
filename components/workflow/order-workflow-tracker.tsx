@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -190,13 +191,13 @@ export function OrderWorkflowTracker({
   const getActionTypeText = (actionType: string) => {
     switch (actionType) {
       case "advance":
-        return "تقديم"
+        return tr("تقديم")
       case "reject":
-        return "رفض"
+        return tr("رفض")
       case "return":
-        return "إرجاع"
+        return tr("إرجاع")
       case "reassign":
-        return "إعادة تعيين"
+        return tr("إعادة تعيين")
       default:
         return actionType
     }
@@ -220,15 +221,15 @@ export function OrderWorkflowTracker({
   const getPriorityText = (priority: string) => {
     switch (priority) {
       case "urgent":
-        return "عاجل"
+        return tr("عاجل")
       case "high":
-        return "عالي"
+        return tr("عالي")
       case "normal":
-        return "عادي"
+        return tr("عادي")
       case "low":
-        return "منخفض"
+        return tr("منخفض")
       default:
-        return "عادي"
+        return tr("عادي")
     }
   }
 
@@ -238,7 +239,7 @@ export function OrderWorkflowTracker({
         <CardContent className="p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span className="mr-3">جاري تحميل بيانات التتبع...</span>
+            <span className="mr-3">{tr("جاري تحميل بيانات التتبع...")}</span>
           </div>
         </CardContent>
       </Card>
@@ -249,14 +250,14 @@ export function OrderWorkflowTracker({
     return (
       <Card className="w-full">
         <CardContent className="p-6">
-          <div className="text-center text-gray-500">لا توجد بيانات تتبع لهذه الطلبية</div>
+          <div className="text-center text-gray-500">{tr("لا توجد بيانات تتبع لهذه الطلبية")}</div>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       {/* Current Status Card */}
       <Card>
         <CardHeader>
@@ -270,14 +271,14 @@ export function OrderWorkflowTracker({
               </div>
               <div>
                 <h3 className="text-lg font-semibold">{status.stage_name}</h3>
-                <p className="text-sm text-gray-600">طلبية رقم: {orderNumber}</p>
+                <p className="text-sm text-gray-600">{tr("طلبية رقم: ")}{orderNumber}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge className={getPriorityColor(status.priority_level)}>
                 {getPriorityText(status.priority_level)}
               </Badge>
-              {status.is_overdue && <Badge variant="destructive">متأخرة</Badge>}
+              {status.is_overdue && <Badge variant="destructive">{tr("متأخرة")}</Badge>}
             </div>
           </CardTitle>
         </CardHeader>
@@ -285,15 +286,15 @@ export function OrderWorkflowTracker({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-gray-500" />
-              <span className="text-sm">القسم المسؤول: {status.assigned_to_department || "غير محدد"}</span>
+              <span className="text-sm">{tr("القسم المسؤول: ")}{status.assigned_to_department || tr("غير محدد")}</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-gray-500" />
-              <span className="text-sm">بدء المرحلة: {formatDateToBritish(status.stage_start_time)}</span>
+              <span className="text-sm">{tr("بدء المرحلة: ")}{formatDateToBritish(status.stage_start_time)}</span>
             </div>
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-gray-500" />
-              <span className="text-sm">التسلسل: {status.sequence_name}</span>
+              <span className="text-sm">{tr("التسلسل: ")}{status.sequence_name}</span>
             </div>
           </div>
 
@@ -302,21 +303,21 @@ export function OrderWorkflowTracker({
             <Dialog open={showAdvanceDialog} onOpenChange={setShowAdvanceDialog}>
               <DialogTrigger asChild>
                 <Button className="bg-green-600 hover:bg-green-700">
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                  تقديم للمرحلة التالية
+                  <ArrowRight className="h-4 w-4 me-2" />
+                  {tr("تقديم للمرحلة التالية")}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>تقديم الطلبية للمرحلة التالية</DialogTitle>
+                  <DialogTitle>{tr("تقديم الطلبية للمرحلة التالية")}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium">ملاحظات (اختيارية)</label>
+                    <label className="text-sm font-medium">{tr("ملاحظات (اختيارية)")}</label>
                     <Textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="أضف أي ملاحظات حول تقديم الطلبية..."
+                      placeholder={tr("أضف أي ملاحظات حول تقديم الطلبية...")}
                       className="mt-1"
                     />
                   </div>
@@ -324,21 +325,21 @@ export function OrderWorkflowTracker({
                     <div className="flex items-center gap-2">
                       <Bell className="h-4 w-4 text-blue-600" />
                       <Label htmlFor="send-notification" className="cursor-pointer">
-                        إرسال إشعار للعميل
+                        {tr("إرسال إشعار للعميل")}
                       </Label>
                     </div>
                     <Switch id="send-notification" checked={sendNotification} onCheckedChange={setSendNotification} />
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setShowAdvanceDialog(false)}>
-                      إلغاء
+                      {tr("إلغاء")}
                     </Button>
                     <Button
                       onClick={handleAdvanceOrder}
                       disabled={actionLoading}
                       className="bg-green-600 hover:bg-green-700"
                     >
-                      {actionLoading ? "جاري التقديم..." : "تقديم"}
+                      {actionLoading ? tr("جاري التقديم...") : tr("تقديم")}
                     </Button>
                   </div>
                 </div>
@@ -348,36 +349,36 @@ export function OrderWorkflowTracker({
             <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
               <DialogTrigger asChild>
                 <Button variant="destructive">
-                  <X className="h-4 w-4 ml-2" />
-                  رفض الطلبية
+                  <X className="h-4 w-4 me-2" />
+                  {tr("رفض الطلبية")}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>رفض الطلبية</DialogTitle>
+                  <DialogTitle>{tr("رفض الطلبية")}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium">سبب الرفض *</label>
+                    <label className="text-sm font-medium">{tr("سبب الرفض *")}</label>
                     <Select value={rejectReason} onValueChange={setRejectReason}>
                       <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="اختر سبب الرفض" />
+                        <SelectValue placeholder={tr("اختر سبب الرفض")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="incomplete_info">معلومات ناقصة</SelectItem>
-                        <SelectItem value="invalid_data">بيانات غير صحيحة</SelectItem>
-                        <SelectItem value="out_of_stock">نفاد المخزون</SelectItem>
-                        <SelectItem value="customer_request">طلب العميل</SelectItem>
-                        <SelectItem value="other">أخرى</SelectItem>
+                        <SelectItem value="incomplete_info">{tr("معلومات ناقصة")}</SelectItem>
+                        <SelectItem value="invalid_data">{tr("بيانات غير صحيحة")}</SelectItem>
+                        <SelectItem value="out_of_stock">{tr("نفاد المخزون")}</SelectItem>
+                        <SelectItem value="customer_request">{tr("طلب العميل")}</SelectItem>
+                        <SelectItem value="other">{tr("أخرى")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">ملاحظات إضافية</label>
+                    <label className="text-sm font-medium">{tr("ملاحظات إضافية")}</label>
                     <Textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="أضف تفاصيل إضافية حول سبب الرفض..."
+                      placeholder={tr("أضف تفاصيل إضافية حول سبب الرفض...")}
                       className="mt-1"
                     />
                   </div>
@@ -385,7 +386,7 @@ export function OrderWorkflowTracker({
                     <div className="flex items-center gap-2">
                       <Bell className="h-4 w-4 text-red-600" />
                       <Label htmlFor="send-notification-reject" className="cursor-pointer">
-                        إرسال إشعار للعميل
+                        {tr("إرسال إشعار للعميل")}
                       </Label>
                     </div>
                     <Switch
@@ -396,10 +397,10 @@ export function OrderWorkflowTracker({
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
-                      إلغاء
+                      {tr("إلغاء")}
                     </Button>
                     <Button variant="destructive" onClick={handleRejectOrder} disabled={actionLoading || !rejectReason}>
-                      {actionLoading ? "جاري الرفض..." : "رفض"}
+                      {actionLoading ? tr("جاري الرفض...") : tr("رفض")}
                     </Button>
                   </div>
                 </div>
@@ -412,7 +413,7 @@ export function OrderWorkflowTracker({
       {/* Workflow History */}
       <Card>
         <CardHeader>
-          <CardTitle>تاريخ الطلبية</CardTitle>
+          <CardTitle>{tr("تاريخ الطلبية")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -431,7 +432,7 @@ export function OrderWorkflowTracker({
                     <span className="font-medium text-sm">{getActionTypeText(item.action_type)}</span>
                     {item.from_stage_display && (
                       <>
-                        <span className="text-gray-500 text-sm">من</span>
+                        <span className="text-gray-500 text-sm">{tr("من")}</span>
                         <span className="text-sm">{item.from_stage_display}</span>
                       </>
                     )}
@@ -439,12 +440,12 @@ export function OrderWorkflowTracker({
                     <span className="text-sm">{item.to_stage_display}</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                    <span>بواسطة: {item.performed_by_username || "النظام"}</span>
-                    <span>القسم: {item.performed_by_department || "غير محدد"}</span>
+                    <span>{tr("بواسطة: ")}{item.performed_by_username || tr("النظام")}</span>
+                    <span>{tr("القسم: ")}{item.performed_by_department || tr("غير محدد")}</span>
                     <span>{formatDateTimeToBritish(item.created_at)}</span>
                   </div>
-                  {item.reason && <div className="text-sm text-orange-600 mb-1">السبب: {item.reason}</div>}
-                  {item.notes && <div className="text-sm text-gray-600">ملاحظات: {item.notes}</div>}
+                  {item.reason && <div className="text-sm text-orange-600 mb-1">{tr("السبب: ")}{item.reason}</div>}
+                  {item.notes && <div className="text-sm text-gray-600">{tr("ملاحظات: ")}{item.notes}</div>}
                 </div>
               </div>
             ))}

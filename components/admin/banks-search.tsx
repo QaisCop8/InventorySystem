@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useCallback, useMemo } from "react"
 import { Landmark } from "lucide-react"
 import CodeNameSearchDialog from "@/components/admin/code-name-search-dialog"
@@ -26,10 +27,10 @@ export default function BanksSearch({ open, onOpenChange, banks, onSelect }: Ban
     <CodeNameSearchDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="بحث البنوك"
+      title={tr("بحث البنوك")}
       icon={<Landmark className="h-4 w-4" />}
-      codeLabel="رقم البنك"
-      nameLabel="اسم البنك"
+      codeLabel={tr("رقم البنك")}
+      nameLabel={tr("اسم البنك")}
       records={records}
       toRecord={toRecord}
       onSelect={onSelect}

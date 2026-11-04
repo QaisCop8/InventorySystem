@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Loader2, PackageSearch, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -56,10 +57,10 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
         if (search.trim()) params.set("search", search.trim())
         const response = await fetch(`/api/sales-vouchers/consignments?${params}`, { signal: controller.signal })
         const data = await response.json().catch(() => [])
-        if (!response.ok) throw new Error(data?.error || "فشل في جلب الارساليات")
+        if (!response.ok) throw new Error(data?.error || tr("فشل في جلب الارساليات"))
         setRows(Array.isArray(data) ? data : [])
       } catch (cause: any) {
-        if (cause?.name !== "AbortError") setError(cause?.message || "فشل في جلب الارساليات")
+        if (cause?.name !== "AbortError") setError(cause?.message || tr("فشل في جلب الارساليات"))
       } finally { setLoading(false) }
     }, 250)
     return () => { controller.abort(); window.clearTimeout(timer) }
@@ -72,11 +73,11 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
       if (branchId) params.set("branch_id", String(branchId))
       const response = await fetch(`/api/sales-vouchers/consignments?${params}`)
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data?.error || "فشل في جلب أسطر الارسالية")
+      if (!response.ok) throw new Error(data?.error || tr("فشل في جلب أسطر الارسالية"))
       setPreview(data)
       setSelectedLineIds((Array.isArray(data?.lines) ? data.lines : []).map((line: ConsignmentLine) => Number(line.id)))
     } catch (cause: any) {
-      setError(cause?.message || "فشل في جلب أسطر الارسالية")
+      setError(cause?.message || tr("فشل في جلب أسطر الارسالية"))
     } finally { setPreviewLoading(false) }
   }
 
@@ -91,14 +92,14 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="z-[2001] flex max-h-[88vh] w-[min(1100px,calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()}>
+      <DialogContent className="z-[2001] flex max-h-[88vh] w-[min(1100px,calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir={appDir()} onPointerDownOutside={(event) => event.preventDefault()}>
         <div className="shrink-0 bg-gradient-to-l from-violet-700 to-indigo-600 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><PackageSearch className="h-5 w-5" /></span>
             <div className="text-right">
-              <DialogTitle className="text-base font-bold">{forType === 15 ? "اختيار ارسالية برسم البيع للمرتجع" : "فاتورة من ارسالية برسم البيع"}</DialogTitle>
+              <DialogTitle className="text-base font-bold">{forType === 15 ? tr("اختيار ارسالية برسم البيع للمرتجع") : tr("فاتورة من ارسالية برسم البيع")}</DialogTitle>
               <DialogDescription className="text-xs text-violet-50">
-                {forType === 15 ? "يُرجَع المتبقي (غير المفوتر) من الارسالية إلى المستودع — مرتجع واحد لكل ارسالية" : "تُفوتر الأصناف من المتبقي في الارسالية — يمكن عمل أكثر من فاتورة من نفس الارسالية"}
+                {forType === 15 ? tr("يُرجَع المتبقي (غير المفوتر) من الارسالية إلى المستودع — مرتجع واحد لكل ارسالية") : tr("تُفوتر الأصناف من المتبقي في الارسالية — يمكن عمل أكثر من فاتورة من نفس الارسالية")}
               </DialogDescription>
             </div>
           </div>
@@ -106,11 +107,11 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-3">
           <div className="relative min-w-[220px] flex-1">
-            <Search className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-slate-400" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث برقم الارسالية أو اسم المندوب" className="h-9 pr-8" autoFocus />
+            <Search className="pointer-events-none absolute start-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم الارسالية أو اسم المندوب")} className="h-9 ps-8" autoFocus />
           </div>
           <select value={salesmanId ?? ""} onChange={(event) => setSalesmanId(event.target.value ? Number(event.target.value) : null)} className="h-9 min-w-[200px] rounded-md border bg-white px-2 text-sm">
-            <option value="">كل المندوبين</option>
+            <option value="">{tr("كل المندوبين")}</option>
             {salesmen.map((salesman) => <option key={salesman.id} value={salesman.id}>{salesman.name}</option>)}
           </select>
         </div>
@@ -118,32 +119,32 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
         {error && <div className="mx-4 mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</div>}
 
         <div className="grid min-h-0 flex-1 gap-0 overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-          <div className="min-h-[220px] overflow-auto border-l">
+          <div className="min-h-[220px] overflow-auto border-e">
             {loading ? <div className="flex h-full min-h-[220px] items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
-              : rows.length === 0 ? <div className="flex h-full min-h-[220px] items-center justify-center p-4 text-center text-sm text-slate-400">لا توجد ارساليات برسم البيع مفتوحة</div>
+              : rows.length === 0 ? <div className="flex h-full min-h-[220px] items-center justify-center p-4 text-center text-sm text-slate-400">{tr("لا توجد ارساليات برسم البيع مفتوحة")}</div>
               : <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-100 text-xs text-slate-600"><tr><th className="px-3 py-2 text-right">الرقم</th><th className="px-3 py-2 text-right">التاريخ</th><th className="px-3 py-2 text-right">المندوب</th><th className="px-3 py-2 text-right">المتبقي</th></tr></thead>
+                  <thead className="sticky top-0 bg-slate-100 text-xs text-slate-600"><tr><th className="px-3 py-2 text-start">{tr("الرقم")}</th><th className="px-3 py-2 text-start">{tr("التاريخ")}</th><th className="px-3 py-2 text-start">{tr("المندوب")}</th><th className="px-3 py-2 text-start">{tr("المتبقي")}</th></tr></thead>
                   <tbody>{rows.map((row) => (
                     <tr key={row.id} onClick={() => void choose(row)} onDoubleClick={() => preview && preview.header.id === row.id && confirmSelection()}
                       className={`cursor-pointer border-t hover:bg-violet-50 ${selected?.id === row.id ? "bg-violet-100/70" : ""}`}>
                       <td className="px-3 py-2 font-mono font-semibold">{row.vch_code}</td>
                       <td className="px-3 py-2 text-slate-600">{day(row.vch_date)}</td>
                       <td className="px-3 py-2">{row.salesman_name || "—"}</td>
-                      <td className="px-3 py-2"><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">{fmt(row.remaining)} من {fmt(row.original)}</span></td>
+                      <td className="px-3 py-2"><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">{fmt(row.remaining)}{tr(" من ")}{fmt(row.original)}</span></td>
                     </tr>
                   ))}</tbody>
                 </table>}
           </div>
           <div className="min-h-[220px] overflow-auto bg-white">
             {previewLoading ? <div className="flex h-full min-h-[220px] items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
-              : !preview ? <div className="flex h-full min-h-[220px] items-center justify-center p-4 text-center text-sm text-slate-400">اختر ارسالية لعرض أصنافها المتبقية</div>
+              : !preview ? <div className="flex h-full min-h-[220px] items-center justify-center p-4 text-center text-sm text-slate-400">{tr("اختر ارسالية لعرض أصنافها المتبقية")}</div>
               : <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-slate-800 text-white"><tr>
-                    {forType === 12 && <th className="w-9 px-2 py-2 text-center"><input type="checkbox" checked={allPreviewLinesSelected} onChange={(event) => setSelectedLineIds(event.target.checked ? preview.lines.map((line) => line.id) : [])} aria-label="تحديد كل الأصناف" className="h-4 w-4 accent-violet-500" /></th>}
-                    <th className="px-2 py-2 text-right">الصنف</th><th className="px-2 py-2 text-right">الوحدة</th><th className="px-2 py-2 text-right">المرسل</th><th className="px-2 py-2 text-right">المفوتر</th><th className="px-2 py-2 text-right">المتبقي</th></tr></thead>
+                    {forType === 12 && <th className="w-9 px-2 py-2 text-center"><input type="checkbox" checked={allPreviewLinesSelected} onChange={(event) => setSelectedLineIds(event.target.checked ? preview.lines.map((line) => line.id) : [])} aria-label={tr("تحديد كل الأصناف")} className="h-4 w-4 accent-violet-500" /></th>}
+                    <th className="px-2 py-2 text-start">{tr("الصنف")}</th><th className="px-2 py-2 text-start">{tr("الوحدة")}</th><th className="px-2 py-2 text-start">{tr("المرسل")}</th><th className="px-2 py-2 text-start">{tr("المفوتر")}</th><th className="px-2 py-2 text-start">{tr("المتبقي")}</th></tr></thead>
                   <tbody>{preview.lines.map((line) => (
                     <tr key={line.id} className="border-t">
-                      {forType === 12 && <td className="px-2 py-1.5 text-center"><input type="checkbox" checked={selectedLineIds.includes(line.id)} onChange={(event) => setSelectedLineIds((current) => event.target.checked ? [...current, line.id] : current.filter((id) => id !== line.id))} aria-label={`تحديد ${line.product_name}`} className="h-4 w-4 accent-violet-600" /></td>}
+                      {forType === 12 && <td className="px-2 py-1.5 text-center"><input type="checkbox" checked={selectedLineIds.includes(line.id)} onChange={(event) => setSelectedLineIds((current) => event.target.checked ? [...current, line.id] : current.filter((id) => id !== line.id))} aria-label={tr("تحديد {0}", line.product_name)} className="h-4 w-4 accent-violet-600" /></td>}
                       <td className="px-2 py-1.5"><div className="font-semibold">{line.product_name}</div><div className="font-mono text-[11px] text-slate-400">{line.product_code}</div></td>
                       <td className="px-2 py-1.5">{line.unit_name}</td>
                       <td className="px-2 py-1.5">{fmt(line.original)}</td>
@@ -156,10 +157,10 @@ export function ConsignmentPickerDialog({ open, onOpenChange, forType, branchId,
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-slate-50 px-4 py-3">
-          <div className="text-xs text-slate-500">{preview ? <>{`الارسالية ${preview.header.vch_code} — المندوب: ${preview.header.salesman_name || "—"}`}{forType === 12 && <span className="mr-3">تم تحديد {selectedLineIds.length} من {preview.lines.length} صنف</span>}</> : ""}</div>
+          <div className="text-xs text-slate-500">{preview ? <>{tr("الارسالية {0} — المندوب: {1}", preview.header.vch_code, preview.header.salesman_name || "—")}{forType === 12 && <span className="mr-3">{tr("تم تحديد ")}{selectedLineIds.length}{tr(" من ")}{preview.lines.length}{tr(" صنف")}</span>}</> : ""}</div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />إلغاء</Button>
-            <Button disabled={!preview || (forType === 12 && selectedLineIds.length === 0)} onClick={confirmSelection} className="bg-violet-600 hover:bg-violet-700">اعتماد الارسالية</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />{tr("إلغاء")}</Button>
+            <Button disabled={!preview || (forType === 12 && selectedLineIds.length === 0)} onClick={confirmSelection} className="bg-violet-600 hover:bg-violet-700">{tr("اعتماد الارسالية")}</Button>
           </div>
         </div>
       </DialogContent>

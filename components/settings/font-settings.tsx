@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 import { createContext, useContext, useState, useEffect, useRef } from "react"
 import { applyUserFont, readUserFont, USER_FONT_STORAGE_KEY } from "@/lib/user-font"
@@ -51,10 +52,10 @@ const defaultSettings: FontSettings = {
 }
 
 const toolbarTemplates = [
-  { id: "modern", name: "عصري", description: "سطح أبيض وأزرار واضحة بحواف ناعمة", surface: "rounded-xl border-slate-200 bg-white shadow-sm", primary: "rounded-lg bg-slate-900", save: "rounded-lg bg-indigo-600", navigation: "rounded-lg bg-slate-100" },
-  { id: "gradient", name: "متدرج", description: "ألوان داكنة متدرجة ومظهر حيوي", surface: "rounded-xl border-indigo-400/30 bg-gradient-to-l from-slate-900 via-indigo-900 to-teal-800 shadow-lg", primary: "rounded-lg bg-white", save: "rounded-lg bg-gradient-to-l from-cyan-400 to-indigo-500", navigation: "rounded-lg bg-white/15" },
-  { id: "compact", name: "مدمج", description: "شريط عائم بأزرار أيقونات دائرية خفيفة", surface: "rounded-full border-slate-200 bg-white shadow-sm", primary: "h-5 w-5 rounded-full bg-slate-900", save: "h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500", navigation: "h-5 rounded-full bg-slate-100" },
-  { id: "classic", name: "كلاسيكي", description: "شريط Ribbon: تنقل علوي وأزرار أيقونة فوق النص", surface: "rounded-xl border-slate-200 border-t-4 border-t-indigo-500 bg-white shadow-sm", primary: "rounded-lg bg-emerald-100 ring-1 ring-emerald-300", save: "rounded-lg bg-indigo-600", navigation: "rounded-md bg-slate-100" },
+  { id: "modern", name: "عصري", description: tr("سطح أبيض وأزرار واضحة بحواف ناعمة"), surface: "rounded-xl border-slate-200 bg-white shadow-sm", primary: "rounded-lg bg-slate-900", save: "rounded-lg bg-indigo-600", navigation: "rounded-lg bg-slate-100" },
+  { id: "gradient", name: "متدرج", description: tr("ألوان داكنة متدرجة ومظهر حيوي"), surface: "rounded-xl border-indigo-400/30 bg-gradient-to-l from-slate-900 via-indigo-900 to-teal-800 shadow-lg", primary: "rounded-lg bg-white", save: "rounded-lg bg-gradient-to-l from-cyan-400 to-indigo-500", navigation: "rounded-lg bg-white/15" },
+  { id: "compact", name: "مدمج", description: tr("شريط عائم بأزرار أيقونات دائرية خفيفة"), surface: "rounded-full border-slate-200 bg-white shadow-sm", primary: "h-5 w-5 rounded-full bg-slate-900", save: "h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500", navigation: "h-5 rounded-full bg-slate-100" },
+  { id: "classic", name: "كلاسيكي", description: tr("شريط Ribbon: تنقل علوي وأزرار أيقونة فوق النص"), surface: "rounded-xl border-slate-200 border-t-4 border-t-indigo-500 bg-white shadow-sm", primary: "rounded-lg bg-emerald-100 ring-1 ring-emerald-300", save: "rounded-lg bg-indigo-600", navigation: "rounded-md bg-slate-100" },
 ] as const
 
 const FontContext = createContext<FontContextType | undefined>(undefined)
@@ -166,59 +167,59 @@ export const FontSettings: React.FC = () => {
       })
       if (!response.ok) {
         const result = await response.json().catch(() => null)
-        throw new Error(result?.details || result?.error || "تعذر حفظ إعدادات الخط")
+        throw new Error(result?.details || result?.error || tr("تعذر حفظ إعدادات الخط"))
       }
       await saveSettings()
-      messagesRef.current?.show?.([{ severity: "success", summary: "", detail: "تم حفظ إعدادات الخط للمستخدم", life: 4000 }])
+      messagesRef.current?.show?.([{ severity: "success", summary: "", detail: tr("تم حفظ إعدادات الخط للمستخدم"), life: 4000 }])
     } catch (error) {
       console.error(error)
       const reason = error instanceof Error ? error.message : "تعذر حفظ إعدادات الخط"
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `${reason} - لم يتم الحفظ`, life: 5000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("{0} - لم يتم الحفظ", reason), life: 5000 }])
     } finally {
       setIsSaving(false)
     }
   }
 
   const fontFamilies = [
-    { value: "Arabic Transparent", label: "Arabic Transparent (عربي شفاف)" },
-    { value: "Simplified Arabic", label: "Simplified Arabic (العربية المبسطة)" },
-    { value: "Traditional Arabic", label: "Traditional Arabic (العربية التقليدية)" },
-    { value: "Cairo", label: "Cairo (عربي)" },
-    { value: "Inter", label: "Inter (إنجليزي)" },
-    { value: "Tajawal", label: "Tajawal (عربي)" },
-    { value: "Amiri", label: "Amiri (عربي)" },
+    { value: "Arabic Transparent", label: tr("Arabic Transparent (عربي شفاف)") },
+    { value: "Simplified Arabic", label: tr("Simplified Arabic (العربية المبسطة)") },
+    { value: "Traditional Arabic", label: tr("Traditional Arabic (العربية التقليدية)") },
+    { value: "Cairo", label: tr("Cairo (عربي)") },
+    { value: "Inter", label: tr("Inter (إنجليزي)") },
+    { value: "Tajawal", label: tr("Tajawal (عربي)") },
+    { value: "Amiri", label: tr("Amiri (عربي)") },
     { value: "Noto Sans Arabic", label: "Noto Sans Arabic" },
-    { value: "system-ui", label: "خط النظام" },
+    { value: "system-ui", label: tr("خط النظام") },
   ]
 
   const fontWeights = [
-    { value: "200", label: "رفيع جداً" },
-    { value: "300", label: "رفيع" },
-    { value: "400", label: "عادي" },
-    { value: "500", label: "متوسط" },
-    { value: "600", label: "سميك" },
-    { value: "700", label: "سميك جداً" },
-    { value: "800", label: "سميك للغاية" },
-    { value: "900", label: "أسود" },
+    { value: "200", label: tr("رفيع جداً") },
+    { value: "300", label: tr("رفيع") },
+    { value: "400", label: tr("عادي") },
+    { value: "500", label: tr("متوسط") },
+    { value: "600", label: tr("سميك") },
+    { value: "700", label: tr("سميك جداً") },
+    { value: "800", label: tr("سميك للغاية") },
+    { value: "900", label: tr("أسود") },
   ]
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       <div className="flex flex-wrap items-center justify-end gap-3 rounded-xl border bg-card p-3 shadow-sm">
         <Button variant="outline" onClick={resetSettings} className="flex items-center gap-2 bg-transparent">
           <RotateCcw className="h-4 w-4" />
-          إعادة تعيين
+          {tr("إعادة تعيين")}
         </Button>
         <Button className="flex items-center gap-2" onClick={saveUserFontSettings} disabled={isSaving || !user?.id}>
           <Type className="h-4 w-4" />
-          {isSaving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+          {isSaving ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
         </Button>
       </div>
       <Messages innerRef={messagesRef} />
       <div className="mb-6 flex items-center gap-3">
         <div className="flex items-center gap-3">
           <Type className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold text-right">إعدادات الخطوط</h2>
+          <h2 className="text-2xl font-bold text-start">{tr("إعدادات الخطوط")}</h2>
         </div>
       </div>
 
@@ -228,13 +229,13 @@ export const FontSettings: React.FC = () => {
           <CardHeader>
             <CardTitle className="text-right flex items-center gap-2">
               <Type className="h-5 w-5" />
-              نوع الخط
+              {tr("نوع الخط")}
             </CardTitle>
-            <CardDescription className="text-right">اختر نوع الخط المناسب للنظام</CardDescription>
+            <CardDescription className="text-right">{tr("اختر نوع الخط المناسب للنظام")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-right block">عائلة الخط</Label>
+              <Label className="text-right block">{tr("عائلة الخط")}</Label>
               <Select value={settings.fontFamily} onValueChange={(value) => updateSettings({ fontFamily: value })}>
                 <SelectTrigger className="text-right">
                   <SelectValue />
@@ -250,7 +251,7 @@ export const FontSettings: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-right block">وزن الخط</Label>
+              <Label className="text-right block">{tr("وزن الخط")}</Label>
               <Select value={settings.fontWeight} onValueChange={(value) => updateSettings({ fontWeight: value })}>
                 <SelectTrigger className="text-right">
                   <SelectValue />
@@ -272,15 +273,15 @@ export const FontSettings: React.FC = () => {
           <CardHeader>
             <CardTitle className="text-right flex items-center gap-2">
               <Palette className="h-5 w-5" />
-              حجم الخط والمسافات
+              {tr("حجم الخط والمسافات")}
             </CardTitle>
-            <CardDescription className="text-right">تحكم في حجم الخط والمسافات بين الأحرف والأسطر</CardDescription>
+            <CardDescription className="text-right">{tr("تحكم في حجم الخط والمسافات بين الأحرف والأسطر")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{settings.fontSize}px</span>
-                <Label className="text-right">حجم الخط</Label>
+                <Label className="text-right">{tr("حجم الخط")}</Label>
               </div>
               <Slider
                 value={[settings.fontSize]}
@@ -301,7 +302,7 @@ export const FontSettings: React.FC = () => {
                       updateSettings({ fontSize: Math.min(24, Math.max(10, Math.round(value))) })
                     }
                   }}
-                  aria-label="حجم الخط بالبكسل"
+                  aria-label={tr("حجم الخط بالبكسل")}
                   min={10}
                   max={24}
                   step={1}
@@ -316,7 +317,7 @@ export const FontSettings: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{settings.lineHeight}</span>
-                <Label className="text-right">ارتفاع السطر</Label>
+                <Label className="text-right">{tr("ارتفاع السطر")}</Label>
               </div>
               <Slider
                 value={[settings.lineHeight]}
@@ -333,7 +334,7 @@ export const FontSettings: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">{settings.letterSpacing}px</span>
-                <Label className="text-right">المسافة بين الأحرف</Label>
+                <Label className="text-right">{tr("المسافة بين الأحرف")}</Label>
               </div>
               <Slider
                 value={[settings.letterSpacing]}
@@ -351,12 +352,12 @@ export const FontSettings: React.FC = () => {
       {/* DataGridView Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-right">إعدادات جداول البيانات</CardTitle>
-          <CardDescription className="text-right">تخصيص رأس الجدول والصفوف والصف المحدد في جميع شاشات النظام</CardDescription>
+          <CardTitle className="text-right">{tr("إعدادات جداول البيانات")}</CardTitle>
+          <CardDescription className="text-right">{tr("تخصيص رأس الجدول والصفوف والصف المحدد في جميع شاشات النظام")}</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="grid-header-height" className="block text-right">ارتفاع رأس الجدول (px)</Label>
+            <Label htmlFor="grid-header-height" className="block text-start">{tr("ارتفاع رأس الجدول (px)")}</Label>
             <Input
               id="grid-header-height"
               type="number"
@@ -368,7 +369,7 @@ export const FontSettings: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="grid-header-color" className="block text-right">لون خلفية رأس الجدول</Label>
+            <Label htmlFor="grid-header-color" className="block text-start">{tr("لون خلفية رأس الجدول")}</Label>
             <div className="flex items-center gap-2" dir="ltr">
               <Input
                 id="grid-header-color"
@@ -382,7 +383,7 @@ export const FontSettings: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label className="block text-right">نوع خط رأس الجدول</Label>
+            <Label className="block text-start">{tr("نوع خط رأس الجدول")}</Label>
             <Select value={settings.gridHeaderFontFamily} onValueChange={(value) => updateSettings({ gridHeaderFontFamily: value })}>
               <SelectTrigger className="text-right"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -396,7 +397,7 @@ export const FontSettings: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="grid-row-height" className="block text-right">ارتفاع الصف (px)</Label>
+            <Label htmlFor="grid-row-height" className="block text-start">{tr("ارتفاع الصف (px)")}</Label>
             <Input
               id="grid-row-height"
               type="number"
@@ -408,7 +409,7 @@ export const FontSettings: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="grid-selected-color" className="block text-right">لون خلفية الصف المحدد</Label>
+            <Label htmlFor="grid-selected-color" className="block text-start">{tr("لون خلفية الصف المحدد")}</Label>
             <div className="flex items-center gap-2" dir="ltr">
               <Input
                 id="grid-selected-color"
@@ -426,10 +427,10 @@ export const FontSettings: React.FC = () => {
               className="flex items-center px-3 font-semibold text-white"
               style={{ height: settings.gridHeaderHeight, backgroundColor: settings.gridHeaderColor, fontFamily: settings.gridHeaderFontFamily }}
             >
-              معاينة رأس الجدول
+              {tr("معاينة رأس الجدول")}
             </div>
             <div className="flex items-center px-3" style={{ height: settings.gridRowHeight, backgroundColor: settings.gridSelectedRowColor }}>
-              معاينة الصف المحدد
+              {tr("معاينة الصف المحدد")}
             </div>
           </div>
         </CardContent>
@@ -437,11 +438,11 @@ export const FontSettings: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-right">
+          <CardTitle className="flex items-center gap-2 text-start">
             <PanelsTopLeft className="h-5 w-5" />
-            قوالب شريط الأوامر
+            {tr("قوالب شريط الأوامر")}
           </CardTitle>
-          <CardDescription className="text-right">اختر شكل شريط الأوامر الموحد في شاشات النظام</CardDescription>
+          <CardDescription className="text-right">{tr("اختر شكل شريط الأوامر الموحد في شاشات النظام")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {toolbarTemplates.map((template) => {
@@ -452,9 +453,9 @@ export const FontSettings: React.FC = () => {
                 type="button"
                 aria-pressed={selected}
                 onClick={() => updateThemeSettings({ toolbar_style: template.id })}
-                className={`group relative overflow-hidden rounded-2xl border-2 p-3 text-right transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${selected ? "border-primary bg-primary/5 shadow-md" : "border-border bg-card"}`}
+                className={`group relative overflow-hidden rounded-2xl border-2 p-3 text-start transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${selected ? "border-primary bg-primary/5 shadow-md" : "border-border bg-card"}`}
               >
-                {selected && <span className="absolute left-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"><Check className="h-4 w-4" /></span>}
+                {selected && <span className="absolute end-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"><Check className="h-4 w-4" /></span>}
                 <div className={`mb-3 items-center gap-1.5 border p-2 ${template.id === "gradient" || template.id === "classic" ? "grid h-24 grid-cols-2" : "flex h-14"} ${template.surface}`}>
                   <span className={`block ${template.id === "gradient" ? "h-10 w-12" : template.id === "compact" ? "h-5 w-5" : "h-7 w-10"} ${template.primary}`} />
                   <span className={`block ${template.id === "gradient" ? "h-10 w-12" : template.id === "compact" ? "h-5 w-5" : "h-7 w-10"} ${template.save}`} />
@@ -471,8 +472,8 @@ export const FontSettings: React.FC = () => {
       {/* Preview Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-right">معاينة الخط</CardTitle>
-          <CardDescription className="text-right">شاهد كيف ستبدو النصوص بالإعدادات الحالية</CardDescription>
+          <CardTitle className="text-right">{tr("معاينة الخط")}</CardTitle>
+          <CardDescription className="text-right">{tr("شاهد كيف ستبدو النصوص بالإعدادات الحالية")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div
@@ -485,16 +486,15 @@ export const FontSettings: React.FC = () => {
               letterSpacing: `${settings.letterSpacing}px`,
             }}
           >
-            <h3 className="text-xl font-bold text-right">عنوان رئيسي</h3>
-            <h4 className="text-lg font-semibold text-right">عنوان فرعي</h4>
+            <h3 className="text-xl font-bold text-start">{tr("عنوان رئيسي")}</h3>
+            <h4 className="text-lg font-semibold text-start">{tr("عنوان فرعي")}</h4>
             <p className="text-right">
-              هذا نص تجريبي لمعاينة الخط المحدد. يمكنك رؤية كيف ستبدو النصوص في النظام بالإعدادات الحالية. النص العربي
-              يحتاج إلى خطوط مناسبة لضمان الوضوح والقراءة السهلة.
+              {tr("هذا نص تجريبي لمعاينة الخط المحدد. يمكنك رؤية كيف ستبدو النصوص في النظام بالإعدادات الحالية. النص العربي يحتاج إلى خطوط مناسبة لضمان الوضوح والقراءة السهلة.")}
             </p>
-            <div className="flex gap-4 text-sm text-right">
-              <span className="font-bold">نص سميك</span>
-              <span className="font-normal">نص عادي</span>
-              <span className="font-light">نص رفيع</span>
+            <div className="flex gap-4 text-sm text-start">
+              <span className="font-bold">{tr("نص سميك")}</span>
+              <span className="font-normal">{tr("نص عادي")}</span>
+              <span className="font-light">{tr("نص رفيع")}</span>
             </div>
           </div>
         </CardContent>

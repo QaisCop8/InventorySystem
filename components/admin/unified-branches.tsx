@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -141,7 +142,7 @@ export default function UnifiedBranches({
   return (
     <>
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir="rtl">
+        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir={appDir()}>
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
@@ -161,19 +162,19 @@ export default function UnifiedBranches({
 
           <div className="rounded-b-3xl bg-background px-6 py-6">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل الفرع" : "إضافة فرع جديد"}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل الفرع") : tr("إضافة فرع جديد")}</DialogTitle>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="branch-code">رقم الفرع</Label>
+                <Label htmlFor="branch-code">{tr("رقم الفرع")}</Label>
                 <Input
                   id="branch-code"
                   value={form.branch_code}
                   onChange={(e) => onFormChange("branch_code", e.target.value.replace(/\D/g, "").slice(0, 4))}
                   // رقم الفرع 4 خانات: 1 ⇐ 0001
                   onBlur={(e) => { const code = e.target.value.replace(/\D/g, ""); if (code) onFormChange("branch_code", code.padStart(4, "0")) }}
-                  placeholder="4 خانات، مثل 0001"
+                  placeholder={tr("4 خانات، مثل 0001")}
                   ref={codeInputRef}
                   maxLength={4}
                   inputMode="numeric"
@@ -181,27 +182,27 @@ export default function UnifiedBranches({
                   autoComplete="off"
                 />
                 {showBranchCodeValidationError && (
-                  <p className="text-sm text-destructive">رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط.</p>
+                  <p className="text-sm text-destructive">{tr("رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط.")}</p>
                 )}
                 {hasDuplicateCode && (
-                  <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
+                  <p className="text-sm text-destructive">{tr("هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.")}</p>
                 )}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="branch-name">اسم الفرع</Label>
+                <Label htmlFor="branch-name">{tr("اسم الفرع")}</Label>
                 <Input
                   id="branch-name"
                   value={form.branch_name}
                   onChange={(e) => onFormChange("branch_name", e.target.value)}
                 />
                 {hasDuplicateName && (
-                  <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
+                  <p className="text-sm text-destructive">{tr("هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.")}</p>
                 )}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="branch-bank">البنك</Label>
+                <Label htmlFor="branch-bank">{tr("البنك")}</Label>
                 <select
                   id="branch-bank"
                   value={form.bank_id != null ? String(form.bank_id) : ""}
@@ -209,7 +210,7 @@ export default function UnifiedBranches({
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="" disabled>
-                    اختر البنك
+                    {tr("اختر البنك")}
                   </option>
                   {banks.length > 0 ? (
                     banks.map((bank) => (
@@ -219,12 +220,12 @@ export default function UnifiedBranches({
                     ))
                   ) : (
                     <option value="" disabled>
-                      لا توجد بنوك متاحة
+                      {tr("لا توجد بنوك متاحة")}
                     </option>
                   )}
                 </select>
                 {shouldShowBankError && (
-                  <p className="text-sm text-destructive">يجب ادخال رقم البنك</p>
+                  <p className="text-sm text-destructive">{tr("يجب ادخال رقم البنك")}</p>
                 )}
               </div>
               {saveError && <p className="text-sm text-destructive">{saveError}</p>}
@@ -235,7 +236,7 @@ export default function UnifiedBranches({
 
       <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
-        message="هل تريد حذف هذا الفرع؟"
+        message={tr("هل تريد حذف هذا الفرع؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { CornerDownLeft, Search, X } from "lucide-react"
 import { menuItems, type MenuItem } from "@/components/sidebar"
@@ -130,12 +131,12 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
               inputRef.current?.blur()
             }
           }}
-          placeholder="ابحث عن شاشة أو تقرير..."
-          className="min-w-0 flex-1 bg-transparent text-right text-sm outline-none placeholder:text-muted-foreground"
-          aria-label="بحث في النظام"
+          placeholder={tr("ابحث عن شاشة أو تقرير...")}
+          className="min-w-0 flex-1 bg-transparent text-start text-sm outline-none placeholder:text-muted-foreground"
+          aria-label={tr("بحث في النظام")}
         />
         {query ? (
-          <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus() }} className="rounded-md p-0.5 text-muted-foreground hover:bg-muted" aria-label="مسح">
+          <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus() }} className="rounded-md p-0.5 text-muted-foreground hover:bg-muted" aria-label={tr("مسح")}>
             <X className="h-3.5 w-3.5" />
           </button>
         ) : (
@@ -144,7 +145,7 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
       </div>
 
       {showPanel && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border bg-popover shadow-2xl" dir="rtl">
+        <div className="absolute end-0 start-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border bg-popover shadow-2xl" dir={appDir()}>
           {results.length ? (
             <ul className="max-h-[60vh] overflow-y-auto p-1.5" role="listbox">
               {results.map((entry, index) => {
@@ -157,7 +158,7 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
                       onMouseEnter={() => setActiveIndex(index)}
                       onClick={() => choose(entry)}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-right transition-colors",
+                        "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-start transition-colors",
                         active ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-100" : "hover:bg-muted",
                       )}
                     >
@@ -175,11 +176,11 @@ export function GlobalSearch({ onNavigate, className }: { onNavigate: (section: 
               })}
             </ul>
           ) : (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">لا توجد شاشات مطابقة لـ «{query.trim()}»</div>
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">{tr("لا توجد شاشات مطابقة لـ «")}{query.trim()}»</div>
           )}
           <div className="flex items-center justify-between border-t bg-muted/30 px-3 py-1.5 text-[10px] text-muted-foreground">
-            <span>↑↓ للتنقل · Enter للفتح · Esc للإغلاق</span>
-            <span>{results.length} نتيجة</span>
+            <span>{tr("↑↓ للتنقل · Enter للفتح · Esc للإغلاق")}</span>
+            <span>{results.length}{tr(" نتيجة")}</span>
           </div>
         </div>
       )}

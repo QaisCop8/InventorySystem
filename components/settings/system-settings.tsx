@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,18 +19,18 @@ import { buildVoucherCode } from "@/lib/voucher-code"
 const PARENT_ACCOUNT_SETTING_KEYS = new Set(["customerParentAccount", "customerCreditAccount", "salesmanParentAccount", "supplierParentAccount", "newEmployeeAccount", "customerSubscriptionAccount"])
 
 const defaultAccountFields = [
-  { key: "customerParentAccount", label: "حساب اب العملاء في ملف تعريف العملاء" },
-  { key: "customerCreditAccount", label: "حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات" },
-  { key: "salesTaxAccount", label: "حساب الضريبة على المبيعات" },
-  { key: "currencyTransferAccount", label: "حساب تحويلات عملة" },
-  { key: "earnedDiscountAccount", label: "حساب الخصم المكتسب" },
-  { key: "exchangeGainLossAccount", label: "حساب ارباح وخسائر فروقات العملة" },
-  { key: "salesmanParentAccount", label: "حساب اب المندوبين في ملف تعريف المندوبين" },
-  { key: "supplierParentAccount", label: "حساب اب الموردين في ملف تعريف الموردين" },
-  { key: "customerSubscriptionAccount", label: "حساب اب المشتركين في ملف تعريف المشتركين" },
-  { key: "purchaseTaxAccount", label: "حساب الضريبة على المشتريات" },
-  { key: "newEmployeeAccount", label: "حساب الاب الافتراضي عند تعريف موظف جديد" },
-  { key: "allowedDiscountAccount", label: "حساب خصم مسموح به" },
+  { key: "customerParentAccount", label: tr("حساب اب العملاء في ملف تعريف العملاء") },
+  { key: "customerCreditAccount", label: tr("حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات") },
+  { key: "salesTaxAccount", label: tr("حساب الضريبة على المبيعات") },
+  { key: "currencyTransferAccount", label: tr("حساب تحويلات عملة") },
+  { key: "earnedDiscountAccount", label: tr("حساب الخصم المكتسب") },
+  { key: "exchangeGainLossAccount", label: tr("حساب ارباح وخسائر فروقات العملة") },
+  { key: "salesmanParentAccount", label: tr("حساب اب المندوبين في ملف تعريف المندوبين") },
+  { key: "supplierParentAccount", label: tr("حساب اب الموردين في ملف تعريف الموردين") },
+  { key: "customerSubscriptionAccount", label: tr("حساب اب المشتركين في ملف تعريف المشتركين") },
+  { key: "purchaseTaxAccount", label: tr("حساب الضريبة على المشتريات") },
+  { key: "newEmployeeAccount", label: tr("حساب الاب الافتراضي عند تعريف موظف جديد") },
+  { key: "allowedDiscountAccount", label: tr("حساب خصم مسموح به") },
 ] as const
 
 type DefaultAccountFieldKey = (typeof defaultAccountFields)[number]["key"]
@@ -37,15 +38,15 @@ type DefaultAccountFieldKey = (typeof defaultAccountFields)[number]["key"]
 const defaultAccountFieldKeys = defaultAccountFields.map((field) => field.key)
 
 const productAccountFields = [
-  { key: "sellingAccount", label: "حساب المبيعات الافتراضي" },
-  { key: "purchaseAccount", label: "حساب المشتريات الافتراضي" },
-  { key: "sellingReturnsAccount", label: "حساب مرتجعات المبيعات الافتراضي" },
-  { key: "purchaseReturnsAccount", label: "حساب مرتجعات المشتريات الافتراضي" },
-  { key: "stockEndAccount", label: "حساب تقييم بضاعة آخر المدة الافتراضي" },
-  { key: "stockStartAccount", label: "حساب تقييم بضاعة أول المدة الافتراضي" },
-  { key: "productionAccount", label: "حساب الإنتاج الافتراضي" },
-  { key: "municipalityServiceAccount", label: "حساب المصاريف البلدية الافتراضي" },
-  { key: "lsti3malAccount", label: "حساب المصروف في سند الاستعمال الافتراضي" },
+  { key: "sellingAccount", label: tr("حساب المبيعات الافتراضي") },
+  { key: "purchaseAccount", label: tr("حساب المشتريات الافتراضي") },
+  { key: "sellingReturnsAccount", label: tr("حساب مرتجعات المبيعات الافتراضي") },
+  { key: "purchaseReturnsAccount", label: tr("حساب مرتجعات المشتريات الافتراضي") },
+  { key: "stockEndAccount", label: tr("حساب تقييم بضاعة آخر المدة الافتراضي") },
+  { key: "stockStartAccount", label: tr("حساب تقييم بضاعة أول المدة الافتراضي") },
+  { key: "productionAccount", label: tr("حساب الإنتاج الافتراضي") },
+  { key: "municipalityServiceAccount", label: tr("حساب المصاريف البلدية الافتراضي") },
+  { key: "lsti3malAccount", label: tr("حساب المصروف في سند الاستعمال الافتراضي") },
 ] as const
 
 type ProductAccountFieldKey = (typeof productAccountFields)[number]["key"]
@@ -73,12 +74,12 @@ const emptyProductAccountValues = productAccountFields.reduce(
 )
 
 const SETTINGS_SECTIONS = [
-  { id: "company", title: "معلومات الشركة", description: "الاسم، العنوان، بيانات التواصل والشعار", icon: Building2 },
-  { id: "system", title: "إعدادات النظام", description: "العملة، اللغة، المنطقة الزمنية والتنسيقات", icon: Globe },
-  { id: "general", title: "اعدادات عامة", description: "فترة العمل، القبض والصرف، الحسابات والأصناف", icon: SlidersHorizontal },
-  { id: "accounts", title: "الحسابات الافتراضية", description: "حسابات الأب للعملاء والموردين والضرائب", icon: Wallet },
-  { id: "product_accounts", title: "حسابات الأصناف", description: "الحسابات الافتراضية للأصناف", icon: Package },
-  { id: "documents", title: "السندات والترقيم", description: "بادئات وأرقام بداية السندات والملفات", icon: FileText },
+  { id: "company", title: tr("معلومات الشركة"), description: tr("الاسم، العنوان، بيانات التواصل والشعار"), icon: Building2 },
+  { id: "system", title: tr("إعدادات النظام"), description: tr("العملة، اللغة، المنطقة الزمنية والتنسيقات"), icon: Globe },
+  { id: "general", title: tr("اعدادات عامة"), description: tr("فترة العمل، القبض والصرف، الحسابات والأصناف"), icon: SlidersHorizontal },
+  { id: "accounts", title: tr("الحسابات الافتراضية"), description: tr("حسابات الأب للعملاء والموردين والضرائب"), icon: Wallet },
+  { id: "product_accounts", title: tr("حسابات الأصناف"), description: tr("الحسابات الافتراضية للأصناف"), icon: Package },
+  { id: "documents", title: tr("السندات والترقيم"), description: tr("بادئات وأرقام بداية السندات والملفات"), icon: FileText },
 ] as const
 
 type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"]
@@ -432,99 +433,99 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
 
       // Validation
       if (!settings.companyName.trim()) {
-        validationError("اسم الشركة مطلوب")
+        validationError(tr("اسم الشركة مطلوب"))
         return
       }
 
       const prefixes = [
-        { label: "بادئة طلبات المبيعات", value: settings.orderPrefix },
-        { label: "بادئة طلبات الشراء", value: settings.purchasePrefix },
-        { label: "بادئة سندات القبض", value: settings.receiptPrefix },
-        { label: "بادئة سندات الصرف", value: settings.paymentPrefix },
-        { label: "بادئة الاشعار الدائن", value: settings.creditNotePrefix },
-        { label: "بادئة الاشعار المدين", value: settings.debitNotePrefix },
-        { label: "بادئة سند ادخال بضاعة", value: settings.stockInPrefix },
-        { label: "بادئة سند اخراج بضاعة", value: settings.stockOutPrefix },
-        { label: "بادئة ارسالية داخلية", value: settings.internalDeliveryPrefix },
-        { label: "بادئة سند استعمال", value: settings.useVoucherPrefix },
-        { label: "بادئة فاتورة مبيعات", value: settings.salesInvoicePrefix },
-        { label: "بادئة إرسالية مبيعات", value: settings.deliverySellPrefix },
-        { label: "بادئة إرسالية برسم البيع", value: settings.deliveryConsignmentSalePrefix },
-        { label: "بادئة مرتجع إرسالية برسم البيع", value: settings.returnDeliveryConsignmentSalePrefix },
-        { label: "بادئة مرتجع مبيعات", value: settings.returnSellPrefix },
-        { label: "بادئة فاتورة مشتريات", value: settings.purchaseInvoicePrefix },
-        { label: "بادئة إرسالية مشتريات", value: settings.deliveryPayPrefix },
-        { label: "بادئة مرتجع مشتريات", value: settings.returnPurchasePrefix },
-        { label: "بادئة سندات القيد", value: settings.journalPrefix },
-        { label: "بادئة العملاء", value: settings.customerPrefix },
-        { label: "بادئة الموظفين", value: settings.employeePrefix },
-        { label: "بادئة الموردين", value: settings.supplierPrefix },
-        { label: "بادئة مجموعات الأصناف", value: settings.itemGroupPrefix },
+        { label: tr("بادئة طلبات المبيعات"), value: settings.orderPrefix },
+        { label: tr("بادئة طلبات الشراء"), value: settings.purchasePrefix },
+        { label: tr("بادئة سندات القبض"), value: settings.receiptPrefix },
+        { label: tr("بادئة سندات الصرف"), value: settings.paymentPrefix },
+        { label: tr("بادئة الاشعار الدائن"), value: settings.creditNotePrefix },
+        { label: tr("بادئة الاشعار المدين"), value: settings.debitNotePrefix },
+        { label: tr("بادئة سند ادخال بضاعة"), value: settings.stockInPrefix },
+        { label: tr("بادئة سند اخراج بضاعة"), value: settings.stockOutPrefix },
+        { label: tr("بادئة ارسالية داخلية"), value: settings.internalDeliveryPrefix },
+        { label: tr("بادئة سند استعمال"), value: settings.useVoucherPrefix },
+        { label: tr("بادئة فاتورة مبيعات"), value: settings.salesInvoicePrefix },
+        { label: tr("بادئة إرسالية مبيعات"), value: settings.deliverySellPrefix },
+        { label: tr("بادئة إرسالية برسم البيع"), value: settings.deliveryConsignmentSalePrefix },
+        { label: tr("بادئة مرتجع إرسالية برسم البيع"), value: settings.returnDeliveryConsignmentSalePrefix },
+        { label: tr("بادئة مرتجع مبيعات"), value: settings.returnSellPrefix },
+        { label: tr("بادئة فاتورة مشتريات"), value: settings.purchaseInvoicePrefix },
+        { label: tr("بادئة إرسالية مشتريات"), value: settings.deliveryPayPrefix },
+        { label: tr("بادئة مرتجع مشتريات"), value: settings.returnPurchasePrefix },
+        { label: tr("بادئة سندات القيد"), value: settings.journalPrefix },
+        { label: tr("بادئة العملاء"), value: settings.customerPrefix },
+        { label: tr("بادئة الموظفين"), value: settings.employeePrefix },
+        { label: tr("بادئة الموردين"), value: settings.supplierPrefix },
+        { label: tr("بادئة مجموعات الأصناف"), value: settings.itemGroupPrefix },
       ]
 
       for (const prefix of prefixes) {
         if (!isValidPrefix(prefix.value)) {
-          validationError(`${prefix.label}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف، بدون أرقام أو رموز خاصة`)
+          validationError(tr("{0}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف، بدون أرقام أو رموز خاصة", prefix.label))
           return
         }
       }
 
       const isValidVoucherStart = (value: number) => Number.isInteger(value) && value > 0 && value <= 10000
       const voucherStarts = [
-        { label: "الترقيم يبدأ من (سندات القبض)", value: settings.receiptStart },
-        { label: "الترقيم يبدأ من (سندات الصرف)", value: settings.paymentStart },
-        { label: "الترقيم يبدأ من (الاشعار الدائن)", value: settings.creditNoteStart },
-        { label: "الترقيم يبدأ من (الاشعار المدين)", value: settings.debitNoteStart },
-        { label: "الترقيم يبدأ من (سند ادخال بضاعة)", value: settings.stockInStart },
-        { label: "الترقيم يبدأ من (سند اخراج بضاعة)", value: settings.stockOutStart },
-        { label: "الترقيم يبدأ من (ارسالية داخلية)", value: settings.internalDeliveryStart },
-        { label: "الترقيم يبدأ من (سند استعمال)", value: settings.useVoucherStart },
-        { label: "الترقيم يبدأ من (فاتورة مبيعات)", value: settings.salesInvoiceStart },
-        { label: "الترقيم يبدأ من (إرسالية مبيعات)", value: settings.deliverySellStart },
-        { label: "الترقيم يبدأ من (إرسالية برسم البيع)", value: settings.deliveryConsignmentSaleStart },
-        { label: "الترقيم يبدأ من (مرتجع إرسالية برسم البيع)", value: settings.returnDeliveryConsignmentSaleStart },
-        { label: "الترقيم يبدأ من (مرتجع مبيعات)", value: settings.returnSellStart },
-        { label: "الترقيم يبدأ من (فاتورة مشتريات)", value: settings.purchaseInvoiceStart },
-        { label: "الترقيم يبدأ من (إرسالية مشتريات)", value: settings.deliveryPayStart },
-        { label: "الترقيم يبدأ من (مرتجع مشتريات)", value: settings.returnPurchaseStart },
-        { label: "الترقيم يبدأ من (سندات القيد)", value: settings.journalStart },
+        { label: tr("الترقيم يبدأ من (سندات القبض)"), value: settings.receiptStart },
+        { label: tr("الترقيم يبدأ من (سندات الصرف)"), value: settings.paymentStart },
+        { label: tr("الترقيم يبدأ من (الاشعار الدائن)"), value: settings.creditNoteStart },
+        { label: tr("الترقيم يبدأ من (الاشعار المدين)"), value: settings.debitNoteStart },
+        { label: tr("الترقيم يبدأ من (سند ادخال بضاعة)"), value: settings.stockInStart },
+        { label: tr("الترقيم يبدأ من (سند اخراج بضاعة)"), value: settings.stockOutStart },
+        { label: tr("الترقيم يبدأ من (ارسالية داخلية)"), value: settings.internalDeliveryStart },
+        { label: tr("الترقيم يبدأ من (سند استعمال)"), value: settings.useVoucherStart },
+        { label: tr("الترقيم يبدأ من (فاتورة مبيعات)"), value: settings.salesInvoiceStart },
+        { label: tr("الترقيم يبدأ من (إرسالية مبيعات)"), value: settings.deliverySellStart },
+        { label: tr("الترقيم يبدأ من (إرسالية برسم البيع)"), value: settings.deliveryConsignmentSaleStart },
+        { label: tr("الترقيم يبدأ من (مرتجع إرسالية برسم البيع)"), value: settings.returnDeliveryConsignmentSaleStart },
+        { label: tr("الترقيم يبدأ من (مرتجع مبيعات)"), value: settings.returnSellStart },
+        { label: tr("الترقيم يبدأ من (فاتورة مشتريات)"), value: settings.purchaseInvoiceStart },
+        { label: tr("الترقيم يبدأ من (إرسالية مشتريات)"), value: settings.deliveryPayStart },
+        { label: tr("الترقيم يبدأ من (مرتجع مشتريات)"), value: settings.returnPurchaseStart },
+        { label: tr("الترقيم يبدأ من (سندات القيد)"), value: settings.journalStart },
       ]
       for (const start of voucherStarts) {
         if (!isValidVoucherStart(start.value)) {
-          validationError(`${start.label}: يجب أن يكون رقمًا صحيحًا من 1 إلى 10000`)
+          validationError(tr("{0}: يجب أن يكون رقمًا صحيحًا من 1 إلى 10000", start.label))
           return
         }
       }
 
       const starts = [
-        { label: "بداية ترقيم طلبات المبيعات", value: settings.orderStart },
-        { label: "بداية ترقيم طلبات الشراء", value: settings.purchaseStart },
-        { label: "بداية ترقيم العملاء", value: settings.customerStart },
-        { label: "الرقم يبدأ من (الموظفين)", value: settings.employeeStart },
-        { label: "بداية ترقيم الموردين", value: settings.supplierStart },
-        { label: "بداية ترقيم مجموعات الأصناف", value: settings.itemGroupStart },
-        { label: "بداية ترقيم الأصناف", value: settings.itemStart },
+        { label: tr("بداية ترقيم طلبات المبيعات"), value: settings.orderStart },
+        { label: tr("بداية ترقيم طلبات الشراء"), value: settings.purchaseStart },
+        { label: tr("بداية ترقيم العملاء"), value: settings.customerStart },
+        { label: tr("الرقم يبدأ من (الموظفين)"), value: settings.employeeStart },
+        { label: tr("بداية ترقيم الموردين"), value: settings.supplierStart },
+        { label: tr("بداية ترقيم مجموعات الأصناف"), value: settings.itemGroupStart },
+        { label: tr("بداية ترقيم الأصناف"), value: settings.itemStart },
       ]
 
       for (const start of starts) {
         if (!isValidStart(start.value)) {
-          validationError(`${start.label}: يجب أن تكون رقمًا صحيحًا من 1 إلى 999`)
+          validationError(tr("{0}: يجب أن تكون رقمًا صحيحًا من 1 إلى 999", start.label))
           return
         }
       }
 
       if (!settings.orderStart || settings.orderStart < 1) {
-        validationError("بداية ترقيم طلبات المبيعات مطلوبة ويجب أن تكون أكبر من صفر")
+        validationError(tr("بداية ترقيم طلبات المبيعات مطلوبة ويجب أن تكون أكبر من صفر"))
         return
       }
       if (!settings.purchaseStart || settings.purchaseStart < 1) {
-        validationError("بداية ترقيم طلبات الشراء مطلوبة ويجب أن تكون أكبر من صفر")
+        validationError(tr("بداية ترقيم طلبات الشراء مطلوبة ويجب أن تكون أكبر من صفر"))
         return
       }
 
       // تبويب "اعدادات عامة" أولاً — يتحقق من سنة/أشهر العمل ويعرض سبب الفشل بنفسه
       if (generalSaveRef.current && !(await generalSaveRef.current())) {
-        throw new Error("لم يتم حفظ الاعدادات العامة — راجع تبويب اعدادات عامة")
+        throw new Error(tr("لم يتم حفظ الاعدادات العامة — راجع تبويب اعدادات عامة"))
       }
 
       const response = await fetch("/api/settings/system", {
@@ -641,16 +642,16 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
 
       if (!response.ok) {
         const failure = await response.json().catch(() => null)
-        throw new Error(failure?.details || failure?.error || "فشل في حفظ الإعدادات")
+        throw new Error(failure?.details || failure?.error || tr("فشل في حفظ الإعدادات"))
       }
 
       const result = await response.json()
       console.log("تم حفظ الإعدادات بنجاح:", result)
       window.dispatchEvent(new CustomEvent("system-settings-updated", { detail: result }))
-      showMessage("تم حفظ الاعدادات بنجاح", "success")
+      showMessage(tr("تم حفظ الاعدادات بنجاح"), "success")
     } catch (err) {
       console.error("Error saving settings:", err)
-      const errorMessage = err instanceof Error ? err.message : "حدث خطأ أثناء حفظ الإعدادات"
+      const errorMessage = err instanceof Error ? err.message : tr("حدث خطأ أثناء حفظ الإعدادات")
       setError(errorMessage)
       showMessage(errorMessage, "error")
     } finally {
@@ -660,7 +661,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
   }
 
   const handleReset = async () => {
-    if ((await confirmYesNo("هل أنت متأكد من إعادة تعيين جميع الإعدادات؟"))) {
+    if ((await confirmYesNo(tr("هل أنت متأكد من إعادة تعيين جميع الإعدادات؟")))) {
       setSettings({
         companyName: "",
         companyNameEn: "",
@@ -750,31 +751,31 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
 
   if (initialLoading) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 shadow-sm" dir="rtl">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 shadow-sm" dir={appDir()}>
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-sm">
           <Loader2 className="h-6 w-6 animate-spin" />
         </span>
-        <span className="text-sm font-semibold text-slate-600">جاري تحميل الإعدادات...</span>
+        <span className="text-sm font-semibold text-slate-600">{tr("جاري تحميل الإعدادات...")}</span>
       </div>
     )
   }
 
   return (
-    <div className="system-settings-form space-y-5" dir="rtl">
+    <div className="system-settings-form space-y-5" dir={appDir()}>
       <Messages innerRef={message} />
 
       {/* الرأس: نفس تدرّج الزمردي/الفيروزي المعتمد في رؤوس السندات ومعالج الاستيراد */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg sm:px-6">
-        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-teal-300/20 blur-2xl" />
+        <div className="pointer-events-none absolute -end-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-16 end-1/3 h-40 w-40 rounded-full bg-teal-300/20 blur-2xl" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
               <Settings className="h-6 w-6" />
             </span>
             <div className="min-w-0">
-              <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">إعدادات النظام</h1>
-              <p className="mt-0.5 text-xs text-emerald-50/90 sm:text-sm">بيانات الشركة، الترقيم، الحسابات الافتراضية، الأمان والطباعة — في مكان واحد</p>
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{tr("إعدادات النظام")}</h1>
+              <p className="mt-0.5 text-xs text-emerald-50/90 sm:text-sm">{tr("بيانات الشركة، الترقيم، الحسابات الافتراضية، الأمان والطباعة — في مكان واحد")}</p>
             </div>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -785,11 +786,11 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             >
               <RefreshCw className="ml-2 h-4 w-4" />
-              إعادة تحميل
+              {tr("إعادة تحميل")}
             </Button>
             <Button onClick={handleSave} disabled={loading} className="h-10 rounded-xl bg-white font-bold text-emerald-700 shadow-sm hover:bg-emerald-50">
               {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
-              {loading ? "جاري الحفظ..." : "حفظ الإعدادات"}
+              {loading ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
             </Button>
           </div>
         </div>
@@ -797,7 +798,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
 
       <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
         {/* قائمة الأقسام: عمودية على الشاشات الواسعة، أفقية قابلة للتمرير على الصغيرة */}
-        <nav className="lg:sticky lg:top-4 lg:self-start" aria-label="أقسام الإعدادات">
+        <nav className="lg:sticky lg:top-4 lg:self-start" aria-label={tr("أقسام الإعدادات")}>
           <div className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:flex-col lg:overflow-visible">
             {SETTINGS_SECTIONS.map((section) => {
               const Icon = section.icon
@@ -808,7 +809,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   type="button"
                   onClick={() => setActiveSection(section.id)}
                   aria-current={active ? "page" : undefined}
-                  className={`group flex min-w-max items-center gap-3 rounded-xl px-3 py-2.5 text-right transition lg:min-w-0 ${
+                  className={`group flex min-w-max items-center gap-3 rounded-xl px-3 py-2.5 text-start transition lg:min-w-0 ${
                     active ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
@@ -839,19 +840,19 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="companyName" className="text-right block">
-                    اسم الشركة (عربي) *
+                    {tr("اسم الشركة (عربي) *")}
                   </Label>
                   <Input
                     id="companyName"
                     value={settings.companyName}
                     onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div>
                   <Label htmlFor="companyNameEn" className="text-right block">
-                    اسم الشركة (إنجليزي)
+                    {tr("اسم الشركة (إنجليزي)")}
                   </Label>
                   <Input
                     id="companyNameEn"
@@ -862,11 +863,11 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="companyLogo" className="mb-2 block text-right">شعار الشركة</Label>
+                  <Label htmlFor="companyLogo" className="mb-2 block text-start">{tr("شعار الشركة")}</Label>
                   <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white">
                       {settings.companyLogo ? (
-                        <img src={settings.companyLogo} alt="شعار الشركة" className="h-full w-full object-contain" />
+                        <img src={settings.companyLogo} alt={tr("شعار الشركة")} className="h-full w-full object-contain" />
                       ) : (
                         <Building2 className="h-8 w-8 text-slate-400" />
                       )}
@@ -884,10 +885,10 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                           reader.readAsDataURL(file)
                         }}
                       />
-                      <p className="text-xs text-muted-foreground">PNG أو JPG أو WEBP أو SVG. سيظهر الشعار أعلى القائمة الجانبية.</p>
+                      <p className="text-xs text-muted-foreground">{tr("PNG أو JPG أو WEBP أو SVG. سيظهر الشعار أعلى القائمة الجانبية.")}</p>
                       {settings.companyLogo && (
                         <Button type="button" variant="outline" size="sm" onClick={() => setSettings((current) => ({ ...current, companyLogo: "" }))}>
-                          إزالة الشعار
+                          {tr("إزالة الشعار")}
                         </Button>
                       )}
                     </div>
@@ -895,7 +896,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                 </div>
                 <div>
                   <Label htmlFor="licensedWorkerNumber" className="text-right block">
-                    رقم المشتغل المرخص
+                    {tr("رقم المشتغل المرخص")}
                   </Label>
                   <Input
                     id="licensedWorkerNumber"
@@ -908,7 +909,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                 </div>
                 <div>
                   <Label htmlFor="taxNumber" className="text-right block">
-                    الرقم الضريبي
+                    {tr("الرقم الضريبي")}
                   </Label>
                   <Input
                     id="taxNumber"
@@ -921,43 +922,43 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                 </div>
                 <div>
                   <Label htmlFor="commercialRegister" className="text-right block">
-                    السجل التجاري
+                    {tr("السجل التجاري")}
                   </Label>
                   <Input
                     id="commercialRegister"
                     value={settings.commercialRegister}
                     onChange={(e) => setSettings({ ...settings, commercialRegister: e.target.value })}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div className="md:col-span-2">
                   <Label htmlFor="address" className="text-right block">
-                    العنوان
+                    {tr("العنوان")}
                   </Label>
                   <Textarea
                     id="address"
                     value={settings.address}
                     onChange={(e) => setSettings({ ...settings, address: e.target.value })}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div>
                   <Label htmlFor="phone" className="text-right block">
-                    الهاتف
+                    {tr("الهاتف")}
                   </Label>
                   <Input
                     id="phone"
                     value={settings.phone}
                     onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div>
                   <Label htmlFor="email" className="text-right block">
-                    البريد الإلكتروني
+                    {tr("البريد الإلكتروني")}
                   </Label>
                   <Input
                     id="email"
@@ -970,7 +971,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                 </div>
                 <div>
                   <Label htmlFor="website" className="text-right block">
-                    الموقع الإلكتروني
+                    {tr("الموقع الإلكتروني")}
                   </Label>
                   <Input
                     id="website"
@@ -991,7 +992,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="defaultCurrency" className="text-right block">
-                    العملة الافتراضية
+                    {tr("العملة الافتراضية")}
                   </Label>
                   <Select
                     value={settings.defaultCurrency}
@@ -1001,16 +1002,16 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ILS">شيكل إسرائيلي (ILS)</SelectItem>
-                      <SelectItem value="USD">دولار أمريكي (USD)</SelectItem>
-                      <SelectItem value="EUR">يورو (EUR)</SelectItem>
-                      <SelectItem value="JOD">دينار أردني (JOD)</SelectItem>
+                      <SelectItem value="ILS">{tr("شيكل إسرائيلي (ILS)")}</SelectItem>
+                      <SelectItem value="USD">{tr("دولار أمريكي (USD)")}</SelectItem>
+                      <SelectItem value="EUR">{tr("يورو (EUR)")}</SelectItem>
+                      <SelectItem value="JOD">{tr("دينار أردني (JOD)")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="dateFormat" className="text-right block">
-                    تنسيق التاريخ
+                    {tr("تنسيق التاريخ")}
                   </Label>
                   <Select
                     value={settings.dateFormat}
@@ -1020,15 +1021,15 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dd/mm/yyyy">يوم/شهر/سنة</SelectItem>
-                      <SelectItem value="mm/dd/yyyy">شهر/يوم/سنة</SelectItem>
-                      <SelectItem value="yyyy-mm-dd">سنة-شهر-يوم</SelectItem>
+                      <SelectItem value="dd/mm/yyyy">{tr("يوم/شهر/سنة")}</SelectItem>
+                      <SelectItem value="mm/dd/yyyy">{tr("شهر/يوم/سنة")}</SelectItem>
+                      <SelectItem value="yyyy-mm-dd">{tr("سنة-شهر-يوم")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="timeFormat" className="text-right block">
-                    تنسيق الوقت
+                    {tr("تنسيق الوقت")}
                   </Label>
                   <Select
                     value={settings.timeFormat}
@@ -1038,14 +1039,14 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="24h">24 ساعة</SelectItem>
-                      <SelectItem value="12h">12 ساعة</SelectItem>
+                      <SelectItem value="24h">{tr("24 ساعة")}</SelectItem>
+                      <SelectItem value="12h">{tr("12 ساعة")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="language" className="text-right block">
-                    اللغة
+                    {tr("اللغة")}
                   </Label>
                   <Select
                     value={settings.language}
@@ -1055,14 +1056,14 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ar">العربية</SelectItem>
+                      <SelectItem value="ar">{tr("العربية")}</SelectItem>
                       <SelectItem value="en">English</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="taxRate" className="text-right block">
-                    نسبة الضريبة
+                    {tr("نسبة الضريبة")}
                   </Label>
                   <Input
                     id="taxRate"
@@ -1071,12 +1072,12 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     value={settings.taxRate}
                     onChange={(e) => setSettings({ ...settings, taxRate: e.target.value === "" ? 0 : Number(e.target.value) })}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div>
                   <Label htmlFor="taxRateClearing" className="text-right block">
-                    نسبة الضريبة-مقاصة
+                    {tr("نسبة الضريبة-مقاصة")}
                   </Label>
                   <Input
                     id="taxRateClearing"
@@ -1085,7 +1086,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     value={settings.taxRateClearing}
                     onChange={(e) => setSettings({ ...settings, taxRateClearing: e.target.value === "" ? 0 : Number(e.target.value) })}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
               </div>
@@ -1125,7 +1126,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                           [field.key]: account ? String(account.id) : "",
                         })
                       }
-                      placeholder="اختر الحساب"
+                      placeholder={tr("اختر الحساب")}
                       className="w-full"
                       showCostCenterButton={false}
                       requiredTypeValues={[1]}
@@ -1181,33 +1182,33 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                   <div className="text-sm">
-                    <strong>تنبيه:</strong> لا يمكن تعديل إعدادات ترقيم السندات التي لديها حركات محفوظة
+                    <strong>{tr("تنبيه:")}</strong>{tr(" لا يمكن تعديل إعدادات ترقيم السندات التي لديها حركات محفوظة")}
                   </div>
                 </div>
               )}
 
               <div>
-                <h3 className="text-lg font-semibold mb-4 text-right">إعدادات السندات (إجبارية)</h3>
+                <h3 className="text-lg font-semibold mb-4 text-start">{tr("إعدادات السندات (إجبارية)")}</h3>
                 <div className="space-y-3">
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="orderPrefix" className="text-right block">
-                          بادئة طلبات المبيعات *
+                          {tr("بادئة طلبات المبيعات *")}
                         </Label>
                         <Input
                           id="orderPrefix"
                           value={settings.orderPrefix}
                           onChange={(e) => setSettings({ ...settings, orderPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                           disabled={numberingLocks.order}
                         />
                       </div>
                       <div>
                         <Label htmlFor="orderStart" className="text-right block">
-                          بداية ترقيم طلبات المبيعات *
+                          {tr("بداية ترقيم طلبات المبيعات *")}
                         </Label>
                         <Input
                           id="orderStart"
@@ -1219,14 +1220,14 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, orderStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                           disabled={numberingLocks.order}
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.orderPrefix, "A", settings.orderStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.orderPrefix, "A", settings.orderStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1236,21 +1237,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="purchasePrefix" className="text-right block">
-                          بادئة طلبات الشراء *
+                          {tr("بادئة طلبات الشراء *")}
                         </Label>
                         <Input
                           id="purchasePrefix"
                           value={settings.purchasePrefix}
                           onChange={(e) => setSettings({ ...settings, purchasePrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                           disabled={numberingLocks.purchase}
                         />
                       </div>
                       <div>
                         <Label htmlFor="purchaseStart" className="text-right block">
-                          بداية ترقيم طلبات الشراء *
+                          {tr("بداية ترقيم طلبات الشراء *")}
                         </Label>
                         <Input
                           id="purchaseStart"
@@ -1262,14 +1263,14 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, purchaseStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                           disabled={numberingLocks.purchase}
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.purchasePrefix, "A", settings.purchaseStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.purchasePrefix, "A", settings.purchaseStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1279,21 +1280,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="receiptPrefix" className="text-right block">
-                          بادئة سندات القبض *
+                          {tr("بادئة سندات القبض *")}
                         </Label>
                         <Input
                           id="receiptPrefix"
                           value={settings.receiptPrefix}
                           onChange={(e) => setSettings({ ...settings, receiptPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="receiptStart" className="text-right block">
-                          الترقيم يبدأ من (سندات القبض) *
+                          {tr("الترقيم يبدأ من (سندات القبض) *")}
                         </Label>
                         <Input
                           id="receiptStart"
@@ -1306,13 +1307,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, receiptStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.receiptPrefix, "A", settings.receiptStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.receiptPrefix, "A", settings.receiptStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1322,21 +1323,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="paymentPrefix" className="text-right block">
-                          بادئة سندات الصرف *
+                          {tr("بادئة سندات الصرف *")}
                         </Label>
                         <Input
                           id="paymentPrefix"
                           value={settings.paymentPrefix}
                           onChange={(e) => setSettings({ ...settings, paymentPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="paymentStart" className="text-right block">
-                          الترقيم يبدأ من (سندات الصرف) *
+                          {tr("الترقيم يبدأ من (سندات الصرف) *")}
                         </Label>
                         <Input
                           id="paymentStart"
@@ -1349,13 +1350,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, paymentStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.paymentPrefix, "A", settings.paymentStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.paymentPrefix, "A", settings.paymentStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1365,21 +1366,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="creditNotePrefix" className="text-right block">
-                          بادئة الاشعار الدائن *
+                          {tr("بادئة الاشعار الدائن *")}
                         </Label>
                         <Input
                           id="creditNotePrefix"
                           value={settings.creditNotePrefix}
                           onChange={(e) => setSettings({ ...settings, creditNotePrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="creditNoteStart" className="text-right block">
-                          الترقيم يبدأ من (الاشعار الدائن) *
+                          {tr("الترقيم يبدأ من (الاشعار الدائن) *")}
                         </Label>
                         <Input
                           id="creditNoteStart"
@@ -1392,13 +1393,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, creditNoteStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.creditNotePrefix, "A", settings.creditNoteStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.creditNotePrefix, "A", settings.creditNoteStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1408,21 +1409,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="debitNotePrefix" className="text-right block">
-                          بادئة الاشعار المدين *
+                          {tr("بادئة الاشعار المدين *")}
                         </Label>
                         <Input
                           id="debitNotePrefix"
                           value={settings.debitNotePrefix}
                           onChange={(e) => setSettings({ ...settings, debitNotePrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="debitNoteStart" className="text-right block">
-                          الترقيم يبدأ من (الاشعار المدين) *
+                          {tr("الترقيم يبدأ من (الاشعار المدين) *")}
                         </Label>
                         <Input
                           id="debitNoteStart"
@@ -1435,13 +1436,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, debitNoteStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.debitNotePrefix, "A", settings.debitNoteStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.debitNotePrefix, "A", settings.debitNoteStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1451,21 +1452,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="stockInPrefix" className="text-right block">
-                          بادئة سند ادخال بضاعة *
+                          {tr("بادئة سند ادخال بضاعة *")}
                         </Label>
                         <Input
                           id="stockInPrefix"
                           value={settings.stockInPrefix}
                           onChange={(e) => setSettings({ ...settings, stockInPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="stockInStart" className="text-right block">
-                          الترقيم يبدأ من (سند ادخال بضاعة) *
+                          {tr("الترقيم يبدأ من (سند ادخال بضاعة) *")}
                         </Label>
                         <Input
                           id="stockInStart"
@@ -1478,13 +1479,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, stockInStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.stockInPrefix, "A", settings.stockInStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.stockInPrefix, "A", settings.stockInStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1494,21 +1495,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="stockOutPrefix" className="text-right block">
-                          بادئة سند اخراج بضاعة *
+                          {tr("بادئة سند اخراج بضاعة *")}
                         </Label>
                         <Input
                           id="stockOutPrefix"
                           value={settings.stockOutPrefix}
                           onChange={(e) => setSettings({ ...settings, stockOutPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="stockOutStart" className="text-right block">
-                          الترقيم يبدأ من (سند اخراج بضاعة) *
+                          {tr("الترقيم يبدأ من (سند اخراج بضاعة) *")}
                         </Label>
                         <Input
                           id="stockOutStart"
@@ -1521,13 +1522,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, stockOutStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.stockOutPrefix, "A", settings.stockOutStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.stockOutPrefix, "A", settings.stockOutStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1537,21 +1538,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="internalDeliveryPrefix" className="text-right block">
-                          بادئة ارسالية داخلية *
+                          {tr("بادئة ارسالية داخلية *")}
                         </Label>
                         <Input
                           id="internalDeliveryPrefix"
                           value={settings.internalDeliveryPrefix}
                           onChange={(e) => setSettings({ ...settings, internalDeliveryPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="internalDeliveryStart" className="text-right block">
-                          الترقيم يبدأ من (ارسالية داخلية) *
+                          {tr("الترقيم يبدأ من (ارسالية داخلية) *")}
                         </Label>
                         <Input
                           id="internalDeliveryStart"
@@ -1564,13 +1565,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, internalDeliveryStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.internalDeliveryPrefix, "A", settings.internalDeliveryStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.internalDeliveryPrefix, "A", settings.internalDeliveryStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1580,21 +1581,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="useVoucherPrefix" className="text-right block">
-                          بادئة سند استعمال *
+                          {tr("بادئة سند استعمال *")}
                         </Label>
                         <Input
                           id="useVoucherPrefix"
                           value={settings.useVoucherPrefix}
                           onChange={(e) => setSettings({ ...settings, useVoucherPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="useVoucherStart" className="text-right block">
-                          الترقيم يبدأ من (سند استعمال) *
+                          {tr("الترقيم يبدأ من (سند استعمال) *")}
                         </Label>
                         <Input
                           id="useVoucherStart"
@@ -1607,27 +1608,27 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, useVoucherStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.useVoucherPrefix, "A", settings.useVoucherStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.useVoucherPrefix, "A", settings.useVoucherStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {([
-                    { key: "salesInvoice", label: "فاتورة مبيعات" },
-                    { key: "deliverySell", label: "إرسالية مبيعات" },
-                    { key: "deliveryConsignmentSale", label: "إرسالية برسم البيع" },
-                    { key: "returnDeliveryConsignmentSale", label: "مرتجع إرسالية برسم البيع" },
-                    { key: "returnSell", label: "مرتجع مبيعات" },
-                    { key: "purchaseInvoice", label: "فاتورة مشتريات" },
-                    { key: "deliveryPay", label: "إرسالية مشتريات" },
-                    { key: "returnPurchase", label: "مرتجع مشتريات" },
+                    { key: "salesInvoice", label: tr("فاتورة مبيعات") },
+                    { key: "deliverySell", label: tr("إرسالية مبيعات") },
+                    { key: "deliveryConsignmentSale", label: tr("إرسالية برسم البيع") },
+                    { key: "returnDeliveryConsignmentSale", label: tr("مرتجع إرسالية برسم البيع") },
+                    { key: "returnSell", label: tr("مرتجع مبيعات") },
+                    { key: "purchaseInvoice", label: tr("فاتورة مشتريات") },
+                    { key: "deliveryPay", label: tr("إرسالية مشتريات") },
+                    { key: "returnPurchase", label: tr("مرتجع مشتريات") },
                   ] as const).map(({ key, label }) => {
                     const prefixKey = `${key}Prefix` as keyof typeof settings
                     const startKey = `${key}Start` as keyof typeof settings
@@ -1638,21 +1639,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <Label htmlFor={`${key}Prefix`} className="text-right block">
-                              بادئة {label} *
+                              {tr("بادئة ")}{label} *
                             </Label>
                             <Input
                               id={`${key}Prefix`}
                               value={prefixValue}
                               onChange={(e) => setSettings({ ...settings, [prefixKey]: e.target.value })}
                               className="text-right"
-                              dir="rtl"
+                              dir={appDir()}
                               maxLength={3}
                               required
                             />
                           </div>
                           <div>
                             <Label htmlFor={`${key}Start`} className="text-right block">
-                              الترقيم يبدأ من ({label}) *
+                              {tr("الترقيم يبدأ من (")}{label}) *
                             </Label>
                             <Input
                               id={`${key}Start`}
@@ -1665,13 +1666,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                                 setSettings({ ...settings, [startKey]: value })
                               }}
                               className="text-right"
-                              dir="rtl"
+                              dir={appDir()}
                               required
                             />
                           </div>
                           <div className="flex items-end">
                             <div className="text-sm text-muted-foreground">
-                              مثال: {buildVoucherCode(prefixValue, "A", startValue)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                              {tr("مثال: ")}{buildVoucherCode(prefixValue, "A", startValue)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                             </div>
                           </div>
                         </div>
@@ -1683,21 +1684,21 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="journalPrefix" className="text-right block">
-                          بادئة سندات القيد *
+                          {tr("بادئة سندات القيد *")}
                         </Label>
                         <Input
                           id="journalPrefix"
                           value={settings.journalPrefix}
                           onChange={(e) => setSettings({ ...settings, journalPrefix: e.target.value })}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           maxLength={3}
                           required
                         />
                       </div>
                       <div>
                         <Label htmlFor="journalStart" className="text-right block">
-                          الترقيم يبدأ من (سندات القيد) *
+                          {tr("الترقيم يبدأ من (سندات القيد) *")}
                         </Label>
                         <Input
                           id="journalStart"
@@ -1710,13 +1711,13 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                             setSettings({ ...settings, journalStart: value })
                           }}
                           className="text-right"
-                          dir="rtl"
+                          dir={appDir()}
                           required
                         />
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {buildVoucherCode(settings.journalPrefix, "A", settings.journalStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                          {tr("مثال: ")}{buildVoucherCode(settings.journalPrefix, "A", settings.journalStart)}{tr(" (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)")}
                         </div>
                       </div>
                     </div>
@@ -1725,24 +1726,24 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
               </div>
 
               <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold mb-4 text-right">إعدادات التعريفات (اختيارية)</h3>
+                <h3 className="text-lg font-semibold mb-4 text-start">{tr("إعدادات التعريفات (اختيارية)")}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="accountPrefix" className="text-right block">
-                      بادئة الحسابات المحاسبية
+                      {tr("بادئة الحسابات المحاسبية")}
                     </Label>
                     <Input
                       id="accountPrefix"
                       value={settings.accountPrefix}
                       onChange={(e) => setSettings({ ...settings, accountPrefix: e.target.value })}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="A"
                     />
                   </div>
                   <div>
                     <Label htmlFor="accountStart" className="text-right block">
-                      بداية ترقيم الحسابات المحاسبية
+                      {tr("بداية ترقيم الحسابات المحاسبية")}
                     </Label>
                     <Input
                       id="accountStart"
@@ -1754,33 +1755,33 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         setSettings({ ...settings, accountStart: value })
                       }}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="1"
                     />
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.accountPrefix}
+                      {tr("مثال: ")}{settings.accountPrefix}
                       {String(settings.accountStart).padStart(4, "0")}
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="customerPrefix" className="text-right block">
-                      بادئة العملاء
+                      {tr("بادئة العملاء")}
                     </Label>
                     <Input
                       id="customerPrefix"
                       value={settings.customerPrefix}
                       onChange={(e) => setSettings({ ...settings, customerPrefix: e.target.value })}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="C"
                     />
                   </div>
                   <div>
                     <Label htmlFor="customerStart" className="text-right block">
-                      بداية ترقيم العملاء
+                      {tr("بداية ترقيم العملاء")}
                     </Label>
                     <Input
                       id="customerStart"
@@ -1792,57 +1793,57 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         setSettings({ ...settings, customerStart: value })
                       }}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="1"
                     />
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.customerPrefix}
+                      {tr("مثال: ")}{settings.customerPrefix}
                       {String(settings.customerStart).padStart(4, "0")}
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="salesmanPrefix" className="text-right block">بادئة المندوبين</Label>
-                    <Input id="salesmanPrefix" value={settings.salesmanPrefix} onChange={(e) => setSettings({ ...settings, salesmanPrefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9) })} className="text-right" dir="rtl" placeholder="M" />
+                    <Label htmlFor="salesmanPrefix" className="text-right block">{tr("بادئة المندوبين")}</Label>
+                    <Input id="salesmanPrefix" value={settings.salesmanPrefix} onChange={(e) => setSettings({ ...settings, salesmanPrefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9) })} className="text-right" dir={appDir()} placeholder="M" />
                   </div>
                   <div>
-                    <Label htmlFor="salesmanStart" className="text-right block">الترقيم يبدأ من</Label>
-                    <Input id="salesmanStart" type="number" min="1" value={settings.salesmanStart} onChange={(e) => setSettings({ ...settings, salesmanStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir="rtl" placeholder="1" />
+                    <Label htmlFor="salesmanStart" className="text-right block">{tr("الترقيم يبدأ من")}</Label>
+                    <Input id="salesmanStart" type="number" min="1" value={settings.salesmanStart} onChange={(e) => setSettings({ ...settings, salesmanStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir={appDir()} placeholder="1" />
                   </div>
                   <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">مثال: {settings.salesmanPrefix}{String(settings.salesmanStart).padStart(Math.max(1, 10 - settings.salesmanPrefix.length), "0")}</div>
+                    <div className="text-sm text-muted-foreground">{tr("مثال: ")}{settings.salesmanPrefix}{String(settings.salesmanStart).padStart(Math.max(1, 10 - settings.salesmanPrefix.length), "0")}</div>
                   </div>
 
                   <div>
-                    <Label htmlFor="employeePrefix" className="text-right block">بادئة الموظفين</Label>
-                    <Input id="employeePrefix" value={settings.employeePrefix} onChange={(e) => setSettings({ ...settings, employeePrefix: e.target.value })} className="text-right" dir="rtl" placeholder="E" />
+                    <Label htmlFor="employeePrefix" className="text-right block">{tr("بادئة الموظفين")}</Label>
+                    <Input id="employeePrefix" value={settings.employeePrefix} onChange={(e) => setSettings({ ...settings, employeePrefix: e.target.value })} className="text-right" dir={appDir()} placeholder="E" />
                   </div>
                   <div>
-                    <Label htmlFor="employeeStart" className="text-right block">الرقم يبدأ من</Label>
-                    <Input id="employeeStart" type="number" min="1" value={settings.employeeStart} onChange={(e) => setSettings({ ...settings, employeeStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir="rtl" placeholder="1" />
+                    <Label htmlFor="employeeStart" className="text-right block">{tr("الرقم يبدأ من")}</Label>
+                    <Input id="employeeStart" type="number" min="1" value={settings.employeeStart} onChange={(e) => setSettings({ ...settings, employeeStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir={appDir()} placeholder="1" />
                   </div>
                   <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">مثال: {settings.employeePrefix}{String(settings.employeeStart).padStart(Math.max(1, 10 - settings.employeePrefix.length), "0")}</div>
+                    <div className="text-sm text-muted-foreground">{tr("مثال: ")}{settings.employeePrefix}{String(settings.employeeStart).padStart(Math.max(1, 10 - settings.employeePrefix.length), "0")}</div>
                   </div>
 
                   <div>
                     <Label htmlFor="supplierPrefix" className="text-right block">
-                      بادئة الموردين
+                      {tr("بادئة الموردين")}
                     </Label>
                     <Input
                       id="supplierPrefix"
                       value={settings.supplierPrefix}
                       onChange={(e) => setSettings({ ...settings, supplierPrefix: e.target.value })}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="S"
                     />
                   </div>
                   <div>
                     <Label htmlFor="supplierStart" className="text-right block">
-                      بداية ترقيم الموردين
+                      {tr("بداية ترقيم الموردين")}
                     </Label>
                     <Input
                       id="supplierStart"
@@ -1854,33 +1855,33 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         setSettings({ ...settings, supplierStart: value })
                       }}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="1"
                     />
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.supplierPrefix}
+                      {tr("مثال: ")}{settings.supplierPrefix}
                       {String(settings.supplierStart).padStart(4, "0")}
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="itemGroupPrefix" className="text-right block">
-                      بادئة مجموعات الأصناف
+                      {tr("بادئة مجموعات الأصناف")}
                     </Label>
                     <Input
                       id="itemGroupPrefix"
                       value={settings.itemGroupPrefix}
                       onChange={(e) => setSettings({ ...settings, itemGroupPrefix: e.target.value })}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="G"
                     />
                   </div>
                   <div>
                     <Label htmlFor="itemGroupStart" className="text-right block">
-                      بداية ترقيم مجموعات الأصناف
+                      {tr("بداية ترقيم مجموعات الأصناف")}
                     </Label>
                     <Input
                       id="itemGroupStart"
@@ -1892,20 +1893,20 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         setSettings({ ...settings, itemGroupStart: value })
                       }}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="1"
                     />
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.itemGroupPrefix}
+                      {tr("مثال: ")}{settings.itemGroupPrefix}
                       {String(settings.itemGroupStart).padStart(4, "0")}
                     </div>
                   </div>
 
                   <div>
                     <Label htmlFor="itemStart" className="text-right block">
-                      بداية ترقيم الأصناف
+                      {tr("بداية ترقيم الأصناف")}
                     </Label>
                     <Input
                       id="itemStart"
@@ -1917,7 +1918,7 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                         setSettings({ ...settings, itemStart: value })
                       }}
                       className="text-right"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder="1"
                     />
                   </div>

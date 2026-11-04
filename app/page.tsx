@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 import { ReportAccessGate } from "@/components/auth/report-access-gate"
 import { FileAccessGate } from "@/components/auth/file-access-gate"
@@ -174,6 +175,7 @@ const ChecklistDesigner = lazyNamed(() => import("@/components/order-drafts/chec
 const CustomerProductTemplates = lazyDefault(() => import("@/components/products/customer-product-templates"))
 const BankReconciliation = lazyDefault(() => import("@/components/accounting/bank-reconciliation"))
 const Promotions = lazyDefault(() => import("@/components/sales/promotions"))
+const AidProgram = lazyDefault(() => import("@/components/aid/aid-program"))
 const PeriodLocks = lazyDefault(() => import("@/components/accounting/period-locks"))
 const LandedCosts = lazyDefault(() => import("@/components/accounting/landed-costs"))
 const YearEndClosing = lazyDefault(() => import("@/components/accounting/year-end-closing"))
@@ -408,6 +410,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "customer-product-templates": CustomerProductTemplates,
   "bank-reconciliation": BankReconciliation,
   promotions: Promotions,
+  "aid-program": AidProgram,
   "period-locks": PeriodLocks,
   "landed-costs": LandedCosts,
   "year-end-closing": YearEndClosing,
@@ -480,10 +483,10 @@ function resolveSectionNode(section: string | null, onOpenSection: (section: str
 
   if (section === "user-profile") {
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6" dir={appDir()}>
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-          <h1 className="text-2xl font-bold mb-2">الملف الشخصي</h1>
-          <p className="text-blue-100">إدارة معلوماتك الشخصية وإعدادات الحساب</p>
+          <h1 className="text-2xl font-bold mb-2">{tr("الملف الشخصي")}</h1>
+          <p className="text-blue-100">{tr("إدارة معلوماتك الشخصية وإعدادات الحساب")}</p>
         </div>
         <UserSettings />
       </div>

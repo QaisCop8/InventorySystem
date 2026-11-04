@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -70,7 +71,7 @@ export function SearchInput({
           placeholder={placeholder}
           disabled={disabled}
           className={className}
-          dir="rtl"
+          dir={appDir()}
         />
         <SearchModal
           type={searchType}

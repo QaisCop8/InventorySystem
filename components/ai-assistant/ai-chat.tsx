@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -108,24 +109,24 @@ const QUICK_ACTIONS: { group: string; items: { icon: any; title: string; prompt:
   {
     group: "السندات",
     items: [
-      { icon: ArrowDownCircle, title: "سند قبض نقدي", prompt: "سند قبض من الزبون [اسم الزبون] نقدي [المبلغ]", tone: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
-      { icon: Receipt, title: "سند قبض نقدي وشيكات", prompt: "سند قبض من الزبون [اسم الزبون] نقدي [المبلغ] وشيك رقم [رقم الشيك] بمبلغ [المبلغ] بنك [البنك] فرع [الفرع] تاريخ استحقاق [التاريخ]", tone: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
-      { icon: ArrowUpCircle, title: "سند صرف نقدي", prompt: "سند صرف للمورد [اسم المورد] نقدي [المبلغ]", tone: "bg-rose-50 text-rose-700 ring-rose-100" },
-      { icon: ArrowUpCircle, title: "سند صرف شيكات", prompt: "سند صرف شيك للمورد [اسم المورد] من الحساب البنكي [رمز الحساب البنكي] بمبلغ [المبلغ] تاريخ الاستحقاق [YYYY-MM-DD]", tone: "bg-rose-50 text-rose-700 ring-rose-100" },
+      { icon: ArrowDownCircle, title: tr("سند قبض نقدي"), prompt: "سند قبض من الزبون [اسم الزبون] نقدي [المبلغ]", tone: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
+      { icon: Receipt, title: tr("سند قبض نقدي وشيكات"), prompt: "سند قبض من الزبون [اسم الزبون] نقدي [المبلغ] وشيك رقم [رقم الشيك] بمبلغ [المبلغ] بنك [البنك] فرع [الفرع] تاريخ استحقاق [التاريخ]", tone: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
+      { icon: ArrowUpCircle, title: tr("سند صرف نقدي"), prompt: "سند صرف للمورد [اسم المورد] نقدي [المبلغ]", tone: "bg-rose-50 text-rose-700 ring-rose-100" },
+      { icon: ArrowUpCircle, title: tr("سند صرف شيكات"), prompt: "سند صرف شيك للمورد [اسم المورد] من الحساب البنكي [رمز الحساب البنكي] بمبلغ [المبلغ] تاريخ الاستحقاق [YYYY-MM-DD]", tone: "bg-rose-50 text-rose-700 ring-rose-100" },
     ],
   },
   {
     group: "المبيعات والطلبات",
     items: [
-      { icon: FilePlus2, title: "مسودة طلبية مبيعات", prompt: "طلبية للزبون [اسم الزبون] [الكمية] [اسم الصنف]", tone: "bg-sky-50 text-sky-700 ring-sky-100" },
-      { icon: Truck, title: "طلب بضاعة داخلي", prompt: "طلب بضاعة داخلي من فرع [الفرع] [الكمية] [اسم الصنف]", tone: "bg-amber-50 text-amber-700 ring-amber-100" },
+      { icon: FilePlus2, title: tr("مسودة طلبية مبيعات"), prompt: "طلبية للزبون [اسم الزبون] [الكمية] [اسم الصنف]", tone: "bg-sky-50 text-sky-700 ring-sky-100" },
+      { icon: Truck, title: tr("طلب بضاعة داخلي"), prompt: "طلب بضاعة داخلي من فرع [الفرع] [الكمية] [اسم الصنف]", tone: "bg-amber-50 text-amber-700 ring-amber-100" },
     ],
   },
   {
     group: "استعلامات",
     items: [
-      { icon: BarChart3, title: "ملخص المبيعات", prompt: "أعطني ملخص المبيعات خلال آخر 30 يوماً", tone: "bg-violet-50 text-violet-700 ring-violet-100" },
-      { icon: Package, title: "الأصناف منخفضة المخزون", prompt: "ما هي المنتجات منخفضة المخزون؟", tone: "bg-lime-50 text-lime-700 ring-lime-100" },
+      { icon: BarChart3, title: tr("ملخص المبيعات"), prompt: "أعطني ملخص المبيعات خلال آخر 30 يوماً", tone: "bg-violet-50 text-violet-700 ring-violet-100" },
+      { icon: Package, title: tr("الأصناف منخفضة المخزون"), prompt: "ما هي المنتجات منخفضة المخزون؟", tone: "bg-lime-50 text-lime-700 ring-lime-100" },
     ],
   },
 ]
@@ -180,7 +181,7 @@ export function AIChat() {
     if (!storedResult) return
     try {
       const result = JSON.parse(storedResult) as { label: string; code: string; section: string; id?: number }
-      setMessages((prev) => [...prev, { role: "assistant", kind: "success", at: Date.now(), content: `تم إضافة ${result.label} بنجاح`, details: [{ label: "الرقم", value: result.code }], documentLink: { section: result.section, code: result.code, id: result.id } }])
+      setMessages((prev) => [...prev, { role: "assistant", kind: "success", at: Date.now(), content: tr("تم إضافة {0} بنجاح", result.label), details: [{ label: tr("الرقم"), value: result.code }], documentLink: { section: result.section, code: result.code, id: result.id } }])
     } finally {
       sessionStorage.removeItem("ai_document_save_result")
     }
@@ -264,9 +265,9 @@ export function AIChat() {
       // الخادم يعيد المحاولة تلقائياً عند انشغال الخدمة حتى ~130 ثانية ⇐ مهلة أطول قليلاً هنا
       const response = await fetch("/api/ai-assistant/document-extract", { method: "POST", body, signal: AbortSignal.timeout(145_000) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذر قراءة المرفق")
+      if (!response.ok) throw new Error(data.error || tr("تعذر قراءة المرفق"))
       if ((data.document_type === "receipt" || data.document_type === "payment") && data.receipt_command) {
-        pushAssistant({ content: `قرأت ${data.document_type === "receipt" ? "سند قبض" : "سند صرف"} من المرفق:\n${data.receipt_command}` })
+        pushAssistant({ content: tr("قرأت {0} من المرفق:\n{1}", data.document_type === "receipt" ? "سند قبض" : "سند صرف", data.receipt_command) })
         continueWith = data.receipt_command
       } else if (data.document_type === "journal_voucher") {
         // سند قيد: كل الحسابات مطابقة ومتوازن ⇐ يُحفظ مباشرة (غير مرحّل) للمراجعة والترحيل من شاشة سند القيد
@@ -275,12 +276,12 @@ export function AIChat() {
         const debit = lines.reduce((sum, line) => sum + (Number(line.debit) || 0), 0)
         const credit = lines.reduce((sum, line) => sum + (Number(line.credit) || 0), 0)
         if (!lines.length) {
-          pushAssistant({ kind: "error", content: "قرأت سند قيد لكن لم أجد أسطر حسابات فيه" })
+          pushAssistant({ kind: "error", content: tr("قرأت سند قيد لكن لم أجد أسطر حسابات فيه") })
         } else if (unmatched.length) {
           pushAssistant({
             kind: "error",
-            content: `قرأت سند قيد (${lines.length} سطر) لكن لم أطابق بعض الحسابات مع دليل الحسابات — لم يُحفظ`,
-            details: unmatched.slice(0, 8).map((line, index) => ({ label: `حساب ${index + 1}`, value: `${line.account_code || ""} ${line.account_name || ""}`.trim() || "—" })),
+            content: tr("قرأت سند قيد ({0} سطر) لكن لم أطابق بعض الحسابات مع دليل الحسابات — لم يُحفظ", lines.length),
+            details: unmatched.slice(0, 8).map((line, index) => ({ label: tr("حساب {0}", index + 1), value: `${line.account_code || ""} ${line.account_name || ""}`.trim() || "—" })),
           })
         } else {
           const result = await saveAIJournalDraft(
@@ -291,20 +292,20 @@ export function AIChat() {
           if (result.ok) {
             pushAssistant({
               kind: "success",
-              content: "تم حفظ سند القيد من المرفق (غير معتمد) — راجعه ثم رحّله",
+              content: tr("تم حفظ سند القيد من المرفق (غير معتمد) — راجعه ثم رحّله"),
               details: [
-                { label: "رقم السند", value: result.code },
-                { label: "الأسطر", value: String(lines.length) },
-                { label: "المدين = الدائن", value: formatAmount(result.amount) },
-                ...(data.date ? [{ label: "التاريخ", value: String(data.date) }] : []),
+                { label: tr("رقم السند"), value: result.code },
+                { label: tr("الأسطر"), value: String(lines.length) },
+                { label: tr("المدين = الدائن"), value: formatAmount(result.amount) },
+                ...(data.date ? [{ label: tr("التاريخ"), value: String(data.date) }] : []),
               ],
               documentLink: { section: "journal-vouchers", code: result.code, id: result.id },
             })
           } else {
             pushAssistant({
               kind: "error",
-              content: `تعذر حفظ سند القيد: ${result.error}`,
-              details: [{ label: "المدين", value: formatAmount(debit) }, { label: "الدائن", value: formatAmount(credit) }],
+              content: tr("تعذر حفظ سند القيد: {0}", result.error),
+              details: [{ label: tr("المدين"), value: formatAmount(debit) }, { label: tr("الدائن"), value: formatAmount(credit) }],
             })
           }
         }
@@ -327,25 +328,25 @@ export function AIChat() {
           })),
           unmatched: unmatched.map((line) => String(line.name || line.code || line.barcode || "")).filter(Boolean),
         }
-        const label = vchType === 17 ? "فاتورة مشتريات" : "فاتورة مبيعات"
+        const label = vchType === 17 ? tr("فاتورة مشتريات") : tr("فاتورة مبيعات")
         pushAssistant({
           kind: matched.length ? "success" : "error",
-          content: matched.length ? `قرأت ${label} من المرفق — راجعها ثم احفظها` : `قرأت ${label} لكن لم أطابق أي صنف مع النظام`,
+          content: matched.length ? tr("قرأت {0} من المرفق — راجعها ثم احفظها", label) : tr("قرأت {0} لكن لم أطابق أي صنف مع النظام", label),
           details: [
-            { label: vchType === 17 ? "المورد" : "العميل", value: data.party ? `${data.party.name} (${data.party.code})` : `${data.party_name || "—"} — غير موجود، اختره في الفاتورة` },
-            ...(data.date ? [{ label: "التاريخ", value: String(data.date) }] : []),
-            ...(data.document_number ? [{ label: "رقم المستند", value: String(data.document_number) }] : []),
-            { label: "الأصناف", value: `${matched.length} مطابق من ${lines.length}` },
-            ...(unmatched.length ? [{ label: "غير موجودة", value: prefill.unmatched!.slice(0, 6).join("، ") + (unmatched.length > 6 ? " …" : "") }] : []),
-            ...(data.total != null ? [{ label: "الإجمالي بالمستند", value: formatAmount(Number(data.total)) }] : []),
+            { label: vchType === 17 ? tr("المورد") : tr("العميل"), value: data.party ? `${data.party.name} (${data.party.code})` : `${data.party_name || "—"} — غير موجود، اختره في الفاتورة` },
+            ...(data.date ? [{ label: tr("التاريخ"), value: String(data.date) }] : []),
+            ...(data.document_number ? [{ label: tr("رقم المستند"), value: String(data.document_number) }] : []),
+            { label: tr("الأصناف"), value: `${matched.length} مطابق من ${lines.length}` },
+            ...(unmatched.length ? [{ label: tr("غير موجودة"), value: prefill.unmatched!.slice(0, 6).join("، ") + (unmatched.length > 6 ? " …" : "") }] : []),
+            ...(data.total != null ? [{ label: tr("الإجمالي بالمستند"), value: formatAmount(Number(data.total)) }] : []),
           ],
           invoicePrefill: matched.length ? prefill : undefined,
         })
       } else {
-        pushAssistant({ kind: "error", content: "لم أتعرّف على نوع المستند. اكتب نوعه في الرسالة (فاتورة مبيعات / فاتورة مشتريات / سند قبض / سند صرف / سند قيد) ثم أرفقه مجدداً." })
+        pushAssistant({ kind: "error", content: tr("لم أتعرّف على نوع المستند. اكتب نوعه في الرسالة (فاتورة مبيعات / فاتورة مشتريات / سند قبض / سند صرف / سند قيد) ثم أرفقه مجدداً.") })
       }
     } catch (error) {
-      pushAssistant({ kind: "error", content: error instanceof Error ? error.message : "تعذر قراءة المرفق" })
+      pushAssistant({ kind: "error", content: error instanceof Error ? error.message : tr("تعذر قراءة المرفق") })
     } finally {
       setIsLoading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -404,14 +405,14 @@ export function AIChat() {
       const { response: draftResponse, data: draftData } = await postJson("/api/ai-assistant/receipt-draft", { command: commandText }, 30_000)
       if (!draftResponse.ok && draftData.code === "CUSTOMER_NOT_FOUND") {
         setPendingCustomer({ command: commandText, customer_name: draftData.customer_name, voucher_type: draftData.voucher_type, document_kind: "voucher" })
-        pushAssistant({ content: `العميل "${draftData.customer_name}" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال ${draftData.voucher_type === 5 ? "سند الصرف" : "سند القبض"}؟` })
+        pushAssistant({ content: tr("العميل \"{0}\" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال {1}؟", draftData.customer_name, draftData.voucher_type === 5 ? "سند الصرف" : "سند القبض") })
         return
       }
-      if (!draftResponse.ok) throw new Error(draftData.error || "تعذر إنشاء المسودة")
+      if (!draftResponse.ok) throw new Error(draftData.error || tr("تعذر إنشاء المسودة"))
       if (draftData.type === "voucher-draft") {
         // يُحفظ السند مباشرة من هنا — لا تُفتح شاشة السند؛ تظهر النتيجة كبطاقة مع زر "عرض السند"
         const draft = draftData.draft
-        const label = draft.voucher_type === 5 ? "سند الصرف" : "سند القبض"
+        const label = draft.voucher_type === 5 ? tr("سند الصرف") : tr("سند القبض")
         const result = await saveAIReceiptDraft(draft, { userId: user?.id, branchId: activeBranchId })
         if (result.ok) {
           const paymentParts = [
@@ -421,18 +422,18 @@ export function AIChat() {
           ].filter(Boolean)
           pushAssistant({
             kind: "success",
-            content: `تم حفظ ${label} بنجاح`,
+            content: tr("تم حفظ {0} بنجاح", label),
             details: [
-              { label: "رقم السند", value: result.code },
-              { label: draft.voucher_type === 5 ? "المدفوع له" : "المقبوض منه", value: result.accountName },
-              { label: "المبلغ", value: formatAmount(result.amount) },
-              ...(paymentParts.length ? [{ label: "طريقة الدفع", value: paymentParts.join(" + ") }] : []),
-              { label: "التاريخ", value: draft.vch_date },
+              { label: tr("رقم السند"), value: result.code },
+              { label: draft.voucher_type === 5 ? tr("المدفوع له") : tr("المقبوض منه"), value: result.accountName },
+              { label: tr("المبلغ"), value: formatAmount(result.amount) },
+              ...(paymentParts.length ? [{ label: tr("طريقة الدفع"), value: paymentParts.join(" + ") }] : []),
+              { label: tr("التاريخ"), value: draft.vch_date },
             ],
             voucherLink: { id: result.id, code: result.code, voucherType: result.voucherType },
           })
         } else {
-          pushAssistant({ kind: "error", content: `تعذر حفظ ${label}: ${result.error}` })
+          pushAssistant({ kind: "error", content: tr("تعذر حفظ {0}: {1}", label, result.error) })
         }
         return
       }
@@ -440,19 +441,19 @@ export function AIChat() {
       if (!orderDraftResponse.ok && orderDraftData.code === "CUSTOMER_NOT_FOUND") {
         setPendingCustomer({ command: commandText, customer_name: orderDraftData.customer_name, voucher_type: 4,
           document_kind: "sales_draft", active_branch_id: Number(activeBranchId), user_id: Number(user?.id) })
-        pushAssistant({ content: `العميل "${orderDraftData.customer_name}" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال مسودة طلبية المبيعات؟` })
+        pushAssistant({ content: tr("العميل \"{0}\" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال مسودة طلبية المبيعات؟", orderDraftData.customer_name) })
         return
       }
-      if (!orderDraftResponse.ok) throw new Error(orderDraftData.error || "تعذر إنشاء المستند")
+      if (!orderDraftResponse.ok) throw new Error(orderDraftData.error || tr("تعذر إنشاء المستند"))
       if (orderDraftData.type === "sales-draft" || orderDraftData.type === "internal-request") {
         const section = orderDraftData.type === "sales-draft" ? "draft-sales-order" : "internal-manufacturing-request"
         const endpoint = orderDraftData.type === "sales-draft" ? "/api/order-drafts" : "/api/internal-manufacturing-requests"
         const saveResponse = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(orderDraftData.payload) })
         const saved = await saveResponse.json()
-        if (!saveResponse.ok) throw new Error(saved.error || "تعذر حفظ المستند")
+        if (!saveResponse.ok) throw new Error(saved.error || tr("تعذر حفظ المستند"))
         const code = String(saved.draft_number || saved.vch_code || "")
-        const label = orderDraftData.type === "sales-draft" ? "مسودة طلبية المبيعات" : "طلب البضاعة الداخلي"
-        pushAssistant({ kind: "success", content: `تم حفظ ${label} بنجاح`, details: [{ label: "الرقم", value: code }], documentLink: { section, code, id: Number(saved.id) } })
+        const label = orderDraftData.type === "sales-draft" ? tr("مسودة طلبية المبيعات") : tr("طلب البضاعة الداخلي")
+        pushAssistant({ kind: "success", content: tr("تم حفظ {0} بنجاح", label), details: [{ label: tr("الرقم"), value: code }], documentLink: { section, code, id: Number(saved.id) } })
         return
       }
       const response = await fetch("/api/ai-assistant/chat", {
@@ -467,7 +468,7 @@ export function AIChat() {
         }),
       })
 
-      if (!response.ok) throw new Error((await response.text()) || "فشل في الحصول على الرد")
+      if (!response.ok) throw new Error((await response.text()) || tr("فشل في الحصول على الرد"))
 
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
@@ -499,10 +500,10 @@ export function AIChat() {
       pushAssistant({
         kind: "error",
         content: error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")
-          ? "تأخرت خدمة الذكاء الاصطناعي في الرد (قد تكون مشغولة الآن). أعد إرسال الطلب بعد لحظات."
+          ? tr("تأخرت خدمة الذكاء الاصطناعي في الرد (قد تكون مشغولة الآن). أعد إرسال الطلب بعد لحظات.")
           : error instanceof Error && error.message.includes("GOOGLE_GENERATIVE_AI_API_KEY")
-          ? "لم يتم إعداد مفتاح Gemini. أضف GOOGLE_GENERATIVE_AI_API_KEY إلى ملف .env.local ثم أعد تشغيل الخادم."
-          : error instanceof Error ? error.message : "عذراً، حدث خطأ في الاتصال. الرجاء المحاولة مرة أخرى.",
+          ? tr("لم يتم إعداد مفتاح Gemini. أضف GOOGLE_GENERATIVE_AI_API_KEY إلى ملف .env.local ثم أعد تشغيل الخادم.")
+          : error instanceof Error ? error.message : tr("عذراً، حدث خطأ في الاتصال. الرجاء المحاولة مرة أخرى."),
       })
     } finally {
       setIsLoading(false)
@@ -528,7 +529,7 @@ export function AIChat() {
         const id = Number(row.currency_id ?? row.id)
         return Number.isFinite(id) && (lowest === null || id < lowest) ? id : lowest
       }, null)
-      if (!currencyId) throw new Error("لا توجد عملة افتراضية لتعريف العميل")
+      if (!currencyId) throw new Error(tr("لا توجد عملة افتراضية لتعريف العميل"))
       const prices = Array.isArray(pricesData) ? pricesData.filter((row) => Number(row.status ?? 1) !== 3) : []
       const priceCategoryId = prices.sort((left, right) => Number(left.id) - Number(right.id))[0]?.id || 1
       const response = await fetch("/api/customers", {
@@ -556,10 +557,10 @@ export function AIChat() {
         }),
       })
       const customer = await response.json()
-      if (!response.ok) throw new Error(customer.error || "تعذر تعريف العميل")
-      setMessages((prev) => [...prev, { role: "assistant", content: `تم تعريف العميل ${pending.customer_name} بالرقم ${customer.customer_code || ""}. جارٍ استكمال المستند...` }])
+      if (!response.ok) throw new Error(customer.error || tr("تعذر تعريف العميل"))
+      setMessages((prev) => [...prev, { role: "assistant", content: tr("تم تعريف العميل {0} بالرقم {1}. جارٍ استكمال المستند...", pending.customer_name, customer.customer_code || "") }])
     } catch (error) {
-      setMessages((prev) => [...prev, { role: "assistant", content: error instanceof Error ? error.message : "تعذر تعريف العميل" }])
+      setMessages((prev) => [...prev, { role: "assistant", content: error instanceof Error ? error.message : tr("تعذر تعريف العميل") }])
       return
     } finally {
       setIsLoading(false)
@@ -622,7 +623,7 @@ export function AIChat() {
 
   const startAudioTranscription = async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setMessages((prev) => [...prev, { role: "assistant", content: "لا يمكن تسجيل الصوت من هذا المتصفح. استخدم ميكروفون لوحة مفاتيح iPhone أو Safari." }])
+      setMessages((prev) => [...prev, { role: "assistant", content: tr("لا يمكن تسجيل الصوت من هذا المتصفح. استخدم ميكروفون لوحة مفاتيح iPhone أو Safari.") }])
       return
     }
     try {
@@ -641,17 +642,17 @@ export function AIChat() {
         try {
           const response = await fetch("/api/ai-assistant/transcribe", { method: "POST", body })
           const data = await response.json()
-          if (!response.ok) throw new Error(data.error || "تعذر تحويل الصوت إلى نص")
+          if (!response.ok) throw new Error(data.error || tr("تعذر تحويل الصوت إلى نص"))
           setInput((current) => `${current}${current ? " " : ""}${data.text}`)
         } catch (error) {
-          setMessages((prev) => [...prev, { role: "assistant", content: error instanceof Error ? error.message : "تعذر تحويل التسجيل الصوتي" }])
+          setMessages((prev) => [...prev, { role: "assistant", content: error instanceof Error ? error.message : tr("تعذر تحويل التسجيل الصوتي") }])
         }
       }
       mediaRecorderRef.current = recorder
       setIsListening(true)
       recorder.start()
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "اسمح للمتصفح باستخدام الميكروفون ثم حاول مرة أخرى." }])
+      setMessages((prev) => [...prev, { role: "assistant", content: tr("اسمح للمتصفح باستخدام الميكروفون ثم حاول مرة أخرى.") }])
     }
   }
 
@@ -666,7 +667,7 @@ export function AIChat() {
   const canSend = !isLoading && !isListening && Boolean(input.trim())
 
   return (
-    <section className="flex h-[calc(100dvh-8rem)] min-h-[480px] w-full min-w-0 gap-4" dir="rtl" aria-label="المساعد الذكي">
+    <section className="flex h-[calc(100dvh-8rem)] min-h-[480px] w-full min-w-0 gap-4" dir={appDir()} aria-label={tr("المساعد الذكي")}>
       {/* ── المحادثة ── */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-3 text-white sm:px-5">
@@ -675,10 +676,10 @@ export function AIChat() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-extrabold">المساعد الذكي</h1>
+              <h1 className="truncate text-base font-extrabold">{tr("المساعد الذكي")}</h1>
               <p className="flex items-center gap-1.5 truncate text-xs text-emerald-50/90">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-200" />
-                سندات، طلبيات واستعلامات بلغة طبيعية
+                {tr("سندات، طلبيات واستعلامات بلغة طبيعية")}
               </p>
             </div>
           </div>
@@ -698,7 +699,7 @@ export function AIChat() {
               className="h-8 gap-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 hover:text-white disabled:opacity-50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              محادثة جديدة
+              {tr("محادثة جديدة")}
             </Button>
           </div>
         </header>
@@ -709,11 +710,11 @@ export function AIChat() {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20">
                 <Bot className="h-7 w-7" />
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">كيف أساعدك اليوم؟</h2>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{tr("كيف أساعدك اليوم؟")}</h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-slate-500">
-                اكتب طلبك أو أملِه صوتياً — أُنشئ السند وأحفظه مباشرة دون مغادرة هذه الصفحة، أو أجيبك عن أسئلتك حول المبيعات والمخزون.
+                {tr("اكتب طلبك أو أملِه صوتياً — أُنشئ السند وأحفظه مباشرة دون مغادرة هذه الصفحة، أو أجيبك عن أسئلتك حول المبيعات والمخزون.")}
               </p>
-              <div className="mt-6 grid gap-2 text-right sm:grid-cols-2">
+              <div className="mt-6 grid gap-2 text-start sm:grid-cols-2">
                 {QUICK_ACTIONS.flatMap((group) => group.items).slice(0, 4).map((item) => (
                   <button
                     key={item.title}
@@ -733,7 +734,7 @@ export function AIChat() {
               </div>
             </div>
           ) : (
-            <div className="mx-auto max-w-3xl space-y-5" role="log" aria-label="المحادثة" aria-live="polite">
+            <div className="mx-auto max-w-3xl space-y-5" role="log" aria-label={tr("المحادثة")} aria-live="polite">
               {messages.map((message, index) => {
                 const isUser = message.role === "user"
                 return (
@@ -778,11 +779,11 @@ export function AIChat() {
                               {/* حفظ مباشر غير معتمد: فقط إن طوبق الطرف وكل الأصناف (وإلا المراجعة أولاً) */}
                               {message.invoicePrefill.account_id && !message.invoicePrefill.unmatched?.length && (
                                 <Button type="button" size="sm" className="h-8 gap-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => openInvoicePrefill({ ...message.invoicePrefill!, autoSave: true })}>
-                                  <Save className="h-3.5 w-3.5" />حفظ غير معتمد
+                                  <Save className="h-3.5 w-3.5" />{tr("حفظ غير معتمد")}
                                 </Button>
                               )}
                               <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => openInvoicePrefill(message.invoicePrefill!)}>
-                                <FileSearch className="h-3.5 w-3.5" />فتح الفاتورة للمراجعة
+                                <FileSearch className="h-3.5 w-3.5" />{tr("فتح الفاتورة للمراجعة")}
                               </Button>
                             </div>
                           )}
@@ -796,7 +797,7 @@ export function AIChat() {
                                 onClick={() => (message.voucherLink ? openVoucher(message.voucherLink) : openDocument(message.documentLink!))}
                               >
                                 <ExternalLink className="h-3.5 w-3.5" />
-                                {message.voucherLink ? "عرض السند" : "عرض المستند"}
+                                {message.voucherLink ? tr("عرض السند") : tr("عرض المستند")}
                               </Button>
                             </div>
                           )}
@@ -831,11 +832,11 @@ export function AIChat() {
                                     void handleSubmit("تأكيد", { command })
                                   }}
                                 >
-                                  <CheckCircle2 className="h-3.5 w-3.5" />{message.confirmed ? "تم التأكيد" : "تأكيد"}
+                                  <CheckCircle2 className="h-3.5 w-3.5" />{message.confirmed ? tr("تم التأكيد") : tr("تأكيد")}
                                 </Button>
                                 {!message.confirmed && (
                                   <Button type="button" size="sm" variant="outline" disabled={isLoading} className="h-8 rounded-lg" onClick={() => applyPrompt(confirmCommandOf(message.content) || "")}>
-                                    تعديل
+                                    {tr("تعديل")}
                                   </Button>
                                 )}
                               </div>
@@ -844,9 +845,9 @@ export function AIChat() {
                           {isUser && (
                             <button
                               type="button"
-                              title="إعادة استخدام الطلب"
+                              title={tr("إعادة استخدام الطلب")}
                               onClick={() => applyPrompt(message.content)}
-                              className="absolute -left-8 top-1/2 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 group-hover:flex"
+                              className="absolute -end-8 top-1/2 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 group-hover:flex"
                             >
                               <Copy className="h-3.5 w-3.5" />
                             </button>
@@ -863,16 +864,16 @@ export function AIChat() {
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                     <Sparkles className="h-4 w-4" />
                   </span>
-                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 dark:border-white/10 dark:bg-slate-900">
+                  <div className="flex items-center gap-2 rounded-2xl rounded-ee-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 dark:border-white/10 dark:bg-slate-900">
                     <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                    جارٍ معالجة طلبك...
+                    {tr("جارٍ معالجة طلبك...")}
                   </div>
                 </div>
               )}
               {pendingCustomer && !isLoading && (
-                <div className="flex justify-end gap-2 pl-10" role="group" aria-label="تعريف العميل المفقود">
+                <div className="flex justify-end gap-2 pe-10" role="group" aria-label={tr("تعريف العميل المفقود")}>
                   <Button type="button" size="sm" className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => void createDefaultCustomerAndContinue()}>
-                    نعم، عرّف العميل واحفظ
+                    {tr("نعم، عرّف العميل واحفظ")}
                   </Button>
                   <Button
                     type="button"
@@ -881,10 +882,10 @@ export function AIChat() {
                     className="rounded-lg"
                     onClick={() => {
                       setPendingCustomer(null)
-                      pushAssistant({ content: "تم إلغاء تعريف العميل وإنشاء المستند." })
+                      pushAssistant({ content: tr("تم إلغاء تعريف العميل وإنشاء المستند.") })
                     }}
                   >
-                    لا، إلغاء
+                    {tr("لا، إلغاء")}
                   </Button>
                 </div>
               )}
@@ -899,7 +900,7 @@ export function AIChat() {
             {isListening && (
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-rose-600" role="status">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />
-                الميكروفون يعمل — تحدّث ثم اضغط إيقاف
+                {tr("الميكروفون يعمل — تحدّث ثم اضغط إيقاف")}
               </div>
             )}
             <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 transition-shadow focus-within:border-emerald-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/15 dark:border-white/10 dark:bg-white/5">
@@ -910,7 +911,7 @@ export function AIChat() {
                 onClick={toggleListening}
                 disabled={isLoading}
                 aria-pressed={isListening}
-                title={isListening ? "إيقاف التسجيل" : "إملاء صوتي"}
+                title={isListening ? tr("إيقاف التسجيل") : tr("إملاء صوتي")}
                 className={cn("h-10 w-10 shrink-0 rounded-xl", isListening && "bg-rose-50 text-rose-600 hover:bg-rose-100")}
               >
                 {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -922,7 +923,7 @@ export function AIChat() {
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
-                title="إرفاق فاتورة أو سند (صورة/PDF) لإدخاله — يمكنك كتابة نوعه في الرسالة"
+                title={tr("إرفاق فاتورة أو سند (صورة/PDF) لإدخاله — يمكنك كتابة نوعه في الرسالة")}
                 className="h-10 w-10 shrink-0 rounded-xl"
               >
                 <Paperclip className="h-5 w-5" />
@@ -938,7 +939,7 @@ export function AIChat() {
                     void handleSubmit()
                   }
                 }}
-                placeholder="اكتب طلبك... مثال: سند قبض من الزبون أحمد نقدي 200"
+                placeholder={tr("اكتب طلبك... مثال: سند قبض من الزبون أحمد نقدي 200")}
                 disabled={isLoading}
                 rows={1}
                 className="block max-h-[200px] min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-slate-800 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:text-slate-100"
@@ -948,14 +949,14 @@ export function AIChat() {
                 onClick={() => void handleSubmit()}
                 disabled={!canSend}
                 className="h-10 shrink-0 gap-1.5 rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                aria-label="إرسال"
+                aria-label={tr("إرسال")}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 -scale-x-100" />}
-                <span className="hidden sm:inline">إرسال</span>
+                <span className="hidden sm:inline">{tr("إرسال")}</span>
               </Button>
             </div>
             <p className="mt-1.5 px-1 text-[11px] text-slate-400">
-              Enter للإرسال · Shift+Enter لسطر جديد · 📎 أرفق فاتورة أو سند (صورة/PDF) لإدخاله · السندات المكتملة تُحفظ مباشرة بدفترك الافتراضي
+              {tr("Enter للإرسال · Shift+Enter لسطر جديد · 📎 أرفق فاتورة أو سند (صورة/PDF) لإدخاله · السندات المكتملة تُحفظ مباشرة بدفترك الافتراضي")}
             </p>
           </div>
         </div>
@@ -966,7 +967,7 @@ export function AIChat() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-slate-800 dark:text-slate-100">
             <Sparkles className="h-4 w-4 text-emerald-600" />
-            أوامر جاهزة
+            {tr("أوامر جاهزة")}
           </h3>
           <div className="space-y-4">
             {QUICK_ACTIONS.map((group) => (
@@ -978,7 +979,7 @@ export function AIChat() {
                       key={item.title}
                       type="button"
                       onClick={() => applyPrompt(item.prompt)}
-                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-right text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5"
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5"
                     >
                       <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1", item.tone)}>
                         <item.icon className="h-3.5 w-3.5" />
@@ -995,7 +996,7 @@ export function AIChat() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-slate-800 dark:text-slate-100">
             <History className="h-4 w-4 text-emerald-600" />
-            ما تم إنشاؤه في هذه الجلسة
+            {tr("ما تم إنشاؤه في هذه الجلسة")}
           </h3>
           {createdDocuments.length ? (
             <div className="space-y-1.5">
@@ -1006,7 +1007,7 @@ export function AIChat() {
                     key={`${code}-${index}`}
                     type="button"
                     onClick={() => (message.voucherLink ? openVoucher(message.voucherLink) : openDocument(message.documentLink!))}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-100 px-2.5 py-2 text-right transition-colors hover:border-emerald-200 hover:bg-emerald-50/50 dark:border-white/10"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-100 px-2.5 py-2 text-start transition-colors hover:border-emerald-200 hover:bg-emerald-50/50 dark:border-white/10"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-bold text-slate-700 dark:text-slate-200">{message.content.replace(/^تم حفظ | بنجاح$/g, "")}</span>
@@ -1018,21 +1019,21 @@ export function AIChat() {
               })}
             </div>
           ) : (
-            <p className="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs text-slate-400 dark:bg-white/5">لا توجد مستندات بعد</p>
+            <p className="rounded-lg bg-slate-50 px-3 py-4 text-center text-xs text-slate-400 dark:bg-white/5">{tr("لا توجد مستندات بعد")}</p>
           )}
         </div>
 
         <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 text-xs leading-6 text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-100">
           <h3 className="mb-1.5 flex items-center gap-2 text-sm font-extrabold">
             <Lightbulb className="h-4 w-4" />
-            لنتيجة أدق
+            {tr("لنتيجة أدق")}
           </h3>
-          <ul className="list-disc space-y-1 pr-4">
-            <li>اذكر نوع السند واسم الزبون أو رمز حسابه والمبلغ.</li>
-            <li>شيكات القبض: رقم الشيك، المبلغ، البنك، الفرع وتاريخ الاستحقاق.</li>
-            <li>شيكات الصرف: الحساب البنكي، المبلغ وتاريخ الاستحقاق — رقم الشيك يُؤخذ من دفتر الشيكات إن لم يُذكر.</li>
-            <li>اذكر العملة إن لم تكن العملة الأساسية.</li>
-            <li>يُستخدم دفترك الافتراضي وحساباتك الافتراضية في الفرع النشط.</li>
+          <ul className="list-disc space-y-1 ps-4">
+            <li>{tr("اذكر نوع السند واسم الزبون أو رمز حسابه والمبلغ.")}</li>
+            <li>{tr("شيكات القبض: رقم الشيك، المبلغ، البنك، الفرع وتاريخ الاستحقاق.")}</li>
+            <li>{tr("شيكات الصرف: الحساب البنكي، المبلغ وتاريخ الاستحقاق — رقم الشيك يُؤخذ من دفتر الشيكات إن لم يُذكر.")}</li>
+            <li>{tr("اذكر العملة إن لم تكن العملة الأساسية.")}</li>
+            <li>{tr("يُستخدم دفترك الافتراضي وحساباتك الافتراضية في الفرع النشط.")}</li>
           </ul>
         </div>
       </aside>

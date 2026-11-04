@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -231,33 +232,33 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
 
   const validateOrder = (): { validItems: QuickOrderItem[] } | null => {
     if (!customer || !customer.id) {
-      Util.showErrorToast(toast.current, "يجب اختيار العميل")
+      Util.showErrorToast(toast.current, tr("يجب اختيار العميل"))
       return null
     }
 
     const validItems = items.filter((item) => item.product_id)
     if (validItems.length === 0) {
-      Util.showErrorToast(toast.current, "يجب ادخال صنف واحد على الأقل")
+      Util.showErrorToast(toast.current, tr("يجب ادخال صنف واحد على الأقل"))
       return null
     }
 
     for (const item of validItems) {
       const qty = Number(item.qty) || 0
       if (qty <= 0) {
-        Util.showErrorToast(toast.current, "يجب ادخال الكمية للصنف " + item.product_name)
+        Util.showErrorToast(toast.current, tr("يجب ادخال الكمية للصنف ") + item.product_name)
         return null
       }
 
       const price = Number(item.price) || 0
       const discount = Number(item.discount) || 0
       if (discount > qty * price) {
-        Util.showErrorToast(toast.current, "مبلغ الخصم اكبر من مبلغ الصنف " + item.product_name)
+        Util.showErrorToast(toast.current, tr("مبلغ الخصم اكبر من مبلغ الصنف ") + item.product_name)
         return null
       }
     }
 
     if (totalAmount < 0) {
-      Util.showErrorToast(toast.current, "مجموع الطلبية غير منطقي يرجى التأكد من المدخلات")
+      Util.showErrorToast(toast.current, tr("مجموع الطلبية غير منطقي يرجى التأكد من المدخلات"))
       return null
     }
 
@@ -271,7 +272,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     if (!validated) return
 
     if (!user?.id) {
-      Util.showErrorToast(toast.current, "المستخدم غير معرف يرجى تسجيل الدخول من جديد")
+      Util.showErrorToast(toast.current, tr("المستخدم غير معرف يرجى تسجيل الدخول من جديد"))
       return
     }
 
@@ -325,7 +326,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         } catch {
           errorData = { error: `HTTP ${response.status}: ${responseText}` }
         }
-        Util.showErrorToast(toast.current, errorData.error || "فشل في حفظ طلبية المبيعات")
+        Util.showErrorToast(toast.current, errorData.error || tr("فشل في حفظ طلبية المبيعات"))
         return
       }
 
@@ -333,7 +334,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
       toast.current?.show({
         severity: "success",
         summary: "",
-        detail: `تم حفظ الطلبية بنجاح${result?.order_number ? " رقم " + result.order_number : ""}`,
+        detail: tr("تم حفظ الطلبية بنجاح{0}", result?.order_number ? " رقم " + result.order_number : ""),
         life: 3000,
       })
 
@@ -345,8 +346,8 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         Util.showErrorToast(
           toast.current,
           result._taskTracking.opened === 0
-            ? "تم حفظ الطلبية لكن لم يتم فتح خطوات سير العمل — تأكد من وجود سير عمل مطابق لهذه الأصناف من شاشة إدارة الأقسام ومخطط سير العمل"
-            : "تم حفظ الطلبية، لكن تعذّر فتح خطوات سير العمل لبعض الأصناف",
+            ? tr("تم حفظ الطلبية لكن لم يتم فتح خطوات سير العمل — تأكد من وجود سير عمل مطابق لهذه الأصناف من شاشة إدارة الأقسام ومخطط سير العمل")
+            : tr("تم حفظ الطلبية، لكن تعذّر فتح خطوات سير العمل لبعض الأصناف"),
         )
       }
 
@@ -355,7 +356,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
       onOpenChange(false)
     } catch (err) {
       console.error("Error saving quick sales order:", err)
-      Util.showErrorToast(toast.current, "حدث خطأ أثناء حفظ البيانات")
+      Util.showErrorToast(toast.current, tr("حدث خطأ أثناء حفظ البيانات"))
     } finally {
       setIsSubmitting(false)
     }
@@ -365,7 +366,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     <Dialog open={open} onOpenChange={(next) => !isSubmitting && onOpenChange(next)}>
       <DialogContent
         className="max-w-4xl max-h-[90vh] overflow-y-auto"
-        dir="rtl"
+        dir={appDir()}
         // ProductSearchPopup يُركَّب عبر createPortal مباشرة إلى document.body (خارج شجرة DOM لهذه
         // النافذة تماماً)، خلافاً لـCustomerSearchPopup التي تُعرَض ضمن الشجرة نفسها بلا portal —
         // فتُعامِل Radix أي تفاعل (نقر/تركيز/Escape) داخل نافذة بحث الأصناف كتفاعل "خارج" هذه
@@ -380,10 +381,10 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
 
         <DialogHeader>
           <div className="flex justify-between items-center">
-            <DialogTitle className="text-right">طلبية مبيعات سريعة</DialogTitle>
+            <DialogTitle className="text-right">{tr("طلبية مبيعات سريعة")}</DialogTitle>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">F2: بحث عميل</Badge>
-              <Badge variant="outline" className="text-xs">F3: بحث صنف</Badge>
+              <Badge variant="outline" className="text-xs">{tr("F2: بحث عميل")}</Badge>
+              <Badge variant="outline" className="text-xs">{tr("F3: بحث صنف")}</Badge>
             </div>
           </div>
         </DialogHeader>
@@ -391,12 +392,12 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         <form onSubmit={handleSaveOrder} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="text-right block mb-2">العميل *</Label>
+              <Label className="text-right block mb-2">{tr("العميل *")}</Label>
               <div className="flex gap-2">
                 <Input
                   value={customer?.name || ""}
                   readOnly
-                  placeholder="-- اختر العميل --"
+                  placeholder={tr("-- اختر العميل --")}
                   className="text-right"
                 />
                 <Button type="button" variant="outline" size="icon" onClick={() => setShowCustomerSearch(true)}>
@@ -405,7 +406,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
               </div>
             </div>
             <div>
-              <Label className="text-right block mb-2">تاريخ الطلبية</Label>
+              <Label className="text-right block mb-2">{tr("تاريخ الطلبية")}</Label>
               <Input
                 type="date"
                 value={orderDate}
@@ -414,17 +415,17 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
               />
             </div>
             <div className="md:col-span-2">
-              <Label className="text-right block mb-2">ملاحظات</Label>
+              <Label className="text-right block mb-2">{tr("ملاحظات")}</Label>
               <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="text-right" />
             </div>
           </div>
 
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-right">الأصناف</h3>
+              <h3 className="text-lg font-semibold text-start">{tr("الأصناف")}</h3>
               <Button type="button" size="sm" onClick={() => setShowProductSearch(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                إضافة صنف
+                <Plus className="h-4 w-4 ms-2" />
+                {tr("إضافة صنف")}
               </Button>
             </div>
 
@@ -432,13 +433,13 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
               {items.map((item) => (
                 <div key={item.rowId} className="grid grid-cols-1 md:grid-cols-6 gap-3 p-3 border rounded-lg items-end">
                   <div className="md:col-span-2">
-                    <Label className="text-right block mb-1 text-sm">اسم الصنف</Label>
-                    <div className="rounded-md border bg-muted px-3 py-2 text-sm text-right min-h-[38px]">
+                    <Label className="text-right block mb-1 text-sm">{tr("اسم الصنف")}</Label>
+                    <div className="rounded-md border bg-muted px-3 py-2 text-sm text-start min-h-[38px]">
                       {item.product_name || "—"}
                     </div>
                   </div>
                   <div>
-                    <Label className="text-right block mb-1 text-sm">الكمية</Label>
+                    <Label className="text-right block mb-1 text-sm">{tr("الكمية")}</Label>
                     <Input
                       type="number"
                       value={item.qty}
@@ -450,7 +451,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
                     />
                   </div>
                   <div>
-                    <Label className="text-right block mb-1 text-sm">السعر</Label>
+                    <Label className="text-right block mb-1 text-sm">{tr("السعر")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -460,7 +461,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
                     />
                   </div>
                   <div>
-                    <Label className="text-right block mb-1 text-sm">الخصم</Label>
+                    <Label className="text-right block mb-1 text-sm">{tr("الخصم")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -486,7 +487,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
 
             <div className="mt-4 p-3 bg-muted rounded-lg">
               <div className="flex justify-between items-center">
-                <span className="font-semibold">الإجمالي:</span>
+                <span className="font-semibold">{tr("الإجمالي:")}</span>
                 <span className="text-xl font-bold">{totalAmount.toFixed(2)}</span>
               </div>
             </div>
@@ -494,11 +495,11 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
 
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              إلغاء
+              {tr("إلغاء")}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              <Save className="h-4 w-4 mr-2" />
-              {isSubmitting ? "جاري الحفظ..." : "حفظ الطلبية"}
+              <Save className="h-4 w-4 ms-2" />
+              {isSubmitting ? tr("جاري الحفظ...") : tr("حفظ الطلبية")}
             </Button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { consumeNewRecordParam } from "@/lib/new-record-param"
 import { useEffect, useMemo, useState } from "react"
@@ -222,10 +223,10 @@ export default function Accounts() {
     () => ({
       name: "AccountsScheme",
       columns: [
-        { header: "رقم الحساب", name: "code", width: 180, isReadOnly: true },
-        { header: "اسم الحساب", name: "name", width: "*", minWidth: 320, isReadOnly: true },
-        { header: "القائمة المالية", name: "finanical_list_name", width: 240, isReadOnly: true },
-        { header: "الحالة", name: "status", width: 160, isReadOnly: true },
+        { header: tr("رقم الحساب"), name: "code", width: 180, isReadOnly: true },
+        { header: tr("اسم الحساب"), name: "name", width: "*", minWidth: 320, isReadOnly: true },
+        { header: tr("القائمة المالية"), name: "finanical_list_name", width: 240, isReadOnly: true },
+        { header: tr("الحالة"), name: "status", width: 160, isReadOnly: true },
       ],
     }),
     [],
@@ -245,19 +246,19 @@ export default function Accounts() {
 
   const stats = useMemo(
     () => [
-      { label: "إجمالي الحسابات", value: accounts.length, color: "bg-blue-50" },
+      { label: tr("إجمالي الحسابات"), value: accounts.length, color: "bg-blue-50" },
       {
-        label: "الميزانية العمومية",
+        label: tr("الميزانية العمومية"),
         value: accounts.filter((item) => Number(item.finanical_list_id) === 1).length,
         color: "bg-green-50",
       },
       {
-        label: "قائمة الدخل",
+        label: tr("قائمة الدخل"),
         value: accounts.filter((item) => Number(item.finanical_list_id) === 2).length,
         color: "bg-amber-50",
       },
       {
-        label: "تقييم بضاعة",
+        label: tr("تقييم بضاعة"),
         value: accounts.filter((item) => Number(item.finanical_list_id) === 3).length,
         color: "bg-slate-50",
       },
@@ -334,11 +335,11 @@ export default function Accounts() {
     setMessage("")
 
     if (!formData.code.trim() || !formData.name.trim()) {
-      setError("رقم الحساب واسم الحساب مطلوبان")
+      setError(tr("رقم الحساب واسم الحساب مطلوبان"))
       return
     }
     if (!["1", "2", "3"].includes(formData.finanical_list_id)) {
-      setError("يرجى اختيار القائمة المالية")
+      setError(tr("يرجى اختيار القائمة المالية"))
       return
     }
 
@@ -429,7 +430,7 @@ export default function Accounts() {
 
       resetForm()
       setDialogOpen(false)
-      setMessage(isEdit ? "تم تعديل الحساب بنجاح" : "تم إنشاء الحساب بنجاح")
+      setMessage(isEdit ? tr("تم تعديل الحساب بنجاح") : tr("تم إنشاء الحساب بنجاح"))
     } catch (err) {
       console.error(err)
       setError("Error saving account")
@@ -439,7 +440,7 @@ export default function Accounts() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف الحساب؟"))) return
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف الحساب؟")))) return
 
     try {
       const response = await fetch(`/api/accounts/${id}`, { method: "DELETE" })
@@ -447,7 +448,7 @@ export default function Accounts() {
         setError("Failed to delete account")
         return
       }
-      setMessage("تم حذف الحساب بنجاح")
+      setMessage(tr("تم حذف الحساب بنجاح"))
       setAccounts((prev) => prev.filter((item) => Number(item.id) !== Number(id)))
     } catch (err) {
       console.error(err)
@@ -457,25 +458,25 @@ export default function Accounts() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الحسابات المحاسبية...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الحسابات المحاسبية...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" dir="rtl">
+    <div className="min-h-screen bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" dir={appDir()}>
       <div className="voucher-list-page space-y-5">
         {/* Header: نفس تصميم صفحات الملفات والحركات (VoucherListHero) */}
         <VoucherListHero
-          category="نظام الحسابات"
+          category={tr("نظام الحسابات")}
           icon={BookOpenIcon}
-          title="إدارة الحسابات"
-          subtitle="إدارة الحسابات المحاسبية وتصنيفاتها"
-          addLabel="حساب جديد"
+          title={tr("إدارة الحسابات")}
+          subtitle={tr("إدارة الحسابات المحاسبية وتصنيفاتها")}
+          addLabel={tr("حساب جديد")}
           onNew={handleNew}
           actions={
             <button
@@ -484,7 +485,7 @@ export default function Accounts() {
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25"
             >
               <FileSpreadsheet className="h-4 w-4" />
-              استيراد من اكسل
+              {tr("استيراد من اكسل")}
             </button>
           }
         />
@@ -496,9 +497,9 @@ export default function Accounts() {
 
         {/* Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={appDir()}>
             <DialogHeader>
-              <DialogTitle>اضافة حساب او تعديل حساب</DialogTitle>
+              <DialogTitle>{tr("اضافة حساب او تعديل حساب")}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-6">
@@ -515,7 +516,7 @@ export default function Accounts() {
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
-                  <Label className="mb-2 block">كود الحساب</Label>
+                  <Label className="mb-2 block">{tr("كود الحساب")}</Label>
                   <Input
                     value={formData.code}
                     maxLength={10}
@@ -525,21 +526,21 @@ export default function Accounts() {
                   />
                 </div>
                 <div>
-                  <Label className="mb-2 block">اسم الحساب</Label>
+                  <Label className="mb-2 block">{tr("اسم الحساب")}</Label>
                   <Input maxLength={100} value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                 </div>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
-                  <Label className="mb-2 block">الاسم بلغة أخرى</Label>
+                  <Label className="mb-2 block">{tr("الاسم بلغة أخرى")}</Label>
                   <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} />
                 </div>
                 <div>
-                  <Label className="mb-2 block">نوع الحساب</Label>
+                  <Label className="mb-2 block">{tr("نوع الحساب")}</Label>
                   <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر نوع الحساب" />
+                      <SelectValue placeholder={tr("اختر نوع الحساب")} />
                     </SelectTrigger>
                     <SelectContent>
                       {types.map((type) => (
@@ -554,19 +555,19 @@ export default function Accounts() {
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
-                  <Label className="mb-2 block">القائمة المالية</Label>
+                  <Label className="mb-2 block">{tr("القائمة المالية")}</Label>
                   <PrimeDropdown
                     inputId="financial_list_id"
                     value={formData.finanical_list_id}
                     options={[
-                      { label: "اختر", value: "" },
-                      { label: "الميزانية العمومية", value: "1" },
-                      { label: "قائمة الدخل", value: "2" },
-                      { label: "تقييم بضاعة", value: "3" },
+                      { label: tr("اختر"), value: "" },
+                      { label: tr("الميزانية العمومية"), value: "1" },
+                      { label: tr("قائمة الدخل"), value: "2" },
+                      { label: tr("تقييم بضاعة"), value: "3" },
                     ]}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر القائمة المالية"
+                    placeholder={tr("اختر القائمة المالية")}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
@@ -574,18 +575,18 @@ export default function Accounts() {
                   />
                 </div>
                 <div>
-                  <Label className="mb-2 block">الحالة</Label>
+                  <Label className="mb-2 block">{tr("الحالة")}</Label>
                   <PrimeDropdown
                     inputId="status"
                     value={formData.status}
                     options={[
-                      { label: "نشط", value: "نشط" },
-                      { label: "موقوف", value: "موقوف" },
-                      { label: "محذوف", value: "محذوف" },
+                      { label: tr("نشط"), value: "نشط" },
+                      { label: tr("موقوف"), value: "موقوف" },
+                      { label: tr("محذوف"), value: "محذوف" },
                     ]}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر الحالة"
+                    placeholder={tr("اختر الحالة")}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
@@ -595,17 +596,17 @@ export default function Accounts() {
               </div>
 
               <div>
-                <Label className="mb-2 block">ملاحظات</Label>
+                <Label className="mb-2 block">{tr("ملاحظات")}</Label>
                 <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="h-24" />
               </div>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button onClick={handleSave} disabled={saving}>
-                {saving ? "جاري الحفظ..." : "حفظ الحساب"}
+                {saving ? tr("جاري الحفظ...") : tr("حفظ الحساب")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -616,27 +617,27 @@ export default function Accounts() {
         {/* Search & Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>قائمة الحسابات</CardTitle>
+            <CardTitle>{tr("قائمة الحسابات")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <Label className="mb-2 block text-sm">اسم الحساب</Label>
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث برقم أو اسم الحساب" className="h-10" />
+                <Label className="mb-2 block text-sm">{tr("اسم الحساب")}</Label>
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("ابحث برقم أو اسم الحساب")} className="h-10" />
               </div>
               <div>
                 <MultiSelect
-                  caption="القائمة المالية"
+                  caption={tr("القائمة المالية")}
                   inputId="filterFinancialList"
                   value={filterFinancialList}
                   options={[
-                    { label: "الميزانية العمومية", value: "1" },
-                    { label: "قائمة الدخل", value: "2" },
-                    { label: "تقييم بضاعة", value: "3" },
+                    { label: tr("الميزانية العمومية"), value: "1" },
+                    { label: tr("قائمة الدخل"), value: "2" },
+                    { label: tr("تقييم بضاعة"), value: "3" },
                   ]}
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="كل القوائم المالية"
+                  placeholder={tr("كل القوائم المالية")}
                   showFilter={true}
                   showCheck={true}
                   showMultiSelect={true}
@@ -644,18 +645,18 @@ export default function Accounts() {
                 />
               </div>
               <div>
-                <Label className="mb-2 block text-sm">الحالة</Label>
+                <Label className="mb-2 block text-sm">{tr("الحالة")}</Label>
                 <PrimeDropdown
                   inputId="filterStatus"
                   value={filterStatus || ""}
                   options={[
-                    { label: "كل الحالات", value: "" },
-                    { label: "نشط", value: "نشط" },
-                    { label: "موقوف", value: "موقوف" },
+                    { label: tr("كل الحالات"), value: "" },
+                    { label: tr("نشط"), value: "نشط" },
+                    { label: tr("موقوف"), value: "موقوف" },
                   ]}
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="كل الحالات"
+                  placeholder={tr("كل الحالات")}
                   className="invoice-currency-dropdown w-full"
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
@@ -664,7 +665,7 @@ export default function Accounts() {
               </div>
               <div className="flex items-end">
                 <Button variant="outline" className="h-10 w-full rounded-xl border-emerald-200 bg-emerald-50 font-bold text-emerald-700 hover:bg-emerald-100" onClick={refreshAccounts}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> تحديث
+                  <RefreshCw className="mr-2 h-4 w-4" />{tr(" تحديث")}
                 </Button>
               </div>
             </div>
@@ -682,22 +683,22 @@ export default function Accounts() {
 
             {/* Table */}
             <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-              <table className="w-full text-right text-sm">
+              <table className="w-full text-start text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 font-semibold text-slate-700 w-12">##</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[120px]">رقم الحساب</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[200px]">اسم الحساب</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[150px]">القائمة المالية</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[100px]">الحالة</th>
-                    <th className="px-4 py-3 font-semibold text-slate-700 w-20">الإجراءات</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[120px]">{tr("رقم الحساب")}</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[200px]">{tr("اسم الحساب")}</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[150px]">{tr("القائمة المالية")}</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[100px]">{tr("الحالة")}</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-20">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {filteredAccounts.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                        لا توجد حسابات متطابقة
+                        {tr("لا توجد حسابات متطابقة")}
                       </td>
                     </tr>
                   ) : (
@@ -728,7 +729,7 @@ export default function Accounts() {
                           <button
                             onClick={() => handleOpenUnifiedAccount(account)}
                             className="p-1.5 hover:bg-blue-100 rounded text-blue-600 transition"
-                            title="تفاصيل"
+                            title={tr("تفاصيل")}
                           >
                             <CheckCircle className="h-4 w-4" />
                           </button>
@@ -743,7 +744,7 @@ export default function Accounts() {
         </Card>
         {/* Unified accounts opened as local popup (like فاتورة جديدة) */}
         <Dialog open={showUnifiedPopup} onOpenChange={setShowUnifiedPopup}>
-          <DialogContent inline={fullscreenEnabled && showUnifiedPopup} className="flex h-[min(90dvh,900px)] max-h-[calc(100dvh-1rem)] w-[95vw] max-w-[1200px] flex-col overflow-hidden p-0" dir="rtl"
+          <DialogContent inline={fullscreenEnabled && showUnifiedPopup} className="flex h-[min(90dvh,900px)] max-h-[calc(100dvh-1rem)] w-[95vw] max-w-[1200px] flex-col overflow-hidden p-0" dir={appDir()}
                     onPointerDownOutside={(event) => event.preventDefault()}
                     onEscapeKeyDown={(event) => event.preventDefault()}
                   >

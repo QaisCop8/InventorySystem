@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -51,21 +52,21 @@ export default function ItemGroupSearch({ open, onOpenChange, onSelect }: ItemGr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-md">
+      <DialogContent dir={appDir()} className="max-w-md">
         <DialogHeader>
-          <DialogTitle>بحث مجموعات الأصناف</DialogTitle>
+          <DialogTitle>{tr("بحث مجموعات الأصناف")}</DialogTitle>
         </DialogHeader>
-        <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث برمز أو اسم المجموعة" />
+        <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("ابحث برمز أو اسم المجموعة")} />
         <ScrollArea className="max-h-80">
           <div className="space-y-1">
-            {loading && <div className="py-6 text-center text-sm text-slate-400">جارٍ التحميل...</div>}
-            {!loading && filtered.length === 0 && <div className="py-6 text-center text-sm text-slate-400">لا توجد نتائج</div>}
+            {loading && <div className="py-6 text-center text-sm text-slate-400">{tr("جارٍ التحميل...")}</div>}
+            {!loading && filtered.length === 0 && <div className="py-6 text-center text-sm text-slate-400">{tr("لا توجد نتائج")}</div>}
             {!loading &&
               filtered.map((g) => (
                 <button
                   key={g.id}
                   onClick={() => handleSelect(g)}
-                  className="flex w-full items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-right text-sm hover:bg-slate-50"
+                  className="flex w-full items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-start text-sm hover:bg-slate-50"
                 >
                   <span className="font-medium text-slate-800">{g.group_name}</span>
                   <span className="text-xs text-slate-400">{g.group_code}</span>

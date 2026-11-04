@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useVoucherPrinter } from "./use-voucher-printer"
@@ -34,16 +35,16 @@ export function accountVoucherDocument(data: VoucherPrintData, voucherTypeId: nu
     code: data.vch_code,
     date: data.vch_date,
     fields: [
-      { label: "العملة", value: data.currency_name },
-      { label: "المبلغ", value: data.amount === undefined ? "" : Number(data.amount).toLocaleString("en-US", amountFractionOptions()) },
-      { label: "سند يدوي", value: data.manual_voucher },
+      { label: tr("العملة"), value: data.currency_name },
+      { label: tr("المبلغ"), value: data.amount === undefined ? "" : Number(data.amount).toLocaleString("en-US", amountFractionOptions()) },
+      { label: tr("سند يدوي"), value: data.manual_voucher },
     ],
     columns: [
-      { key: "account_code", label: "رقم الحساب", weight: 0.9 },
-      { key: "account_name", label: "اسم الحساب", weight: 2 },
-      { key: "debit", label: "مدين", numeric: true },
-      { key: "credit", label: "دائن", numeric: true },
-      { key: "notes", label: "البيان", weight: 1.6 },
+      { key: "account_code", label: tr("رقم الحساب"), weight: 0.9 },
+      { key: "account_name", label: tr("اسم الحساب"), weight: 2 },
+      { key: "debit", label: tr("مدين"), numeric: true },
+      { key: "credit", label: tr("دائن"), numeric: true },
+      { key: "notes", label: tr("البيان"), weight: 1.6 },
     ],
     rows: data.rows.map(row => ({
       account_code: row.account_code,
@@ -53,8 +54,8 @@ export function accountVoucherDocument(data: VoucherPrintData, voucherTypeId: nu
       notes: row.note,
     })),
     totals: [
-      { label: "إجمالي المدين", value: totalDebit },
-      { label: "إجمالي الدائن", value: totalCredit, strong: true },
+      { label: tr("إجمالي المدين"), value: totalDebit },
+      { label: tr("إجمالي الدائن"), value: totalCredit, strong: true },
     ],
     amount: data.amount ?? Math.max(totalDebit, totalCredit),
     currencyName: data.currency_name,

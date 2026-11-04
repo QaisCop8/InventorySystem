@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,23 +120,23 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
         className="bg-white rounded-lg shadow-2xl border p-6 flex flex-col w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-        dir="rtl"
+        dir={appDir()}
       >
-        <h3 className="text-lg font-semibold mb-4 text-right">
-          استلمت بواسطة
+        <h3 className="text-lg font-semibold mb-4 text-start">
+          {tr("استلمت بواسطة")}
         </h3>
 
         {/* Batch mode: copy to all section */}
         {isBatchMode && orders.length > 1 && (
           <div className="mb-6 p-4 bg-blue-50 rounded border border-blue-200">
-            <p className="text-sm font-medium text-blue-900 mb-3 text-right">
-              انسخ القيمة إلى جميع الطلبيات المحددة
+            <p className="text-sm font-medium text-blue-900 mb-3 text-start">
+              {tr("انسخ القيمة إلى جميع الطلبيات المحددة")}
             </p>
             <div className="flex gap-2">
               <Input
                 ref={copyToAllRef}
                 type="text"
-                placeholder="أدخل القيمة واضغظ انسخ الكل"
+                placeholder={tr("أدخل القيمة واضغظ انسخ الكل")}
                 value={copyToAllValue}
                 onChange={(e) => setCopyToAllValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -143,14 +144,14 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
                     //handleCopyToAll();
                   }
                 }}
-                className="flex-1 p-2 border border-gray-300 rounded text-right"
+                className="flex-1 p-2 border border-gray-300 rounded text-start"
                 maxLength={15}
               />
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 whitespace-nowrap"
                 onClick={handleCopyToAll}
               >
-                انسخ الكل
+                {tr("انسخ الكل")}
               </Button>
             </div>
           </div>
@@ -164,7 +165,7 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
                 <Input
                   ref={idx === 0 ? firstOrderInputRef : null}
                   type="text"
-                  placeholder={order.received_by ? "أضف أو عدّل" : "أدخل اسم المستلم"}
+                  placeholder={order.received_by ? tr("أضف أو عدّل") : tr("أدخل اسم المستلم")}
                   value={orderValues[order.id] || ""}
                   onChange={(e) =>
                     setOrderValues((prev) => ({
@@ -172,10 +173,10 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
                       [order.id]: e.target.value,
                     }))
                   }
-                  className="flex-1 p-2 border border-gray-300 rounded text-right"
+                  className="flex-1 p-2 border border-gray-300 rounded text-start"
                   maxLength={15}
                 />
-                <span className="text-sm text-gray-600 whitespace-nowrap text-right">
+                <span className="text-sm text-gray-600 whitespace-nowrap text-start">
                   {order.order_number}
                 </span>
               </div>
@@ -184,7 +185,7 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
             <Input
               ref={singleInputRef}
               type="text"
-              placeholder="أدخل اسم المستلم"
+              placeholder={tr("أدخل اسم المستلم")}
               value={orderValues[0] || ""}
               onChange={(e) =>
                 setOrderValues((prev) => ({ ...prev, [0]: e.target.value }))
@@ -194,7 +195,7 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
                   handleConfirm();
                 }
               }}
-              className="p-2 border border-gray-300 rounded w-full text-right"
+              className="p-2 border border-gray-300 rounded w-full text-start"
               maxLength={15}
             />
           )}
@@ -207,14 +208,14 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
             onClick={handleConfirm}
             title="F3"
           >
-            موافق <span className="text-xs ml-2 opacity-75">(F3)</span>
+            {tr("موافق ")}<span className="text-xs me-2 opacity-75">(F3)</span>
           </Button>
           <Button
             className="bg-red-600 hover:bg-red-700 text-white px-6"
             onClick={handleCancel}
             title="Escape"
           >
-            الغاء <span className="text-xs ml-2 opacity-75">(Esc)</span>
+            {tr("الغاء ")}<span className="text-xs me-2 opacity-75">(Esc)</span>
           </Button>
         </div>
       </div>

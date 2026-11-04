@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
@@ -198,10 +199,10 @@ const getStatusBadgeVariant = (status?: number) =>
   status === 1 ? "default" : status === 2 ? "secondary" : "destructive"
 
 const getStatusLabel = (status?: number) =>
-  status === 1 ? "نشط" : status === 2 ? "مجمّد" : "محذوف"
+  status === 1 ? tr("نشط") : status === 2 ? tr("مجمّد") : tr("محذوف")
 
 const getToggleStatusLabel = (status?: number) =>
-  status === 2 ? "إلغاء التجميد" : "تجميد"
+  status === 2 ? tr("إلغاء التجميد") : tr("تجميد")
 
 const getToggledStatus = (status?: number) => (status === 2 ? 1 : 2)
 
@@ -417,7 +418,7 @@ function Definitions() {
     e.preventDefault()
     if (!taxClassificationForm.name.trim()) return
     if (Number(taxClassificationForm.tax_percent) > 100) {
-      showAlert('قيمة الضريبة يجب أن لا تتجاوز 100')
+      showAlert(tr("قيمة الضريبة يجب أن لا تتجاوز 100"))
       return
     }
     try {
@@ -452,13 +453,13 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || (nextStatus === 2 ? "فشل في تجميد التصنيف" : "فشل في إلغاء التجميد"))
+        throw new Error(error.error || (nextStatus === 2 ? tr("فشل في تجميد التصنيف") : tr("فشل في إلغاء التجميد")))
       }
 
       await fetchTaxClassifications()
-      toast({ title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد", description: nextStatus === 2 ? "تم تجميد التصنيف" : "تم إلغاء تجميد التصنيف" })
+      toast({ title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"), description: nextStatus === 2 ? tr("تم تجميد التصنيف") : tr("تم إلغاء تجميد التصنيف") })
     } catch (error) {
-      toast({ title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد", description: error instanceof Error ? error.message : "تعذر تنفيذ العملية", variant: "destructive" })
+      toast({ title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"), description: error instanceof Error ? error.message : tr("تعذر تنفيذ العملية"), variant: "destructive" })
     }
   }
 
@@ -468,13 +469,13 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف التصنيف")
+        throw new Error(error.error || tr("فشل في حذف التصنيف"))
       }
 
       await fetchTaxClassifications()
-      toast({ title: "تم الحذف", description: "تم حذف التصنيف" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف التصنيف") })
     } catch (error) {
-      toast({ title: "فشل الحذف", description: error instanceof Error ? error.message : "تعذر حذف التصنيف", variant: "destructive" })
+      toast({ title: tr("فشل الحذف"), description: error instanceof Error ? error.message : tr("تعذر حذف التصنيف"), variant: "destructive" })
     }
   }
 
@@ -769,8 +770,8 @@ function Definitions() {
 
     if (!cityForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم المدينة",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم المدينة"),
         variant: "destructive",
       });
       return;
@@ -789,8 +790,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: isEditing ? "تم تعديل المدينة بنجاح" : "تم إضافة المدينة بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: isEditing ? tr("تم تعديل المدينة بنجاح") : tr("تم إضافة المدينة بنجاح"),
         });
         await fetchCities(); // refresh list
         setCityForm({ id: 0, name: "", status: 1 });
@@ -798,16 +799,16 @@ function Definitions() {
       } else {
         const error = await response.json();
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ المدينة",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ المدينة"),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error saving city:", error);
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       });
     }
@@ -818,8 +819,8 @@ function Definitions() {
 
     if (!currencyForm.currency_code.trim() || !currencyForm.currency_name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال رمز واسم العملة",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال رمز واسم العملة"),
         variant: "destructive",
       })
       return
@@ -834,8 +835,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم إضافة العملة بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: tr("تم إضافة العملة بنجاح"),
         })
         await fetchCurrencies()
         setCurrencyForm({ currency_symbol: "", currency_code: "", currency_name: "", buy_rate: "", sell_rate: "", exchange_rate: "" })
@@ -843,16 +844,16 @@ function Definitions() {
       } else {
         const error = await response.json()
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ العملة",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ العملة"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error adding warehouse:", error)
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       })
     }
@@ -863,8 +864,8 @@ function Definitions() {
 
     if (!customercategoryForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم التصنيف",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم التصنيف"),
         variant: "destructive",
       })
       return
@@ -879,8 +880,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم إضافة التصنيف بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: tr("تم إضافة التصنيف بنجاح"),
         })
         await fetchCustomerCategories()
         setCustomercategoryForm({ name: "", discount: 0, status: 1 })
@@ -889,16 +890,16 @@ function Definitions() {
       } else {
         const error = await response.json()
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ التصنيف",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ التصنيف"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error adding warehouse:", error)
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       })
     }
@@ -909,8 +910,8 @@ function Definitions() {
 
     if (!suppliercategoryForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم التصنيف",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم التصنيف"),
         variant: "destructive",
       })
       return
@@ -925,8 +926,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم إضافة التصنيف بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: tr("تم إضافة التصنيف بنجاح"),
         })
         await fetchsupplierCategories()
         setSuppliercategoryForm({ name: "", paymentterms: "", status: 1 })
@@ -935,16 +936,16 @@ function Definitions() {
       } else {
         const error = await response.json()
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ التصنيف",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ التصنيف"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error adding warehouse:", error)
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       })
     }
@@ -956,8 +957,8 @@ function Definitions() {
 
     if (!productcategoryForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم التصنيف",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم التصنيف"),
         variant: "destructive",
       })
       return
@@ -972,8 +973,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم إضافة التصنيف بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: tr("تم إضافة التصنيف بنجاح"),
         })
         await fetchProductCategories()
         setProductcategoryForm({ name: "", status: 1 })
@@ -982,16 +983,16 @@ function Definitions() {
       } else {
         const error = await response.json()
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ التصنيف",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ التصنيف"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error adding warehouse:", error)
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       })
     }
@@ -1005,11 +1006,11 @@ function Definitions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: category.id, status: nextStatus }),
       })
-      if (!response.ok) throw new Error("تعذر تحديث حالة التصنيف")
+      if (!response.ok) throw new Error(tr("تعذر تحديث حالة التصنيف"))
       await fetchCategories()
-      toast({ title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد", description: nextStatus === 2 ? "تم تجميد التصنيف" : "تم إلغاء تجميد التصنيف" })
+      toast({ title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"), description: nextStatus === 2 ? tr("تم تجميد التصنيف") : tr("تم إلغاء تجميد التصنيف") })
     } catch (error) {
-      toast({ title: "فشل تحديث الحالة", description: error instanceof Error ? error.message : "تعذر تحديث حالة التصنيف", variant: "destructive" })
+      toast({ title: tr("فشل تحديث الحالة"), description: error instanceof Error ? error.message : tr("تعذر تحديث حالة التصنيف"), variant: "destructive" })
     }
   }
 
@@ -1018,12 +1019,12 @@ function Definitions() {
       const response = await fetch(endpoint, { method: "DELETE" })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || "تعذر حذف التصنيف")
+        throw new Error(data.error || tr("تعذر حذف التصنيف"))
       }
       await fetchCategories()
-      toast({ title: "تم الحذف", description: "تم حذف التصنيف" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف التصنيف") })
     } catch (error) {
-      toast({ title: "فشل الحذف", description: error instanceof Error ? error.message : "تعذر حذف التصنيف", variant: "destructive" })
+      toast({ title: tr("فشل الحذف"), description: error instanceof Error ? error.message : tr("تعذر حذف التصنيف"), variant: "destructive" })
     }
   }
 
@@ -1048,8 +1049,8 @@ function Definitions() {
 
     if (!licenseTypeForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم نوع الرخصة",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم نوع الرخصة"),
         variant: "destructive",
       })
       return
@@ -1064,8 +1065,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم إضافة نوع الرخصة بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: tr("تم إضافة نوع الرخصة بنجاح"),
         })
         await fetchLicenseTypes()
         setLicenseTypeForm({ name: "" })
@@ -1073,16 +1074,16 @@ function Definitions() {
       } else {
         const error = await response.json()
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ نوع الرخصة",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ نوع الرخصة"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("Error adding license type:", error)
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       })
     }
@@ -1093,14 +1094,14 @@ function Definitions() {
       const response = await fetch(`/api/license-types/${id}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف نوع الرخصة")
+        throw new Error(error.error || tr("فشل في حذف نوع الرخصة"))
       }
       await fetchLicenseTypes()
-      toast({ title: "تم الحذف", description: "تم حذف نوع الرخصة" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف نوع الرخصة") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف نوع الرخصة",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف نوع الرخصة"),
         variant: "destructive",
       })
     }
@@ -1122,7 +1123,7 @@ function Definitions() {
       const result = await res.json()
 
       if (!res.ok) {
-        showAlert(result.error || "حدث خطأ")
+        showAlert(result.error || tr("حدث خطأ"))
         return
       }
 
@@ -1135,8 +1136,8 @@ function Definitions() {
         setUnits((prev) => [...prev, result])
       }
       toast({
-        title: "تم الحفظ بنجاح",
-        description: "تم إضافة الوحدة بنجاح",
+        title: tr("تم الحفظ بنجاح"),
+        description: tr("تم إضافة الوحدة بنجاح"),
       })
       // Reset form
       await fetchUnits()
@@ -1146,7 +1147,7 @@ function Definitions() {
       setCurrentUnitIndex(units.length) // select the new unit
     } catch (err) {
       console.error(err)
-      showAlert("فشل حفظ الوحدة")
+      showAlert(tr("فشل حفظ الوحدة"))
     }
   }
 
@@ -1178,18 +1179,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة الوحدة")
+        throw new Error(error.error || tr("فشل في تحديث حالة الوحدة"))
       }
 
       await fetchUnits()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد الوحدة" : "تم إلغاء تجميد الوحدة",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد الوحدة") : tr("تم إلغاء تجميد الوحدة"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة الوحدة",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة الوحدة"),
         variant: "destructive",
       })
     }
@@ -1200,14 +1201,14 @@ function Definitions() {
       const response = await fetch(`/api/units/${unitId}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف الوحدة")
+        throw new Error(error.error || tr("فشل في حذف الوحدة"))
       }
       await fetchUnits()
-      toast({ title: "تم الحذف", description: "تم حذف الوحدة" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف الوحدة") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف الوحدة",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف الوحدة"),
         variant: "destructive",
       })
     }
@@ -1255,18 +1256,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة المدينة")
+        throw new Error(error.error || tr("فشل في تحديث حالة المدينة"))
       }
 
       await fetchCities()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد المدينة" : "تم إلغاء تجميد المدينة",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد المدينة") : tr("تم إلغاء تجميد المدينة"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة المدينة",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة المدينة"),
         variant: "destructive",
       })
     }
@@ -1277,14 +1278,14 @@ function Definitions() {
       const response = await fetch(`/api/cities/${cityId}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف المدينة")
+        throw new Error(error.error || tr("فشل في حذف المدينة"))
       }
       await fetchCities()
-      toast({ title: "تم الحذف", description: "تم حذف المدينة" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف المدينة") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف المدينة",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف المدينة"),
         variant: "destructive",
       })
     }
@@ -1333,18 +1334,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة المستودع")
+        throw new Error(error.error || tr("فشل في تحديث حالة المستودع"))
       }
 
       await fetchWarehouses()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد المستودع" : "تم إلغاء تجميد المستودع",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد المستودع") : tr("تم إلغاء تجميد المستودع"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة المستودع",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة المستودع"),
         variant: "destructive",
       })
     }
@@ -1355,14 +1356,14 @@ function Definitions() {
       const response = await fetch(`/api/warehouses/${warehouseId}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف المستودع")
+        throw new Error(error.error || tr("فشل في حذف المستودع"))
       }
       await fetchWarehouses()
-      toast({ title: "تم الحذف", description: "تم حذف المستودع" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف المستودع") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف المستودع",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف المستودع"),
         variant: "destructive",
       })
     }
@@ -1384,7 +1385,7 @@ function Definitions() {
       const result = await res.json()
 
       if (!res.ok) {
-        showAlert(result.error || "حدث خطأ")
+        showAlert(result.error || tr("حدث خطأ"))
         return
       }
 
@@ -1394,8 +1395,8 @@ function Definitions() {
         setPrices((prev) => [...prev, result])
       }
       toast({
-        title: "تم الحفظ بنجاح",
-        description: editingPriceId ? "تم تحديث الفئة بنجاح" : "تم إضافة الفئة بنجاح",
+        title: tr("تم الحفظ بنجاح"),
+        description: editingPriceId ? tr("تم تحديث الفئة بنجاح") : tr("تم إضافة الفئة بنجاح"),
       })
       await fetchPrices()
       setPriceForm({ name: "", name_en: "", description: "", status: 1 })
@@ -1404,7 +1405,7 @@ function Definitions() {
       setCurrentPriceIndex(prices.length)
     } catch (err) {
       console.error(err)
-      showAlert("فشل حفظ فئة السعر")
+      showAlert(tr("فشل حفظ فئة السعر"))
     }
   }
 
@@ -1424,18 +1425,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة الفئة")
+        throw new Error(error.error || tr("فشل في تحديث حالة الفئة"))
       }
 
       await fetchPrices()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد الفئة" : "تم إلغاء تجميد الفئة",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد الفئة") : tr("تم إلغاء تجميد الفئة"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة الفئة",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة الفئة"),
         variant: "destructive",
       })
     }
@@ -1446,14 +1447,14 @@ function Definitions() {
       const response = await fetch(`/api/pricecategory/${priceId}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف الفئة")
+        throw new Error(error.error || tr("فشل في حذف الفئة"))
       }
       await fetchPrices()
-      toast({ title: "تم الحذف", description: "تم حذف الفئة" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف الفئة") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف الفئة",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف الفئة"),
         variant: "destructive",
       })
     }
@@ -1475,8 +1476,8 @@ function Definitions() {
 
     if (!incomeStatementItemForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم البند",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم البند"),
         variant: "destructive",
       })
       return
@@ -1500,20 +1501,20 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ البند")
+        throw new Error(error.error || tr("فشل في حفظ البند"))
       }
 
       await fetchIncomeStatementItems()
       setIncomeStatementItemForm({ id: 0, name: "", status: 1 })
       setShowIncomeStatementItemForm(false)
       toast({
-        title: "تم الحفظ بنجاح",
-        description: isEditing ? "تم تعديل بند قائمة الدخل" : "تم إضافة بند قائمة الدخل",
+        title: tr("تم الحفظ بنجاح"),
+        description: isEditing ? tr("تم تعديل بند قائمة الدخل") : tr("تم إضافة بند قائمة الدخل"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ البند",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ البند"),
         variant: "destructive",
       })
     }
@@ -1535,18 +1536,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة البند")
+        throw new Error(error.error || tr("فشل في تحديث حالة البند"))
       }
 
       await fetchIncomeStatementItems()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد بند قائمة الدخل" : "تم إلغاء تجميد بند قائمة الدخل",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد بند قائمة الدخل") : tr("تم إلغاء تجميد بند قائمة الدخل"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة البند",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة البند"),
         variant: "destructive",
       })
     }
@@ -1560,18 +1561,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف البند")
+        throw new Error(error.error || tr("فشل في حذف البند"))
       }
 
       await fetchIncomeStatementItems()
       toast({
-        title: "تم الحذف",
-        description: "تم حذف بند قائمة الدخل",
+        title: tr("تم الحذف"),
+        description: tr("تم حذف بند قائمة الدخل"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف البند",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف البند"),
         variant: "destructive",
       })
     }
@@ -1582,8 +1583,8 @@ function Definitions() {
 
     if (!balanceSheetAssetItemForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم البند",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم البند"),
         variant: "destructive",
       })
       return
@@ -1607,20 +1608,20 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ البند")
+        throw new Error(error.error || tr("فشل في حفظ البند"))
       }
 
       await fetchBalanceSheetAssetItems()
       setBalanceSheetAssetItemForm({ id: 0, name: "", status: 1 })
       setShowBalanceSheetAssetItemForm(false)
       toast({
-        title: "تم الحفظ بنجاح",
-        description: isEditing ? "تم تعديل بند أصول الميزانية" : "تم إضافة بند أصول الميزانية",
+        title: tr("تم الحفظ بنجاح"),
+        description: isEditing ? tr("تم تعديل بند أصول الميزانية") : tr("تم إضافة بند أصول الميزانية"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ البند",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ البند"),
         variant: "destructive",
       })
     }
@@ -1642,18 +1643,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة البند")
+        throw new Error(error.error || tr("فشل في تحديث حالة البند"))
       }
 
       await fetchBalanceSheetAssetItems()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد بند أصول الميزانية" : "تم إلغاء تجميد بند أصول الميزانية",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد بند أصول الميزانية") : tr("تم إلغاء تجميد بند أصول الميزانية"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة البند",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة البند"),
         variant: "destructive",
       })
     }
@@ -1667,18 +1668,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف البند")
+        throw new Error(error.error || tr("فشل في حذف البند"))
       }
 
       await fetchBalanceSheetAssetItems()
       toast({
-        title: "تم الحذف",
-        description: "تم حذف بند أصول الميزانية",
+        title: tr("تم الحذف"),
+        description: tr("تم حذف بند أصول الميزانية"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف البند",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف البند"),
         variant: "destructive",
       })
     }
@@ -1689,8 +1690,8 @@ function Definitions() {
 
     if (!balanceSheetLiabilityItemForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم البند",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم البند"),
         variant: "destructive",
       })
       return
@@ -1714,20 +1715,20 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ البند")
+        throw new Error(error.error || tr("فشل في حفظ البند"))
       }
 
       await fetchBalanceSheetLiabilityItems()
       setBalanceSheetLiabilityItemForm({ id: 0, name: "", status: 1 })
       setShowBalanceSheetLiabilityItemForm(false)
       toast({
-        title: "تم الحفظ بنجاح",
-        description: isEditing ? "تم تعديل بند خصوم الميزانية" : "تم إضافة بند خصوم الميزانية",
+        title: tr("تم الحفظ بنجاح"),
+        description: isEditing ? tr("تم تعديل بند خصوم الميزانية") : tr("تم إضافة بند خصوم الميزانية"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ البند",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ البند"),
         variant: "destructive",
       })
     }
@@ -1749,18 +1750,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة البند")
+        throw new Error(error.error || tr("فشل في تحديث حالة البند"))
       }
 
       await fetchBalanceSheetLiabilityItems()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد بند خصوم الميزانية" : "تم إلغاء تجميد بند خصوم الميزانية",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد بند خصوم الميزانية") : tr("تم إلغاء تجميد بند خصوم الميزانية"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة البند",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة البند"),
         variant: "destructive",
       })
     }
@@ -1774,18 +1775,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف البند")
+        throw new Error(error.error || tr("فشل في حذف البند"))
       }
 
       await fetchBalanceSheetLiabilityItems()
       toast({
-        title: "تم الحذف",
-        description: "تم حذف بند خصوم الميزانية",
+        title: tr("تم الحذف"),
+        description: tr("تم حذف بند خصوم الميزانية"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف البند",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف البند"),
         variant: "destructive",
       })
     }
@@ -1796,8 +1797,8 @@ function Definitions() {
 
     if (!costCenterTypeForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم النوع",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم النوع"),
         variant: "destructive",
       })
       return
@@ -1819,20 +1820,20 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ النوع")
+        throw new Error(error.error || tr("فشل في حفظ النوع"))
       }
 
       await fetchCostCenterTypes()
       setCostCenterTypeForm({ id: 0, name: "", status: 1 })
       setShowCostCenterTypeForm(false)
       toast({
-        title: "تم الحفظ بنجاح",
-        description: isEditing ? "تم تعديل نوع مركز التكلفة" : "تم إضافة نوع مركز التكلفة",
+        title: tr("تم الحفظ بنجاح"),
+        description: isEditing ? tr("تم تعديل نوع مركز التكلفة") : tr("تم إضافة نوع مركز التكلفة"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ النوع",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ النوع"),
         variant: "destructive",
       })
     }
@@ -1854,18 +1855,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة النوع")
+        throw new Error(error.error || tr("فشل في تحديث حالة النوع"))
       }
 
       await fetchCostCenterTypes()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد نوع مركز التكلفة" : "تم إلغاء تجميد نوع مركز التكلفة",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد نوع مركز التكلفة") : tr("تم إلغاء تجميد نوع مركز التكلفة"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة النوع",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة النوع"),
         variant: "destructive",
       })
     }
@@ -1879,18 +1880,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف النوع")
+        throw new Error(error.error || tr("فشل في حذف النوع"))
       }
 
       await fetchCostCenterTypes()
       toast({
-        title: "تم الحذف",
-        description: "تم حذف نوع مركز التكلفة",
+        title: tr("تم الحذف"),
+        description: tr("تم حذف نوع مركز التكلفة"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف النوع",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف النوع"),
         variant: "destructive",
       })
     }
@@ -1901,8 +1902,8 @@ function Definitions() {
 
     if (!costCenterForm.name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم مركز التكلفة",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم مركز التكلفة"),
         variant: "destructive",
       })
       return
@@ -1910,8 +1911,8 @@ function Definitions() {
 
     if (!costCenterForm.cost_type_id) {
       toast({
-        title: "خطأ",
-        description: "يرجى اختيار نوع مركز التكلفة",
+        title: tr("خطأ"),
+        description: tr("يرجى اختيار نوع مركز التكلفة"),
         variant: "destructive",
       })
       return
@@ -1935,20 +1936,20 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ مركز التكلفة")
+        throw new Error(error.error || tr("فشل في حفظ مركز التكلفة"))
       }
 
       await fetchCostCenters()
       setCostCenterForm({ id: 0, name: "", cost_type_id: "", parent_id: "none", status: 1 })
       setShowCostCenterForm(false)
       toast({
-        title: "تم الحفظ بنجاح",
-        description: isEditing ? "تم تعديل مركز التكلفة" : "تم إضافة مركز التكلفة",
+        title: tr("تم الحفظ بنجاح"),
+        description: isEditing ? tr("تم تعديل مركز التكلفة") : tr("تم إضافة مركز التكلفة"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ مركز التكلفة",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ مركز التكلفة"),
         variant: "destructive",
       })
     }
@@ -1981,18 +1982,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة مركز التكلفة")
+        throw new Error(error.error || tr("فشل في تحديث حالة مركز التكلفة"))
       }
 
       await fetchCostCenters()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد مركز التكلفة" : "تم إلغاء تجميد مركز التكلفة",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد مركز التكلفة") : tr("تم إلغاء تجميد مركز التكلفة"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة مركز التكلفة",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة مركز التكلفة"),
         variant: "destructive",
       })
     }
@@ -2006,18 +2007,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف مركز التكلفة")
+        throw new Error(error.error || tr("فشل في حذف مركز التكلفة"))
       }
 
       await fetchCostCenters()
       toast({
-        title: "تم الحذف",
-        description: "تم حذف مركز التكلفة",
+        title: tr("تم الحذف"),
+        description: tr("تم حذف مركز التكلفة"),
       })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف مركز التكلفة",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف مركز التكلفة"),
         variant: "destructive",
       })
     }
@@ -2027,7 +2028,7 @@ function Definitions() {
     e.preventDefault()
 
     if (!accountClassificationTypeForm.name.trim()) {
-      toast({ title: "خطأ", description: "يرجى إدخال اسم النوع", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يرجى إدخال اسم النوع"), variant: "destructive" })
       return
     }
 
@@ -2049,17 +2050,17 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ نوع تصنيف الحساب")
+        throw new Error(error.error || tr("فشل في حفظ نوع تصنيف الحساب"))
       }
 
       await fetchAccountClassificationTypes()
       setAccountClassificationTypeForm({ id: 0, name: "", status: 1 })
       setShowAccountClassificationTypeForm(false)
-      toast({ title: "تم الحفظ بنجاح", description: isEditing ? "تم تعديل نوع التصنيف" : "تم إضافة نوع التصنيف" })
+      toast({ title: tr("تم الحفظ بنجاح"), description: isEditing ? tr("تم تعديل نوع التصنيف") : tr("تم إضافة نوع التصنيف") })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ نوع التصنيف",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ نوع التصنيف"),
         variant: "destructive",
       })
     }
@@ -2081,18 +2082,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة النوع")
+        throw new Error(error.error || tr("فشل في تحديث حالة النوع"))
       }
 
       await fetchAccountClassificationTypes()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد نوع تصنيف الحساب" : "تم إلغاء تجميد نوع تصنيف الحساب",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد نوع تصنيف الحساب") : tr("تم إلغاء تجميد نوع تصنيف الحساب"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة النوع",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة النوع"),
         variant: "destructive",
       })
     }
@@ -2104,15 +2105,15 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف نوع التصنيف")
+        throw new Error(error.error || tr("فشل في حذف نوع التصنيف"))
       }
 
       await fetchAccountClassificationTypes()
-      toast({ title: "تم الحذف", description: "تم حذف نوع تصنيف الحساب" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف نوع تصنيف الحساب") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف نوع تصنيف الحساب",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف نوع تصنيف الحساب"),
         variant: "destructive",
       })
     }
@@ -2122,12 +2123,12 @@ function Definitions() {
     e.preventDefault()
 
     if (!accountClassificationForm.name.trim()) {
-      toast({ title: "خطأ", description: "يرجى إدخال اسم التصنيف", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يرجى إدخال اسم التصنيف"), variant: "destructive" })
       return
     }
 
     if (!accountClassificationForm.classification_type_id) {
-      toast({ title: "خطأ", description: "يرجى اختيار نوع التصنيف", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يرجى اختيار نوع التصنيف"), variant: "destructive" })
       return
     }
 
@@ -2150,17 +2151,17 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ التصنيف")
+        throw new Error(error.error || tr("فشل في حفظ التصنيف"))
       }
 
       await fetchAccountClassifications()
       setAccountClassificationForm({ id: 0, name: "", classification_type_id: "", status: 1 })
       setShowAccountClassificationForm(false)
-      toast({ title: "تم الحفظ بنجاح", description: isEditing ? "تم تعديل تصنيف الحساب" : "تم إضافة تصنيف الحساب" })
+      toast({ title: tr("تم الحفظ بنجاح"), description: isEditing ? tr("تم تعديل تصنيف الحساب") : tr("تم إضافة تصنيف الحساب") })
     } catch (error) {
       toast({
-        title: "فشل الحفظ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ التصنيف",
+        title: tr("فشل الحفظ"),
+        description: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ التصنيف"),
         variant: "destructive",
       })
     }
@@ -2191,18 +2192,18 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث حالة التصنيف")
+        throw new Error(error.error || tr("فشل في تحديث حالة التصنيف"))
       }
 
       await fetchAccountClassifications()
       toast({
-        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
-        description: nextStatus === 2 ? "تم تجميد تصنيف الحساب" : "تم إلغاء تجميد تصنيف الحساب",
+        title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد"),
+        description: nextStatus === 2 ? tr("تم تجميد تصنيف الحساب") : tr("تم إلغاء تجميد تصنيف الحساب"),
       })
     } catch (error) {
       toast({
-        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
-        description: error instanceof Error ? error.message : "تعذر تحديث حالة التصنيف",
+        title: nextStatus === 2 ? tr("فشل التجميد") : tr("فشل إلغاء التجميد"),
+        description: error instanceof Error ? error.message : tr("تعذر تحديث حالة التصنيف"),
         variant: "destructive",
       })
     }
@@ -2214,24 +2215,24 @@ function Definitions() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف التصنيف")
+        throw new Error(error.error || tr("فشل في حذف التصنيف"))
       }
 
       await fetchAccountClassifications()
-      toast({ title: "تم الحذف", description: "تم حذف تصنيف الحساب" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف تصنيف الحساب") })
     } catch (error) {
       toast({
-        title: "فشل الحذف",
-        description: error instanceof Error ? error.message : "تعذر حذف تصنيف الحساب",
+        title: tr("فشل الحذف"),
+        description: error instanceof Error ? error.message : tr("تعذر حذف تصنيف الحساب"),
         variant: "destructive",
       })
     }
   }
 
   const getIncomeStatementStatusLabel = (status: number) => {
-    if (status === 1) return "نشط"
-    if (status === 2) return "مجمد"
-    return "محذوف"
+    if (status === 1) return tr("نشط")
+    if (status === 2) return tr("مجمد")
+    return tr("محذوف")
   }
 
   const getIncomeStatementStatusVariant = (status: number): "default" | "secondary" | "destructive" => {
@@ -2241,7 +2242,7 @@ function Definitions() {
   }
 
   if (loading) {
-    return <LoadingCard title="جاري تحميل التعريفات..." description="يرجى الانتظار حتى تكتمل تهيئة الصفحة" />
+    return <LoadingCard title={tr("جاري تحميل التعريفات...")} description={tr("يرجى الانتظار حتى تكتمل تهيئة الصفحة")} />
   }
 
 
@@ -2252,8 +2253,8 @@ function Definitions() {
 
     if (!warehouseForm.warehouse_name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم المستودع",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم المستودع"),
         variant: "destructive",
       });
       return;
@@ -2272,8 +2273,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: isEditing ? "تم تعديل المستودع بنجاح" : "تم إضافة المستودع بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: isEditing ? tr("تم تعديل المستودع بنجاح") : tr("تم إضافة المستودع بنجاح"),
         });
         await fetchWarehouses();
         setWarehouseForm({ id: 0, warehouse_code: "", warehouse_name: "", location: "", status: 1 });
@@ -2281,16 +2282,16 @@ function Definitions() {
       } else {
         const error = await response.json();
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ المستودع",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ المستودع"),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error saving warehouse:", error);
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       });
     }
@@ -2300,19 +2301,19 @@ function Definitions() {
 
     if (!branchForm.branch_name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم الفرع",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم الفرع"),
         variant: "destructive",
       });
       return;
     }
     const symbol = String(branchForm.branch_symbol || "").trim().toUpperCase();
     if (!symbol) {
-      toast({ title: "خطأ", description: "رمز الفرع مطلوب", variant: "destructive" });
+      toast({ title: tr("خطأ"), description: tr("رمز الفرع مطلوب"), variant: "destructive" });
       return;
     }
     if (branches.some((b: any) => String(b.branch_symbol || "").toUpperCase() === symbol && Number(b.id) !== Number(editingBranchId || 0))) {
-      toast({ title: "خطأ", description: "رمز الفرع مستخدم في فرع آخر", variant: "destructive" });
+      toast({ title: tr("خطأ"), description: tr("رمز الفرع مستخدم في فرع آخر"), variant: "destructive" });
       return;
     }
 
@@ -2331,10 +2332,10 @@ function Definitions() {
       if (response.ok) {
         void reloadLicense();
         toast({
-          title: editingBranchId ? "تم التعديل بنجاح" : "تم الحفظ بنجاح",
+          title: editingBranchId ? tr("تم التعديل بنجاح") : tr("تم الحفظ بنجاح"),
           description: editingBranchId
-            ? "تم تحديث بيانات الفرع بنجاح"
-            : "تم إضافة الفرع بنجاح",
+            ? tr("تم تحديث بيانات الفرع بنجاح")
+            : tr("تم إضافة الفرع بنجاح"),
         });
 
         await fetchBranches();
@@ -2356,16 +2357,16 @@ function Definitions() {
         const error = await response.json();
         if (branchLicenseRequest.handleLimit(error)) return;
         toast({
-          title: "فشل العملية",
-          description: error.error || "حدث خطأ أثناء حفظ الفرع",
+          title: tr("فشل العملية"),
+          description: error.error || tr("حدث خطأ أثناء حفظ الفرع"),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error saving branch:", error);
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       });
     }
@@ -2377,22 +2378,22 @@ function Definitions() {
 
     if (!departmentForm.department_name.trim()) {
       toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم القسم",
+        title: tr("خطأ"),
+        description: tr("يرجى إدخال اسم القسم"),
         variant: "destructive",
       });
       return;
     }
 
     if (!departmentForm.branch_id) {
-      toast({ title: "مطلوب", description: "يجب اختيار الفرع", variant: "destructive" })
+      toast({ title: tr("مطلوب"), description: tr("يجب اختيار الفرع"), variant: "destructive" })
       return
     }
     // Prevent duplicate department names (case-insensitive). Allow same name when editing the same record.
     const nameNormalized = departmentForm.department_name.trim().toLowerCase();
     const duplicate = departments.some((d) => ((d.department_name || "").trim().toLowerCase() === nameNormalized) && d.id !== (departmentForm.id || 0));
     if (duplicate) {
-      toast({ title: "مكرر", description: "اسم القسم موجود بالفعل", variant: "destructive" })
+      toast({ title: tr("مكرر"), description: tr("اسم القسم موجود بالفعل"), variant: "destructive" })
       return
     }
     try {
@@ -2414,8 +2415,8 @@ function Definitions() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ بنجاح",
-          description: isEditing ? "تم تعديل القسم بنجاح" : "تم إضافة القسم بنجاح",
+          title: tr("تم الحفظ بنجاح"),
+          description: isEditing ? tr("تم تعديل القسم بنجاح") : tr("تم إضافة القسم بنجاح"),
         });
         await fetchDepartments();
         setDepartmentForm({ id: 0, department_code: "", department_name: "", branch_id: "", manager: "" });
@@ -2423,43 +2424,43 @@ function Definitions() {
       } else {
         const error = await response.json();
         toast({
-          title: "فشل الحفظ",
-          description: error.error || "حدث خطأ أثناء حفظ القسم",
+          title: tr("فشل الحفظ"),
+          description: error.error || tr("حدث خطأ أثناء حفظ القسم"),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Error saving department:", error);
       toast({
-        title: "خطأ في الاتصال",
-        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        title: tr("خطأ في الاتصال"),
+        description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"),
         variant: "destructive",
       });
     }
   };
 
   return (
-    <div className="defs-page min-h-full space-y-5 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" dir="rtl">
+    <div className="defs-page min-h-full space-y-5 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" dir={appDir()}>
       {/* رأس الصفحة بنفس تصميم رأس الرئيسية (page-hero) مع ملخص سريع للتعريفات */}
       <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
-        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 start-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur"><Settings className="h-7 w-7 text-white" /></span>
             <div>
-              <p className="text-xs font-semibold text-emerald-50/90">إدارة شاملة للنظام</p>
-              <h1 className="text-2xl font-black text-white drop-shadow-sm sm:text-3xl">الملفات والتعريفات</h1>
-              <p className="mt-1 text-sm text-emerald-50/85">المدن والمستودعات والوحدات والتصنيفات والتعريفات المالية والفروع في مكان واحد</p>
+              <p className="text-xs font-semibold text-emerald-50/90">{tr("إدارة شاملة للنظام")}</p>
+              <h1 className="text-2xl font-black text-white drop-shadow-sm sm:text-3xl">{tr("الملفات والتعريفات")}</h1>
+              <p className="mt-1 text-sm text-emerald-50/85">{tr("المدن والمستودعات والوحدات والتصنيفات والتعريفات المالية والفروع في مكان واحد")}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { label: "الفروع", value: branches.length, icon: Building },
-              { label: "المستودعات", value: warehouses.filter((w: any) => w.status !== 3).length, icon: WarehouseIcon },
-              { label: "الوحدات", value: units.length, icon: Ruler },
-              { label: "مراكز التكلفة", value: costCenters.length, icon: Network },
+              { label: tr("الفروع"), value: branches.length, icon: Building },
+              { label: tr("المستودعات"), value: warehouses.filter((w: any) => w.status !== 3).length, icon: WarehouseIcon },
+              { label: tr("الوحدات"), value: units.length, icon: Ruler },
+              { label: tr("مراكز التكلفة"), value: costCenters.length, icon: Network },
             ].map((stat) => (
               <div key={stat.label} className="flex min-w-[118px] items-center gap-2.5 rounded-xl bg-white/12 px-3 py-2 ring-1 ring-white/20 backdrop-blur">
                 <stat.icon className="h-4 w-4 shrink-0 text-white/90" />
@@ -2470,15 +2471,15 @@ function Definitions() {
         </div>
       </header>
 
-      <Tabs defaultValue="definitions" className="w-full" dir="rtl">
+      <Tabs defaultValue="definitions" className="w-full" dir={appDir()}>
         <TabsList className="defs-tabs mb-5 grid h-auto w-full grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:grid-cols-4 dark:border-slate-800 dark:bg-slate-900">
           {[
-            { value: "definitions", label: "التعريفات الأساسية", hint: "مدن، مستودعات، رخص، تصنيفات", icon: Package },
-            { value: "items", label: "الأصناف", hint: "وحدات، فئات أسعار، تصنيفات", icon: Package2 },
-            { value: "financial-definitions", label: "التعريفات المالية", hint: "قوائم مالية، مراكز تكلفة", icon: CreditCard },
-            { value: "departments", label: "الأقسام والفروع", hint: "الفروع المرخّصة والأقسام", icon: Building },
+            { value: "definitions", label: tr("التعريفات الأساسية"), hint: tr("مدن، مستودعات، رخص، تصنيفات"), icon: Package },
+            { value: "items", label: tr("الأصناف"), hint: tr("وحدات، فئات أسعار، تصنيفات"), icon: Package2 },
+            { value: "financial-definitions", label: tr("التعريفات المالية"), hint: tr("قوائم مالية، مراكز تكلفة"), icon: CreditCard },
+            { value: "departments", label: tr("الأقسام والفروع"), hint: tr("الفروع المرخّصة والأقسام"), icon: Building },
           ].map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="defs-tab group h-auto justify-start gap-3 rounded-xl px-3 py-2.5 text-right">
+            <TabsTrigger key={tab.value} value={tab.value} className="defs-tab group h-auto justify-start gap-3 rounded-xl px-3 py-2.5 text-start">
               <span className="defs-tab-icon grid h-9 w-9 shrink-0 place-items-center rounded-lg"><tab.icon className="h-4 w-4" /></span>
               <span className="min-w-0 leading-tight"><b className="block truncate text-sm">{tab.label}</b><small className="defs-tab-hint hidden truncate text-[11px] sm:block">{tab.hint}</small></span>
             </TabsTrigger>
@@ -2487,12 +2488,12 @@ function Definitions() {
 
         <TabsContent value="departments" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Building className="h-5 w-5 text-primary" />
-                    الفروع ({branches.length})
+                    {tr("الفروع (")}{branches.length})
                   </CardTitle>
                   <Button className="erp-btn-primary" size="sm" onClick={() => {
                     // الحد المرخّص من الفروع مكتمل: عرض طلب الزيادة بدل فتح نموذج إضافة سيُرفض حفظه.
@@ -2502,8 +2503,8 @@ function Definitions() {
                     }
                     setShowBranchForm(!showBranchForm)
                   }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    {editingBranchId ? "تعديل الفرع" : "إضافة فرع جديد"}
+                    <Plus className="h-4 w-4 ms-2" />
+                    {editingBranchId ? tr("تعديل الفرع") : tr("إضافة فرع جديد")}
                   </Button>
                 </div>
               </CardHeader>
@@ -2512,27 +2513,27 @@ function Definitions() {
                 <LicenseUsageStrip resource="branches" license={companyLicense} onRequest={() => branchLicenseRequest.open("branches")} />
 
                 {showBranchForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة فرع جديد</h3>
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة فرع جديد")}</h3>
                     <form className="space-y-4" onSubmit={handleAddBranch}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رقم الفرع</Label>
+                          <Label className="erp-label text-start block">{tr("رقم الفرع")}</Label>
                           <Input
                             readOnly
-                            className="erp-input bg-muted text-right"
-                            placeholder="يتم توليده تلقائياً"
-                            dir="rtl"
+                            className="erp-input bg-muted text-start"
+                            placeholder={tr("يتم توليده تلقائياً")}
+                            dir={appDir()}
                             value={branchForm.branch_code}
                           />
                         </div>
                         <div className="text-right">
-                          <Label className="erp-label text-right block">اسم الفرع *</Label>
+                          <Label className="erp-label text-start block">{tr("اسم الفرع *")}</Label>
                           <Input
                             required
-                            className="erp-input text-right"
-                            placeholder="مثال: فرع رام الله"
-                            dir="rtl"
+                            className="erp-input text-start"
+                            placeholder={tr("مثال: فرع رام الله")}
+                            dir={appDir()}
                             maxLength={30}
                             value={branchForm.branch_name}
                             onChange={(e) => setBranchForm({ ...branchForm, branch_name: e.target.value })}
@@ -2541,50 +2542,50 @@ function Definitions() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رمز الفرع *</Label>
+                          <Label className="erp-label text-start block">{tr("رمز الفرع *")}</Label>
                           <select
                             required
-                            className="erp-input w-full rounded-md border bg-background px-3 py-2 text-right text-sm"
-                            dir="rtl"
+                            className="erp-input w-full rounded-md border bg-background px-3 py-2 text-start text-sm"
+                            dir={appDir()}
                             value={branchForm.branch_symbol}
                             onChange={(e) => setBranchForm({ ...branchForm, branch_symbol: e.target.value })}
                           >
-                            <option value="" disabled>اختر رمز الفرع</option>
+                            <option value="" disabled>{tr("اختر رمز الفرع")}</option>
                             {BRANCH_SYMBOLS.map((symbol) => {
                               const used = branches.some((b: any) => String(b.branch_symbol || "").toUpperCase() === symbol && Number(b.id) !== Number(editingBranchId || 0))
-                              return <option key={symbol} value={symbol} disabled={used}>{symbol}{used ? " (مستخدم)" : ""}</option>
+                              return <option key={symbol} value={symbol} disabled={used}>{symbol}{used ? tr(" (مستخدم)") : ""}</option>
                             })}
                           </select>
                         </div>
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">رقم الهاتف</Label>
+                        <Label className="erp-label text-start block">{tr("رقم الهاتف")}</Label>
                         <Input
-                          className="erp-input text-right"
+                          className="erp-input text-start"
                           placeholder="09-1234567"
-                          dir="rtl"
+                          dir={appDir()}
                           value={branchForm.phone}
                           maxLength={12}
                           onChange={(e) => setBranchForm({ ...branchForm, phone: e.target.value })}
                         />
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">العنوان</Label>
+                        <Label className="erp-label text-start block">{tr("العنوان")}</Label>
                         <Input
-                          className="erp-input text-right"
-                          placeholder="العنوان الكامل للفرع"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("العنوان الكامل للفرع")}
+                          dir={appDir()}
                           maxLength={30}
                           value={branchForm.address}
                           onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })}
                         />
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">مسؤول الفرع</Label>
+                        <Label className="erp-label text-start block">{tr("مسؤول الفرع")}</Label>
                         <Input
-                          className="erp-input text-right"
-                          placeholder="اسم المسؤول"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("اسم المسؤول")}
+                          dir={appDir()}
                           maxLength={30}
                           value={branchForm.manager}
                           onChange={(e) => setBranchForm({ ...branchForm, manager: e.target.value })}
@@ -2593,11 +2594,11 @@ function Definitions() {
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
                           <Button type="submit" className="erp-btn-primary" size="sm">
-                            {editingBranchId ? "تحديث" : "حفظ"}
+                            {editingBranchId ? tr("تحديث") : tr("حفظ")}
                           </Button>
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => setShowBranchForm(false)}>
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -2615,31 +2616,31 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentBranchIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{branch.branch_name}</h4>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {branch.address || "لا يوجد عنوان"}
+                            {branch.address || tr("لا يوجد عنوان")}
                           </p>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>المسؤول: {branch.manager || "غير محدد"}</span>
-                            <span>الهاتف: {branch.phone || "غير محدد"}</span>
+                            <span>{tr("المسؤول: ")}{branch.manager || tr("غير محدد")}</span>
+                            <span>{tr("الهاتف: ")}{branch.phone || tr("غير محدد")}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditBranch(branch)} title="تعديل الفرع">
+                          <Button variant="outline" size="sm" onClick={() => handleEditBranch(branch)} title={tr("تعديل الفرع")}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="outline" size="sm" onClick={(event) => { event.stopPropagation(); setBranchUsersFor(branch) }} className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50" title="المستخدمون الذين يعملون في هذا الفرع">
+                          <Button variant="outline" size="sm" onClick={(event) => { event.stopPropagation(); setBranchUsersFor(branch) }} className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50" title={tr("المستخدمون الذين يعملون في هذا الفرع")}>
                             <ShieldCheck className="h-3.5 w-3.5" />
-                            صلاحيات المستخدمين
+                            {tr("صلاحيات المستخدمين")}
                           </Button>
                           {/* الحالة من status (1 نشط) — الحقل is_active غير موجود في جدول الفروع فكانت كل الفروع "غير نشط" */}
                           {(() => { const active = branch.status != null ? Number(branch.status) === 1 : branch.is_active !== false; return (
-                            <Badge variant={active ? "default" : "secondary"}>{active ? "نشط" : "غير نشط"}</Badge>
+                            <Badge variant={active ? "default" : "secondary"}>{active ? tr("نشط") : tr("غير نشط")}</Badge>
                           ) })()}
                         </div>
                       </div>
@@ -2649,20 +2650,20 @@ function Definitions() {
               </CardContent>
             </Card>
 
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    الأقسام ({departments.length})
+                    {tr("الأقسام (")}{departments.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
                     size="sm"
                     onClick={() => setShowDepartmentForm(!showDepartmentForm)}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة قسم
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة قسم")}
                   </Button>
                 </div>
               </CardHeader>
@@ -2670,27 +2671,27 @@ function Definitions() {
 
 
                 {showDepartmentForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة قسم جديد</h3>
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة قسم جديد")}</h3>
                     <form className="space-y-4" onSubmit={handleAddDepartment}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رمز القسم</Label>
+                          <Label className="erp-label text-start block">{tr("رمز القسم")}</Label>
                           <Input
                             readOnly
-                            className="erp-input bg-muted text-right"
-                            placeholder="يتم توليده تلقائياً"
-                            dir="rtl"
+                            className="erp-input bg-muted text-start"
+                            placeholder={tr("يتم توليده تلقائياً")}
+                            dir={appDir()}
                             value={departmentForm.department_code}
                           />
                         </div>
                         <div className="text-right">
-                          <Label className="erp-label text-right block">اسم القسم *</Label>
+                          <Label className="erp-label text-start block">{tr("اسم القسم *")}</Label>
                           <Input
                             required
-                            className="erp-input text-right"
-                            placeholder="مثال: المحاسبة"
-                            dir="rtl"
+                            className="erp-input text-start"
+                            placeholder={tr("مثال: المحاسبة")}
+                            dir={appDir()}
                             maxLength={30}
                             value={departmentForm.department_name}
                             onChange={(e) => setDepartmentForm({ ...departmentForm, department_name: e.target.value })}
@@ -2698,14 +2699,14 @@ function Definitions() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">تابع لفرع</Label>
+                        <Label className="erp-label text-start block">{tr("تابع لفرع")}</Label>
                         <div className="invoice-currency-dropdown-wrap w-full">
                           <PrimeDropdown
                             value={departmentForm.branch_id ? Number(departmentForm.branch_id) : null}
                             options={branches}
                             optionLabel="branch_name"
                             optionValue="id"
-                            placeholder="اختر الفرع"
+                            placeholder={tr("اختر الفرع")}
                             filter
                             className="invoice-currency-dropdown w-full"
                             panelClassName="invoice-currency-dropdown-panel"
@@ -2715,11 +2716,11 @@ function Definitions() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">مسؤول القسم</Label>
+                        <Label className="erp-label text-start block">{tr("مسؤول القسم")}</Label>
                         <Input
-                          className="erp-input text-right"
-                          placeholder="اسم المسؤول"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("اسم المسؤول")}
+                          dir={appDir()}
                           maxLength={30}
                           value={departmentForm.manager}
                           onChange={(e) => setDepartmentForm({ ...departmentForm, manager: e.target.value })}
@@ -2727,10 +2728,10 @@ function Definitions() {
                       </div>
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ القسم
+                          {tr("حفظ القسم")}
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => setShowDepartmentForm(false)}>
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -2748,15 +2749,15 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentDepartmentIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{dept.department_name}</h4>
-                          <p className="text-sm text-muted-foreground">الفرع: {dept.branch_name || "غير محدد"}</p>
+                          <p className="text-sm text-muted-foreground">{tr("الفرع: ")}{dept.branch_name || tr("غير محدد")}</p>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>المسؤول: {dept.manager || "غير محدد"}</span>
-                            <span>الموظفين: {dept.employee_count}</span>
+                            <span>{tr("المسؤول: ")}{dept.manager || tr("غير محدد")}</span>
+                            <span>{tr("الموظفين: ")}{dept.employee_count}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2764,7 +2765,7 @@ function Definitions() {
                             <Edit className="h-3 w-3" />
                           </Button>
                           <Badge variant={dept.is_active ? "default" : "secondary"}>
-                            {dept.is_active ? "نشط" : "غير نشط"}
+                            {dept.is_active ? tr("نشط") : tr("غير نشط")}
                           </Badge>
                         </div>
                       </div>
@@ -2780,12 +2781,12 @@ function Definitions() {
         <TabsContent value="items" className="space-y-6">
           {/* التصنيف الضريبي والوحدات: نصف الصفحة لكل منهما */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Currency className="h-4 w-4 text-primary" />
-                    التصنيف الضريبي
+                    {tr("التصنيف الضريبي")}
                   </CardTitle>
                   <Button
                     size="sm"
@@ -2793,32 +2794,32 @@ function Definitions() {
                     onClick={() => { setShowTaxClassificationForm(!showTaxClassificationForm); if (!showTaxClassificationForm) setTaxClassificationForm({ name: '', tax_percent: 0, status: 1 }) }}
                   >
                     <Plus className="h-3 w-3" />
-                    اضافة فئة
+                    {tr("اضافة فئة")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {showTaxClassificationForm && (
-                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleSaveTaxClassification}>
                       <div className="text-right grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <Label className="erp-label text-sm text-right block">اسم التصنيف الضريبي</Label>
-                          <Input className="erp-input text-right" placeholder="مثال: ضريبة سنوية" dir="rtl"
+                          <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف الضريبي")}</Label>
+                          <Input className="erp-input text-start" placeholder={tr("مثال: ضريبة سنوية")} dir={appDir()}
                             value={taxClassificationForm.name}
                             onChange={(e) => setTaxClassificationForm({ ...taxClassificationForm, name: e.target.value })}
                           />
                         </div>
                         <div>
-                          <Label className="erp-label text-sm text-right block">نسبة الضريبة (%)</Label>
+                          <Label className="erp-label text-sm text-start block">{tr("نسبة الضريبة (%)")}</Label>
                           <Input
                             type="number"
                             min={0}
                             max={100}
                             step={0.01}
-                            className="erp-input text-right"
+                            className="erp-input text-start"
                             placeholder="0.00"
-                            dir="rtl"
+                            dir={appDir()}
                             value={taxClassificationForm.tax_percent ?? 0}
                             onChange={(e) => {
                               const raw = Number(e.target.value)
@@ -2830,7 +2831,7 @@ function Definitions() {
                       </div>
                       <div className="flex justify-start gap-2">
                         <Button type="submit" size="sm" className="erp-btn-primary">
-                          حفظ
+                          {tr("حفظ")}
                         </Button>
                         <Button
                           type="button"
@@ -2838,7 +2839,7 @@ function Definitions() {
                           size="sm"
                           onClick={() => setShowTaxClassificationForm(false)}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -2847,17 +2848,17 @@ function Definitions() {
 
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {taxClassifications.map((item, index) => (
-                    <div key={item.id} className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors" dir="rtl">
+                    <div key={item.id} className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors" dir={appDir()}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right min-w-0">
                             <h4 className="font-medium text-sm truncate">{item.name}</h4>
-                            <p className="text-xs text-muted-foreground">النسبة: {Number(item.tax_percent ?? 0).toFixed(2)}%</p>
+                            <p className="text-xs text-muted-foreground">{tr("النسبة: ")}{Number(item.tax_percent ?? 0).toFixed(2)}%</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button variant="outline" size="sm" onClick={() => handleEditTaxClassification(item)} aria-label="تعديل التصنيف" title="تعديل التصنيف">
+                          <Button variant="outline" size="sm" onClick={() => handleEditTaxClassification(item)} aria-label={tr("تعديل التصنيف")} title={tr("تعديل التصنيف")}>
                             <Edit className="h-3 w-3" />
                           </Button>
                           {item.status !== 3 && (
@@ -2868,9 +2869,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف الضريبي؟", () => handleDeleteTaxClassification(item.id))}
-                            aria-label="حذف التصنيف"
-                            title="حذف التصنيف"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا التصنيف الضريبي؟"), () => handleDeleteTaxClassification(item.id))}
+                            aria-label={tr("حذف التصنيف")}
+                            title={tr("حذف التصنيف")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -2885,12 +2886,12 @@ function Definitions() {
               </CardContent>
             </Card>
             {/* المستودعات أُزيلت من التعريفات — تُدار من ادارة الاصناف ← الملفات ← المستودعات (components/admin/warehouses.tsx) */}
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Package2 className="h-4 w-4 text-primary" />
-                    الوحدات ({units.length})
+                    {tr("الوحدات (")}{units.length})
                   </CardTitle>
                   <Button
                     size="sm"
@@ -2905,32 +2906,32 @@ function Definitions() {
                     }}
                   >
                     <Plus className="h-3 w-3" />
-                    إضافة وحدة
+                    {tr("إضافة وحدة")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showUnitForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">{editingUnitId ? "تعديل الوحدة" : "إضافة وحدة جديدة"}</h3>
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">{editingUnitId ? tr("تعديل الوحدة") : tr("إضافة وحدة جديدة")}</h3>
                     <form className="space-y-4" onSubmit={handleAddUnit}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم الوحدة *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم الوحدة *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: كرتونة"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: كرتونة")}
+                          dir={appDir()}
                           value={unitForm.unit_name}
                           onChange={(e) => setUnitForm({ ...unitForm, unit_name: e.target.value })}
                         />
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">الاسم الإنجليزي للوحدة</Label>
+                        <Label className="erp-label text-start block">{tr("الاسم الإنجليزي للوحدة")}</Label>
                         <Input
-                          className="erp-input text-right"
+                          className="erp-input text-start"
                           placeholder="Example: Box"
-                          dir="rtl"
+                          dir={appDir()}
                           value={unitForm.unit_name_e}
                           onChange={(e) => setUnitForm({ ...unitForm, unit_name_e: e.target.value })}
                         />
@@ -2938,14 +2939,14 @@ function Definitions() {
                       {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ الوحدة
+                          {tr("حفظ الوحدة")}
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => {
                           setShowUnitForm(false)
                           setUnitForm({ unit_name: "", unit_name_e: "", description: "", status: 1 })
                           setEditingUnitId(null)
                         }}>
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -2963,13 +2964,13 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentUnitIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{unit.unit_name}</h4>
                           <p className="text-sm text-muted-foreground">{unit.unit_name_e}</p>
-                          <p className="text-xs text-muted-foreground">{unit.description || "بدون وصف"}</p>
+                          <p className="text-xs text-muted-foreground">{unit.description || tr("بدون وصف")}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleEditUnit(unit)}>
@@ -2983,9 +2984,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه الوحدة؟", () => handleDeleteUnit(unit.id))}
-                            aria-label="حذف الوحدة"
-                            title="حذف الوحدة"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذه الوحدة؟"), () => handleDeleteUnit(unit.id))}
+                            aria-label={tr("حذف الوحدة")}
+                            title={tr("حذف الوحدة")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -3004,16 +3005,16 @@ function Definitions() {
 
         <TabsContent value="definitions" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-primary" />
-                    المدن ({cities.length})
+                    {tr("المدن (")}{cities.length})
                   </CardTitle>
                   <Button className="erp-btn-primary" size="sm" onClick={() => setShowCityForm(!showCityForm)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة مدينة
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة مدينة")}
                   </Button>
                 </div>
               </CardHeader>
@@ -3021,16 +3022,16 @@ function Definitions() {
 
 
                 {showCityForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة مدينة جديدة</h3>
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة مدينة جديدة")}</h3>
                     <form className="space-y-4" onSubmit={handleAddCity}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم المدينة *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم المدينة *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: طولكرم"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: طولكرم")}
+                          dir={appDir()}
                           value={cityForm.name}
                           maxLength={30}
                           onChange={(e) => setCityForm({ ...cityForm, name: e.target.value })}
@@ -3038,13 +3039,13 @@ function Definitions() {
                       </div>
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ المدينة
+                          {tr("حفظ المدينة")}
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => {
                           setShowCityForm(false)
                           setCityForm({ id: 0, name: "", status: 1 })
                         }}>
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3060,7 +3061,7 @@ function Definitions() {
                         index === currentCityIndex ? "bg-primary/10 border-primary" : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentCityIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
                         <div className="text-right">
@@ -3078,9 +3079,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه المدينة؟", () => handleDeleteCity(city.id))}
-                            aria-label="حذف المدينة"
-                            title="حذف المدينة"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذه المدينة؟"), () => handleDeleteCity(city.id))}
+                            aria-label={tr("حذف المدينة")}
+                            title={tr("حذف المدينة")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -3095,12 +3096,12 @@ function Definitions() {
               </CardContent>
             </Card>
 
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Package2 className="h-4 w-4 text-primary" />
-                    فئات الأسعار
+                    {tr("فئات الأسعار")}
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -3114,8 +3115,8 @@ function Definitions() {
                       }
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    اضافة فئة
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("اضافة فئة")}
                   </Button>
                 </div>
               </CardHeader>
@@ -3123,28 +3124,28 @@ function Definitions() {
 
 
                 {showPriceForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة فئة جديدة</h3>
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">{tr("إضافة فئة جديدة")}</h3>
                     <form className="space-y-4" onSubmit={handleAddPrice}>
                       <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
 
                         <div className="text-right">
-                          <Label className="erp-label text-right block">اسم الفئة *</Label>
+                          <Label className="erp-label text-start block">{tr("اسم الفئة *")}</Label>
                           <Input
                             required
-                            className="erp-input text-right"
-                            placeholder="مفرق"
-                            dir="rtl"
+                            className="erp-input text-start"
+                            placeholder={tr("مفرق")}
+                            dir={appDir()}
                             value={priceForm.name}
                             onChange={(e) => setPriceForm({ ...priceForm, name: e.target.value })}
                           />
                         </div>
                         <div className="text-right">
-                          <Label className="erp-label text-right block">اسم الفئة en</Label>
+                          <Label className="erp-label text-start block">{tr("اسم الفئة en")}</Label>
                           <Input
-                            className="erp-input text-right"
+                            className="erp-input text-start"
                             placeholder=""
-                            dir="rtl"
+                            dir={appDir()}
                             value={priceForm.name_en}
                             onChange={(e) => setPriceForm({ ...priceForm, name_en: e.target.value })}
                           />
@@ -3152,11 +3153,11 @@ function Definitions() {
                       </div>
 
                       <div className="text-right">
-                        <Label className="erp-label text-right block">الوصف</Label>
+                        <Label className="erp-label text-start block">{tr("الوصف")}</Label>
                         <Input
-                          className="erp-input text-right"
-                          placeholder="وصف الفئة"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("وصف الفئة")}
+                          dir={appDir()}
                           value={priceForm.description}
                           onChange={(e) => setPriceForm({ ...priceForm, description: e.target.value })}
                         />
@@ -3164,7 +3165,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ الفئة
+                          {tr("حفظ الفئة")}
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => {
                           setShowPriceForm(false);
@@ -3172,7 +3173,7 @@ function Definitions() {
                           setShowPriceForm(false)
                           setEditingPriceId(null)
                         }}>
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3190,10 +3191,10 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentPriceIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{price.name}</h4>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
 
@@ -3211,9 +3212,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه الفئة؟", () => handleDeletePrice(price.id))}
-                            aria-label="حذف الفئة"
-                            title="حذف الفئة"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذه الفئة؟"), () => handleDeletePrice(price.id))}
+                            aria-label={tr("حذف الفئة")}
+                            title={tr("حذف الفئة")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -3231,12 +3232,12 @@ function Definitions() {
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Customer Categories */}
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="h-4 w-4 text-primary" />
-                    تصنيفات العملاء
+                    {tr("تصنيفات العملاء")}
                   </CardTitle>
                   <Button
                     size="sm"
@@ -3253,22 +3254,22 @@ function Definitions() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {showCustomerCategoryForm && (
-                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddCustomerCategories}>
                       <div className="text-right">
-                        <Label className="erp-label text-sm text-right block">اسم التصنيف</Label>
-                        <Input className="erp-input text-right" placeholder="مثال: العملاء الجملة" dir="rtl"
+                        <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف")}</Label>
+                        <Input className="erp-input text-start" placeholder={tr("مثال: العملاء الجملة")} dir={appDir()}
                           value={customercategoryForm.name}
                           onChange={(e) => setCustomercategoryForm({ ...customercategoryForm, name: e.target.value })}
                         />
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-sm text-right block">نسبة الخصم (%)</Label>
+                        <Label className="erp-label text-sm text-start block">{tr("نسبة الخصم (%)")}</Label>
                         <Input
                           type="number"
-                          className="erp-input text-right"
+                          className="erp-input text-start"
                           placeholder="10"
-                          dir="rtl"
+                          dir={appDir()}
                           value={customercategoryForm.discount}
                           onChange={(e) => {
                             let value = Number(e.target.value)
@@ -3283,7 +3284,7 @@ function Definitions() {
                       </div>
                       <div className="flex justify-start gap-2">
                         <Button type="submit" size="sm" className="erp-btn-primary">
-                          حفظ
+                          {tr("حفظ")}
                         </Button>
                         <Button
                           type="button"
@@ -3291,7 +3292,7 @@ function Definitions() {
                           size="sm"
                           onClick={() => setShowCustomerCategoryForm(false)}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3303,14 +3304,14 @@ function Definitions() {
                     <div
                       key={category.id}
                       className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex min-w-0 items-center gap-2 text-right">
+                        <div className="flex min-w-0 items-center gap-2 text-start">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
-                            <p className="text-xs text-muted-foreground">خصم {category.discount}%</p>
+                            <p className="text-xs text-muted-foreground">{tr("خصم ")}{category.discount}%</p>
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
@@ -3318,7 +3319,7 @@ function Definitions() {
                           {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/customer-categories", category, fetchCustomerCategories)}>
                             {getToggleStatusLabel(category.status)}
                           </Button>}
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/customer-categories?id=${category.id}`, fetchCustomerCategories))}>
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا التصنيف؟"), () => deleteCategory(`/api/customer-categories?id=${category.id}`, fetchCustomerCategories))}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleEditCustomerCategory(category)}>
@@ -3336,12 +3337,12 @@ function Definitions() {
             </Card>
 
             {/* Supplier Categories */}
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Package className="h-4 w-4 text-primary" />
-                    تصنيفات الموردين
+                    {tr("تصنيفات الموردين")}
                   </CardTitle>
                   <Button
                     size="sm"
@@ -3358,25 +3359,25 @@ function Definitions() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {showSupplierCategoryForm && (
-                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddSupplierCategories}>
                       <div className="text-right">
-                        <Label className="erp-label text-sm text-right block">اسم التصنيف</Label>
-                        <Input className="erp-input text-right" placeholder="مثال: موردين أوروبيين" dir="rtl"
+                        <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف")}</Label>
+                        <Input className="erp-input text-start" placeholder={tr("مثال: موردين أوروبيين")} dir={appDir()}
                           value={suppliercategoryForm.name}
                           onChange={(e) => setSuppliercategoryForm({ ...suppliercategoryForm, name: e.target.value })}
                         />
                       </div>
                       <div className="text-right">
-                        <Label className="erp-label text-sm text-right block">شروط الدفع</Label>
-                        <Input className="erp-input text-right" placeholder="مثال: 30 يوم" dir="rtl"
+                        <Label className="erp-label text-sm text-start block">{tr("شروط الدفع")}</Label>
+                        <Input className="erp-input text-start" placeholder={tr("مثال: 30 يوم")} dir={appDir()}
                           value={suppliercategoryForm.paymentterms}
                           onChange={(e) => setSuppliercategoryForm({ ...suppliercategoryForm, paymentterms: e.target.value })}
                         />
                       </div>
                       <div className="flex justify-start gap-2">
                         <Button type="submit" size="sm" className="erp-btn-primary">
-                          حفظ
+                          {tr("حفظ")}
                         </Button>
                         <Button
                           type="button"
@@ -3384,7 +3385,7 @@ function Definitions() {
                           size="sm"
                           onClick={() => setShowSupplierCategoryForm(false)}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3396,10 +3397,10 @@ function Definitions() {
                     <div
                       key={category.id}
                       className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex min-w-0 items-center gap-2 text-right">
+                        <div className="flex min-w-0 items-center gap-2 text-start">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
@@ -3411,7 +3412,7 @@ function Definitions() {
                           {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/supplier-categories", category, fetchsupplierCategories)}>
                             {getToggleStatusLabel(category.status)}
                           </Button>}
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/supplier-categories?id=${category.id}`, fetchsupplierCategories))}>
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا التصنيف؟"), () => deleteCategory(`/api/supplier-categories?id=${category.id}`, fetchsupplierCategories))}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleEditSupplierCategory(category)}>
@@ -3427,12 +3428,12 @@ function Definitions() {
             </Card>
 
             {/* Product Categories */}
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Package className="h-4 w-4 text-primary" />
-                    تصنيفات الأصناف
+                    {tr("تصنيفات الأصناف")}
                   </CardTitle>
                   <Button
                     size="sm"
@@ -3449,11 +3450,11 @@ function Definitions() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {showProductCategoryForm && (
-                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddProductCategories}>
                       <div className="text-right">
-                        <Label className="erp-label text-sm text-right block">اسم التصنيف</Label>
-                        <Input className="erp-input text-right" placeholder="مثال: مواد غذائية" dir="rtl"
+                        <Label className="erp-label text-sm text-start block">{tr("اسم التصنيف")}</Label>
+                        <Input className="erp-input text-start" placeholder={tr("مثال: مواد غذائية")} dir={appDir()}
                           value={productcategoryForm.name}
                           onChange={(e) => setProductcategoryForm({ ...productcategoryForm, name: e.target.value })}
                         />
@@ -3461,7 +3462,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2">
                         <Button type="submit" size="sm" className="erp-btn-primary">
-                          حفظ
+                          {tr("حفظ")}
                         </Button>
                         <Button
                           type="button"
@@ -3469,7 +3470,7 @@ function Definitions() {
                           size="sm"
                           onClick={() => setShowProductCategoryForm(false)}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3481,10 +3482,10 @@ function Definitions() {
                     <div
                       key={category.id}
                       className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex min-w-0 items-center gap-2 text-right">
+                        <div className="flex min-w-0 items-center gap-2 text-start">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
@@ -3495,7 +3496,7 @@ function Definitions() {
                           {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/product-categories", category, fetchProductCategories)}>
                             {getToggleStatusLabel(category.status)}
                           </Button>}
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/product-categories?id=${category.id}`, fetchProductCategories))}>
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا التصنيف؟"), () => deleteCategory(`/api/product-categories?id=${category.id}`, fetchProductCategories))}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                           <Button variant="outline" size="sm" onClick={() => handleEditProductCategory(category)}>
@@ -3513,12 +3514,12 @@ function Definitions() {
             </Card>
 
             {/* License Types (نوع الرخصة) */}
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="h-4 w-4 text-primary" />
-                    أنواع الرخص
+                    {tr("أنواع الرخص")}
                   </CardTitle>
                   <Button
                     size="sm"
@@ -3531,14 +3532,14 @@ function Definitions() {
               </CardHeader>
               <CardContent className="space-y-3">
                 {showLicenseTypeForm && (
-                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
                     <form className="space-y-3" onSubmit={handleAddLicenseType}>
                       <div className="text-right">
-                        <Label className="erp-label text-sm text-right block">اسم نوع الرخصة</Label>
+                        <Label className="erp-label text-sm text-start block">{tr("اسم نوع الرخصة")}</Label>
                         <Input
-                          className="erp-input text-right"
-                          placeholder="مثال: رخصة عمومي"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: رخصة عمومي")}
+                          dir={appDir()}
                           maxLength={30}
                           value={licenseTypeForm.name}
                           onChange={(e) => setLicenseTypeForm({ ...licenseTypeForm, name: e.target.value.slice(0, 30) })}
@@ -3546,7 +3547,7 @@ function Definitions() {
                       </div>
                       <div className="flex justify-start gap-2">
                         <Button type="submit" size="sm" className="erp-btn-primary">
-                          حفظ
+                          {tr("حفظ")}
                         </Button>
                         <Button
                           type="button"
@@ -3554,7 +3555,7 @@ function Definitions() {
                           size="sm"
                           onClick={() => setShowLicenseTypeForm(false)}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3566,7 +3567,7 @@ function Definitions() {
                     <div
                       key={type.id}
                       className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -3578,9 +3579,9 @@ function Definitions() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => openDeleteConfirm("هل أنت متأكد من حذف نوع الرخصة هذا؟", () => handleDeleteLicenseType(type.id))}
-                          aria-label="حذف نوع الرخصة"
-                          title="حذف نوع الرخصة"
+                          onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف نوع الرخصة هذا؟"), () => handleDeleteLicenseType(type.id))}
+                          aria-label={tr("حذف نوع الرخصة")}
+                          title={tr("حذف نوع الرخصة")}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -3596,12 +3597,12 @@ function Definitions() {
 
         <TabsContent value="financial-definitions" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    بنود قائمة الدخل ({incomeStatementItems.length})
+                    {tr("بنود قائمة الدخل (")}{incomeStatementItems.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -3611,25 +3612,25 @@ function Definitions() {
                       setShowIncomeStatementItemForm(!showIncomeStatementItemForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة بند
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة بند")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showIncomeStatementItemForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {incomeStatementItemForm.id > 0 ? "تعديل بند قائمة الدخل" : "إضافة بند جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {incomeStatementItemForm.id > 0 ? tr("تعديل بند قائمة الدخل") : tr("إضافة بند جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveIncomeStatementItem}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم البند *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم البند *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: إيرادات المبيعات"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: إيرادات المبيعات")}
+                          dir={appDir()}
                           maxLength={100}
                           value={incomeStatementItemForm.name}
                           onChange={(e) => setIncomeStatementItemForm({ ...incomeStatementItemForm, name: e.target.value })}
@@ -3640,7 +3641,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ البند
+                          {tr("حفظ البند")}
                         </Button>
                         <Button
                           type="button"
@@ -3651,7 +3652,7 @@ function Definitions() {
                             setIncomeStatementItemForm({ id: 0, name: "", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3669,10 +3670,10 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentIncomeStatementItemIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                         </div>
@@ -3688,9 +3689,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا البند من قائمة الدخل؟", () => handleDeleteIncomeStatementItem(item.id))}
-                            aria-label="حذف البند"
-                            title="حذف البند"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا البند من قائمة الدخل؟"), () => handleDeleteIncomeStatementItem(item.id))}
+                            aria-label={tr("حذف البند")}
+                            title={tr("حذف البند")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -3705,12 +3706,12 @@ function Definitions() {
               </CardContent>
             </Card>
 
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    بنود أصول الميزانية ({balanceSheetAssetItems.length})
+                    {tr("بنود أصول الميزانية (")}{balanceSheetAssetItems.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -3720,25 +3721,25 @@ function Definitions() {
                       setShowBalanceSheetAssetItemForm(!showBalanceSheetAssetItemForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة بند
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة بند")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showBalanceSheetAssetItemForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {balanceSheetAssetItemForm.id > 0 ? "تعديل بند أصول الميزانية" : "إضافة بند جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {balanceSheetAssetItemForm.id > 0 ? tr("تعديل بند أصول الميزانية") : tr("إضافة بند جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveBalanceSheetAssetItem}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم البند *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم البند *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: الصندوق"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: الصندوق")}
+                          dir={appDir()}
                           maxLength={100}
                           value={balanceSheetAssetItemForm.name}
                           onChange={(e) => setBalanceSheetAssetItemForm({ ...balanceSheetAssetItemForm, name: e.target.value })}
@@ -3749,7 +3750,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ البند
+                          {tr("حفظ البند")}
                         </Button>
                         <Button
                           type="button"
@@ -3760,7 +3761,7 @@ function Definitions() {
                             setBalanceSheetAssetItemForm({ id: 0, name: "", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3778,10 +3779,10 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentBalanceSheetAssetItemIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                         </div>
@@ -3797,9 +3798,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا البند من أصول الميزانية؟", () => handleDeleteBalanceSheetAssetItem(item.id))}
-                            aria-label="حذف البند"
-                            title="حذف البند"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا البند من أصول الميزانية؟"), () => handleDeleteBalanceSheetAssetItem(item.id))}
+                            aria-label={tr("حذف البند")}
+                            title={tr("حذف البند")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -3814,12 +3815,12 @@ function Definitions() {
               </CardContent>
             </Card>
 
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    بنود خصوم الميزانية ({balanceSheetLiabilityItems.length})
+                    {tr("بنود خصوم الميزانية (")}{balanceSheetLiabilityItems.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -3829,25 +3830,25 @@ function Definitions() {
                       setShowBalanceSheetLiabilityItemForm(!showBalanceSheetLiabilityItemForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة بند
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة بند")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showBalanceSheetLiabilityItemForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {balanceSheetLiabilityItemForm.id > 0 ? "تعديل بند خصوم الميزانية" : "إضافة بند جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {balanceSheetLiabilityItemForm.id > 0 ? tr("تعديل بند خصوم الميزانية") : tr("إضافة بند جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveBalanceSheetLiabilityItem}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم البند *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم البند *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: ذمم دائنة"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: ذمم دائنة")}
+                          dir={appDir()}
                           maxLength={100}
                           value={balanceSheetLiabilityItemForm.name}
                           onChange={(e) => setBalanceSheetLiabilityItemForm({ ...balanceSheetLiabilityItemForm, name: e.target.value })}
@@ -3858,7 +3859,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ البند
+                          {tr("حفظ البند")}
                         </Button>
                         <Button
                           type="button"
@@ -3869,7 +3870,7 @@ function Definitions() {
                             setBalanceSheetLiabilityItemForm({ id: 0, name: "", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -3887,10 +3888,10 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentBalanceSheetLiabilityItemIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                         </div>
@@ -3906,9 +3907,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا البند من خصوم الميزانية؟", () => handleDeleteBalanceSheetLiabilityItem(item.id))}
-                            aria-label="حذف البند"
-                            title="حذف البند"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا البند من خصوم الميزانية؟"), () => handleDeleteBalanceSheetLiabilityItem(item.id))}
+                            aria-label={tr("حذف البند")}
+                            title={tr("حذف البند")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -3924,12 +3925,12 @@ function Definitions() {
             </Card>
 
             <div className="xl:col-span-3 grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    أنواع مراكز التكلفة ({costCenterTypes.length})
+                    {tr("أنواع مراكز التكلفة (")}{costCenterTypes.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -3939,25 +3940,25 @@ function Definitions() {
                       setShowCostCenterTypeForm(!showCostCenterTypeForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة نوع
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة نوع")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showCostCenterTypeForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {costCenterTypeForm.id > 0 ? "تعديل نوع مركز التكلفة" : "إضافة نوع جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {costCenterTypeForm.id > 0 ? tr("تعديل نوع مركز التكلفة") : tr("إضافة نوع جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveCostCenterType}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم النوع *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم النوع *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: مركز تكلفة إداري"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: مركز تكلفة إداري")}
+                          dir={appDir()}
                           maxLength={100}
                           value={costCenterTypeForm.name}
                           onChange={(e) => setCostCenterTypeForm({ ...costCenterTypeForm, name: e.target.value })}
@@ -3968,7 +3969,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ النوع
+                          {tr("حفظ النوع")}
                         </Button>
                         <Button
                           type="button"
@@ -3979,14 +3980,14 @@ function Definitions() {
                             setCostCenterTypeForm({ id: 0, name: "", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
                   </div>
                 )}
 
-                <div className="h-[360px] overflow-y-auto space-y-3 pr-1">
+                <div className="h-[360px] overflow-y-auto space-y-3 ps-1">
                   {costCenterTypes.map((item, index) => (
                     <div
                       key={item.id}
@@ -3997,10 +3998,10 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentCostCenterTypeIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                         </div>
@@ -4016,9 +4017,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا النوع؟", () => handleDeleteCostCenterType(item.id))}
-                            aria-label="حذف النوع"
-                            title="حذف النوع"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا النوع؟"), () => handleDeleteCostCenterType(item.id))}
+                            aria-label={tr("حذف النوع")}
+                            title={tr("حذف النوع")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -4033,12 +4034,12 @@ function Definitions() {
               </CardContent>
             </Card>
 
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    مراكز التكلفة ({costCenters.length})
+                    {tr("مراكز التكلفة (")}{costCenters.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -4048,25 +4049,25 @@ function Definitions() {
                       setShowCostCenterForm(!showCostCenterForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة مركز
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة مركز")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showCostCenterForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {costCenterForm.id > 0 ? "تعديل مركز التكلفة" : "إضافة مركز تكلفة جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {costCenterForm.id > 0 ? tr("تعديل مركز التكلفة") : tr("إضافة مركز تكلفة جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveCostCenter}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم المركز *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم المركز *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: إدارة المبيعات"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: إدارة المبيعات")}
+                          dir={appDir()}
                           maxLength={100}
                           value={costCenterForm.name}
                           onChange={(e) => setCostCenterForm({ ...costCenterForm, name: e.target.value })}
@@ -4074,14 +4075,14 @@ function Definitions() {
                       </div>
 
                       <div className="text-right">
-                        <Label className="erp-label text-right block">نوع مركز التكلفة *</Label>
+                        <Label className="erp-label text-start block">{tr("نوع مركز التكلفة *")}</Label>
                         <Select
-                          dir="rtl"
+                          dir={appDir()}
                           value={costCenterForm.cost_type_id}
                           onValueChange={(value) => setCostCenterForm({ ...costCenterForm, cost_type_id: value })}
                         >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر النوع" />
+                          <SelectTrigger className="erp-input text-start">
+                            <SelectValue placeholder={tr("اختر النوع")} />
                           </SelectTrigger>
                           <SelectContent>
                             {costCenterTypes.map((type) => (
@@ -4094,17 +4095,17 @@ function Definitions() {
                       </div>
 
                       <div className="text-right">
-                        <Label className="erp-label text-right block">المركز الأب (اختياري)</Label>
+                        <Label className="erp-label text-start block">{tr("المركز الأب (اختياري)")}</Label>
                         <Select
-                          dir="rtl"
+                          dir={appDir()}
                           value={costCenterForm.parent_id}
                           onValueChange={(value) => setCostCenterForm({ ...costCenterForm, parent_id: value })}
                         >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="بدون مركز أب" />
+                          <SelectTrigger className="erp-input text-start">
+                            <SelectValue placeholder={tr("بدون مركز أب")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">بدون مركز أب</SelectItem>
+                            <SelectItem value="none">{tr("بدون مركز أب")}</SelectItem>
                             {costCenters
                               .filter((center) => center.id !== costCenterForm.id)
                               .map((center) => (
@@ -4120,7 +4121,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ المركز
+                          {tr("حفظ المركز")}
                         </Button>
                         <Button
                           type="button"
@@ -4131,14 +4132,14 @@ function Definitions() {
                             setCostCenterForm({ id: 0, name: "", cost_type_id: "", parent_id: "none", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
                   </div>
                 )}
 
-                <div className="space-y-3 max-h-[330px] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[330px] overflow-y-auto ps-1">
                   {costCenters.map((item, index) => (
                     <div
                       key={item.id}
@@ -4149,14 +4150,14 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentCostCenterIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
-                          <p className="text-xs text-muted-foreground">النوع: {item.cost_type_name || "-"}</p>
-                          <p className="text-xs text-muted-foreground">الأب: {item.parent_name || "-"}</p>
-                          <p className="text-xs text-muted-foreground">المستوى: {item.level}</p>
+                          <p className="text-xs text-muted-foreground">{tr("النوع: ")}{item.cost_type_name || "-"}</p>
+                          <p className="text-xs text-muted-foreground">{tr("الأب: ")}{item.parent_name || "-"}</p>
+                          <p className="text-xs text-muted-foreground">{tr("المستوى: ")}{item.level}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleEditCostCenter(item)}>
@@ -4170,9 +4171,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا المركز؟", () => handleDeleteCostCenter(item.id))}
-                            aria-label="حذف المركز"
-                            title="حذف المركز"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا المركز؟"), () => handleDeleteCostCenter(item.id))}
+                            aria-label={tr("حذف المركز")}
+                            title={tr("حذف المركز")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -4189,12 +4190,12 @@ function Definitions() {
             </div>
 
             <div className="xl:col-span-3 grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    أنواع تصنيفات الحسابات ({accountClassificationTypes.length})
+                    {tr("أنواع تصنيفات الحسابات (")}{accountClassificationTypes.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -4204,25 +4205,25 @@ function Definitions() {
                       setShowAccountClassificationTypeForm(!showAccountClassificationTypeForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة نوع
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة نوع")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showAccountClassificationTypeForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {accountClassificationTypeForm.id > 0 ? "تعديل نوع التصنيف" : "إضافة نوع جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {accountClassificationTypeForm.id > 0 ? tr("تعديل نوع التصنيف") : tr("إضافة نوع جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveAccountClassificationType}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم النوع *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم النوع *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: تصنيف أصول"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: تصنيف أصول")}
+                          dir={appDir()}
                           maxLength={100}
                           value={accountClassificationTypeForm.name}
                           onChange={(e) => setAccountClassificationTypeForm({ ...accountClassificationTypeForm, name: e.target.value })}
@@ -4233,7 +4234,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ النوع
+                          {tr("حفظ النوع")}
                         </Button>
                         <Button
                           type="button"
@@ -4244,7 +4245,7 @@ function Definitions() {
                             setAccountClassificationTypeForm({ id: 0, name: "", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
@@ -4262,10 +4263,10 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentAccountClassificationTypeIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">ID: {item.id}</p>
                         </div>
@@ -4281,9 +4282,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا النوع؟", () => handleDeleteAccountClassificationType(item.id))}
-                            aria-label="حذف النوع"
-                            title="حذف النوع"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا النوع؟"), () => handleDeleteAccountClassificationType(item.id))}
+                            aria-label={tr("حذف النوع")}
+                            title={tr("حذف النوع")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -4298,12 +4299,12 @@ function Definitions() {
               </CardContent>
             </Card>
 
-            <Card dir="rtl">
+            <Card dir={appDir()}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-primary" />
-                    تصنيفات الحسابات ({accountClassifications.length})
+                    {tr("تصنيفات الحسابات (")}{accountClassifications.length})
                   </CardTitle>
                   <Button
                     className="erp-btn-primary"
@@ -4313,25 +4314,25 @@ function Definitions() {
                       setShowAccountClassificationForm(!showAccountClassificationForm)
                     }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة تصنيف
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة تصنيف")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {showAccountClassificationForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">
-                      {accountClassificationForm.id > 0 ? "تعديل تصنيف الحساب" : "إضافة تصنيف جديد"}
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+                    <h3 className="font-heading font-semibold mb-4 text-start">
+                      {accountClassificationForm.id > 0 ? tr("تعديل تصنيف الحساب") : tr("إضافة تصنيف جديد")}
                     </h3>
                     <form className="space-y-4" onSubmit={handleSaveAccountClassification}>
                       <div className="text-right">
-                        <Label className="erp-label text-right block">اسم التصنيف *</Label>
+                        <Label className="erp-label text-start block">{tr("اسم التصنيف *")}</Label>
                         <Input
                           required
-                          className="erp-input text-right"
-                          placeholder="مثال: حسابات العملاء"
-                          dir="rtl"
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: حسابات العملاء")}
+                          dir={appDir()}
                           maxLength={100}
                           value={accountClassificationForm.name}
                           onChange={(e) => setAccountClassificationForm({ ...accountClassificationForm, name: e.target.value })}
@@ -4339,14 +4340,14 @@ function Definitions() {
                       </div>
 
                       <div className="text-right">
-                        <Label className="erp-label text-right block">نوع التصنيف *</Label>
+                        <Label className="erp-label text-start block">{tr("نوع التصنيف *")}</Label>
                         <Select
-                          dir="rtl"
+                          dir={appDir()}
                           value={accountClassificationForm.classification_type_id}
                           onValueChange={(value) => setAccountClassificationForm({ ...accountClassificationForm, classification_type_id: value })}
                         >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر النوع" />
+                          <SelectTrigger className="erp-input text-start">
+                            <SelectValue placeholder={tr("اختر النوع")} />
                           </SelectTrigger>
                           <SelectContent>
                             {accountClassificationTypes.map((type) => (
@@ -4362,7 +4363,7 @@ function Definitions() {
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ التصنيف
+                          {tr("حفظ التصنيف")}
                         </Button>
                         <Button
                           type="button"
@@ -4373,14 +4374,14 @@ function Definitions() {
                             setAccountClassificationForm({ id: 0, name: "", classification_type_id: "", status: 1 })
                           }}
                         >
-                          إلغاء
+                          {tr("إلغاء")}
                         </Button>
                       </div>
                     </form>
                   </div>
                 )}
 
-                <div className="space-y-3 max-h-[330px] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[330px] overflow-y-auto ps-1">
                   {accountClassifications.map((item, index) => (
                     <div
                       key={item.id}
@@ -4391,12 +4392,12 @@ function Definitions() {
                           : "bg-background hover:bg-muted/50",
                       )}
                       onClick={() => setCurrentAccountClassificationIndex(index)}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 text-right">
+                        <div className="space-y-1 text-start">
                           <h4 className="font-heading font-semibold">{item.name}</h4>
-                          <p className="text-xs text-muted-foreground">النوع: {item.classification_type_name || "-"}</p>
+                          <p className="text-xs text-muted-foreground">{tr("النوع: ")}{item.classification_type_name || "-"}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleEditAccountClassification(item)}>
@@ -4410,9 +4411,9 @@ function Definitions() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => handleDeleteAccountClassification(item.id))}
-                            aria-label="حذف التصنيف"
-                            title="حذف التصنيف"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذا التصنيف؟"), () => handleDeleteAccountClassification(item.id))}
+                            aria-label={tr("حذف التصنيف")}
+                            title={tr("حذف التصنيف")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>

@@ -1,0 +1,300 @@
+One of the center's sub-centers can't be chosen as its parent
+Cost center "{0}" can't be deleted because it has sub-centers (like "{1}") — delete the sub-centers first
+Cost center not found
+Unable to determine the cost centers
+The cost center name is required
+The cost center name already exists
+The parent center does not exist
+The cost center type is required
+Card not found
+The card ID is required
+Invalid tax account
+Invalid voucher ID
+The voucher is approved and can't be edited
+The entry is not balanced: total debit {0}, total credit {1}. Both sides must be equal before posting.
+The voucher data is incomplete
+Unable to generate an available voucher number from the voucher book
+The voucher ID is required
+Invalid transaction type
+The customer classification "{0}" can't be deleted because it is used in {1} customer cards — you can suspend it instead of deleting it
+The account isn't an active customer account
+Unable to load portal links
+Invalid link
+Unable to load the file
+Invalid payment
+No file
+Choose the bank/cash account the transfer arrived in
+Write the rejection reason — it is shown to the customer
+Payment not found
+Unable to review the payment
+This payment was already reviewed
+A receipt voucher book must be assigned to the user
+The template is frozen; it must be unfrozen before editing
+All basic data and choosing customers and items are required
+The template code or name is already used
+The customer is required
+The template name is already used
+The code, Arabic name and start date are required
+Template not found
+At least one customer must be chosen
+There is an invalid customer account
+There is an invalid item
+The ID is required
+An error occurred while browsing the records
+Invalid browse type
+The account number and name are required
+Entity not found
+Invalid entity ID
+Unable to delete the record
+An error occurred while searching for the customer
+Database settings error
+The customer number already exists, please choose another number
+Failed to create the customer: {0}
+Failed to update the customer: {0}
+Department not found
+The department ID is required
+Invalid driver ID
+Failed to generate the driver number
+The driver name is required
+Driver not found
+The license type is required
+Duplicate currency name
+Duplicate currency code
+The buying, selling and exchange rates must be between 0.001 and 100000
+For the base currency the exchange, selling and buying rates must equal 1
+Invalid attachment data
+Unable to load the attachment
+Choose the message type
+Write the details (5 to 10000 characters)
+Allowed attachments are PNG/JPG/WebP images or PDF, up to 8 files and 5MB per file
+The file name is required
+Document not found
+File type not allowed (PDF, images, Word, Excel, text)
+Asset not found
+One of the selected accounts doesn't exist, is suspended or is a parent account
+A depreciable classification needs a depreciation expense account and an accumulated depreciation account
+Classification not found
+The classification is used in assets or sub-classifications — suspend it instead of deleting it
+The default life must be between 1 and 1200 months
+The asset account is required
+The classification code and name are required
+A classification can't be its own parent
+The asset or accumulated depreciation account of a classification with active assets can't be changed — create a new classification and move the assets
+Invalid declining balance rate
+The residual value rate must be between 0 and 100
+Depreciation run not found
+Choose a valid period
+Choose at least one branch
+Choose the asset classification
+The amount is greater than the uncapitalized remainder ({0})
+Invoice line not found
+The invoice line doesn't exist or was fully capitalized
+The number of assets must be between 1 and 500
+The purchase invoice structure in this company doesn't support capitalizing from the invoice
+Location not found
+The location is used — suspend it instead of deleting it
+The location code and name are required
+A location can't be made a child of one of its sub-locations
+No permission on the selected branch
+Unknown report type
+Choose the device and period
+Choose an employee or department
+Item - {0}: the rate must be less than or equal to 100
+Device not found
+The serial number is already used
+The serial number is required
+The year and month are required
+Holiday not found
+Unknown operation
+The period and day are required
+The employee and day are required
+The rate must be less than or equal to 100
+Salary item - the item name is duplicated; cannot continue
+Invalid end date
+Unable to edit
+Unable to find all the salaries shown
+Unable to prepare the employee's salary entry
+The employee can't be deleted because there are transactions linked to them
+Unable to save the data
+There are errors preventing the payroll entry
+All the salaries shown are already linked to an entry
+The salary payment account is required
+Card number {0} is used for employee {1} - {2}
+The card number is too long
+Salary period not found
+The selected department's branch doesn't match the salaries shown
+The payroll entry is not balanced: debit {0} and credit {1}
+A closed salary period can't be recalculated
+There are no eligible employees to open this month's payroll (the selected salaries are closed)
+The salaries must be in one currency
+The salaries must be for one month
+All the salaries shown must be closed before posting the entry
+At least one employee must be chosen
+A valid accounting account must be set for {0}
+The record and deletion reason are required
+The employee and date are required
+Unable to load attendance records
+Unable to save the attendance record
+Unable to process the transactions
+Specify a valid period
+The edit reason is required
+The check-out time must be after the check-in time
+Enter the amount
+Enter the number of days
+Enter the number of hours
+The transaction isn't specified
+Transaction not found
+Some transactions belong to a closed month's payroll — their approval can't be changed
+Unable to load attendance transactions
+Unable to edit the attendance transaction
+Unable to delete the attendance transaction
+Unable to save the attendance transaction
+Specify the transactions and status
+Specify the period
+An approved transaction can't be edited — unapprove it first
+An approved transaction can't be deleted
+Unable to load the roster
+Unable to save the roster
+Specify the employees, period and shift pattern
+Undefined shift codes: {0}
+The OFF code is reserved for the rest day
+Shift not found
+The shift is used in schedules or records — it was suspended instead of deleted
+Unable to load shifts
+The shift code is English letters and digits only (up to 10) — used in rotation patterns
+The shift code is already used
+Number {0} already exists
+Error importing customers
+No data to import
+The file is empty or doesn't contain enough data
+Error processing the file
+The file was not found
+Unsupported data type
+The relation to the main unit is required for the new unit {0}
+The item number is required
+A sale price for a unit not defined on the item
+The main unit of an existing item can't be changed — leave the main unit column empty or with the same unit
+Error importing items
+Error importing suppliers
+Request not found
+This stage is done from {0} only — change the active branch
+Unable to edit the request
+A request whose flow has started can't be edited
+A request whose flow has started can't be deleted
+Unable to load the internal requests archive
+Invalid stage
+The requesting branch must be the active branch
+Failed to search for the batch details
+The barcode or batch number must be specified
+The new status matches the current status
+The new status is required to change the status
+The field {0} is required
+The requested quantity ({0}) is greater than the available quantity ({1})
+The quantity is required and must be greater than zero
+Failed to create the lot transaction
+Failed to load lot transactions
+The lot status was changed successfully
+Invalid status
+Failed to load the lots summary
+Batch not found
+Incomplete data
+The batches were unreserved successfully
+The batches were consumed successfully
+The batches were reserved successfully
+An error occurred processing the request
+Unknown operation
+Invalid parameters
+Failed to create the lot
+Failed to update the lot
+The lot ID is required
+The product ID is required
+Invalid item ID
+Invalid item number
+Unable to load manufacturing components
+Unable to save manufacturing components
+Invalid manufacturing component number
+The dimensions and count of the manufacturing component must be entered per the measurement type
+There is a manufacturing component that doesn't exist
+Unable to load linked items
+Unable to save linked items
+Invalid linked item number
+A relation that causes a repetition or cycle between items can't be added
+There is a linked item that doesn't exist
+The selected account doesn't exist
+Invalid account field
+A valid account must be chosen before copying
+The item must be saved first before copying to the following items
+product_id is required
+warehouse_id is required
+Failed to fetch the item lots
+The item name is duplicated; it can't be saved
+Barcode {0} is already used in another item or unit
+Barcode {0} is duplicated between the item's units
+Item not found
+An error occurred fetching the data
+The database is not available
+The sale price currency doesn't exist. Reload the currencies, choose the currency, then save the item.
+The item can't be deleted because it is linked to transactions
+Invalid product ID
+{0} must be chosen for one unit only
+Unable to load the purchase planning data
+Unable to load the purchase planning data: {0}
+Failed to load reorder rules
+A reorder rule already exists for this product
+Failed to load the system settings
+Failed to save the system settings
+{0} products checked and {1} new orders created
+The automatic reorder system is not enabled
+An error occurred creating the inventory transaction
+An error occurred fetching inventory transactions
+Inventory updated successfully
+An error occurred while updating the inventory
+product_id and quantity_change must be specified
+An error occurred saving the warehouse data
+Invalid action
+You do not have permission to settle invoices
+The voucher must be specified
+A group can't be its own parent
+A sub-group can't be chosen as the parent group
+A group linked to sub-groups can't be deleted
+Invalid group ID
+There are items linked to the selected item group; it can't be deleted
+Failed to generate the group number
+The group name is required
+Invalid parent group
+Group not found
+Unable to generate a unique item group code within the allowed limit
+There is a deleted item group with this name; restore the group or use another name
+The item is required
+Unable to load serial numbers
+Unable to check serial numbers
+Only a voucher with active status (not approved) can be physically deleted
+This entry comes from the fixed assets system — it is reversed from the assets screen (reversing the depreciation or operation), not from the journal voucher
+The document is already cancelled
+Unable to cancel the document
+Unable to load the document
+The allocation basis is zero for all items
+The invoice items have no defined weight — define the item weights or allocate by value/quantity
+Add at least one cost line
+Choose the inventory/purchases account (the debit side)
+Landed costs on purchase invoice {0}
+Unable to load landed costs
+Unable to save the cost document
+Set the credit account for each line
+Set the currency and exchange rate
+Set the document date
+The purchase invoice doesn't exist or is cancelled
+There are no stock items in the invoice to load the costs on
+Each line's amount must be greater than zero
+Invalid license type ID
+The license type name is required
+The license type name is duplicated; cannot continue
+License type not found
+No license is linked to this company
+Invalid request type
+Invalid payment reference
+Enter a valid contact phone number
+Unable to load the license data
+Permission not found
+An error occurred while editing the permission
+An error occurred while deleting the permission

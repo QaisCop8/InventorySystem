@@ -1,4 +1,5 @@
 "use client";
+import { tr, appDir, textMatches } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -387,8 +388,8 @@ export function DraftOrderForm({
       if (!found)
         throw new Error(
           response.ok
-            ? "لم يتم العثور على صنف بهذا الباركود"
-            : data?.error || "تعذر البحث عن الباركود",
+            ? tr("لم يتم العثور على صنف بهذا الباركود")
+            : data?.error || tr("تعذر البحث عن الباركود"),
         );
       const expanded = await expandProducts(found);
       setItems((current) => {
@@ -403,7 +404,7 @@ export function DraftOrderForm({
       setMessage(
         error instanceof Error
           ? error.message
-          : "تعذر إضافة الصنف بواسطة الباركود",
+          : tr("تعذر إضافة الصنف بواسطة الباركود"),
       );
     } finally {
       setBarcodeSearching(false);
@@ -429,7 +430,7 @@ export function DraftOrderForm({
       )
       .catch((error) =>
         setMessage(
-          error instanceof Error ? error.message : "تعذر إضافة توابع الصنف",
+          error instanceof Error ? error.message : tr("تعذر إضافة توابع الصنف"),
         ),
       );
   };
@@ -448,7 +449,7 @@ export function DraftOrderForm({
       )
       .catch((error) =>
         setMessage(
-          error instanceof Error ? error.message : "تعذر إضافة توابع الصنف",
+          error instanceof Error ? error.message : tr("تعذر إضافة توابع الصنف"),
         ),
       );
   };
@@ -472,7 +473,7 @@ export function DraftOrderForm({
       );
       const data = await response.json();
       if (!response.ok)
-        throw new Error(data.error || "تعذر تحميل مواصفات الصنف");
+        throw new Error(data.error || tr("تعذر تحميل مواصفات الصنف"));
       setSpecification((current) =>
         current ? { ...current, data, loading: false } : null,
       );
@@ -482,7 +483,7 @@ export function DraftOrderForm({
           ? {
               ...current,
               loading: false,
-              error: error.message || "تعذر تحميل مواصفات الصنف",
+              error: error.message || tr("تعذر تحميل مواصفات الصنف"),
             }
           : null,
       );
@@ -504,7 +505,7 @@ export function DraftOrderForm({
     if (required.some((value) => !value)) {
       setSpecification({
         ...specification,
-        error: "يجب تعبئة جميع المتغيرات والخصائص",
+        error: tr("يجب تعبئة جميع المتغيرات والخصائص"),
       });
       return;
     }
@@ -548,7 +549,7 @@ export function DraftOrderForm({
   const createCustomer = async () => {
     const name = customerSearch.trim();
     if (!name) {
-      setMessage("اكتب اسم العميل أولاً");
+      setMessage(tr("اكتب اسم العميل أولاً"));
       return;
     }
     setIsCreatingCustomer(true);
@@ -569,7 +570,7 @@ export function DraftOrderForm({
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "تعذر إنشاء العميل");
+      if (!response.ok) throw new Error(data.error || tr("تعذر إنشاء العميل"));
       const created = Array.isArray(data) ? data : data.customer || data;
       const accountId = String(created.account_id || created.id);
       const refreshedCustomers = await loadCustomers();
@@ -586,9 +587,9 @@ export function DraftOrderForm({
       );
       setForm((current) => ({ ...current, account_id: accountId }));
       setCustomerMenuOpen(false);
-      setMessage("تم إنشاء العميل وتحديده في الطلبية");
+      setMessage(tr("تم إنشاء العميل وتحديده في الطلبية"));
     } catch (error: any) {
-      setMessage(error.message || "تعذر إنشاء العميل");
+      setMessage(error.message || tr("تعذر إنشاء العميل"));
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -600,7 +601,7 @@ export function DraftOrderForm({
         f.size > 5 * 1024 * 1024 ||
         !/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(f.type)
       ) {
-        setMessage(`الملف ${f.name} غير مسموح أو أكبر من 5MB`);
+        setMessage(tr("الملف {0} غير مسموح أو أكبر من 5MB", f.name));
         continue;
       }
       const data = await new Promise<string>((res) => {
@@ -638,7 +639,7 @@ export function DraftOrderForm({
   const save = async () => {
     if (savingRef.current) return;
     if (!form.branch_id) {
-      setMessage("الفرع مطلوب");
+      setMessage(tr("الفرع مطلوب"));
       return;
     }
     if (
@@ -647,25 +648,25 @@ export function DraftOrderForm({
       !form.requested_delivery_date ||
       !items.length
     ) {
-      setMessage("العميل وتاريخ الطلب والتسليم وصنف واحد على الأقل مطلوبة");
+      setMessage(tr("العميل وتاريخ الطلب والتسليم وصنف واحد على الأقل مطلوبة"));
       return;
     }
     if (form.requested_delivery_date < form.order_date) {
-      setMessage("تاريخ التسليم لا يمكن أن يسبق تاريخ الطلب");
+      setMessage(tr("تاريخ التسليم لا يمكن أن يسبق تاريخ الطلب"));
       return;
     }
     if (!Number.isFinite(form.deposit_amount) || form.deposit_amount < 0) {
-      setMessage("مبلغ العربون يجب أن يكون صفراً أو أكبر");
+      setMessage(tr("مبلغ العربون يجب أن يكون صفراً أو أكبر"));
       return;
     }
     if (form.deposit_amount > total) {
-      setMessage("مبلغ العربون لا يمكن أن يتجاوز إجمالي الطلبية");
+      setMessage(tr("مبلغ العربون لا يمكن أن يتجاوز إجمالي الطلبية"));
       return;
     }
     setMessage("");
     const customer = customers.find((c) => String(c.id) === form.account_id);
     if (!customer) {
-      setMessage("اختر حساب عميل صالحاً من القائمة");
+      setMessage(tr("اختر حساب عميل صالحاً من القائمة"));
       return;
     }
     const invalid = items.find(
@@ -682,8 +683,8 @@ export function DraftOrderForm({
     if (invalid) {
       setMessage(
         invalid.quantity < invalid.minimum_order_quantity
-          ? `الحد الأدنى لطلب ${invalid.product_name} هو ${invalid.minimum_order_quantity}`
-          : `تحقق من الكمية والسعر والخصم للصنف ${invalid.product_name}`,
+          ? tr("الحد الأدنى لطلب {0} هو {1}", invalid.product_name, invalid.minimum_order_quantity)
+          : tr("تحقق من الكمية والسعر والخصم للصنف {0}", invalid.product_name),
       );
       return;
     }
@@ -722,19 +723,19 @@ export function DraftOrderForm({
         setMessage(
           d?.error ||
             (r.status === 404
-              ? "مسار حفظ المسودة غير متاح على الخادم؛ أعد تشغيل خادم التطبيق لتحميل API الجديد"
-              : `فشل حفظ المسودة (HTTP ${r.status})`),
+              ? tr("مسار حفظ المسودة غير متاح على الخادم؛ أعد تشغيل خادم التطبيق لتحميل API الجديد")
+              : tr("فشل حفظ المسودة (HTTP {0})", r.status)),
         );
         return;
       }
       if (!d) {
-        setMessage("أعاد الخادم استجابة غير صالحة أثناء حفظ المسودة");
+        setMessage(tr("أعاد الخادم استجابة غير صالحة أثناء حفظ المسودة"));
         return;
       }
       setMessage(
         initialDraft
-          ? "تم تحديث المسودة بنجاح"
-          : `تم حفظ المسودة ${d.draft_number}${d.receipt_voucher_id ? " وسند قبض العربون" : ""}`,
+          ? tr("تم تحديث المسودة بنجاح")
+          : tr("تم حفظ المسودة {0}{1}", d.draft_number, d.receipt_voucher_id ? " وسند قبض العربون" : ""),
       );
       setItems([]);
       setFiles([]);
@@ -743,8 +744,8 @@ export function DraftOrderForm({
       console.error("Failed to save order draft", error);
       setMessage(
         error instanceof Error
-          ? `تعذر حفظ المسودة: ${error.message}`
-          : "تعذر الاتصال بالخادم أثناء حفظ المسودة",
+          ? tr("تعذر حفظ المسودة: {0}", error.message)
+          : tr("تعذر الاتصال بالخادم أثناء حفظ المسودة"),
       );
     } finally {
       savingRef.current = false;
@@ -757,9 +758,8 @@ export function DraftOrderForm({
   useEffect(() => {
     if (!message) return;
     const success =
-      message.includes("بنجاح") ||
-      message.startsWith("تم حفظ") ||
-      message.startsWith("تم إنشاء العميل وتحديده");
+      textMatches(message, ["بنجاح"]) ||
+      textMatches(message, ["تم حفظ", "تم إنشاء العميل وتحديده"], "startsWith");
     messagesRef.current?.clear?.();
     messagesRef.current?.show?.([
       {
@@ -847,7 +847,7 @@ export function DraftOrderForm({
   }, []);
   const lineTotal = (item: Item) => item.quantity * item.price - item.discount;
   const remaining = Math.max(0, total - Number(form.deposit_amount || 0));
-  const title = readOnly ? "مشاهدة مسودة طلبية" : initialDraft?.id ? "تعديل مسودة طلبية" : "إنشاء مسودة طلبية";
+  const title = readOnly ? tr("مشاهدة مسودة طلبية") : initialDraft?.id ? tr("تعديل مسودة طلبية") : tr("إنشاء مسودة طلبية");
   const selectClass = "mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm";
   const sectionClass = "rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900";
   const SectionTitle = ({ icon: Icon, children, action }: { icon: any; children: any; action?: any }) => (
@@ -864,7 +864,7 @@ export function DraftOrderForm({
   return (
     <fieldset
       disabled={readOnly}
-      dir="rtl"
+      dir={appDir()}
       className="draft-order-form min-w-0 w-full max-w-none overflow-x-hidden [&_input:not([type=checkbox]):not([type=file])]:h-8 [&_input:not([type=checkbox]):not([type=file])]:text-sm [&_label]:text-xs"
     >
       {/* شريط علوي ثابت: العنوان والإجمالي والحفظ */}
@@ -876,17 +876,17 @@ export function DraftOrderForm({
           <div className="min-w-0">
             <h1 className="truncate text-base font-bold leading-tight">{title}</h1>
             {initialDraft?.draft_number && (
-              <p className="text-[11px] text-muted-foreground">رقم المسودة {initialDraft.draft_number}</p>
+              <p className="text-[11px] text-muted-foreground">{tr("رقم المسودة ")}{initialDraft.draft_number}</p>
             )}
           </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="rounded-lg bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">
-            الإجمالي <b className="text-sm tabular-nums">{total.toFixed(2)}</b>
+            {tr("الإجمالي ")}<b className="text-sm tabular-nums">{total.toFixed(2)}</b>
           </div>
           {!readOnly && (
             <>
-              <span className="hidden rounded-md border bg-muted px-2 py-0.5 text-[11px] sm:inline">F3: حفظ</span>
+              <span className="hidden rounded-md border bg-muted px-2 py-0.5 text-[11px] sm:inline">{tr("F3: حفظ")}</span>
               <Button
                 size="sm"
                 className="bg-emerald-600 hover:bg-emerald-700"
@@ -894,7 +894,7 @@ export function DraftOrderForm({
                 disabled={isSaving || !form.account_id || !form.requested_delivery_date || !items.length}
               >
                 {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
-                {isSaving ? "جاري الحفظ..." : "حفظ المسودة"}
+                {isSaving ? tr("جاري الحفظ...") : tr("حفظ المسودة")}
               </Button>
             </>
           )}
@@ -907,10 +907,10 @@ export function DraftOrderForm({
           {/* العمود الرئيسي */}
           <div className="min-w-0 space-y-2">
             <section className={sectionClass}>
-              <SectionTitle icon={UserRound}>بيانات العميل والتسليم</SectionTitle>
+              <SectionTitle icon={UserRound}>{tr("بيانات العميل والتسليم")}</SectionTitle>
               <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative sm:col-span-2">
-            <Label htmlFor="draft-customer">العميل *</Label>
+            <Label htmlFor="draft-customer">{tr("العميل *")}</Label>
             <Input
               id="draft-customer"
               className="mt-0.5"
@@ -926,7 +926,7 @@ export function DraftOrderForm({
               onBlur={() =>
                 window.setTimeout(() => setCustomerMenuOpen(false), 150)
               }
-              placeholder="اكتب اسم أو رقم العميل للبحث..."
+              placeholder={tr("اكتب اسم أو رقم العميل للبحث...")}
               autoComplete="off"
             />
             {customerMenuOpen && (
@@ -936,7 +936,7 @@ export function DraftOrderForm({
                     <button
                       type="button"
                       key={customer.id}
-                      className="flex w-full items-center justify-between gap-3 border-b px-3 py-2 text-right hover:bg-muted"
+                      className="flex w-full items-center justify-between gap-3 border-b px-3 py-2 text-start hover:bg-muted"
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => selectCustomer(customer)}
                     >
@@ -947,10 +947,10 @@ export function DraftOrderForm({
                     </button>
                   ))
                 ) : customersLoading ? (
-                  <div className="px-3 py-3 text-center text-sm text-muted-foreground">جاري تحميل العملاء...</div>
+                  <div className="px-3 py-3 text-center text-sm text-muted-foreground">{tr("جاري تحميل العملاء...")}</div>
                 ) : (
                   <div className="space-y-2 px-3 py-3 text-center text-sm text-muted-foreground">
-                    <div>لا توجد نتائج</div>
+                    <div>{tr("لا توجد نتائج")}</div>
                     <Button
                       type="button"
                       size="sm"
@@ -965,20 +965,20 @@ export function DraftOrderForm({
                       }}
                     >
                       <Plus className="ml-2 h-4 w-4" />
-                      {isCreatingCustomer ? "جاري إضافة الزبون..." : "إضافة زبون"}
+                      {isCreatingCustomer ? tr("جاري إضافة الزبون...") : tr("إضافة زبون")}
                     </Button>
                   </div>
                 )}
               </div>
             )}
             <Dialog open={showCustomerForm} onOpenChange={setShowCustomerForm}>
-              <DialogContent dir="rtl" className="max-w-lg">
+              <DialogContent dir={appDir()} className="max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>تعريف زبون</DialogTitle>
+                  <DialogTitle>{tr("تعريف زبون")}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-3">
                   <div>
-                    <Label>اسم العميل *</Label>
+                    <Label>{tr("اسم العميل *")}</Label>
                     <Input
                       value={newCustomer.name}
                       onChange={(event) =>
@@ -990,7 +990,7 @@ export function DraftOrderForm({
                     />
                   </div>
                   <div>
-                    <Label>رقم الجوال</Label>
+                    <Label>{tr("رقم الجوال")}</Label>
                     <Input
                       value={newCustomer.mobile1}
                       onChange={(event) =>
@@ -1002,7 +1002,7 @@ export function DraftOrderForm({
                     />
                   </div>
                   <div>
-                    <Label>المدينة</Label>
+                    <Label>{tr("المدينة")}</Label>
                     <Input
                       value={newCustomer.city}
                       onChange={(event) =>
@@ -1014,7 +1014,7 @@ export function DraftOrderForm({
                     />
                   </div>
                   <div>
-                    <Label>العنوان</Label>
+                    <Label>{tr("العنوان")}</Label>
                     <Input
                       value={newCustomer.address}
                       onChange={(event) =>
@@ -1030,35 +1030,35 @@ export function DraftOrderForm({
                     disabled={isCreatingCustomer}
                     onClick={createCustomer}
                   >
-                    {isCreatingCustomer ? "جاري الحفظ..." : "حفظ وتعريف الزبون"}
+                    {isCreatingCustomer ? tr("جاري الحفظ...") : tr("حفظ وتعريف الزبون")}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
                 <div>
-                  <Label>الفرع *</Label>
+                  <Label>{tr("الفرع *")}</Label>
                   <select className={selectClass} value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value })}>
-                    <option value="">اختر الفرع</option>
+                    <option value="">{tr("اختر الفرع")}</option>
                     {branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>{branch.branch_name || branch.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <Label>هاتف التواصل</Label>
+                  <Label>{tr("هاتف التواصل")}</Label>
                   <Input className="mt-0.5" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} />
                 </div>
                 <div>
-                  <Label>تاريخ الطلب</Label>
+                  <Label>{tr("تاريخ الطلب")}</Label>
                   <Input className="mt-0.5" type="date" value={form.order_date} onChange={(e) => setForm({ ...form, order_date: e.target.value })} />
                 </div>
                 <div>
-                  <Label>التاريخ المطلوب للتسليم *</Label>
+                  <Label>{tr("التاريخ المطلوب للتسليم *")}</Label>
                   <Input className="mt-0.5" type="date" min={form.order_date} value={form.requested_delivery_date} onChange={(e) => setForm({ ...form, requested_delivery_date: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <Label>عنوان التسليم</Label>
+                  <Label>{tr("عنوان التسليم")}</Label>
                   <Input className="mt-0.5" value={form.delivery_address} onChange={(e) => setForm({ ...form, delivery_address: e.target.value })} />
                 </div>
               </div>
@@ -1070,11 +1070,11 @@ export function DraftOrderForm({
                 action={
                   <Button type="button" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowProductSearch(true)}>
                     <Plus className="ml-1 h-4 w-4" />
-                    إضافة صنف
+                    {tr("إضافة صنف")}
                   </Button>
                 }
               >
-                الأصناف
+                {tr("الأصناف")}
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{items.length}</span>
               </SectionTitle>
 
@@ -1094,23 +1094,23 @@ export function DraftOrderForm({
                       void addByBarcode()
                     }
                   }}
-                  placeholder="امسح أو اكتب الباركود ثم Enter"
+                  placeholder={tr("امسح أو اكتب الباركود ثم Enter")}
                   autoComplete="off"
                 />
                 <Button type="button" size="sm" variant="outline" className="h-7 shrink-0" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addByBarcode()}>
-                  {barcodeSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة"}
+                  {barcodeSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : tr("إضافة")}
                 </Button>
               </div>
 
               {items.length === 0 ? (
                 <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed py-6 text-sm text-muted-foreground">
                   <Package className="h-6 w-6 text-slate-300" />
-                  لا توجد أصناف بعد — أضف صنفاً بالبحث أو بالباركود
+                  {tr("لا توجد أصناف بعد — أضف صنفاً بالبحث أو بالباركود")}
                 </div>
               ) : (
                 <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
                   <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_140px] items-center gap-2 bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-500 lg:grid dark:bg-slate-800/60">
-                    <span>الصنف</span><span>المستودع</span><span>الكمية</span><span>السعر</span><span>الخصم</span><span>الإجمالي</span><span />
+                    <span>{tr("الصنف")}</span><span>{tr("المستودع")}</span><span>{tr("الكمية")}</span><span>{tr("السعر")}</span><span>{tr("الخصم")}</span><span>{tr("الإجمالي")}</span><span />
                   </div>
                   {items.map((i, n) => (
                     <div
@@ -1128,30 +1128,30 @@ export function DraftOrderForm({
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100" title={i.product_name}>{i.product_name}</div>
                           <div className="flex flex-wrap gap-x-2 text-[11px] text-muted-foreground">
-                            <span className={i.unit_name ? "" : "text-rose-600"}>{i.unit_name || "بدون وحدة"}</span>
-                            {i.minimum_order_quantity > 0 && <span>الحد الأدنى: {i.minimum_order_quantity}</span>}
+                            <span className={i.unit_name ? "" : "text-rose-600"}>{i.unit_name || tr("بدون وحدة")}</span>
+                            {i.minimum_order_quantity > 0 && <span>{tr("الحد الأدنى: ")}{i.minimum_order_quantity}</span>}
                           </div>
                         </div>
                       </div>
                       <div className="col-span-2 lg:col-span-1">
-                        <Label className="lg:hidden">المستودع</Label>
+                        <Label className="lg:hidden">{tr("المستودع")}</Label>
                         <select
                           className={`h-8 w-full rounded-md border bg-background px-2 text-sm ${i.store_id ? "" : "border-amber-400"}`}
-                          aria-label={`مستودع ${i.product_name}`}
+                          aria-label={tr("مستودع {0}", i.product_name)}
                           value={i.store_id ?? ""}
                           onChange={(e) => {
                             const value = Number(e.target.value) || null;
                             setItems(items.map((x, k) => (k === n ? { ...x, store_id: value, store_name: warehouses.find((w) => Number(w.id) === value)?.warehouse_name || "" } : x)));
                           }}
                         >
-                          <option value="">اختر المستودع</option>
+                          <option value="">{tr("اختر المستودع")}</option>
                           {warehouses.map((warehouse) => (
                             <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <Label className="lg:hidden">الكمية</Label>
+                        <Label className="lg:hidden">{tr("الكمية")}</Label>
                         <Input
                           type="number"
                           step="0.0001"
@@ -1162,7 +1162,7 @@ export function DraftOrderForm({
                         />
                       </div>
                       <div>
-                        <Label className="lg:hidden">السعر</Label>
+                        <Label className="lg:hidden">{tr("السعر")}</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -1172,7 +1172,7 @@ export function DraftOrderForm({
                         />
                       </div>
                       <div>
-                        <Label className="lg:hidden">الخصم</Label>
+                        <Label className="lg:hidden">{tr("الخصم")}</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -1182,7 +1182,7 @@ export function DraftOrderForm({
                         />
                       </div>
                       <div className="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-100">
-                        <span className="text-[11px] font-normal text-muted-foreground lg:hidden">الإجمالي: </span>
+                        <span className="text-[11px] font-normal text-muted-foreground lg:hidden">{tr("الإجمالي: ")}</span>
                         {lineTotal(i).toFixed(2)}
                       </div>
                       <div className="col-span-2 flex items-center justify-end gap-1 lg:col-span-1">
@@ -1194,14 +1194,14 @@ export function DraftOrderForm({
                           onClick={() => void openSpecifications(n)}
                         >
                           {i.specifications?.reviewed ? <CheckCircle2 className="ml-1 h-3.5 w-3.5" /> : <Settings2 className="ml-1 h-3.5 w-3.5" />}
-                          المواصفات
+                          {tr("المواصفات")}
                         </Button>
                         <Button
                           type="button"
                           size="sm"
                           variant="ghost"
                           className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                          aria-label={`حذف ${i.product_name}`}
+                          aria-label={tr("حذف {0}", i.product_name)}
                           onClick={() => setItems(items.filter((_, k) => k !== n))}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1217,13 +1217,13 @@ export function DraftOrderForm({
           {/* العمود الجانبي: الملخص والعربون والملاحظات والمرفقات */}
           <aside className="min-w-0 space-y-2">
             <section className={sectionClass}>
-              <SectionTitle icon={Wallet}>الملخص والعربون</SectionTitle>
+              <SectionTitle icon={Wallet}>{tr("الملخص والعربون")}</SectionTitle>
               <dl className="space-y-1 text-sm">
-                <div className="flex justify-between"><dt className="text-muted-foreground">عدد الأصناف</dt><dd className="tabular-nums">{items.length}</dd></div>
-                <div className="flex justify-between"><dt className="text-muted-foreground">إجمالي الطلبية</dt><dd className="font-bold tabular-nums">{total.toFixed(2)}</dd></div>
+                <div className="flex justify-between"><dt className="text-muted-foreground">{tr("عدد الأصناف")}</dt><dd className="tabular-nums">{items.length}</dd></div>
+                <div className="flex justify-between"><dt className="text-muted-foreground">{tr("إجمالي الطلبية")}</dt><dd className="font-bold tabular-nums">{total.toFixed(2)}</dd></div>
               </dl>
               <div className="mt-2">
-                <Label>مبلغ العربون</Label>
+                <Label>{tr("مبلغ العربون")}</Label>
                 <Input
                   className="mt-0.5"
                   type="number"
@@ -1233,29 +1233,29 @@ export function DraftOrderForm({
                   onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) => setForm({ ...form, deposit_amount: Number(e.target.value) })}
                 />
-                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">يُحفظ العربون بسند قبض تلقائياً عند حفظ المسودة، ويُلغى السند عند حذفها.</p>
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{tr("يُحفظ العربون بسند قبض تلقائياً عند حفظ المسودة، ويُلغى السند عند حذفها.")}</p>
               </div>
               <div className="mt-2 flex justify-between rounded-lg bg-emerald-50 px-2 py-1.5 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">
-                <span>المتبقي بعد العربون</span>
+                <span>{tr("المتبقي بعد العربون")}</span>
                 <b className="tabular-nums">{remaining.toFixed(2)}</b>
               </div>
             </section>
 
             <section className={sectionClass}>
-              <SectionTitle icon={ListChecks}>المتابعة</SectionTitle>
+              <SectionTitle icon={ListChecks}>{tr("المتابعة")}</SectionTitle>
               <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
                 <div>
-                  <Label>الأولوية</Label>
+                  <Label>{tr("الأولوية")}</Label>
                   <select className={selectClass} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                    <option value="normal">عادية</option>
-                    <option value="high">عالية</option>
-                    <option value="urgent">عاجلة</option>
+                    <option value="normal">{tr("عادية")}</option>
+                    <option value="high">{tr("عالية")}</option>
+                    <option value="urgent">{tr("عاجلة")}</option>
                   </select>
                 </div>
                 <div>
-                  <Label>قائمة التحقق</Label>
+                  <Label>{tr("قائمة التحقق")}</Label>
                   <select className={selectClass} value={form.checklist_template_id} onChange={(e) => setForm({ ...form, checklist_template_id: e.target.value })}>
-                    <option value="">بدون قائمة</option>
+                    <option value="">{tr("بدون قائمة")}</option>
                     {templates.filter((t) => t.is_active).map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
@@ -1265,17 +1265,17 @@ export function DraftOrderForm({
             </section>
 
             <section className={sectionClass}>
-              <SectionTitle icon={StickyNote}>ملاحظات</SectionTitle>
+              <SectionTitle icon={StickyNote}>{tr("ملاحظات")}</SectionTitle>
               <Textarea rows={3} className="min-h-[64px] text-sm" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </section>
 
             <section className={sectionClass}>
-              <SectionTitle icon={Paperclip}>المرفقات</SectionTitle>
+              <SectionTitle icon={Paperclip}>{tr("المرفقات")}</SectionTitle>
               <div className="flex flex-wrap items-center gap-1.5">
                 {!readOnly && (
                   <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2.5 py-1 text-xs hover:bg-muted">
                     <Paperclip className="h-3.5 w-3.5" />
-                    إرفاق صور أو PDF
+                    {tr("إرفاق صور أو PDF")}
                     <input hidden type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onChange={attach} />
                   </label>
                 )}
@@ -1284,13 +1284,13 @@ export function DraftOrderForm({
                     <span className="truncate">{f.name}</span>
                     {readOnly && f.data && (
                       <>
-                        <a className="text-blue-600 underline" href={f.data} target="_blank" rel="noreferrer">مشاهدة</a>
-                        <a className="text-emerald-600 underline" href={f.data} download={f.name}>تنزيل</a>
+                        <a className="text-blue-600 underline" href={f.data} target="_blank" rel="noreferrer">{tr("مشاهدة")}</a>
+                        <a className="text-emerald-600 underline" href={f.data} download={f.name}>{tr("تنزيل")}</a>
                       </>
                     )}
                   </span>
                 ))}
-                {!files.length && readOnly && <span className="text-xs text-muted-foreground">لا توجد مرفقات</span>}
+                {!files.length && readOnly && <span className="text-xs text-muted-foreground">{tr("لا توجد مرفقات")}</span>}
               </div>
             </section>
           </aside>
@@ -1384,19 +1384,19 @@ function SpecificationsDialog({
   return (
     <Dialog open={!!state} onOpenChange={(open) => !open && setState(null)}>
       <DialogContent
-        dir="rtl"
+        dir={appDir()}
         className="max-h-[92vh] max-w-4xl overflow-y-auto"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-emerald-600" />
-            مواصفات الصنف
+            {tr("مواصفات الصنف")}
           </DialogTitle>
         </DialogHeader>
         {state?.loading ? (
           <div className="flex items-center justify-center gap-2 py-16">
             <Loader2 className="h-6 w-6 animate-spin" />
-            جاري تحميل المواصفات...
+            {tr("جاري تحميل المواصفات...")}
           </div>
         ) : state?.data ? (
           <div className="space-y-5">
@@ -1417,13 +1417,13 @@ function SpecificationsDialog({
             </div>
             {(state.data.attributes || []).length > 0 && (
               <section className="space-y-4 rounded-xl border p-4">
-                <h3 className="font-bold">المتغيرات والخصائص</h3>
+                <h3 className="font-bold">{tr("المتغيرات والخصائص")}</h3>
                 {attributes(state.data, "product")}
               </section>
             )}
             <section className="space-y-3">
               <h3 className="font-bold">
-                مكونات التصنيع ({state.data.components?.length || 0})
+                {tr("مكونات التصنيع (")}{state.data.components?.length || 0})
               </h3>
               {state.data.components?.length ? (
                 state.data.components.map((component: any) => (
@@ -1448,7 +1448,7 @@ function SpecificationsDialog({
                         </p>
                       </div>
                       <span className="rounded-lg bg-white px-3 py-1 font-semibold shadow-sm">
-                        {component.quantity} × لكل وحدة
+                        {component.quantity}{tr(" × لكل وحدة")}
                       </span>
                     </div>
                     {component.attributes?.length > 0 ? (
@@ -1457,14 +1457,14 @@ function SpecificationsDialog({
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        لا توجد متغيرات أو خصائص لهذا المكون
+                        {tr("لا توجد متغيرات أو خصائص لهذا المكون")}
                       </p>
                     )}
                   </div>
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
-                  لا توجد مكونات تصنيع معرفة لهذا الصنف
+                  {tr("لا توجد مكونات تصنيع معرفة لهذا الصنف")}
                 </div>
               )}
             </section>
@@ -1475,7 +1475,7 @@ function SpecificationsDialog({
             )}
             <Button type="button" className="w-full" onClick={onSave}>
               <CheckCircle2 className="ml-2 h-4 w-4" />
-              حفظ المواصفات
+              {tr("حفظ المواصفات")}
             </Button>
           </div>
         ) : (

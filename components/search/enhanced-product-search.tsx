@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import { Search, Filter, X, Package, Barcode, Hash, FileText, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -147,7 +148,7 @@ const EnhancedProductSearch = ({
       <div className="search-header">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
-          <h2 className="search-title">البحث عن الأصناف</h2>
+          <h2 className="search-title">{tr("البحث عن الأصناف")}</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -157,7 +158,7 @@ const EnhancedProductSearch = ({
             className="flex items-center gap-2 search-button"
           >
             <Filter className="h-4 w-4" />
-            فلاتر
+            {tr("فلاتر")}
           </Button>
           {isModal && onClose && (
             <Button variant="ghost" size="sm" onClick={onClose} className="search-button">
@@ -169,13 +170,13 @@ const EnhancedProductSearch = ({
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="ابحث بالاسم، الرقم، الباركود، أو الملاحظة..."
+          placeholder={tr("ابحث بالاسم، الرقم، الباركود، أو الملاحظة...")}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input pr-10"
+          className="search-input ps-10"
           autoFocus={isModal}
         />
       </div>
@@ -184,21 +185,21 @@ const EnhancedProductSearch = ({
       {showFilters && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">فلاتر البحث المتقدم</CardTitle>
+            <CardTitle className="text-sm">{tr("فلاتر البحث المتقدم")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="search-filters">
               <div className="space-y-2">
-                <Label>مجموعة الأصناف</Label>
+                <Label>{tr("مجموعة الأصناف")}</Label>
                 <Select
                   value={filters.category}
                   onValueChange={(value) => setFilters((prev) => ({ ...prev, category: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر المجموعة" />
+                    <SelectValue placeholder={tr("اختر المجموعة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع المجموعات</SelectItem>
+                    <SelectItem value="all">{tr("جميع المجموعات")}</SelectItem>
                     {categories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
@@ -209,16 +210,16 @@ const EnhancedProductSearch = ({
               </div>
 
               <div className="space-y-2">
-                <Label>الحالة</Label>
+                <Label>{tr("الحالة")}</Label>
                 <Select
                   value={filters.status}
                   onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر الحالة" />
+                    <SelectValue placeholder={tr("اختر الحالة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع الحالات</SelectItem>
+                    <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
                     {statuses.map((status) => (
                       <SelectItem key={status} value={status}>
                         {status}
@@ -229,25 +230,25 @@ const EnhancedProductSearch = ({
               </div>
 
               <div className="space-y-2">
-                <Label>المستودع</Label>
+                <Label>{tr("المستودع")}</Label>
                 <Select
                   value={filters.warehouse}
                   onValueChange={(value) => setFilters((prev) => ({ ...prev, warehouse: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر المستودع" />
+                    <SelectValue placeholder={tr("اختر المستودع")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع المستودعات</SelectItem>
-                    <SelectItem value="main">المستودع الرئيسي</SelectItem>
-                    <SelectItem value="secondary">المستودع الفرعي</SelectItem>
+                    <SelectItem value="all">{tr("جميع المستودعات")}</SelectItem>
+                    <SelectItem value="main">{tr("المستودع الرئيسي")}</SelectItem>
+                    <SelectItem value="secondary">{tr("المستودع الفرعي")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex items-end">
                 <Button variant="outline" onClick={clearFilters} className="w-full bg-transparent search-button">
-                  مسح الفلاتر
+                  {tr("مسح الفلاتر")}
                 </Button>
               </div>
             </div>
@@ -259,7 +260,7 @@ const EnhancedProductSearch = ({
       <div>
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
-            {loading ? "جاري البحث..." : `تم العثور على ${filteredProducts.length} صنف`}
+            {loading ? tr("جاري البحث...") : tr("تم العثور على {0} صنف", filteredProducts.length)}
           </p>
           {debouncedSearchTerm && (
             <Badge variant="secondary" className="flex items-center gap-1">
@@ -277,7 +278,7 @@ const EnhancedProductSearch = ({
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>لم يتم العثور على أصناف مطابقة</p>
+              <p>{tr("لم يتم العثور على أصناف مطابقة")}</p>
             </div>
           ) : (
             filteredProducts.map((product) => (
@@ -299,20 +300,20 @@ const EnhancedProductSearch = ({
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <Hash className="h-3 w-3 text-muted-foreground" />
-                        <span className="search-result-subtitle">الرقم: {product.product_code}</span>
+                        <span className="search-result-subtitle">{tr("الرقم: ")}{product.product_code}</span>
                       </div>
 
                       {product.barcode && (
                         <div className="flex items-center gap-2">
                           <Barcode className="h-3 w-3 text-muted-foreground" />
-                          <span className="search-result-subtitle">الباركود: {product.barcode}</span>
+                          <span className="search-result-subtitle">{tr("الباركود: ")}{product.barcode}</span>
                         </div>
                       )}
 
                       {product.category && (
                         <div className="flex items-center gap-2">
                           <Package className="h-3 w-3 text-muted-foreground" />
-                          <span className="search-result-subtitle">المجموعة: {product.category}</span>
+                          <span className="search-result-subtitle">{tr("المجموعة: ")}{product.category}</span>
                         </div>
                       )}
 
@@ -320,7 +321,7 @@ const EnhancedProductSearch = ({
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-3 w-3 text-muted-foreground" />
                           <span className="search-result-subtitle">
-                            السعر: {product.last_purchase_price} {product.currency || "ريال"}
+                            {tr("السعر: ")}{product.last_purchase_price} {product.currency || tr("ريال")}
                           </span>
                         </div>
                       )}
@@ -334,7 +335,7 @@ const EnhancedProductSearch = ({
                     )}
                   </div>
                   <Button variant="ghost" size="sm" className="text-primary">
-                    اختيار
+                    {tr("اختيار")}
                   </Button>
                 </div>
               </div>

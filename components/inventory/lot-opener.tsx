@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -66,13 +67,13 @@ export function LotOpener() {
 
       const response = await fetch(`/api/inventory/lots?${params}`)
       if (!response.ok) {
-        throw new Error("فشل في تحميل الدفعات الجديدة")
+        throw new Error(tr("فشل في تحميل الدفعات الجديدة"))
       }
 
       const data = await response.json()
       setLots(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع")
+      setError(err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"))
     } finally {
       setLoading(false)
     }
@@ -119,7 +120,7 @@ export function LotOpener() {
       const failedRequests = results.filter((response) => !response.ok)
 
       if (failedRequests.length > 0) {
-        throw new Error(`فشل في فتح ${failedRequests.length} من ${selectedLots.length} دفعة`)
+        throw new Error(tr("فشل في فتح {0} من {1} دفعة", failedRequests.length, selectedLots.length))
       }
 
       setIsDialogOpen(false)
@@ -127,7 +128,7 @@ export function LotOpener() {
       setOpeningNotes("")
       fetchNewLots()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع")
+      setError(err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"))
     }
   }
 
@@ -150,17 +151,17 @@ export function LotOpener() {
     if (days === null) return null
 
     if (days < 0) {
-      return <Badge variant="destructive">منتهي الصلاحية</Badge>
+      return <Badge variant="destructive">{tr("منتهي الصلاحية")}</Badge>
     } else if (days <= 30) {
       return (
         <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-          ينتهي خلال {days} يوم
+          {tr("ينتهي خلال ")}{days}{tr(" يوم")}
         </Badge>
       )
     } else {
       return (
         <Badge variant="secondary" className="bg-green-100 text-green-800">
-          صالح ({days} يوم)
+          {tr("صالح (")}{days}{tr(" يوم)")}
         </Badge>
       )
     }
@@ -168,17 +169,17 @@ export function LotOpener() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الدفعات الجديدة...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الدفعات الجديدة...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-background min-h-screen" dir={appDir()}>
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -188,30 +189,30 @@ export function LotOpener() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">فتح الدفعات</h1>
-          <p className="text-muted-foreground mt-1">تغيير حالة الدفعات الجديدة إلى قيد الاستخدام</p>
+          <h1 className="text-3xl font-bold text-foreground">{tr("فتح الدفعات")}</h1>
+          <p className="text-muted-foreground mt-1">{tr("تغيير حالة الدفعات الجديدة إلى قيد الاستخدام")}</p>
         </div>
 
         {selectedLots.length > 0 && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-green-600 hover:bg-green-700">
-                <Unlock className="h-4 w-4 ml-2" />
-                فتح {selectedLots.length} دفعة
+                <Unlock className="h-4 w-4 me-2" />
+                {tr("فتح ")}{selectedLots.length}{tr(" دفعة")}
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]" dir="rtl">
+            <DialogContent className="sm:max-w-[425px]" dir={appDir()}>
               <DialogHeader>
-                <DialogTitle>تأكيد فتح الدفعات</DialogTitle>
+                <DialogTitle>{tr("تأكيد فتح الدفعات")}</DialogTitle>
                 <DialogDescription>
-                  سيتم تغيير حالة {selectedLots.length} دفعة من "جديد" إلى "قيد الاستخدام"
+                  {tr("سيتم تغيير حالة ")}{selectedLots.length}{tr(" دفعة من \"جديد\" إلى \"قيد الاستخدام\"")}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div>
-                  <Label>ملاحظات (اختياري)</Label>
+                  <Label>{tr("ملاحظات (اختياري)")}</Label>
                   <Textarea
-                    placeholder="سبب فتح الدفعات..."
+                    placeholder={tr("سبب فتح الدفعات...")}
                     value={openingNotes}
                     onChange={(e) => setOpeningNotes(e.target.value)}
                   />
@@ -219,10 +220,10 @@ export function LotOpener() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
                 <Button onClick={handleOpenLots} className="bg-green-600 hover:bg-green-700">
-                  تأكيد الفتح
+                  {tr("تأكيد الفتح")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -235,17 +236,17 @@ export function LotOpener() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            البحث والتصفية
+            {tr("البحث والتصفية")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label>البحث</Label>
+              <Label>{tr("البحث")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="رقم الدفعة أو اسم المنتج"
+                  placeholder={tr("رقم الدفعة أو اسم المنتج")}
                   value={filters.search}
                   onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
                   className="pr-10"
@@ -255,7 +256,7 @@ export function LotOpener() {
 
             <div className="flex items-end">
               <Button variant="outline" onClick={() => setFilters({ search: "", product_id: "" })}>
-                إعادة تعيين
+                {tr("إعادة تعيين")}
               </Button>
             </div>
           </div>
@@ -267,12 +268,12 @@ export function LotOpener() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>الدفعات الجديدة</CardTitle>
-              <CardDescription>عرض {lots.length} دفعة جديدة متاحة للفتح</CardDescription>
+              <CardTitle>{tr("الدفعات الجديدة")}</CardTitle>
+              <CardDescription>{tr("عرض ")}{lots.length}{tr(" دفعة جديدة متاحة للفتح")}</CardDescription>
             </div>
             {lots.length > 0 && (
               <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                {selectedLots.length === lots.length ? "إلغاء تحديد الكل" : "تحديد الكل"}
+                {selectedLots.length === lots.length ? tr("إلغاء تحديد الكل") : tr("تحديد الكل")}
               </Button>
             )}
           </div>
@@ -281,8 +282,8 @@ export function LotOpener() {
           {lots.length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">لا توجد دفعات جديدة</h3>
-              <p className="text-muted-foreground">جميع الدفعات إما مفتوحة أو منتهية</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{tr("لا توجد دفعات جديدة")}</h3>
+              <p className="text-muted-foreground">{tr("جميع الدفعات إما مفتوحة أو منتهية")}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -297,13 +298,13 @@ export function LotOpener() {
                         className="rounded"
                       />
                     </th>
-                    <th className="text-right p-3 font-semibold">رقم الدفعة</th>
-                    <th className="text-right p-3 font-semibold">المنتج</th>
-                    <th className="text-right p-3 font-semibold">الكمية</th>
-                    <th className="text-right p-3 font-semibold">تاريخ الإنتاج</th>
-                    <th className="text-right p-3 font-semibold">تاريخ الانتهاء</th>
-                    <th className="text-right p-3 font-semibold">حالة الصلاحية</th>
-                    <th className="text-right p-3 font-semibold">تاريخ الإنشاء</th>
+                    <th className="text-right p-3 font-semibold">{tr("رقم الدفعة")}</th>
+                    <th className="text-right p-3 font-semibold">{tr("المنتج")}</th>
+                    <th className="text-right p-3 font-semibold">{tr("الكمية")}</th>
+                    <th className="text-right p-3 font-semibold">{tr("تاريخ الإنتاج")}</th>
+                    <th className="text-right p-3 font-semibold">{tr("تاريخ الانتهاء")}</th>
+                    <th className="text-right p-3 font-semibold">{tr("حالة الصلاحية")}</th>
+                    <th className="text-right p-3 font-semibold">{tr("تاريخ الإنشاء")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -342,17 +343,17 @@ export function LotOpener() {
       {lots.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>ملخص الدفعات</CardTitle>
+            <CardTitle>{tr("ملخص الدفعات")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{lots.length}</div>
-                <p className="text-sm text-muted-foreground">إجمالي الدفعات الجديدة</p>
+                <p className="text-sm text-muted-foreground">{tr("إجمالي الدفعات الجديدة")}</p>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{selectedLots.length}</div>
-                <p className="text-sm text-muted-foreground">دفعات محددة للفتح</p>
+                <p className="text-sm text-muted-foreground">{tr("دفعات محددة للفتح")}</p>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
@@ -363,7 +364,7 @@ export function LotOpener() {
                     ).length
                   }
                 </div>
-                <p className="text-sm text-muted-foreground">دفعات قريبة الانتهاء</p>
+                <p className="text-sm text-muted-foreground">{tr("دفعات قريبة الانتهاء")}</p>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">
@@ -373,7 +374,7 @@ export function LotOpener() {
                     ).length
                   }
                 </div>
-                <p className="text-sm text-muted-foreground">دفعات منتهية الصلاحية</p>
+                <p className="text-sm text-muted-foreground">{tr("دفعات منتهية الصلاحية")}</p>
               </div>
             </div>
           </CardContent>

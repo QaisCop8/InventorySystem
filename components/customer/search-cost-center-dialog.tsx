@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { CheckCircle2, CornerDownLeft, FolderTree, Search, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -103,41 +104,41 @@ export default function SearchCostCenterDialog({ open, onOpenChange, type, costC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="flex max-h-[85vh] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent dir={appDir()} className="flex max-h-[85vh] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
         <div className="border-b bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><Target className="h-5 w-5" /></span>
-            <div className="min-w-0 flex-1 text-right">
-              <DialogTitle className="text-lg font-bold text-white">بحث مراكز التكلفة</DialogTitle>
-              <DialogDescription className="text-xs text-emerald-50/90">اختر مركز تكلفة من النوع المحدد</DialogDescription>
+            <div className="min-w-0 flex-1 text-start">
+              <DialogTitle className="text-lg font-bold text-white">{tr("بحث مراكز التكلفة")}</DialogTitle>
+              <DialogDescription className="text-xs text-emerald-50/90">{tr("اختر مركز تكلفة من النوع المحدد")}</DialogDescription>
             </div>
-            <span className="ml-8 shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">النوع: {type?.name || "—"}</span>
+            <span className="ml-8 shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{tr("النوع: ")}{type?.name || "—"}</span>
           </div>
         </div>
 
         <div className="border-b bg-muted/30 p-3">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               ref={searchRef}
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               onKeyDown={onSearchKeyDown}
-              placeholder="ابحث باسم المركز أو رقمه أو المركز الرئيسي..."
-              className="h-11 pr-9 text-right"
+              placeholder={tr("ابحث باسم المركز أو رقمه أو المركز الرئيسي...")}
+              className="h-11 ps-9 text-start"
             />
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{filteredCenters.length} مركز</span>
-            <span className="flex items-center gap-1"><kbd className="rounded border bg-background px-1">Enter</kbd> للانتقال/الاختيار · <kbd className="rounded border bg-background px-1">↑↓</kbd> للتنقل · <kbd className="rounded border bg-background px-1">Esc</kbd> للإغلاق</span>
+            <span>{filteredCenters.length}{tr(" مركز")}</span>
+            <span className="flex items-center gap-1"><kbd className="rounded border bg-background px-1">Enter</kbd>{tr(" للانتقال/الاختيار · ")}<kbd className="rounded border bg-background px-1">↑↓</kbd>{tr(" للتنقل · ")}<kbd className="rounded border bg-background px-1">Esc</kbd>{tr(" للإغلاق")}</span>
           </div>
         </div>
 
-        <div ref={listRef} className="min-h-[220px] flex-1 overflow-y-auto p-2" role="listbox" aria-label="مراكز التكلفة">
+        <div ref={listRef} className="min-h-[220px] flex-1 overflow-y-auto p-2" role="listbox" aria-label={tr("مراكز التكلفة")}>
           {filteredCenters.length === 0 ? (
             <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
               <FolderTree className="h-10 w-10 text-emerald-500/70" />
-              {type ? (filter ? "لا توجد نتائج مطابقة" : "لا توجد مراكز تكلفة لهذا النوع") : "اختر نوع مركز التكلفة أولاً"}
+              {type ? (filter ? tr("لا توجد نتائج مطابقة") : tr("لا توجد مراكز تكلفة لهذا النوع")) : tr("اختر نوع مركز التكلفة أولاً")}
             </div>
           ) : (
             filteredCenters.map((center, index) => {
@@ -154,15 +155,15 @@ export default function SearchCostCenterDialog({ open, onOpenChange, type, costC
                   onDoubleClick={() => choose(center)}
                   onKeyDown={(event) => onRowKeyDown(event, index)}
                   onFocus={() => setActiveIndex(index)}
-                  className={`mb-1 flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition focus:outline-none ${selected ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200 dark:border-emerald-700 dark:bg-emerald-950/40 dark:ring-emerald-900" : "border-transparent hover:bg-muted"}`}
+                  className={`mb-1 flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-start transition focus:outline-none ${selected ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200 dark:border-emerald-700 dark:bg-emerald-950/40 dark:ring-emerald-900" : "border-transparent hover:bg-muted"}`}
                   style={{ paddingRight: `${0.75 + (level - 1) * 1}rem` }}
                 >
                   <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold ${selected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>{center.id}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{center.name}</span>
-                    {center.parent_name && <span className="block truncate text-xs text-muted-foreground">ضمن: {center.parent_name}</span>}
+                    {center.parent_name && <span className="block truncate text-xs text-muted-foreground">{tr("ضمن: ")}{center.parent_name}</span>}
                   </span>
-                  <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">المستوى {level}</span>
+                  <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">{tr("المستوى ")}{level}</span>
                   {selected && <CornerDownLeft className="h-4 w-4 shrink-0 text-emerald-600" />}
                 </button>
               )
@@ -171,10 +172,10 @@ export default function SearchCostCenterDialog({ open, onOpenChange, type, costC
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t bg-muted/30 px-4 py-3">
-          <span className="min-w-0 truncate text-xs text-muted-foreground">{active ? <>المحدد: <b className="text-foreground">{active.name}</b></> : "لم يتم تحديد مركز"}</span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">{active ? <>{tr("المحدد: ")}<b className="text-foreground">{active.name}</b></> : tr("لم يتم تحديد مركز")}</span>
           <div className="flex shrink-0 gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button ref={okRef} onClick={() => choose(active)} disabled={!active} className="min-w-24 gap-1.5"><CheckCircle2 className="h-4 w-4" />موافق</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+            <Button ref={okRef} onClick={() => choose(active)} disabled={!active} className="min-w-24 gap-1.5"><CheckCircle2 className="h-4 w-4" />{tr("موافق")}</Button>
           </div>
         </div>
       </DialogContent>

@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useRef } from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -56,7 +57,7 @@ function flattenScreens(items: MenuItem[], group = "", acc: { value: string; lab
   }
   return acc
 }
-const defaultScreens = [{ value: "dashboard", label: "الرئيسية" }, ...flattenScreens(menuItems)]
+const defaultScreens = [{ value: "dashboard", label: tr("الرئيسية") }, ...flattenScreens(menuItems)]
 
 interface JobRole {
   id: number
@@ -143,7 +144,7 @@ export function UserSettings() {
       const response = await fetch("/api/settings/user")
 
       if (!response.ok) {
-        throw new Error("فشل في جلب بيانات المستخدمين")
+        throw new Error(tr("فشل في جلب بيانات المستخدمين"))
       }
 
       const userData = await response.json()
@@ -204,21 +205,21 @@ export function UserSettings() {
   })
 
   const userSummary = [
-    { title: "إجمالي المستخدمين", value: users.length, icon: Users, color: "text-blue-600" },
+    { title: tr("إجمالي المستخدمين"), value: users.length, icon: Users, color: "text-blue-600" },
     {
-      title: "المستخدمون النشطون",
+      title: tr("المستخدمون النشطون"),
       value: users.filter((u) => u.is_active).length,
       icon: UserCheck,
       color: "text-green-600",
     },
     {
-      title: "المستخدمون غير النشطين",
+      title: tr("المستخدمون غير النشطين"),
       value: users.filter((u) => !u.is_active).length,
       icon: UserX,
       color: "text-red-600",
     },
     {
-      title: "آخر تسجيل دخول اليوم",
+      title: tr("آخر تسجيل دخول اليوم"),
       value: users.filter((u) => u.last_login && new Date(u.last_login).toDateString() === new Date().toDateString())
         .length,
       icon: Clock,
@@ -229,11 +230,11 @@ export function UserSettings() {
   const getStatusBadge = (isActive) => {
     return isActive ? (
       <Badge variant="default" className="bg-green-100 text-green-800">
-        نشط
+        {tr("نشط")}
       </Badge>
     ) : (
       <Badge variant="secondary" className="bg-red-100 text-red-800">
-        غير نشط
+        {tr("غير نشط")}
       </Badge>
     )
   }
@@ -268,7 +269,7 @@ export function UserSettings() {
       licenseRequest.open("users", `لا يمكن إعادة تفعيل المستخدم: عدد المستخدمين النشطين (${license.usage.users}) وصل للحد المرخّص (${license.limits.users}).`, license.pending.some((request) => request.resource === "users"))
       return
     }
-    if (!active && !(await confirmYesNo(`إيقاف المستخدم ${user.full_name}؟ لن يستطيع الدخول للشركة حتى إعادة تفعيله.`))) return
+    if (!active && !(await confirmYesNo(tr("إيقاف المستخدم {0}؟ لن يستطيع الدخول للشركة حتى إعادة تفعيله.", user.full_name)))) return
     const id = Number(user.user_id) || user.id
     setStatusBusyId(id)
     try {
@@ -276,13 +277,13 @@ export function UserSettings() {
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         if (response.status === 409 && data?.code === "LICENSE_LIMIT") { licenseRequest.open("users", data.error, Boolean(data.pending_request_id)); return }
-        throw new Error(data.error || "تعذر تغيير حالة المستخدم")
+        throw new Error(data.error || tr("تعذر تغيير حالة المستخدم"))
       }
-      showMessage(active ? "تمت إعادة تفعيل المستخدم" : "تم إيقاف المستخدم", "success")
+      showMessage(active ? tr("تمت إعادة تفعيل المستخدم") : tr("تم إيقاف المستخدم"), "success")
       await loadUsers()
       void reloadLicense()
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : "تعذر تغيير حالة المستخدم")
+      showMessage(error instanceof Error ? error.message : tr("تعذر تغيير حالة المستخدم"))
     } finally {
       setStatusBusyId(null)
     }
@@ -320,9 +321,9 @@ export function UserSettings() {
         console.log("result result result ", data)
         if (!response.ok || !data.success) {
           if (licenseRequest.handleLimit(data)) return;
-          const message = data.error || "فشل في حفظ المستخدم";
+          const message = data.error || tr("فشل في حفظ المستخدم");
           console.error("[v0] User creation failed:", message);
-          showMessage("حدث خطأ في حفظ المستخدم: " + message);
+          showMessage(tr("حدث خطأ في حفظ المستخدم: ") + message);
           return;
         }
         void reloadLicense()
@@ -341,8 +342,8 @@ export function UserSettings() {
         setTimeout(() => {
           pageMessages.current?.clear?.()
           pageMessages.current?.show?.([invitation?.sent === false
-            ? { severity: "warn", summary: "", detail: `تم إنشاء المستخدم لكن تعذّر إرسال البريد إلى ${userData.email} (إعدادات البريد غير مضبوطة). يمكن للمستخدم لاحقاً استخدام "نسيت كلمة المرور؟" بعد ضبط البريد.`, sticky: true }
-            : { severity: "success", summary: "", detail: invitation?.existing ? `تم إنشاء المستخدم وإبلاغه بالبريد — يدخل بكلمة مرور حسابه الحالية.` : `تم إنشاء المستخدم وإرسال بريد دعوة إلى ${userData.email} لتعيين كلمة المرور.`, life: 8000 }])
+            ? { severity: "warn", summary: "", detail: tr("تم إنشاء المستخدم لكن تعذّر إرسال البريد إلى {0} (إعدادات البريد غير مضبوطة). يمكن للمستخدم لاحقاً استخدام \"نسيت كلمة المرور؟\" بعد ضبط البريد.", userData.email), sticky: true }
+            : { severity: "success", summary: "", detail: invitation?.existing ? tr("تم إنشاء المستخدم وإبلاغه بالبريد — يدخل بكلمة مرور حسابه الحالية.") : tr("تم إنشاء المستخدم وإرسال بريد دعوة إلى {0} لتعيين كلمة المرور.", userData.email), life: 8000 }])
         }, 0)
       } else {
         // Update existing user
@@ -374,9 +375,9 @@ export function UserSettings() {
         console.log("result result result ", data)
         if (!response.ok || !data.success) {
           if (licenseRequest.handleLimit(data)) return;
-          const message = data.error || "فشل في حفظ المستخدم";
+          const message = data.error || tr("فشل في حفظ المستخدم");
           console.error("[v0] User creation failed:", message);
-          showMessage("حدث خطأ في حفظ المستخدم: " + message);
+          showMessage(tr("حدث خطأ في حفظ المستخدم: ") + message);
           return;
         }
 
@@ -387,10 +388,10 @@ export function UserSettings() {
       console.log("errorerrorerrorerror ", error)
       if (error instanceof Error) {
         console.error("[v0] Error saving user:", error.message)
-        showMessage("حدث خطأ في حفظ المستخدم: " + error.message)
+        showMessage(tr("حدث خطأ في حفظ المستخدم: ") + error.message)
       } else {
         console.error("[v0] Unknown error:", error)
-        showMessage("حدث خطأ غير معروف أثناء حفظ المستخدم")
+        showMessage(tr("حدث خطأ غير معروف أثناء حفظ المستخدم"))
       }
     }
   }
@@ -400,7 +401,7 @@ export function UserSettings() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>جاري تحميل إعدادات المستخدمين...</p>
+          <p>{tr("جاري تحميل إعدادات المستخدمين...")}</p>
         </div>
       </div>
     )
@@ -448,16 +449,16 @@ export function UserSettings() {
                 }}
                 className="erp-btn-primary"
               >
-                <Plus className="h-4 w-4 ml-2" />
-                مستخدم جديد
+                <Plus className="h-4 w-4 me-2" />
+                {tr("مستخدم جديد")}
               </Button>
             </div>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="البحث في المستخدمين..."
-                  className="w-64 pr-10"
+                  placeholder={tr("البحث في المستخدمين...")}
+                  className="w-64 ps-10"
                   value={filters.search}
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 />
@@ -465,10 +466,10 @@ export function UserSettings() {
               <div className="invoice-currency-dropdown-wrap w-40">
                 <PrimeDropdown
                   value={filters.role}
-                  options={[{ label: "جميع الأدوار", value: "all" }, ...roles.map((role) => ({ label: role, value: role }))]}
+                  options={[{ label: tr("جميع الأدوار"), value: "all" }, ...roles.map((role) => ({ label: role, value: role }))]}
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="الدور"
+                  placeholder={tr("الدور")}
                   className="invoice-currency-dropdown w-full"
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
@@ -478,10 +479,10 @@ export function UserSettings() {
               <div className="invoice-currency-dropdown-wrap w-40">
                 <PrimeDropdown
                   value={filters.department}
-                  options={[{ label: "جميع الأقسام", value: "all" }, ...activeDepartments.map((dept) => ({ label: dept.department_name, value: dept.department_name }))]}
+                  options={[{ label: tr("جميع الأقسام"), value: "all" }, ...activeDepartments.map((dept) => ({ label: dept.department_name, value: dept.department_name }))]}
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="القسم"
+                  placeholder={tr("القسم")}
                   className="invoice-currency-dropdown w-full"
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
@@ -495,22 +496,22 @@ export function UserSettings() {
 
       <Card className="erp-card">
         <CardHeader>
-          <CardTitle>المستخدمون والصلاحيات</CardTitle>
+          <CardTitle>{tr("المستخدمون والصلاحيات")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="erp-table">
               <thead>
                 <tr>
-                  <th>رقم المستخدم</th>
-                  <th>اسم المستخدم</th>
-                  <th>الاسم الكامل</th>
-                  <th>البريد الإلكتروني</th>
-                  <th>الدور</th>
-                  <th>القسم</th>
-                  <th>آخر تسجيل دخول</th>
-                  <th>الحالة</th>
-                  <th>الإجراءات</th>
+                  <th>{tr("رقم المستخدم")}</th>
+                  <th>{tr("اسم المستخدم")}</th>
+                  <th>{tr("الاسم الكامل")}</th>
+                  <th>{tr("البريد الإلكتروني")}</th>
+                  <th>{tr("الدور")}</th>
+                  <th>{tr("القسم")}</th>
+                  <th>{tr("آخر تسجيل دخول")}</th>
+                  <th>{tr("الحالة")}</th>
+                  <th>{tr("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -528,23 +529,23 @@ export function UserSettings() {
                     <td>{getStatusBadge(user.is_active)}</td>
                     <td>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => handleViewUser(user)} title="تعديل المستخدم">
+                        <Button size="sm" variant="outline" onClick={() => handleViewUser(user)} title={tr("تعديل المستخدم")}>
                           <Edit className="h-3 w-3" />
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleEditPermissions(user)}
-                          title="تعديل الصلاحيات"
+                          title={tr("تعديل الصلاحيات")}
                         >
                           <Shield className="h-3 w-3" />
                         </Button>
                         {user.is_active ? (
-                          <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, false)} title="إيقاف المستخدم (غير نشط)">
+                          <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, false)} title={tr("إيقاف المستخدم (غير نشط)")}>
                             <UserX className="h-3 w-3" />
                           </Button>
                         ) : (
-                          <Button size="sm" variant="outline" className="text-emerald-700 hover:text-emerald-800" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, true)} title="إعادة تفعيل المستخدم">
+                          <Button size="sm" variant="outline" className="text-emerald-700 hover:text-emerald-800" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, true)} title={tr("إعادة تفعيل المستخدم")}>
                             <UserCheck className="h-3 w-3" />
                           </Button>
                         )}
@@ -559,8 +560,8 @@ export function UserSettings() {
       </Card>
 
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} onKeyDownCapture={submitOnF3}>
-          <DialogTitle className="sr-only">تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir={appDir()} onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} onKeyDownCapture={submitOnF3}>
+          <DialogTitle className="sr-only">{tr("تعديل المستخدم ")}{selectedUser?.full_name}</DialogTitle>
           {selectedUser && (
             <form
               className="flex min-h-0 flex-1 flex-col"
@@ -569,15 +570,15 @@ export function UserSettings() {
                 const formData = new FormData(e.currentTarget)
 
                 if (!editDepartment) {
-                  showMessage("يجب اختيار القسم")
+                  showMessage(tr("يجب اختيار القسم"))
                   return
                 }
                 if (!editBranchId) {
-                  showMessage("يجب اختيار الفرع")
+                  showMessage(tr("يجب اختيار الفرع"))
                   return
                 }
                 if (!editJobRoleId) {
-                  showMessage("يجب اختيار الدور الوظيفي")
+                  showMessage(tr("يجب اختيار الدور الوظيفي"))
                   return
                 }
 
@@ -608,117 +609,117 @@ export function UserSettings() {
               }}
             >
               <UserDialogHero
-                title="تعديل المستخدم"
+                title={tr("تعديل المستخدم")}
                 name={selectedUser.full_name}
                 subtitle={selectedUser.email}
-                badge={selectedUser.is_active ? { label: "نشط", tone: "active" } : { label: "موقوف", tone: "inactive" }}
-                meta={`رقم المستخدم ${selectedUser.user_id}`}
+                badge={selectedUser.is_active ? { label: tr("نشط"), tone: "active" } : { label: tr("موقوف"), tone: "inactive" }}
+                meta={tr("رقم المستخدم {0}", selectedUser.user_id)}
                 onClose={() => setShowUserDialog(false)}
               />
 
               <div className="user-dialog-body min-h-0 flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-emerald-50/40 via-slate-50/70 to-slate-50/70 p-3 pb-8 sm:p-5 sm:pb-10 dark:from-slate-950/40 dark:via-slate-950/40 dark:to-slate-950/40">
                 <Messages innerRef={editMessages} />
 
-                <FormSection icon={Key} title="معلومات الدخول" description="البريد الإلكتروني يُستخدم اسماً للدخول" tone="sky">
+                <FormSection icon={Key} title={tr("معلومات الدخول")} description={tr("البريد الإلكتروني يُستخدم اسماً للدخول")} tone="sky">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FieldBox label="رقم المستخدم" hint="يتم توليد رقم المستخدم تلقائياً بشكل تسلسلي">
-                      <Input id="userIdDisplay" value={selectedUser.user_id} disabled className={`${FIELD_CLASS} bg-slate-100 text-slate-500`} dir="rtl" />
+                    <FieldBox label={tr("رقم المستخدم")} hint={tr("يتم توليد رقم المستخدم تلقائياً بشكل تسلسلي")}>
+                      <Input id="userIdDisplay" value={selectedUser.user_id} disabled className={`${FIELD_CLASS} bg-slate-100 text-slate-500`} dir={appDir()} />
                     </FieldBox>
-                    <FieldBox label="البريد الإلكتروني *" htmlFor="email">
-                      <Input id="email" name="email" type="email" defaultValue={selectedUser.email} required className={FIELD_CLASS} dir="rtl" />
+                    <FieldBox label={tr("البريد الإلكتروني *")} htmlFor="email">
+                      <Input id="email" name="email" type="email" defaultValue={selectedUser.email} required className={FIELD_CLASS} dir={appDir()} />
                     </FieldBox>
 
                     {/* كلمة المرور لا تُغيَّر من تعريف المستخدم: يغيّرها المستخدم بنفسه من شاشة الدخول عبر "نسيت كلمة المرور" (رمز على بريده) */}
                     <div className="md:col-span-2 flex items-start gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2.5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
                       <Key className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                      <span>كلمة المرور لا تُغيَّر من هنا — يعيّنها المستخدم بنفسه من شاشة الدخول عبر <b>"نسيت كلمة المرور"</b>، فيصله رمز التعيين على بريده الإلكتروني.</span>
+                      <span>{tr("كلمة المرور لا تُغيَّر من هنا — يعيّنها المستخدم بنفسه من شاشة الدخول عبر ")}<b>{tr("\"نسيت كلمة المرور\"")}</b>{tr("، فيصله رمز التعيين على بريده الإلكتروني.")}</span>
                     </div>
 
-                    <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="defaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
+                    <FieldBox className="md:col-span-2" label={tr("الشاشة الافتراضية عند الدخول")} htmlFor="defaultScreen" hint={tr("سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته")}>
                       <SearchableSelect
                           id="defaultScreen"
                           value={editDefaultScreen}
                           options={getAvailableScreens(selectedUser.role)}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر الشاشة الافتراضية"
+                          placeholder={tr("اختر الشاشة الافتراضية")}
                           onChange={(value) => setEditDefaultScreen(value)}
                         />
                     </FieldBox>
-                    <ToggleTile className="md:col-span-2" id="openScreensFullscreen" title="فتح الشاشة بشاشة كاملة" description="يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات">
+                    <ToggleTile className="md:col-span-2" id="openScreensFullscreen" title={tr("فتح الشاشة بشاشة كاملة")} description={tr("يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات")}>
                       <Switch id="openScreensFullscreen" checked={editOpenScreensFullscreen} onCheckedChange={setEditOpenScreensFullscreen} />
                     </ToggleTile>
                   </div>
                 </FormSection>
 
-                <FormSection icon={User} title="المعلومات الشخصية" description="الاسم والقسم والفرع والدور الوظيفي" tone="emerald">
+                <FormSection icon={User} title={tr("المعلومات الشخصية")} description={tr("الاسم والقسم والفرع والدور الوظيفي")} tone="emerald">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FieldBox label="الاسم الكامل *" htmlFor="fullName">
-                      <Input id="fullName" name="fullName" defaultValue={selectedUser.full_name} required className={FIELD_CLASS} dir="rtl" />
+                    <FieldBox label={tr("الاسم الكامل *")} htmlFor="fullName">
+                      <Input id="fullName" name="fullName" defaultValue={selectedUser.full_name} required className={FIELD_CLASS} dir={appDir()} />
                     </FieldBox>
-                    <FieldBox label="رقم الهاتف" htmlFor="phone">
-                      <Input id="phone" name="phone" defaultValue={selectedUser.phone || ""} className={FIELD_CLASS} dir="rtl" />
+                    <FieldBox label={tr("رقم الهاتف")} htmlFor="phone">
+                      <Input id="phone" name="phone" defaultValue={selectedUser.phone || ""} className={FIELD_CLASS} dir={appDir()} />
                     </FieldBox>
-                    <FieldBox label="القسم *" htmlFor="department">
+                    <FieldBox label={tr("القسم *")} htmlFor="department">
                       <SearchableSelect
                           id="department"
                           value={editDepartment}
                           options={activeDepartments}
                           optionLabel="department_name"
                           optionValue="department_name"
-                          placeholder="اختر القسم"
+                          placeholder={tr("اختر القسم")}
                           onChange={(value) => setEditDepartment(value)}
                         />
                     </FieldBox>
-                    <FieldBox label="الفرع *" htmlFor="branch">
+                    <FieldBox label={tr("الفرع *")} htmlFor="branch">
                       <SearchableSelect
                           id="branch"
                           value={editBranchId}
                           options={branches}
                           optionLabel="branch_name"
                           optionValue="id"
-                          placeholder="اختر الفرع"
+                          placeholder={tr("اختر الفرع")}
                           onChange={(value) => setEditBranchId(value)}
                         />
                     </FieldBox>
-                    <FieldBox className="md:col-span-2" label="الدور الوظيفي *" htmlFor="editJobRole">
+                    <FieldBox className="md:col-span-2" label={tr("الدور الوظيفي *")} htmlFor="editJobRole">
                       <SearchableSelect
                           id="editJobRole"
                           value={editJobRoleId}
                           options={jobRoles}
                           optionLabel="name"
                           optionValue="id"
-                          placeholder="اختر الدور الوظيفي"
+                          placeholder={tr("اختر الدور الوظيفي")}
                           onChange={(value) => setEditJobRoleId(value)}
                         />
                     </FieldBox>
                   </div>
                 </FormSection>
 
-                <FormSection icon={Shield} title="تفضيلات النظام" description="حالة الحساب والإشعارات" tone="violet">
+                <FormSection icon={Shield} title={tr("تفضيلات النظام")} description={tr("حالة الحساب والإشعارات")} tone="violet">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <ToggleTile id="active" title="مستخدم نشط" description="يمكنه تسجيل الدخول للنظام">
+                    <ToggleTile id="active" title={tr("مستخدم نشط")} description={tr("يمكنه تسجيل الدخول للنظام")}>
                       <Switch id="active" name="active" defaultChecked={selectedUser.is_active} />
                     </ToggleTile>
-                    <ToggleTile id="notifications" title="تفعيل الإشعارات" description="إشعارات داخل النظام">
+                    <ToggleTile id="notifications" title={tr("تفعيل الإشعارات")} description={tr("إشعارات داخل النظام")}>
                       <Switch id="notifications" name="notifications" defaultChecked={selectedUser.notifications_enabled} />
                     </ToggleTile>
-                    <ToggleTile id="emailNotifications" title="إشعارات البريد الإلكتروني" description="نسخة من الإشعارات بالبريد">
+                    <ToggleTile id="emailNotifications" title={tr("إشعارات البريد الإلكتروني")} description={tr("نسخة من الإشعارات بالبريد")}>
                       <Switch id="emailNotifications" name="emailNotifications" defaultChecked={selectedUser.email_notifications} />
                     </ToggleTile>
                   </div>
                 </FormSection>
               </div>
 
-              <UserDialogFooter submitLabel="حفظ التغييرات" onCancel={() => setShowUserDialog(false)} />
+              <UserDialogFooter submitLabel={tr("حفظ التغييرات")} onCancel={() => setShowUserDialog(false)} />
             </form>
           )}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showNewUserDialog} onOpenChange={setShowNewUserDialog}>
-        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} onKeyDownCapture={submitOnF3}>
-          <DialogTitle className="sr-only">إضافة مستخدم جديد</DialogTitle>
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir={appDir()} onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()} onKeyDownCapture={submitOnF3}>
+          <DialogTitle className="sr-only">{tr("إضافة مستخدم جديد")}</DialogTitle>
           <form
             className="flex min-h-0 flex-1 flex-col"
             onSubmit={(e) => {
@@ -726,15 +727,15 @@ export function UserSettings() {
               const formData = new FormData(e.currentTarget)
 
               if (!newDepartment) {
-                showMessage("يجب اختيار القسم")
+                showMessage(tr("يجب اختيار القسم"))
                 return
               }
               if (!newBranchId) {
-                showMessage("يجب اختيار الفرع")
+                showMessage(tr("يجب اختيار الفرع"))
                 return
               }
               if (!newJobRoleId) {
-                showMessage("يجب اختيار الدور الوظيفي")
+                showMessage(tr("يجب اختيار الدور الوظيفي"))
                 return
               }
 
@@ -762,8 +763,8 @@ export function UserSettings() {
             }}
           >
             <UserDialogHero
-              title="إضافة مستخدم جديد"
-              subtitle="سيصل المستخدم بريد دعوة لتعيين كلمة المرور الخاصة به"
+              title={tr("إضافة مستخدم جديد")}
+              subtitle={tr("سيصل المستخدم بريد دعوة لتعيين كلمة المرور الخاصة به")}
               isNew
               onClose={() => setShowNewUserDialog(false)}
             />
@@ -771,73 +772,73 @@ export function UserSettings() {
             <div className="user-dialog-body min-h-0 flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-emerald-50/40 via-slate-50/70 to-slate-50/70 p-3 pb-8 sm:p-5 sm:pb-10 dark:from-slate-950/40 dark:via-slate-950/40 dark:to-slate-950/40">
               <Messages innerRef={newMessages} />
 
-              <FormSection icon={Key} title="معلومات الدخول" description="البريد الإلكتروني يُستخدم اسماً للدخول" tone="sky">
+              <FormSection icon={Key} title={tr("معلومات الدخول")} description={tr("البريد الإلكتروني يُستخدم اسماً للدخول")} tone="sky">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FieldBox label="رقم المستخدم">
-                    <Input value="سيتم توليده تلقائياً" disabled className={`${FIELD_CLASS} bg-slate-100 text-slate-500`} dir="rtl" />
+                  <FieldBox label={tr("رقم المستخدم")}>
+                    <Input value="سيتم توليده تلقائياً" disabled className={`${FIELD_CLASS} bg-slate-100 text-slate-500`} dir={appDir()} />
                   </FieldBox>
-                  <FieldBox label="البريد الإلكتروني *" htmlFor="newEmail">
-                    <Input id="newEmail" name="email" type="email" placeholder="user@company.com" required className={FIELD_CLASS} dir="rtl" />
+                  <FieldBox label={tr("البريد الإلكتروني *")} htmlFor="newEmail">
+                    <Input id="newEmail" name="email" type="email" placeholder="user@company.com" required className={FIELD_CLASS} dir={appDir()} />
                   </FieldBox>
                   <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50/80 p-3 text-sm text-sky-900 md:col-span-2 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
                     <Mail className="mt-0.5 h-4 w-4 shrink-0" />
-                    لا حاجة لإدخال كلمة مرور — سيصل المستخدم بريد دعوة برمز لتعيين كلمة المرور الخاصة به بنفسه.
+                    {tr("لا حاجة لإدخال كلمة مرور — سيصل المستخدم بريد دعوة برمز لتعيين كلمة المرور الخاصة به بنفسه.")}
                   </div>
-                  <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="newDefaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
+                  <FieldBox className="md:col-span-2" label={tr("الشاشة الافتراضية عند الدخول")} htmlFor="newDefaultScreen" hint={tr("سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته")}>
                     <SearchableSelect
                           id="newDefaultScreen"
                           value={newDefaultScreen}
                           options={getAvailableScreens("مدير النظام")}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر الشاشة الافتراضية"
+                          placeholder={tr("اختر الشاشة الافتراضية")}
                           onChange={(value) => setNewDefaultScreen(value)}
                         />
                   </FieldBox>
-                  <ToggleTile className="md:col-span-2" id="newOpenScreensFullscreen" title="فتح الشاشة بشاشة كاملة" description="يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات">
+                  <ToggleTile className="md:col-span-2" id="newOpenScreensFullscreen" title={tr("فتح الشاشة بشاشة كاملة")} description={tr("يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات")}>
                     <Switch id="newOpenScreensFullscreen" checked={newOpenScreensFullscreen} onCheckedChange={setNewOpenScreensFullscreen} />
                   </ToggleTile>
                 </div>
               </FormSection>
 
-              <FormSection icon={User} title="المعلومات الشخصية" description="الاسم والقسم والفرع والدور الوظيفي" tone="emerald">
+              <FormSection icon={User} title={tr("المعلومات الشخصية")} description={tr("الاسم والقسم والفرع والدور الوظيفي")} tone="emerald">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FieldBox label="الاسم الكامل *" htmlFor="newFullName">
-                    <Input id="newFullName" name="fullName" placeholder="أدخل الاسم الكامل" required className={FIELD_CLASS} dir="rtl" />
+                  <FieldBox label={tr("الاسم الكامل *")} htmlFor="newFullName">
+                    <Input id="newFullName" name="fullName" placeholder={tr("أدخل الاسم الكامل")} required className={FIELD_CLASS} dir={appDir()} />
                   </FieldBox>
-                  <FieldBox label="رقم الهاتف" htmlFor="newPhone">
-                    <Input id="newPhone" name="phone" placeholder="05xxxxxxxx" className={FIELD_CLASS} dir="rtl" />
+                  <FieldBox label={tr("رقم الهاتف")} htmlFor="newPhone">
+                    <Input id="newPhone" name="phone" placeholder="05xxxxxxxx" className={FIELD_CLASS} dir={appDir()} />
                   </FieldBox>
-                  <FieldBox label="القسم *" htmlFor="newDepartment">
+                  <FieldBox label={tr("القسم *")} htmlFor="newDepartment">
                     <SearchableSelect
                           id="newDepartment"
                           value={newDepartment}
                           options={activeDepartments}
                           optionLabel="department_name"
                           optionValue="department_name"
-                          placeholder="اختر القسم"
+                          placeholder={tr("اختر القسم")}
                           onChange={(value) => setNewDepartment(value)}
                         />
                   </FieldBox>
-                  <FieldBox label="الفرع *" htmlFor="newBranch">
+                  <FieldBox label={tr("الفرع *")} htmlFor="newBranch">
                     <SearchableSelect
                           id="newBranch"
                           value={newBranchId}
                           options={branches}
                           optionLabel="branch_name"
                           optionValue="id"
-                          placeholder="اختر الفرع"
+                          placeholder={tr("اختر الفرع")}
                           onChange={(value) => setNewBranchId(value)}
                         />
                   </FieldBox>
-                  <FieldBox className="md:col-span-2" label="الدور الوظيفي *" htmlFor="newJobRole">
+                  <FieldBox className="md:col-span-2" label={tr("الدور الوظيفي *")} htmlFor="newJobRole">
                     <SearchableSelect
                           id="newJobRole"
                           value={newJobRoleId}
                           options={jobRoles}
                           optionLabel="name"
                           optionValue="id"
-                          placeholder="اختر الدور الوظيفي"
+                          placeholder={tr("اختر الدور الوظيفي")}
                           onChange={(value) => setNewJobRoleId(value)}
                         />
                   </FieldBox>
@@ -845,7 +846,7 @@ export function UserSettings() {
               </FormSection>
             </div>
 
-            <UserDialogFooter submitLabel="إضافة المستخدم" onCancel={() => setShowNewUserDialog(false)} />
+            <UserDialogFooter submitLabel={tr("إضافة المستخدم")} onCancel={() => setShowNewUserDialog(false)} />
           </form>
         </DialogContent>
       </Dialog>
@@ -883,14 +884,14 @@ function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: 
 }) {
   return (
     <div className="relative shrink-0 overflow-hidden bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-4 text-white sm:px-6 sm:py-5">
-      <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="pointer-events-none absolute -end-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
       <div className="relative flex items-start gap-3 sm:items-center sm:gap-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-lg font-extrabold ring-1 ring-white/30 sm:h-14 sm:w-14">
           {isNew ? <UserPlus className="h-6 w-6" /> : initialsOf(name) || <User className="h-6 w-6" />}
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold text-emerald-50/80">{title}</p>
-          <h2 className="truncate text-lg font-extrabold leading-tight sm:text-xl">{isNew ? "مستخدم جديد" : name}</h2>
+          <h2 className="truncate text-lg font-extrabold leading-tight sm:text-xl">{isNew ? tr("مستخدم جديد") : name}</h2>
           {subtitle && <p className="mt-0.5 truncate text-xs text-emerald-50/90" dir="auto">{subtitle}</p>}
           {(badge || meta) && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -904,7 +905,7 @@ function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: 
             </div>
           )}
         </div>
-        <button type="button" onClick={onClose} aria-label="إغلاق" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25">
+        <button type="button" onClick={onClose} aria-label={tr("إغلاق")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -957,7 +958,7 @@ function FieldBox({ label, htmlFor, hint, className, children }: { label: string
 function ToggleTile({ id, title, description, className, children }: { id: string; title: string; description?: string; className?: string; children: React.ReactNode }) {
   return (
     <label htmlFor={id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 transition hover:border-emerald-300 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-800/40 ${className || ""}`}>
-      <span className="min-w-0 text-right">
+      <span className="min-w-0 text-start">
         <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
         {description && <span className="block text-[11px] leading-5 text-slate-500">{description}</span>}
       </span>
@@ -968,7 +969,7 @@ function ToggleTile({ id, title, description, className, children }: { id: strin
 
 function PasswordEye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
   return (
-    <button type="button" onClick={onToggle} aria-label={shown ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} className="absolute right-0 top-0 flex h-full items-center px-3 text-slate-400 hover:text-slate-600">
+    <button type="button" onClick={onToggle} aria-label={shown ? tr("إخفاء كلمة المرور") : tr("إظهار كلمة المرور")} className="absolute start-0 top-0 flex h-full items-center px-3 text-slate-400 hover:text-slate-600">
       {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>
   )
@@ -978,7 +979,7 @@ function UserDialogFooter({ submitLabel, onCancel }: { submitLabel: string; onCa
   return (
     <div className="flex shrink-0 flex-row-reverse items-center justify-center gap-2 border-t border-slate-200 bg-white/95 px-3 py-3 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900">
       <Button type="button" variant="outline" className="h-11 flex-1 rounded-xl sm:h-10 sm:w-32 sm:flex-none" onClick={onCancel}>
-        إلغاء
+        {tr("إلغاء")}
       </Button>
       <Button type="submit" className="h-11 flex-1 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-6 font-bold shadow-md shadow-emerald-600/20 hover:from-emerald-700 hover:to-teal-700 sm:h-10 sm:w-44 sm:flex-none">
         <Save className="ml-1.5 h-4 w-4" />

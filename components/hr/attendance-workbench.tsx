@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -25,33 +26,33 @@ type Day = {
 }
 
 export const STATUS: Record<string, { label: string; tone: string }> = {
-  present: { label: "حاضر", tone: "bg-emerald-100 text-emerald-800 ring-emerald-200" },
-  late: { label: "متأخر", tone: "bg-amber-100 text-amber-800 ring-amber-200" },
-  incomplete: { label: "بصمة ناقصة", tone: "bg-orange-100 text-orange-800 ring-orange-200" },
-  absent: { label: "غائب", tone: "bg-rose-100 text-rose-800 ring-rose-200" },
-  holiday: { label: "عطلة رسمية", tone: "bg-sky-100 text-sky-800 ring-sky-200" },
-  day_off: { label: "يوم راحة", tone: "bg-slate-100 text-slate-600 ring-slate-200" },
-  unscheduled: { label: "عمل بلا وردية", tone: "bg-violet-100 text-violet-800 ring-violet-200" },
-  holiday_work: { label: "عمل في عطلة", tone: "bg-indigo-100 text-indigo-800 ring-indigo-200" },
-  leave: { label: "إجازة", tone: "bg-teal-100 text-teal-800 ring-teal-200" },
-  sick: { label: "إجازة مرضية", tone: "bg-cyan-100 text-cyan-800 ring-cyan-200" },
-  mission: { label: "مهمة عمل", tone: "bg-blue-100 text-blue-800 ring-blue-200" },
+  present: { label: tr("حاضر"), tone: "bg-emerald-100 text-emerald-800 ring-emerald-200" },
+  late: { label: tr("متأخر"), tone: "bg-amber-100 text-amber-800 ring-amber-200" },
+  incomplete: { label: tr("بصمة ناقصة"), tone: "bg-orange-100 text-orange-800 ring-orange-200" },
+  absent: { label: tr("غائب"), tone: "bg-rose-100 text-rose-800 ring-rose-200" },
+  holiday: { label: tr("عطلة رسمية"), tone: "bg-sky-100 text-sky-800 ring-sky-200" },
+  day_off: { label: tr("يوم راحة"), tone: "bg-slate-100 text-slate-600 ring-slate-200" },
+  unscheduled: { label: tr("عمل بلا وردية"), tone: "bg-violet-100 text-violet-800 ring-violet-200" },
+  holiday_work: { label: tr("عمل في عطلة"), tone: "bg-indigo-100 text-indigo-800 ring-indigo-200" },
+  leave: { label: tr("إجازة"), tone: "bg-teal-100 text-teal-800 ring-teal-200" },
+  sick: { label: tr("إجازة مرضية"), tone: "bg-cyan-100 text-cyan-800 ring-cyan-200" },
+  mission: { label: tr("مهمة عمل"), tone: "bg-blue-100 text-blue-800 ring-blue-200" },
 }
 export const TRANSACTION_TYPES: Record<string, { label: string; unit: "hours" | "days" | "amount"; kind: "earning" | "deduction" | "info" }> = {
-  overtime: { label: "عمل إضافي", unit: "hours", kind: "earning" },
-  holiday_overtime: { label: "عمل إضافي في عطلة", unit: "hours", kind: "earning" },
-  late_deduction: { label: "خصم تأخير", unit: "hours", kind: "deduction" },
-  early_leave_deduction: { label: "خصم خروج مبكر", unit: "hours", kind: "deduction" },
-  absence_deduction: { label: "خصم غياب", unit: "days", kind: "deduction" },
-  permission: { label: "مغادرة / إذن", unit: "hours", kind: "info" },
-  paid_leave: { label: "إجازة مدفوعة", unit: "days", kind: "info" },
-  unpaid_leave: { label: "إجازة بدون راتب", unit: "days", kind: "deduction" },
-  sick_leave: { label: "إجازة مرضية", unit: "days", kind: "info" },
-  bonus: { label: "مكافأة", unit: "amount", kind: "earning" },
-  penalty: { label: "جزاء / خصم إداري", unit: "amount", kind: "deduction" },
-  night_allowance: { label: "بدل مناوبة ليلية", unit: "days", kind: "earning" },
+  overtime: { label: tr("عمل إضافي"), unit: "hours", kind: "earning" },
+  holiday_overtime: { label: tr("عمل إضافي في عطلة"), unit: "hours", kind: "earning" },
+  late_deduction: { label: tr("خصم تأخير"), unit: "hours", kind: "deduction" },
+  early_leave_deduction: { label: tr("خصم خروج مبكر"), unit: "hours", kind: "deduction" },
+  absence_deduction: { label: tr("خصم غياب"), unit: "days", kind: "deduction" },
+  permission: { label: tr("مغادرة / إذن"), unit: "hours", kind: "info" },
+  paid_leave: { label: tr("إجازة مدفوعة"), unit: "days", kind: "info" },
+  unpaid_leave: { label: tr("إجازة بدون راتب"), unit: "days", kind: "deduction" },
+  sick_leave: { label: tr("إجازة مرضية"), unit: "days", kind: "info" },
+  bonus: { label: tr("مكافأة"), unit: "amount", kind: "earning" },
+  penalty: { label: tr("جزاء / خصم إداري"), unit: "amount", kind: "deduction" },
+  night_allowance: { label: tr("بدل مناوبة ليلية"), unit: "days", kind: "earning" },
 }
-const UNIT_LABEL = { hours: "ساعة", days: "يوم", amount: "مبلغ" }
+const UNIT_LABEL = { hours: tr("ساعة"), days: tr("يوم"), amount: tr("مبلغ") }
 const today = () => new Date().toISOString().slice(0, 10)
 const monthStart = () => `${today().slice(0, 7)}-01`
 export const hm = (minutes: number) => {
@@ -111,56 +112,56 @@ export function DayEditDialog({ open, onOpenChange, day, employeeId, date, emplo
     setError("")
   }, [open, day])
   const save = async () => {
-    if (!form.reason.trim()) { setError("سبب التعديل مطلوب (يُسجَّل في سجل التعديلات)"); return }
+    if (!form.reason.trim()) { setError(tr("سبب التعديل مطلوب (يُسجَّل في سجل التعديلات)")); return }
     setSaving(true); setError("")
     try {
       const response = await fetch("/api/hr/attendance-days", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ employee_id: employeeId, work_date: date, ...form, shift_id: form.shift_id ? Number(form.shift_id) : null }) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر الحفظ")
+      if (!response.ok) throw new Error(data.error || tr("تعذر الحفظ"))
       onSaved(); onOpenChange(false)
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر الحفظ") } finally { setSaving(false) }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر الحفظ")) } finally { setSaving(false) }
   }
   const remove = async () => {
     if (!day?.id) return
-    const reason = window.prompt("سبب حذف سجل اليوم؟")
+    const reason = window.prompt(tr("سبب حذف سجل اليوم؟"))
     if (!reason?.trim()) return
     const response = await fetch(`/api/hr/attendance-days?id=${day.id}&reason=${encodeURIComponent(reason)}`, { method: "DELETE" })
-    if (response.ok) { onSaved(); onOpenChange(false) } else setError((await response.json()).error || "تعذر الحذف")
+    if (response.ok) { onSaved(); onOpenChange(false) } else setError((await response.json()).error || tr("تعذر الحذف"))
   }
   const defaultIn = `${date}T08:00`
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-xl">
+      <DialogContent dir={appDir()} className="max-w-xl">
         <DialogHeader className="text-right">
-          <DialogTitle>{day ? "تعديل سجل دوام" : "إضافة سجل دوام"}</DialogTitle>
-          <DialogDescription>{employeeName} · {dayName(date)} {date}{day?.punches_count ? ` · ${day.punches_count} حركة بصمة` : ""}</DialogDescription>
+          <DialogTitle>{day ? tr("تعديل سجل دوام") : tr("إضافة سجل دوام")}</DialogTitle>
+          <DialogDescription>{employeeName} · {dayName(date)} {date}{day?.punches_count ? tr(" · {0} حركة بصمة", day.punches_count) : ""}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label>الوردية</Label>
+            <Label>{tr("الوردية")}</Label>
             <select className={selectClass} value={form.shift_id} onChange={(e) => setForm({ ...form, shift_id: e.target.value })}>
-              <option value="">بلا وردية / راحة</option>
+              <option value="">{tr("بلا وردية / راحة")}</option>
               {shifts.filter((s) => s.is_active || String(s.id) === form.shift_id).map((s) => <option key={s.id} value={s.id}>{s.code} — {s.name} ({String(s.start_time).slice(0, 5)} - {String(s.end_time).slice(0, 5)})</option>)}
             </select>
           </div>
-          <div><Label>وقت الدخول</Label><Input type="datetime-local" dir="ltr" className={inputClass} value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} onFocus={() => { if (!form.check_in) setForm((f) => ({ ...f, check_in: defaultIn })) }} /></div>
-          <div><Label>وقت الخروج</Label><Input type="datetime-local" dir="ltr" className={inputClass} value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} onFocus={() => { if (!form.check_out) setForm((f) => ({ ...f, check_out: `${date}T16:00` })) }} /></div>
+          <div><Label>{tr("وقت الدخول")}</Label><Input type="datetime-local" dir="ltr" className={inputClass} value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} onFocus={() => { if (!form.check_in) setForm((f) => ({ ...f, check_in: defaultIn })) }} /></div>
+          <div><Label>{tr("وقت الخروج")}</Label><Input type="datetime-local" dir="ltr" className={inputClass} value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} onFocus={() => { if (!form.check_out) setForm((f) => ({ ...f, check_out: `${date}T16:00` })) }} /></div>
           <div>
-            <Label>الحالة</Label>
+            <Label>{tr("الحالة")}</Label>
             <select className={selectClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="">تلقائية حسب الأوقات</option>
-              <option value="leave">إجازة</option><option value="sick">إجازة مرضية</option><option value="mission">مهمة عمل</option>
-              <option value="absent">غائب</option><option value="day_off">يوم راحة</option>
+              <option value="">{tr("تلقائية حسب الأوقات")}</option>
+              <option value="leave">{tr("إجازة")}</option><option value="sick">{tr("إجازة مرضية")}</option><option value="mission">{tr("مهمة عمل")}</option>
+              <option value="absent">{tr("غائب")}</option><option value="day_off">{tr("يوم راحة")}</option>
             </select>
           </div>
-          <div><Label>ملاحظات</Label><Input className={inputClass} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-          <div className="sm:col-span-2"><Label>سبب التعديل *</Label><Input className={inputClass} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="مثال: نسي البصمة عند الخروج — تأكيد المسؤول" /></div>
+          <div><Label>{tr("ملاحظات")}</Label><Input className={inputClass} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+          <div className="sm:col-span-2"><Label>{tr("سبب التعديل *")}</Label><Input className={inputClass} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={tr("مثال: نسي البصمة عند الخروج — تأكيد المسؤول")} /></div>
         </div>
-        <p className="text-xs text-slate-500">التأخير والخروج المبكر والعمل الإضافي تُحتسب تلقائياً من الوردية والأوقات. السجل المعدّل يدوياً لا يُستبدل عند إعادة المعالجة إلا بطلب.</p>
+        <p className="text-xs text-slate-500">{tr("التأخير والخروج المبكر والعمل الإضافي تُحتسب تلقائياً من الوردية والأوقات. السجل المعدّل يدوياً لا يُستبدل عند إعادة المعالجة إلا بطلب.")}</p>
         <Message text={error} />
         <DialogFooter className="flex-row-reverse justify-between gap-2 sm:justify-between">
-          <Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}حفظ</Button>
-          {day?.id ? <Button variant="outline" className="text-rose-700" onClick={() => void remove()}><Trash2 className="ml-2 h-4 w-4" />حذف السجل</Button> : <span />}
+          <Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button>
+          {day?.id ? <Button variant="outline" className="text-rose-700" onClick={() => void remove()}><Trash2 className="ml-2 h-4 w-4" />{tr("حذف السجل")}</Button> : <span />}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -193,15 +194,15 @@ export function AttendanceProcessingPage() {
   useEffect(() => { void load() }, [load])
 
   const process = async () => {
-    if (filters.from > filters.to) { setMessage({ text: "تاريخ البداية بعد تاريخ النهاية", tone: "error" }); return }
+    if (filters.from > filters.to) { setMessage({ text: tr("تاريخ البداية بعد تاريخ النهاية"), tone: "error" }); return }
     setBusy(true); setMessage({ text: "", tone: "success" })
     try {
       const response = await fetch("/api/hr/attendance-days", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "process", from: filters.from, to: filters.to, employee_ids: filters.employeeIds, department_id: Number(filters.departmentId) || 0, branch_id: Number(filters.branchId) || 0, overwrite_manual: filters.overwrite }) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذرت المعالجة")
-      setMessage({ text: `تمت معالجة ${data.processed} يوم لـ ${data.employees} موظف${data.skippedManual ? ` — تُرك ${data.skippedManual} سجل معدّل يدوياً دون تغيير` : ""}`, tone: "success" })
+      if (!response.ok) throw new Error(data.error || tr("تعذرت المعالجة"))
+      setMessage({ text: tr("تمت معالجة {0} يوم لـ {1} موظف{2}", data.processed, data.employees, data.skippedManual ? ` — تُرك ${data.skippedManual} سجل معدّل يدوياً دون تغيير` : ""), tone: "success" })
       await load()
-    } catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : "تعذرت المعالجة", tone: "error" }) } finally { setBusy(false) }
+    } catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : tr("تعذرت المعالجة"), tone: "error" }) } finally { setBusy(false) }
   }
 
   const visible = rows.filter((row) => (!statusFilter || row.status === statusFilter) && (!search || `${row.employee_code} ${row.employee_name} ${row.department_name || ""}`.toLowerCase().includes(search.toLowerCase())))
@@ -214,20 +215,20 @@ export function AttendanceProcessingPage() {
   ]
 
   return (
-    <HrPage title="معالجة حركات الدخول والخروج" subtitle="تحويل حركات البصمة إلى سجل دوام يومي لكل موظف حسب ورديته: الدخول والخروج، التأخير، الخروج المبكر، العمل الإضافي والغياب">
+    <HrPage title={tr("معالجة حركات الدخول والخروج")} subtitle={tr("تحويل حركات البصمة إلى سجل دوام يومي لكل موظف حسب ورديته: الدخول والخروج، التأخير، الخروج المبكر، العمل الإضافي والغياب")}>
       <div className={card}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div><Label>من تاريخ</Label><Input type="date" dir="ltr" className={inputClass} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></div>
-          <div><Label>إلى تاريخ</Label><Input type="date" dir="ltr" className={inputClass} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></div>
-          <div><Label>القسم</Label><select className={selectClass} value={filters.departmentId} onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}><option value="">كل الأقسام</option>{lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.department_name || d.name}</option>)}</select></div>
-          <div><Label>الفرع</Label><select className={selectClass} value={filters.branchId} onChange={(e) => setFilters({ ...filters, branchId: e.target.value })}><option value="">كل الفروع</option>{lookups.branches.map((b) => <option key={b.id} value={b.id}>{b.branch_name}</option>)}</select></div>
-          <div className="lg:col-span-2"><ReportMultiChoice label="الموظفون" options={lookups.employeeOptions} selected={filters.employeeIds} onChange={(employeeIds) => setFilters({ ...filters, employeeIds })} placeholder="كل الموظفين" /></div>
+          <div><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" className={inputClass} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></div>
+          <div><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" className={inputClass} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></div>
+          <div><Label>{tr("القسم")}</Label><select className={selectClass} value={filters.departmentId} onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}><option value="">{tr("كل الأقسام")}</option>{lookups.departments.map((d) => <option key={d.id} value={d.id}>{d.department_name || d.name}</option>)}</select></div>
+          <div><Label>{tr("الفرع")}</Label><select className={selectClass} value={filters.branchId} onChange={(e) => setFilters({ ...filters, branchId: e.target.value })}><option value="">{tr("كل الفروع")}</option>{lookups.branches.map((b) => <option key={b.id} value={b.id}>{b.branch_name}</option>)}</select></div>
+          <div className="lg:col-span-2"><ReportMultiChoice label={tr("الموظفون")} options={lookups.employeeOptions} selected={filters.employeeIds} onChange={(employeeIds) => setFilters({ ...filters, employeeIds })} placeholder={tr("كل الموظفين")} /></div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={filters.overwrite} onCheckedChange={(v) => setFilters({ ...filters, overwrite: v === true })} />إعادة معالجة السجلات المعدّلة يدوياً أيضاً</label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={filters.overwrite} onCheckedChange={(v) => setFilters({ ...filters, overwrite: v === true })} />{tr("إعادة معالجة السجلات المعدّلة يدوياً أيضاً")}</label>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void load()}><RefreshCw className="ml-2 h-4 w-4" />تحديث العرض</Button>
-            <Button onClick={() => void process()} disabled={busy} className="bg-gradient-to-l from-teal-600 to-emerald-600">{busy ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Play className="ml-2 h-4 w-4" />}معالجة الحركات</Button>
+            <Button variant="outline" onClick={() => void load()}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث العرض")}</Button>
+            <Button onClick={() => void process()} disabled={busy} className="bg-gradient-to-l from-teal-600 to-emerald-600">{busy ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Play className="ml-2 h-4 w-4" />}{tr("معالجة الحركات")}</Button>
           </div>
         </div>
       </div>
@@ -242,16 +243,16 @@ export function AttendanceProcessingPage() {
       </div>
       <div className={`${card} p-0`}>
         <div className="flex flex-wrap items-center gap-2 border-b p-3">
-          <button type="button" onClick={() => setStatusFilter("")} className={`rounded-full px-3 py-1 text-xs font-bold ${!statusFilter ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600"}`}>الكل ({rows.length})</button>
+          <button type="button" onClick={() => setStatusFilter("")} className={`rounded-full px-3 py-1 text-xs font-bold ${!statusFilter ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600"}`}>{tr("الكل (")}{rows.length})</button>
           {Object.entries(STATUS).filter(([key]) => count(key)).map(([key, meta]) => (
             <button key={key} type="button" onClick={() => setStatusFilter(key)} className={`rounded-full px-3 py-1 text-xs font-bold ring-1 ${statusFilter === key ? "bg-slate-800 text-white ring-slate-800" : meta.tone}`}>{meta.label} ({count(key)})</button>
           ))}
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث بالموظف أو القسم..." className="mr-auto h-9 w-full rounded-xl sm:w-64" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث بالموظف أو القسم...")} className="mr-auto h-9 w-full rounded-xl sm:w-64" />
         </div>
         <div className="max-h-[60vh] overflow-auto">
           <table className="w-full min-w-[1150px] text-sm">
             <thead className="sticky top-0 z-10 bg-slate-800 text-white">
-              <tr>{["التاريخ", "الموظف", "القسم", "الوردية", "المجدول", "الدخول", "الخروج", "ساعات العمل", "التأخير", "خروج مبكر", "إضافي", "الحالة", ""].map((label) => <th key={label} className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-bold">{label}</th>)}</tr>
+              <tr>{["التاريخ", "الموظف", "القسم", "الوردية", "المجدول", "الدخول", "الخروج", "ساعات العمل", "التأخير", "خروج مبكر", "إضافي", "الحالة", ""].map((label) => <th key={label} className="whitespace-nowrap px-3 py-2.5 text-start text-xs font-bold">{label}</th>)}</tr>
             </thead>
             <tbody>
               {visible.map((row) => (
@@ -267,11 +268,11 @@ export function AttendanceProcessingPage() {
                   <td className={`px-3 py-2 font-mono ${row.late_minutes ? "font-bold text-amber-700" : "text-slate-300"}`} dir="ltr">{hm(row.late_minutes)}</td>
                   <td className={`px-3 py-2 font-mono ${row.early_leave_minutes ? "font-bold text-orange-700" : "text-slate-300"}`} dir="ltr">{hm(row.early_leave_minutes)}</td>
                   <td className={`px-3 py-2 font-mono ${row.overtime_minutes ? "font-bold text-indigo-700" : "text-slate-300"}`} dir="ltr">{hm(row.overtime_minutes)}</td>
-                  <td className="px-3 py-2"><StatusBadge status={row.status} />{row.is_manual && <span className="mr-1 text-[10px] font-bold text-violet-600" title="معدّل يدوياً">✎</span>}</td>
+                  <td className="px-3 py-2"><StatusBadge status={row.status} />{row.is_manual && <span className="mr-1 text-[10px] font-bold text-violet-600" title={tr("معدّل يدوياً")}>✎</span>}</td>
                   <td className="px-2 py-2"><Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing(row)}><Pencil className="h-3.5 w-3.5" /></Button></td>
                 </tr>
               ))}
-              {!visible.length && <tr><td colSpan={13} className="py-14 text-center text-slate-500"><CalendarCheck className="mx-auto mb-2 h-9 w-9 text-slate-300" />لا توجد سجلات — اختر الفترة واضغط "معالجة الحركات"</td></tr>}
+              {!visible.length && <tr><td colSpan={13} className="py-14 text-center text-slate-500"><CalendarCheck className="mx-auto mb-2 h-9 w-9 text-slate-300" />{tr("لا توجد سجلات — اختر الفترة واضغط \"معالجة الحركات\"")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -309,10 +310,10 @@ export function AttendanceEditorPage() {
   const totals = { worked: days.reduce((s, r) => s + r.worked_minutes, 0), late: days.reduce((s, r) => s + r.late_minutes, 0), overtime: days.reduce((s, r) => s + r.overtime_minutes, 0), absent: days.filter((r) => r.status === "absent").length }
 
   return (
-    <HrPage title="تعديل سجلات الدوام" subtitle="مراجعة وتصحيح سجل الدوام الشهري لموظف: إضافة يوم، تعديل الدخول والخروج أو الوردية، تسجيل إجازة أو مهمة — مع سجل كامل للتعديلات">
+    <HrPage title={tr("تعديل سجلات الدوام")} subtitle={tr("مراجعة وتصحيح سجل الدوام الشهري لموظف: إضافة يوم، تعديل الدخول والخروج أو الوردية، تسجيل إجازة أو مهمة — مع سجل كامل للتعديلات")}>
       <div className={`${card} grid gap-3 sm:grid-cols-3`}>
-        <div className="sm:col-span-2"><Label>الموظف</Label><select className={selectClass} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}><option value="">اختر الموظف</option>{lookups.employees.map((row) => <option key={row.id} value={row.id}>{row.employee_code} — {row.full_name}</option>)}</select></div>
-        <div><Label>الشهر</Label><Input type="month" dir="ltr" className={inputClass} value={month} onChange={(e) => setMonth(e.target.value)} /></div>
+        <div className="sm:col-span-2"><Label>{tr("الموظف")}</Label><select className={selectClass} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}><option value="">{tr("اختر الموظف")}</option>{lookups.employees.map((row) => <option key={row.id} value={row.id}>{row.employee_code} — {row.full_name}</option>)}</select></div>
+        <div><Label>{tr("الشهر")}</Label><Input type="month" dir="ltr" className={inputClass} value={month} onChange={(e) => setMonth(e.target.value)} /></div>
       </div>
       {employeeId && (
         <>
@@ -321,12 +322,12 @@ export function AttendanceEditorPage() {
               <div key={String(label)} className={`${card} p-3`}><p className="text-xs text-slate-500">{label}</p><p className="text-lg font-black tabular-nums">{value}</p></div>
             ))}
           </div>
-          <Tabs defaultValue="days" dir="rtl">
-            <TabsList><TabsTrigger value="days"><CalendarDays className="ml-1 h-4 w-4" />أيام الشهر</TabsTrigger><TabsTrigger value="audit"><History className="ml-1 h-4 w-4" />سجل التعديلات ({audit.length})</TabsTrigger></TabsList>
+          <Tabs defaultValue="days" dir={appDir()}>
+            <TabsList><TabsTrigger value="days"><CalendarDays className="ml-1 h-4 w-4" />{tr("أيام الشهر")}</TabsTrigger><TabsTrigger value="audit"><History className="ml-1 h-4 w-4" />{tr("سجل التعديلات (")}{audit.length})</TabsTrigger></TabsList>
             <TabsContent value="days">
               <div className={`${card} overflow-auto p-0`}>
                 <table className="w-full min-w-[1000px] text-sm">
-                  <thead className="sticky top-0 bg-slate-800 text-white"><tr>{["اليوم", "الوردية", "الدخول", "الخروج", "ساعات العمل", "التأخير", "خروج مبكر", "إضافي", "الحالة", "ملاحظات", ""].map((label) => <th key={label} className="px-3 py-2.5 text-right text-xs font-bold">{label}</th>)}</tr></thead>
+                  <thead className="sticky top-0 bg-slate-800 text-white"><tr>{["اليوم", "الوردية", "الدخول", "الخروج", "ساعات العمل", "التأخير", "خروج مبكر", "إضافي", "الحالة", "ملاحظات", ""].map((label) => <th key={label} className="px-3 py-2.5 text-start text-xs font-bold">{label}</th>)}</tr></thead>
                   <tbody>
                     {dates.map((date) => {
                       const row = dayByDate.get(date)
@@ -341,7 +342,7 @@ export function AttendanceEditorPage() {
                           <td className="px-3 py-2 font-mono text-amber-700" dir="ltr">{row ? hm(row.late_minutes) : "—"}</td>
                           <td className="px-3 py-2 font-mono text-orange-700" dir="ltr">{row ? hm(row.early_leave_minutes) : "—"}</td>
                           <td className="px-3 py-2 font-mono text-indigo-700" dir="ltr">{row ? hm(row.overtime_minutes) : "—"}</td>
-                          <td className="px-3 py-2">{row ? <><StatusBadge status={row.status} />{row.is_manual && <span className="mr-1 text-[10px] font-bold text-violet-600" title="معدّل يدوياً">✎</span>}</> : <span className="text-xs text-slate-400">لا سجل</span>}</td>
+                          <td className="px-3 py-2">{row ? <><StatusBadge status={row.status} />{row.is_manual && <span className="mr-1 text-[10px] font-bold text-violet-600" title={tr("معدّل يدوياً")}>✎</span>}</> : <span className="text-xs text-slate-400">{tr("لا سجل")}</span>}</td>
                           <td className="max-w-[180px] truncate px-3 py-2 text-xs text-slate-500">{row?.notes || ""}</td>
                           <td className="px-2 py-2"><Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing({ date, day: row || null })}>{row ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}</Button></td>
                         </tr>
@@ -356,11 +357,11 @@ export function AttendanceEditorPage() {
                 {audit.map((entry) => (
                   <div key={entry.id} className="rounded-xl border border-slate-100 p-3 text-sm">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${entry.action === "delete" ? "bg-rose-100 text-rose-700" : entry.action === "create" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}`}>{entry.action === "delete" ? "حذف" : entry.action === "create" ? "إضافة" : "تعديل"}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${entry.action === "delete" ? "bg-rose-100 text-rose-700" : entry.action === "create" ? "bg-emerald-100 text-emerald-700" : "bg-sky-100 text-sky-700"}`}>{entry.action === "delete" ? tr("حذف") : entry.action === "create" ? tr("إضافة") : tr("تعديل")}</span>
                       <b className="font-mono">{entry.work_date}</b>
                       <span className="text-xs text-slate-500">{entry.changed_by_name || "—"} · {entry.changed_at}</span>
                     </div>
-                    <p className="mt-1 text-slate-700">السبب: {entry.reason || "—"}</p>
+                    <p className="mt-1 text-slate-700">{tr("السبب: ")}{entry.reason || "—"}</p>
                     {entry.before_data && entry.after_data && (
                       <p className="mt-1 font-mono text-xs text-slate-500" dir="ltr">
                         {String(entry.before_data.check_in || "—").slice(11, 16)}→{String(entry.after_data.check_in || "—").slice(11, 16)} · {String(entry.before_data.check_out || "—").slice(11, 16)}→{String(entry.after_data.check_out || "—").slice(11, 16)} · {entry.before_data.status}→{entry.after_data.status}
@@ -368,13 +369,13 @@ export function AttendanceEditorPage() {
                     )}
                   </div>
                 ))}
-                {!audit.length && <p className="py-8 text-center text-sm text-slate-500">لا توجد تعديلات في هذا الشهر</p>}
+                {!audit.length && <p className="py-8 text-center text-sm text-slate-500">{tr("لا توجد تعديلات في هذا الشهر")}</p>}
               </div>
             </TabsContent>
           </Tabs>
         </>
       )}
-      {!employeeId && <div className={`${card} py-14 text-center text-slate-500`}><Cog className="mx-auto mb-2 h-9 w-9 text-slate-300" />اختر الموظف والشهر لعرض سجل دوامه</div>}
+      {!employeeId && <div className={`${card} py-14 text-center text-slate-500`}><Cog className="mx-auto mb-2 h-9 w-9 text-slate-300" />{tr("اختر الموظف والشهر لعرض سجل دوامه")}</div>}
       {editing && <DayEditDialog open={Boolean(editing)} onOpenChange={(open) => { if (!open) setEditing(null) }} day={editing.day} employeeId={Number(employeeId)} date={editing.date} employeeName={employee ? `${employee.employee_code} — ${employee.full_name}` : ""} onSaved={() => void load()} />}
     </HrPage>
   )
@@ -390,7 +391,7 @@ function AccountCodeField({ label, accountId, initial, onChange }: { label: stri
     setError("")
     if (!code.trim()) { setName(""); onChange(""); return }
     const response = await fetch(`/api/accounts/search?code=${encodeURIComponent(code.trim())}`)
-    if (!response.ok) { setName(""); onChange(""); setError("الحساب غير موجود"); return }
+    if (!response.ok) { setName(""); onChange(""); setError(tr("الحساب غير موجود")); return }
     const account = await response.json()
     setName(account.name); onChange(String(account.id))
   }
@@ -398,7 +399,7 @@ function AccountCodeField({ label, accountId, initial, onChange }: { label: stri
     <div>
       <Label>{label}</Label>
       <div className="flex gap-2">
-        <Input dir="ltr" className={`${inputClass} w-36 font-mono`} value={code} onChange={(e) => setCode(e.target.value)} onBlur={() => void resolve()} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolve() } }} placeholder="رمز الحساب" />
+        <Input dir="ltr" className={`${inputClass} w-36 font-mono`} value={code} onChange={(e) => setCode(e.target.value)} onBlur={() => void resolve()} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolve() } }} placeholder={tr("رمز الحساب")} />
         <div className={`flex flex-1 items-center rounded-md border px-3 text-sm ${accountId ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-400"}`}>{name || "—"}</div>
       </div>
       {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
@@ -414,47 +415,47 @@ function PayrollSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   useEffect(() => {
     if (!open) return
     setError("")
-    fetch("/api/hr/attendance-transactions?settings=1", { cache: "no-store" }).then((r) => r.json()).then((data) => { setAccounts(data.accounts || []); setForm(data) }).catch(() => setError("تعذر تحميل الإعدادات"))
+    fetch("/api/hr/attendance-transactions?settings=1", { cache: "no-store" }).then((r) => r.json()).then((data) => { setAccounts(data.accounts || []); setForm(data) }).catch(() => setError(tr("تعذر تحميل الإعدادات")))
   }, [open])
   const save = async () => {
     setSaving(true); setError("")
     try {
       const { accounts: _ignored, ...settings } = form
       const response = await fetch("/api/hr/attendance-transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save-settings", settings }) })
-      if (!response.ok) throw new Error((await response.json()).error || "تعذر الحفظ")
+      if (!response.ok) throw new Error((await response.json()).error || tr("تعذر الحفظ"))
       onOpenChange(false)
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر الحفظ") } finally { setSaving(false) }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر الحفظ")) } finally { setSaving(false) }
   }
   const accountOf = (id: string) => { const row = accounts.find((item) => String(item.id) === String(id)); return row ? { code: row.code, name: row.name } : undefined }
   const num = (key: string, label: string, step = "1") => <div><Label>{label}</Label><Input type="number" min="0" step={step} dir="ltr" className={inputClass} value={form?.[key] ?? ""} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></div>
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-2xl">
+      <DialogContent dir={appDir()} className="max-w-2xl">
         <DialogHeader className="text-right">
-          <DialogTitle>احتساب حركات الدوام في الراتب</DialogTitle>
-          <DialogDescription>الحركات المعتمدة فقط تدخل راتب الشهر عند فتح الراتب أو إعادة احتسابه. الأجر اليومي = الراتب الأساسي ÷ أيام الشهر، وأجر الساعة = اليومي ÷ ساعات اليوم. المبلغ المُدخل على الحركة يتقدّم على الاحتساب.</DialogDescription>
+          <DialogTitle>{tr("احتساب حركات الدوام في الراتب")}</DialogTitle>
+          <DialogDescription>{tr("الحركات المعتمدة فقط تدخل راتب الشهر عند فتح الراتب أو إعادة احتسابه. الأجر اليومي = الراتب الأساسي ÷ أيام الشهر، وأجر الساعة = اليومي ÷ ساعات اليوم. المبلغ المُدخل على الحركة يتقدّم على الاحتساب.")}</DialogDescription>
         </DialogHeader>
         {!form ? <Loader2 className="mx-auto h-6 w-6 animate-spin text-teal-600" /> : (
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-3"><Checkbox checked={form.enabled !== false && form.enabled !== "false"} onCheckedChange={(v) => setForm({ ...form, enabled: v === true })} />احتساب حركات الدوام المعتمدة في الراتب</label>
+            <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-3"><Checkbox checked={form.enabled !== false && form.enabled !== "false"} onCheckedChange={(v) => setForm({ ...form, enabled: v === true })} />{tr("احتساب حركات الدوام المعتمدة في الراتب")}</label>
             {num("monthDays", "أيام الشهر للأجر اليومي")}
             {num("hoursPerDay", "ساعات يوم العمل", "0.5")}
             {num("nightAmount", "بدل المناوبة الليلية / يوم", "0.01")}
             {num("overtimeRate", "معامل الإضافي (×أجر الساعة)", "0.25")}
             {num("holidayRate", "معامل الإضافي في العطل", "0.25")}
             <div className="sm:col-span-3 grid gap-3 sm:grid-cols-2">
-              <AccountCodeField label="حساب استحقاقات الدوام (مدين)" accountId={String(form.earningsAccount || "")} initial={accountOf(form.earningsAccount)} onChange={(id) => setForm((f: any) => ({ ...f, earningsAccount: id }))} />
-              <AccountCodeField label="حساب خصومات الدوام (دائن)" accountId={String(form.deductionsAccount || "")} initial={accountOf(form.deductionsAccount)} onChange={(id) => setForm((f: any) => ({ ...f, deductionsAccount: id }))} />
+              <AccountCodeField label={tr("حساب استحقاقات الدوام (مدين)")} accountId={String(form.earningsAccount || "")} initial={accountOf(form.earningsAccount)} onChange={(id) => setForm((f: any) => ({ ...f, earningsAccount: id }))} />
+              <AccountCodeField label={tr("حساب خصومات الدوام (دائن)")} accountId={String(form.deductionsAccount || "")} initial={accountOf(form.deductionsAccount)} onChange={(id) => setForm((f: any) => ({ ...f, deductionsAccount: id }))} />
             </div>
             <div className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600 sm:col-span-3">
-              <b>استحقاق:</b> عمل إضافي (ساعات × أجر الساعة × المعامل)، إضافي في عطلة، مكافأة، بدل مناوبة ليلية.<br />
-              <b>خصم:</b> تأخير وخروج مبكر (ساعات × أجر الساعة)، غياب وإجازة بدون راتب (أيام × الأجر اليومي)، جزاء.<br />
-              <b>لا تؤثر:</b> مغادرة/إذن، إجازة مدفوعة، إجازة مرضية. الحسابان مطلوبان لتنفيذ قيد الراتب عند وجود حركات.
+              <b>{tr("استحقاق:")}</b>{tr(" عمل إضافي (ساعات × أجر الساعة × المعامل)، إضافي في عطلة، مكافأة، بدل مناوبة ليلية.")}<br />
+              <b>{tr("خصم:")}</b>{tr(" تأخير وخروج مبكر (ساعات × أجر الساعة)، غياب وإجازة بدون راتب (أيام × الأجر اليومي)، جزاء.")}<br />
+              <b>{tr("لا تؤثر:")}</b>{tr(" مغادرة/إذن، إجازة مدفوعة، إجازة مرضية. الحسابان مطلوبان لتنفيذ قيد الراتب عند وجود حركات.")}
             </div>
           </div>
         )}
         {error && <Message text={error} />}
-        <DialogFooter><Button onClick={() => void save()} disabled={saving || !form}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}حفظ</Button></DialogFooter>
+        <DialogFooter><Button onClick={() => void save()} disabled={saving || !form}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -492,54 +493,54 @@ export function AttendanceTransactionsPage() {
     try {
       const response = await fetch("/api/hr/attendance-transactions", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر الحفظ")
-      setOpen(false); await load(); setMessage({ text: "تم حفظ الحركة", tone: "success" })
-    } catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : "تعذر الحفظ", tone: "error" }) } finally { setSaving(false) }
+      if (!response.ok) throw new Error(data.error || tr("تعذر الحفظ"))
+      setOpen(false); await load(); setMessage({ text: tr("تم حفظ الحركة"), tone: "success" })
+    } catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : tr("تعذر الحفظ"), tone: "error" }) } finally { setSaving(false) }
   }
   const setStatus = async (status: string) => {
     if (!selected.length) return
     const response = await fetch("/api/hr/attendance-transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set-status", ids: selected, status }) })
-    if (response.ok) { await load(); setMessage({ text: status === "approved" ? "تم اعتماد الحركات المحددة" : status === "rejected" ? "تم رفض الحركات المحددة" : "أُعيدت لقيد الاعتماد", tone: "success" }) } else setMessage({ text: (await response.json()).error || "تعذر التحديث", tone: "error" })
+    if (response.ok) { await load(); setMessage({ text: status === "approved" ? tr("تم اعتماد الحركات المحددة") : status === "rejected" ? tr("تم رفض الحركات المحددة") : tr("أُعيدت لقيد الاعتماد"), tone: "success" }) } else setMessage({ text: (await response.json()).error || tr("تعذر التحديث"), tone: "error" })
   }
   const remove = async (row: any) => {
-    if (!(await confirmYesNo("حذف الحركة؟"))) return
+    if (!(await confirmYesNo(tr("حذف الحركة؟")))) return
     const response = await fetch(`/api/hr/attendance-transactions?id=${row.id}`, { method: "DELETE" })
-    if (response.ok) await load(); else setMessage({ text: (await response.json()).error || "تعذر الحذف", tone: "error" })
+    if (response.ok) await load(); else setMessage({ text: (await response.json()).error || tr("تعذر الحذف"), tone: "error" })
   }
   const runGenerate = async () => {
     setSaving(true)
     try {
       const response = await fetch("/api/hr/attendance-transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate", from: filters.from, to: filters.to, employee_ids: filters.employeeIds, types: generate.types, min_late_minutes: Number(generate.minLate) || 0 }) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر التوليد")
-      setGenerateOpen(false); await load(); setMessage({ text: `تم توليد ${data.created} حركة (قيد الاعتماد) من سجلات الدوام المعالَجة`, tone: "success" })
-    } catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : "تعذر التوليد", tone: "error" }) } finally { setSaving(false) }
+      if (!response.ok) throw new Error(data.error || tr("تعذر التوليد"))
+      setGenerateOpen(false); await load(); setMessage({ text: tr("تم توليد {0} حركة (قيد الاعتماد) من سجلات الدوام المعالَجة", data.created), tone: "success" })
+    } catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : tr("تعذر التوليد"), tone: "error" }) } finally { setSaving(false) }
   }
 
   const typeMeta = TRANSACTION_TYPES[form.trans_type] || TRANSACTION_TYPES.overtime
   const statusTone: Record<string, string> = { pending: "bg-amber-100 text-amber-800", approved: "bg-emerald-100 text-emerald-800", rejected: "bg-rose-100 text-rose-700" }
-  const statusLabel: Record<string, string> = { pending: "قيد الاعتماد", approved: "معتمدة", rejected: "مرفوضة" }
+  const statusLabel: Record<string, string> = { pending: tr("قيد الاعتماد"), approved: tr("معتمدة"), rejected: tr("مرفوضة") }
   const totalBy = (kind: string, unit: string) => rows.filter((r) => r.status !== "rejected" && TRANSACTION_TYPES[r.trans_type]?.kind === kind && r.unit === unit).reduce((s, r) => s + Number(unit === "amount" ? r.amount : r.quantity), 0)
 
   return (
-    <HrPage title="حركات الدوام" subtitle="العمل الإضافي، خصومات التأخير والغياب، المغادرات والإجازات، المكافآت والجزاءات وبدل المناوبات — يدوياً أو تلقائياً من سجلات الدوام، مع دورة اعتماد">
+    <HrPage title={tr("حركات الدوام")} subtitle={tr("العمل الإضافي، خصومات التأخير والغياب، المغادرات والإجازات، المكافآت والجزاءات وبدل المناوبات — يدوياً أو تلقائياً من سجلات الدوام، مع دورة اعتماد")}>
       <div className={card}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div><Label>من تاريخ</Label><Input type="date" dir="ltr" className={inputClass} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></div>
-          <div><Label>إلى تاريخ</Label><Input type="date" dir="ltr" className={inputClass} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></div>
-          <div className="lg:col-span-2"><ReportMultiChoice label="الموظفون" options={lookups.employeeOptions} selected={filters.employeeIds} onChange={(employeeIds) => setFilters({ ...filters, employeeIds })} placeholder="كل الموظفين" /></div>
-          <div><Label>نوع الحركة</Label><select className={selectClass} value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">كل الأنواع</option>{Object.entries(TRANSACTION_TYPES).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></div>
-          <div><Label>الحالة</Label><select className={selectClass} value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">الكل</option><option value="pending">قيد الاعتماد</option><option value="approved">معتمدة</option><option value="rejected">مرفوضة</option></select></div>
+          <div><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" className={inputClass} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></div>
+          <div><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" className={inputClass} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></div>
+          <div className="lg:col-span-2"><ReportMultiChoice label={tr("الموظفون")} options={lookups.employeeOptions} selected={filters.employeeIds} onChange={(employeeIds) => setFilters({ ...filters, employeeIds })} placeholder={tr("كل الموظفين")} /></div>
+          <div><Label>{tr("نوع الحركة")}</Label><select className={selectClass} value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">{tr("كل الأنواع")}</option>{Object.entries(TRANSACTION_TYPES).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></div>
+          <div><Label>{tr("الحالة")}</Label><select className={selectClass} value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}><option value="">{tr("الكل")}</option><option value="pending">{tr("قيد الاعتماد")}</option><option value="approved">{tr("معتمدة")}</option><option value="rejected">{tr("مرفوضة")}</option></select></div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button onClick={() => { setForm({ ...emptyTransaction, trans_date: today() }); setOpen(true) }}><Plus className="ml-2 h-4 w-4" />حركة جديدة</Button>
-          <Button variant="outline" onClick={() => setGenerateOpen(true)}><Wand2 className="ml-2 h-4 w-4" />توليد من سجلات الدوام</Button>
-          <Button variant="outline" className="border-emerald-200 text-emerald-700" disabled={!selected.length} onClick={() => void setStatus("approved")}><ShieldCheck className="ml-2 h-4 w-4" />اعتماد المحدد ({selected.length})</Button>
-          <Button variant="outline" className="border-rose-200 text-rose-700" disabled={!selected.length} onClick={() => void setStatus("rejected")}><XCircle className="ml-2 h-4 w-4" />رفض المحدد</Button>
-          <Button variant="ghost" disabled={!selected.length} onClick={() => void setStatus("pending")}>إعادة لقيد الاعتماد</Button>
-          <Button variant="outline" className="mr-auto" onClick={() => setSettingsOpen(true)}><Cog className="ml-2 h-4 w-4" />إعدادات الاحتساب في الراتب</Button>
+          <Button onClick={() => { setForm({ ...emptyTransaction, trans_date: today() }); setOpen(true) }}><Plus className="ml-2 h-4 w-4" />{tr("حركة جديدة")}</Button>
+          <Button variant="outline" onClick={() => setGenerateOpen(true)}><Wand2 className="ml-2 h-4 w-4" />{tr("توليد من سجلات الدوام")}</Button>
+          <Button variant="outline" className="border-emerald-200 text-emerald-700" disabled={!selected.length} onClick={() => void setStatus("approved")}><ShieldCheck className="ml-2 h-4 w-4" />{tr("اعتماد المحدد (")}{selected.length})</Button>
+          <Button variant="outline" className="border-rose-200 text-rose-700" disabled={!selected.length} onClick={() => void setStatus("rejected")}><XCircle className="ml-2 h-4 w-4" />{tr("رفض المحدد")}</Button>
+          <Button variant="ghost" disabled={!selected.length} onClick={() => void setStatus("pending")}>{tr("إعادة لقيد الاعتماد")}</Button>
+          <Button variant="outline" className="mr-auto" onClick={() => setSettingsOpen(true)}><Cog className="ml-2 h-4 w-4" />{tr("إعدادات الاحتساب في الراتب")}</Button>
         </div>
-        <p className="mt-2 text-xs text-slate-500">الحركات <b>المعتمدة</b> تُضاف للراتب أو تُخصم منه حسب نوعها عند فتح راتب الشهر أو إعادة احتسابه.</p>
+        <p className="mt-2 text-xs text-slate-500">{tr("الحركات ")}<b>{tr("المعتمدة")}</b>{tr(" تُضاف للراتب أو تُخصم منه حسب نوعها عند فتح راتب الشهر أو إعادة احتسابه.")}</p>
       </div>
       <Message text={message.text} tone={message.tone} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -552,7 +553,7 @@ export function AttendanceTransactionsPage() {
           <thead className="sticky top-0 z-10 bg-slate-800 text-white">
             <tr>
               <th className="w-10 px-3 py-2.5"><Checkbox checked={rows.length > 0 && selected.length === rows.length} onCheckedChange={(v) => setSelected(v === true ? rows.map((r) => r.id) : [])} className="border-white" /></th>
-              {["التاريخ", "الموظف", "نوع الحركة", "الكمية", "المبلغ", "المصدر", "الحالة", "ملاحظات", ""].map((label) => <th key={label} className="px-3 py-2.5 text-right text-xs font-bold">{label}</th>)}
+              {["التاريخ", "الموظف", "نوع الحركة", "الكمية", "المبلغ", "المصدر", "الحالة", "ملاحظات", ""].map((label) => <th key={label} className="px-3 py-2.5 text-start text-xs font-bold">{label}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -566,47 +567,47 @@ export function AttendanceTransactionsPage() {
                   <td className="px-3 py-2"><span className={`rounded-md px-2 py-0.5 text-xs font-bold ${meta?.kind === "earning" ? "bg-emerald-50 text-emerald-700" : meta?.kind === "deduction" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-700"}`}>{meta?.label || row.trans_type}</span></td>
                   <td className="px-3 py-2 font-mono" dir="ltr">{row.unit === "amount" ? "—" : `${Number(row.quantity).toFixed(2)} ${UNIT_LABEL[row.unit as keyof typeof UNIT_LABEL]}`}</td>
                   <td className="px-3 py-2 font-mono" dir="ltr">{Number(row.amount) ? Number(row.amount).toFixed(2) : "—"}</td>
-                  <td className="px-3 py-2 text-xs">{row.source === "auto" ? "تلقائي" : "يدوي"}</td>
+                  <td className="px-3 py-2 text-xs">{row.source === "auto" ? tr("تلقائي") : tr("يدوي")}</td>
                   <td className="px-3 py-2"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${statusTone[row.status]}`}>{statusLabel[row.status] || row.status}</span></td>
                   <td className="max-w-[200px] truncate px-3 py-2 text-xs text-slate-500">{row.notes || ""}</td>
                   <td className="px-2 py-2">{row.status !== "approved" && <Button size="sm" variant="ghost" className="h-7 px-2 text-rose-600" onClick={() => void remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>}</td>
                 </tr>
               )
             })}
-            {!rows.length && <tr><td colSpan={10} className="py-14 text-center text-slate-500">لا توجد حركات في هذه الفترة</td></tr>}
+            {!rows.length && <tr><td colSpan={10} className="py-14 text-center text-slate-500">{tr("لا توجد حركات في هذه الفترة")}</td></tr>}
           </tbody>
         </table>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="max-w-lg">
-          <DialogHeader className="text-right"><DialogTitle>{form.id ? "تعديل حركة دوام" : "حركة دوام جديدة"}</DialogTitle></DialogHeader>
+        <DialogContent dir={appDir()} className="max-w-lg">
+          <DialogHeader className="text-right"><DialogTitle>{form.id ? tr("تعديل حركة دوام") : tr("حركة دوام جديدة")}</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2"><Label>الموظف *</Label><select className={selectClass} value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}><option value="">اختر الموظف</option>{lookups.employees.map((row) => <option key={row.id} value={row.id}>{row.employee_code} — {row.full_name}</option>)}</select></div>
-            <div><Label>التاريخ *</Label><Input type="date" dir="ltr" className={inputClass} value={form.trans_date} onChange={(e) => setForm({ ...form, trans_date: e.target.value })} /></div>
-            <div><Label>نوع الحركة *</Label><select className={selectClass} value={form.trans_type} onChange={(e) => setForm({ ...form, trans_type: e.target.value })}>{Object.entries(TRANSACTION_TYPES).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></div>
-            {typeMeta.unit !== "amount" && <div><Label>{typeMeta.unit === "days" ? "عدد الأيام *" : "عدد الساعات *"}</Label><Input type="number" step="0.25" min="0" dir="ltr" className={inputClass} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>}
-            <div><Label>{typeMeta.unit === "amount" ? "المبلغ *" : "المبلغ (اختياري)"}</Label><Input type="number" step="0.01" min="0" dir="ltr" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
-            <div className="sm:col-span-2"><Label>ملاحظات</Label><Input className={inputClass} value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+            <div className="sm:col-span-2"><Label>{tr("الموظف *")}</Label><select className={selectClass} value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}><option value="">{tr("اختر الموظف")}</option>{lookups.employees.map((row) => <option key={row.id} value={row.id}>{row.employee_code} — {row.full_name}</option>)}</select></div>
+            <div><Label>{tr("التاريخ *")}</Label><Input type="date" dir="ltr" className={inputClass} value={form.trans_date} onChange={(e) => setForm({ ...form, trans_date: e.target.value })} /></div>
+            <div><Label>{tr("نوع الحركة *")}</Label><select className={selectClass} value={form.trans_type} onChange={(e) => setForm({ ...form, trans_type: e.target.value })}>{Object.entries(TRANSACTION_TYPES).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></div>
+            {typeMeta.unit !== "amount" && <div><Label>{typeMeta.unit === "days" ? tr("عدد الأيام *") : tr("عدد الساعات *")}</Label><Input type="number" step="0.25" min="0" dir="ltr" className={inputClass} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>}
+            <div><Label>{typeMeta.unit === "amount" ? tr("المبلغ *") : tr("المبلغ (اختياري)")}</Label><Input type="number" step="0.01" min="0" dir="ltr" className={inputClass} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
+            <div className="sm:col-span-2"><Label>{tr("ملاحظات")}</Label><Input className={inputClass} value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}حفظ</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <PayrollSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent dir={appDir()} className="max-w-md">
           <DialogHeader className="text-right">
-            <DialogTitle>توليد حركات من سجلات الدوام</DialogTitle>
-            <DialogDescription>من {filters.from} إلى {filters.to}{filters.employeeIds.length ? ` · ${filters.employeeIds.length} موظف` : " · كل الموظفين"} — الحركات تُنشأ "قيد الاعتماد" ولا تتكرر لنفس اليوم.</DialogDescription>
+            <DialogTitle>{tr("توليد حركات من سجلات الدوام")}</DialogTitle>
+            <DialogDescription>{tr("من ")}{filters.from}{tr(" إلى ")}{filters.to}{filters.employeeIds.length ? tr(" · {0} موظف", filters.employeeIds.length) : tr(" · كل الموظفين")}{tr(" — الحركات تُنشأ \"قيد الاعتماد\" ولا تتكرر لنفس اليوم.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {["overtime", "late_deduction", "early_leave_deduction", "absence_deduction", "holiday_overtime"].map((type) => (
               <label key={type} className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={generate.types.includes(type)} onCheckedChange={(v) => setGenerate((g) => ({ ...g, types: v === true ? [...g.types, type] : g.types.filter((t) => t !== type) }))} />{TRANSACTION_TYPES[type].label}</label>
             ))}
-            <div className="pt-2"><Label>تجاهل التأخير الأقل من (دقيقة)</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={generate.minLate} onChange={(e) => setGenerate({ ...generate, minLate: e.target.value })} /></div>
+            <div className="pt-2"><Label>{tr("تجاهل التأخير الأقل من (دقيقة)")}</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={generate.minLate} onChange={(e) => setGenerate({ ...generate, minLate: e.target.value })} /></div>
           </div>
-          <DialogFooter><Button onClick={() => void runGenerate()} disabled={saving || !generate.types.length}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Wand2 className="ml-2 h-4 w-4" />}توليد</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => void runGenerate()} disabled={saving || !generate.types.length}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Wand2 className="ml-2 h-4 w-4" />}{tr("توليد")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </HrPage>

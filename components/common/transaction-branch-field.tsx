@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/auth/auth-context"
@@ -45,7 +46,7 @@ export default function TransactionBranchField({
     fetch(`/api/transaction-permissions/branches?family=${family}&action=${action}`)
       .then(async (response) => {
         const data = await response.json()
-        if (!response.ok) throw new Error(data?.error || "تعذر تحميل الفروع المصرح بها")
+        if (!response.ok) throw new Error(data?.error || tr("تعذر تحميل الفروع المصرح بها"))
         return data
       })
       .then((data) => {
@@ -70,7 +71,7 @@ export default function TransactionBranchField({
 
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={`transaction-branch-${voucherType}`}>الفرع *</Label>
+      <Label htmlFor={`transaction-branch-${voucherType}`}>{tr("الفرع *")}</Label>
       <select
         id={`transaction-branch-${voucherType}`}
         value={value ?? ""}
@@ -78,7 +79,7 @@ export default function TransactionBranchField({
         disabled={disabled || branches.length === 0}
         className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm shadow-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-100"
       >
-        <option value="">اختر الفرع</option>
+        <option value="">{tr("اختر الفرع")}</option>
         {branches.map((branch) => (
           <option key={branch.id} value={branch.id}>{branch.branch_code ? `${branch.branch_code} - ` : ""}{branch.branch_name}</option>
         ))}

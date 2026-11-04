@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { Search } from "lucide-react"
 import { SearchModal } from "./search-modal"
@@ -32,19 +33,19 @@ export function SearchButton({
   const getButtonText = () => {
     switch (type) {
       case "products":
-        return "بحث عن صنف"
+        return tr("بحث عن صنف")
       case "customers":
-        return "بحث عن عميل/مورد"
+        return tr("بحث عن عميل/مورد")
       case "transactions":
-        return "بحث عن حركة"
+        return tr("بحث عن حركة")
       case "sales":
-        return "بحث عن طلب بيع"
+        return tr("بحث عن طلب بيع")
       case "purchases":
-        return "بحث عن طلب شراء"
+        return tr("بحث عن طلب شراء")
       case "movements":
-        return "بحث عن حركة مخزون"
+        return tr("بحث عن حركة مخزون")
       default:
-        return "بحث"
+        return tr("بحث")
     }
   }
 

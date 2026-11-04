@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -23,14 +24,14 @@ export function PaneMenu({ onOpenSection }: PaneMenuProps) {
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs shrink-0">
           <Menu className="h-3.5 w-3.5" />
-          فتح صفحة
+          {tr("فتح صفحة")}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-0" dir="rtl">
+      <PopoverContent align="start" className="w-64 p-0" dir={appDir()}>
         <Command>
-          <CommandInput placeholder="ابحث عن صفحة..." />
+          <CommandInput placeholder={tr("ابحث عن صفحة...")} />
           <CommandList>
-            <CommandEmpty>لا توجد نتائج</CommandEmpty>
+            <CommandEmpty>{tr("لا توجد نتائج")}</CommandEmpty>
             <CommandGroup>
               {entries.map(([section, title]) => (
                 <CommandItem

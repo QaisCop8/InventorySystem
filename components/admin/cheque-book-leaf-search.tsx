@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -86,9 +87,9 @@ export default function ChequeBookLeafSearch({ open, onOpenChange, bankAccountId
     () => ({
       name: "ChequeBookLeafSearchScheme",
       columns: [
-        { header: "دفتر الشيكات", name: "book_code", width: 160, isReadOnly: true },
-        { header: "رقم الشيك", name: "cheque_code", width: 160, isReadOnly: true },
-        { header: "الحالة", name: "status_name", width: 120, isReadOnly: true },
+        { header: tr("دفتر الشيكات"), name: "book_code", width: 160, isReadOnly: true },
+        { header: tr("رقم الشيك"), name: "cheque_code", width: 160, isReadOnly: true },
+        { header: tr("الحالة"), name: "status_name", width: 120, isReadOnly: true },
       ],
     }),
     [],
@@ -171,19 +172,19 @@ export default function ChequeBookLeafSearch({ open, onOpenChange, bankAccountId
       <DialogContent
         hideCloseButton
         className="w-[90vw] max-w-2xl h-auto max-h-[76vh] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:p-4"
-        dir="rtl"
+        dir={appDir()}
       >
         <div className="flex flex-col gap-3 sm:gap-4">
           <div className="flex flex-col gap-2 rounded-xl bg-gradient-to-r from-slate-50 via-white to-blue-50/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 text-center sm:text-right">
-              بحث دفاتر الشيكات
+              {tr("بحث دفاتر الشيكات")}
             </h2>
             <Button
               variant="ghost"
               onClick={() => onOpenChange(false)}
               className="mx-auto h-8 w-8 rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-sm hover:bg-slate-100 sm:mx-0"
-              aria-label="إغلاق"
-              title="إغلاق"
+              aria-label={tr("إغلاق")}
+              title={tr("إغلاق")}
             >
               ✕
             </Button>
@@ -191,13 +192,13 @@ export default function ChequeBookLeafSearch({ open, onOpenChange, bankAccountId
 
           <div className="grid gap-2 grid-cols-1 border-b border-slate-200 pb-3 sm:pb-4" ref={filterContainerRef}>
             <div>
-              <Label className="mb-2 block text-sm font-medium">رقم الشيك</Label>
+              <Label className="mb-2 block text-sm font-medium">{tr("رقم الشيك")}</Label>
               <Input
                 ref={codeInputRef}
                 value={codeFilter}
                 onChange={(e) => setCodeFilter(e.target.value)}
-                placeholder="ابحث برقم الشيك"
-                className="h-10 rounded-xl border border-slate-200 bg-white text-right shadow-sm focus:border-blue-300 focus:bg-white"
+                placeholder={tr("ابحث برقم الشيك")}
+                className="h-10 rounded-xl border border-slate-200 bg-white text-start shadow-sm focus:border-blue-300 focus:bg-white"
               />
             </div>
           </div>
@@ -205,7 +206,7 @@ export default function ChequeBookLeafSearch({ open, onOpenChange, bankAccountId
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm" style={{ height: "380px" }}>
             {loading ? (
               <div className="flex h-full items-center justify-center bg-gradient-to-b from-slate-50 to-white text-slate-500 text-sm">
-                جارٍ التحميل...
+                {tr("جارٍ التحميل...")}
               </div>
             ) : filteredLeaves.length > 0 ? (
               <DataGridView
@@ -225,17 +226,17 @@ export default function ChequeBookLeafSearch({ open, onOpenChange, bankAccountId
               />
             ) : (
               <div className="flex h-full items-center justify-center bg-gradient-to-b from-slate-50 to-white text-slate-500 text-sm">
-                لا توجد شيكات متوفرة لهذا الحساب البنكي
+                {tr("لا توجد شيكات متوفرة لهذا الحساب البنكي")}
               </div>
             )}
           </div>
 
           <div className="flex justify-center gap-2 border-t border-slate-200 pt-4">
             <Button onClick={handleConfirm} disabled={!selected} className="search-button shadow-sm">
-              موافق
+              {tr("موافق")}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button shadow-sm">
-              إغلاق
+              {tr("إغلاق")}
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -189,7 +190,7 @@ export default function UnifiedProductGroups({
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
           className="w-full max-w-5xl overflow-hidden p-0"
-          dir="rtl"
+          dir={appDir()}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
@@ -212,7 +213,7 @@ export default function UnifiedProductGroups({
 
           <div className="rounded-b-3xl bg-background px-6 py-6">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل مجموعة الأصناف" : "إضافة مجموعة جديدة"}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل مجموعة الأصناف") : tr("إضافة مجموعة جديدة")}</DialogTitle>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -223,7 +224,7 @@ export default function UnifiedProductGroups({
               )}
 
               <div className="grid gap-2">
-                <Label htmlFor="group-code">رقم المجموعة</Label>
+                <Label htmlFor="group-code">{tr("رقم المجموعة")}</Label>
                 <Input
                   id="group-code"
                   value={form.group_code}
@@ -241,7 +242,7 @@ export default function UnifiedProductGroups({
 
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="group-name">اسم المجموعة</Label>
+                <Label htmlFor="group-name">{tr("اسم المجموعة")}</Label>
                 <Input
                   id="group-name"
                   ref={nameInputRef}
@@ -250,7 +251,7 @@ export default function UnifiedProductGroups({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="group-description">الوصف</Label>
+                <Label htmlFor="group-description">{tr("الوصف")}</Label>
                 <Input
                   id="group-description"
                   value={form.description}
@@ -258,25 +259,25 @@ export default function UnifiedProductGroups({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="group-printer">الطابعة</Label>
+                <Label htmlFor="group-printer">{tr("الطابعة")}</Label>
                 <Input
                   id="group-printer"
                   dir="ltr"
                   value={form.default_printer || ""}
                   onChange={(e) => onFormChange("default_printer", e.target.value)}
-                  placeholder="اسم الطابعة في Windows — تُطبع عليها أصناف المجموعة في نقطة البيع"
+                  placeholder={tr("اسم الطابعة في Windows — تُطبع عليها أصناف المجموعة في نقطة البيع")}
                   maxLength={150}
                 />
               </div>
               <div className="grid gap-2">
-                <Label>المجموعة الأب</Label>
+                <Label>{tr("المجموعة الأب")}</Label>
                 <Select
                   value={form.parent_id ? String(form.parent_id) : "none"}
                   onValueChange={(value) => onFormChange("parent_id", value === "none" ? null : Number(value))}
                 >
-                  <SelectTrigger><SelectValue placeholder="بدون مجموعة أب" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tr("بدون مجموعة أب")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">بدون مجموعة أب</SelectItem>
+                    <SelectItem value="none">{tr("بدون مجموعة أب")}</SelectItem>
                     {groups.filter((group) => group.id !== form.id).map((group) => (
                       <SelectItem key={group.id} value={String(group.id)}>{group.group_code} - {group.group_name}</SelectItem>
                     ))}
@@ -292,8 +293,8 @@ export default function UnifiedProductGroups({
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
         useAppDialog
-        title="تأكيد حذف المجموعة"
-        message={deleteConfirmMessage || "هل تريد حذف هذه المجموعة؟"}
+        title={tr("تأكيد حذف المجموعة")}
+        message={deleteConfirmMessage || tr("هل تريد حذف هذه المجموعة؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

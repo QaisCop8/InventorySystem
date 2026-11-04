@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,8 +31,8 @@ interface Brand {
 
 const getStatusBadgeVariant = (status?: number) =>
   status === 1 ? "default" : status === 2 ? "secondary" : "destructive"
-const getStatusLabel = (status?: number) => (status === 1 ? "نشط" : status === 2 ? "مجمّد" : "محذوف")
-const getToggleStatusLabel = (status?: number) => (status === 2 ? "إلغاء التجميد" : "تجميد")
+const getStatusLabel = (status?: number) => (status === 1 ? tr("نشط") : status === 2 ? tr("مجمّد") : tr("محذوف"))
+const getToggleStatusLabel = (status?: number) => (status === 2 ? tr("إلغاء التجميد") : tr("تجميد"))
 const getToggledStatus = (status?: number) => (status === 2 ? 1 : 2)
 
 export default function Brands() {
@@ -59,7 +60,7 @@ export default function Brands() {
     try {
       setLoading(true)
       const response = await fetch("/api/brands")
-      if (!response.ok) throw new Error("فشل في تحميل العلامات التجارية")
+      if (!response.ok) throw new Error(tr("فشل في تحميل العلامات التجارية"))
       setItems(await response.json())
     } catch (error) {
       console.error(error)
@@ -82,11 +83,11 @@ export default function Brands() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim()) {
-      toast({ title: "خطأ", description: "يرجى إدخال اسم العلامة التجارية", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يرجى إدخال اسم العلامة التجارية"), variant: "destructive" })
       return
     }
     if (!form.brand_type_id) {
-      toast({ title: "خطأ", description: "يرجى اختيار نوع العلامة التجارية", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يرجى اختيار نوع العلامة التجارية"), variant: "destructive" })
       return
     }
     try {
@@ -99,14 +100,14 @@ export default function Brands() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ العلامة التجارية")
+        throw new Error(error.error || tr("فشل في حفظ العلامة التجارية"))
       }
       await fetchItems()
       setForm({ id: 0, name: "", brand_type_id: "", status: 1 })
       setShowForm(false)
-      toast({ title: "تم الحفظ بنجاح", description: isEditing ? "تم تعديل العلامة التجارية" : "تم إضافة العلامة التجارية" })
+      toast({ title: tr("تم الحفظ بنجاح"), description: isEditing ? tr("تم تعديل العلامة التجارية") : tr("تم إضافة العلامة التجارية") })
     } catch (error) {
-      toast({ title: "فشل الحفظ", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      toast({ title: tr("فشل الحفظ"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
     }
   }
 
@@ -125,12 +126,12 @@ export default function Brands() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تحديث الحالة")
+        throw new Error(error.error || tr("فشل في تحديث الحالة"))
       }
       await fetchItems()
-      toast({ title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد" })
+      toast({ title: nextStatus === 2 ? tr("تم التجميد") : tr("تم إلغاء التجميد") })
     } catch (error) {
-      toast({ title: "فشل", description: error instanceof Error ? error.message : "تعذر تحديث الحالة", variant: "destructive" })
+      toast({ title: tr("فشل"), description: error instanceof Error ? error.message : tr("تعذر تحديث الحالة"), variant: "destructive" })
     }
   }
 
@@ -139,23 +140,23 @@ export default function Brands() {
       const response = await fetch(`/api/brands/${itemId}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف العلامة التجارية")
+        throw new Error(error.error || tr("فشل في حذف العلامة التجارية"))
       }
       await fetchItems()
-      toast({ title: "تم الحذف", description: "تم حذف العلامة التجارية" })
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف العلامة التجارية") })
     } catch (error) {
-      toast({ title: "فشل الحذف", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      toast({ title: tr("فشل الحذف"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
     }
   }
 
   return (
-    <div className="w-full space-y-6 p-6" dir="rtl">
-      <Card dir="rtl">
+    <div className="w-full space-y-6 p-6" dir={appDir()}>
+      <Card dir={appDir()}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-primary" />
-              العلامات التجارية ({items.length})
+              {tr("العلامات التجارية (")}{items.length})
             </CardTitle>
             <Button
               className="erp-btn-primary"
@@ -165,25 +166,25 @@ export default function Brands() {
                 setShowForm(!showForm)
               }}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              إضافة علامة تجارية
+              <Plus className="h-4 w-4 ms-2" />
+              {tr("إضافة علامة تجارية")}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {showForm && (
-            <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-              <h3 className="font-heading font-semibold mb-4 text-right">
-                {form.id > 0 ? "تعديل العلامة التجارية" : "إضافة علامة تجارية جديدة"}
+            <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+              <h3 className="font-heading font-semibold mb-4 text-start">
+                {form.id > 0 ? tr("تعديل العلامة التجارية") : tr("إضافة علامة تجارية جديدة")}
               </h3>
               <form className="space-y-4" onSubmit={handleSave}>
                 <div className="text-right">
-                  <Label className="text-right block">اسم العلامة التجارية *</Label>
+                  <Label className="text-right block">{tr("اسم العلامة التجارية *")}</Label>
                   <Input
                     required
                     className="text-right"
-                    placeholder="مثال: سامسونج"
-                    dir="rtl"
+                    placeholder={tr("مثال: سامسونج")}
+                    dir={appDir()}
                     maxLength={100}
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -191,10 +192,10 @@ export default function Brands() {
                 </div>
 
                 <div className="text-right">
-                  <Label className="text-right block">نوع العلامة التجارية *</Label>
-                  <Select dir="rtl" value={form.brand_type_id} onValueChange={(value) => setForm({ ...form, brand_type_id: value })}>
+                  <Label className="text-right block">{tr("نوع العلامة التجارية *")}</Label>
+                  <Select dir={appDir()} value={form.brand_type_id} onValueChange={(value) => setForm({ ...form, brand_type_id: value })}>
                     <SelectTrigger className="text-right">
-                      <SelectValue placeholder="اختر النوع" />
+                      <SelectValue placeholder={tr("اختر النوع")} />
                     </SelectTrigger>
                     <SelectContent>
                       {brandTypes.map((type) => (
@@ -208,7 +209,7 @@ export default function Brands() {
 
                 <div className="flex justify-start gap-2 pt-2">
                   <Button type="submit" className="erp-btn-primary" size="sm">
-                    حفظ العلامة التجارية
+                    {tr("حفظ العلامة التجارية")}
                   </Button>
                   <Button
                     type="button"
@@ -219,7 +220,7 @@ export default function Brands() {
                       setForm({ id: 0, name: "", brand_type_id: "", status: 1 })
                     }}
                   >
-                    إلغاء
+                    {tr("إلغاء")}
                   </Button>
                 </div>
               </form>
@@ -227,9 +228,9 @@ export default function Brands() {
           )}
 
           {loading ? (
-            <div className="flex h-40 items-center justify-center text-muted-foreground">جاري التحميل...</div>
+            <div className="flex h-40 items-center justify-center text-muted-foreground">{tr("جاري التحميل...")}</div>
           ) : (
-            <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[520px] overflow-y-auto ps-1">
               {items.map((item, index) => (
                 <div
                   key={item.id}
@@ -238,12 +239,12 @@ export default function Brands() {
                     index === currentIndex ? "bg-primary/10 border-primary shadow-sm" : "bg-background hover:bg-muted/50",
                   )}
                   onClick={() => setCurrentIndex(index)}
-                  dir="rtl"
+                  dir={appDir()}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="space-y-1 text-right">
+                    <div className="space-y-1 text-start">
                       <h4 className="font-heading font-semibold">{item.name}</h4>
-                      <p className="text-xs text-muted-foreground">النوع: {item.brand_type_name || "-"}</p>
+                      <p className="text-xs text-muted-foreground">{tr("النوع: ")}{item.brand_type_name || "-"}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleEdit(item)}>
@@ -257,9 +258,9 @@ export default function Brands() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه العلامة التجارية؟", () => void handleDelete(item.id))}
-                        aria-label="حذف العلامة التجارية"
-                        title="حذف العلامة التجارية"
+                        onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف هذه العلامة التجارية؟"), () => void handleDelete(item.id))}
+                        aria-label={tr("حذف العلامة التجارية")}
+                        title={tr("حذف العلامة التجارية")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -269,7 +270,7 @@ export default function Brands() {
                 </div>
               ))}
               {items.length === 0 && (
-                <div className="flex h-40 items-center justify-center text-muted-foreground">لا توجد علامات تجارية بعد</div>
+                <div className="flex h-40 items-center justify-center text-muted-foreground">{tr("لا توجد علامات تجارية بعد")}</div>
               )}
             </div>
           )}

@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useState } from "react"
@@ -24,8 +25,8 @@ const nextYear = () => { const date = new Date(); date.setFullYear(date.getFullY
 const dateText = (value?: string) => (value ? value.split("-").reverse().join("/") : "")
 
 const CONFIG: Record<View, { title: string; description: string; icon: typeof ListChecks }> = {
-  total: { title: "تقرير الشيكات إجمالي", description: "مجاميع الشيكات الواردة والصادرة حسب تاريخ الاستحقاق يومياً أو شهرياً مع الرصيد التراكمي", icon: CalendarRange },
-  detailed: { title: "تقرير الشيكات تفصيلي", description: "كل شيك قائم بسطر حسب تاريخ الاستحقاق مع الرصيد التراكمي بعد رصيد البنوك", icon: ListChecks },
+  total: { title: tr("تقرير الشيكات إجمالي"), description: tr("مجاميع الشيكات الواردة والصادرة حسب تاريخ الاستحقاق يومياً أو شهرياً مع الرصيد التراكمي"), icon: CalendarRange },
+  detailed: { title: tr("تقرير الشيكات تفصيلي"), description: tr("كل شيك قائم بسطر حسب تاريخ الاستحقاق مع الرصيد التراكمي بعد رصيد البنوك"), icon: ListChecks },
 }
 
 function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
@@ -65,11 +66,11 @@ function ChequesReport({ view }: { view: View }) {
       })
       const response = await fetch(`/api/reports/cheques?${query}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(data.rows || [])
       setClosing(Number(data.closing) || 0)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل التقرير"))
     } finally {
       setLoading(false)
     }
@@ -87,46 +88,46 @@ function ChequesReport({ view }: { view: View }) {
     <ReportPage loading={loading}>
       <ReportHeader
         icon={config.icon}
-        category="تقارير الشيكات"
+        category={tr("تقارير الشيكات")}
         title={config.title}
         description={config.description}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!body.length}><Printer className="ml-2 h-4 w-4" />طباعة</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!body.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="space-y-2"><Label>استحقاق من</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => set({ from: event.target.value })} className="rounded-xl" /></div>
-          <div className="space-y-2"><Label>استحقاق إلى</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => set({ to: event.target.value })} className="rounded-xl" /></div>
-          <Select label="العملة" value={filters.currencyId} onChange={(currencyId) => set({ currencyId, bankAccountId: "" })}>
-            <option value="">كل العملات (بالعملة الأساسية)</option>
+          <div className="space-y-2"><Label>{tr("استحقاق من")}</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => set({ from: event.target.value })} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("استحقاق إلى")}</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => set({ to: event.target.value })} className="rounded-xl" /></div>
+          <Select label={tr("العملة")} value={filters.currencyId} onChange={(currencyId) => set({ currencyId, bankAccountId: "" })}>
+            <option value="">{tr("كل العملات (بالعملة الأساسية)")}</option>
             {meta.currencies.map((currency) => <option key={currency.id} value={currency.id}>{currency.name || currency.code}</option>)}
           </Select>
-          <Select label="حساب البنك" value={filters.bankAccountId} onChange={(bankAccountId) => set({ bankAccountId })}>
-            <option value="">كل حسابات البنوك</option>
+          <Select label={tr("حساب البنك")} value={filters.bankAccountId} onChange={(bankAccountId) => set({ bankAccountId })}>
+            <option value="">{tr("كل حسابات البنوك")}</option>
             {bankAccounts.map((account) => <option key={account.id} value={account.id}>{[account.code, account.name].filter(Boolean).join(" - ")}</option>)}
           </Select>
-          <Select label="نوع الشيكات" value={filters.chequeType} onChange={(chequeType) => set({ chequeType })}>
-            <option value="">الوارد والصادر</option>
-            <option value="1">الشيكات الواردة</option>
-            <option value="2">الشيكات الصادرة</option>
+          <Select label={tr("نوع الشيكات")} value={filters.chequeType} onChange={(chequeType) => set({ chequeType })}>
+            <option value="">{tr("الوارد والصادر")}</option>
+            <option value="1">{tr("الشيكات الواردة")}</option>
+            <option value="2">{tr("الشيكات الصادرة")}</option>
           </Select>
-          <Select label="الفرع" value={filters.branchId} onChange={(branchId) => set({ branchId })}>
-            <option value="">كل الفروع</option>
+          <Select label={tr("الفرع")} value={filters.branchId} onChange={(branchId) => set({ branchId })}>
+            <option value="">{tr("كل الفروع")}</option>
             {meta.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
           </Select>
           {view === "total" && (
-            <Select label="التجميع" value={filters.grouping} onChange={(grouping) => set({ grouping })}>
-              <option value="daily">يومي</option>
-              <option value="monthly">شهري</option>
+            <Select label={tr("التجميع")} value={filters.grouping} onChange={(grouping) => set({ grouping })}>
+              <option value="daily">{tr("يومي")}</option>
+              <option value="monthly">{tr("شهري")}</option>
             </Select>
           )}
           <div className="flex flex-col justify-end gap-2 text-sm">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={filters.showReturned} onChange={(event) => set({ showReturned: event.target.checked })} className="h-4 w-4 accent-emerald-600" />إظهار الشيكات الراجعة</label>
-            <label className="flex items-center gap-2"><input type="checkbox" checked={filters.periodOnly} onChange={(event) => set({ periodOnly: event.target.checked })} className="h-4 w-4 accent-emerald-600" />التقرير بشيكات الفترة فقط</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={filters.showReturned} onChange={(event) => set({ showReturned: event.target.checked })} className="h-4 w-4 accent-emerald-600" />{tr("إظهار الشيكات الراجعة")}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={filters.periodOnly} onChange={(event) => set({ periodOnly: event.target.checked })} className="h-4 w-4 accent-emerald-600" />{tr("التقرير بشيكات الفترة فقط")}</label>
           </div>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />عرض النتائج</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 
@@ -135,19 +136,19 @@ function ChequesReport({ view }: { view: View }) {
       {rows && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <ReportSummaryCard label={`الشيكات الواردة (${countIn})`}><span dir="ltr">{money(totalIn)}</span></ReportSummaryCard>
-            <ReportSummaryCard label={`الشيكات الصادرة (${countOut})`}><span dir="ltr">{money(totalOut)}</span></ReportSummaryCard>
-            <ReportSummaryCard label="صافي الفترة"><span dir="ltr">{money(totalIn - totalOut)}</span></ReportSummaryCard>
-            <ReportSummaryCard label="الرصيد المتوقع في نهاية الفترة"><span dir="ltr">{money(closing)}</span></ReportSummaryCard>
+            <ReportSummaryCard label={tr("الشيكات الواردة ({0})", countIn)}><span dir="ltr">{money(totalIn)}</span></ReportSummaryCard>
+            <ReportSummaryCard label={tr("الشيكات الصادرة ({0})", countOut)}><span dir="ltr">{money(totalOut)}</span></ReportSummaryCard>
+            <ReportSummaryCard label={tr("صافي الفترة")}><span dir="ltr">{money(totalIn - totalOut)}</span></ReportSummaryCard>
+            <ReportSummaryCard label={tr("الرصيد المتوقع في نهاية الفترة")}><span dir="ltr">{money(closing)}</span></ReportSummaryCard>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border bg-white">
             <table className="w-full min-w-[960px] text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500">
                 {view === "total" ? (
-                  <tr>{["التاريخ", grouping(filters.grouping), "الشيكات الواردة", "# الواردة", "الشيكات الصادرة", "# الصادرة", "الصافي", "الرصيد التراكمي"].map((title) => <th key={title} className="whitespace-nowrap p-2 text-right">{title}</th>)}</tr>
+                  <tr>{["التاريخ", grouping(filters.grouping), "الشيكات الواردة", "# الواردة", "الشيكات الصادرة", "# الصادرة", "الصافي", "الرصيد التراكمي"].map((title) => <th key={title} className="whitespace-nowrap p-2 text-start">{title}</th>)}</tr>
                 ) : (
-                  <tr>{["تاريخ الاستحقاق", "اليوم", "# الشيك", "الحساب", "حساب البنك", "الحالة", "السند", "الفرع", "وارد (مدين)", "صادر (دائن)", "الرصيد"].map((title) => <th key={title} className="whitespace-nowrap p-2 text-right">{title}</th>)}</tr>
+                  <tr>{["تاريخ الاستحقاق", "اليوم", "# الشيك", "الحساب", "حساب البنك", "الحالة", "السند", "الفرع", "وارد (مدين)", "صادر (دائن)", "الرصيد"].map((title) => <th key={title} className="whitespace-nowrap p-2 text-start">{title}</th>)}</tr>
                 )}
               </thead>
               <tbody>
@@ -190,13 +191,13 @@ function ChequesReport({ view }: { view: View }) {
                     </tr>
                   )
                 })}
-                {!body.length && <tr><td colSpan={columns} className="p-8 text-center text-muted-foreground">لا توجد شيكات قائمة للفترة والفلاتر المحددة</td></tr>}
+                {!body.length && <tr><td colSpan={columns} className="p-8 text-center text-muted-foreground">{tr("لا توجد شيكات قائمة للفترة والفلاتر المحددة")}</td></tr>}
               </tbody>
               {body.length > 0 && (
                 <tfoot className="border-t-2 bg-slate-50 font-bold">
                   {view === "total" ? (
                     <tr>
-                      <td className="p-2" colSpan={2}>الإجمالي</td>
+                      <td className="p-2" colSpan={2}>{tr("الإجمالي")}</td>
                       <td className="p-2 font-mono" dir="ltr">{money(totalIn)}</td><td className="p-2">{countIn}</td>
                       <td className="p-2 font-mono" dir="ltr">{money(totalOut)}</td><td className="p-2">{countOut}</td>
                       <td className="p-2 font-mono" dir="ltr">{money(totalIn - totalOut)}</td>
@@ -204,7 +205,7 @@ function ChequesReport({ view }: { view: View }) {
                     </tr>
                   ) : (
                     <tr>
-                      <td className="p-2" colSpan={8}>الإجمالي ({body.length} شيك)</td>
+                      <td className="p-2" colSpan={8}>{tr("الإجمالي (")}{body.length}{tr(" شيك)")}</td>
                       <td className="p-2 font-mono" dir="ltr">{money(totalIn)}</td>
                       <td className="p-2 font-mono" dir="ltr">{money(totalOut)}</td>
                       <td className="p-2 font-mono" dir="ltr">{money(closing)}</td>

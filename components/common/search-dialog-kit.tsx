@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 // أدوات مشتركة لنوافذ البحث (بحث الأصناف / دليل الحسابات) — نفس التصميم ونفس سلوك لوحة المفاتيح:
 //   • SearchDialogHeader: رأس مدمج بتدرّج النظام (زمردي/فيروزي).
 //   • SearchFilterField: حقل فلتر مدمج (عنوان + عنصر إدخال).
@@ -40,7 +41,7 @@ export function SearchDialogHeader({
 }) {
   return (
     <div className="relative flex shrink-0 items-center justify-between gap-3 overflow-hidden bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-3 text-white">
-      <div className="pointer-events-none absolute -left-8 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+      <div className="pointer-events-none absolute -end-8 -top-10 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
       <div className="relative flex min-w-0 items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">{icon}</span>
         <div className="min-w-0">
@@ -56,8 +57,8 @@ export function SearchDialogHeader({
         <button
           type="button"
           onClick={onClose}
-          aria-label="إغلاق"
-          title="إغلاق (Esc)"
+          aria-label={tr("إغلاق")}
+          title={tr("إغلاق (Esc)")}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25"
         >
           <X className="h-4 w-4" />
@@ -220,7 +221,7 @@ function SearchResultsTableInner<T>(
       {rows.length === 0 ? (
         <div className="flex h-full min-h-[160px] items-center justify-center px-4 text-center text-sm text-slate-400">{emptyText}</div>
       ) : (
-        <table className="w-full min-w-max border-separate border-spacing-0 text-sm" dir="rtl">
+        <table className="w-full min-w-max border-separate border-spacing-0 text-sm" dir={appDir()}>
           <thead className="sticky top-0 z-[1]">
             <tr>
               {columns.map((column) => (

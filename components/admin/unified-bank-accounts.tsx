@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { BookOpen, Building2, CalendarClock, ChevronDown, Hash, Landmark, Loader2, Percent, Search, Settings, Wand2, type LucideIcon } from "lucide-react"
 import BankAccountsAutoSettings from "@/components/admin/bank-accounts-auto-settings"
@@ -228,7 +229,7 @@ export default function UnifiedBankAccounts({
   const currencyOptions = useMemo(
     () =>
       currencies.map((c) => ({
-        label: c.currency_name || c.currency_code || "غير محدد",
+        label: c.currency_name || c.currency_code || tr("غير محدد"),
         value: Number(c.currency_id ?? c.id),
       })),
     [currencies],
@@ -244,9 +245,9 @@ export default function UnifiedBankAccounts({
   const chooseAutoRows = () => {
     const bank = banks.find((b) => b.id === autoBankId)
     const branch = branches.find((b) => b.id === autoBranchId)
-    if (!bank) return setAutoError("يجب اختيار البنك")
-    if (!branch) return setAutoError("يجب اختيار الفرع")
-    if (!autoCurrencyIds.length) return setAutoError("يجب اختيار عملة واحدة على الأقل")
+    if (!bank) return setAutoError(tr("يجب اختيار البنك"))
+    if (!branch) return setAutoError(tr("يجب اختيار الفرع"))
+    if (!autoCurrencyIds.length) return setAutoError(tr("يجب اختيار عملة واحدة على الأقل"))
     setAutoError("")
     setAutoRows(autoCurrencyIds.map((currencyId) => {
       const currency = currencies.find((c) => Number(c.currency_id ?? c.id) === currencyId)
@@ -276,7 +277,7 @@ export default function UnifiedBankAccounts({
   // عرض الحسابات التي ستُنشأ — يتحدّث مع الفرع/العملة/رقم الحساب الفعلي (نفس منطق الحفظ في الخادم)
   useEffect(() => {
     if (!form.auto_generate || form.id > 0) { setAutoPlan([]); setAutoPlanError(""); return }
-    if (!form.branch_id || !form.currency_id) { setAutoPlan([]); setAutoPlanError("اختر البنك والفرع والعملة"); return }
+    if (!form.branch_id || !form.currency_id) { setAutoPlan([]); setAutoPlanError(tr("اختر البنك والفرع والعملة")); return }
     let cancelled = false
     const timer = setTimeout(async () => {
       setAutoPlanLoading(true)
@@ -285,11 +286,11 @@ export default function UnifiedBankAccounts({
         const response = await fetch(`/api/bank-accounts/auto-generate?${query}`, { cache: "no-store" })
         const data = await response.json().catch(() => ({}))
         if (cancelled) return
-        if (!response.ok) { setAutoPlan([]); setAutoPlanError(data?.error || "تعذر تجهيز الحسابات"); return }
+        if (!response.ok) { setAutoPlan([]); setAutoPlanError(data?.error || tr("تعذر تجهيز الحسابات")); return }
         setAutoPlan(Array.isArray(data.items) ? data.items : [])
         setAutoPlanError("")
       } catch {
-        if (!cancelled) { setAutoPlan([]); setAutoPlanError("تعذر تجهيز الحسابات") }
+        if (!cancelled) { setAutoPlan([]); setAutoPlanError(tr("تعذر تجهيز الحسابات")) }
       } finally {
         if (!cancelled) setAutoPlanLoading(false)
       }
@@ -343,7 +344,7 @@ export default function UnifiedBankAccounts({
       >
         <DialogContent
           className={`w-full ${autoMode ? "max-w-[96vw] 2xl:max-w-[1500px]" : "max-w-6xl"} p-0 overflow-hidden max-h-[90vh] overflow-y-auto`}
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || searchOpen || settingsOpen) event.preventDefault()
           }}
@@ -378,26 +379,26 @@ export default function UnifiedBankAccounts({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-sky-500 text-white shadow-sm"><Landmark className="h-5 w-5" /></span>
-                  <div className="min-w-0 text-right">
-                    <DialogTitle className="text-lg font-bold">{form.id > 0 ? "تعديل حساب البنك" : "إضافة حساب بنك جديد"}</DialogTitle>
+                  <div className="min-w-0 text-start">
+                    <DialogTitle className="text-lg font-bold">{form.id > 0 ? tr("تعديل حساب البنك") : tr("إضافة حساب بنك جديد")}</DialogTitle>
                     <p className="truncate text-xs text-muted-foreground">
-                      {form.id > 0 ? `${form.code}${form.name ? ` — ${form.name}` : ""}` : "أدخل بيانات الحساب البنكي وحساباته المحاسبية"}
+                      {form.id > 0 ? `${form.code}${form.name ? ` — ${form.name}` : ""}` : tr("أدخل بيانات الحساب البنكي وحساباته المحاسبية")}
                     </p>
                   </div>
                   {form.id > 0 && (
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${form.status === 1 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>
-                      {form.status === 1 ? "نشط" : "متوقف"}
+                      {form.status === 1 ? tr("نشط") : tr("متوقف")}
                     </span>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {form.id <= 0 && (
                     <Button type="button" size="sm" variant={autoMode ? "secondary" : "default"} onClick={() => setAutoMode((value) => !value)}>
-                      <Wand2 className="ml-1 h-4 w-4" />{autoMode ? "إخفاء الانشاء الآلي" : "انشاء آلي"}
+                      <Wand2 className="ml-1 h-4 w-4" />{autoMode ? tr("إخفاء الانشاء الآلي") : tr("انشاء آلي")}
                     </Button>
                   )}
-                  <Button type="button" size="sm" variant="outline" onClick={() => setSettingsOpen(true)} title="الحسابات الاب المستخدمة في الانشاء الآلي">
-                    <Settings className="ml-1 h-4 w-4" />اعدادات
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSettingsOpen(true)} title={tr("الحسابات الاب المستخدمة في الانشاء الآلي")}>
+                    <Settings className="ml-1 h-4 w-4" />{tr("اعدادات")}
                   </Button>
                 </div>
               </div>
@@ -407,10 +408,10 @@ export default function UnifiedBankAccounts({
 
             <div className={autoMode ? "grid items-start gap-5 xl:grid-cols-2" : ""}>
             <div className={autoMode ? "space-y-4" : "grid items-start gap-4 lg:grid-cols-2"}>
-              <FormSection icon={Hash} title="بيانات الحساب">
+              <FormSection icon={Hash} title={tr("بيانات الحساب")}>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="bank-account-code">رقم الحساب *</Label>
+                    <Label htmlFor="bank-account-code">{tr("رقم الحساب *")}</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="bank-account-code"
@@ -433,20 +434,20 @@ export default function UnifiedBankAccounts({
                         size="icon"
                         className="h-10 w-10 shrink-0"
                         onClick={() => guardedAction(() => setSearchOpen(true))}
-                        title="بحث عن حساب بنك (F10)"
+                        title={tr("بحث عن حساب بنك (F10)")}
                       >
                         <Search className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>العملة *</Label>
+                    <Label>{tr("العملة *")}</Label>
                     <PrimeDropdown
                       value={form.currency_id}
                       options={currencyOptions}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر العملة"
+                      placeholder={tr("اختر العملة")}
                       filter
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
@@ -456,7 +457,7 @@ export default function UnifiedBankAccounts({
                     />
                   </div>
                   <div className="grid gap-1.5 sm:col-span-2">
-                    <Label htmlFor="bank-account-actual-code">رقم الحساب الفعلي</Label>
+                    <Label htmlFor="bank-account-actual-code">{tr("رقم الحساب الفعلي")}</Label>
                     <Input
                       id="bank-account-actual-code"
                       value={form.actual_bank_code}
@@ -466,21 +467,21 @@ export default function UnifiedBankAccounts({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="bank-account-name">اسم الحساب (ar) *</Label>
+                    <Label htmlFor="bank-account-name">{tr("اسم الحساب (ar) *")}</Label>
                     <Input id="bank-account-name" value={form.name} onChange={(e) => onFormChange("name", e.target.value)} />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="bank-account-name-en">اسم الحساب (en)</Label>
+                    <Label htmlFor="bank-account-name-en">{tr("اسم الحساب (en)")}</Label>
                     <Input id="bank-account-name-en" dir="ltr" value={form.name_lang2} onChange={(e) => onFormChange("name_lang2", e.target.value)} />
                   </div>
                 </div>
               </FormSection>
 
               <div className="space-y-4">
-                <FormSection icon={Building2} title="البنك والفرع">
+                <FormSection icon={Building2} title={tr("البنك والفرع")}>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                      <Label>البنك *</Label>
+                      <Label>{tr("البنك *")}</Label>
                       <select
                         value={bankFilterId != null ? String(bankFilterId) : ""}
                         onChange={(e) => {
@@ -492,7 +493,7 @@ export default function UnifiedBankAccounts({
                         }}
                         className={SELECT_CLASS}
                       >
-                        <option value="">اختر البنك</option>
+                        <option value="">{tr("اختر البنك")}</option>
                         {banks.map((bank) => (
                           <option key={bank.id} value={bank.id}>
                             {bank.bank_name}
@@ -501,14 +502,14 @@ export default function UnifiedBankAccounts({
                       </select>
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>الفرع *</Label>
+                      <Label>{tr("الفرع *")}</Label>
                       <select
                         value={form.branch_id != null ? String(form.branch_id) : ""}
                         onChange={(e) => onFormChange("branch_id", e.target.value ? Number(e.target.value) : null)}
                         disabled={!bankFilterId}
                         className={SELECT_CLASS}
                       >
-                        <option value="">{bankFilterId ? "اختر الفرع" : "اختر البنك أولاً"}</option>
+                        <option value="">{bankFilterId ? tr("اختر الفرع") : tr("اختر البنك أولاً")}</option>
                         {filteredBranches.map((branch) => (
                           <option key={branch.id} value={branch.id}>
                             {branch.branch_code} / {branch.branch_name}
@@ -517,20 +518,20 @@ export default function UnifiedBankAccounts({
                       </select>
                     </div>
                     <div className="grid gap-1.5 sm:col-span-2">
-                      <Label htmlFor="bank-account-notes">ملاحظات</Label>
+                      <Label htmlFor="bank-account-notes">{tr("ملاحظات")}</Label>
                       <Input id="bank-account-notes" value={form.notes} onChange={(e) => onFormChange("notes", e.target.value)} maxLength={70} />
                     </div>
                   </div>
                 </FormSection>
 
-                <FormSection icon={CalendarClock} title="مدد الشيكات الآجلة">
+                <FormSection icon={CalendarClock} title={tr("مدد الشيكات الآجلة")}>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
-                      <Label>مدة الاستحقاق المسموحة للإيداع (يوم)</Label>
+                      <Label>{tr("مدة الاستحقاق المسموحة للإيداع (يوم)")}</Label>
                       <Input type="number" min={0} value={numberValue(form.check_value_period)} onChange={(e) => onFormChange("check_value_period", e.target.value ? Number(e.target.value) : null)} />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>مدة إيداع الشيكات الآجلة (يوم)</Label>
+                      <Label>{tr("مدة إيداع الشيكات الآجلة (يوم)")}</Label>
                       <Input type="number" min={0} value={numberValue(form.checks_deposit_period)} onChange={(e) => onFormChange("checks_deposit_period", e.target.value ? Number(e.target.value) : null)} />
                     </div>
                   </div>
@@ -539,29 +540,29 @@ export default function UnifiedBankAccounts({
 
               <FormSection
                 icon={BookOpen}
-                title="الحسابات المحاسبية"
+                title={tr("الحسابات المحاسبية")}
                 className={autoMode ? "" : "lg:col-span-2"}
                 action={form.auto_generate && form.id <= 0 ? (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => onFormChange("auto_generate", false)}>اختيار الحسابات يدوياً</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => onFormChange("auto_generate", false)}>{tr("اختيار الحسابات يدوياً")}</Button>
                 ) : undefined}
               >
                 {form.auto_generate && form.id <= 0 ? (
                   <div className="space-y-2 rounded-xl border bg-emerald-50/60 p-3 dark:bg-emerald-950/20">
-                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">انشاء آلي — تُنشأ الحسابات التالية عند الحفظ:</p>
-                    {autoPlanLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />جاري تجهيز الحسابات...</div>}
+                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{tr("انشاء آلي — تُنشأ الحسابات التالية عند الحفظ:")}</p>
+                    {autoPlanLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{tr("جاري تجهيز الحسابات...")}</div>}
                     {autoPlanError && !autoPlanLoading && <p className="text-sm text-red-600 dark:text-red-400">{autoPlanError}</p>}
                     {!autoPlanError && autoPlan.map((item) => (
                       <div key={item.kind} className="rounded-lg border bg-background px-3 py-2 text-sm">
                         <div className="font-semibold">{item.label}</div>
-                        {item.father && <div className="text-xs text-muted-foreground">تحت: <span className="font-mono">{item.father.code}</span> {item.father.name} {item.father.exists ? "(موجود)" : "(جديد)"}</div>}
-                        <div><span className="font-mono">{item.account.code}</span> — {item.account.name} <span className={item.account.exists ? "text-sky-700 dark:text-sky-300" : "text-emerald-700 dark:text-emerald-300"}>{item.account.exists ? "(موجود)" : "(جديد)"}</span></div>
+                        {item.father && <div className="text-xs text-muted-foreground">{tr("تحت: ")}<span className="font-mono">{item.father.code}</span> {item.father.name} {item.father.exists ? tr("(موجود)") : tr("(جديد)")}</div>}
+                        <div><span className="font-mono">{item.account.code}</span> — {item.account.name} <span className={item.account.exists ? "text-sky-700 dark:text-sky-300" : "text-emerald-700 dark:text-emerald-300"}>{item.account.exists ? tr("(موجود)") : tr("(جديد)")}</span></div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className={`grid gap-3 ${autoMode ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
                     <AutoCompleteAccount
-                      label="الحساب المحاسبي *"
+                      label={tr("الحساب المحاسبي *")}
                       valueMode="id"
                       value={numberValue(form.jary_account_id)}
                       onValueChange={(v) => onFormChange("jary_account_id", v ? Number(v) : null)}
@@ -569,7 +570,7 @@ export default function UnifiedBankAccounts({
                       searchAllowedTypeValues={[1]}
                     />
                     <AutoCompleteAccount
-                      label="حساب شيكات برسم التحصيل *"
+                      label={tr("حساب شيكات برسم التحصيل *")}
                       valueMode="id"
                       value={numberValue(form.tahsil_account_id)}
                       onValueChange={(v) => onFormChange("tahsil_account_id", v ? Number(v) : null)}
@@ -577,7 +578,7 @@ export default function UnifiedBankAccounts({
                       searchAllowedTypeValues={[1]}
                     />
                     <AutoCompleteAccount
-                      label="حساب عمولة التحصيل *"
+                      label={tr("حساب عمولة التحصيل *")}
                       valueMode="id"
                       value={numberValue(form.tahsil_commission_account_id)}
                       onValueChange={(v) => onFormChange("tahsil_commission_account_id", v ? Number(v) : null)}
@@ -585,7 +586,7 @@ export default function UnifiedBankAccounts({
                       searchAllowedTypeValues={[1]}
                     />
                     <AutoCompleteAccount
-                      label="حساب الشيكات الصادرة المؤجلة *"
+                      label={tr("حساب الشيكات الصادرة المؤجلة *")}
                       valueMode="id"
                       value={numberValue(form.payed_checks_account_id)}
                       onValueChange={(v) => onFormChange("payed_checks_account_id", v ? Number(v) : null)}
@@ -593,7 +594,7 @@ export default function UnifiedBankAccounts({
                       searchAllowedTypeValues={[1]}
                     />
                     <AutoCompleteAccount
-                      label="حساب الشيكات المرتجعة *"
+                      label={tr("حساب الشيكات المرتجعة *")}
                       valueMode="id"
                       value={numberValue(form.returned_checks_account_id)}
                       onValueChange={(v) => onFormChange("returned_checks_account_id", v ? Number(v) : null)}
@@ -606,11 +607,11 @@ export default function UnifiedBankAccounts({
 
               <FormSection
                 icon={Percent}
-                title="العمولات"
+                title={tr("العمولات")}
                 className={autoMode ? "" : "lg:col-span-2"}
                 action={
                   <Button type="button" size="sm" variant="ghost" onClick={() => setCommissionsOpen((value) => !value)} aria-expanded={commissionsOpen}>
-                    {commissionsOpen ? "إخفاء" : "عرض"}
+                    {commissionsOpen ? tr("إخفاء") : tr("عرض")}
                     <ChevronDown className={`mr-1 h-4 w-4 transition-transform ${commissionsOpen ? "-rotate-180" : ""}`} />
                   </Button>
                 }
@@ -619,13 +620,13 @@ export default function UnifiedBankAccounts({
                   <div className="space-y-3">
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                        <Label>عملة الشيكات الراجعة</Label>
+                        <Label>{tr("عملة الشيكات الراجعة")}</Label>
                         <PrimeDropdown
                           value={form.returned_checks_commission_currency_id}
                           options={currencyOptions}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر العملة"
+                          placeholder={tr("اختر العملة")}
                           filter
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
@@ -635,17 +636,17 @@ export default function UnifiedBankAccounts({
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <Label>قيمة عمولة الشيكات الراجعة</Label>
+                        <Label>{tr("قيمة عمولة الشيكات الراجعة")}</Label>
                         <Input type="number" value={numberValue(form.returned_checks_commission)} onChange={(e) => onFormChange("returned_checks_commission", e.target.value ? Number(e.target.value) : null)} />
                       </div>
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                        <Label>عملة شيكات التحصيل</Label>
+                        <Label>{tr("عملة شيكات التحصيل")}</Label>
                         <PrimeDropdown
                           value={form.tahsil_checks_commission_currency_id}
                           options={currencyOptions}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر العملة"
+                          placeholder={tr("اختر العملة")}
                           filter
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
@@ -655,7 +656,7 @@ export default function UnifiedBankAccounts({
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <Label>قيمة عمولة شيكات التحصيل</Label>
+                        <Label>{tr("قيمة عمولة شيكات التحصيل")}</Label>
                         <Input type="number" value={numberValue(form.tahsil_checks_commission)} onChange={(e) => onFormChange("tahsil_checks_commission", e.target.value ? Number(e.target.value) : null)} />
                       </div>
                     </div>
@@ -664,11 +665,11 @@ export default function UnifiedBankAccounts({
                         checked={form.add_returned_check_commision_on_customer}
                         onCheckedChange={(checked) => onFormChange("add_returned_check_commision_on_customer", checked === true)}
                       />
-                      <span>إضافة عمولة الشيكات المرتجعة على العميل</span>
+                      <span>{tr("إضافة عمولة الشيكات المرتجعة على العميل")}</span>
                     </label>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">عمولة الشيكات الراجعة وعمولة شيكات التحصيل وعملاتهما.</p>
+                  <p className="text-xs text-muted-foreground">{tr("عمولة الشيكات الراجعة وعمولة شيكات التحصيل وعملاتهما.")}</p>
                 )}
               </FormSection>
             </div>
@@ -678,29 +679,29 @@ export default function UnifiedBankAccounts({
                 <div className="grid gap-4 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
                   <div className="space-y-3">
                     <div className="grid gap-1.5">
-                      <Label>البنك *</Label>
+                      <Label>{tr("البنك *")}</Label>
                       <select
                         value={autoBankId != null ? String(autoBankId) : ""}
                         onChange={(e) => { setAutoBankId(e.target.value ? Number(e.target.value) : null); setAutoBranchId(null) }}
                         className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       >
-                        <option value="">اختر البنك</option>
+                        <option value="">{tr("اختر البنك")}</option>
                         {banks.map((bank) => <option key={bank.id} value={bank.id}>{bank.bank_name}</option>)}
                       </select>
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>الفرع *</Label>
+                      <Label>{tr("الفرع *")}</Label>
                       <select
                         value={autoBranchId != null ? String(autoBranchId) : ""}
                         onChange={(e) => setAutoBranchId(e.target.value ? Number(e.target.value) : null)}
                         disabled={!autoBankId}
                         className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <option value="">{autoBankId ? "اختر الفرع" : "اختر البنك أولاً"}</option>
+                        <option value="">{autoBankId ? tr("اختر الفرع") : tr("اختر البنك أولاً")}</option>
                         {autoBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_code} / {branch.branch_name}</option>)}
                       </select>
                     </div>
-                    <Button type="button" className="w-full" onClick={chooseAutoRows}>اختيار</Button>
+                    <Button type="button" className="w-full" onClick={chooseAutoRows}>{tr("اختيار")}</Button>
                     {autoError && <p className="text-sm text-red-600 dark:text-red-400">{autoError}</p>}
                   </div>
                   <div className="max-h-56 overflow-auto rounded-lg border">
@@ -713,8 +714,8 @@ export default function UnifiedBankAccounts({
                               onCheckedChange={(checked) => setAutoCurrencyIds(checked === true ? currencies.map((c) => Number(c.currency_id ?? c.id)) : [])}
                             />
                           </th>
-                          <th className="px-2 py-2 text-right">رمز العملة</th>
-                          <th className="px-2 py-2 text-right">اسم العملة</th>
+                          <th className="px-2 py-2 text-start">{tr("رمز العملة")}</th>
+                          <th className="px-2 py-2 text-start">{tr("اسم العملة")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -739,17 +740,17 @@ export default function UnifiedBankAccounts({
                     <thead className="bg-muted text-xs">
                       <tr>
                         <th className="w-10 px-2 py-2 text-center">#</th>
-                        <th className="w-24 px-2 py-2 text-center">تنفيذ</th>
-                        <th className="px-2 py-2 text-right">رقم البنك</th>
-                        <th className="px-2 py-2 text-right">اسم البنك</th>
-                        <th className="px-2 py-2 text-right">رقم الفرع</th>
-                        <th className="px-2 py-2 text-right">اسم الفرع</th>
-                        <th className="px-2 py-2 text-right">العملة</th>
+                        <th className="w-24 px-2 py-2 text-center">{tr("تنفيذ")}</th>
+                        <th className="px-2 py-2 text-start">{tr("رقم البنك")}</th>
+                        <th className="px-2 py-2 text-start">{tr("اسم البنك")}</th>
+                        <th className="px-2 py-2 text-start">{tr("رقم الفرع")}</th>
+                        <th className="px-2 py-2 text-start">{tr("اسم الفرع")}</th>
+                        <th className="px-2 py-2 text-start">{tr("العملة")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {autoRows.length === 0 && (
-                        <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">اختر البنك والفرع والعملات ثم اضغط "اختيار"</td></tr>
+                        <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">{tr("اختر البنك والفرع والعملات ثم اضغط \"اختيار\"")}</td></tr>
                       )}
                       {autoRows.map((row, index) => {
                         const active = form.auto_generate && form.branch_id === row.branchId && form.currency_id === row.currencyId
@@ -758,20 +759,20 @@ export default function UnifiedBankAccounts({
                           <tr key={row.key} className={`border-t ${active ? "bg-emerald-50 dark:bg-emerald-950/30" : ""}`}>
                             <td className="px-2 py-1.5 text-center">{index + 1}</td>
                             <td className="px-2 py-1.5 text-center">
-                              <Button type="button" size="sm" variant={active ? "secondary" : "default"} className="h-7 px-3" onClick={() => executeAutoRow(row)}>تنفيذ</Button>
+                              <Button type="button" size="sm" variant={active ? "secondary" : "default"} className="h-7 px-3" onClick={() => executeAutoRow(row)}>{tr("تنفيذ")}</Button>
                             </td>
                             <td className="px-2 py-1.5 font-mono">{row.bankCode}</td>
                             <td className="px-2 py-1.5">{row.bankName}</td>
                             <td className="px-2 py-1.5 font-mono">{row.branchCode}</td>
                             <td className="px-2 py-1.5">{row.branchName}</td>
-                            <td className="px-2 py-1.5">{row.currencyName}{exists && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">يوجد حساب بنكي</span>}</td>
+                            <td className="px-2 py-1.5">{row.currencyName}{exists && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">{tr("يوجد حساب بنكي")}</span>}</td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-muted-foreground">"تنفيذ" يعبّئ الفرع والعملة والاسم في النموذج؛ أدخل رقم الحساب ورقم الحساب الفعلي ثم احفظ — تُنشأ الحسابات المحاسبية مع الحفظ.</p>
+                <p className="text-xs text-muted-foreground">{tr("\"تنفيذ\" يعبّئ الفرع والعملة والاسم في النموذج؛ أدخل رقم الحساب ورقم الحساب الفعلي ثم احفظ — تُنشأ الحسابات المحاسبية مع الحفظ.")}</p>
               </div>
             )}
             </div>
@@ -790,14 +791,14 @@ export default function UnifiedBankAccounts({
 
       <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
-        message="هل تريد حذف حساب البنك هذا؟"
+        message={tr("هل تريد حذف حساب البنك هذا؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
 
       <ConfirmDialogYesNo useAppDialog
         visible={showUnsavedConfirm}
-        message="تم تعديل البيانات، هل تريد الحفظ؟"
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
         showBack
         onConfirm={() => {
           setShowUnsavedConfirm(false)

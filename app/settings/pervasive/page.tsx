@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import type React from "react"
 
@@ -77,8 +78,8 @@ export default function PervasiveSettingsPage() {
       setConnections(data)
     } catch (error) {
       toast({
-        title: "خطأ",
-        description: "فشل في تحميل الاتصالات",
+        title: tr("خطأ"),
+        description: tr("فشل في تحميل الاتصالات"),
         variant: "destructive",
       })
     } finally {
@@ -99,8 +100,8 @@ export default function PervasiveSettingsPage() {
       if (!response.ok) throw new Error("Failed to save connection")
 
       toast({
-        title: "نجح",
-        description: connection.id ? "تم تحديث الاتصال بنجاح" : "تم إنشاء الاتصال بنجاح",
+        title: tr("نجح"),
+        description: connection.id ? tr("تم تحديث الاتصال بنجاح") : tr("تم إنشاء الاتصال بنجاح"),
       })
 
       setIsDialogOpen(false)
@@ -108,8 +109,8 @@ export default function PervasiveSettingsPage() {
       fetchConnections()
     } catch (error) {
       toast({
-        title: "خطأ",
-        description: "فشل في حفظ الاتصال",
+        title: tr("خطأ"),
+        description: tr("فشل في حفظ الاتصال"),
         variant: "destructive",
       })
     } finally {
@@ -129,7 +130,7 @@ export default function PervasiveSettingsPage() {
       const result = await response.json()
 
       toast({
-        title: result.success ? "نجح الاختبار" : "فشل الاختبار",
+        title: result.success ? tr("نجح الاختبار") : tr("فشل الاختبار"),
         description: result.message,
         variant: result.success ? "default" : "destructive",
       })
@@ -137,8 +138,8 @@ export default function PervasiveSettingsPage() {
       fetchConnections()
     } catch (error) {
       toast({
-        title: "خطأ",
-        description: "فشل في اختبار الاتصال",
+        title: tr("خطأ"),
+        description: tr("فشل في اختبار الاتصال"),
         variant: "destructive",
       })
     } finally {
@@ -147,7 +148,7 @@ export default function PervasiveSettingsPage() {
   }
 
   const handleDelete = async (connectionId: number) => {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا الاتصال؟"))) return
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذا الاتصال؟")))) return
 
     try {
       const response = await fetch(`/api/settings/pervasive?id=${connectionId}`, {
@@ -157,15 +158,15 @@ export default function PervasiveSettingsPage() {
       if (!response.ok) throw new Error("Failed to delete connection")
 
       toast({
-        title: "نجح",
-        description: "تم حذف الاتصال بنجاح",
+        title: tr("نجح"),
+        description: tr("تم حذف الاتصال بنجاح"),
       })
 
       fetchConnections()
     } catch (error) {
       toast({
-        title: "خطأ",
-        description: "فشل في حذف الاتصال",
+        title: tr("خطأ"),
+        description: tr("فشل في حذف الاتصال"),
         variant: "destructive",
       })
     }
@@ -177,23 +178,23 @@ export default function PervasiveSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={appDir()}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">إعدادات Pervasive Database</h1>
-          <p className="text-muted-foreground mt-2">إدارة اتصالات قاعدة بيانات Pervasive عبر ODBC أو API</p>
+          <h1 className="text-3xl font-bold">{tr("إعدادات Pervasive Database")}</h1>
+          <p className="text-muted-foreground mt-2">{tr("إدارة اتصالات قاعدة بيانات Pervasive عبر ODBC أو API")}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => openEditDialog()}>
               <Plus className="ml-2 h-4 w-4" />
-              اتصال جديد
+              {tr("اتصال جديد")}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingConnection?.id ? "تعديل الاتصال" : "اتصال جديد"}</DialogTitle>
-              <DialogDescription>أدخل معلومات الاتصال بقاعدة بيانات Pervasive</DialogDescription>
+              <DialogTitle>{editingConnection?.id ? tr("تعديل الاتصال") : tr("اتصال جديد")}</DialogTitle>
+              <DialogDescription>{tr("أدخل معلومات الاتصال بقاعدة بيانات Pervasive")}</DialogDescription>
             </DialogHeader>
             {editingConnection && (
               <ConnectionForm
@@ -214,9 +215,9 @@ export default function PervasiveSettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
-            الاتصالات المحفوظة
+            {tr("الاتصالات المحفوظة")}
           </CardTitle>
-          <CardDescription>قائمة بجميع اتصالات Pervasive المكونة</CardDescription>
+          <CardDescription>{tr("قائمة بجميع اتصالات Pervasive المكونة")}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -225,19 +226,19 @@ export default function PervasiveSettingsPage() {
             </div>
           ) : connections.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              لا توجد اتصالات محفوظة. أنشئ اتصالاً جديداً للبدء.
+              {tr("لا توجد اتصالات محفوظة. أنشئ اتصالاً جديداً للبدء.")}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>اسم الاتصال</TableHead>
-                  <TableHead>النوع</TableHead>
-                  <TableHead>قاعدة البيانات</TableHead>
-                  <TableHead>المستخدم</TableHead>
-                  <TableHead>الحالة</TableHead>
-                  <TableHead>آخر اختبار</TableHead>
-                  <TableHead>الإجراءات</TableHead>
+                  <TableHead>{tr("اسم الاتصال")}</TableHead>
+                  <TableHead>{tr("النوع")}</TableHead>
+                  <TableHead>{tr("قاعدة البيانات")}</TableHead>
+                  <TableHead>{tr("المستخدم")}</TableHead>
+                  <TableHead>{tr("الحالة")}</TableHead>
+                  <TableHead>{tr("آخر اختبار")}</TableHead>
+                  <TableHead>{tr("الإجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -246,7 +247,7 @@ export default function PervasiveSettingsPage() {
                     <TableCell className="font-medium">
                       {conn.connection_name}
                       {conn.is_default && (
-                        <span className="mr-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded">افتراضي</span>
+                        <span className="mr-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded">{tr("افتراضي")}</span>
                       )}
                     </TableCell>
                     <TableCell>{conn.connection_type.toUpperCase()}</TableCell>
@@ -258,7 +259,7 @@ export default function PervasiveSettingsPage() {
                           conn.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {conn.is_active ? "نشط" : "غير نشط"}
+                        {conn.is_active ? tr("نشط") : tr("غير نشط")}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -270,7 +271,7 @@ export default function PervasiveSettingsPage() {
                               : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {conn.last_test_status === "success" ? "نجح" : "فشل"}
+                          {conn.last_test_status === "success" ? tr("نجح") : tr("فشل")}
                         </span>
                       )}
                     </TableCell>
@@ -289,7 +290,7 @@ export default function PervasiveSettingsPage() {
                           )}
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => openEditDialog(conn)}>
-                          تعديل
+                          {tr("تعديل")}
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => handleDelete(conn.id!)}>
                           <Trash2 className="h-4 w-4" />
@@ -326,9 +327,9 @@ function ConnectionForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
+    <form onSubmit={handleSubmit} className="space-y-4" dir={appDir()}>
       <div className="space-y-2">
-        <Label htmlFor="connection_name">اسم الاتصال *</Label>
+        <Label htmlFor="connection_name">{tr("اسم الاتصال *")}</Label>
         <Input
           id="connection_name"
           value={formData.connection_name}
@@ -338,7 +339,7 @@ function ConnectionForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="connection_type">نوع الاتصال *</Label>
+        <Label htmlFor="connection_type">{tr("نوع الاتصال *")}</Label>
         <Select
           value={formData.connection_type}
           onValueChange={(value: "odbc" | "api") => setFormData({ ...formData, connection_type: value })}
@@ -368,7 +369,7 @@ function ConnectionForm({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="database_name">اسم قاعدة البيانات *</Label>
+        <Label htmlFor="database_name">{tr("اسم قاعدة البيانات *")}</Label>
         <Input
           id="database_name"
           value={formData.database_name}
@@ -379,7 +380,7 @@ function ConnectionForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="username">اسم المستخدم *</Label>
+          <Label htmlFor="username">{tr("اسم المستخدم *")}</Label>
           <Input
             id="username"
             value={formData.username}
@@ -389,7 +390,7 @@ function ConnectionForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">كلمة المرور</Label>
+          <Label htmlFor="password">{tr("كلمة المرور")}</Label>
           <Input
             id="password"
             type="password"
@@ -413,7 +414,7 @@ function ConnectionForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="odbc_dsn">DSN (اختياري)</Label>
+            <Label htmlFor="odbc_dsn">{tr("DSN (اختياري)")}</Label>
             <Input
               id="odbc_dsn"
               value={formData.odbc_dsn || ""}
@@ -422,7 +423,7 @@ function ConnectionForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="connection_string">Connection String (اختياري)</Label>
+            <Label htmlFor="connection_string">{tr("Connection String (اختياري)")}</Label>
             <Input
               id="connection_string"
               value={formData.connection_string || ""}
@@ -435,7 +436,7 @@ function ConnectionForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="timeout_seconds">المهلة (ثواني)</Label>
+          <Label htmlFor="timeout_seconds">{tr("المهلة (ثواني)")}</Label>
           <Input
             id="timeout_seconds"
             type="number"
@@ -446,7 +447,7 @@ function ConnectionForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="max_retries">عدد المحاولات</Label>
+          <Label htmlFor="max_retries">{tr("عدد المحاولات")}</Label>
           <Input
             id="max_retries"
             type="number"
@@ -464,7 +465,7 @@ function ConnectionForm({
             checked={formData.is_active}
             onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
           />
-          <Label htmlFor="is_active">نشط</Label>
+          <Label htmlFor="is_active">{tr("نشط")}</Label>
         </div>
 
         <div className="flex items-center gap-2">
@@ -473,24 +474,24 @@ function ConnectionForm({
             checked={formData.is_default}
             onCheckedChange={(checked) => setFormData({ ...formData, is_default: checked })}
           />
-          <Label htmlFor="is_default">افتراضي</Label>
+          <Label htmlFor="is_default">{tr("افتراضي")}</Label>
         </div>
       </div>
 
       <div className="flex gap-2 justify-end pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
-          إلغاء
+          {tr("إلغاء")}
         </Button>
         <Button type="submit" disabled={isSaving}>
           {isSaving ? (
             <>
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              جاري الحفظ...
+              {tr("جاري الحفظ...")}
             </>
           ) : (
             <>
               <Save className="ml-2 h-4 w-4" />
-              حفظ
+              {tr("حفظ")}
             </>
           )}
         </Button>

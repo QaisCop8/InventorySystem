@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr } from "@/lib/i18n"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,20 +65,20 @@ function DepartmentsDefinitions() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-heading font-bold text-primary mb-6">الأقسام والفروع والتعريفات</h1>
+      <h1 className="text-2xl font-heading font-bold text-primary mb-6">{tr("الأقسام والفروع والتعريفات")}</h1>
 
       <div className="flex gap-4 mb-6 border-b">
         <button
           onClick={() => setActiveTab("departments")}
           className={`px-4 py-2 font-heading ${activeTab === "departments" ? "border-b-2 border-primary text-primary" : "text-gray-600"}`}
         >
-          الأقسام والفروع
+          {tr("الأقسام والفروع")}
         </button>
         <button
           onClick={() => setActiveTab("definitions")}
           className={`px-4 py-2 font-heading ${activeTab === "definitions" ? "border-b-2 border-primary text-primary" : "text-gray-600"}`}
         >
-          التعريفات
+          {tr("التعريفات")}
         </button>
       </div>
 
@@ -85,73 +86,73 @@ function DepartmentsDefinitions() {
         <div className="flex gap-5">
           {/* Branches Section */}
           <div className="flex-1">
-            <h2 className="text-lg font-heading font-semibold mb-5">الفروع</h2>
+            <h2 className="text-lg font-heading font-semibold mb-5">{tr("الفروع")}</h2>
             <Button className="erp-btn-primary mb-5" onClick={() => setShowBranchForm(!showBranchForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              إضافة فرع جديد
+              <Plus className="h-4 w-4 ms-2" />
+              {tr("إضافة فرع جديد")}
             </Button>
 
             {showBranchForm && (
               <div className="bg-white rounded-lg border p-6 mb-6">
                 <div className="mb-6 pb-5 border-b-2 border-gray-200">
-                  <h2 className="text-xl font-heading font-semibold text-gray-800">بيانات الفرع</h2>
+                  <h2 className="text-xl font-heading font-semibold text-gray-800">{tr("بيانات الفرع")}</h2>
                 </div>
                 <form className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <Label className="erp-label">رقم الفرع</Label>
-                      <Input placeholder="يتم توليده تلقائياً" readOnly className="erp-input bg-gray-50" />
+                      <Label className="erp-label">{tr("رقم الفرع")}</Label>
+                      <Input placeholder={tr("يتم توليده تلقائياً")} readOnly className="erp-input bg-gray-50" />
                     </div>
                     <div>
-                      <Label className="erp-label">اسم الفرع *</Label>
+                      <Label className="erp-label">{tr("اسم الفرع *")}</Label>
                       <Input required className="erp-input" />
                     </div>
                     <div>
-                      <Label className="erp-label">العنوان</Label>
+                      <Label className="erp-label">{tr("العنوان")}</Label>
                       <Input className="erp-input" />
                     </div>
                     <div>
-                      <Label className="erp-label">مسؤول الفرع</Label>
+                      <Label className="erp-label">{tr("مسؤول الفرع")}</Label>
                       <Select>
                         <SelectTrigger className="erp-input">
-                          <SelectValue placeholder="اختر المسؤول" />
+                          <SelectValue placeholder={tr("اختر المسؤول")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="ahmed">أحمد محمد</SelectItem>
-                          <SelectItem value="ali">علي حسن</SelectItem>
+                          <SelectItem value="ahmed">{tr("أحمد محمد")}</SelectItem>
+                          <SelectItem value="ali">{tr("علي حسن")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
                   <div>
-                    <Label className="erp-label">الأقسام المرتبطة بالفرع</Label>
+                    <Label className="erp-label">{tr("الأقسام المرتبطة بالفرع")}</Label>
                     <div className="flex flex-wrap gap-4 mt-2">
                       <label className="flex items-center gap-2">
                         <input type="checkbox" className="rounded" />
-                        <span className="text-sm">المبيعات</span>
+                        <span className="text-sm">{tr("المبيعات")}</span>
                       </label>
                       <label className="flex items-center gap-2">
                         <input type="checkbox" className="rounded" />
-                        <span className="text-sm">المشتريات</span>
+                        <span className="text-sm">{tr("المشتريات")}</span>
                       </label>
                       <label className="flex items-center gap-2">
                         <input type="checkbox" className="rounded" />
-                        <span className="text-sm">المحاسبة</span>
+                        <span className="text-sm">{tr("المحاسبة")}</span>
                       </label>
                       <label className="flex items-center gap-2">
                         <input type="checkbox" className="rounded" />
-                        <span className="text-sm">المستودعات</span>
+                        <span className="text-sm">{tr("المستودعات")}</span>
                       </label>
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
                     <Button type="button" variant="outline" onClick={() => setShowBranchForm(false)}>
-                      إلغاء
+                      {tr("إلغاء")}
                     </Button>
                     <Button type="submit" className="erp-btn-primary">
-                      حفظ البيانات
+                      {tr("حفظ البيانات")}
                     </Button>
                   </div>
                 </form>
@@ -162,11 +163,11 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">رقم الفرع</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم الفرع</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">العنوان</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">المسؤول</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رقم الفرع")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم الفرع")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("العنوان")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("المسؤول")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -178,7 +179,7 @@ function DepartmentsDefinitions() {
                       <td className="p-3 text-gray-600">{branch.manager}</td>
                       <td className="p-3">
                         <Button variant="outline" size="sm">
-                          تعديل
+                          {tr("تعديل")}
                         </Button>
                       </td>
                     </tr>
@@ -190,69 +191,69 @@ function DepartmentsDefinitions() {
 
           {/* Departments Section */}
           <div className="flex-1">
-            <h2 className="text-lg font-heading font-semibold mb-5">الأقسام</h2>
+            <h2 className="text-lg font-heading font-semibold mb-5">{tr("الأقسام")}</h2>
             <Button className="erp-btn-primary mb-5" onClick={() => setShowDepartmentForm(!showDepartmentForm)}>
-              <Plus className="h-4 w-4 mr-2" />
-              إضافة قسم جديد
+              <Plus className="h-4 w-4 ms-2" />
+              {tr("إضافة قسم جديد")}
             </Button>
 
             {showDepartmentForm && (
               <div className="bg-white rounded-lg border p-6 mb-6">
                 <div className="mb-6 pb-5 border-b-2 border-gray-200">
-                  <h2 className="text-xl font-heading font-semibold text-gray-800">بيانات القسم</h2>
+                  <h2 className="text-xl font-heading font-semibold text-gray-800">{tr("بيانات القسم")}</h2>
                 </div>
                 <form className="space-y-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <Label className="erp-label">رقم القسم</Label>
-                      <Input placeholder="يتم توليده تلقائياً" readOnly className="erp-input bg-gray-50" />
+                      <Label className="erp-label">{tr("رقم القسم")}</Label>
+                      <Input placeholder={tr("يتم توليده تلقائياً")} readOnly className="erp-input bg-gray-50" />
                     </div>
                     <div>
-                      <Label className="erp-label">اسم القسم *</Label>
+                      <Label className="erp-label">{tr("اسم القسم *")}</Label>
                       <Input required className="erp-input" />
                     </div>
                     <div>
-                      <Label className="erp-label">تابع لفرع</Label>
+                      <Label className="erp-label">{tr("تابع لفرع")}</Label>
                       <Select>
                         <SelectTrigger className="erp-input">
-                          <SelectValue placeholder="اختر الفرع" />
+                          <SelectValue placeholder={tr("اختر الفرع")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="main">الفرع الرئيسي</SelectItem>
-                          <SelectItem value="nablus">فرع نابلس</SelectItem>
+                          <SelectItem value="main">{tr("الفرع الرئيسي")}</SelectItem>
+                          <SelectItem value="nablus">{tr("فرع نابلس")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label className="erp-label">مسؤول القسم</Label>
+                      <Label className="erp-label">{tr("مسؤول القسم")}</Label>
                       <Select>
                         <SelectTrigger className="erp-input">
-                          <SelectValue placeholder="اختر المسؤول" />
+                          <SelectValue placeholder={tr("اختر المسؤول")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mohamed">محمد أحمد</SelectItem>
-                          <SelectItem value="ali">علي حسن</SelectItem>
+                          <SelectItem value="mohamed">{tr("محمد أحمد")}</SelectItem>
+                          <SelectItem value="ali">{tr("علي حسن")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
                   <div>
-                    <Label className="erp-label">الموظفين التابعين للقسم</Label>
+                    <Label className="erp-label">{tr("الموظفين التابعين للقسم")}</Label>
                     <select multiple className="w-full h-24 p-2 border border-gray-300 rounded-md mt-2">
-                      <option>محمد أحمد</option>
-                      <option>علي حسن</option>
-                      <option>أحمد علي</option>
-                      <option>خالد محمد</option>
+                      <option>{tr("محمد أحمد")}</option>
+                      <option>{tr("علي حسن")}</option>
+                      <option>{tr("أحمد علي")}</option>
+                      <option>{tr("خالد محمد")}</option>
                     </select>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
                     <Button type="button" variant="outline" onClick={() => setShowDepartmentForm(false)}>
-                      إلغاء
+                      {tr("إلغاء")}
                     </Button>
                     <Button type="submit" className="erp-btn-primary">
-                      حفظ البيانات
+                      {tr("حفظ البيانات")}
                     </Button>
                   </div>
                 </form>
@@ -263,11 +264,11 @@ function DepartmentsDefinitions() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">رقم القسم</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم القسم</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الفرع</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">المسؤول</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رقم القسم")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم القسم")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الفرع")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("المسؤول")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -279,7 +280,7 @@ function DepartmentsDefinitions() {
                       <td className="p-3 text-gray-600">{dept.manager}</td>
                       <td className="p-3">
                         <Button variant="outline" size="sm">
-                          تعديل
+                          {tr("تعديل")}
                         </Button>
                       </td>
                     </tr>
@@ -295,14 +296,14 @@ function DepartmentsDefinitions() {
         <div className="space-y-8">
           {/* Cities Section */}
           <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-lg font-heading font-semibold mb-4">المدن</h2>
+            <h2 className="text-lg font-heading font-semibold mb-4">{tr("المدن")}</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الرقم</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم المدينة</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم المدينة")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -312,7 +313,7 @@ function DepartmentsDefinitions() {
                       <td className="p-3 text-gray-600">{city.name}</td>
                       <td className="p-3">
                         <Button variant="outline" size="sm">
-                          تعديل
+                          {tr("تعديل")}
                         </Button>
                       </td>
                     </tr>
@@ -324,16 +325,16 @@ function DepartmentsDefinitions() {
 
           {/* Warehouses Section */}
           <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-lg font-heading font-semibold mb-4">المستودعات</h2>
+            <h2 className="text-lg font-heading font-semibold mb-4">{tr("المستودعات")}</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">رقم المستودع</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم المستودع</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الأقسام التابعة</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الطابعة</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رقم المستودع")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم المستودع")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الأقسام التابعة")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الطابعة")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -345,7 +346,7 @@ function DepartmentsDefinitions() {
                       <td className="p-3 text-gray-600">{warehouse.printer}</td>
                       <td className="p-3">
                         <Button variant="outline" size="sm">
-                          تعديل
+                          {tr("تعديل")}
                         </Button>
                       </td>
                     </tr>
@@ -357,19 +358,19 @@ function DepartmentsDefinitions() {
 
           {/* Classifications Section */}
           <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-lg font-heading font-semibold mb-4">التصنيفات</h2>
+            <h2 className="text-lg font-heading font-semibold mb-4">{tr("التصنيفات")}</h2>
 
             {/* Customer Classifications */}
             <div className="mb-6">
-              <h3 className="text-md font-heading font-medium mb-3">تصنيفات العملاء</h3>
+              <h3 className="text-md font-heading font-medium mb-3">{tr("تصنيفات العملاء")}</h3>
               <div className="overflow-x-auto">
                 <table className="w-full mb-4">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الرقم</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم التصنيف</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">العملاء التابعين</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("العملاء التابعين")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -380,7 +381,7 @@ function DepartmentsDefinitions() {
                         <td className="p-3 text-gray-600">{category.customers.join(", ")}</td>
                         <td className="p-3">
                           <Button variant="outline" size="sm">
-                            تعديل
+                            {tr("تعديل")}
                           </Button>
                         </td>
                       </tr>
@@ -392,15 +393,15 @@ function DepartmentsDefinitions() {
 
             {/* Supplier Classifications */}
             <div className="mb-6">
-              <h3 className="text-md font-heading font-medium mb-3">تصنيفات الموردين</h3>
+              <h3 className="text-md font-heading font-medium mb-3">{tr("تصنيفات الموردين")}</h3>
               <div className="overflow-x-auto">
                 <table className="w-full mb-4">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الرقم</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم التصنيف</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الموردين التابعين</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الموردين التابعين")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,7 +412,7 @@ function DepartmentsDefinitions() {
                         <td className="p-3 text-gray-600">{category.suppliers.join(", ")}</td>
                         <td className="p-3">
                           <Button variant="outline" size="sm">
-                            تعديل
+                            {tr("تعديل")}
                           </Button>
                         </td>
                       </tr>
@@ -423,15 +424,15 @@ function DepartmentsDefinitions() {
 
             {/* Product Classifications */}
             <div>
-              <h3 className="text-md font-heading font-medium mb-3">تصنيفات الأصناف</h3>
+              <h3 className="text-md font-heading font-medium mb-3">{tr("تصنيفات الأصناف")}</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الرقم</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم التصنيف</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الأصناف التابعة</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الرقم")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم التصنيف")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الأصناف التابعة")}</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -442,7 +443,7 @@ function DepartmentsDefinitions() {
                         <td className="p-3 text-gray-600">{category.products.join(", ")}</td>
                         <td className="p-3">
                           <Button variant="outline" size="sm">
-                            تعديل
+                            {tr("تعديل")}
                           </Button>
                         </td>
                       </tr>
@@ -455,17 +456,17 @@ function DepartmentsDefinitions() {
 
           {/* Currencies Section */}
           <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-lg font-heading font-semibold mb-4">العملات</h2>
+            <h2 className="text-lg font-heading font-semibold mb-4">{tr("العملات")}</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">رمز العملة</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم العملة</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">سعر البيع</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">سعر الشراء</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">سعر الصرف</th>
-                    <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("رمز العملة")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("اسم العملة")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("سعر البيع")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("سعر الشراء")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("سعر الصرف")}</th>
+                    <th className="text-right p-3 font-heading font-semibold text-gray-700">{tr("الإجراءات")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -478,7 +479,7 @@ function DepartmentsDefinitions() {
                       <td className="p-3 text-gray-600">{currency.exchangeRate.toFixed(2)}</td>
                       <td className="p-3">
                         <Button variant="outline" size="sm">
-                          تعديل
+                          {tr("تعديل")}
                         </Button>
                       </td>
                     </tr>

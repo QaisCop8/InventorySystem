@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Check, ChevronDown } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -36,7 +37,7 @@ export function SearchableSelect<T extends Record<string, any>>({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 text-right text-sm shadow-sm transition hover:border-emerald-300 focus-visible:border-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900",
+            "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 text-start text-sm shadow-sm transition hover:border-emerald-300 focus-visible:border-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900",
             open && "border-emerald-400 ring-2 ring-emerald-500/20",
             className,
           )}
@@ -46,7 +47,7 @@ export function SearchableSelect<T extends Record<string, any>>({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        dir="rtl"
+        dir={appDir()}
         align="start"
         collisionPadding={12}
         className="z-[3100] w-[var(--radix-popover-trigger-width)] min-w-[220px] rounded-xl p-0 shadow-xl"

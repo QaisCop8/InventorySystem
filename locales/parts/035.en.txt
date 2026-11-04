@@ -1,0 +1,300 @@
+Category not found
+An error occurred while editing the category
+An error occurred while deleting the category
+The category can't be deleted because there are permissions linked to it
+The category name is required
+An error occurred while adding the category
+An error occurred while fetching categories
+The permission name is required
+An error occurred while adding the permission
+An error occurred while fetching permissions
+Unable to download the backup
+Type the database name exactly to confirm the restore
+Database not found
+Backup not found
+Company not found
+An error occurred while approving the company
+You do not have permission to approve companies
+This company isn't awaiting approval
+The number of branches must be 1 or more
+The number of users must be 1 or more
+The number of restaurant locations must be 0 or more
+The number of points of sale must be 0 or more
+The company currently has {0} branches — a lower number can't be set
+The company currently has {0} active users — a lower number can't be set
+The company currently has {0} restaurant locations — a lower number can't be set
+The company currently has {0} points of sale — a lower number can't be set
+The company doesn't exist or isn't awaiting approval
+An error occurred while rejecting the company
+You do not have permission to reject companies
+An error occurred while fetching companies
+Invalid message
+Message not found
+Unable to update the message status
+Invalid message status
+You do not have access permission
+Invalid approved number
+This request was already processed
+The rejection reason must be written
+Unable to load license requests
+An error occurred while activating the user
+You do not have permission to perform this action
+An error occurred while suspending the user
+You can't suspend your own account
+An error occurred while setting the password
+An error occurred while fetching users
+Invalid company
+An error occurred while updating the subscription
+The company ID is required
+The company name is duplicated, please choose another name
+Unable to find the user
+You do not have permission to edit prices
+Name, email, phone and WhatsApp are required
+Invalid email
+Invalid phone number
+The company hasn't been approved yet
+An error occurred while choosing the company
+You do not have permission to access this company
+There is no active user with this email in the company database
+You must contact the system provider company to extend the subscription
+Unable to update the message
+Choose the document type (purchase invoice or receipt voucher)
+Maximum {0} attachments per message
+The account doesn't exist or isn't a supplier/customer/subscriber
+The account is required (supplier, customer or subscriber)
+File size {0} exceeds 8 MB
+Unsupported file type: {0} (images or PDF only)
+Failed to fetch measurement types
+Failed to fetch records
+Failed to fetch scheduled messages
+Failed to create the template
+Failed to fetch templates
+Failed to fetch data
+The Android app isn't available for download yet
+Unable to load the quick start status
+Unable to save the quick start progress
+The list name and at least one field are required
+The list, its name and at least one field are required
+Checklist not found
+Invalid draft number
+{0}: required {1} and available {2} in the main unit
+The field «{0}» is mandatory
+The field «{0}» exceeds the maximum
+The field «{0}» must be a whole number
+The current quantity of item {0} is below the minimum
+The draft doesn't exist or was confirmed
+A warehouse must be set for item {0} before confirming the order
+A unit must be set for item {0} before confirming the order
+Draft not found
+Unable to update the draft
+A confirmed or non-existent draft can't be edited
+A confirmed or non-existent draft can't be deleted
+Unable to load the sales order drafts archive
+The maximum order draft numbers was exceeded
+An error occurred fetching customer data
+The order data is incomplete
+An error occurred creating the purchase order
+An error occurred fetching purchase orders
+An error occurred while updating the order
+An error occurred while deleting the order
+The order can't be deleted; invoice(s) were issued from the order
+The customer name or number is required
+Order not found
+The order data is required
+The "partially/fully sent" status is set automatically from sales invoices only
+An error occurred creating the order
+An error occurred fetching the orders
+The order items are required
+The order status can't be changed after it is linked to a sales invoice — it changes automatically from the invoices (it can only be closed)
+An error occurred while searching for orders
+An error occurred fetching supplier data
+No specific reason
+Unable to load the print-by-warehouse data
+Unable to record the print
+Open the period first before deleting its record
+Period not found
+Unable to lock the period
+Unable to update the period
+Unable to load locked periods
+Unable to delete the period
+Invalid period dates
+Set the period start and end dates
+The period ID is required
+The period end is before its start
+This period is already locked for the same branch
+Enter a valid amount
+Attach the transfer notice image
+The currency is not available
+Invalid transfer date
+The file is larger than 4 MB
+You have many payments awaiting review — wait for them to be reviewed first
+Unsupported file type — image (JPG/PNG/WEBP) or PDF
+The category ID is required
+The category ID and name are required
+The category name already exists
+There is a deleted price category with this name; restore the category or use another name
+The variant name is required
+Unable to create the variant or value
+Unable to load item attributes
+Item configuration
+Invalid navigation direction
+Unable to edit the production voucher
+Production voucher not found
+No item with number {0}
+Invalid production voucher ID
+The production voucher ID is required
+Failed to fetch products
+Unable to load item numbers
+Invalid number type
+Unable to load item tax rates
+Add at least one discount line (leave the item empty for a discount on all items)
+Add at least one item
+Choose at least one customer or enable «All customers»
+The offer name is required
+Line {0}: choose the item
+Line {0}: choose the purchased item
+Line {0}: the special price is required
+Line {0}: the free quantity is required
+Line {0}: the purchase quantity is required
+Line {0}: the discount rate is between 0 and 100
+Invalid end date
+The end date is before the start date
+The offer start date is required
+Invalid offer type
+There is an item that doesn't exist or was deleted
+There is a customer that doesn't exist
+Offer not found
+Unable to load the offer
+Unable to delete the offer
+Unable to evaluate the offers
+Unable to load the offers
+Unable to save the offer
+The offer number is already used
+Manual numbering is enabled
+The check report is required
+{0} files fixed automatically
+Automatic fix failed
+Failed to run the quality check
+Account {0} - {1} needs a cost center; the voucher can't be saved
+The voucher doesn't exist or isn't approved
+The cheque selected from the cheque book doesn't exist
+Cheque no. {0} from the cheque book is void and can't be used
+Cheque no. {0} from the cheque book is already used in another voucher
+Cheque number {0} is entered in another voucher no. {1} - cannot continue
+Cheque number {0} is duplicated for the same bank account in the voucher
+The voucher currency differs from the account currency and it can't be chosen: {0} - {1}
+Entering cheques manually in the payment voucher isn't allowed - the cheque must be chosen from the cheque book
+There is no image for this cheque
+Unable to load the reports archive
+Unable to record the event
+Invalid event type
+The selected currency doesn't exist
+You do not have permission on the selected branches
+There is no valid exchange rate for the report currency on the date of one of the transactions. Please define the exchange rate and show the report again.
+Failed to create the lot transactions report
+Unable to load the cheques report
+Unknown report type
+Unable to load the cost centers report
+Unable to load the deliveries report
+The delivery number entered is incorrect
+There is no valid exchange rate for the report currency on the date of one of the vouchers.
+Unable to load item balances by expiry
+Unable to load the financial report
+There is no valid exchange rate for the report currency when valuing inventory
+There is no valid exchange rate for the currency of item {0}
+Invalid item
+Failed to create the inventory report by lots
+Unable to load the orders report
+Invalid report type
+The voucher number is incorrect or contains no stock items
+Unable to load the serial movements report
+Unable to load the tax report
+There is no valid exchange rate for the report currency on the date of one of the vouchers. Please define the exchange rate and show the report again.
+The invoice entry type definitions are incomplete in voucher_journal_type_tbl
+The delivery is not approved
+Delivery not found
+A return ({0}) was made for this delivery
+Failed to fetch consignment deliveries
+You do not have permission on this delivery's branch
+There is nothing remaining in this delivery — it was fully invoiced
+Invalid voucher type
+Failed to fetch the deliveries list
+Unsupported invoice type
+The order ID is required
+Unsupported order type
+Failed to fetch the orders list
+The supplier ID is required
+One of the order items isn't valid for this source order
+Delivery {0} isn't posted — post it first then save the invoice
+Delivery {0} is for another customer/supplier — the invoice account must match the delivery account (don't change the customer after choosing the delivery)
+Delivery {0} is cancelled — choose a posted delivery again or delete its lines from the invoice
+Delivery {0} is from another branch — the invoice branch must match the delivery branch
+The source delivery is invalid
+Voucher {0} isn't {1} — it can't be invoiced with this type of invoice
+The specified quantity or bonus exceeds the remainder in the order
+Some invoice lines are linked to delivery lines that no longer exist — delete these lines and choose the delivery again
+Unable to determine the invoice entry types
+An invoice was already issued for this delivery
+This element was already fully invoiced
+The voucher number is incomplete
+The voucher number must start with {0}
+The delivery can't be cancelled: {0} were issued from it — cancel {1} first
+The delivery can't be cancelled: {0} were issued from it
+The total of the payments must equal the invoice total
+The account must be set for each payment method
+A valid rule name and commission basis are required
+Unknown action
+The commission isn't approved or isn't payable
+The commission doesn't exist or is outside the permitted branches
+The amount exceeds the unallocated balance in the payment voucher
+Invalid target data
+Invalid rule validity dates
+The commission status doesn't allow this action
+Specify the receipt voucher, invoice and allocation amount
+The payment voucher number and payment amount are required
+The receipt voucher or sales invoice is invalid or not approved
+Invalid commission brackets
+The payment voucher currency must match the commission currency
+Not authorized to set up a rule for this branch
+Not authorized to allocate a voucher from this branch
+Not authorized to pay a commission from this branch
+Invalid report period
+Invalid calculation period
+The allocation amount exceeds the invoice's open balance
+The allocation amount exceeds the receipt voucher
+The payment amount exceeds the commission balance
+The receipt voucher's branch, currency and customer must match the invoice
+The commission must be linked to an approved payment voucher from the same branch
+The salesman number or name already exists
+The salesman number and name must be entered
+Batch settings saved successfully
+The document_settings table doesn't exist
+Job role not found
+The job role can't be deleted because it is linked to users
+The job role name is required
+The job role name already exists
+User not found
+Unable to load the shortcuts
+user_id is required
+The email is already used by another user in this company
+The password can't be changed from the user definition; the user uses "Forgot password" from the sign-in screen
+The image file is invalid or exceeds the allowed size
+Unable to load user permissions
+Invalid currency or account data
+Unable to reset the settings
+Unable to save the print settings
+Voucher type not found
+The template name and text are required
+Template not found
+Unable to load message data
+The messaging service is not enabled — enable it from the SMS settings
+The mobile number and message text are required
+Invalid document
+Invalid document type
+Enter the number
+Enter the serial number
+Enter the item number or barcode
+Session no. - {0} was reopened
+Session no. - {0} was cancelled and its quantities deleted
+Choose the issue voucher book (for the shortage)
+Choose the receipt voucher book (for the surplus)

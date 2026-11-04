@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Building2, Check, Edit, Loader2, Monitor, UtensilsCrossed, Save, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button"
 type Usage = { users: number; branches: number; pos_points?: number; restaurant_locations?: number } | null | undefined
 export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; number_of_pos_points?: number; number_of_restaurant_locations?: number; usage?: Usage; pending_license_requests?: number; status: string }
 
-const RESOURCE_LABEL: Record<string, string> = { users: "المستخدمين", branches: "الفروع", pos_points: "نقاط البيع", restaurant_locations: "مواقع المطاعم" }
+const RESOURCE_LABEL: Record<string, string> = { users: tr("المستخدمين"), branches: tr("الفروع"), pos_points: tr("نقاط البيع"), restaurant_locations: tr("مواقع المطاعم") }
 
 function Meter({ icon: Icon, label, used, limit }: { icon: typeof Users; label: string; used: number | null; limit: number }) {
   const ratio = used == null ? 0 : Math.min(1, used / Math.max(limit, 1))
@@ -41,7 +42,7 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
     try {
       const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches), number_of_pos_points: Number(posPoints), number_of_restaurant_locations: Number(restaurants) }) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) { onError(data.error || "تعذر تحديث الترخيص"); return }
+      if (!response.ok) { onError(data.error || tr("تعذر تحديث الترخيص")); return }
       setEditing(false); onSaved()
     } finally { setSaving(false) }
   }
@@ -50,29 +51,29 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
     <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/70 p-3">
       {editing ? (
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs text-slate-600">عدد المستخدمين المرخّص
+          <label className="text-xs text-slate-600">{tr("عدد المستخدمين المرخّص")}
             <input type="number" min={1} value={users} onChange={(event) => setUsers(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
-          <label className="text-xs text-slate-600">عدد الفروع المرخّص
+          <label className="text-xs text-slate-600">{tr("عدد الفروع المرخّص")}
             <input type="number" min={1} value={branches} onChange={(event) => setBranches(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
-          <label className="text-xs text-slate-600">عدد نقاط البيع المرخّص
+          <label className="text-xs text-slate-600">{tr("عدد نقاط البيع المرخّص")}
             <input type="number" min={0} value={posPoints} onChange={(event) => setPosPoints(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
-          <label className="text-xs text-slate-600">عدد مواقع المطاعم المرخّص
+          <label className="text-xs text-slate-600">{tr("عدد مواقع المطاعم المرخّص")}
             <input type="number" min={0} value={restaurants} onChange={(event) => setRestaurants(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
-          <Button size="sm" className="gap-1" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}حفظ</Button>
-          <Button size="sm" variant="outline" disabled={saving} onClick={() => setEditing(false)}>إلغاء</Button>
+          <Button size="sm" className="gap-1" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}{tr("حفظ")}</Button>
+          <Button size="sm" variant="outline" disabled={saving} onClick={() => setEditing(false)}>{tr("إلغاء")}</Button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-4">
-          <Meter icon={Users} label="المستخدمون" used={company.usage?.users ?? null} limit={Number(company.number_of_users ?? 1)} />
-          <Meter icon={Building2} label="الفروع" used={company.usage?.branches ?? null} limit={Number(company.number_of_branches ?? 1)} />
-          <Meter icon={Monitor} label="نقاط البيع" used={company.usage?.pos_points ?? null} limit={Number(company.number_of_pos_points ?? 0)} />
-          <Meter icon={UtensilsCrossed} label="مواقع المطاعم" used={company.usage?.restaurant_locations ?? null} limit={Number(company.number_of_restaurant_locations ?? 0)} />
-          {!!company.pending_license_requests && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{company.pending_license_requests} طلب زيادة معلق</span>}
-          <Button size="sm" variant="outline" className="gap-1" onClick={() => setEditing(true)}><Edit className="h-3.5 w-3.5" />تعديل الترخيص</Button>
+          <Meter icon={Users} label={tr("المستخدمون")} used={company.usage?.users ?? null} limit={Number(company.number_of_users ?? 1)} />
+          <Meter icon={Building2} label={tr("الفروع")} used={company.usage?.branches ?? null} limit={Number(company.number_of_branches ?? 1)} />
+          <Meter icon={Monitor} label={tr("نقاط البيع")} used={company.usage?.pos_points ?? null} limit={Number(company.number_of_pos_points ?? 0)} />
+          <Meter icon={UtensilsCrossed} label={tr("مواقع المطاعم")} used={company.usage?.restaurant_locations ?? null} limit={Number(company.number_of_restaurant_locations ?? 0)} />
+          {!!company.pending_license_requests && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{company.pending_license_requests}{tr(" طلب زيادة معلق")}</span>}
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => setEditing(true)}><Edit className="h-3.5 w-3.5" />{tr("تعديل الترخيص")}</Button>
         </div>
       )}
     </div>
@@ -102,7 +103,7 @@ export function LicenseRequestsPanel({ onChanged }: { onChanged?: () => void }) 
     try {
       const response = await fetch(`/api/management/admin/license-requests${filter === "pending" ? "?status=pending" : ""}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل الطلبات")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل الطلبات"))
       setRows(data); setError("")
     } catch (cause: any) { setError(cause.message) } finally { setLoading(false) }
   }
@@ -116,7 +117,7 @@ export function LicenseRequestsPanel({ onChanged }: { onChanged?: () => void }) 
         body: JSON.stringify({ action, approved_quantity: Number(quantities[row.id] ?? row.quantity), note: action === "reject" ? note : undefined }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) { setError(data.error || "تعذر معالجة الطلب"); return }
+      if (!response.ok) { setError(data.error || tr("تعذر معالجة الطلب")); return }
       setRejecting(null); setNote("")
       await load(); onChanged?.()
     } finally { setBusyId(null) }
@@ -127,13 +128,13 @@ export function LicenseRequestsPanel({ onChanged }: { onChanged?: () => void }) 
       <div className="flex items-center gap-2">
         {(["pending", "all"] as const).map((value) => (
           <button key={value} onClick={() => setFilter(value)} className={`rounded-full px-3 py-1 text-xs font-medium ${filter === value ? "bg-violet-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
-            {value === "pending" ? "بانتظار الاعتماد" : "كل الطلبات"}
+            {value === "pending" ? tr("بانتظار الاعتماد") : tr("كل الطلبات")}
           </button>
         ))}
         {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {!loading && rows.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا توجد طلبات</div>}
+      {!loading && rows.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">{tr("لا توجد طلبات")}</div>}
       {rows.map((row) => {
         const currentLimit = row.resource === "users" ? row.number_of_users : row.resource === "pos_points" ? Number(row.number_of_pos_points ?? 0) : row.resource === "restaurant_locations" ? Number(row.number_of_restaurant_locations ?? 0) : row.number_of_branches
         const quantity = quantities[row.id] ?? String(row.quantity)
@@ -143,29 +144,29 @@ export function LicenseRequestsPanel({ onChanged }: { onChanged?: () => void }) 
               <div>
                 <div className="flex items-center gap-2 font-semibold text-slate-800">
                   {row.company_name}
-                  <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">زيادة {RESOURCE_LABEL[row.resource]} +{row.quantity}</span>
-                  {row.status !== "pending" && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${row.status === "approved" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200"}`}>{row.status === "approved" ? `معتمد (+${row.approved_quantity})` : "مرفوض"}</span>}
+                  <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">{tr("زيادة ")}{RESOURCE_LABEL[row.resource]} +{row.quantity}</span>
+                  {row.status !== "pending" && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${row.status === "approved" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200"}`}>{row.status === "approved" ? tr("معتمد (+{0})", row.approved_quantity) : tr("مرفوض")}</span>}
                 </div>
                 <div className="mt-1 text-sm text-slate-500">{row.requested_by_name || "-"}{row.requested_by_email ? ` · ${row.requested_by_email}` : ""} · {new Date(row.created_at).toLocaleString("en-GB")}</div>
-                <div className="mt-1 text-sm text-slate-600">الحد عند الطلب: <b>{row.limit_before ?? "-"}</b> · المستخدم فعلياً: <b>{row.used_at_request ?? "-"}</b> · الحد الحالي: <b>{currentLimit}</b></div>
-                {row.reason && <div className="mt-1 text-sm text-slate-600">السبب: {row.reason}</div>}
-                {row.decision_note && <div className="mt-1 text-sm text-slate-500">ملاحظة القرار: {row.decision_note}{row.decided_by_name ? ` — ${row.decided_by_name}` : ""}</div>}
+                <div className="mt-1 text-sm text-slate-600">{tr("الحد عند الطلب: ")}<b>{row.limit_before ?? "-"}</b>{tr(" · المستخدم فعلياً: ")}<b>{row.used_at_request ?? "-"}</b>{tr(" · الحد الحالي: ")}<b>{currentLimit}</b></div>
+                {row.reason && <div className="mt-1 text-sm text-slate-600">{tr("السبب: ")}{row.reason}</div>}
+                {row.decision_note && <div className="mt-1 text-sm text-slate-500">{tr("ملاحظة القرار: ")}{row.decision_note}{row.decided_by_name ? ` — ${row.decided_by_name}` : ""}</div>}
               </div>
               {row.status === "pending" && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-1 text-xs text-slate-500">العدد المعتمد
+                  <label className="flex items-center gap-1 text-xs text-slate-500">{tr("العدد المعتمد")}
                     <input type="number" min={1} value={quantity} onChange={(event) => setQuantities((current) => ({ ...current, [row.id]: event.target.value }))} className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm" />
                   </label>
-                  <Button size="sm" variant="outline" className="gap-1 border-red-200 text-red-600 hover:bg-red-50" disabled={busyId === row.id} onClick={() => { setRejecting(row.id); setNote("") }}><X className="h-4 w-4" />رفض</Button>
-                  <Button size="sm" className="gap-1" disabled={busyId === row.id} onClick={() => void decide(row, "approve")}>{busyId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}اعتماد</Button>
+                  <Button size="sm" variant="outline" className="gap-1 border-red-200 text-red-600 hover:bg-red-50" disabled={busyId === row.id} onClick={() => { setRejecting(row.id); setNote("") }}><X className="h-4 w-4" />{tr("رفض")}</Button>
+                  <Button size="sm" className="gap-1" disabled={busyId === row.id} onClick={() => void decide(row, "approve")}>{busyId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{tr("اعتماد")}</Button>
                 </div>
               )}
             </div>
             {rejecting === row.id && (
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-                <input autoFocus value={note} onChange={(event) => setNote(event.target.value)} placeholder="سبب الرفض (إجباري)" className="min-w-[240px] flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
-                <Button size="sm" variant="destructive" disabled={!note.trim() || busyId === row.id} onClick={() => void decide(row, "reject")}>تأكيد الرفض</Button>
-                <Button size="sm" variant="outline" onClick={() => setRejecting(null)}>إلغاء</Button>
+                <input autoFocus value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr("سبب الرفض (إجباري)")} className="min-w-[240px] flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
+                <Button size="sm" variant="destructive" disabled={!note.trim() || busyId === row.id} onClick={() => void decide(row, "reject")}>{tr("تأكيد الرفض")}</Button>
+                <Button size="sm" variant="outline" onClick={() => setRejecting(null)}>{tr("إلغاء")}</Button>
               </div>
             )}
           </div>

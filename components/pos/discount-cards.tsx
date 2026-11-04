@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -47,11 +48,11 @@ type Form = ReturnType<typeof blank>
 
 const cardState = (card: Card) => {
   const now = today()
-  if (Number(card.status) !== 1) return { label: "موقوفة", tone: "bg-slate-100 text-slate-600" }
-  if (now < card.start_date) return { label: "لم تبدأ", tone: "bg-sky-100 text-sky-700" }
-  if (now > card.end_date) return { label: "منتهية", tone: "bg-rose-100 text-rose-700" }
-  if (card.max_uses > 0 && card.used_count >= card.max_uses) return { label: "مستنفدة", tone: "bg-amber-100 text-amber-700" }
-  return { label: "فعّالة", tone: "bg-emerald-100 text-emerald-700" }
+  if (Number(card.status) !== 1) return { label: tr("موقوفة"), tone: "bg-slate-100 text-slate-600" }
+  if (now < card.start_date) return { label: tr("لم تبدأ"), tone: "bg-sky-100 text-sky-700" }
+  if (now > card.end_date) return { label: tr("منتهية"), tone: "bg-rose-100 text-rose-700" }
+  if (card.max_uses > 0 && card.used_count >= card.max_uses) return { label: tr("مستنفدة"), tone: "bg-amber-100 text-amber-700" }
+  return { label: tr("فعّالة"), tone: "bg-emerald-100 text-emerald-700" }
 }
 
 export default function DiscountCards() {
@@ -71,12 +72,12 @@ export default function DiscountCards() {
     try {
       const [cardsResponse, branchesResponse] = await Promise.all([fetch("/api/pos/discount-cards", { cache: "no-store" }), fetch("/api/branches", { cache: "no-store" })])
       const cardsData = await cardsResponse.json().catch(() => [])
-      if (!cardsResponse.ok) throw new Error(cardsData?.error || "تعذر تحميل بطاقات الخصم")
+      if (!cardsResponse.ok) throw new Error(cardsData?.error || tr("تعذر تحميل بطاقات الخصم"))
       setCards(Array.isArray(cardsData) ? cardsData : [])
       const branchesData = await branchesResponse.json().catch(() => [])
       setBranches((Array.isArray(branchesData) ? branchesData : []).filter((branch: any) => !branch.bank_id))
     } catch (reason) {
-      toast({ title: "خطأ", description: reason instanceof Error ? reason.message : "تعذر التحميل", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: reason instanceof Error ? reason.message : tr("تعذر التحميل"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -94,7 +95,7 @@ export default function DiscountCards() {
 
   const stats = useMemo(() => ({
     total: cards.length,
-    active: cards.filter((card) => cardState(card).label === "فعّالة").length,
+    active: cards.filter((card) => cardState(card).label === tr("فعّالة")).length,
     used: cards.reduce((sum, card) => sum + Number(card.used_count || 0), 0),
     stopped: cards.filter((card) => Number(card.status) !== 1).length,
   }), [cards])
@@ -108,18 +109,18 @@ export default function DiscountCards() {
 
   const save = async () => {
     if (!form) return
-    if (!form.account_id) { setError("اختر العميل"); return }
+    if (!form.account_id) { setError(tr("اختر العميل")); return }
     setSaving(true)
     setError("")
     try {
       const response = await fetch("/api/pos/discount-cards", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data?.error || "تعذر الحفظ")
-      toast({ title: "تم الحفظ", description: `بطاقة الخصم ${data.card_number}` })
+      if (!response.ok) throw new Error(data?.error || tr("تعذر الحفظ"))
+      toast({ title: tr("تم الحفظ"), description: tr("بطاقة الخصم {0}", data.card_number) })
       setForm(null)
       void load()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر الحفظ")
+      setError(reason instanceof Error ? reason.message : tr("تعذر الحفظ"))
     } finally {
       setSaving(false)
     }
@@ -130,26 +131,26 @@ export default function DiscountCards() {
     const response = await fetch(`/api/pos/discount-cards?id=${remove.id}`, { method: "DELETE" })
     const data = await response.json().catch(() => ({}))
     setRemove(null)
-    if (!response.ok) { toast({ title: "خطأ", description: data?.error || "تعذر الحذف", variant: "destructive" }); return }
-    toast({ title: data.deactivated ? "تم الإيقاف" : "تم الحذف", description: data.message || "تم حذف بطاقة الخصم" })
+    if (!response.ok) { toast({ title: tr("خطأ"), description: data?.error || tr("تعذر الحذف"), variant: "destructive" }); return }
+    toast({ title: data.deactivated ? tr("تم الإيقاف") : tr("تم الحذف"), description: data.message || tr("تم حذف بطاقة الخصم") })
     void load()
   }
 
   const money = (value: number) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 
   return (
-    <div dir="rtl" className="flex min-h-full flex-col gap-3 bg-slate-50 p-3 sm:p-4 dark:bg-slate-950">
+    <div dir={appDir()} className="flex min-h-full flex-col gap-3 bg-slate-50 p-3 sm:p-4 dark:bg-slate-950">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-slate-900 via-slate-800 to-teal-900 px-4 py-3 text-white shadow-sm">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20"><BadgePercent className="h-5 w-5" /></span>
           <div>
-            <h1 className="text-lg font-bold">بطاقات الخصم</h1>
-            <p className="text-xs text-white/70">ربط العملاء ببطاقات خصم بمدة صلاحية وشروط تُطبَّق تلقائياً في كاشير نقطة البيع</p>
+            <h1 className="text-lg font-bold">{tr("بطاقات الخصم")}</h1>
+            <p className="text-xs text-white/70">{tr("ربط العملاء ببطاقات خصم بمدة صلاحية وشروط تُطبَّق تلقائياً في كاشير نقطة البيع")}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
-          <Button size="sm" className="bg-teal-500 hover:bg-teal-600" onClick={openNew}><Plus className="ml-1 h-4 w-4" />بطاقة جديدة</Button>
+          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button size="sm" className="bg-teal-500 hover:bg-teal-600" onClick={openNew}><Plus className="ml-1 h-4 w-4" />{tr("بطاقة جديدة")}</Button>
         </div>
       </header>
 
@@ -165,11 +166,11 @@ export default function DiscountCards() {
       <section className="rounded-xl border bg-white p-3 shadow-sm dark:bg-slate-900">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
-            <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-slate-400" />
-            <Input className="h-9 pr-8" placeholder="رقم البطاقة أو اسم/رقم العميل…" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <Search className="absolute start-2.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Input className="h-9 ps-8" placeholder={tr("رقم البطاقة أو اسم/رقم العميل…")} value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
           <select className="h-9 rounded-md border bg-background px-2 text-sm" value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
-            <option value="all">كل الحالات</option>
+            <option value="all">{tr("كل الحالات")}</option>
             {["فعّالة", "لم تبدأ", "منتهية", "مستنفدة", "موقوفة"].map((label) => <option key={label} value={label}>{label}</option>)}
           </select>
         </div>
@@ -179,15 +180,15 @@ export default function DiscountCards() {
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-sm text-slate-500">
             <CreditCard className="h-8 w-8 text-slate-300" />
-            {cards.length ? "لا توجد بطاقات مطابقة" : "لا توجد بطاقات خصم بعد"}
-            {!cards.length && <Button size="sm" variant="outline" onClick={openNew}><Plus className="ml-1 h-4 w-4" />إنشاء أول بطاقة</Button>}
+            {cards.length ? tr("لا توجد بطاقات مطابقة") : tr("لا توجد بطاقات خصم بعد")}
+            {!cards.length && <Button size="sm" variant="outline" onClick={openNew}><Plus className="ml-1 h-4 w-4" />{tr("إنشاء أول بطاقة")}</Button>}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800/60">
                 <tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:text-right [&>th]:font-bold">
-                  <th>رقم البطاقة</th><th>العميل</th><th>الخصم</th><th>الشروط</th><th>الصلاحية</th><th>الاستخدام</th><th>الحالة</th><th />
+                  <th>{tr("رقم البطاقة")}</th><th>{tr("العميل")}</th><th>{tr("الخصم")}</th><th>{tr("الشروط")}</th><th>{tr("الصلاحية")}</th><th>{tr("الاستخدام")}</th><th>{tr("الحالة")}</th><th />
                 </tr>
               </thead>
               <tbody>
@@ -199,17 +200,17 @@ export default function DiscountCards() {
                       <td><div className="font-medium">{card.customer_name}</div><div className="text-xs text-slate-500">{card.customer_code}</div></td>
                       <td><span className="rounded-md bg-teal-50 px-2 py-0.5 font-bold text-teal-700">{Number(card.discount_percent)}%</span></td>
                       <td className="text-xs leading-5 text-slate-600">
-                        {Number(card.min_invoice_amount) > 0 && <div>الفاتورة أكثر من {money(card.min_invoice_amount)}</div>}
-                        {Number(card.max_discount_amount) > 0 && <div>الخصم حتى {money(card.max_discount_amount)}</div>}
-                        {card.branch_name && <div>فرع {card.branch_name}</div>}
-                        {!(Number(card.min_invoice_amount) > 0) && !(Number(card.max_discount_amount) > 0) && !card.branch_name && <span className="text-slate-400">بدون شروط</span>}
+                        {Number(card.min_invoice_amount) > 0 && <div>{tr("الفاتورة أكثر من ")}{money(card.min_invoice_amount)}</div>}
+                        {Number(card.max_discount_amount) > 0 && <div>{tr("الخصم حتى ")}{money(card.max_discount_amount)}</div>}
+                        {card.branch_name && <div>{tr("فرع ")}{card.branch_name}</div>}
+                        {!(Number(card.min_invoice_amount) > 0) && !(Number(card.max_discount_amount) > 0) && !card.branch_name && <span className="text-slate-400">{tr("بدون شروط")}</span>}
                       </td>
                       <td className="whitespace-nowrap text-xs"><CalendarRange className="ml-1 inline h-3.5 w-3.5 text-slate-400" />{card.start_date} ← {card.end_date}</td>
                       <td className="tabular-nums">{card.used_count}{card.max_uses > 0 ? ` / ${card.max_uses}` : ""}</td>
                       <td><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${state.tone}`}>{state.label}</span></td>
-                      <td className="whitespace-nowrap text-left">
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label="تعديل" onClick={() => openEdit(card)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50" aria-label="حذف" onClick={() => setRemove(card)}><Trash2 className="h-4 w-4" /></Button>
+                      <td className="whitespace-nowrap text-end">
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label={tr("تعديل")} onClick={() => openEdit(card)}><Pencil className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50" aria-label={tr("حذف")} onClick={() => setRemove(card)}><Trash2 className="h-4 w-4" /></Button>
                       </td>
                     </tr>
                   )
@@ -221,60 +222,60 @@ export default function DiscountCards() {
       </section>
 
       <Dialog open={Boolean(form)} onOpenChange={(open) => { if (!open && !saving) setForm(null) }}>
-        <DialogContent dir="rtl" className="max-h-[92dvh] w-[94vw] max-w-2xl overflow-y-auto" onInteractOutside={(event) => event.preventDefault()}>
+        <DialogContent dir={appDir()} className="max-h-[92dvh] w-[94vw] max-w-2xl overflow-y-auto" onInteractOutside={(event) => event.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><BadgePercent className="h-5 w-5 text-teal-600" />{form?.id ? "تعديل بطاقة خصم" : "بطاقة خصم جديدة"}</DialogTitle>
-            <DialogDescription>تُطبَّق البطاقة في الكاشير عند اختيار العميل أو مسح رقم البطاقة، ضمن مدة الصلاحية وبعد تحقق الشروط.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><BadgePercent className="h-5 w-5 text-teal-600" />{form?.id ? tr("تعديل بطاقة خصم") : tr("بطاقة خصم جديدة")}</DialogTitle>
+            <DialogDescription>{tr("تُطبَّق البطاقة في الكاشير عند اختيار العميل أو مسح رقم البطاقة، ضمن مدة الصلاحية وبعد تحقق الشروط.")}</DialogDescription>
           </DialogHeader>
           {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
           {form && (
             <div className="grid gap-3 sm:grid-cols-2 [&_label]:text-xs">
               <div className="sm:col-span-2">
-                <Label>العميل *</Label>
+                <Label>{tr("العميل *")}</Label>
                 <AutoCompleteAccount valueMode="id" value={form.account_id ? String(form.account_id) : ""} onValueChange={(value) => set({ account_id: Number(value) || 0 })} showCostCenterButton={false} searchAllowedTypeValues={[2, 3, 5]} />
               </div>
               <div>
-                <Label>رقم البطاقة</Label>
-                <Input dir="ltr" className="text-right font-mono" placeholder="يُولَّد تلقائياً إن تُرك فارغاً" value={form.card_number} onChange={(event) => set({ card_number: event.target.value })} />
+                <Label>{tr("رقم البطاقة")}</Label>
+                <Input dir="ltr" className="text-right font-mono" placeholder={tr("يُولَّد تلقائياً إن تُرك فارغاً")} value={form.card_number} onChange={(event) => set({ card_number: event.target.value })} />
               </div>
               <div>
-                <Label>الفرع (اختياري)</Label>
+                <Label>{tr("الفرع (اختياري)")}</Label>
                 <select className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={form.branch_id ?? ""} onChange={(event) => set({ branch_id: Number(event.target.value) || null })}>
-                  <option value="">كل الفروع</option>
+                  <option value="">{tr("كل الفروع")}</option>
                   {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
                 </select>
               </div>
-              <div><Label>من تاريخ *</Label><Input type="date" value={form.start_date} onChange={(event) => set({ start_date: event.target.value })} /></div>
-              <div><Label>إلى تاريخ *</Label><Input type="date" min={form.start_date} value={form.end_date} onChange={(event) => set({ end_date: event.target.value })} /></div>
-              <div><Label>نسبة الخصم % *</Label><Input type="number" min={0.01} max={100} step="0.01" value={form.discount_percent} onChange={(event) => set({ discount_percent: Number(event.target.value) })} /></div>
+              <div><Label>{tr("من تاريخ *")}</Label><Input type="date" value={form.start_date} onChange={(event) => set({ start_date: event.target.value })} /></div>
+              <div><Label>{tr("إلى تاريخ *")}</Label><Input type="date" min={form.start_date} value={form.end_date} onChange={(event) => set({ end_date: event.target.value })} /></div>
+              <div><Label>{tr("نسبة الخصم % *")}</Label><Input type="number" min={0.01} max={100} step="0.01" value={form.discount_percent} onChange={(event) => set({ discount_percent: Number(event.target.value) })} /></div>
               <div>
-                <Label>مبلغ الفاتورة يجب أن يزيد عن</Label>
+                <Label>{tr("مبلغ الفاتورة يجب أن يزيد عن")}</Label>
                 <Input type="number" min={0} step="0.01" value={form.min_invoice_amount} onChange={(event) => set({ min_invoice_amount: Number(event.target.value) })} />
-                <p className="mt-0.5 text-[11px] text-slate-500">0 = بدون حد أدنى</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{tr("0 = بدون حد أدنى")}</p>
               </div>
               <div>
-                <Label>الحد الأقصى لمبلغ الخصم</Label>
+                <Label>{tr("الحد الأقصى لمبلغ الخصم")}</Label>
                 <Input type="number" min={0} step="0.01" value={form.max_discount_amount} onChange={(event) => set({ max_discount_amount: Number(event.target.value) })} />
-                <p className="mt-0.5 text-[11px] text-slate-500">0 = بدون سقف</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{tr("0 = بدون سقف")}</p>
               </div>
               <div>
-                <Label>عدد مرات الاستخدام المسموح</Label>
+                <Label>{tr("عدد مرات الاستخدام المسموح")}</Label>
                 <Input type="number" min={0} step="1" value={form.max_uses} onChange={(event) => set({ max_uses: Math.trunc(Number(event.target.value)) })} />
-                <p className="mt-0.5 text-[11px] text-slate-500">0 = غير محدود</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">{tr("0 = غير محدود")}</p>
               </div>
               <div>
-                <Label>الحالة</Label>
+                <Label>{tr("الحالة")}</Label>
                 <select className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={form.status} onChange={(event) => set({ status: Number(event.target.value) })}>
-                  <option value={1}>فعّالة</option>
-                  <option value={2}>موقوفة</option>
+                  <option value={1}>{tr("فعّالة")}</option>
+                  <option value={2}>{tr("موقوفة")}</option>
                 </select>
               </div>
-              <div className="sm:col-span-2"><Label>ملاحظات</Label><Textarea rows={2} value={form.notes} onChange={(event) => set({ notes: event.target.value })} /></div>
+              <div className="sm:col-span-2"><Label>{tr("ملاحظات")}</Label><Textarea rows={2} value={form.notes} onChange={(event) => set({ notes: event.target.value })} /></div>
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setForm(null)} disabled={saving}>إلغاء</Button>
-            <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}حفظ</Button>
+            <Button variant="outline" onClick={() => setForm(null)} disabled={saving}>{tr("إلغاء")}</Button>
+            <Button className="bg-teal-600 hover:bg-teal-700" onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -282,8 +283,8 @@ export default function DiscountCards() {
       <ConfirmDialogYesNo
         visible={Boolean(remove)}
         useAppDialog
-        title="حذف بطاقة خصم"
-        message={remove ? `حذف بطاقة الخصم ${remove.card_number} للعميل ${remove.customer_name}؟ إن كانت مستخدمة في فواتير فستُوقف بدل حذفها.` : ""}
+        title={tr("حذف بطاقة خصم")}
+        message={remove ? tr("حذف بطاقة الخصم {0} للعميل {1}؟ إن كانت مستخدمة في فواتير فستُوقف بدل حذفها.", remove.card_number, remove.customer_name) : ""}
         onConfirm={() => void confirmRemove()}
         onCancel={() => setRemove(null)}
       />

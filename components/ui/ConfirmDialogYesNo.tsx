@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import { Dialog } from "primereact/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, SaveAll, Sparkles } from "lucide-react";
@@ -91,7 +92,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         }}
         className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border border-transparent bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_10px_25px_-12px_rgba(244,63,94,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(244,63,94,0.9)]`}
       >
-        {confirmLabel ?? (hideCancel ? "حسناً" : showBack ? "نعم" : "تأكيد")}
+        {confirmLabel ?? (hideCancel ? tr("حسناً") : showBack ? tr("نعم") : tr("تأكيد"))}
       </Button>
 
       {!hideCancel && <Button
@@ -101,7 +102,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         variant="outline"
         className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50`}
       >
-        {cancelLabel ?? (showBack ? "لا" : "إلغاء")}
+        {cancelLabel ?? (showBack ? tr("لا") : tr("إلغاء"))}
       </Button>}
 
       {showBack && onBack && (
@@ -109,7 +110,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
           onClick={onBack}
           className={`${isCompact ? "px-3 py-2 text-xs" : "px-4 py-2 text-sm"} rounded-2xl border border-slate-200 bg-slate-100 text-slate-700 transition-all hover:bg-slate-200`}
         >
-          {backLabel ?? "رجوع"}
+          {backLabel ?? tr("رجوع")}
         </Button>
       )}
     </div>
@@ -117,7 +118,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
 
   if (useAppDialog) return (
     <AppDialog modal open={visible} onOpenChange={open => { if (!open && !busy) (onDismiss ?? onCancel)() }}>
-      <DialogContent dir="rtl" hideCloseButton className="z-[1100] max-w-md rounded-2xl p-6 text-center" onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
+      <DialogContent dir={appDir()} hideCloseButton className="z-[1100] max-w-md rounded-2xl p-6 text-center" onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <ShieldAlert className="mx-auto h-10 w-10 text-rose-600" aria-hidden="true" />
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription className="text-center leading-7">{message}</DialogDescription>
@@ -138,7 +139,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       style={{
         width: isCompact ? "420px" : "520px",
         maxWidth: "calc(100vw - 2rem)",
-        direction: "rtl",
+        direction: appDir(),
         textAlign: "center",
         background: "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.97))",
       }}
@@ -153,7 +154,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
               <ShieldAlert className={showBack ? "text-blue-600" : "text-rose-600"} size={isCompact ? 20 : 26} />
             )}
           </div>
-          <div className="absolute -top-1 -right-1 rounded-full bg-white p-1 shadow-sm">
+          <div className="absolute -top-1 -start-1 rounded-full bg-white p-1 shadow-sm">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
           </div>
         </div>

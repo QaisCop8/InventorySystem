@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -58,8 +59,8 @@ export default function SearchAccountClassificationDialog({
     () => ({
       name: "SearchAccountClassificationScheme",
       columns: [
-        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
-        { header: "اسم التصنيف", name: "name", width: "*", minWidth: 200, isReadOnly: true },
+        { header: tr("الرقم"), name: "id", width: 80, isReadOnly: true },
+        { header: tr("اسم التصنيف"), name: "name", width: "*", minWidth: 200, isReadOnly: true },
       ],
     }),
     [],
@@ -88,30 +89,30 @@ export default function SearchAccountClassificationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto overflow-x-hidden p-4 w-[90vw]" dir="rtl">
+      <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto overflow-x-hidden p-4 w-[90vw]" dir={appDir()}>
         <div className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold">بحث التصنيفات</h2>
-              <p className="text-sm text-slate-600">عرض التصنيفات المرتبطة بنوع التصنيف المحدد.</p>
+              <h2 className="text-xl font-bold">{tr("بحث التصنيفات")}</h2>
+              <p className="text-sm text-slate-600">{tr("عرض التصنيفات المرتبطة بنوع التصنيف المحدد.")}</p>
             </div>
             <div>
-              <span className="text-sm font-medium">النوع:</span>
+              <span className="text-sm font-medium">{tr("النوع:")}</span>
               <span className="mr-2 text-sm">{type?.name || "-"}</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">بحث باسم التصنيف</Label>
+            <Label className="text-sm font-medium">{tr("بحث باسم التصنيف")}</Label>
             <Input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="ابحث باسم التصنيف"
+              placeholder={tr("ابحث باسم التصنيف")}
               className="text-right"
             />
           </div>
 
-          <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+          <div className="rounded-md border border-slate-300 overflow-hidden" dir={appDir()}>
             {filteredClassifications.length > 0 ? (
               <div className="h-[400px] min-h-[320px] overflow-auto">
                 <DataGridView 
@@ -124,7 +125,7 @@ export default function SearchAccountClassificationDialog({
               </div>
             ) : (
               <div className="h-[400px] flex items-center justify-center bg-slate-50">
-                <p className="text-slate-500 text-sm">لا توجد تصنيفات لهذا النوع.</p>
+                <p className="text-slate-500 text-sm">{tr("لا توجد تصنيفات لهذا النوع.")}</p>
               </div>
             )}
           </div>
@@ -135,10 +136,10 @@ export default function SearchAccountClassificationDialog({
               disabled={!selectedClassification}
               className="search-button"
             >
-              موافق
+              {tr("موافق")}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button">
-              الغاء
+              {tr("الغاء")}
             </Button>
           </div>
         </div>

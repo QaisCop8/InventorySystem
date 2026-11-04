@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +13,7 @@ const defaultDocumentFields = [
   {
     id: "sequence",
     name: "التسلسل",
-    displayName: "م",
+    displayName: tr("م"),
     order: 1,
     showInScreen: true,
     showInPrint: true,
@@ -21,7 +22,7 @@ const defaultDocumentFields = [
   {
     id: "barcode",
     name: "الباركود",
-    displayName: "الباركود",
+    displayName: tr("الباركود"),
     order: 2,
     showInScreen: true,
     showInPrint: false,
@@ -30,7 +31,7 @@ const defaultDocumentFields = [
   {
     id: "product",
     name: "رقم الصنف واسمه",
-    displayName: "الصنف",
+    displayName: tr("الصنف"),
     order: 3,
     showInScreen: true,
     showInPrint: true,
@@ -39,7 +40,7 @@ const defaultDocumentFields = [
   {
     id: "unit",
     name: "الوحدة",
-    displayName: "الوحدة",
+    displayName: tr("الوحدة"),
     order: 4,
     showInScreen: true,
     showInPrint: true,
@@ -48,7 +49,7 @@ const defaultDocumentFields = [
   {
     id: "quantity",
     name: "الكمية",
-    displayName: "الكمية",
+    displayName: tr("الكمية"),
     order: 5,
     showInScreen: true,
     showInPrint: true,
@@ -57,7 +58,7 @@ const defaultDocumentFields = [
   {
     id: "expiry_date",
     name: "تاريخ الصلاحية",
-    displayName: "تاريخ الصلاحية",
+    displayName: tr("تاريخ الصلاحية"),
     order: 6,
     showInScreen: false,
     showInPrint: false,
@@ -66,7 +67,7 @@ const defaultDocumentFields = [
   {
     id: "batch_number",
     name: "رقم الباتش",
-    displayName: "رقم الباتش",
+    displayName: tr("رقم الباتش"),
     order: 7,
     showInScreen: false,
     showInPrint: false,
@@ -75,7 +76,7 @@ const defaultDocumentFields = [
   {
     id: "bonus",
     name: "البونص",
-    displayName: "البونص",
+    displayName: tr("البونص"),
     order: 8,
     showInScreen: false,
     showInPrint: false,
@@ -84,7 +85,7 @@ const defaultDocumentFields = [
   {
     id: "length",
     name: "الطول",
-    displayName: "الطول",
+    displayName: tr("الطول"),
     order: 9,
     showInScreen: false,
     showInPrint: false,
@@ -93,7 +94,7 @@ const defaultDocumentFields = [
   {
     id: "width",
     name: "العرض",
-    displayName: "العرض",
+    displayName: tr("العرض"),
     order: 10,
     showInScreen: false,
     showInPrint: false,
@@ -102,7 +103,7 @@ const defaultDocumentFields = [
   {
     id: "count",
     name: "العد",
-    displayName: "العد",
+    displayName: tr("العد"),
     order: 11,
     showInScreen: false,
     showInPrint: false,
@@ -111,7 +112,7 @@ const defaultDocumentFields = [
   {
     id: "color",
     name: "اللون",
-    displayName: "اللون",
+    displayName: tr("اللون"),
     order: 12,
     showInScreen: false,
     showInPrint: false,
@@ -120,7 +121,7 @@ const defaultDocumentFields = [
   {
     id: "discount",
     name: "الخصم",
-    displayName: "الخصم",
+    displayName: tr("الخصم"),
     order: 13,
     showInScreen: false,
     showInPrint: false,
@@ -129,7 +130,7 @@ const defaultDocumentFields = [
   {
     id: "warehouse",
     name: "المستودع",
-    displayName: "المستودع",
+    displayName: tr("المستودع"),
     order: 14,
     showInScreen: true,
     showInPrint: false,
@@ -138,7 +139,7 @@ const defaultDocumentFields = [
   {
     id: "price",
     name: "السعر",
-    displayName: "السعر",
+    displayName: tr("السعر"),
     order: 15,
     showInScreen: true,
     showInPrint: true,
@@ -147,7 +148,7 @@ const defaultDocumentFields = [
   {
     id: "total",
     name: "المبلغ",
-    displayName: "المبلغ",
+    displayName: tr("المبلغ"),
     order: 16,
     showInScreen: true,
     showInPrint: true,
@@ -156,7 +157,7 @@ const defaultDocumentFields = [
   {
     id: "item_notes",
     name: "ملاحظة الصنف",
-    displayName: "ملاحظة الصنف",
+    displayName: tr("ملاحظة الصنف"),
     order: 17,
     showInScreen: false,
     showInPrint: false,
@@ -211,8 +212,8 @@ export default function DocumentSettings() {
     } catch (error) {
       console.error("[v0] Error loading document settings:", error)
       toast({
-        title: "خطأ",
-        description: "فشل في تحميل إعدادات السندات",
+        title: tr("خطأ"),
+        description: tr("فشل في تحميل إعدادات السندات"),
         variant: "destructive",
       })
     } finally {
@@ -271,8 +272,8 @@ export default function DocumentSettings() {
         const result = await response.json()
         console.log("[v0] Settings saved successfully:", result)
         toast({
-          title: "نجح الحفظ",
-          description: "تم حفظ إعدادات السندات بنجاح",
+          title: tr("نجح الحفظ"),
+          description: tr("تم حفظ إعدادات السندات بنجاح"),
         })
       } else {
         throw new Error("Failed to save settings")
@@ -280,8 +281,8 @@ export default function DocumentSettings() {
     } catch (error) {
       console.error("[v0] Error saving document settings:", error)
       toast({
-        title: "خطأ",
-        description: "فشل في حفظ إعدادات السندات",
+        title: tr("خطأ"),
+        description: tr("فشل في حفظ إعدادات السندات"),
         variant: "destructive",
       })
     } finally {
@@ -298,18 +299,18 @@ export default function DocumentSettings() {
       require_expiry_date: false,
     })
     toast({
-      title: "تم الإعادة",
-      description: "تم إعادة الإعدادات إلى القيم الافتراضية",
+      title: tr("تم الإعادة"),
+      description: tr("تم إعادة الإعدادات إلى القيم الافتراضية"),
     })
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">إعدادات السندات</h1>
+      <h1 className="text-2xl font-bold text-gray-900">{tr("إعدادات السندات")}</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>تخصيص عرض السندات</CardTitle>
+          <CardTitle>{tr("تخصيص عرض السندات")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -321,36 +322,36 @@ export default function DocumentSettings() {
           >
             {/* Document Type Selection */}
             <div className="space-y-2">
-              <Label>نوع السند</Label>
+              <Label>{tr("نوع السند")}</Label>
               <Select value={selectedDocumentType} onValueChange={setSelectedDocumentType}>
                 <SelectTrigger className="max-w-md">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sales-order">طلبية مبيعات</SelectItem>
-                  <SelectItem value="purchase-order">طلبية مشتريات</SelectItem>
-                  <SelectItem value="sales-invoice">فاتورة مبيعات</SelectItem>
-                  <SelectItem value="purchase-invoice">فاتورة مشتريات</SelectItem>
-                  <SelectItem value="receipt">سند قبض</SelectItem>
-                  <SelectItem value="payment">سند دفع</SelectItem>
-                  <SelectItem value="credit-note">إشعار دائن</SelectItem>
-                  <SelectItem value="debit-note">إشعار مدين</SelectItem>
+                  <SelectItem value="sales-order">{tr("طلبية مبيعات")}</SelectItem>
+                  <SelectItem value="purchase-order">{tr("طلبية مشتريات")}</SelectItem>
+                  <SelectItem value="sales-invoice">{tr("فاتورة مبيعات")}</SelectItem>
+                  <SelectItem value="purchase-invoice">{tr("فاتورة مشتريات")}</SelectItem>
+                  <SelectItem value="receipt">{tr("سند قبض")}</SelectItem>
+                  <SelectItem value="payment">{tr("سند دفع")}</SelectItem>
+                  <SelectItem value="credit-note">{tr("إشعار دائن")}</SelectItem>
+                  <SelectItem value="debit-note">{tr("إشعار مدين")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center min-h-[200px]" dir="rtl">
+              <div className="flex items-center justify-center min-h-[200px]" dir={appDir()}>
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-                  <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+                  <p className="text-muted-foreground">{tr("جاري تحميل الأصناف...")}</p>
                 </div>
               </div>
             ) : (
               <>
                 {/* Batch Settings Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">إعدادات الباتش والدفعات</h3>
+                  <h3 className="text-lg font-semibold">{tr("إعدادات الباتش والدفعات")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-gray-50">
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input
@@ -363,7 +364,7 @@ export default function DocumentSettings() {
                         }
                       />
                       <Label htmlFor="mandatoryBatch" className="font-medium">
-                        الباتش إجباري في الحركة
+                        {tr("الباتش إجباري في الحركة")}
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
@@ -374,7 +375,7 @@ export default function DocumentSettings() {
                         checked={batchSettings.auto_select_fifo}
                         onChange={(e) => setBatchSettings({ ...batchSettings, auto_select_fifo: e.target.checked })}
                       />
-                      <Label htmlFor="autoSelectFifo">اختيار تلقائي بنظام FIFO</Label>
+                      <Label htmlFor="autoSelectFifo">{tr("اختيار تلقائي بنظام FIFO")}</Label>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input
@@ -384,7 +385,7 @@ export default function DocumentSettings() {
                         checked={batchSettings.allow_negative_stock}
                         onChange={(e) => setBatchSettings({ ...batchSettings, allow_negative_stock: e.target.checked })}
                       />
-                      <Label htmlFor="allowNegativeStock">السماح بالمخزون السالب</Label>
+                      <Label htmlFor="allowNegativeStock">{tr("السماح بالمخزون السالب")}</Label>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input
@@ -394,34 +395,34 @@ export default function DocumentSettings() {
                         checked={batchSettings.require_expiry_date}
                         onChange={(e) => setBatchSettings({ ...batchSettings, require_expiry_date: e.target.checked })}
                       />
-                      <Label htmlFor="requireExpiryDate">تاريخ الصلاحية مطلوب</Label>
+                      <Label htmlFor="requireExpiryDate">{tr("تاريخ الصلاحية مطلوب")}</Label>
                     </div>
                   </div>
                   <div className="text-sm text-gray-600 p-3 bg-blue-50 rounded-lg">
                     <p>
-                      <strong>ملاحظة:</strong>
+                      <strong>{tr("ملاحظة:")}</strong>
                     </p>
                     <ul className="list-disc list-inside mt-2 space-y-1">
-                      <li>إذا كان الباتش إجباري: سيتم طلب اختيار الباتش في كل حركة</li>
-                      <li>إذا كان الباتش اختياري: سيتم الزيادة والنقصان على الكمية الكلية</li>
-                      <li>نظام FIFO يختار الباتشات الأقدم في تاريخ الصلاحية أولاً</li>
+                      <li>{tr("إذا كان الباتش إجباري: سيتم طلب اختيار الباتش في كل حركة")}</li>
+                      <li>{tr("إذا كان الباتش اختياري: سيتم الزيادة والنقصان على الكمية الكلية")}</li>
+                      <li>{tr("نظام FIFO يختار الباتشات الأقدم في تاريخ الصلاحية أولاً")}</li>
                     </ul>
                   </div>
                 </div>
 
                 {/* Fields Display Settings */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">الحقول التي تظهر في السند</h3>
+                  <h3 className="text-lg font-semibold">{tr("الحقول التي تظهر في السند")}</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse border border-gray-300">
                       <thead>
                         <tr className="bg-gray-50">
-                          <th className="border border-gray-300 p-2 text-right">عرض</th>
-                          <th className="border border-gray-300 p-2 text-right">اسم الحقل</th>
-                          <th className="border border-gray-300 p-2 text-right">العنوان المعروض</th>
-                          <th className="border border-gray-300 p-2 text-right">ترتيب العرض</th>
-                          <th className="border border-gray-300 p-2 text-right">عرض في الطباعة</th>
-                          <th className="border border-gray-300 p-2 text-right">مطلوب</th>
+                          <th className="border border-gray-300 p-2 text-start">{tr("عرض")}</th>
+                          <th className="border border-gray-300 p-2 text-start">{tr("اسم الحقل")}</th>
+                          <th className="border border-gray-300 p-2 text-start">{tr("العنوان المعروض")}</th>
+                          <th className="border border-gray-300 p-2 text-start">{tr("ترتيب العرض")}</th>
+                          <th className="border border-gray-300 p-2 text-start">{tr("عرض في الطباعة")}</th>
+                          <th className="border border-gray-300 p-2 text-start">{tr("مطلوب")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -440,8 +441,8 @@ export default function DocumentSettings() {
                               <Input
                                 value={field.displayName || ""}
                                 onChange={(e) => updateField(field.id, "displayName", e.target.value)}
-                                className="w-32 text-right"
-                                dir="rtl"
+                                className="w-32 text-start"
+                                dir={appDir()}
                               />
                             </td>
                             <td className="border border-gray-300 p-2">
@@ -449,8 +450,8 @@ export default function DocumentSettings() {
                                 type="number"
                                 value={field.order || 0}
                                 onChange={(e) => updateField(field.id, "order", Number.parseInt(e.target.value) || 0)}
-                                className="w-20 text-right"
-                                dir="rtl"
+                                className="w-20 text-start"
+                                dir={appDir()}
                               />
                             </td>
                             <td className="border border-gray-300 p-2 text-center">
@@ -478,54 +479,54 @@ export default function DocumentSettings() {
 
                 {/* Additional Display Options */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">خيارات العرض الإضافية</h3>
+                  <h3 className="text-lg font-semibold">{tr("خيارات العرض الإضافية")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input type="checkbox" id="showSalesman" className="rounded" defaultChecked />
-                      <Label htmlFor="showSalesman">عرض اسم المندوب</Label>
+                      <Label htmlFor="showSalesman">{tr("عرض اسم المندوب")}</Label>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input type="checkbox" id="showEmployee" className="rounded" defaultChecked />
-                      <Label htmlFor="showEmployee">عرض اسم الموظف</Label>
+                      <Label htmlFor="showEmployee">{tr("عرض اسم الموظف")}</Label>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input type="checkbox" id="showTotalQuantities" className="rounded" defaultChecked />
-                      <Label htmlFor="showTotalQuantities">عرض مجموع الكميات</Label>
+                      <Label htmlFor="showTotalQuantities">{tr("عرض مجموع الكميات")}</Label>
                     </div>
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <input type="checkbox" id="showDocumentBarcode" className="rounded" />
-                      <Label htmlFor="showDocumentBarcode">عرض باركود السند</Label>
+                      <Label htmlFor="showDocumentBarcode">{tr("عرض باركود السند")}</Label>
                     </div>
                   </div>
                 </div>
 
                 {/* Print Sort Order */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">ترتيب الطباعة</h3>
+                  <h3 className="text-lg font-semibold">{tr("ترتيب الطباعة")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>ترتيب الطباعة حسب</Label>
+                      <Label>{tr("ترتيب الطباعة حسب")}</Label>
                       <Select>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر ترتيب الطباعة" />
+                          <SelectValue placeholder={tr("اختر ترتيب الطباعة")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="entry-sequence">تسلسل الإدخال</SelectItem>
-                          <SelectItem value="product-number">رقم الصنف</SelectItem>
-                          <SelectItem value="barcode">رقم الباركود</SelectItem>
-                          <SelectItem value="product-name">اسم الصنف</SelectItem>
+                          <SelectItem value="entry-sequence">{tr("تسلسل الإدخال")}</SelectItem>
+                          <SelectItem value="product-number">{tr("رقم الصنف")}</SelectItem>
+                          <SelectItem value="barcode">{tr("رقم الباركود")}</SelectItem>
+                          <SelectItem value="product-name">{tr("اسم الصنف")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>نوع الترتيب</Label>
+                      <Label>{tr("نوع الترتيب")}</Label>
                       <Select>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر نوع الترتيب" />
+                          <SelectValue placeholder={tr("اختر نوع الترتيب")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="asc">تصاعدي (A-Z)</SelectItem>
-                          <SelectItem value="desc">تنازلي (Z-A)</SelectItem>
+                          <SelectItem value="asc">{tr("تصاعدي (A-Z)")}</SelectItem>
+                          <SelectItem value="desc">{tr("تنازلي (Z-A)")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -534,20 +535,20 @@ export default function DocumentSettings() {
 
                 {/* Preview Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">معاينة السند</h3>
+                  <h3 className="text-lg font-semibold">{tr("معاينة السند")}</h3>
                   <div className="border-2 border-gray-300 rounded-lg p-6 bg-white">
                     <div className="text-center mb-6">
-                      <h4 className="text-xl font-bold text-emerald-600 mb-2">اسم الشركة</h4>
-                      <p className="text-gray-600 mb-2">العنوان الكامل للشركة</p>
+                      <h4 className="text-xl font-bold text-emerald-600 mb-2">{tr("اسم الشركة")}</h4>
+                      <p className="text-gray-600 mb-2">{tr("العنوان الكامل للشركة")}</p>
                       <h3 className="text-lg font-semibold">
-                        {selectedDocumentType === "sales-order" && "طلبية مبيعات"}
-                        {selectedDocumentType === "purchase-order" && "طلبية مشتريات"}
-                        {selectedDocumentType === "sales-invoice" && "فاتورة مبيعات"}
-                        {selectedDocumentType === "purchase-invoice" && "فاتورة مشتريات"}
-                        {selectedDocumentType === "receipt" && "سند قبض"}
-                        {selectedDocumentType === "payment" && "سند دفع"}
-                        {selectedDocumentType === "credit-note" && "إشعار دائن"}
-                        {selectedDocumentType === "debit-note" && "إشعار مدين"}
+                        {selectedDocumentType === "sales-order" && tr("طلبية مبيعات")}
+                        {selectedDocumentType === "purchase-order" && tr("طلبية مشتريات")}
+                        {selectedDocumentType === "sales-invoice" && tr("فاتورة مبيعات")}
+                        {selectedDocumentType === "purchase-invoice" && tr("فاتورة مشتريات")}
+                        {selectedDocumentType === "receipt" && tr("سند قبض")}
+                        {selectedDocumentType === "payment" && tr("سند دفع")}
+                        {selectedDocumentType === "credit-note" && tr("إشعار دائن")}
+                        {selectedDocumentType === "debit-note" && tr("إشعار مدين")}
                       </h3>
                     </div>
 
@@ -573,8 +574,8 @@ export default function DocumentSettings() {
                               <td key={field.id} className="border border-gray-300 p-2 text-center">
                                 {field.id === "sequence" && "1"}
                                 {field.id === "barcode" && "123456789"}
-                                {field.id === "product" && "لابتوب ديل"}
-                                {field.id === "unit" && "قطعة"}
+                                {field.id === "product" && tr("لابتوب ديل")}
+                                {field.id === "unit" && tr("قطعة")}
                                 {field.id === "quantity" && "2"}
                                 {field.id === "expiry_date" && "2025-12-31"}
                                 {field.id === "batch_number" && "B001"}
@@ -582,12 +583,12 @@ export default function DocumentSettings() {
                                 {field.id === "length" && "30"}
                                 {field.id === "width" && "20"}
                                 {field.id === "count" && "1"}
-                                {field.id === "color" && "أسود"}
+                                {field.id === "color" && tr("أسود")}
                                 {field.id === "discount" && "5%"}
-                                {field.id === "warehouse" && "المستودع الرئيسي"}
+                                {field.id === "warehouse" && tr("المستودع الرئيسي")}
                                 {field.id === "price" && "2,500"}
                                 {field.id === "total" && "5,000"}
-                                {field.id === "item_notes" && "ملاحظة تجريبية"}
+                                {field.id === "item_notes" && tr("ملاحظة تجريبية")}
                               </td>
                             ))}
                         </tr>
@@ -600,7 +601,7 @@ export default function DocumentSettings() {
                             }
                             className="border border-gray-300 p-2 text-center"
                           >
-                            الإجمالي
+                            {tr("الإجمالي")}
                           </td>
                           {fields.find((f) => f.id === "quantity" && f.showInScreen) && (
                             <td className="border border-gray-300 p-2 text-center">2</td>
@@ -615,18 +616,18 @@ export default function DocumentSettings() {
                     <div className="flex justify-between mt-6 text-sm">
                       <div>
                         <p>
-                          <strong>المندوب:</strong> محمد أحمد
+                          <strong>{tr("المندوب:")}</strong>{tr(" محمد أحمد")}
                         </p>
                         <p>
-                          <strong>الموظف:</strong> أحمد علي
+                          <strong>{tr("الموظف:")}</strong>{tr(" أحمد علي")}
                         </p>
                       </div>
                       <div className="text-left">
                         <p>
-                          <strong>مجموع الكميات:</strong> 2
+                          <strong>{tr("مجموع الكميات:")}</strong> 2
                         </p>
                         <p>
-                          <strong>إجمالي المبلغ:</strong> 5,000 شيكل
+                          <strong>{tr("إجمالي المبلغ:")}</strong>{tr(" 5,000 شيكل")}
                         </p>
                       </div>
                     </div>
@@ -637,16 +638,16 @@ export default function DocumentSettings() {
 
             <div className="flex justify-end gap-2">
               <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700" disabled={saving}>
-                {saving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+                {saving ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
               </Button>
               <Button type="button" variant="outline">
-                معاينة
+                {tr("معاينة")}
               </Button>
               <Button type="button" variant="outline" onClick={handleResetToDefault}>
-                استعادة الافتراضي
+                {tr("استعادة الافتراضي")}
               </Button>
               <Button type="button" variant="outline" className="text-orange-600 hover:text-orange-700 bg-transparent">
-                إعادة ترتيب الحقول
+                {tr("إعادة ترتيب الحقول")}
               </Button>
             </div>
           </form>

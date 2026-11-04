@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -61,7 +62,7 @@ export function MessagingStatistics() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -70,16 +71,16 @@ export function MessagingStatistics() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="week">آخر 7 أيام</SelectItem>
-              <SelectItem value="month">آخر 30 يوم</SelectItem>
-              <SelectItem value="quarter">آخر 3 أشهر</SelectItem>
-              <SelectItem value="year">آخر سنة</SelectItem>
+              <SelectItem value="week">{tr("آخر 7 أيام")}</SelectItem>
+              <SelectItem value="month">{tr("آخر 30 يوم")}</SelectItem>
+              <SelectItem value="quarter">{tr("آخر 3 أشهر")}</SelectItem>
+              <SelectItem value="year">{tr("آخر سنة")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <Button variant="outline" className="gap-2 bg-transparent">
           <Download className="h-4 w-4" />
-          تصدير البيانات
+          {tr("تصدير البيانات")}
         </Button>
       </div>
 
@@ -88,21 +89,21 @@ export function MessagingStatistics() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium">إجمالي الرسائل المرسلة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("إجمالي الرسائل المرسلة")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
                 {period === "week" ? statistics.weekly.total_sent : statistics.monthly.total_sent}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                خلال {period === "week" ? "الأسبوع" : "الشهر"} الماضي
+                {tr("خلال ")}{period === "week" ? tr("الأسبوع") : tr("الشهر")}{tr(" الماضي")}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium">معدل التسليم</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("معدل التسليم")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
@@ -111,19 +112,19 @@ export function MessagingStatistics() {
                   : statistics.monthly.success_rate.toFixed(1)}
                 %
               </div>
-              <p className="text-xs text-muted-foreground mt-2">من إجمالي الرسائل</p>
+              <p className="text-xs text-muted-foreground mt-2">{tr("من إجمالي الرسائل")}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-medium">الرسائل الفاشلة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("الرسائل الفاشلة")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-red-600">
                 {period === "week" ? statistics.weekly.total_failed : statistics.monthly.total_failed}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">تحتاج إلى مراجعة</p>
+              <p className="text-xs text-muted-foreground mt-2">{tr("تحتاج إلى مراجعة")}</p>
             </CardContent>
           </Card>
         </div>
@@ -132,8 +133,8 @@ export function MessagingStatistics() {
       {/* Daily Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>الرسائل اليومية</CardTitle>
-          <CardDescription>عدد الرسائل المرسلة يومياً</CardDescription>
+          <CardTitle>{tr("الرسائل اليومية")}</CardTitle>
+          <CardDescription>{tr("عدد الرسائل المرسلة يومياً")}</CardDescription>
         </CardHeader>
         <CardContent>
           {statistics && statistics.daily.length > 0 ? (
@@ -154,16 +155,16 @@ export function MessagingStatistics() {
                       <span className="text-sm font-medium">{day.total_sent}</span>
                     </div>
                     <div className="flex gap-4 text-xs text-muted-foreground">
-                      <span className="text-green-600">✓ {day.total_delivered} تم التسليم</span>
-                      <span className="text-red-600">✗ {day.total_failed} فشل</span>
-                      <span>{day.success_rate.toFixed(1)}% معدل النجاح</span>
+                      <span className="text-green-600">✓ {day.total_delivered}{tr(" تم التسليم")}</span>
+                      <span className="text-red-600">✗ {day.total_failed}{tr(" فشل")}</span>
+                      <span>{day.success_rate.toFixed(1)}{tr("% معدل النجاح")}</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">لا توجد بيانات للفترة المحددة</div>
+            <div className="text-center py-12 text-muted-foreground">{tr("لا توجد بيانات للفترة المحددة")}</div>
           )}
         </CardContent>
       </Card>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useReportAccess } from "@/components/auth/use-report-access"
 import { useFileSectionAccess } from "@/components/auth/use-file-access"
@@ -65,7 +66,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound, HeartHandshake } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 import { PoweredBy } from "@/components/brand/powered-by"
@@ -129,312 +130,313 @@ export const SIDEBAR_COLLAPSED_WIDTH = 76
 // مُصعَّد لمستوى الوحدة (بدل داخل Sidebar) ليُصدَّر ويُعاد استخدامه بمكان آخر (شريط تبويبات
 // مساحة العمل) دون تكرار نفس القائمة الضخمة — البيانات ثابتة أصلاً، لا تعتمد على أي prop/hook.
 export const menuItems: MenuItem[] = [
-  { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
-  { id: "morning-briefing", title: "الملخص الصباحي", icon: Sunrise, section: "morning-briefing" },
-  { id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
+  { id: "home-dashboard", title: tr("الرئيسية"), icon: LayoutDashboard, section: "home-dashboard" },
+  { id: "morning-briefing", title: tr("الملخص الصباحي"), icon: Sunrise, section: "morning-briefing" },
+  { id: "ai-assistant", title: tr("المساعد الذكي"), icon: Sparkles, section: "ai-assistant" },
   {
     id: "definitions",
-    title: "الملفات والتعريفات",
+    title: tr("الملفات والتعريفات"),
     icon: Users,
     submenu: [
-      { title: "التعريفات الاساسية", section: "definitions", icon: Settings },
-      { title: "العملاء", section: "customers", icon: Users },
-      { title: "بوابة العملاء", section: "customer-portal", icon: Globe },
-      { title: "الموردين", section: "suppliers", icon: Truck },
-      { title: "المشتركين", section: "subscribers", icon: UserCheck },
+      { title: tr("التعريفات الاساسية"), section: "definitions", icon: Settings },
+      { title: tr("العملاء"), section: "customers", icon: Users },
+      { title: tr("بوابة العملاء"), section: "customer-portal", icon: Globe },
+      { title: tr("الموردين"), section: "suppliers", icon: Truck },
+      { title: tr("المشتركين"), section: "subscribers", icon: UserCheck },
     ],
   },
   {
     id: "general-accounting",
-    title: "المحاسبة العامة",
+    title: tr("المحاسبة العامة"),
     icon: Wallet,
     submenu: [
       {
-        title: "الملفات",
+        title: tr("الملفات"),
         section: "general-accounting-files",
         icon: Users,
         submenu: [
-          { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
-          { title: "العملات", section: "exchange-rates", icon: DollarSign },
-          { title: "البنوك", section: "banks", icon: Building },
-          { title: "فروع البنوك", section: "branches", icon: MapPin },
-          { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
-          { title: "بطاقات الائتمان", section: "credit-cards", icon: CreditCard },
+          { title: tr("الحسابات المحاسبية"), section: "accounts", icon: Settings },
+          { title: tr("العملات"), section: "exchange-rates", icon: DollarSign },
+          { title: tr("البنوك"), section: "banks", icon: Building },
+          { title: tr("فروع البنوك"), section: "branches", icon: MapPin },
+          { title: tr("حسابات البنوك"), section: "bank-accounts", icon: Landmark },
+          { title: tr("بطاقات الائتمان"), section: "credit-cards", icon: CreditCard },
         ],
       },
-      { title: "الأصول الثابتة", section: "fixed-assets", icon: Landmark },
+      { title: tr("الأصول الثابتة"), section: "fixed-assets", icon: Landmark },
       {
-        title: "الحركات",
+        title: tr("الحركات"),
         section: "accounting-transactions",
         icon: Receipt,
         submenu: [
-          { title: "سند قبض", section: "receipt-vouchers", icon: ArrowDownCircle },
-          { title: "سند صرف", section: "payment-vouchers", icon: ArrowUpCircle },
+          { title: tr("سند قبض"), section: "receipt-vouchers", icon: ArrowDownCircle },
+          { title: tr("سند صرف"), section: "payment-vouchers", icon: ArrowUpCircle },
           {
-            title: "قيود محاسبية",
+            title: tr("قيود محاسبية"),
             section: "accounting-journals",
             icon: BookOpen,
             submenu: [
-              { title: "سند قيد", section: "journal-vouchers", icon: BookOpen },
-              { title: "قيود عمولة الفيزا", section: "visa-commission-journals", icon: CreditCard },
-              { title: "قيد تحويل عملة", section: "currency-transfer-journal", icon: ArrowLeftRight },
-              { title: "قيود تحويل عملة حساب", section: "account-currency-transfer-journals", icon: ArrowLeftRight },
-              { title: "قيود فرق عملة", section: "currency-difference-journals", icon: DollarSign },
+              { title: tr("سند قيد"), section: "journal-vouchers", icon: BookOpen },
+              { title: tr("قيود عمولة الفيزا"), section: "visa-commission-journals", icon: CreditCard },
+              { title: tr("قيد تحويل عملة"), section: "currency-transfer-journal", icon: ArrowLeftRight },
+              { title: tr("قيود تحويل عملة حساب"), section: "account-currency-transfer-journals", icon: ArrowLeftRight },
+              { title: tr("قيود فرق عملة"), section: "currency-difference-journals", icon: DollarSign },
             ],
           },
-          { title: "التسوية البنكية", section: "bank-reconciliation", icon: Landmark },
-          { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
-          { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
+          { title: tr("التسوية البنكية"), section: "bank-reconciliation", icon: Landmark },
+          { title: tr("اشعار دائن"), section: "credit-notes", icon: FilePlus2 },
+          { title: tr("اشعار مدين"), section: "debit-notes", icon: FileMinus2 },
         ],
       },
     ],
   },
   {
     id: "cheques-menu",
-    title: "الشيكات",
+    title: tr("الشيكات"),
     icon: WalletCards,
     submenu: [
-      { title: "دفاتر الشيكات", section: "cheques-books", icon: BookOpen },
-      { title: "سند صرف شيكات", section: "cheque-payment-vouchers", icon: WalletCards },
-      { title: "الشيكات", section: "cheques", icon: WalletCards },
-      { title: "عمليات الشيكات", section: "cheque-operations", icon: ArrowLeftRight },
-      { title: "إيداع الشيكات", section: "cheque-deposit-bulk", icon: ArrowDownCircle },
-      { title: "تجيير الشيكات", section: "cheque-endorse-bulk", icon: ArrowLeftRight },
-      { title: "إخراج الشيكات الصادرة", section: "outgoing-cheque-clear-bulk", icon: ArrowUpCircle },
+      { title: tr("دفاتر الشيكات"), section: "cheques-books", icon: BookOpen },
+      { title: tr("سند صرف شيكات"), section: "cheque-payment-vouchers", icon: WalletCards },
+      { title: tr("الشيكات"), section: "cheques", icon: WalletCards },
+      { title: tr("عمليات الشيكات"), section: "cheque-operations", icon: ArrowLeftRight },
+      { title: tr("إيداع الشيكات"), section: "cheque-deposit-bulk", icon: ArrowDownCircle },
+      { title: tr("تجيير الشيكات"), section: "cheque-endorse-bulk", icon: ArrowLeftRight },
+      { title: tr("إخراج الشيكات الصادرة"), section: "outgoing-cheque-clear-bulk", icon: ArrowUpCircle },
     ],
   },
   {
     id: "orders",
-    title: "الطلبيات",
+    title: tr("الطلبيات"),
     icon: ShoppingCart,
     submenu: [
       {
-        title: "الحركات",
+        title: tr("الحركات"),
         section: "transactions",
         icon: ShoppingCart,
         submenu: [
-          { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
-          { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
-          { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
+          { title: tr("طلبيات المشتريات"), section: "purchase-orders", icon: Truck },
+          { title: tr("طلبيات المبيعات"), section: "sales-orders", icon: ShoppingCart },
+          { title: tr("معالجة حالة الطلبيات"), section: "order-management", icon: Package },
         ],
       },
     ],
   },
   {
     id: "task-orders",
-    title: "تتبع أوامر العمل",
+    title: tr("تتبع أوامر العمل"),
     icon: KanbanSquare,
     submenu: [
-      { title: "إدارة الأقسام وسير العمل", section: "task-orders-admin", icon: Settings },
-      { title: "قوائم تحقق الطلبيات", section: "order-checklists", icon: FileText },
-      { title: "مسودات طلبيات المبيعات", section: "draft-sales-order", icon: FilePlus2 },
-      { title: "متابعة طلباتي", section: "task-orders-board", icon: KanbanSquare },
-      { title: "تأكيد الطلبيات", section: "order-confirmation", icon: PackageCheck },
-      { title: "اعتماد الطلبيات الجاهزة", section: "task-orders-approval", icon: PackageCheck },
+      { title: tr("إدارة الأقسام وسير العمل"), section: "task-orders-admin", icon: Settings },
+      { title: tr("قوائم تحقق الطلبيات"), section: "order-checklists", icon: FileText },
+      { title: tr("مسودات طلبيات المبيعات"), section: "draft-sales-order", icon: FilePlus2 },
+      { title: tr("متابعة طلباتي"), section: "task-orders-board", icon: KanbanSquare },
+      { title: tr("تأكيد الطلبيات"), section: "order-confirmation", icon: PackageCheck },
+      { title: tr("اعتماد الطلبيات الجاهزة"), section: "task-orders-approval", icon: PackageCheck },
       {
-        title: "التقارير",
+        title: tr("التقارير"),
         section: "task-orders-reports",
         icon: BarChart3,
         submenu: [
-          { title: "تقارير أوامر العمل", section: "task-orders-report", icon: BarChart3 },
-          { title: "تقرير ارشفة مسودات طلبيات المبيعات", section: "sales-drafts-archive-report", icon: Archive },
+          { title: tr("تقارير أوامر العمل"), section: "task-orders-report", icon: BarChart3 },
+          { title: tr("تقرير ارشفة مسودات طلبيات المبيعات"), section: "sales-drafts-archive-report", icon: Archive },
         ],
       },
     ],
   },
   {
     id: "item-management",
-    title: "ادارة الاصناف",
+    title: tr("ادارة الاصناف"),
     icon: Package,
     submenu: [
       {
-        title: "الملفات",
+        title: tr("الملفات"),
         section: "item-management-files",
         icon: Users,
         submenu: [
-          { title: "المستودعات", section: "warehouses", icon: Building },
-          { title: "الأصناف", section: "products", icon: Package },
-          { title: "الخدمات", section: "services", icon: Package },
-          { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
-          { title: "أنواع العلامات التجارية", section: "brand-types", icon: Package },
-          { title: "العلامات التجارية", section: "brands", icon: Package },
+          { title: tr("المستودعات"), section: "warehouses", icon: Building },
+          { title: tr("الأصناف"), section: "products", icon: Package },
+          { title: tr("الخدمات"), section: "services", icon: Package },
+          { title: tr("مجموعات الأصناف"), section: "product-groups", icon: Package },
+          { title: tr("أنواع العلامات التجارية"), section: "brand-types", icon: Package },
+          { title: tr("العلامات التجارية"), section: "brands", icon: Package },
         ],
       },
       {
-        title: "الحركات",
+        title: tr("الحركات"),
         section: "item-management-transactions",
         icon: Receipt,
         submenu: [
-          { title: "سند ادخال بضاعة", section: "stock-in-vouchers", icon: ArrowDownCircle },
-          { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
-          { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
-          { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
-          { title: "سند انتاج بضاعة", section: "production-vouchers", icon: Factory },
+          { title: tr("سند ادخال بضاعة"), section: "stock-in-vouchers", icon: ArrowDownCircle },
+          { title: tr("سند اخراج بضاعة"), section: "stock-out-vouchers", icon: ArrowUpCircle },
+          { title: tr("ارسالية داخلية"), section: "internal-delivery-vouchers", icon: Truck },
+          { title: tr("سند استعمال"), section: "use-vouchers", icon: FileMinus2 },
+          { title: tr("سند انتاج بضاعة"), section: "production-vouchers", icon: Factory },
         ],
       },
       {
-        title: "جرد المخازن",
+        title: tr("جرد المخازن"),
         section: "stock-counts-menu",
         icon: ClipboardCheck,
         submenu: [
-          { title: "تعريف الجلسات وادخال الجرد", section: "stock-counts", icon: ClipboardList },
-          { title: "مطابقة الجرد", section: "stock-count-approval", icon: CheckCircle2 },
+          { title: tr("تعريف الجلسات وادخال الجرد"), section: "stock-counts", icon: ClipboardList },
+          { title: tr("مطابقة الجرد"), section: "stock-count-approval", icon: CheckCircle2 },
         ],
       },
-      { title: "تخطيط المشتريات الذكي", section: "purchase-planning", icon: TrendingUp },
+      { title: tr("تخطيط المشتريات الذكي"), section: "purchase-planning", icon: TrendingUp },
       {
-        title: "طلبات بضاعة داخلي",
+        title: tr("طلبات بضاعة داخلي"),
         section: "internal-manufacturing-orders",
         icon: ClipboardCheck,
         submenu: [
-          { title: "لوحة متابعة الطلبات", section: "internal-manufacturing-dashboard", icon: LayoutDashboard },
-          { title: "إعدادات طلب بضاعة داخلي", section: "internal-manufacturing-settings", icon: Settings },
-          { title: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: FilePlus2 },
-          { title: "تدقيق طلب البضاعة", section: "internal-manufacturing-request-audit", icon: Shield },
-          { title: "تجهيز الطلبات", section: "internal-manufacturing-preparation", icon: PackageCheck },
-          { title: "تدقيق الطلبات الجاهزة", section: "internal-manufacturing-ready-audit", icon: Shield },
-          { title: "إرسال الطلبات", section: "internal-manufacturing-send", icon: ArrowUpCircle },
-          { title: "استلام الطلبات", section: "internal-manufacturing-receive", icon: ArrowDownCircle },
-          { title: "تدقيق البضاعة المستلمة", section: "internal-manufacturing-received-audit", icon: Shield },
-          { title: "تقرير أرشفة الطلبات الداخلية", section: "internal-manufacturing-archive-report", icon: Archive },
+          { title: tr("لوحة متابعة الطلبات"), section: "internal-manufacturing-dashboard", icon: LayoutDashboard },
+          { title: tr("إعدادات طلب بضاعة داخلي"), section: "internal-manufacturing-settings", icon: Settings },
+          { title: tr("طلب بضاعة داخلي"), section: "internal-manufacturing-request", icon: FilePlus2 },
+          { title: tr("تدقيق طلب البضاعة"), section: "internal-manufacturing-request-audit", icon: Shield },
+          { title: tr("تجهيز الطلبات"), section: "internal-manufacturing-preparation", icon: PackageCheck },
+          { title: tr("تدقيق الطلبات الجاهزة"), section: "internal-manufacturing-ready-audit", icon: Shield },
+          { title: tr("إرسال الطلبات"), section: "internal-manufacturing-send", icon: ArrowUpCircle },
+          { title: tr("استلام الطلبات"), section: "internal-manufacturing-receive", icon: ArrowDownCircle },
+          { title: tr("تدقيق البضاعة المستلمة"), section: "internal-manufacturing-received-audit", icon: Shield },
+          { title: tr("تقرير أرشفة الطلبات الداخلية"), section: "internal-manufacturing-archive-report", icon: Archive },
         ],
       },
     ],
   },
   {
     id: "sales-purchase-vouchers",
-    title: "المبيعات والمشتريات",
+    title: tr("المبيعات والمشتريات"),
     icon: Truck,
     submenu: [
       {
-        title: "الملفات",
+        title: tr("الملفات"),
         section: "sales-purchase-vouchers-files",
         icon: Users,
         submenu: [
-          { title: "المندوبين", section: "salesmen", icon: UserCheck },
-          { title: "عمولات المندوبين", section: "salesman-commissions", icon: WalletCards },
-          { title: "نماذج العملاء والأصناف", section: "customer-product-templates", icon: Grid3x3 },
-          { title: "العروض والأسعار الخاصة", section: "promotions", icon: Megaphone },
-          { title: "السيارات", section: "cars", icon: Car },
-          { title: "السائقين", section: "drivers", icon: IdCard },
+          { title: tr("المندوبين"), section: "salesmen", icon: UserCheck },
+          { title: tr("عمولات المندوبين"), section: "salesman-commissions", icon: WalletCards },
+          { title: tr("نماذج العملاء والأصناف"), section: "customer-product-templates", icon: Grid3x3 },
+          { title: tr("العروض والأسعار الخاصة"), section: "promotions", icon: Megaphone },
+          { title: tr("السيارات"), section: "cars", icon: Car },
+          { title: tr("السائقين"), section: "drivers", icon: IdCard },
         ],
       },
       {
-        title: "الحركات",
+        title: tr("الحركات"),
         section: "sales-purchase-vouchers-transactions",
         icon: Truck,
         submenu: [
           // الترتيب: المشتريات (إرسالية ← فاتورة ← مرتجع) ثم المبيعات (إرسالية ← فاتورة ← مرتجع) ثم برسم البيع
-          { title: "إرسالية مشتريات", section: "delivery-pay", icon: ArrowDownCircle },
-          { title: "فاتورة مشتريات", section: "purchase-invoices", icon: ShoppingCart },
-          { title: "مرتجع مشتريات", section: "return-purchase", icon: FileMinus2 },
-          { title: "تحميل تكاليف الشحن والجمارك", section: "landed-costs", icon: Ship },
-          { title: "إرسالية مبيعات", section: "sales-delivery", icon: Truck },
-          { title: "فاتورة مبيعات", section: "sales-invoices", icon: FileText },
-          { title: "مرتجع مبيعات", section: "return-sell", icon: FileMinus2 },
-          { title: "إرسالية برسم البيع", section: "delivery-consignment-sale", icon: ArrowUpCircle },
-          { title: "مرتجع إرسالية برسم البيع", section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
+          { title: tr("إرسالية مشتريات"), section: "delivery-pay", icon: ArrowDownCircle },
+          { title: tr("فاتورة مشتريات"), section: "purchase-invoices", icon: ShoppingCart },
+          { title: tr("مرتجع مشتريات"), section: "return-purchase", icon: FileMinus2 },
+          { title: tr("تحميل تكاليف الشحن والجمارك"), section: "landed-costs", icon: Ship },
+          { title: tr("إرسالية مبيعات"), section: "sales-delivery", icon: Truck },
+          { title: tr("فاتورة مبيعات"), section: "sales-invoices", icon: FileText },
+          { title: tr("مرتجع مبيعات"), section: "return-sell", icon: FileMinus2 },
+          { title: tr("إرسالية برسم البيع"), section: "delivery-consignment-sale", icon: ArrowUpCircle },
+          { title: tr("مرتجع إرسالية برسم البيع"), section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
         ],
       },
     ],
   },
   {
     id: "employees-payroll",
-    title: "نظام ادارة الموظفين",
+    title: tr("نظام ادارة الموظفين"),
     icon: BriefcaseBusiness,
     submenu: [
       {
-        title: "الثوابت",
+        title: tr("الثوابت"),
         section: "employees-payroll-lookups",
         icon: Settings2,
         submenu: [
-          { title: "الوظائف", section: "employee-jobs", icon: BriefcaseBusiness },
-          { title: "بنود الراتب", section: "salary-items", icon: DollarSign },
-          { title: "قوانين ضريبة الدخل", section: "tax-rules", icon: FileText },
-          { title: "الإعفاءات الضريبية", section: "tax-exemptions", icon: FileText },
-          { title: "الورديات وجدول المناوبات", section: "shifts", icon: Clock3 },
-          { title: "العطل الرسمية", section: "official-holidays", icon: CalendarDays },
-          { title: "إعداد أجهزة الحضور", section: "attendance-devices", icon: Settings2 },
+          { title: tr("الوظائف"), section: "employee-jobs", icon: BriefcaseBusiness },
+          { title: tr("بنود الراتب"), section: "salary-items", icon: DollarSign },
+          { title: tr("قوانين ضريبة الدخل"), section: "tax-rules", icon: FileText },
+          { title: tr("الإعفاءات الضريبية"), section: "tax-exemptions", icon: FileText },
+          { title: tr("الورديات وجدول المناوبات"), section: "shifts", icon: Clock3 },
+          { title: tr("العطل الرسمية"), section: "official-holidays", icon: CalendarDays },
+          { title: tr("إعداد أجهزة الحضور"), section: "attendance-devices", icon: Settings2 },
         ],
       },
       {
-        title: "التعريفات",
+        title: tr("التعريفات"),
         section: "employees-payroll-definitions",
         icon: Users,
         submenu: [
-          { title: "الموظفين", section: "employees", icon: Users },
-          { title: "بنود رواتب الموظفين", section: "employee-salary-items", icon: Wallet },
+          { title: tr("الموظفين"), section: "employees", icon: Users },
+          { title: tr("بنود رواتب الموظفين"), section: "employee-salary-items", icon: Wallet },
         ],
       },
       {
-        title: "الحركات",
+        title: tr("الحركات"),
         section: "employees-payroll-transactions",
         icon: Receipt,
         submenu: [
-          { title: "فتح راتب شهر", section: "salary-periods", icon: Unlock },
-          { title: "حركات البصمة (الحضور والدوام)", section: "attendance-records", icon: Clock3 },
-          { title: "معالجة حركات الدخول والخروج", section: "attendance-processing", icon: Clock3 },
-          { title: "تعديل سجلات الدوام", section: "attendance-editor", icon: CalendarDays },
-          { title: "حركات الدوام (إضافي وخصومات)", section: "attendance-transactions", icon: Receipt },
-          { title: "إغلاق وتنفيذ قيد الراتب", section: "salary-journal", icon: Receipt },
+          { title: tr("فتح راتب شهر"), section: "salary-periods", icon: Unlock },
+          { title: tr("حركات البصمة (الحضور والدوام)"), section: "attendance-records", icon: Clock3 },
+          { title: tr("معالجة حركات الدخول والخروج"), section: "attendance-processing", icon: Clock3 },
+          { title: tr("تعديل سجلات الدوام"), section: "attendance-editor", icon: CalendarDays },
+          { title: tr("حركات الدوام (إضافي وخصومات)"), section: "attendance-transactions", icon: Receipt },
+          { title: tr("إغلاق وتنفيذ قيد الراتب"), section: "salary-journal", icon: Receipt },
         ],
       },
       {
-        title: "التقارير",
+        title: tr("التقارير"),
         section: "employees-payroll-reports",
         icon: BarChart3,
         submenu: [
-          { title: "كشف الرواتب", section: "payroll", icon: Receipt },
-          { title: "تقرير بنود الرواتب", section: "salary-items-report", icon: BarChart3 },
-          { title: "ضريبة دخل الموظفين", section: "income-tax-report", icon: BarChart3 },
-          { title: "دخول الموظفين تفصيلي", section: "attendance-detailed-report", icon: BarChart3 },
-          { title: "دخول الموظفين إجمالي", section: "attendance-summary-report", icon: BarChart3 },
+          { title: tr("كشف الرواتب"), section: "payroll", icon: Receipt },
+          { title: tr("تقرير بنود الرواتب"), section: "salary-items-report", icon: BarChart3 },
+          { title: tr("ضريبة دخل الموظفين"), section: "income-tax-report", icon: BarChart3 },
+          { title: tr("دخول الموظفين تفصيلي"), section: "attendance-detailed-report", icon: BarChart3 },
+          { title: tr("دخول الموظفين إجمالي"), section: "attendance-summary-report", icon: BarChart3 },
         ],
       },
     ],
   },
   {
     id: "retail-pos",
-    title: "نظام البيع بالتجزئة",
+    title: tr("نظام البيع بالتجزئة"),
     icon: Store,
     submenu: [
-      { title: "إعداد نقاط البيع", section: "pos-points-settings", icon: Settings },
-      { title: "الحملات", section: "campaigns", icon: Megaphone },
-      { title: "بطاقات الخصم", section: "pos-discount-cards", icon: BadgePercent },
-      { title: "كاشير نقطة البيع", section: "pos-cashier", icon: ShoppingCart },
+      { title: tr("إعداد نقاط البيع"), section: "pos-points-settings", icon: Settings },
+      { title: tr("الحملات"), section: "campaigns", icon: Megaphone },
+      { title: tr("بطاقات الخصم"), section: "pos-discount-cards", icon: BadgePercent },
+      { title: tr("برامج المساعدات"), section: "aid-program", icon: HeartHandshake },
+      { title: tr("كاشير نقطة البيع"), section: "pos-cashier", icon: ShoppingCart },
       {
-        title: "التقارير",
+        title: tr("التقارير"),
         section: "retail-pos-reports",
         icon: BarChart3,
         submenu: [
-          { title: "تقرير متابعة الكاشير", section: "cashier-log-report", icon: FileText },
-          { title: "تقرير حركات الكاشير إجمالي", section: "cashier-log-total-report", icon: TrendingUp },
-          { title: "تقرير حركات الكاشير تفصيلي", section: "cashier-log-detailed-report", icon: BarChart3 },
-          { title: "تقرير عهد البيع بالتجزئة", section: "pos-custody-report", icon: Wallet },
+          { title: tr("تقرير متابعة الكاشير"), section: "cashier-log-report", icon: FileText },
+          { title: tr("تقرير حركات الكاشير إجمالي"), section: "cashier-log-total-report", icon: TrendingUp },
+          { title: tr("تقرير حركات الكاشير تفصيلي"), section: "cashier-log-detailed-report", icon: BarChart3 },
+          { title: tr("تقرير عهد البيع بالتجزئة"), section: "pos-custody-report", icon: Wallet },
         ],
       },
     ],
   },
   {
     id: "restaurants",
-    title: "نظام ادارة المطاعم",
+    title: tr("نظام ادارة المطاعم"),
     icon: UtensilsCrossed,
     submenu: [
-      { title: "المواقع", section: "restaurant-locations", icon: MapPin },
-      { title: "الطاولات", section: "restaurant-tables", icon: LayoutGrid },
-      { title: "شاشة المطعم", section: "restaurant-pos", icon: UtensilsCrossed },
+      { title: tr("المواقع"), section: "restaurant-locations", icon: MapPin },
+      { title: tr("الطاولات"), section: "restaurant-tables", icon: LayoutGrid },
+      { title: tr("شاشة المطعم"), section: "restaurant-pos", icon: UtensilsCrossed },
       {
-        title: "التقارير",
+        title: tr("التقارير"),
         section: "restaurant-reports",
         icon: BarChart3,
         submenu: [
-          { title: "مراقبة المطعم", section: "restaurant-monitor-report", icon: Eye },
-          { title: "تقرير الطاولات", section: "restaurant-tables-report", icon: LayoutGrid },
-          { title: "طلبات المطعم تفصيلي", section: "restaurant-orders-report", icon: ClipboardList },
-          { title: "الأصناف المباعة في المطعم", section: "restaurant-items-report", icon: PackageSearch },
-          { title: "المطعم حسب النادل", section: "restaurant-waiters-report", icon: UserRound },
-          { title: "المطعم حسب الموقع", section: "restaurant-locations-report", icon: MapPin },
-          { title: "أوقات الذروة في المطعم", section: "restaurant-hours-report", icon: Timer },
+          { title: tr("مراقبة المطعم"), section: "restaurant-monitor-report", icon: Eye },
+          { title: tr("تقرير الطاولات"), section: "restaurant-tables-report", icon: LayoutGrid },
+          { title: tr("طلبات المطعم تفصيلي"), section: "restaurant-orders-report", icon: ClipboardList },
+          { title: tr("الأصناف المباعة في المطعم"), section: "restaurant-items-report", icon: PackageSearch },
+          { title: tr("المطعم حسب النادل"), section: "restaurant-waiters-report", icon: UserRound },
+          { title: tr("المطعم حسب الموقع"), section: "restaurant-locations-report", icon: MapPin },
+          { title: tr("أوقات الذروة في المطعم"), section: "restaurant-hours-report", icon: Timer },
         ],
       },
     ],
@@ -442,173 +444,173 @@ export const menuItems: MenuItem[] = [
   {
     // كل مجموعات التقارير تحت قائمة واحدة "التقارير"
     id: "reports",
-    title: "التقارير",
+    title: tr("التقارير"),
     icon: BarChart3,
     submenu: [
       {
         id: "accounting-reports",
-        title: "تقارير محاسبية",
+        title: tr("تقارير محاسبية"),
         icon: BookOpen,
         submenu: [
-          { title: "بيان حساب الذمة", section: "receivables-statement-report", icon: Users },
-          { title: "بيان حساب محاسبي", section: "accounting-statement-report", icon: BookOpen },
-          { title: "تقرير أرصدة الذمم بتاريخ معين", section: "receivables-balances-report", icon: BarChart3 },
-          { title: "تقرير أرصدة الحسابات بتاريخ معين", section: "accounting-balances-report", icon: BarChart3 },
-          { title: "تقرير تعمير الذمم", section: "receivables-aging-report", icon: Clock3 },
-          { title: "تقرير السندات", section: "vouchers-report", icon: FileText },
-          { title: "تقرير الحركات", section: "transactions-report", icon: TrendingUp },
-          { title: "تقرير ارشفة السندات", section: "voucher-audit-report", icon: Archive },
-          { title: "تقرير ارشفة التقارير", section: "report-audit-report", icon: Archive },
-          { title: "ميزان المراجعة", section: "trial-balance-report", icon: BarChart3 },
-          { title: "ميزانية عمومية", section: "balance-sheet-report", icon: Landmark },
-          { title: "قائمة الدخل", section: "income-statement-report", icon: DollarSign },
+          { title: tr("بيان حساب الذمة"), section: "receivables-statement-report", icon: Users },
+          { title: tr("بيان حساب محاسبي"), section: "accounting-statement-report", icon: BookOpen },
+          { title: tr("تقرير أرصدة الذمم بتاريخ معين"), section: "receivables-balances-report", icon: BarChart3 },
+          { title: tr("تقرير أرصدة الحسابات بتاريخ معين"), section: "accounting-balances-report", icon: BarChart3 },
+          { title: tr("تقرير تعمير الذمم"), section: "receivables-aging-report", icon: Clock3 },
+          { title: tr("تقرير السندات"), section: "vouchers-report", icon: FileText },
+          { title: tr("تقرير الحركات"), section: "transactions-report", icon: TrendingUp },
+          { title: tr("تقرير ارشفة السندات"), section: "voucher-audit-report", icon: Archive },
+          { title: tr("تقرير ارشفة التقارير"), section: "report-audit-report", icon: Archive },
+          { title: tr("ميزان المراجعة"), section: "trial-balance-report", icon: BarChart3 },
+          { title: tr("ميزانية عمومية"), section: "balance-sheet-report", icon: Landmark },
+          { title: tr("قائمة الدخل"), section: "income-statement-report", icon: DollarSign },
         ],
       },
       {
         id: "cost-center-reports",
-        title: "تقارير مراكز التكلفة",
+        title: tr("تقارير مراكز التكلفة"),
         icon: Grid3x3,
         submenu: [
-          { title: "كشف حساب مع اظهار مركز تكلفة", section: "cc-statement-with-report", icon: FileText },
-          { title: "كشف حساب حسب مركز تكلفة", section: "cc-statement-by-report", icon: FileText },
-          { title: "حركة الحسابات لمراكز التكلفة", section: "cc-accounts-movement-report", icon: TrendingUp },
-          { title: "تقرير الحركات مع اظهار مركز تكلفة", section: "cc-transactions-report", icon: ArrowLeftRight },
-          { title: "ميزان مراجعة بمراكز التكلفة", section: "cc-trial-balance-report", icon: BarChart3 },
-          { title: "ميزان مراجعة بالحسابات", section: "cc-trial-balance-accounts-report", icon: BarChart3 },
-          { title: "قائمة الدخل بمراكز التكلفة", section: "cc-income-statement-report", icon: DollarSign },
-          { title: "ميزانية عمومية بمراكز التكلفة", section: "cc-balance-sheet-report", icon: Landmark },
-          { title: "قائمة الدخل حسب مركز التكلفة", section: "cc-income-statement-by-report", icon: DollarSign },
-          { title: "ميزانية عمومية حسب مركز التكلفة", section: "cc-balance-sheet-by-report", icon: Landmark },
+          { title: tr("كشف حساب مع اظهار مركز تكلفة"), section: "cc-statement-with-report", icon: FileText },
+          { title: tr("كشف حساب حسب مركز تكلفة"), section: "cc-statement-by-report", icon: FileText },
+          { title: tr("حركة الحسابات لمراكز التكلفة"), section: "cc-accounts-movement-report", icon: TrendingUp },
+          { title: tr("تقرير الحركات مع اظهار مركز تكلفة"), section: "cc-transactions-report", icon: ArrowLeftRight },
+          { title: tr("ميزان مراجعة بمراكز التكلفة"), section: "cc-trial-balance-report", icon: BarChart3 },
+          { title: tr("ميزان مراجعة بالحسابات"), section: "cc-trial-balance-accounts-report", icon: BarChart3 },
+          { title: tr("قائمة الدخل بمراكز التكلفة"), section: "cc-income-statement-report", icon: DollarSign },
+          { title: tr("ميزانية عمومية بمراكز التكلفة"), section: "cc-balance-sheet-report", icon: Landmark },
+          { title: tr("قائمة الدخل حسب مركز التكلفة"), section: "cc-income-statement-by-report", icon: DollarSign },
+          { title: tr("ميزانية عمومية حسب مركز التكلفة"), section: "cc-balance-sheet-by-report", icon: Landmark },
         ],
       },
       {
         id: "tax-reports",
-        title: "تقارير ضريبية",
+        title: tr("تقارير ضريبية"),
         icon: Receipt,
         submenu: [
-            { title: "تقرير كشف احتساب الضريبة", section: "tax-calculation-report", icon: Receipt },
-            { title: "كشف المبيعات الضريبية", section: "tax-sales-statement-report", icon: FileText },
-            { title: "كشف المشتريات الضريبية", section: "tax-purchases-statement-report", icon: FileText },
-            { title: "تقرير المبيعات والمشتريات الضريبية", section: "tax-sales-purchases-report", icon: ArrowLeftRight },
-            { title: "تقرير مبيعات المقاصة", section: "tax-maqasa-sales-report", icon: FileText },
-            { title: "تقرير مشتريات المقاصة", section: "tax-maqasa-purchases-report", icon: FileText },
+            { title: tr("تقرير كشف احتساب الضريبة"), section: "tax-calculation-report", icon: Receipt },
+            { title: tr("كشف المبيعات الضريبية"), section: "tax-sales-statement-report", icon: FileText },
+            { title: tr("كشف المشتريات الضريبية"), section: "tax-purchases-statement-report", icon: FileText },
+            { title: tr("تقرير المبيعات والمشتريات الضريبية"), section: "tax-sales-purchases-report", icon: ArrowLeftRight },
+            { title: tr("تقرير مبيعات المقاصة"), section: "tax-maqasa-sales-report", icon: FileText },
+            { title: tr("تقرير مشتريات المقاصة"), section: "tax-maqasa-purchases-report", icon: FileText },
           ],
       },
       {
         id: "item-reports",
-        title: "تقارير الأصناف",
+        title: tr("تقارير الأصناف"),
         icon: BarChart3,
         submenu: [
-          { title: "بطاقة صنف", section: "item-card-report", icon: Package },
-          { title: "أرصدة المخزون بتاريخ معين", section: "item-balances-report", icon: BarChart3 },
-          { title: "تقييم المخزون بتاريخ معين", section: "item-valuation-report", icon: DollarSign },
-          { title: "أرصدة الأصناف حسب تاريخ الصلاحية", section: "expiry-balances-report", icon: CalendarDays },
-          { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
-          { title: "تقرير حركات السيريال", section: "serial-movements-report", icon: Package },
+          { title: tr("بطاقة صنف"), section: "item-card-report", icon: Package },
+          { title: tr("أرصدة المخزون بتاريخ معين"), section: "item-balances-report", icon: BarChart3 },
+          { title: tr("تقييم المخزون بتاريخ معين"), section: "item-valuation-report", icon: DollarSign },
+          { title: tr("أرصدة الأصناف حسب تاريخ الصلاحية"), section: "expiry-balances-report", icon: CalendarDays },
+          { title: tr("أرشفة الرقم التشغيلي"), section: "batch-log-report", icon: Package },
+          { title: tr("تقرير حركات السيريال"), section: "serial-movements-report", icon: Package },
           {
-            title: "تقارير الانتاج",
+            title: tr("تقارير الانتاج"),
             section: "production-reports",
             icon: Factory,
             submenu: [
-              { title: "تقرير الانتاج تفصيلي", section: "production-detailed-report", icon: ClipboardList },
-              { title: "المواد المنتجة حسب الصنف", section: "production-produced-report", icon: PackageSearch },
-              { title: "استهلاك المواد الخام حسب الصنف", section: "production-raw-report", icon: Layers },
-              { title: "تكلفة سندات الانتاج", section: "production-vouchers-report", icon: Factory },
+              { title: tr("تقرير الانتاج تفصيلي"), section: "production-detailed-report", icon: ClipboardList },
+              { title: tr("المواد المنتجة حسب الصنف"), section: "production-produced-report", icon: PackageSearch },
+              { title: tr("استهلاك المواد الخام حسب الصنف"), section: "production-raw-report", icon: Layers },
+              { title: tr("تكلفة سندات الانتاج"), section: "production-vouchers-report", icon: Factory },
             ],
           },
         ],
       },
       {
         id: "profit-reports",
-        title: "تقارير ارباح الاصناف",
+        title: tr("تقارير ارباح الاصناف"),
         icon: TrendingUp,
         submenu: [
-          { title: "تقرير نسبة أرباح المخزون", section: "items-profit-report", icon: TrendingUp },
-          { title: "تقرير ارباح فترة معينة", section: "period-profit-report", icon: BarChart3 },
-          { title: "تكلفة مبيعات صنف", section: "item-sales-cost-report", icon: Package },
-          { title: "أرباح فاتورة معينة", section: "invoice-profit-report", icon: FileText },
-          { title: "تسعير الإخراجات", section: "pricing-inventory", icon: DollarSign },
+          { title: tr("تقرير نسبة أرباح المخزون"), section: "items-profit-report", icon: TrendingUp },
+          { title: tr("تقرير ارباح فترة معينة"), section: "period-profit-report", icon: BarChart3 },
+          { title: tr("تكلفة مبيعات صنف"), section: "item-sales-cost-report", icon: Package },
+          { title: tr("أرباح فاتورة معينة"), section: "invoice-profit-report", icon: FileText },
+          { title: tr("تسعير الإخراجات"), section: "pricing-inventory", icon: DollarSign },
         ],
       },
       {
         id: "cheques-reports",
-        title: "تقارير الشيكات",
+        title: tr("تقارير الشيكات"),
         icon: WalletCards,
         submenu: [
-          { title: "تقرير الشيكات إجمالي", section: "cheques-total-report", icon: Layers },
-          { title: "تقرير الشيكات تفصيلي", section: "cheques-detailed-report", icon: ClipboardList },
+          { title: tr("تقرير الشيكات إجمالي"), section: "cheques-total-report", icon: Layers },
+          { title: tr("تقرير الشيكات تفصيلي"), section: "cheques-detailed-report", icon: ClipboardList },
         ],
       },
       {
         id: "orders-reports",
-        title: "تقارير الطلبيات",
+        title: tr("تقارير الطلبيات"),
         icon: BarChart3,
         submenu: [
-          { title: "ملخص الطلبيات", section: "order-reports", icon: BarChart3 },
-          { title: "تقرير الطلبيات تفصيلي", section: "orders-detailed-report", icon: ClipboardList },
-          { title: "تقرير الطلبيات إجمالي", section: "orders-total-report", icon: Layers },
-          { title: "الطلبيات حسب الصنف", section: "orders-by-item-report", icon: PackageSearch },
-          { title: "الطلبيات حسب العميل/المورد", section: "orders-by-party-report", icon: Users },
-          { title: "الطلبيات غير المسلّمة", section: "orders-backlog-report", icon: Timer },
-          { title: "الطلبيات حسب المندوب", section: "orders-by-salesman-report", icon: UserRound },
+          { title: tr("ملخص الطلبيات"), section: "order-reports", icon: BarChart3 },
+          { title: tr("تقرير الطلبيات تفصيلي"), section: "orders-detailed-report", icon: ClipboardList },
+          { title: tr("تقرير الطلبيات إجمالي"), section: "orders-total-report", icon: Layers },
+          { title: tr("الطلبيات حسب الصنف"), section: "orders-by-item-report", icon: PackageSearch },
+          { title: tr("الطلبيات حسب العميل/المورد"), section: "orders-by-party-report", icon: Users },
+          { title: tr("الطلبيات غير المسلّمة"), section: "orders-backlog-report", icon: Timer },
+          { title: tr("الطلبيات حسب المندوب"), section: "orders-by-salesman-report", icon: UserRound },
         ],
       },
       {
         id: "deliveries-reports",
-        title: "تقارير الارساليات",
+        title: tr("تقارير الارساليات"),
         icon: Truck,
         submenu: [
-            { title: "تقرير الارساليات", section: "deliveries-report", icon: Truck },
-            { title: "تقرير الارساليات الداخلية", section: "internal-deliveries-report", icon: ArrowLeftRight },
-            { title: "الفواتير الصادرة من إرسالية برسم البيع", section: "consignment-invoices-report", icon: FileText },
+            { title: tr("تقرير الارساليات"), section: "deliveries-report", icon: Truck },
+            { title: tr("تقرير الارساليات الداخلية"), section: "internal-deliveries-report", icon: ArrowLeftRight },
+            { title: tr("الفواتير الصادرة من إرسالية برسم البيع"), section: "consignment-invoices-report", icon: FileText },
           ],
       },
     ],
   },
   {
     id: "settings",
-    title: "الإعدادات",
+    title: tr("الإعدادات"),
     icon: Settings,
     submenu: [
       {
         id: "user-management",
-        title: "اعدادات المستخدمين",
+        title: tr("اعدادات المستخدمين"),
         icon: UserCheck,
         submenu: [
-          { title: "المستخدمين", section: "user-settings", icon: UserCheck },
-          { title: "الصلاحيات", section: "permissions", icon: Shield },
-          { title: "الأدوار الوظيفية", section: "job-roles", icon: UserCheck },
-          { title: "صلاحيات الأدوار الوظيفية", section: "role-permissions", icon: Shield },
+          { title: tr("المستخدمين"), section: "user-settings", icon: UserCheck },
+          { title: tr("الصلاحيات"), section: "permissions", icon: Shield },
+          { title: tr("الأدوار الوظيفية"), section: "job-roles", icon: UserCheck },
+          { title: tr("صلاحيات الأدوار الوظيفية"), section: "role-permissions", icon: Shield },
           // صلاحيات المستخدمين على الفروع: أُزيلت من القائمة مؤقتاً بطلب المستخدم (لم يُقرَّر بعد كيف
           // ستُستخدَم) — الشاشة والمسارات وجدول user_branches ما زالت موجودة، فقط غير مرتبطة بالقائمة.
           // انظر "user-branch-access-matrix" بـapp/page.tsx لإعادتها لاحقاً بسطر واحد هنا.
-          { title: "اعدادات", section: "user-default-accounts", icon: Settings },
-          { title: "صلاحيات دفاتر السندات", section: "voucher-book-permissions", icon: CreditCard },
+          { title: tr("اعدادات"), section: "user-default-accounts", icon: Settings },
+          { title: tr("صلاحيات دفاتر السندات"), section: "voucher-book-permissions", icon: CreditCard },
         ],
       },
-      { title: "إعدادات الخطوط", section: "font-settings", icon: Settings },
-      { title: "إعدادات النظام", section: "system-settings", icon: Settings },
-      { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
-      { title: "إعدادات الرسائل SMS", section: "sms-settings", icon: MessageSquareText },
-      { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
+      { title: tr("إعدادات الخطوط"), section: "font-settings", icon: Settings },
+      { title: tr("إعدادات النظام"), section: "system-settings", icon: Settings },
+      { title: tr("إعدادات الطباعة"), section: "print-settings", icon: Printer },
+      { title: tr("إعدادات الرسائل SMS"), section: "sms-settings", icon: MessageSquareText },
+      { title: tr("إعدادات السندات وطباعتها"), section: "voucher-settings", icon: Printer },
       // "اعدادات عامة" أصبحت تبويباً داخل "إعدادات النظام" (المسار vouchers-general-settings باقٍ للمفضلة القديمة)
     ],
   },
   {
     id: "tools",
-    title: "أدوات",
+    title: tr("أدوات"),
     icon: Wrench,
     submenu: [
-      { title: "البداية السريعة", section: "personal-assistant", icon: Sparkles },
-      { title: "اختصارات الصفحات", section: "page-shortcuts", icon: Keyboard },
-      { title: "إقفال الفترات", section: "period-locks", icon: Lock },
-      { title: "إقفال السنة المالية", section: "year-end-closing", icon: CalendarCheck2 },
-      { title: "ترحيل السندات", section: "voucher-posting-tools", icon: ClipboardList },
-      { title: "صلاحيات المستخدمين على الحسابات", section: "account-access", icon: KeyRound },
-      { title: "تعديل الأصناف", section: "bulk-items", icon: ListChecks },
-      { title: "التواصل مع الإدارة", section: "manager-attachments", icon: SendHorizontal },
-      { title: "بريد رسائل الموظفين", section: "manager-inbox", icon: MailOpen },
-      { title: "بريد الرسائل والتحسينات", section: "feature-requests", icon: Lightbulb },
+      { title: tr("البداية السريعة"), section: "personal-assistant", icon: Sparkles },
+      { title: tr("اختصارات الصفحات"), section: "page-shortcuts", icon: Keyboard },
+      { title: tr("إقفال الفترات"), section: "period-locks", icon: Lock },
+      { title: tr("إقفال السنة المالية"), section: "year-end-closing", icon: CalendarCheck2 },
+      { title: tr("ترحيل السندات"), section: "voucher-posting-tools", icon: ClipboardList },
+      { title: tr("صلاحيات المستخدمين على الحسابات"), section: "account-access", icon: KeyRound },
+      { title: tr("تعديل الأصناف"), section: "bulk-items", icon: ListChecks },
+      { title: tr("التواصل مع الإدارة"), section: "manager-attachments", icon: SendHorizontal },
+      { title: tr("بريد رسائل الموظفين"), section: "manager-inbox", icon: MailOpen },
+      { title: tr("بريد الرسائل والتحسينات"), section: "feature-requests", icon: Lightbulb },
     ],
   },
   //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
@@ -787,8 +789,8 @@ export function Sidebar({
     <div
       className={
         depth === 1
-          ? "relative mr-[1.4rem] mt-1 space-y-0.5 border-r border-slate-200 pb-1 pr-2.5 dark:border-white/10"
-          : "relative mr-3 mt-0.5 space-y-0.5 border-r border-dashed border-slate-200 pr-2.5 dark:border-white/10"
+          ? "relative ms-[1.4rem] mt-1 space-y-0.5 border-s border-slate-200 pb-1 ps-2.5 dark:border-white/10"
+          : "relative ms-3 mt-0.5 space-y-0.5 border-s border-dashed border-slate-200 ps-2.5 dark:border-white/10"
       }
     >
       {items.map((item) => {
@@ -799,7 +801,7 @@ export function Sidebar({
         const inTrail = activeTrail.includes(key)
         const expanded = hasChildren && isExpanded(item)
         const rowClass = cn(
-          "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 text-right transition-colors duration-150",
+          "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 text-start transition-colors duration-150",
           depth === 1 ? "min-h-9 py-1.5 text-[0.84rem]" : "min-h-8 py-1 text-[0.8rem]",
           active
             ? cn(accent.soft, "font-bold")
@@ -809,7 +811,7 @@ export function Sidebar({
         )
         const content = (
           <>
-            {active && <span className={cn("absolute -right-[11px] top-1.5 bottom-1.5 w-[3px] rounded-full", accent.bar)} />}
+            {active && <span className={cn("absolute -start-[11px] top-1.5 bottom-1.5 w-[3px] rounded-full", accent.bar)} />}
             {depth === 1 ? (
               <Icon className={cn("h-4 w-4 shrink-0", active ? "" : "text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300")} />
             ) : (
@@ -847,13 +849,13 @@ export function Sidebar({
     <div className={`user-typography ${menuDarkMode ? "dark" : ""}`}>
       <aside
         className={cn(
-          "fixed right-0 top-0 z-40 flex h-[100dvh] flex-col border-l border-slate-200/80 bg-white text-slate-800 shadow-[0_0_40px_-20px_rgba(15,23,42,0.25)] transition-[width,transform] duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_60%,#0b1220_100%)] dark:text-slate-100",
+          "fixed start-0 top-0 z-40 flex h-[100dvh] flex-col border-e border-slate-200/80 bg-white text-slate-800 shadow-[0_0_40px_-20px_rgba(15,23,42,0.25)] transition-[width,transform] duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_60%,#0b1220_100%)] dark:text-slate-100",
           isMobile && "z-50 w-[min(22rem,calc(100vw-1rem))]",
           isMobile && !isOpen ? "translate-x-full" : "translate-x-0",
         )}
         style={width ? { width } : undefined}
-        dir="rtl"
-        aria-label="القائمة الرئيسية"
+        dir={appDir()}
+        aria-label={tr("القائمة الرئيسية")}
       >
         {/* الهوية */}
         <div className={cn("flex shrink-0 items-center gap-3 border-b border-slate-100 dark:border-white/10", isOpen ? "px-4 py-4" : "flex-col px-2 py-4")}>
@@ -869,14 +871,14 @@ export function Sidebar({
               <h2 className="truncate text-[15px] font-extrabold leading-6 text-slate-900 dark:text-white" title={companyName}>{companyName}</h2>
               <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                نظام إدارة الموارد
+                {tr("نظام إدارة الموارد")}
               </p>
             </div>
           )}
           <button
             type="button"
             onClick={onToggle}
-            title={isOpen ? "طي القائمة" : "توسيع القائمة"}
+            title={isOpen ? tr("طي القائمة") : tr("توسيع القائمة")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
           >
             {isOpen ? <PanelRightClose className="h-[18px] w-[18px]" /> : <PanelRightOpen className="h-[18px] w-[18px]" />}
@@ -887,7 +889,7 @@ export function Sidebar({
         {isOpen && (
           <div className="shrink-0 px-3 pb-2 pt-3">
             <div className="relative">
-              <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 ref={searchInputRef}
                 value={query}
@@ -910,15 +912,15 @@ export function Sidebar({
                     }
                   }
                 }}
-                placeholder="ابحث في القائمة..."
-                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pr-9 pl-8 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:focus:bg-white/10"
+                placeholder={tr("ابحث في القائمة...")}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 ps-9 pe-8 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:focus:bg-white/10"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => { setQuery(""); searchInputRef.current?.focus() }}
-                  className="absolute left-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-white/10"
-                  title="مسح"
+                  className="absolute end-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-white/10"
+                  title={tr("مسح")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -928,15 +930,15 @@ export function Sidebar({
         )}
 
         {/* القائمة */}
-        <nav aria-busy={savingLocked} title={savingLocked ? "جارٍ حفظ السند، يرجى الانتظار" : undefined} className={cn(savingLocked && "pointer-events-none opacity-50", "min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent dark:scrollbar-thumb-white/10", isOpen ? "px-3 pt-1" : "px-2 pt-3")}>
+        <nav aria-busy={savingLocked} title={savingLocked ? tr("جارٍ حفظ السند، يرجى الانتظار") : undefined} className={cn(savingLocked && "pointer-events-none opacity-50", "min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent dark:scrollbar-thumb-white/10", isOpen ? "px-3 pt-1" : "px-2 pt-3")}>
           {isOpen && (
             <p className="px-2 pb-1.5 pt-1 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              {isSearching ? `نتائج البحث (${countLeaves(filteredItems)})` : "القائمة"}
+              {isSearching ? tr("نتائج البحث ({0})", countLeaves(filteredItems)) : tr("القائمة")}
             </p>
           )}
           {isOpen && isSearching && !filteredItems.length && (
             <div className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500 dark:border-white/10">
-              لا توجد شاشة بهذا الاسم
+              {tr("لا توجد شاشة بهذا الاسم")}
             </div>
           )}
           <div className={isOpen ? "space-y-1" : "space-y-1.5"}>
@@ -950,7 +952,7 @@ export function Sidebar({
               const expanded = isOpen && hasChildren && isExpanded(item)
 
               const rowClass = cn(
-                "group relative flex w-full items-center rounded-xl text-right transition-colors duration-150",
+                "group relative flex w-full items-center rounded-xl text-start transition-colors duration-150",
                 isOpen ? "min-h-11 gap-3 px-2 py-1.5" : "h-12 justify-center",
                 active || (containsActive && !expanded)
                   ? accent.soft
@@ -961,7 +963,7 @@ export function Sidebar({
               const content = (
                 <>
                   {(active || containsActive) && (
-                    <span className={cn("absolute right-0 top-2 bottom-2 w-[3px] rounded-l-full", accent.bar, !isOpen && "top-3 bottom-3")} />
+                    <span className={cn("absolute start-0 top-2 bottom-2 w-[3px] rounded-e-full", accent.bar, !isOpen && "top-3 bottom-3")} />
                   )}
                   <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 transition-transform duration-150 group-hover:scale-[1.04]", accent.tile)}>
                     <Icon className="h-[18px] w-[18px]" />
@@ -1022,7 +1024,7 @@ export function Sidebar({
             </span>
             {isOpen && (
               <>
-                <span className="text-emerald-700 dark:text-emerald-300">متصل</span>
+                <span className="text-emerald-700 dark:text-emerald-300">{tr("متصل")}</span>
                 <span className="mr-auto font-mono text-[10.5px] text-slate-400">Noon ERP</span>
               </>
             )}

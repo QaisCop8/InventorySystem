@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -24,9 +25,9 @@ interface DailyExchangeRatesDialogProps {
 
 type RateField = "buy_rate" | "sell_rate" | "exchange_rate"
 const FIELDS: { key: RateField; label: string }[] = [
-  { key: "buy_rate", label: "سعر الشراء" },
-  { key: "sell_rate", label: "سعر البيع" },
-  { key: "exchange_rate", label: "سعر الصرف" },
+  { key: "buy_rate", label: tr("سعر الشراء") },
+  { key: "sell_rate", label: tr("سعر البيع") },
+  { key: "exchange_rate", label: tr("سعر الصرف") },
 ]
 
 const fmt = (value: number, digits = 3) => (Number.isFinite(value) ? value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—")
@@ -64,7 +65,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     setError("")
     setLoading(true)
     fetch(`/api/exchange-rates?date=${rateDate}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("فشل تحميل أسعار الصرف"))))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(tr("فشل تحميل أسعار الصرف")))))
       .then((data) => {
         const list = Array.isArray(data?.rates) ? data.rates : []
         const baseId = list.length > 0 ? Math.min(...list.map((r: any) => Number(r.currency_id))) : null
@@ -85,7 +86,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
         // التركيز على أول حقل قابل للتعديل
         requestAnimationFrame(() => listRef.current?.querySelector<HTMLInputElement>("input[data-rate-input]")?.focus())
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "حدث خطأ أثناء تحميل أسعار الصرف"))
+      .catch((err) => setError(err instanceof Error ? err.message : tr("حدث خطأ أثناء تحميل أسعار الصرف")))
       .finally(() => setLoading(false))
   }, [open, rateDate])
 
@@ -104,7 +105,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     setError("")
     try {
       const invalid = rowsRef.current.find((row) => !row.is_base && !(row.exchange_rate > 0))
-      if (invalid) throw new Error(`أدخل سعر صرف صحيحاً لعملة ${invalid.currency_code}`)
+      if (invalid) throw new Error(tr("أدخل سعر صرف صحيحاً لعملة {0}", invalid.currency_code))
       for (const row of rowsRef.current) {
         if (row.is_base) continue
         const res = await fetch("/api/exchange-rates", {
@@ -121,12 +122,12 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             rate_date: rateDate,
           }),
         })
-        if (!res.ok) throw new Error("فشل حفظ سعر صرف بعض العملات")
+        if (!res.ok) throw new Error(tr("فشل حفظ سعر صرف بعض العملات"))
       }
       onOpenChange(false)
       onSaved?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ أثناء الحفظ")
+      setError(err instanceof Error ? err.message : tr("حدث خطأ أثناء الحفظ"))
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -175,25 +176,25 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     >
       <DialogContent
         className="flex max-h-[min(88dvh,760px)] w-[min(94vw,760px)] max-w-none flex-col gap-0 overflow-hidden rounded-2xl border-0 p-0 shadow-2xl [&>button]:hidden"
-        dir="rtl"
+        dir={appDir()}
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
         {/* الرأس */}
         <div className="relative overflow-hidden bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-700 px-5 py-4 text-white sm:px-6">
-          <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="pointer-events-none absolute -end-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="relative flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><Coins className="h-6 w-6" /></span>
               <div>
-                <DialogTitle className="text-lg font-bold text-white">أسعار الصرف اليومية</DialogTitle>
-                <DialogDescription className="text-xs text-white/80">حدّث أسعار العملات لهذا اليوم — العملة الرئيسية ثابتة بقيمة 1</DialogDescription>
+                <DialogTitle className="text-lg font-bold text-white">{tr("أسعار الصرف اليومية")}</DialogTitle>
+                <DialogDescription className="text-xs text-white/80">{tr("حدّث أسعار العملات لهذا اليوم — العملة الرئيسية ثابتة بقيمة 1")}</DialogDescription>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 ring-1 ring-white/25 focus-within:bg-white/25">
                 <CalendarDays className="h-4 w-4 shrink-0" />
-                <span className="sr-only">أسعار الصرف بتاريخ</span>
+                <span className="sr-only">{tr("أسعار الصرف بتاريخ")}</span>
                 <input
                   id="daily-exchange-rate-date"
                   type="date"
@@ -203,7 +204,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
                   className="bg-transparent text-sm font-semibold text-white outline-none [color-scheme:dark]"
                 />
               </label>
-              <button type="button" onClick={handleClose} disabled={saving} aria-label="إغلاق" className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25 transition hover:bg-white/25 disabled:opacity-50">
+              <button type="button" onClick={handleClose} disabled={saving} aria-label={tr("إغلاق")} className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25 transition hover:bg-white/25 disabled:opacity-50">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -226,12 +227,12 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
                 <span className="rounded-lg bg-emerald-600 px-2 py-0.5 font-mono text-xs font-bold text-white">{base.currency_code}</span>
                 {base.currency_name}
               </span>
-              <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-slate-900">العملة الرئيسية · 1.000</span>
+              <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-slate-900">{tr("العملة الرئيسية · 1.000")}</span>
             </div>
           )}
 
           {!loading && others.length === 0 && !error && (
-            <div className="grid h-32 place-items-center rounded-xl border-2 border-dashed text-sm text-slate-500">لا توجد عملات أخرى مفعّلة</div>
+            <div className="grid h-32 place-items-center rounded-xl border-2 border-dashed text-sm text-slate-500">{tr("لا توجد عملات أخرى مفعّلة")}</div>
           )}
 
           {others.map((row) => (
@@ -275,14 +276,14 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
 
         {/* التذييل */}
         <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:justify-between sm:px-6 dark:border-slate-800 dark:bg-slate-950">
-          <span className="hidden text-xs text-slate-500 sm:block">Enter للانتقال بين الحقول · F3 للحفظ</span>
+          <span className="hidden text-xs text-slate-500 sm:block">{tr("Enter للانتقال بين الحقول · F3 للحفظ")}</span>
           <div className="flex w-full gap-2 sm:w-auto">
             <Button id="daily-rates-save" onClick={handleSave} disabled={saving || loading || rows.length === 0} className="h-11 flex-1 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700 sm:h-10 sm:w-32 sm:flex-none">
               {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
-              حفظ
+              {tr("حفظ")}
             </Button>
             <Button variant="outline" onClick={handleClose} disabled={saving} className="h-11 flex-1 rounded-xl sm:h-10 sm:w-28 sm:flex-none">
-              إغلاق
+              {tr("إغلاق")}
             </Button>
           </div>
         </div>

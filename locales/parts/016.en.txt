@@ -1,0 +1,300 @@
+The rate is invalid in bracket no. {0}
+Define the law, account, currency and tax brackets
+Number of brackets
+Income tax law
+The "to" value is invalid in bracket no. {0}
+Deduction rate %
+The deduction rate must be less than or equal to 100
+Do you want to delete the income tax law?
+The law name must be entered
+The accounting account must be entered
+Balance sheet assets and liabilities
+Maximum balance
+Maximum transaction amount
+Or start from a ready chart of accounts
+Maximum balance action
+Maximum transaction amount action
+Budget overrun action
+Transaction type action
+Show notes in the account statement
+Calculate currency differences
+Import accounts from Excel
+The account name "{0}" already exists
+Account name in English
+Parent account
+Parent account {0} does not exist
+Parent account {0} was not imported (it has errors) — fix it first
+Allow currency difference
+The selected chart is empty
+Income statement item
+The income statement item is required
+Load the chart for review
+Services
+Unexpected error
+Account number {0} is duplicated with line {1}
+Account number {0} already exists
+Consolidated account number
+The account number must contain English letters or digits
+The account number is padded to 10 characters automatically. A parent account is saved before its children automatically.
+An account number that exists or is in the file
+Consolidated report group code
+Failed to load the chart
+Failed to save the item: {0}
+An account cannot belong to itself
+Parent account {0} was not saved
+Trading business
+Trading business - perpetual inventory
+Budget overrun rate
+The balance sheet assets or liabilities must be specified
+Used for both assets and liabilities if left empty
+The item is created automatically if it doesn't exist
+Import {0} from Excel
+{0} name
+First mobile
+Second mobile
+Number {0} already exists in the system
+City
+Balance date
+Journal voucher date — empty ⇐ today's date
+Set the opening balance currency
+Connection error
+Opening balance: positive = credit, negative = debit. Recorded with a journal voucher against the opening balances intermediary account
+Opening balance: positive = debit, negative = credit. Recorded with a journal voucher against the opening balances intermediary account
+{0} number
+Invalid email format
+Opening balance currency
+Price category
+Import failed
+for customers
+for subscribers
+for suppliers
+Not saved
+which is also the account currency. Empty ⇐ the base currency
+Records are entered by the chosen receivable type: {0}
+Go to the default accounts and choose the parent account {0}
+Generated automatically if left empty
+— None —
+(skipping {0} with errors)
+(not found)
+(used)
+{0} is required
+{0} is duplicated with line {1}
+• Save failed:
+xlsx, xls, csv — the first row must contain the column headers
+Columns in the file that won't be imported:
+Examples from the file
+Total lines
+Re-validate
+Stop
+Map each system field to a column from your file — matched automatically by column names.
+Import
+Import from an Excel file with column mapping and error review before saving
+Drag an Excel file here or click to choose
+Import completed successfully
+Import completed with errors
+Errors ({0})
+Failed lines (
+Import
+Next: review the data
+Expected fields (
+Line
+Valid
+Column in the file
+Sheet
+Search the lines...
+Need fixing
+Download errors
+Download Excel template
+fix them and try again
+Unable to validate the data
+Unable to prepare the data
+Unable to read the file
+Imported
+The import stopped because of an error
+Importing...
+Validating...
+Ready to import
+Delete error lines
+System field
+Mandatory fields without a match:
+Upload file
+line
+lines.
+lines)
+Page
+Show lines
+Failed
+No matching lines
+No data in the selected sheet
+Not imported (errors)
+Don't have a ready file? Download the template, fill it in, then upload it.
+Review errors
+Column mapping
+Please choose an Excel file (.xlsx or .xls) or CSV
+If present, saved with a goods receipt voucher in the main unit at the purchase price
+Leave empty to keep the current value
+Import items from Excel
+Item name in English
+Items with an expiry date, lot number or serial number don't accept an opening quantity on import; enter it with a goods receipt voucher
+The name or number; created if it doesn't exist. If left empty the default price category is used
+The name, code or number; created automatically if it doesn't exist
+Barcode {0} is used for item {1}
+Barcode {0} is duplicated within the same item
+Barcode {0} is duplicated with line {1}
+Original number {0}
+Relation to the main unit {0}
+Relation to the main unit {0} must be greater than zero
+Opening quantity
+Default warehouse
+Unit {0}
+Main unit
+Unit barcode {0} - {1}
+Update existing items by their number: only filled columns are updated, new units/barcodes are added and sale prices updated. Purchase price and quantities are not imported in this mode.
+Update items from Excel
+Unable to update the item
+Unable to generate the receipt voucher number
+The item was saved but the opening quantity receipt voucher couldn't be saved: {0}
+Error saving the item
+Item number {0} does not exist — the update is for existing items only
+Item number {0} already exists in the system — choose «Update existing items» to update it
+Manufacturer number {0}
+An existing item number — padded to 10 digits automatically
+Sale price of unit {0}
+Failed to create {0}: {1}
+The purchase price is not updated and no goods receipt voucher is created
+Has an expiry date
+Has a lot number
+Has a serial number
+Item group
+Opening quantity warehouse
+The opening quantity warehouse is required when there is an opening quantity
+Required when there is an opening quantity
+Import type:
+Also used as the unit price in the opening quantity receipt voucher
+Padded to 10 digits automatically
+Add to the voucher
+Bonus
+Item {0} does not exist
+The item does not exist or was deselected
+The quantity must be greater than zero
+Add failed
+The item is looked up by its number or barcode; lines not found appear as errors to fix before adding
+The item price is used if left empty
+Send SMS notifications
+Reset
+Automatic reorder system settings
+Auto-create
+Create purchase orders automatically
+Product name or code
+Email for notifications
+Minimum order value
+Products that need reordering
+Products that reached the reorder point or ran out of stock
+The automatic system is currently disabled
+System stopped
+System enabled
+Below the reorder point
+Run check
+Check frequency (hours)
+Reorder rule created successfully
+Settings saved successfully
+{0} products checked, {1} new orders created
+Loading the automatic reorder system...
+All statuses
+All products are at good stock levels
+Stock status
+An error occurred while creating the rule
+An error occurred while updating the rule
+An error occurred while running the check
+An error occurred while saving the settings
+Save settings
+Automatic orders
+Pending orders
+Failed to create the reorder rule
+Failed to update the rule status
+Failed to load the automatic system data
+Failed to run the reorder check
+Failed to save the settings
+Awaiting approval
+Reorder rules
+No products
+Available
+Monitor inventory and create purchase orders automatically
+Enabled
+Active:
+Automatic reorder system
+Out of stock
+Reorder point
+Inventory is checked every {0} hours
+Needs an immediate order
+(available:
+Enter any additional notes...
+Sales order
+Purchase order
+Manage active lots
+Manage lot number (batch) transactions
+Add a new lot transaction
+Close lot
+Search for a lot number...
+Actions
+Choose the new status
+Choose the lot
+Choose the reference type
+New status *
+Lot *
+Manual voucher
+Quantity *
+Current quantity
+Current quantity:
+Available quantity
+Available quantity:
+Product
+Product:
+Sale
+Last transaction date
+Production date
+Transfer
+Quantity adjustment
+Status change
+Unit cost
+Damage
+Lot transaction added successfully
+Validity status
+An error occurred adding the lot transaction
+Save transaction
+Order number or reference
+Lot number
+Reference number
+Lot number transactions log
+Purchase
+Valid
+Failed to add the lot transaction
+Near expiry
+In use
+In use
+No data
+No lots to show
+Return
+Expired
+Expired
+Reference type
+Please choose the lot
+- Quantity:
+- Warehouse:
+- Expires: {0}
+Enter the batch number
+Enter the batch number to search for it
+Close preview
+Choose the batch
+Choose the batch whose details you want to print by barcode, direct search or choosing the product
+Choose the product
+Choose the product first, then choose the batch
+Choose the right printing method from the options below
+Choose product
+Choose product and batch
+Item name:
+Model name
+Model name:
+Batch
+Direct search
+Search by barcode

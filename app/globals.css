@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* اتجاه الواجهة من <html dir> (lib/i18n.ts): القواعد التي كانت direction: rtl ثابتة تستخدم هذا المتغير */
+:root { --app-dir: rtl; }
+:root[dir="ltr"] { --app-dir: ltr; }
+
 /* Accounting reports stay compact even when the global user font preference is large. */
 .accounting-report {
   font-size: 14px !important;
@@ -533,15 +537,15 @@
 
   /* Simplified RTL support to prevent CSS parsing errors */
   [dir="rtl"] {
-    direction: rtl;
-    text-align: right;
+    direction: var(--app-dir, rtl);
+    text-align: start;
   }
 
   [dir="rtl"] input,
   [dir="rtl"] textarea,
   [dir="rtl"] select {
-    text-align: right;
-    direction: rtl;
+    text-align: start;
+    direction: var(--app-dir, rtl);
   }
 }
 
@@ -551,7 +555,7 @@
 [role="dialog"]:has(.universal-toolbar) .universal-toolbar,
 .universal-dialog-inline:has(.universal-toolbar) .universal-toolbar,
 .voucher-form > .universal-toolbar {
-  padding-left: 4.25rem !important;
+  padding-inline-end: 4.25rem !important;
   flex-shrink: 0;
 }
 
@@ -559,18 +563,18 @@
    (وإلا ظهرت فجوة بيضاء بجانب رأس الشريط). */
 [role="dialog"]:has(.universal-toolbar) .universal-toolbar[data-toolbar-template="classic"],
 .universal-dialog-inline:has(.universal-toolbar) .universal-toolbar[data-toolbar-template="classic"] {
-  padding-left: 0 !important;
+  padding-inline-end: 0 !important;
 }
 
 [role="dialog"]:has(.universal-toolbar) .universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-nav-wrap,
 .universal-dialog-inline:has(.universal-toolbar) .universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-nav-wrap {
-  padding-left: 4.25rem !important;
+  padding-inline-end: 4.25rem !important;
 }
 
 [role="dialog"]:has(.universal-toolbar) > .universal-dialog-close,
 .universal-dialog-inline:has(.universal-toolbar) > .universal-dialog-close {
   top: 10px !important;
-  left: 14px !important;
+  inset-inline-end: 14px !important;
   border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent) !important;
   background: color-mix(in srgb, var(--destructive) 12%, var(--background)) !important;
   color: var(--destructive) !important;
@@ -795,7 +799,7 @@ td {
     min-height: 0;
     overflow-y: auto;
     border-bottom: 0;
-    border-left: 1px solid #e2e8f0;
+    border-inline-end: 1px solid #e2e8f0;
     padding: 1.25rem;
   }
 
@@ -935,7 +939,7 @@ td {
   }
 
   .p-dropdown-panel .p-dropdown-filter-container {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   .p-dropdown-panel .p-dropdown-filter {
@@ -1023,7 +1027,7 @@ td {
     align-items: center !important;
     padding-inline: 14px 42px !important;
     color: #1f2937 !important;
-    text-align: right !important;
+    text-align: start !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -1127,7 +1131,7 @@ td {
   }
 
   .invoice-currency-dropdown-panel .p-dropdown-filter-container {
-    direction: rtl !important;
+    direction: var(--app-dir, rtl) !important;
   }
 
   .invoice-currency-dropdown-panel .p-dropdown-filter {
@@ -1136,7 +1140,7 @@ td {
     border-radius: 12px !important;
     background: #ffffff !important;
     padding-inline: 14px 34px !important;
-    text-align: right !important;
+    text-align: start !important;
     box-shadow: none !important;
   }
 
@@ -1150,7 +1154,7 @@ td {
   }
 
   .invoice-currency-dropdown-panel .p-dropdown-items-wrapper {
-    direction: rtl !important;
+    direction: var(--app-dir, rtl) !important;
     max-height: 300px !important;
   }
 
@@ -1158,7 +1162,7 @@ td {
     padding: 12px 16px !important;
     color: #1f2937 !important;
     background: #ffffff !important;
-    text-align: right !important;
+    text-align: start !important;
   }
 
   .invoice-currency-dropdown-panel .p-dropdown-item:hover {
@@ -1174,8 +1178,8 @@ td {
   .invoice-currency-dropdown-panel.p-multiselect-panel {
     position: absolute !important;
     top: calc(100% + 0.4rem) !important;
-    left: auto !important;
-    right: 0 !important;
+    inset-inline-end: auto !important;
+    inset-inline-start: 0 !important;
     width: auto !important;
     min-width: 100% !important;
     max-width: min(320px, 90vw) !important;
@@ -1192,8 +1196,8 @@ td {
      النافذة اليسرى ضمن صف فلاتر عريض — تثبيت اللوحة من يمينها (right:0) يجعلها تنمو يساراً فتخرج
      عن حدود النافذة. هذا الصنف الإضافي يُثبِّتها من يسارها بدل ذلك فتنمو يميناً (إلى داخل النافذة). */
   .invoice-currency-dropdown-panel-left.p-multiselect-panel {
-    left: 0 !important;
-    right: auto !important;
+    inset-inline-end: 0 !important;
+    inset-inline-start: auto !important;
   }
 
   /* كان مُخفى بالكامل سابقاً (display:none) — يُخفي معه صندوق البحث وخانة "تحديد الكل" حتى لو
@@ -1222,7 +1226,7 @@ td {
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-filter-container {
-    direction: rtl !important;
+    direction: var(--app-dir, rtl) !important;
     margin: 0 !important;
   }
 
@@ -1232,7 +1236,7 @@ td {
     border-radius: 14px !important;
     background: #ffffff !important;
     padding-inline: 14px 10px !important;
-    text-align: right !important;
+    text-align: start !important;
     box-shadow: none !important;
   }
 
@@ -1246,7 +1250,7 @@ td {
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-items-wrapper {
-    direction: rtl !important;
+    direction: var(--app-dir, rtl) !important;
     max-height: 280px !important;
     overflow-y: auto !important;
     padding: 0 !important;
@@ -1255,14 +1259,14 @@ td {
   .invoice-currency-dropdown-panel .p-multiselect-item {
     display: flex !important;
     flex-direction: row-reverse !important;
-    direction: rtl !important;
+    direction: var(--app-dir, rtl) !important;
     justify-content: flex-start !important;
     align-items: flex-start !important;
     gap: 0.75rem !important;
     padding: 12px 16px !important;
     color: #1f2937 !important;
     background: #ffffff !important;
-    text-align: right !important;
+    text-align: start !important;
     text-decoration: none !important;
     border-bottom: none !important;
     white-space: normal !important;
@@ -1270,8 +1274,8 @@ td {
 
   .invoice-currency-dropdown-panel .p-multiselect-item,
   .invoice-currency-dropdown-panel .p-multiselect-item * {
-    direction: rtl !important;
-    text-align: right !important;
+    direction: var(--app-dir, rtl) !important;
+    text-align: start !important;
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-item > :not(.p-checkbox) {
@@ -1299,8 +1303,8 @@ td {
   .invoice-currency-dropdown-panel .p-multiselect-item.p-highlight {
     display: flex !important;
     flex-direction: row-reverse !important;
-    direction: rtl !important;
-    text-align: right !important;
+    direction: var(--app-dir, rtl) !important;
+    text-align: start !important;
     justify-content: flex-start !important;
     align-items: center !important;
   }
@@ -1311,13 +1315,13 @@ td {
   .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox .p-checkbox-icon {
     order: 0 !important;
     flex: 0 0 auto !important;
-    margin-right: 0 !important;
-    margin-left: 0 !important;
+    margin-inline-start: 0 !important;
+    margin-inline-end: 0 !important;
     margin-inline-start: 0 !important;
     margin-inline-end: 0.75rem !important;
-    left: auto !important;
-    right: 0 !important;
-    direction: rtl !important;
+    inset-inline-end: auto !important;
+    inset-inline-start: 0 !important;
+    direction: var(--app-dir, rtl) !important;
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-item > :not(.p-multiselect-checkbox) {
@@ -1604,13 +1608,13 @@ td {
   .sales-delivery-form .invoice-currency-dropdown-wrap > div {
     width: 100% !important;
     min-width: 0 !important;
-    text-align: right !important;
+    text-align: start !important;
   }
 
   .sales-delivery-form select {
     width: 100% !important;
     min-width: 0 !important;
-    text-align: right !important;
+    text-align: start !important;
   }
 
   /* كان @media (min-width: 768px) — صار على عرض البطاقة نفسها (انظر بطاقات رأس السند أدناه) */
@@ -1652,7 +1656,7 @@ td {
   .sales-delivery-form .voucher-header-grid > * > input,
   .sales-delivery-form .voucher-header-grid > * > .invoice-currency-dropdown-wrap {
     width: 100% !important;
-    text-align: right !important;
+    text-align: start !important;
   }
 
   .sales-delivery-form .voucher-header-grid .invoice-currency-dropdown {
@@ -2001,7 +2005,7 @@ td {
       display: block;
       position: absolute;
       top: 0;
-      left: 0;
+      inset-inline-end: 0;
       width: 100%;
     }
   }
@@ -2157,8 +2161,8 @@ td {
     @apply bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm;
     border-radius: var(--border-radius-custom, 8px);
     transition: all var(--animation-duration, 0.3s) ease;
-    text-align: right;
-    direction: rtl;
+    text-align: start;
+    direction: var(--app-dir, rtl);
     font-weight: var(--font-weight-custom, 400);
     font-size: var(--font-size-custom, 14px);
   }
@@ -2166,7 +2170,7 @@ td {
   .erp-label {
     font-family: var(--font-family-custom, "Cairo"), "Inter", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     @apply font-semibold text-sm text-foreground mb-2 block;
-    text-align: right;
+    text-align: start;
     font-weight: calc(var(--font-weight-custom, 400) + 200);
   }
 
@@ -2360,8 +2364,8 @@ td {
   /* Enhanced RTL support for all form elements */
   /* Make all forms RTL by default */
   form {
-    direction: rtl;
-    text-align: right;
+    direction: var(--app-dir, rtl);
+    text-align: start;
   }
 
   /* All input elements RTL by default */
@@ -2377,8 +2381,8 @@ td {
   input[type="time"],
   textarea,
   select {
-    direction: rtl;
-    text-align: right;
+    direction: var(--app-dir, rtl);
+    text-align: start;
     font-family: var(--font-family-custom, "Cairo"), "Inter", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     font-size: var(--font-size-custom, 14px);
     font-weight: var(--font-weight-custom, 400);
@@ -2386,75 +2390,75 @@ td {
 
   /* Grid containers with RTL support */
   .grid {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   /* Flex containers with RTL support */
   .flex {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   /* Date range containers specifically */
   .date-range-container {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
     display: flex;
     gap: var(--spacing-default, 1rem);
     align-items: center;
   }
 
   .date-range-container > * {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   /* Override for specific LTR elements if needed */
   .ltr-override {
     direction: ltr !important;
-    text-align: left !important;
+    text-align: end !important;
   }
 
   .ltr-override input,
   .ltr-override textarea,
   .ltr-override select {
     direction: ltr !important;
-    text-align: left !important;
+    text-align: end !important;
   }
 
   /* Enhanced button groups for RTL */
   .button-group {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
     display: flex;
     gap: calc(var(--spacing-default, 1rem) * 0.5);
   }
 
   .button-group > button:first-child {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
   }
 
   .button-group > button:last-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
   }
 
   /* Enhanced card layouts for RTL */
   .card-grid {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
     display: grid;
     gap: var(--spacing-default, 1rem);
   }
 
   /* Enhanced table layouts for RTL */
   .table-container {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   .table-container table {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   .table-container th,
   .table-container td {
-    text-align: right;
+    text-align: start;
     font-family: var(--font-family-custom, "Cairo"), "Inter", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   }
 
@@ -2517,7 +2521,7 @@ td {
 
   /* Added RTL-specific utility classes */
   .dir-rtl {
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   .dir-ltr {
@@ -2530,8 +2534,8 @@ td {
     border-radius: var(--border-radius-custom, 8px);
     background: var(--card);
     border: 1px solid var(--border);
-    direction: rtl;
-    text-align: right;
+    direction: var(--app-dir, rtl);
+    text-align: start;
     box-shadow: var(--card-shadow, 0 1px 3px 0 rgba(0, 0, 0, 0.1));
     padding: var(--spacing-default, 1rem);
   }
@@ -2539,8 +2543,8 @@ td {
   .rtl-input {
     @apply bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm;
     border-radius: var(--border-radius-custom, 8px);
-    direction: rtl;
-    text-align: right;
+    direction: var(--app-dir, rtl);
+    text-align: start;
     font-family: var(--font-family-custom, "Cairo"), "Inter", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     font-size: var(--font-size-custom, 14px);
     font-weight: var(--font-weight-custom, 400);
@@ -2550,7 +2554,7 @@ td {
   .rtl-button {
     @apply px-6 py-3 font-semibold text-sm shadow-sm hover:shadow-md;
     border-radius: var(--border-radius-custom, 8px);
-    direction: rtl;
+    direction: var(--app-dir, rtl);
     text-align: center;
     font-family: var(--font-family-custom, "Cairo"), "Inter", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     font-weight: calc(var(--font-weight-custom, 400) + 200);
@@ -2564,7 +2568,7 @@ td {
 
   .rtl-grid {
     @apply grid;
-    direction: rtl;
+    direction: var(--app-dir, rtl);
   }
 
   /* Enhanced search container with better colors */
@@ -2590,8 +2594,8 @@ td {
   .search-input {
     @apply w-full bg-input border border-border px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent text-sm;
     border-radius: var(--border-radius-custom, 8px);
-    text-align: right;
-    direction: rtl;
+    text-align: start;
+    direction: var(--app-dir, rtl);
     font-family: var(--font-family-custom, "Cairo"), "Inter", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
     font-size: var(--font-size-custom, 14px);
     font-weight: var(--font-weight-custom, 400);
@@ -2820,14 +2824,14 @@ td {
 .draft-order-form [data-refresh-customers="true"] {
   position: absolute !important;
   top: 1.65rem;
-  right: auto;
-  left: 0.35rem;
+  inset-inline-start: auto;
+  inset-inline-end: 0.35rem;
   z-index: 2;
   float: none !important;
 }
 
 .draft-order-form #draft-customer {
-  padding-left: 2.6rem;
+  padding-inline-end: 2.6rem;
 }
 
 /* Sales-draft item layout: product (2 columns) + warehouse + quantity + price
@@ -3092,5 +3096,5 @@ td {
    و"+970…" يظهر بترتيبه الصحيح. المحاذاة تبقى يميناً في RTL؛ :where بلا أولوية لتغلبها أي فئة Tailwind. */
 @layer base {
   :where(input[type="tel"], input[type="number"], input[type="email"], input[type="url"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { direction: ltr; }
-  :where([dir="rtl"]) :where(input[type="tel"], input[type="number"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { text-align: right; }
+  :where([dir="rtl"]) :where(input[type="tel"], input[type="number"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { text-align: start; }
 }

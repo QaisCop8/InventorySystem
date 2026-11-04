@@ -1,0 +1,300 @@
+Average order value
+Average:
+Medium
+Completion rate:
+Low
+Received by
+Prepare order
+Prepare all
+Select/deselect all
+Deliver order
+Deliver selected
+Change the order status to ready
+Change the order status to delivered
+The orders were prepared
+The orders were delivered
+Ready
+Order number, customer name...
+Customer order number
+Not ready
+Not delivered
+Unknown
+Order list
+No orders match the search
+Partially sent
+Fully sent
+Delivered
+Are you sure you want to prepare the order?
+Are you sure you want to prepare all orders?
+At least one order must be selected
+Search for an order...
+Search for an invoice...
+Invoice search
+Sales order search
+Purchase order search
+Invoice date
+Unable to load orders
+Invoice number
+Manage and track all purchase orders from suppliers
+Manual entry
+API import
+Supplier name
+Supplier name A-Z
+Supplier name is required
+Supplier name Z-A
+Purchase orders report
+The operation was cancelled
+Loading purchase orders...
+All sources
+Order number is required
+Order number, supplier name or salesman...
+Failed to load purchase orders
+Failed to delete the order
+Failed to save the order data
+Order source
+From suppliers
+Are you sure you want to delete this order?
+Enter the recipient name
+Enter the value and press copy all
+Add or edit
+Copy the value to all selected orders
+Copy all
+Total orders
+Manage and track all sales invoices efficiently
+Manage and track all purchase invoices efficiently
+Create a new invoice
+Loading sales invoices...
+Loading purchase invoices...
+Invoice number, customer name, manual voucher, received by...
+New invoice
+Failed to load sales invoices
+Failed to load purchase invoices
+Management decision
+No orders
+You do not have permission to access purchase orders
+Postponed
+Audited
+Accepted
+From customers
+Manage and track all sales orders efficiently
+Manage and track all purchase orders efficiently
+Original draft
+Unable to load the draft
+Order number, customer name, manual voucher, received by...
+Open draft
+Failed to load sales orders
+Failed to load purchase orders
+F2 - supplier search | F3 - product search | Ctrl+S - save | Escape - close
+Enter the number manually
+Order items
+Search for a product...
+Search for a supplier...
+Shortcuts:
+Discount:
+Discounts and taxes
+Main
+Shipping:
+Tax:
+Sub
+Subtotal
+Subtotal:
+Grand total:
+Barcode
+Product search
+Supplier search
+Expected delivery date
+Unable to navigate between orders
+Shipping cost
+Shipped
+The data was changed; do you want to continue without saving the changes?
+Order deleted successfully
+Order saved successfully
+An error occurred while deleting the data
+An error occurred while saving the data
+Other fees
+Other fees:
+Manual document number
+Supplier number
+Urgent
+Failed to delete the purchase order
+Failed to save the purchase order
+Discount value
+Code
+No order selected for deletion
+Confirmed
+Very urgent
+Additional information
+Basic order information
+Supplier information
+Delivery notes
+Delivery-specific notes
+Internal notes
+General notes
+Notes for internal use only
+Notes for the supplier
+Order summary
+Tax rate (%)
+Percentage
+Discount type
+Supplier phone
+At least one item must be added
+Invoice items
+Assets
+Choose the customer
+Payer name
+Tax classification
+Relationship
+The invoice is deleted and cannot be shown
+The invoice is posted to the accounting system; it won't be deleted
+The invoice is posted to the accounting system; it won't be saved
+The user is not identified; please sign in again
+First record
+Payment date
+Delivery date
+Expiry date
+Commercial
+Unable to add the item
+Customer details and tax information
+Sales invoices report
+Purchase invoices report
+Invoice deleted successfully
+Printed
+The voucher was already printed; do you want to print it again?
+An unexpected error occurred while adding the item
+Voucher book
+The manual voucher number is already used; do you want to continue?
+The invoice number is empty; cannot continue
+Warehouse number
+Unit number
+Zero-rated
+Taxable
+Only numbers must be entered
+Inactive
+Failed to delete the invoice
+Failed to save the sales invoice
+Clearing code
+No invoice to delete
+No invoice selected for deletion
+No newer invoices
+No older invoices
+A discount greater than the amount cannot be entered
+No item with this number or barcode: {0}
+For trade
+The discount amount is greater than the item amount
+Export sales
+The invoice total doesn't make sense; please check the entries
+Licensed dealer for the customer
+Exempt
+Tax information
+Basic invoice information
+Active
+Clearing
+General note
+General note on the invoice
+Invoice summary
+From a delivery
+From an order
+From a quotation
+Last record
+Invoice type
+Do you want to print the invoice?
+Item units
+Only numbers must be entered
+The customer name must be entered
+The item's lot number must be entered
+The customer must be entered
+The item number must be entered
+The exchange rate must be entered
+At least one item must be entered
+There are items without a quantity or bonus entered
+A lot number is duplicated across more than one item:
+Partially sent
+Fully sent
+Customer template items
+{0} items added{1}
+Reprint
+Choose the delivery status
+Choose the order status
+Choose the management decision
+Choose the discount type
+Price inclusive
+Item - {0} is linked to workflow chart - {1}; the item cannot be deleted
+Item-level tax is enabled: each item's rate comes from its tax classification, and this is the order's effective rate
+The order is posted to the accounting system; it won't be deleted
+The order is posted to the accounting system; it won't be saved
+The order is approved/audited; it won't be edited
+The order is approved/audited; it won't be deleted
+Search for an order
+Search for a customer
+Confirm printing
+Confirm order deletion
+Unable to load warehouse data
+Printing by warehouse failed
+Sales orders report
+Purchase orders report
+The order was already printed by warehouses; do you want to print it again?
+Printed by warehouses
+Printed through the browser — the print service is unavailable: {0}
+Split the order items by their warehouses and print each group on its warehouse's default printer
+Printing...
+The "partially/fully sent" status is set automatically from sales invoices only
+The "cancelled" status is no longer used — use "closed"
+Item status
+An error occurred while checking the order number
+Save order changes
+The order number is empty; cannot continue
+Customer number *
+Duplicate manual voucher number
+Print by warehouses
+The other warehouses were printed, and these failed: {0}
+Sales order — {0}
+Not ready
+Failed to save the sales order
+No items to print
+The status of a partially or fully sent item cannot be changed
+The order can only be deleted when its status is not ready or ready
+No order to delete
+Order not found
+The order total doesn't make sense; please check the entries
+Customer information
+Customer phone
+Do you want to print the order?
+The order must be saved first
+— saved on this device only
+Send to terminal
+Payment terminal settings
+Protocol
+Baud rate
+Port
+Waiting for the card to be presented on the terminal...
+Payment through the terminal failed
+Save and resend
+Print receipt
+Arabic
+Terminal IP address
+Terminal language
+COM port
+Customer receipt only
+Customer and merchant receipts
+Add lot
+Add a new lot
+Choose the supplier
+Initial quantity
+Lot details and tracking
+An error occurred saving the lot data
+Error saving the lot data:
+Shelf
+Floor
+Near expiry (
+No lots are recorded for this product
+Available
+Reserved
+Zone
+Brand types (
+Add type
+Add a new type
+Unfreeze
+Freeze
+Edit brand type
+Brand type added
+Unfrozen

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
@@ -141,12 +142,12 @@ export function BatchPrintDialog() {
     try {
       const response = await fetch(`/api/inventory/batch-details/search?barcode=${encodeURIComponent(barcodeInput)}`)
       if (!response.ok) {
-        throw new Error("لم يتم العثور على باتش بهذا الباركود")
+        throw new Error(tr("لم يتم العثور على باتش بهذا الباركود"))
       }
 
       const data = await response.json()
       if (data.length === 0) {
-        setError("لم يتم العثور على باتش بهذا الباركود")
+        setError(tr("لم يتم العثور على باتش بهذا الباركود"))
         return
       }
 
@@ -158,7 +159,7 @@ export function BatchPrintDialog() {
         setBatchDetails(null)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ في البحث")
+      setError(err instanceof Error ? err.message : tr("حدث خطأ في البحث"))
     } finally {
       setLoading(false)
     }
@@ -175,12 +176,12 @@ export function BatchPrintDialog() {
         `/api/inventory/batch-details/search?lot_number=${encodeURIComponent(lotNumberInput)}`,
       )
       if (!response.ok) {
-        throw new Error("لم يتم العثور على باتش بهذا الرقم")
+        throw new Error(tr("لم يتم العثور على باتش بهذا الرقم"))
       }
 
       const data = await response.json()
       if (data.length === 0) {
-        setError("لم يتم العثور على باتش بهذا الرقم")
+        setError(tr("لم يتم العثور على باتش بهذا الرقم"))
         return
       }
 
@@ -192,7 +193,7 @@ export function BatchPrintDialog() {
         setBatchDetails(null)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ في البحث")
+      setError(err instanceof Error ? err.message : tr("حدث خطأ في البحث"))
     } finally {
       setLoading(false)
     }
@@ -205,14 +206,14 @@ export function BatchPrintDialog() {
     try {
       const response = await fetch(`/api/inventory/batch-details/${lotId}`)
       if (!response.ok) {
-        throw new Error("فشل في تحميل تفاصيل الباتش")
+        throw new Error(tr("فشل في تحميل تفاصيل الباتش"))
       }
 
       const data = await response.json()
       setBatchDetails(data)
       setSearchResults([])
     } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ في تحميل التفاصيل")
+      setError(err instanceof Error ? err.message : tr("حدث خطأ في تحميل التفاصيل"))
     } finally {
       setLoading(false)
     }
@@ -505,13 +506,13 @@ export function BatchPrintDialog() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "new":
-        return <Badge className="bg-blue-100 text-blue-800">جديد</Badge>
+        return <Badge className="bg-blue-100 text-blue-800">{tr("جديد")}</Badge>
       case "in_use":
-        return <Badge className="bg-green-100 text-green-800">قيد الاستخدام</Badge>
+        return <Badge className="bg-green-100 text-green-800">{tr("قيد الاستخدام")}</Badge>
       case "finished":
-        return <Badge className="bg-gray-100 text-gray-800">منتهي</Badge>
+        return <Badge className="bg-gray-100 text-gray-800">{tr("منتهي")}</Badge>
       case "damaged":
-        return <Badge className="bg-red-100 text-red-800">تالف/مغلق</Badge>
+        return <Badge className="bg-red-100 text-red-800">{tr("تالف/مغلق")}</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
@@ -523,17 +524,17 @@ export function BatchPrintDialog() {
         <DialogTrigger asChild>
           <Button className="bg-purple-600 hover:bg-purple-700">
             <Printer className="ml-2 h-4 w-4" />
-            طباعة تفاصيل باتش
+            {tr("طباعة تفاصيل باتش")}
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir={appDir()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Printer className="h-5 w-5" />
-              طباعة تفاصيل باتش معين
+              {tr("طباعة تفاصيل باتش معين")}
             </DialogTitle>
             <DialogDescription>
-              اختر الباتش المطلوب طباعة تفاصيله من خلال الباركود أو البحث المباشر أو اختيار المنتج
+              {tr("اختر الباتش المطلوب طباعة تفاصيله من خلال الباركود أو البحث المباشر أو اختيار المنتج")}
             </DialogDescription>
           </DialogHeader>
 
@@ -548,7 +549,7 @@ export function BatchPrintDialog() {
             {/* Search Method Selection */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">طريقة البحث</CardTitle>
+                <CardTitle className="text-lg">{tr("طريقة البحث")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
@@ -561,7 +562,7 @@ export function BatchPrintDialog() {
                     className="h-20 flex-col gap-2"
                   >
                     <Scan className="h-6 w-6" />
-                    قراءة الباركود
+                    {tr("قراءة الباركود")}
                   </Button>
                   <Button
                     variant={searchMethod === "direct" ? "default" : "outline"}
@@ -572,7 +573,7 @@ export function BatchPrintDialog() {
                     className="h-20 flex-col gap-2"
                   >
                     <Search className="h-6 w-6" />
-                    البحث المباشر
+                    {tr("البحث المباشر")}
                   </Button>
                   <Button
                     variant={searchMethod === "product" ? "default" : "outline"}
@@ -583,7 +584,7 @@ export function BatchPrintDialog() {
                     className="h-20 flex-col gap-2"
                   >
                     <Package className="h-6 w-6" />
-                    اختيار المنتج
+                    {tr("اختيار المنتج")}
                   </Button>
                 </div>
               </CardContent>
@@ -593,21 +594,21 @@ export function BatchPrintDialog() {
             {searchMethod === "barcode" && (
               <Card>
                 <CardHeader>
-                  <CardTitle>البحث بالباركود</CardTitle>
-                  <CardDescription>امسح الباركود أو أدخله يدوياً</CardDescription>
+                  <CardTitle>{tr("البحث بالباركود")}</CardTitle>
+                  <CardDescription>{tr("امسح الباركود أو أدخله يدوياً")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-2">
                     <Input
                       ref={barcodeInputRef}
-                      placeholder="امسح الباركود أو أدخله هنا"
+                      placeholder={tr("امسح الباركود أو أدخله هنا")}
                       value={barcodeInput}
                       onChange={(e) => setBarcodeInput(e.target.value)}
                       onKeyPress={handleBarcodeKeyPress}
                       className="flex-1"
                     />
                     <Button onClick={searchByBarcode} disabled={loading || !barcodeInput.trim()}>
-                      {loading ? "جاري البحث..." : "بحث"}
+                      {loading ? tr("جاري البحث...") : tr("بحث")}
                     </Button>
                   </div>
                 </CardContent>
@@ -617,20 +618,20 @@ export function BatchPrintDialog() {
             {searchMethod === "direct" && (
               <Card>
                 <CardHeader>
-                  <CardTitle>البحث المباشر</CardTitle>
-                  <CardDescription>أدخل رقم الباتش للبحث عنه</CardDescription>
+                  <CardTitle>{tr("البحث المباشر")}</CardTitle>
+                  <CardDescription>{tr("أدخل رقم الباتش للبحث عنه")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="أدخل رقم الباتش"
+                      placeholder={tr("أدخل رقم الباتش")}
                       value={lotNumberInput}
                       onChange={(e) => setLotNumberInput(e.target.value)}
                       onKeyPress={handleLotNumberKeyPress}
                       className="flex-1"
                     />
                     <Button onClick={searchByLotNumber} disabled={loading || !lotNumberInput.trim()}>
-                      {loading ? "جاري البحث..." : "بحث"}
+                      {loading ? tr("جاري البحث...") : tr("بحث")}
                     </Button>
                   </div>
                 </CardContent>
@@ -640,16 +641,16 @@ export function BatchPrintDialog() {
             {searchMethod === "product" && (
               <Card>
                 <CardHeader>
-                  <CardTitle>اختيار المنتج والباتش</CardTitle>
-                  <CardDescription>اختر المنتج أولاً ثم اختر الباتش المطلوب</CardDescription>
+                  <CardTitle>{tr("اختيار المنتج والباتش")}</CardTitle>
+                  <CardDescription>{tr("اختر المنتج أولاً ثم اختر الباتش المطلوب")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>المنتج</Label>
+                      <Label>{tr("المنتج")}</Label>
                       <Select value={selectedProduct} onValueChange={handleProductChange}>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر المنتج" />
+                          <SelectValue placeholder={tr("اختر المنتج")} />
                         </SelectTrigger>
                         <SelectContent>
                           {products.map((product) => (
@@ -661,20 +662,20 @@ export function BatchPrintDialog() {
                       </Select>
                     </div>
                     <div>
-                      <Label>الباتش</Label>
+                      <Label>{tr("الباتش")}</Label>
                       <Select
                         value={selectedLot}
                         onValueChange={handleLotChange}
                         disabled={!selectedProduct || productLots.length === 0}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر الباتش" />
+                          <SelectValue placeholder={tr("اختر الباتش")} />
                         </SelectTrigger>
                         <SelectContent>
                           {productLots.map((lot) => (
                             <SelectItem key={lot.lot_id} value={lot.lot_id.toString()}>
-                              {lot.lot_number} - الكمية: {lot.current_quantity}
-                              {lot.expiry_date && ` - انتهاء: ${lot.expiry_date}`}
+                              {lot.lot_number}{tr(" - الكمية: ")}{lot.current_quantity}
+                              {lot.expiry_date && tr(" - انتهاء: {0}", lot.expiry_date)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -689,8 +690,8 @@ export function BatchPrintDialog() {
             {searchResults.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>نتائج البحث</CardTitle>
-                  <CardDescription>تم العثور على {searchResults.length} باتش، اختر الباتش المطلوب</CardDescription>
+                  <CardTitle>{tr("نتائج البحث")}</CardTitle>
+                  <CardDescription>{tr("تم العثور على ")}{searchResults.length}{tr(" باتش، اختر الباتش المطلوب")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -707,7 +708,7 @@ export function BatchPrintDialog() {
                               {batch.product_name} ({batch.product_code})
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              الكمية: {batch.current_quantity} - المستودع: {batch.warehouse_name || "غير محدد"}
+                              {tr("الكمية: ")}{batch.current_quantity}{tr(" - المستودع: ")}{batch.warehouse_name || tr("غير محدد")}
                             </div>
                           </div>
                           {getStatusBadge(batch.status)}
@@ -726,7 +727,7 @@ export function BatchPrintDialog() {
                   <CardTitle className="flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       <Package className="h-5 w-5 text-green-600" />
-                      تفاصيل الباتش
+                      {tr("تفاصيل الباتش")}
                     </span>
                     <div className="flex gap-2">
                       {printSettings.default_printer && (
@@ -734,10 +735,10 @@ export function BatchPrintDialog() {
                           onClick={() => printBatchLabel(true)}
                           className="bg-blue-600 hover:bg-blue-700 text-white shadow-md animate-pulse"
                           size="sm"
-                          title={`طباعة مباشرة على ${printSettings.default_printer}`}
+                          title={tr("طباعة مباشرة على {0}", printSettings.default_printer)}
                         >
                           <Printer className="ml-2 h-4 w-4" />
-                          طباعة مباشرة
+                          {tr("طباعة مباشرة")}
                         </Button>
                       )}
                       <Button
@@ -747,14 +748,14 @@ export function BatchPrintDialog() {
                         className="border-2 border-green-600 text-green-600 hover:bg-green-50 bg-white shadow-md animate-pulse"
                       >
                         <Eye className="ml-2 h-4 w-4" />
-                        معاينة قبل الطباعة
+                        {tr("معاينة قبل الطباعة")}
                       </Button>
                     </div>
                   </CardTitle>
                   {printSettings.default_printer && (
                     <CardDescription className="flex items-center gap-2 text-blue-600">
                       <Settings className="h-4 w-4" />
-                      الطابعة الافتراضية: {printSettings.default_printer}
+                      {tr("الطابعة الافتراضية: ")}{printSettings.default_printer}
                     </CardDescription>
                   )}
                 </CardHeader>
@@ -762,73 +763,73 @@ export function BatchPrintDialog() {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">رقم الباتش</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("رقم الباتش")}</Label>
                         <div className="text-lg font-bold">{batchDetails.lot_number}</div>
                       </div>
 
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">رقم الصنف</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("رقم الصنف")}</Label>
                         <div className="font-medium">{batchDetails.product_code}</div>
                       </div>
 
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">اسم الصنف</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("اسم الصنف")}</Label>
                         <div className="font-medium">{batchDetails.product_name}</div>
                       </div>
 
                       {batchDetails.color_code && (
                         <div>
-                          <Label className="text-sm font-medium text-muted-foreground">رقم اللون</Label>
+                          <Label className="text-sm font-medium text-muted-foreground">{tr("رقم اللون")}</Label>
                           <div className="font-medium">{batchDetails.color_code}</div>
                         </div>
                       )}
 
                       {batchDetails.model_name && (
                         <div>
-                          <Label className="text-sm font-medium text-muted-foreground">اسم الموديل</Label>
+                          <Label className="text-sm font-medium text-muted-foreground">{tr("اسم الموديل")}</Label>
                           <div className="font-medium">{batchDetails.model_name}</div>
                         </div>
                       )}
 
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">حالة الباتش</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("حالة الباتش")}</Label>
                         <div className="mt-1">{getStatusBadge(batchDetails.status)}</div>
                       </div>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">تاريخ الشراء</Label>
-                        <div className="font-medium">{batchDetails.purchase_date || "غير محدد"}</div>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("تاريخ الشراء")}</Label>
+                        <div className="font-medium">{batchDetails.purchase_date || tr("غير محدد")}</div>
                       </div>
 
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">الكمية الأصلية</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("الكمية الأصلية")}</Label>
                         <div className="font-medium">{batchDetails.initial_quantity.toLocaleString("en-US")}</div>
                       </div>
 
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">الكمية الحالية</Label>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("الكمية الحالية")}</Label>
                         <div className="font-medium text-green-600">
                           {batchDetails.current_quantity.toLocaleString("en-US")}
                         </div>
                       </div>
 
                       <div>
-                        <Label className="text-sm font-medium text-muted-foreground">المستودع</Label>
-                        <div className="font-medium">{batchDetails.warehouse_name || "غير محدد"}</div>
+                        <Label className="text-sm font-medium text-muted-foreground">{tr("المستودع")}</Label>
+                        <div className="font-medium">{batchDetails.warehouse_name || tr("غير محدد")}</div>
                       </div>
 
                       {batchDetails.floor && (
                         <div>
-                          <Label className="text-sm font-medium text-muted-foreground">الطابق</Label>
+                          <Label className="text-sm font-medium text-muted-foreground">{tr("الطابق")}</Label>
                           <div className="font-medium">{batchDetails.floor}</div>
                         </div>
                       )}
 
                       {batchDetails.shelf && (
                         <div>
-                          <Label className="text-sm font-medium text-muted-foreground">الرف</Label>
+                          <Label className="text-sm font-medium text-muted-foreground">{tr("الرف")}</Label>
                           <div className="font-medium">{batchDetails.shelf}</div>
                         </div>
                       )}
@@ -842,10 +843,10 @@ export function BatchPrintDialog() {
                     <div className="text-center mb-4">
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <Printer className="h-6 w-6 text-blue-600 animate-bounce" />
-                        <h3 className="text-xl font-bold text-gray-800">خيارات الطباعة</h3>
+                        <h3 className="text-xl font-bold text-gray-800">{tr("خيارات الطباعة")}</h3>
                         <Printer className="h-6 w-6 text-green-600 animate-bounce" />
                       </div>
-                      <p className="text-sm text-gray-600 font-medium">اختر طريقة الطباعة المناسبة من الخيارات أدناه</p>
+                      <p className="text-sm text-gray-600 font-medium">{tr("اختر طريقة الطباعة المناسبة من الخيارات أدناه")}</p>
                     </div>
 
                     <div className="flex justify-center gap-4 flex-wrap">
@@ -854,12 +855,12 @@ export function BatchPrintDialog() {
                           onClick={() => printBatchLabel(true)}
                           size="lg"
                           className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-4 transform hover:scale-105"
-                          title={`طباعة مباشرة على ${printSettings.default_printer}`}
+                          title={tr("طباعة مباشرة على {0}", printSettings.default_printer)}
                         >
                           <Printer className="ml-3 h-6 w-6" />
                           <div className="flex flex-col items-start">
-                            <span className="font-bold text-lg">طباعة مباشرة</span>
-                            <span className="text-sm opacity-90">على الطابعة الافتراضية</span>
+                            <span className="font-bold text-lg">{tr("طباعة مباشرة")}</span>
+                            <span className="text-sm opacity-90">{tr("على الطابعة الافتراضية")}</span>
                           </div>
                         </Button>
                       )}
@@ -872,8 +873,8 @@ export function BatchPrintDialog() {
                       >
                         <Eye className="ml-3 h-6 w-6" />
                         <div className="flex flex-col items-start">
-                          <span className="font-bold text-lg">معاينة قبل الطباعة</span>
-                          <span className="text-sm opacity-75">مع إمكانية الطباعة</span>
+                          <span className="font-bold text-lg">{tr("معاينة قبل الطباعة")}</span>
+                          <span className="text-sm opacity-75">{tr("مع إمكانية الطباعة")}</span>
                         </div>
                       </Button>
 
@@ -884,8 +885,8 @@ export function BatchPrintDialog() {
                       >
                         <Printer className="ml-3 h-6 w-6" />
                         <div className="flex flex-col items-start">
-                          <span className="font-bold text-lg">طباعة عادية</span>
-                          <span className="text-sm opacity-90">مع اختيار الطابعة</span>
+                          <span className="font-bold text-lg">{tr("طباعة عادية")}</span>
+                          <span className="text-sm opacity-90">{tr("مع اختيار الطابعة")}</span>
                         </div>
                       </Button>
                     </div>
@@ -894,7 +895,7 @@ export function BatchPrintDialog() {
                     <div className="mt-4 p-3 bg-white/70 rounded-lg border border-gray-200">
                       <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
                         <AlertTriangle className="h-4 w-4 text-amber-500" />
-                        <span>تأكد من أن الطابعة متصلة وجاهزة قبل الطباعة</span>
+                        <span>{tr("تأكد من أن الطابعة متصلة وجاهزة قبل الطباعة")}</span>
                       </div>
                     </div>
                   </div>
@@ -906,14 +907,14 @@ export function BatchPrintDialog() {
       </Dialog>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir={appDir()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
-              معاينة طباعة بطاقة الباتش
+              {tr("معاينة طباعة بطاقة الباتش")}
             </DialogTitle>
             <DialogDescription>
-              معاينة البطاقة قبل الطباعة - يمكنك الطباعة من هنا أو إغلاق النافذة للعودة
+              {tr("معاينة البطاقة قبل الطباعة - يمكنك الطباعة من هنا أو إغلاق النافذة للعودة")}
             </DialogDescription>
           </DialogHeader>
 
@@ -922,7 +923,7 @@ export function BatchPrintDialog() {
               {/* Print Preview */}
               <div className="border-2 border-dashed border-gray-300 p-4 bg-white">
                 <div
-                  className="mx-auto bg-white border border-gray-400 p-3 text-right"
+                  className="mx-auto bg-white border border-gray-400 p-3 text-start"
                   style={{
                     width: "240px",
                     minHeight: "300px",
@@ -931,7 +932,7 @@ export function BatchPrintDialog() {
                     fontFamily: "Arial, sans-serif",
                   }}
                 >
-                  <div className="text-center font-bold text-sm mb-3 pb-1 border-b border-black">تفاصيل الباتش</div>
+                  <div className="text-center font-bold text-sm mb-3 pb-1 border-b border-black">{tr("تفاصيل الباتش")}</div>
 
                   <div className="text-center font-bold text-base mb-2 p-1 border-2 border-black">
                     {batchDetails.lot_number}
@@ -939,25 +940,25 @@ export function BatchPrintDialog() {
 
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="font-bold">رقم الصنف:</span>
+                      <span className="font-bold">{tr("رقم الصنف:")}</span>
                       <span>{batchDetails.product_code}</span>
                     </div>
 
                     <div className="flex justify-between">
-                      <span className="font-bold">اسم الصنف:</span>
+                      <span className="font-bold">{tr("اسم الصنف:")}</span>
                       <span className="text-left">{batchDetails.product_name}</span>
                     </div>
 
                     {batchDetails.color_code && (
                       <div className="flex justify-between">
-                        <span className="font-bold">رقم اللون:</span>
+                        <span className="font-bold">{tr("رقم اللون:")}</span>
                         <span>{batchDetails.color_code}</span>
                       </div>
                     )}
 
                     {batchDetails.model_name && (
                       <div className="flex justify-between">
-                        <span className="font-bold">اسم الموديل:</span>
+                        <span className="font-bold">{tr("اسم الموديل:")}</span>
                         <span className="text-left">{batchDetails.model_name}</span>
                       </div>
                     )}
@@ -965,37 +966,37 @@ export function BatchPrintDialog() {
                     <div className="border-t border-dashed border-gray-400 my-2"></div>
 
                     <div className="flex justify-between">
-                      <span className="font-bold">تاريخ الشراء:</span>
-                      <span>{batchDetails.purchase_date || "غير محدد"}</span>
+                      <span className="font-bold">{tr("تاريخ الشراء:")}</span>
+                      <span>{batchDetails.purchase_date || tr("غير محدد")}</span>
                     </div>
 
                     <div className="flex justify-between">
-                      <span className="font-bold">الكمية الأصلية:</span>
+                      <span className="font-bold">{tr("الكمية الأصلية:")}</span>
                       <span>{batchDetails.initial_quantity.toLocaleString("en-US")}</span>
                     </div>
 
                     <div className="flex justify-between">
-                      <span className="font-bold">الكمية الحالية:</span>
+                      <span className="font-bold">{tr("الكمية الحالية:")}</span>
                       <span>{batchDetails.current_quantity.toLocaleString("en-US")}</span>
                     </div>
 
                     <div className="border-t border-dashed border-gray-400 my-2"></div>
 
                     <div className="flex justify-between">
-                      <span className="font-bold">المستودع:</span>
-                      <span className="text-left">{batchDetails.warehouse_name || "غير محدد"}</span>
+                      <span className="font-bold">{tr("المستودع:")}</span>
+                      <span className="text-left">{batchDetails.warehouse_name || tr("غير محدد")}</span>
                     </div>
 
                     {batchDetails.floor && (
                       <div className="flex justify-between">
-                        <span className="font-bold">الطابق:</span>
+                        <span className="font-bold">{tr("الطابق:")}</span>
                         <span>{batchDetails.floor}</span>
                       </div>
                     )}
 
                     {batchDetails.shelf && (
                       <div className="flex justify-between">
-                        <span className="font-bold">الرف:</span>
+                        <span className="font-bold">{tr("الرف:")}</span>
                         <span>{batchDetails.shelf}</span>
                       </div>
                     )}
@@ -1019,7 +1020,7 @@ export function BatchPrintDialog() {
                     </div>
 
                     <div className="text-center text-xs text-gray-600 mt-2">
-                      تاريخ الطباعة: {new Date().toLocaleDateString("en-GB")}
+                      {tr("تاريخ الطباعة: ")}{new Date().toLocaleDateString("en-GB")}
                     </div>
                   </div>
                 </div>
@@ -1036,7 +1037,7 @@ export function BatchPrintDialog() {
                     className="bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                   >
                     <Printer className="ml-2 h-4 w-4" />
-                    طباعة مباشرة على {printSettings.default_printer}
+                    {tr("طباعة مباشرة على ")}{printSettings.default_printer}
                   </Button>
                 )}
 
@@ -1048,11 +1049,11 @@ export function BatchPrintDialog() {
                   className="bg-green-600 hover:bg-green-700 text-white shadow-md"
                 >
                   <Printer className="ml-2 h-4 w-4" />
-                  طباعة مع اختيار الطابعة
+                  {tr("طباعة مع اختيار الطابعة")}
                 </Button>
 
                 <Button onClick={() => setPreviewOpen(false)} variant="outline" className="shadow-md">
-                  إغلاق المعاينة
+                  {tr("إغلاق المعاينة")}
                 </Button>
               </div>
             </div>

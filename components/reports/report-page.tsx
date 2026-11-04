@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, type ReactNode } from "react"
 import { ChartNoAxesCombined, Loader2, type LucideIcon } from "lucide-react"
 import "./report-theme.css"
@@ -13,9 +14,9 @@ export function ReportPage({ children, loading = false }: { children: ReactNode;
   const routeSection = pathname.split("/").filter(Boolean).at(-1) || ""
   const section = reportDefinitionFor(routeSection)?.section
     || REPORT_DEFINITIONS.find((definition) => definition.section.replace(/-report$/, "") === routeSection)?.section
-  return <main dir="rtl" className="report-page" data-report-section={section} aria-busy={loading}>
+  return <main dir={appDir()} className="report-page" data-report-section={section} aria-busy={loading}>
     {/* تحميل بيانات أي تقرير: طبقة فوق التقرير بالكامل (تبقى ظاهرة مهما كان موضع التمرير) */}
-    {loading && <div role="status" aria-live="polite" className="report-loading print:hidden"><div className="report-loading-box"><Loader2 className="h-6 w-6 animate-spin" aria-hidden="true"/>جاري تحميل البيانات...</div></div>}
+    {loading && <div role="status" aria-live="polite" className="report-loading print:hidden"><div className="report-loading-box"><Loader2 className="h-6 w-6 animate-spin" aria-hidden="true"/>{tr("جاري تحميل البيانات...")}</div></div>}
     <div className="report-body">{children}</div></main>
 }
 

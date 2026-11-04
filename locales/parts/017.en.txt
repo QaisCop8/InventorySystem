@@ -1,0 +1,300 @@
+Shelf
+Shelf:
+Default printer:
+Floor
+Floor:
+Original quantity
+Original quantity:
+Quantity:
+Warehouse:
+Scan the barcode or enter it here
+Scan the barcode or enter it manually
+batches, choose the batch you want
+Make sure the printer is connected and ready before printing
+Purchase date
+Purchase date:
+Print date:
+Damaged/closed
+Batch details
+Found
+Batch status
+A search error occurred
+An error occurred loading the details
+Print options
+Batch number
+Item number:
+Color number
+Color number:
+Print batch details
+Print the details of a specific batch
+Normal print
+Direct print
+Direct print on
+Direct print on {0}
+Print with printer selection
+Search method
+on the default printer
+Failed to load the batch details
+Read barcode
+No batch found with this barcode
+No batch found with this number
+with the ability to print
+with printer selection
+Card preview before printing - you can print from here or close the window to go back
+Batch card print preview
+Preview before printing
+Total stock
+Inventory and sales trend
+Category
+Monthly sales
+Low stock
+Inventory vs sales
+A full analysis of inventory and sales status
+Inventory and sales over the past months
+Inventory details
+Category distribution
+A detailed table of each product's status
+Good
+Monthly
+pcs
+pcs sold
+Average
+A comparison of stock quantity and sales for each product
+products
+Low
+Stock ratio by category
+— Warehouse: {0}
+Enter a valid start and end (end ≥ start)
+Auto-select (
+Internal delivery: choose the transferred numbers
+Serial numbers —
+Entered numbers (
+Maximum 5000 numbers at a time
+Available in
+Entered / required
+Scan or type the number then Enter — several numbers can be pasted
+Prefix
+Search the available numbers
+Has a problem
+{0} duplicate numbers ignored
+{0} numbers added
+Generate a sequence:
+Checking
+Delete all
+Save numbers
+digits
+Issue voucher: choose the numbers in the warehouse
+Receipt voucher: enter the numbers of the received pieces
+The number count matches the quantity + bonus
+The number count must equal the quantity + bonus ({0}) — the voucher won't be saved before that
+No numbers yet
+No numbers are available for this item in this warehouse
+Total new lots
+Search and filter
+New lots
+Confirm opening
+Confirm opening lots
+Creation date
+Change the status of new lots to in use
+Loading new lots...
+All lots are either open or expired
+Lots near expiry
+Lots selected for opening
+Expired lots
+lot
+new lot available for opening
+lots from "new" to "in use"
+Lot number or product name
+Reason for opening the lots...
+The status will be changed for
+Valid (
+Open lots
+Failed to load new lots
+Failed to open {0} of {1} lots
+No new lots
+Notes (optional)
+Lots summary
+Expires within
+days)
+{0} days left
+| Reserved:
+Total available:
+Reset FIFO
+Choose lots (FIFO) -
+Maximum:
+The selected quantity ({0}) is greater than the required quantity ({1})
+Selected quantity:
+Quantity required from this lot
+Required quantity:
+Remaining:
+Supplier:
+No expiry
+Confirm selection (
+Production date:
+Expiry date:
+Warning: the available quantity is not enough to fully meet the request
+Unit cost:
+Lots were chosen automatically by FIFO (oldest first)
+Loading available lots...
+Lot:
+Failed to load available lots
+No lots available
+No lots are available for this product
+Available:
+Selected:
+A quantity must be chosen from the available lots
+Lot status management
+New status
+Current status
+Last change date
+Change lot statuses manually
+Change lot status
+Change the status of lot no.
+Loading lots...
+Lot status
+Reason for the status change...
+Failed to load lots
+Failed to change the lot status
+Lot list
+No lots match the search criteria
+Expiry (yyyy-mm-dd)
+Transferred
+Component (edited)
+Manufacturing component
+— Choose —
+, manufacturing components are added to the raw materials automatically
+{0}: the quantity is greater than the remaining ({1})
+Enter a quantity for at least one item
+Add at least one item to the raw materials
+Add at least one item to the produced goods
+Add item
+Unpost
+Cancel transfer
+Cancel transfer {0}? The internal delivery will be cancelled.
+Unpost the production voucher? The linked receipt and issue vouchers will be cancelled and the voucher returns to unapproved.
+To warehouse
+Create internal delivery
+Choose the warehouse
+Choose the receiving warehouse
+Choose the finished goods warehouse and the raw materials warehouse
+Choose a produced item
+Choose a raw material
+Type the item number then Enter — F10 item search, F7 delete line
+Delivery
+Linked vouchers
+Remaining
+Product
+Raw materials
+Produced goods
+Produced goods enter the finished goods warehouse and raw materials are issued from the raw materials warehouse
+Search production vouchers
+Delivery date
+Unable to add the item
+Unable to search for the item
+Unable to navigate
+Unable to load items
+Unable to load production vouchers
+Unable to perform the action
+Unable to delete the production voucher
+Unable to save the production voucher
+Unable to open the production voucher
+Unable to read the voucher number
+Production voucher {1}{2} {0}
+There are unsaved changes to the production voucher. Do you want to continue without saving?
+There are unsaved changes. Do you want to close without saving?
+Delete "{0}" — do you want to delete the manufacturing components added with it ({1}) from the raw materials?
+Delete production voucher {0}?
+Voucher {0} was saved but couldn't be posted: {1}
+Voucher number, item, notes
+Raw materials issue voucher
+Product receipt voucher
+Goods production voucher
+New production voucher
+Number of vouchers
+Cancelling
+Saving
+Raw materials value
+Product value
+Raw materials value
+Raw materials value:
+Produced goods value
+Produced goods value:
+Transfer quantity
+No vouchers
+No item with number {0}
+Finished goods warehouse
+Raw materials warehouse
+From warehouse
+Transfer to warehouse
+Transfer to warehouse —
+· reserved
+30 days
+60 days
+90 days
+Last 180 days
+Last 90 days
+Last purchase price
+Items suggested for purchase
+Out-of-stock or unavailable items
+Total selected quantity
+Create a purchase order for the selected items
+Make the selected items from one supplier to create a single order.
+Choose at least one item and set a quantity greater than zero.
+Item management
+Item name or number
+Suggest purchase quantities based on sales, inventory and open orders.
+Supply suggestions
+Required coverage
+Estimated cost
+Suggested quantity
+The suggested quantity covers the expected consumption for the selected period, taking into account the reorder point and incoming stock. Review the quantities and supplier before saving the order.
+Available
+Suggested for purchase
+Out of stock or unavailable
+Incoming on open orders
+Based on the chosen coverage period
+After deducting the reserved from the balance
+Refresh data
+Select the visible items
+Smart purchase planning
+Shown when prices are available and in a single currency
+Unable to load the planning data
+Stock coverage
+Preparing the purchase plan...
+items selected
+Show:
+Unavailable
+Sales period
+All items
+All suppliers
+Suggested purchase quantity for {0}
+You do not have permission to create a purchase order in the current branch.
+You do not have permission to view open purchase orders; incoming quantities won't be counted.
+You do not have permission to view sales invoices; recommendations will be based on the reorder level and stock only.
+No items match the search and filters.
+No sales
+Period sales
+Average consumption is calculated from active sales invoices during the last
+Daily average
+You must sign in
+days.
+F2: quick item search
+Enter the reason for the stock adjustment...
+Change:
+Minimum
+New quantity *
+Confirm adjustment
+Stock adjustment
+Adjust product stock
+Stock adjusted successfully
+An error occurred adjusting the stock
+Failed to adjust the stock
+Product list
+Please fill in all required fields
+— use search to reach an item
+Reopen the count
+Cancel session no. - {0} and delete all its quantities from the count?
+Finish
+Finish session no. - {0} ({1}) on their behalf?
+Approve and post the differences
+Counted

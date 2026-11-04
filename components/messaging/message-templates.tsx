@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -77,31 +78,31 @@ export function MessageTemplates() {
         body: JSON.stringify(formData),
       })
 
-      if (!response.ok) throw new Error("فشل في حفظ النموذج")
+      if (!response.ok) throw new Error(tr("فشل في حفظ النموذج"))
 
-      setMessage({ type: "success", text: "تم حفظ النموذج بنجاح" })
+      setMessage({ type: "success", text: tr("تم حفظ النموذج بنجاح") })
       setIsDialogOpen(false)
       fetchTemplates()
       resetForm()
     } catch (error) {
-      setMessage({ type: "error", text: "حدث خطأ أثناء الحفظ" })
+      setMessage({ type: "error", text: tr("حدث خطأ أثناء الحفظ") })
     }
   }
 
   const handleDeleteTemplate = async (id: number) => {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا النموذج؟"))) return
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذا النموذج؟")))) return
 
     try {
       const response = await fetch(`/api/messaging/templates/${id}`, {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error("فشل في حذف النموذج")
+      if (!response.ok) throw new Error(tr("فشل في حذف النموذج"))
 
-      setMessage({ type: "success", text: "تم حذف النموذج بنجاح" })
+      setMessage({ type: "success", text: tr("تم حذف النموذج بنجاح") })
       fetchTemplates()
     } catch (error) {
-      setMessage({ type: "error", text: "حدث خطأ أثناء الحذف" })
+      setMessage({ type: "error", text: tr("حدث خطأ أثناء الحذف") })
     }
   }
 
@@ -159,44 +160,44 @@ export function MessageTemplates() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">نماذج الرسائل</h2>
-          <p className="text-muted-foreground">إدارة نماذج الرسائل القابلة لإعادة الاستخدام</p>
+          <h2 className="text-2xl font-bold">{tr("نماذج الرسائل")}</h2>
+          <p className="text-muted-foreground">{tr("إدارة نماذج الرسائل القابلة لإعادة الاستخدام")}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={resetForm} className="gap-2">
               <Plus className="h-4 w-4" />
-              نموذج جديد
+              {tr("نموذج جديد")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogContent className="max-w-2xl" dir={appDir()}>
             <DialogHeader>
-              <DialogTitle>{editingTemplate ? "تعديل النموذج" : "نموذج جديد"}</DialogTitle>
-              <DialogDescription>أنشئ نموذج رسالة قابل لإعادة الاستخدام</DialogDescription>
+              <DialogTitle>{editingTemplate ? tr("تعديل النموذج") : tr("نموذج جديد")}</DialogTitle>
+              <DialogDescription>{tr("أنشئ نموذج رسالة قابل لإعادة الاستخدام")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>اسم النموذج</Label>
+                <Label>{tr("اسم النموذج")}</Label>
                 <Input
                   value={formData.template_name}
                   onChange={(e) => setFormData({ ...formData, template_name: e.target.value })}
-                  placeholder="مثال: تنبيه إعادة طلب المخزون"
+                  placeholder={tr("مثال: تنبيه إعادة طلب المخزون")}
                 />
               </div>
               <div>
-                <Label>كود النموذج</Label>
+                <Label>{tr("كود النموذج")}</Label>
                 <Input
                   value={formData.template_code}
                   onChange={(e) => setFormData({ ...formData, template_code: e.target.value })}
-                  placeholder="مثال: INVENTORY_REORDER"
+                  placeholder={tr("مثال: INVENTORY_REORDER")}
                 />
               </div>
               <div>
-                <Label>التصنيف</Label>
+                <Label>{tr("التصنيف")}</Label>
                 <Select
                   value={formData.template_category}
                   onValueChange={(value) => setFormData({ ...formData, template_category: value })}
@@ -205,31 +206,31 @@ export function MessageTemplates() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="inventory">المخزون</SelectItem>
-                    <SelectItem value="orders">الطلبيات</SelectItem>
-                    <SelectItem value="customers">العملاء</SelectItem>
-                    <SelectItem value="general">عام</SelectItem>
+                    <SelectItem value="inventory">{tr("المخزون")}</SelectItem>
+                    <SelectItem value="orders">{tr("الطلبيات")}</SelectItem>
+                    <SelectItem value="customers">{tr("العملاء")}</SelectItem>
+                    <SelectItem value="general">{tr("عام")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>محتوى الرسالة</Label>
+                <Label>{tr("محتوى الرسالة")}</Label>
                 <Textarea
                   value={formData.message_content}
                   onChange={(e) => setFormData({ ...formData, message_content: e.target.value })}
                   rows={8}
-                  placeholder="استخدم {variable_name} للمتغيرات"
+                  placeholder={tr("استخدم {variable_name} للمتغيرات")}
                   className="font-mono"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  استخدم الأقواس المعقوفة للمتغيرات، مثل: {"{product_name}"}, {"{order_number}"}
+                  {tr("استخدم الأقواس المعقوفة للمتغيرات، مثل: ")}{"{product_name}"}, {"{order_number}"}
                 </p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
-                <Button onClick={handleSaveTemplate}>حفظ النموذج</Button>
+                <Button onClick={handleSaveTemplate}>{tr("حفظ النموذج")}</Button>
               </div>
             </div>
           </DialogContent>
@@ -262,16 +263,16 @@ export function MessageTemplates() {
                 </div>
                 {template.is_system && (
                   <Badge variant="outline" className="text-xs">
-                    نظامي
+                    {tr("نظامي")}
                   </Badge>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-2">
                 {getCategoryBadge(template.template_category)}
                 {template.is_active ? (
-                  <Badge className="bg-green-100 text-green-800">مفعل</Badge>
+                  <Badge className="bg-green-100 text-green-800">{tr("مفعل")}</Badge>
                 ) : (
-                  <Badge className="bg-gray-100 text-gray-800">معطل</Badge>
+                  <Badge className="bg-gray-100 text-gray-800">{tr("معطل")}</Badge>
                 )}
               </div>
             </CardHeader>
@@ -290,15 +291,15 @@ export function MessageTemplates() {
                   </div>
                 )}
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-                  <span>استخدم {template.usage_count} مرة</span>
+                  <span>{tr("استخدم ")}{template.usage_count}{tr(" مرة")}</span>
                   {template.last_used_at && (
-                    <span>آخر استخدام: {new Date(template.last_used_at).toLocaleDateString("en-GB")}</span>
+                    <span>{tr("آخر استخدام: ")}{new Date(template.last_used_at).toLocaleDateString("en-GB")}</span>
                   )}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template)} className="flex-1">
-                    <Edit className="h-3 w-3 ml-1" />
-                    تعديل
+                    <Edit className="h-3 w-3 me-1" />
+                    {tr("تعديل")}
                   </Button>
                   <Button
                     variant="outline"
@@ -306,8 +307,8 @@ export function MessageTemplates() {
                     onClick={() => handleDuplicateTemplate(template)}
                     className="flex-1"
                   >
-                    <Copy className="h-3 w-3 ml-1" />
-                    نسخ
+                    <Copy className="h-3 w-3 me-1" />
+                    {tr("نسخ")}
                   </Button>
                   {!template.is_system && (
                     <Button
@@ -330,11 +331,11 @@ export function MessageTemplates() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">لا توجد نماذج</h3>
-            <p className="text-muted-foreground text-center mb-4">ابدأ بإنشاء نموذج رسالة جديد</p>
+            <h3 className="text-lg font-semibold mb-2">{tr("لا توجد نماذج")}</h3>
+            <p className="text-muted-foreground text-center mb-4">{tr("ابدأ بإنشاء نموذج رسالة جديد")}</p>
             <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
-              إنشاء نموذج
+              {tr("إنشاء نموذج")}
             </Button>
           </CardContent>
         </Card>

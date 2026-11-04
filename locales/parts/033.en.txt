@@ -1,0 +1,300 @@
+Split screen
+Split the display area into two independent parts
+Page display mode
+Open screens in full page
+Open pages as tabs
+Open voucher, account, customer, item and service screens as a full page
+Search for a page...
+Open page
+An error occurred while creating
+An error occurred while updating
+Choose the user
+Unable to load permissions
+User does not exist
+Record not found
+Invalid ID
+Account classification type
+The type name already exists
+The status must be 1, 2 or 3
+Account classification
+The classification name already exists
+The parent account does not exist
+The account code already exists
+The classification type does not exist
+The classification type is required
+The parent account does not exist
+A sub-account can't be added to account {0} - {1} because it has transactions; move the transactions to a sub-account first
+A sub-account can't be added; the parent account must be an accounting account (1)
+Unable to calculate the account balance
+Invalid account ID
+Unable to delete the account
+The account number is already used
+Account {0} can't be deleted because it is the parent of {1} sub-accounts — delete or move the sub-accounts first
+Account {0} can't be deleted because it is linked to {1} "{2}" — delete it from the {3} screen
+Account {0} can't be deleted because it is linked to: {1}{2} — you can suspend it instead of deleting it
+Account {0} can't be deleted because it has {1} vouchers (the last {2}) — you can suspend it instead of deleting it
+Account {0} can't be deleted because it has {1} orders (the last {2})
+The account can't be deleted because it is used in other records{0} — you can suspend it instead of deleting it
+The account name is required
+Invalid financial statement
+Failed to generate the analysis
+Search for products
+Get the best-selling products
+Get order statistics (sales and purchases)
+Get the inventory and product status
+Get the workflow status of orders
+Get the information of a specific customer
+Failed to search for products
+Failed to fetch the best products
+Failed to fetch order statistics
+Failed to fetch the inventory status
+Failed to fetch the workflow status
+Failed to fetch the customer information
+Failed to fetch the sales summary
+Summary of actual sales (sales invoices, points of sale and sales returns) for a period: total, net, number of invoices, average, best items, customers and days
+Attach an image or PDF file
+The attachment does not exist (it may have been deleted)
+The file is empty
+Unable to read the document{0}
+Unable to process the attachment
+The file is larger than 10MB
+The AI service is not enabled on the server
+Unsupported file type — image (JPG/PNG/WEBP) or PDF only
+Choose the active branch first
+Mention the name or code of the branch the goods are requested from specifically
+Mention the customer name or account number
+Mention at least one item and the quantity of each item
+Mention the source and destination warehouses correctly
+The command is required
+Item "{0}" doesn't exist. Use the item name as defined or its code
+Customer "{0}" doesn't exist in the system
+Unable to create the draft from the request{0}. Mention the document type, items and quantities clearly
+The AI service is not available right now{0}. Write the request in the form: order for customer <customer name> <quantity> <item>, e.g.: order for customer Gifts 10 Rima tissues 250 g
+No unit is defined for item {0}
+The source and destination warehouses can't be the same
+No active warehouse is defined in the system
+The smart assistant key is not set
+More than one item matches "{0}". Specify the item by its full name or code: {1}
+More than one customer is named "{0}". Mention the full name or account number: {1}
+Mention the customer or account name and the amount to create {0}
+Check the payment details
+Unable to create the voucher draft. Mention the voucher type, account and amount clearly.
+No currencies are defined. Add a currency before saving {0}
+I couldn't understand the voucher data
+I couldn't find the currency "{0}"
+GOOGLE_GENERATIVE_AI_API_KEY is not set for the smart assistant
+I found more than one matching account. Repeat the request with the account code: {0}
+The voice recording is too long
+Unable to read the voice recording
+The Gemini key is not set
+No speech was recognized in the recording
+The audio file is required
+Product not found
+Failed to generate recommendations
+Invalid analysis type
+Attachment not found
+Unable to download the attachment
+Unable to delete the attachment
+Invalid attachment ID
+The file size exceeds the allowed limit (20 MB)
+Attachment upload failed: {0}
+Invalid parameters
+A file must be chosen
+One of the selected accounts no longer has a balance in another currency. Refresh the list.
+The currency of {0} balances was converted by creating {1} entries: {2}
+The currency conversion account can't be one of the converted accounts
+There is no exchange rate for currency {0} or {1} on the entry date
+Enter the exchange rate — there is no recorded rate for this currency on the date
+Choose the currency difference account first
+{0} currency difference entries created: {1}
+The currency difference account can't be one of the revalued accounts
+No currency difference is calculated for the base currency
+There is no currency difference for the selected accounts
+Choose the source account and the destination account
+Choose the two currencies
+The two currency conversion entries were created: {0} and {1}
+The currency conversion account must differ from both sides of the transfer
+An entry can't be made for the same account and currency
+Choose at least one card transaction
+The maximum per operation is 500 transactions
+Some of the selected transactions are no longer available (a commission entry was created or their voucher was cancelled). Refresh the list.
+Unable to determine the cards account in voucher {0}
+{0} commission entries created: {1}
+The bank account isn't defined for card type {0}
+The commission account isn't defined for card type {0}
+Item not found
+Asset item
+Failed to update the item
+Failed to fetch the item
+Invalid item ID
+The item name is required
+The item name already exists
+Liability item
+Unable to load the auto-creation settings
+Unable to save the auto-creation settings
+Bank account not found
+The account number already exists
+The bank account ID is required
+The bank, branch and currency must be chosen
+Line {0}: invalid transaction date
+Too many statement lines (limit 20000 lines)
+One of the entry lines doesn't exist or isn't on the bank account
+{0} lines added
+The reconciliation was reopened
+The reconciliation was closed
+{0} automatic matches cancelled
+Journal voucher {0} was created and matched with the statement line
+Choose the counter account
+Choose at least one entry line
+Invalid balances
+The reconciliation does not exist
+The reconciliation is already open
+The reconciliation is closed — reopen it first
+The counter account can't be the bank account itself
+Unable to determine the entry currency
+Unable to load the reconciliation
+Unable to delete the reconciliation
+Statement data saved
+Unmatched
+Matched
+{0} lines matched automatically
+The statement line was deleted
+The entry line in voucher {0} is already matched
+The statement line does not exist
+The statement line is already matched
+The statement line is already matched — unmatch it first
+The reconciliation can't be closed: there is a difference of {0} between the adjusted bank balance and the adjusted book balance
+A closed reconciliation can't be deleted — reopen it first
+No new matches were found
+The total of the entry lines ({0}) doesn't equal the statement line amount ({1}) — difference {2}
+The statement end date is before its start date
+Unable to create the reconciliation
+Unable to load bank reconciliations
+There is a reconciliation for the same account overlapping the period ({0} — {1})
+The bank account must be chosen
+The statement period must be specified
+Bank not found
+The bank number already exists
+The bank number and bank name are required
+The bank number must be 1 to 4 characters
+The bank ID is required
+Failed to update the branch
+Failed to fetch the branch data
+Invalid branch ID
+Unable to load the branch users
+Unable to save the user permissions
+This branch can't be removed because it is the only branch of user: {0} — add another branch for them first
+Invalid branch ID
+The branch name is required
+Branch not found
+The branch number is already used
+The branch number is required and must be 1 to 4 digits only
+No branch number is available (1-9999)
+The branch ID is required
+Type not found
+The type can't be deleted because brands are linked to it
+Invalid ID
+Brand not found
+The brand can't be deleted because it is linked to items
+The brand name is required
+The brand name already exists
+The brand type does not exist
+The brand type is required
+Unable to prepare the morning briefing
+Unable to create the smart analysis
+The AI service key is not defined
+Add at least one purchase item
+Campaign not found
+Check the quantity and price; the discount doesn't exceed the item's original value
+Specify the added items or the discount rate
+The campaign code is already used
+Invalid campaign period
+Invalid discount values or application limit
+The first quantity must be a positive whole number
+The campaign ID is required
+Invalid campaign type
+Invalid car ID
+Failed to generate the car number
+The car name is required
+Car not found
+Failed to fetch contacts
+The user doesn't exist or is suspended
+The recipient is required
+Failed to send the message
+Failed to fetch messages
+You can't send a message to yourself
+The other user's ID is required
+The message text is required
+Failed to fetch the unread message count
+Invalid save action
+The voucher doesn't exist, is approved or is cancelled
+The voucher doesn't exist or is cancelled
+Unable to cancel the cheque payment voucher
+The voucher can't be deleted: the status of cheque no. {0} changed after this voucher
+The voucher book does not exist
+The voucher book must be chosen first
+One of the selected cheques doesn't exist
+The selected account doesn't exist or is inactive
+Voucher not found
+Cheque no. {0} doesn't belong to the selected branch
+Cheque no. {0} is no longer available for endorsement, refresh the search
+Unable to load cheque payment vouchers
+Unable to save the cheque payment voucher
+The voucher number is already used
+The account currency differs from the cheques currency and the account doesn't allow transactions in a different currency
+All the selected cheques must be in the same currency
+The account and date must be entered and at least one cheque chosen
+The cheque book doesn't exist
+The cheque book can't be deleted because some cheques are not available
+The cheque book ID is required
+A book is already defined for the selected bank account with the same number {0}
+One of the entry accounts doesn't exist or is inactive
+One of the cheque operation entry accounts doesn't exist or is inactive
+Unable to determine the two sides of the cheque operation entry
+The bulk cheque operation entry is not balanced
+The cheque value must be greater than zero
+The operation can't be done because the debit and credit accounts are the same
+The status of cheque no. {0} changed; the journal voucher can't be deleted
+The journal voucher can't be deleted because it isn't the last entry on cheque no. {0}
+The journal voucher can't be deleted because there is a newer operation on cheque no. {0}
+Choose the endorsement beneficiary account
+The current status of cheque {0} doesn't allow the operation
+The maximum per operation is 500 cheques
+The current account isn't defined in the bank account
+The current account isn't defined for cheque {0}
+Unable to determine the account or value of cheque {0}
+Unable to perform the bulk cheque operation
+{0} was done for {1} cheques, creating a separate voucher for each cheque: {2}
+The beneficiary account doesn't exist or is inactive
+No bank account is linked to cheque {0}
+Cheque type {0} doesn't fit the operation
+All cheques must be in the same currency
+The current account isn't defined in the bank account linked to the cheque
+Cheque no. {0} is not due and {1} can't be done
+Cheque not found
+The operation doesn't match the cheque type
+Invalid operation data
+Unable to update the cheque data
+Unable to determine the cheque branch
+Unable to perform the cheque operation
+Cheque operation completed successfully
+Cheque operation completed successfully and journal voucher {0} created
+The selected bank account doesn't exist or is inactive
+The collection account isn't defined in the bank account
+Invalid cheque number
+{0} can't be done in the cheque's current status
+No bank account is linked to the outgoing cheque
+The new due date must be entered
+The new account must be chosen
+Unable to load cheque data
+The city name is required
+City not found
+The database is not available
+The city ID is required
+The city ID and name are required
+The status must be active or frozen
+Unable to update the cost center type
+Unable to delete the cost center type
+The cost center type doesn't exist
+Unable to update the cost center
+A center can't be its own parent

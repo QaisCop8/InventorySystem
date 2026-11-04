@@ -17,6 +17,7 @@ import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 import { permissionRequiredBody, type ApprovalScope } from "@/lib/permission-approvals"
 import { discountCardAmount, discountCardProblem, ensureDiscountCardTables, findDiscountCard, localDate as discountCardDate } from "@/lib/pos-discount-cards"
+import { AidInputError, checkAidCode, ensureAidTables, redeemAidVoucher } from "@/lib/aid-program"
 
 
 const localDate = () => {
@@ -129,7 +130,8 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       let totalInvoiceDiscount=manualInvoiceDiscount+campaignResult.invoiceDiscount/campaignTaxFactor
       let payments=(Array.isArray(data.pos_payments)?data.pos_payments:[]).map((payment:any)=>{
         const method=String(payment.payment_method||payment.method||"cash")
-        const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:null,gift_card:Number(point.gift_account_id)||null}
+        // قسيمة المساعدة: حسابها حساب الجهة المانحة للنشاط، يُحدَّد بعد التحقق من الرمز أدناه
+        const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:null,gift_card:Number(point.gift_account_id)||null,aid_voucher:null}
         return {...payment,payment_method:method,account_id:configured[method]||null}
       })
       const hasChequePayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="cheque")
@@ -245,6 +247,31 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
       }
       if(payments.some((payment:any)=>!Number.isFinite(Number(payment.amount))||Number(payment.amount)<0))return NextResponse.json({error:"مبلغ الدفع غير صالح"},{status:400})
       payments=payments.filter((payment:any)=>Number(payment.amount)>0)
+      // قسيمة مساعدة (lib/aid-program.ts): رمز + رقم سري يُتحقق منهما هنا مع قفل صف المستفيد حتى نهاية الحفظ، والمبلغ لا يتجاوز
+      // رصيده ولا قيمة الأصناف المسموحة في النشاط (بعد توزيع خصم الفاتورة على الأسطر بالتناسب). الخصم من الرصيد بعد حفظ الفاتورة.
+      const aidPayments=payments.filter((payment:any)=>payment.payment_method==="aid_voucher")
+      let aidCheck:Awaited<ReturnType<typeof checkAidCode>>|null=null
+      if(aidPayments.length){
+        if(isReturn||isGift)return NextResponse.json({error:"قسيمة المساعدة متاحة لفواتير البيع فقط"},{status:400})
+        if(aidPayments.length>1)return NextResponse.json({error:"قسيمة مساعدة واحدة فقط لكل فاتورة"},{status:400})
+        const aid=aidPayments[0]
+        if(Number(aid.currency_id)!==Number(point.currency_id))return NextResponse.json({error:"قسيمة المساعدة يجب أن تكون بعملة نقطة البيع"},{status:400})
+        const lineGross=data.items.map((item:any,index:number)=>({product_id:Number(item.product_id||item.item_id),amount:Number(item.price??item.unit_price??0)*Number(item.quantity??item.qnty??0)*(1-Number(item.discount_percent??item.discount??0)/100)-Number(campaignResult.items[index]?.campaign_discount||0)}))
+        const linesTotal=lineGross.reduce((sum:number,line:any)=>sum+Math.max(0,line.amount),0)
+        const invoiceTotal=payments.reduce((sum:number,payment:any)=>sum+Number(payment.amount),0)
+        const factor=linesTotal>0?Math.min(1,invoiceTotal/linesTotal):0
+        try{
+          await ensureAidTables()
+          aidCheck=await checkAidCode({code:String(aid.reference||""),pin:String(aid.aid_pin||""),point,lines:lineGross.map((line:any)=>({...line,amount:line.amount*factor})),lock:true,today:String(data.vch_date||localDate()).slice(0,10)})
+        }catch(error){
+          if(error instanceof AidInputError)return NextResponse.json({error:error.message},{status:error.status})
+          throw error
+        }
+        if(Number(aid.amount)>aidCheck.available+0.004)return NextResponse.json({error:`مبلغ القسيمة يتجاوز المتاح (${aidCheck.available.toFixed(2)}) — رصيد المستفيد أو قيمة الأصناف المسموحة في النشاط`},{status:400})
+        aid.account_id=Number(aidCheck.activity.donor_account_id)
+        aid.reference=`AID ******${String(aidCheck.participant.code).slice(-4)}`
+        delete aid.aid_pin
+      }
       if(isReturn&&payments.some((payment:any)=>Number(payment.amount)>0&&!['cash','account'].includes(payment.payment_method)))return NextResponse.json({error:"المردودات متاحة نقداً أو على الذمة فقط"},{status:400})
       for(const payment of payments){if(!payment.account_id)return NextResponse.json({error:`لم يتم تعيين حساب لطريقة الدفع ${payment.payment_method}`},{status:400});if(payment.payment_method==="gift_card"){
         const gift=(await sql`SELECT * FROM pos_gift_cards_tbl WHERE code=${String(payment.reference||"").trim()} AND status=1 FOR UPDATE`)[0];if(!gift||Number(gift.currency_id)!==Number(point.currency_id)||Number(gift.balance)+.009<Number(payment.amount))return NextResponse.json({error:"بطاقة الهدية غير صالحة أو رصيدها غير كافٍ"},{status:400})
@@ -349,6 +376,10 @@ export async function savePosSaleCore(request: NextRequest, data: any, ctx: { us
         `
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
+      if(aidCheck){
+        const aidAmount=payments.find((p:any)=>p.payment_method==="aid_voucher")?.amount
+        await redeemAidVoucher({checked:aidCheck,amount:Number(aidAmount),voucherId:Number(saved.id),pointId:Number(pointId),clientSaleId,userId:Number(userId)||null})
+      }
       timing.mark("finalize")
       const result=NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[],pos_payment_voucher_id:returnPayment?Number(returnPayment.id):null,payment_vch_code:returnPayment?.vch_code||null,pos_payment_vouchers:returnPayment?.payments?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[]},{status:201})
       timing.report(result,String(saved.vch_code||""),pointId)

@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import React from "react"
 import { Button } from "@/components/ui/button"
 import { X, Minus, Square, Move } from "lucide-react"
@@ -96,7 +97,7 @@ export function ModalWindow({ window, children }: ModalWindowProps) {
           isActive ? "bg-primary/10 border-primary/20" : "bg-muted/50 border-border",
         )}
         onMouseDown={handleMouseDown}
-        dir="rtl"
+        dir={appDir()}
       >
         <div className="flex items-center gap-2">
           <Move className="h-4 w-4 text-muted-foreground" />

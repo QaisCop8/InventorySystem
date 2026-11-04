@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -38,7 +39,7 @@ export default function DatePickerDialog({ open, onOpenChange, value, title = "�
       <DialogContent
         hideCloseButton
         className="w-auto max-w-fit overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:p-4"
-        dir="rtl"
+        dir={appDir()}
       >
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-slate-50 via-white to-indigo-50/60 px-3 py-2">
@@ -47,8 +48,8 @@ export default function DatePickerDialog({ open, onOpenChange, value, title = "�
               variant="ghost"
               onClick={() => onOpenChange(false)}
               className="h-8 w-8 rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-sm hover:bg-slate-100"
-              aria-label="إغلاق"
-              title="إغلاق"
+              aria-label={tr("إغلاق")}
+              title={tr("إغلاق")}
             >
               ✕
             </Button>
@@ -58,10 +59,10 @@ export default function DatePickerDialog({ open, onOpenChange, value, title = "�
 
           <div className="flex justify-center gap-2 border-t border-slate-200 pt-3">
             <Button onClick={handleConfirm} disabled={!selected} className="search-button shadow-sm">
-              موافق
+              {tr("موافق")}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button shadow-sm">
-              إغلاق
+              {tr("إغلاق")}
             </Button>
           </div>
         </div>

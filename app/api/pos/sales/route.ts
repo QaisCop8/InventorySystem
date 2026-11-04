@@ -18,6 +18,7 @@ import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from "@/lib/pos-campaigns"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 import { discountCardAmount, discountCardProblem, ensureDiscountCardTables, findDiscountCard, localDate as discountCardDate } from "@/lib/pos-discount-cards"
+import { ensureAidTables } from "@/lib/aid-program"
 
 const localDate = () => {
   const date = new Date()
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     // تهيئة الجداول قبل فتح المعاملة لا داخلها: أوامر ALTER/CREATE داخل المعاملة تحجز أقفالاً حصرية على الجداول
     // (system_settings، voucher_header_tbl...) حتى نهاية الحفظ فتنتظرها كل الصفحات الأخرى، وقد تنتظر المعاملةُ
     // نفسَها إن صدر أمر مماثل من اتصال آخر أثناء الحفظ. بعد أول تطبيق تُتخطّى كلها (runSchemaOnce) فالكلفة ضئيلة.
-    await ensureTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables(); await ensureDiscountCardTables()
+    await ensureTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables(); await ensureDiscountCardTables(); await ensureAidTables()
     await loadStoredSettings()
     return await withTenantTransaction(async () => {
       await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${clientSaleId}`}))`

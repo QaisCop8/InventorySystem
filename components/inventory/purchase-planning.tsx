@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { AlertTriangle, CalendarClock, Package, RefreshCw, Search, ShoppingCart, TrendingUp } from "lucide-react"
 import { VoucherListHero } from "@/components/common/voucher-list-shell"
@@ -69,7 +70,7 @@ export function PurchasePlanning() {
       if (activeBranchId != null) headers.set("x-branch-id", String(activeBranchId))
       const response = await fetch(`/api/inventory/purchase-planning?days=${periodDays}`, { cache: "no-store", headers })
       const payload = await response.json()
-      if (!response.ok) throw new Error(payload?.error || "تعذر تحميل بيانات التخطيط")
+      if (!response.ok) throw new Error(payload?.error || tr("تعذر تحميل بيانات التخطيط"))
       const nextProducts = Array.isArray(payload.products) ? payload.products : []
       setProducts(nextProducts)
       setPeriodDays(Number(payload.period_days) || periodDays)
@@ -86,7 +87,7 @@ export function PurchasePlanning() {
       setQuantities(nextQuantities)
       setSelected(initialSelected)
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "تعذر تحميل بيانات التخطيط")
+      setError(loadError instanceof Error ? loadError.message : tr("تعذر تحميل بيانات التخطيط"))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -96,7 +97,7 @@ export function PurchasePlanning() {
   useEffect(() => {
     if (authLoading) return
     if (!isAuthenticated) {
-      setError("يجب تسجيل الدخول")
+      setError(tr("يجب تسجيل الدخول"))
       setLoading(false)
       return
     }
@@ -175,16 +176,16 @@ export function PurchasePlanning() {
   const createPurchaseOrder = () => {
     setMessage("")
     if (!canCreatePurchaseOrder) {
-      setMessage("لا تتوفر لديك صلاحية إنشاء طلبية مشتريات على الفرع الحالي.")
+      setMessage(tr("لا تتوفر لديك صلاحية إنشاء طلبية مشتريات على الفرع الحالي."))
       return
     }
     if (!selectedRows.length) {
-      setMessage("اختر صنفاً واحداً على الأقل وحدد كمية أكبر من صفر.")
+      setMessage(tr("اختر صنفاً واحداً على الأقل وحدد كمية أكبر من صفر."))
       return
     }
     const supplierIds = Array.from(new Set(selectedRows.map((item) => item.supplier_id || 0)))
     if (supplierIds.length > 1) {
-      setMessage("اجعل الأصناف المحددة من مورد واحد لإنشاء طلبية موحدة.")
+      setMessage(tr("اجعل الأصناف المحددة من مورد واحد لإنشاء طلبية موحدة."))
       return
     }
 
@@ -214,80 +215,80 @@ export function PurchasePlanning() {
   }
 
   return (
-    <div className="flex flex-col gap-5 p-1 lg:h-full lg:min-h-0 lg:overflow-hidden" dir="rtl">
+    <div className="flex flex-col gap-5 p-1 lg:h-full lg:min-h-0 lg:overflow-hidden" dir={appDir()}>
       {/* ترويسة موحّدة مع شاشات النظام (VoucherListHero) — بلا زر إضافة */}
       <VoucherListHero
-        title="تخطيط المشتريات الذكي"
-        subtitle="اقتراح كميات الشراء حسب حركة البيع والمخزون والطلبيات المفتوحة."
-        category="ادارة الاصناف"
+        title={tr("تخطيط المشتريات الذكي")}
+        subtitle={tr("اقتراح كميات الشراء حسب حركة البيع والمخزون والطلبيات المفتوحة.")}
+        category={tr("ادارة الاصناف")}
         icon={TrendingUp}
-        actions={<button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />تحديث البيانات</button>}
+        actions={<button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />{tr("تحديث البيانات")}</button>}
       />
 
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {message && <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{message}</div>}
-      {!salesHistoryAvailable && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">لا تتوفر لديك صلاحية عرض فواتير المبيعات؛ ستُبنى التوصيات على حد إعادة الطلب والمخزون فقط.</div>}
-      {!purchaseOrdersAvailable && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">لا تتوفر لديك صلاحية استعلام طلبيات المشتريات المفتوحة؛ لن تُحتسب الكميات الواردة.</div>}
+      {!salesHistoryAvailable && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{tr("لا تتوفر لديك صلاحية عرض فواتير المبيعات؛ ستُبنى التوصيات على حد إعادة الطلب والمخزون فقط.")}</div>}
+      {!purchaseOrdersAvailable && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{tr("لا تتوفر لديك صلاحية استعلام طلبيات المشتريات المفتوحة؛ لن تُحتسب الكميات الواردة.")}</div>}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">أصناف مقترحة للشراء</CardTitle><Package className="h-4 w-4 text-emerald-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(productsToOrder, 0)}</div><p className="text-xs text-muted-foreground">بحسب مدة التغطية المختارة</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">أصناف نافدة أو غير متاحة</CardTitle><AlertTriangle className="h-4 w-4 text-rose-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-rose-700">{formatNumber(outOfStock, 0)}</div><p className="text-xs text-muted-foreground">بعد خصم المحجوز من الرصيد</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">إجمالي الكمية المحددة</CardTitle><ShoppingCart className="h-4 w-4 text-blue-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(selectedQuantity)}</div><p className="text-xs text-muted-foreground">{selectedRows.length} صنف محدد</p></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">التكلفة التقديرية</CardTitle><TrendingUp className="h-4 w-4 text-violet-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{selectedValueAvailable ? `${formatNumber(selectedValue)} ${selectedCurrency}` : "غير متاحة"}</div><p className="text-xs text-muted-foreground">تظهر عند توفر الأسعار وبعملة موحدة</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{tr("أصناف مقترحة للشراء")}</CardTitle><Package className="h-4 w-4 text-emerald-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(productsToOrder, 0)}</div><p className="text-xs text-muted-foreground">{tr("بحسب مدة التغطية المختارة")}</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{tr("أصناف نافدة أو غير متاحة")}</CardTitle><AlertTriangle className="h-4 w-4 text-rose-600" /></CardHeader><CardContent><div className="text-2xl font-bold text-rose-700">{formatNumber(outOfStock, 0)}</div><p className="text-xs text-muted-foreground">{tr("بعد خصم المحجوز من الرصيد")}</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{tr("إجمالي الكمية المحددة")}</CardTitle><ShoppingCart className="h-4 w-4 text-blue-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatNumber(selectedQuantity)}</div><p className="text-xs text-muted-foreground">{selectedRows.length}{tr(" صنف محدد")}</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{tr("التكلفة التقديرية")}</CardTitle><TrendingUp className="h-4 w-4 text-violet-600" /></CardHeader><CardContent><div className="text-2xl font-bold">{selectedValueAvailable ? `${formatNumber(selectedValue)} ${selectedCurrency}` : tr("غير متاحة")}</div><p className="text-xs text-muted-foreground">{tr("تظهر عند توفر الأسعار وبعملة موحدة")}</p></CardContent></Card>
       </div>
 
       <Card className="flex flex-col lg:min-h-0 lg:flex-1">
         <CardHeader className="gap-3 pb-3 md:flex-row md:items-end md:justify-between">
-          <div><CardTitle>اقتراحات التوريد</CardTitle><p className="mt-1 text-sm text-muted-foreground">متوسط الاستهلاك محسوب من فواتير البيع النشطة خلال آخر {periodDays} يومًا.</p></div>
+          <div><CardTitle>{tr("اقتراحات التوريد")}</CardTitle><p className="mt-1 text-sm text-muted-foreground">{tr("متوسط الاستهلاك محسوب من فواتير البيع النشطة خلال آخر ")}{periodDays}{tr(" يومًا.")}</p></div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="text-xs text-muted-foreground">فترة المبيعات
-              <div className="mt-1"><Dropdown id="purchase-planning-period" value={periodDays} options={[{ value: 90, label: "آخر 90 يومًا" }, { value: 180, label: "آخر 180 يومًا" }, { value: 365, label: "آخر سنة" }]} optionLabel="label" optionValue="value" onChange={(event) => setPeriodDays(Number(event.value))} /></div>
+            <label className="text-xs text-muted-foreground">{tr("فترة المبيعات")}
+              <div className="mt-1"><Dropdown id="purchase-planning-period" value={periodDays} options={[{ value: 90, label: tr("آخر 90 يومًا") }, { value: 180, label: tr("آخر 180 يومًا") }, { value: 365, label: tr("آخر سنة") }]} optionLabel="label" optionValue="value" onChange={(event) => setPeriodDays(Number(event.value))} /></div>
             </label>
-            <label className="text-xs text-muted-foreground">التغطية المطلوبة
-              <div className="mt-1"><Dropdown id="purchase-planning-coverage" value={coverageDays} options={[{ value: 30, label: "30 يومًا" }, { value: 60, label: "60 يومًا" }, { value: 90, label: "90 يومًا" }]} optionLabel="label" optionValue="value" onChange={(event) => setCoverageDays(Number(event.value))} /></div>
+            <label className="text-xs text-muted-foreground">{tr("التغطية المطلوبة")}
+              <div className="mt-1"><Dropdown id="purchase-planning-coverage" value={coverageDays} options={[{ value: 30, label: tr("30 يومًا") }, { value: 60, label: tr("60 يومًا") }, { value: 90, label: tr("90 يومًا") }]} optionLabel="label" optionValue="value" onChange={(event) => setCoverageDays(Number(event.value))} /></div>
             </label>
-            <label className="relative text-xs text-muted-foreground">بحث
-              <Search className="absolute right-3 top-8 h-4 w-4 text-muted-foreground" />
-              <Input className="mt-1 h-9 pr-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="اسم الصنف أو رقمه" />
+            <label className="relative text-xs text-muted-foreground">{tr("بحث")}
+              <Search className="absolute start-3 top-8 h-4 w-4 text-muted-foreground" />
+              <Input className="mt-1 h-9 ps-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("اسم الصنف أو رقمه")} />
             </label>
-            <label className="text-xs text-muted-foreground">المورد
-              <div className="mt-1"><Dropdown id="purchase-planning-supplier" value={supplierFilter} options={[{ value: "all", label: "كل الموردين" }, ...suppliers.map(([id, name]) => ({ value: id, label: name }))]} optionLabel="label" optionValue="value" filter onChange={(event) => setSupplierFilter(String(event.value))} /></div>
+            <label className="text-xs text-muted-foreground">{tr("المورد")}
+              <div className="mt-1"><Dropdown id="purchase-planning-supplier" value={supplierFilter} options={[{ value: "all", label: tr("كل الموردين") }, ...suppliers.map(([id, name]) => ({ value: id, label: name }))]} optionLabel="label" optionValue="value" filter onChange={(event) => setSupplierFilter(String(event.value))} /></div>
             </label>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col lg:min-h-0 lg:flex-1">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">عرض:</span>
-              <div className="w-48 shrink-0"><Dropdown id="purchase-planning-stock-filter" value={stockFilter} options={[{ value: "needs-order", label: "المقترح شراؤها" }, { value: "all", label: "كل الأصناف" }, { value: "out", label: "النافدة أو غير المتاحة" }]} optionLabel="label" optionValue="value" onChange={(event) => setStockFilter(String(event.value))} /></div>
+              <span className="text-sm text-muted-foreground">{tr("عرض:")}</span>
+              <div className="w-48 shrink-0"><Dropdown id="purchase-planning-stock-filter" value={stockFilter} options={[{ value: "needs-order", label: tr("المقترح شراؤها") }, { value: "all", label: tr("كل الأصناف") }, { value: "out", label: tr("النافدة أو غير المتاحة") }]} optionLabel="label" optionValue="value" onChange={(event) => setStockFilter(String(event.value))} /></div>
             </div>
             {canCreatePurchaseOrder && <Button onClick={createPurchaseOrder} disabled={loading || selectedRows.length === 0}>
-              <ShoppingCart className="ml-2 h-4 w-4" /> إنشاء طلبية شراء للأصناف المحددة
+              <ShoppingCart className="ml-2 h-4 w-4" />{tr(" إنشاء طلبية شراء للأصناف المحددة")}
             </Button>}
           </div>
           <Table className="[&_th]:text-right" containerClassName="rounded-lg border lg:min-h-48 lg:flex-1 lg:overflow-auto">
             <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background"><TableRow>
-              <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label="تحديد الأصناف الظاهرة" /></TableHead>
-              <TableHead>الصنف</TableHead><TableHead>المورد</TableHead><TableHead>المتاح</TableHead><TableHead>الوارد بطلبات مفتوحة</TableHead><TableHead>مبيعات الفترة</TableHead><TableHead>متوسط يومي</TableHead><TableHead>تغطية المخزون</TableHead><TableHead>آخر سعر شراء</TableHead><TableHead className="min-w-28">الكمية المقترحة</TableHead>
+              <TableHead className="w-10"><Checkbox checked={filtered.length > 0 && filtered.every((row) => selected.includes(row.id))} onCheckedChange={(checked) => toggleVisible(checked === true)} aria-label={tr("تحديد الأصناف الظاهرة")} /></TableHead>
+              <TableHead>{tr("الصنف")}</TableHead><TableHead>{tr("المورد")}</TableHead><TableHead>{tr("المتاح")}</TableHead><TableHead>{tr("الوارد بطلبات مفتوحة")}</TableHead><TableHead>{tr("مبيعات الفترة")}</TableHead><TableHead>{tr("متوسط يومي")}</TableHead><TableHead>{tr("تغطية المخزون")}</TableHead><TableHead>{tr("آخر سعر شراء")}</TableHead><TableHead className="min-w-28">{tr("الكمية المقترحة")}</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {loading ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">جارٍ إعداد خطة الشراء...</TableCell></TableRow>
-                : filtered.length === 0 ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">لا توجد أصناف مطابقة للبحث والمرشحات.</TableCell></TableRow>
+              {loading ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">{tr("جارٍ إعداد خطة الشراء...")}</TableCell></TableRow>
+                : filtered.length === 0 ? <TableRow><TableCell colSpan={10} className="h-28 text-center text-muted-foreground">{tr("لا توجد أصناف مطابقة للبحث والمرشحات.")}</TableCell></TableRow>
                   : filtered.map((product) => <TableRow key={product.id}>
-                    <TableCell><Checkbox checked={selected.includes(product.id)} onCheckedChange={(checked) => toggleProduct(product.id, checked === true)} aria-label={`تحديد ${product.product_name}`} /></TableCell>
+                    <TableCell><Checkbox checked={selected.includes(product.id)} onCheckedChange={(checked) => toggleProduct(product.id, checked === true)} aria-label={tr("تحديد {0}", product.product_name)} /></TableCell>
                     <TableCell><div className="font-medium">{product.product_name}</div><div className="text-xs text-muted-foreground">{product.product_code} · {product.unit_name || "—"}</div></TableCell>
-                    <TableCell>{product.supplier_name || <span className="text-muted-foreground">غير محدد</span>}</TableCell>
-                    <TableCell><div className="font-medium">{formatNumber(finite(product.available_stock))}</div><div className="text-xs text-muted-foreground">الرصيد {formatNumber(finite(product.current_stock))} · محجوز {formatNumber(finite(product.reserved_stock))}</div></TableCell>
+                    <TableCell>{product.supplier_name || <span className="text-muted-foreground">{tr("غير محدد")}</span>}</TableCell>
+                    <TableCell><div className="font-medium">{formatNumber(finite(product.available_stock))}</div><div className="text-xs text-muted-foreground">{tr("الرصيد ")}{formatNumber(finite(product.current_stock))}{tr(" · محجوز ")}{formatNumber(finite(product.reserved_stock))}</div></TableCell>
                     <TableCell>{formatNumber(finite(product.incoming_quantity))}</TableCell>
                     <TableCell>{formatNumber(finite(product.sold_quantity))}</TableCell>
                     <TableCell>{formatNumber(product.average_daily, 3)}</TableCell>
-                    <TableCell>{product.days_of_cover == null ? <Badge variant="outline">لا توجد مبيعات</Badge> : <span className={product.days_of_cover <= coverageDays ? "font-semibold text-amber-700" : ""}><CalendarClock className="ml-1 inline h-3.5 w-3.5" />{formatNumber(product.days_of_cover)} يوم</span>}</TableCell>
-                    <TableCell>{product.can_view_purchase_price ? `${formatNumber(finite(product.last_purchase_price))} ${product.purchase_currency_name || ""}` : <span className="text-muted-foreground">غير متاح</span>}</TableCell>
-                    <TableCell><Input aria-label={`كمية الشراء المقترحة لـ ${product.product_name}`} type="number" min="0" step="any" className="h-8 min-w-24 text-left" dir="ltr" value={quantities[product.id] ?? product.calculated_quantity} onChange={(event) => setQuantity(product.id, event.target.value)} /></TableCell>
+                    <TableCell>{product.days_of_cover == null ? <Badge variant="outline">{tr("لا توجد مبيعات")}</Badge> : <span className={product.days_of_cover <= coverageDays ? "font-semibold text-amber-700" : ""}><CalendarClock className="ml-1 inline h-3.5 w-3.5" />{formatNumber(product.days_of_cover)}{tr(" يوم")}</span>}</TableCell>
+                    <TableCell>{product.can_view_purchase_price ? `${formatNumber(finite(product.last_purchase_price))} ${product.purchase_currency_name || ""}` : <span className="text-muted-foreground">{tr("غير متاح")}</span>}</TableCell>
+                    <TableCell><Input aria-label={tr("كمية الشراء المقترحة لـ {0}", product.product_name)} type="number" min="0" step="any" className="h-8 min-w-24 text-end" dir="ltr" value={quantities[product.id] ?? product.calculated_quantity} onChange={(event) => setQuantity(product.id, event.target.value)} /></TableCell>
                   </TableRow>)}
             </TableBody>
           </Table>
-          <p className="mt-3 text-xs text-muted-foreground">الكمية المقترحة تغطي الاستهلاك المتوقع للفترة المحددة، وتراعي نقطة إعادة الطلب والمخزون الوارد. راجع الكميات والمورد قبل حفظ الطلبية.</p>
+          <p className="mt-3 text-xs text-muted-foreground">{tr("الكمية المقترحة تغطي الاستهلاك المتوقع للفترة المحددة، وتراعي نقطة إعادة الطلب والمخزون الوارد. راجع الكميات والمورد قبل حفظ الطلبية.")}</p>
         </CardContent>
       </Card>
     </div>

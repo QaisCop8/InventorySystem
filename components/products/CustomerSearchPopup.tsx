@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,10 +38,10 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
     const isSupplierType = entityType === 2;
     const isSubscriberType = entityType === 4;
     const isCustomerType = entityType === 1 || entityType === -1;
-    const searchTitle = isSalesmanType ? "بحث المندوبين" : isSupplierType ? "بحث الموردين" : isSubscriberType ? "بحث المشتركين" : "بحث العملاء";
-    const searchPlaceholder = isSalesmanType ? "ابحث عن مندوب..." : isSupplierType ? "ابحث عن مورد..." : isSubscriberType ? "ابحث عن مشترك..." : "ابحث عن عميل...";
-    const codeLabel = isSalesmanType ? "رقم المندوب" : isSupplierType ? "رقم المورد" : isSubscriberType ? "رقم المشترك" : "رقم العميل";
-    const nameLabel = isSalesmanType ? "اسم المندوب" : isSupplierType ? "اسم المورد" : isSubscriberType ? "اسم المشترك" : "اسم العميل";
+    const searchTitle = isSalesmanType ? tr("بحث المندوبين") : isSupplierType ? tr("بحث الموردين") : isSubscriberType ? tr("بحث المشتركين") : tr("بحث العملاء");
+    const searchPlaceholder = isSalesmanType ? tr("ابحث عن مندوب...") : isSupplierType ? tr("ابحث عن مورد...") : isSubscriberType ? tr("ابحث عن مشترك...") : tr("ابحث عن عميل...");
+    const codeLabel = isSalesmanType ? tr("رقم المندوب") : isSupplierType ? tr("رقم المورد") : isSubscriberType ? tr("رقم المشترك") : tr("رقم العميل");
+    const nameLabel = isSalesmanType ? tr("اسم المندوب") : isSupplierType ? tr("اسم المورد") : isSubscriberType ? tr("اسم المشترك") : tr("اسم العميل");
     // Load customers
     useEffect(() => {
         if (!visible) return;
@@ -177,8 +178,8 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
             { header: "##", name: "ser", width: 70 },
             { header: codeLabel, name: "customer_code", width: 120 },
             { header: nameLabel, name: "name", width: "*" },
-            { header: "الجوال", name: "mobile1", width: 120 },
-            { header: "ملاحظات", name: "general_notes", width: 180 },
+            { header: tr("الجوال"), name: "mobile1", width: 120 },
+            { header: tr("ملاحظات"), name: "general_notes", width: 180 },
         ],
     }), [codeLabel, nameLabel]);
 
@@ -252,10 +253,10 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div
                 className="bg-white rounded-lg shadow-2xl border p-6 flex flex-col w-full max-w-4xl"
-                dir="rtl"
+                dir={appDir()}
                 style={{ height: "600px" }}
             >
-                <h3 className="text-lg font-semibold mb-4 text-right">
+                <h3 className="text-lg font-semibold mb-4 text-start">
                     {searchTitle}
                 </h3>
 
@@ -264,7 +265,7 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                     placeholder={searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
+                    className="mb-4 p-2 border border-gray-300 rounded w-full text-start"
                     ref={searchInputRef}
                 />
 
@@ -280,8 +281,8 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                                         { header: "##", name: "ser", width: 70 },
                                         { header: codeLabel, name: "customer_code", width: 120 },
                                         { header: nameLabel, name: "name", width: "*",minWidth: 200 },
-                                        { header: "الجوال", name: "mobile1", width: 120 },
-                                        { header: "ملاحظات", name: "general_notes", width: 180 },
+                                        { header: tr("الجوال"), name: "mobile1", width: 120 },
+                                        { header: tr("ملاحظات"), name: "general_notes", width: 180 },
                                     ],
                                 }}
                                 onRowClick={handleRowClick}
@@ -298,9 +299,9 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
 
                 <div className="flex justify-center gap-2 mt-4">
                     <Button className="erp-btn-primary search-button" onClick={() => selectedCustomer && handleRowDoubleClick(selectedCustomer)} >
-                        موافق
+                        {tr("موافق")}
                     </Button>
-                    <Button variant="outline" onClick={onClose} className="search-button">إغلاق</Button>
+                    <Button variant="outline" onClick={onClose} className="search-button">{tr("إغلاق")}</Button>
                 </div>
             </div>
         </div>

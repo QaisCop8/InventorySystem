@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -96,11 +97,11 @@ export default function WorkflowFlexibilitySettings() {
       })
 
       if (response.ok) {
-        showAlert("تم حفظ الإعدادات بنجاح")
+        showAlert(tr("تم حفظ الإعدادات بنجاح"))
       }
     } catch (error) {
       console.error("Error saving workflow settings:", error)
-      showAlert("حدث خطأ في حفظ الإعدادات")
+      showAlert(tr("حدث خطأ في حفظ الإعدادات"))
     } finally {
       setSaving(false)
     }
@@ -117,11 +118,11 @@ export default function WorkflowFlexibilitySettings() {
       if (response.ok) {
         // تحديث الحالة المحلية
         setStageSettings((prev) => prev.map((stage) => (stage.stageId === stageId ? { ...stage, ...settings } : stage)))
-        showAlert("تم حفظ إعدادات المرحلة بنجاح")
+        showAlert(tr("تم حفظ إعدادات المرحلة بنجاح"))
       }
     } catch (error) {
       console.error("Error saving stage settings:", error)
-      showAlert("حدث خطأ في حفظ إعدادات المرحلة")
+      showAlert(tr("حدث خطأ في حفظ إعدادات المرحلة"))
     }
   }
 
@@ -130,7 +131,7 @@ export default function WorkflowFlexibilitySettings() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <Clock className="h-8 w-8 animate-spin mx-auto mb-2" />
-          <p>جاري تحميل الإعدادات...</p>
+          <p>{tr("جاري تحميل الإعدادات...")}</p>
         </div>
       </div>
     )
@@ -140,27 +141,27 @@ export default function WorkflowFlexibilitySettings() {
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-6">
         <Settings className="h-6 w-6" />
-        <h2 className="text-2xl font-bold">إعدادات مرونة نظام المراحل</h2>
+        <h2 className="text-2xl font-bold">{tr("إعدادات مرونة نظام المراحل")}</h2>
       </div>
 
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="general">الإعدادات العامة</TabsTrigger>
-          <TabsTrigger value="stages">إعدادات المراحل</TabsTrigger>
-          <TabsTrigger value="rules">قواعد الانتقال</TabsTrigger>
+          <TabsTrigger value="general">{tr("الإعدادات العامة")}</TabsTrigger>
+          <TabsTrigger value="stages">{tr("إعدادات المراحل")}</TabsTrigger>
+          <TabsTrigger value="rules">{tr("قواعد الانتقال")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
           <Card>
             <CardHeader>
-              <CardTitle>إعدادات النظام العامة</CardTitle>
-              <CardDescription>تحكم في السلوك العام لنظام المراحل</CardDescription>
+              <CardTitle>{tr("إعدادات النظام العامة")}</CardTitle>
+              <CardDescription>{tr("تحكم في السلوك العام لنظام المراحل")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="mandatory">نظام المراحل إجباري</Label>
+                    <Label htmlFor="mandatory">{tr("نظام المراحل إجباري")}</Label>
                     <Switch
                       id="mandatory"
                       checked={workflowSettings.workflowSystemMandatory}
@@ -171,7 +172,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="skip">السماح بتخطي المراحل</Label>
+                    <Label htmlFor="skip">{tr("السماح بتخطي المراحل")}</Label>
                     <Switch
                       id="skip"
                       checked={workflowSettings.allowSkipStages}
@@ -182,7 +183,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="approval-notes">إجبار ملاحظات الموافقة</Label>
+                    <Label htmlFor="approval-notes">{tr("إجبار ملاحظات الموافقة")}</Label>
                     <Switch
                       id="approval-notes"
                       checked={workflowSettings.requireApprovalNotes}
@@ -193,7 +194,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="rejection-reason">إجبار سبب الرفض</Label>
+                    <Label htmlFor="rejection-reason">{tr("إجبار سبب الرفض")}</Label>
                     <Switch
                       id="rejection-reason"
                       checked={workflowSettings.requireRejectionReason}
@@ -206,7 +207,7 @@ export default function WorkflowFlexibilitySettings() {
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="auto-assign">تعيين تلقائي للأقسام</Label>
+                    <Label htmlFor="auto-assign">{tr("تعيين تلقائي للأقسام")}</Label>
                     <Switch
                       id="auto-assign"
                       checked={workflowSettings.autoAssignToDepartment}
@@ -217,7 +218,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="notifications">إرسال التنبيهات</Label>
+                    <Label htmlFor="notifications">{tr("إرسال التنبيهات")}</Label>
                     <Switch
                       id="notifications"
                       checked={workflowSettings.sendNotifications}
@@ -228,7 +229,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="track-time">تتبع الوقت في المراحل</Label>
+                    <Label htmlFor="track-time">{tr("تتبع الوقت في المراحل")}</Label>
                     <Switch
                       id="track-time"
                       checked={workflowSettings.trackTimeInStages}
@@ -239,7 +240,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="parallel">المعالجة المتوازية</Label>
+                    <Label htmlFor="parallel">{tr("المعالجة المتوازية")}</Label>
                     <Switch
                       id="parallel"
                       checked={workflowSettings.allowParallelProcessing}
@@ -253,7 +254,7 @@ export default function WorkflowFlexibilitySettings() {
 
               <div className="flex justify-end">
                 <Button onClick={saveWorkflowSettings} disabled={saving}>
-                  {saving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+                  {saving ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
                 </Button>
               </div>
             </CardContent>
@@ -265,8 +266,8 @@ export default function WorkflowFlexibilitySettings() {
             {/* قائمة المراحل */}
             <Card>
               <CardHeader>
-                <CardTitle>المراحل المتاحة</CardTitle>
-                <CardDescription>اختر مرحلة لتعديل إعداداتها</CardDescription>
+                <CardTitle>{tr("المراحل المتاحة")}</CardTitle>
+                <CardDescription>{tr("اختر مرحلة لتعديل إعداداتها")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -285,17 +286,17 @@ export default function WorkflowFlexibilitySettings() {
                         <div className="flex gap-1">
                           {stage.isOptional && (
                             <Badge variant="secondary" className="text-xs">
-                              اختيارية
+                              {tr("اختيارية")}
                             </Badge>
                           )}
                           {stage.requiresApproval && (
                             <Badge variant="default" className="text-xs">
-                              تحتاج موافقة
+                              {tr("تحتاج موافقة")}
                             </Badge>
                           )}
                           {stage.canSkip && (
                             <Badge variant="outline" className="text-xs">
-                              قابلة للتخطي
+                              {tr("قابلة للتخطي")}
                             </Badge>
                           )}
                         </div>
@@ -310,12 +311,12 @@ export default function WorkflowFlexibilitySettings() {
             {selectedStage && (
               <Card>
                 <CardHeader>
-                  <CardTitle>إعدادات المرحلة: {selectedStage.stageName}</CardTitle>
-                  <CardDescription>تخصيص سلوك هذه المرحلة</CardDescription>
+                  <CardTitle>{tr("إعدادات المرحلة: ")}{selectedStage.stageName}</CardTitle>
+                  <CardDescription>{tr("تخصيص سلوك هذه المرحلة")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label>مرحلة اختيارية</Label>
+                    <Label>{tr("مرحلة اختيارية")}</Label>
                     <Switch
                       checked={selectedStage.isOptional}
                       onCheckedChange={(checked) =>
@@ -325,7 +326,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label>تتطلب موافقة</Label>
+                    <Label>{tr("تتطلب موافقة")}</Label>
                     <Switch
                       checked={selectedStage.requiresApproval}
                       onCheckedChange={(checked) =>
@@ -335,7 +336,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label>تتطلب موافقة من المرحلة السابقة</Label>
+                    <Label>{tr("تتطلب موافقة من المرحلة السابقة")}</Label>
                     <Switch
                       checked={selectedStage.requiresPreviousApproval}
                       onCheckedChange={(checked) =>
@@ -345,7 +346,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label>يمكن تخطيها</Label>
+                    <Label>{tr("يمكن تخطيها")}</Label>
                     <Switch
                       checked={selectedStage.canSkip}
                       onCheckedChange={(checked) =>
@@ -355,7 +356,7 @@ export default function WorkflowFlexibilitySettings() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>الحد الأقصى للمدة (ساعات)</Label>
+                    <Label>{tr("الحد الأقصى للمدة (ساعات)")}</Label>
                     <Input
                       type="number"
                       value={selectedStage.maxDurationHours || ""}
@@ -369,12 +370,12 @@ export default function WorkflowFlexibilitySettings() {
                             : null,
                         )
                       }
-                      placeholder="غير محدد"
+                      placeholder={tr("غير محدد")}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>ساعات التحذير</Label>
+                    <Label>{tr("ساعات التحذير")}</Label>
                     <Input
                       type="number"
                       value={selectedStage.warningHours || ""}
@@ -388,12 +389,12 @@ export default function WorkflowFlexibilitySettings() {
                             : null,
                         )
                       }
-                      placeholder="غير محدد"
+                      placeholder={tr("غير محدد")}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>قسم التصعيد</Label>
+                    <Label>{tr("قسم التصعيد")}</Label>
                     <Select
                       value={selectedStage.escalationToDepartment || "بدون تصعيد"}
                       onValueChange={(value) =>
@@ -408,21 +409,21 @@ export default function WorkflowFlexibilitySettings() {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="اختر قسم التصعيد" />
+                        <SelectValue placeholder={tr("اختر قسم التصعيد")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="بدون تصعيد">بدون تصعيد</SelectItem>
-                        <SelectItem value="الإدارة">الإدارة</SelectItem>
-                        <SelectItem value="المبيعات">المبيعات</SelectItem>
-                        <SelectItem value="المحاسبة">المحاسبة</SelectItem>
-                        <SelectItem value="المستودعات">المستودعات</SelectItem>
+                        <SelectItem value="بدون تصعيد">{tr("بدون تصعيد")}</SelectItem>
+                        <SelectItem value="الإدارة">{tr("الإدارة")}</SelectItem>
+                        <SelectItem value="المبيعات">{tr("المبيعات")}</SelectItem>
+                        <SelectItem value="المحاسبة">{tr("المحاسبة")}</SelectItem>
+                        <SelectItem value="المستودعات">{tr("المستودعات")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   {selectedStage.canSkip && (
                     <div className="space-y-2">
-                      <Label>شروط التخطي (JSON)</Label>
+                      <Label>{tr("شروط التخطي (JSON)")}</Label>
                       <Textarea
                         value={selectedStage.skipConditions || ""}
                         onChange={(e) =>
@@ -443,7 +444,7 @@ export default function WorkflowFlexibilitySettings() {
 
                   <div className="flex justify-end">
                     <Button onClick={() => saveStageSettings(selectedStage.stageId, selectedStage)}>
-                      حفظ إعدادات المرحلة
+                      {tr("حفظ إعدادات المرحلة")}
                     </Button>
                   </div>
                 </CardContent>
@@ -455,14 +456,14 @@ export default function WorkflowFlexibilitySettings() {
         <TabsContent value="rules">
           <Card>
             <CardHeader>
-              <CardTitle>قواعد الانتقال بين المراحل</CardTitle>
-              <CardDescription>تحديد كيفية الانتقال من مرحلة لأخرى ومتطلبات كل انتقال</CardDescription>
+              <CardTitle>{tr("قواعد الانتقال بين المراحل")}</CardTitle>
+              <CardDescription>{tr("تحديد كيفية الانتقال من مرحلة لأخرى ومتطلبات كل انتقال")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  هذه الميزة قيد التطوير. ستتمكن قريباً من إنشاء وتعديل قواعد الانتقال المخصصة.
+                  {tr("هذه الميزة قيد التطوير. ستتمكن قريباً من إنشاء وتعديل قواعد الانتقال المخصصة.")}
                 </AlertDescription>
               </Alert>
             </CardContent>

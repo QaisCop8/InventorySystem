@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -127,9 +128,9 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
     () => ({
       name: "BankAccountsSearchScheme",
       columns: [
-        { header: "رقم الحساب", name: "code", width: 160, isReadOnly: true },
-        { header: "اسم الحساب", name: "name", width: "*", minWidth: 260, isReadOnly: true },
-        { header: "رقم الحساب الفعلي", name: "actual_bank_code", width: 180, isReadOnly: true },
+        { header: tr("رقم الحساب"), name: "code", width: 160, isReadOnly: true },
+        { header: tr("اسم الحساب"), name: "name", width: "*", minWidth: 260, isReadOnly: true },
+        { header: tr("رقم الحساب الفعلي"), name: "actual_bank_code", width: 180, isReadOnly: true },
       ],
     }),
     [],
@@ -161,7 +162,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
   }
 
   const inputClass =
-    "h-10 rounded-xl border border-slate-200 bg-white pr-9 text-right text-sm shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+    "h-10 rounded-xl border border-slate-200 bg-white ps-9 text-start text-sm shadow-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -170,7 +171,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
         className="flex h-[min(calc(100%-1.5rem),calc(100dvh-1rem))] max-h-[min(calc(100%-1.5rem),calc(100dvh-1rem))] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:h-[min(calc(100%-1.5rem),640px)] sm:w-[94vw]"
-        dir="rtl"
+        dir={appDir()}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-3 text-white">
           <div className="flex min-w-0 items-center gap-3">
@@ -178,9 +179,9 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
               <Landmark className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold sm:text-lg">بحث حسابات البنوك</h2>
+              <h2 className="truncate text-base font-bold sm:text-lg">{tr("بحث حسابات البنوك")}</h2>
               <p className="text-[11px] text-emerald-50">
-                {filteredAccounts.length} حساب{currencyId != null ? " — بعملة السند فقط" : ""}
+                {filteredAccounts.length}{tr(" حساب")}{currencyId != null ? tr(" — بعملة السند فقط") : ""}
               </p>
             </div>
           </div>
@@ -188,8 +189,8 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
             type="button"
             onClick={() => onOpenChange(false)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/30"
-            aria-label="إغلاق"
-            title="إغلاق"
+            aria-label={tr("إغلاق")}
+            title={tr("إغلاق")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -200,26 +201,26 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
           className="grid shrink-0 grid-cols-1 gap-2 border-b border-slate-200 bg-slate-50/70 px-3 py-3 sm:grid-cols-2 sm:px-4"
         >
           <div>
-            <Label className="mb-1 block text-xs font-semibold text-slate-600">رقم الحساب</Label>
+            <Label className="mb-1 block text-xs font-semibold text-slate-600">{tr("رقم الحساب")}</Label>
             <div className="relative">
-              <Hash className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Hash className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={codeFilter}
                 onChange={(e) => setCodeFilter(e.target.value)}
-                placeholder="ابحث برقم الحساب"
+                placeholder={tr("ابحث برقم الحساب")}
                 className={inputClass}
               />
             </div>
           </div>
           <div>
-            <Label className="mb-1 block text-xs font-semibold text-slate-600">الاسم</Label>
+            <Label className="mb-1 block text-xs font-semibold text-slate-600">{tr("الاسم")}</Label>
             <div className="relative">
-              <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 ref={nameInputRef}
                 value={nameFilter}
                 onChange={(e) => setNameFilter(e.target.value)}
-                placeholder="ابحث باسم الحساب"
+                placeholder={tr("ابحث باسم الحساب")}
                 className={inputClass}
               />
             </div>
@@ -255,7 +256,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
                       data-bank-card
                       onClick={() => (isSelected ? handleRowDoubleClick(account) : setSelected(account))}
                       onKeyDown={(event) => handleCardKeyDown(event, account)}
-                      className={`flex w-full shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-right shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
+                      className={`flex w-full shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-start shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
                         isSelected ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-white"
                       }`}
                     >
@@ -268,7 +269,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
                           <span dir="ltr">{account.code}</span>
                           {account.actual_bank_code ? (
                             <span>
-                              الفعلي: <span dir="ltr">{account.actual_bank_code}</span>
+                              {tr("الفعلي: ")}<span dir="ltr">{account.actual_bank_code}</span>
                             </span>
                           ) : null}
                         </div>
@@ -281,22 +282,22 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
               <Search className="h-6 w-6 text-slate-300" />
-              لا توجد نتائج
+              {tr("لا توجد نتائج")}
             </div>
           )}
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
           <div className="hidden min-w-0 truncate text-xs text-slate-500 sm:block">
-            {selected ? `المحدد: ${selected.code} — ${selected.name}` : "Enter للانتقال بين الحقول • ↓ للنتائج • Enter على السطر للاختيار"}
+            {selected ? tr("المحدد: {0} — {1}", selected.code, selected.name) : tr("Enter للانتقال بين الحقول • ↓ للنتائج • Enter على السطر للاختيار")}
           </div>
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <Button onClick={handleConfirm} disabled={!selected} className="h-10 gap-1 bg-emerald-600 text-white hover:bg-emerald-700 sm:min-w-28">
               <Check className="h-4 w-4" />
-              موافق
+              {tr("موافق")}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)} className="h-10 sm:min-w-28">
-              إغلاق
+              {tr("إغلاق")}
             </Button>
           </div>
         </div>

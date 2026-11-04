@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useMemo, useRef } from "react"
 import { ExcelImportWizard, type ImportConfig, type ImportIssue } from "@/components/import/excel-import-wizard"
 
@@ -25,17 +26,17 @@ export function VoucherLinesImportDialog<P extends Record<string, any>>({ open, 
   onLinesRef.current = onLines
 
   const config = useMemo<ImportConfig>(() => ({
-    title: title || "استيراد الأصناف من Excel",
-    description: "يُبحث عن الصنف برقمه أو باركوده؛ الأسطر غير الموجودة تظهر كأخطاء لتصحيحها قبل الإضافة",
+    title: title || tr("استيراد الأصناف من Excel"),
+    description: tr("يُبحث عن الصنف برقمه أو باركوده؛ الأسطر غير الموجودة تظهر كأخطاء لتصحيحها قبل الإضافة"),
     templateFileName: "نموذج-أسطر-السند",
-    importButtonLabel: "إضافة إلى السند",
+    importButtonLabel: tr("إضافة إلى السند"),
     closeOnSuccess: true,
     fields: [
-      { key: "code", label: "رقم الصنف", required: true, aliases: ["barcode", "code", "الباركود", "باركود", "product_code", "كود الصنف"], example: "1001" },
-      { key: "qnty", label: "الكمية", type: "number", min: 0, aliases: ["quantity", "qnty", "qty", "كمية"], example: 1 },
-      { key: "price", label: "السعر", type: "number", min: 0, aliases: ["price", "Price", "سعر"], description: "يُستخدم سعر الصنف إن تُرك فارغاً" },
-      { key: "bonus", label: "البونص", type: "number", min: 0, aliases: ["bonus", "بونص"] },
-      { key: "batch", label: "الرقم التشغيلي", aliases: ["batch"] },
+      { key: "code", label: tr("رقم الصنف"), required: true, aliases: ["barcode", "code", "الباركود", "باركود", "product_code", "كود الصنف"], example: "1001" },
+      { key: "qnty", label: tr("الكمية"), type: "number", min: 0, aliases: ["quantity", "qnty", "qty", "كمية"], example: 1 },
+      { key: "price", label: tr("السعر"), type: "number", min: 0, aliases: ["price", "Price", "سعر"], description: tr("يُستخدم سعر الصنف إن تُرك فارغاً") },
+      { key: "bonus", label: tr("البونص"), type: "number", min: 0, aliases: ["bonus", "بونص"] },
+      { key: "batch", label: tr("الرقم التشغيلي"), aliases: ["batch"] },
     ],
     validate: async (rows) => {
       const result = new Map<number, ImportIssue[]>()
@@ -50,8 +51,8 @@ export function VoucherLinesImportDialog<P extends Record<string, any>>({ open, 
       await Promise.all(Array.from({ length: 6 }, worker))
       for (const row of rows) {
         const code = String(row.data.code || "").trim()
-        if (code && existsCache.current.get(code) === false) result.set(row.id, [{ field: "code", message: `الصنف ${code} غير موجود` }])
-        if (row.data.qnty === 0) result.set(row.id, [...(result.get(row.id) || []), { field: "qnty", message: "الكمية يجب أن تكون أكبر من صفر" }])
+        if (code && existsCache.current.get(code) === false) result.set(row.id, [{ field: "code", message: tr("الصنف {0} غير موجود", code) }])
+        if (row.data.qnty === 0) result.set(row.id, [...(result.get(row.id) || []), { field: "qnty", message: tr("الكمية يجب أن تكون أكبر من صفر") }])
       }
       return result
     },
@@ -61,7 +62,7 @@ export function VoucherLinesImportDialog<P extends Record<string, any>>({ open, 
       for (const row of rows) {
         if (signal.aborted) return
         const product = await resolveRef.current(String(row.data.code).trim())
-        if (!product) { report(row.id, { ok: false, message: "الصنف غير موجود أو أُلغي اختياره" }); continue }
+        if (!product) { report(row.id, { ok: false, message: tr("الصنف غير موجود أو أُلغي اختياره") }); continue }
         const line: any = { ...product }
         if (row.data.price !== null && row.data.price !== undefined && row.data.price !== "") line.price = row.data.price
         line.qnty = row.data.qnty || 1
@@ -75,7 +76,7 @@ export function VoucherLinesImportDialog<P extends Record<string, any>>({ open, 
           await onLinesRef.current(products)
           added.forEach((id) => report(id, { ok: true }))
         } catch (error: any) {
-          added.forEach((id) => report(id, { ok: false, message: error?.message || "تعذرت الإضافة" }))
+          added.forEach((id) => report(id, { ok: false, message: error?.message || tr("تعذرت الإضافة") }))
         }
       }
     },

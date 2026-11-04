@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { MapPin, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -58,13 +59,13 @@ export async function shippingPrintFields(voucher: { shipping_info?: ShippingInf
   if (!hasShippingInfo(info)) return []
   const names = await resolveShippingNames(info)
   return [
-    { label: "المرسل إليه", value: info?.destination_name || "" },
-    { label: "هاتف الشحن", value: info?.phone || "" },
-    { label: "المنطقة", value: names.city },
-    { label: "عنوان الشحن", value: info?.address || "" },
-    { label: "ص.ب", value: info?.po_box || "" },
-    { label: "السيارة", value: names.car },
-    { label: "السائق", value: names.driver },
+    { label: tr("المرسل إليه"), value: info?.destination_name || "" },
+    { label: tr("هاتف الشحن"), value: info?.phone || "" },
+    { label: tr("المنطقة"), value: names.city },
+    { label: tr("عنوان الشحن"), value: info?.address || "" },
+    { label: tr("ص.ب"), value: info?.po_box || "" },
+    { label: tr("السيارة"), value: names.car },
+    { label: tr("السائق"), value: names.driver },
   ]
 }
 
@@ -100,28 +101,28 @@ export function ShippingAddressDialog({ open, onOpenChange, value, onSave, readO
   return (
     <WorkspaceDialogProvider container={null} confined={false}>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="z-[3001] w-[min(640px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden rounded-2xl p-0" dir="rtl">
+        <DialogContent className="z-[3001] w-[min(640px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden rounded-2xl p-0" dir={appDir()}>
           <div className="flex items-center gap-3 bg-gradient-to-l from-sky-600 to-indigo-600 px-5 py-3 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Truck className="h-5 w-5" /></span>
             <div className="text-right">
-              <DialogTitle className="text-base font-bold">عنوان الشحن</DialogTitle>
-              <DialogDescription className="text-xs text-sky-50">بيانات التوصيل والمرسل إليه لهذا السند</DialogDescription>
+              <DialogTitle className="text-base font-bold">{tr("عنوان الشحن")}</DialogTitle>
+              <DialogDescription className="text-xs text-sky-50">{tr("بيانات التوصيل والمرسل إليه لهذا السند")}</DialogDescription>
             </div>
           </div>
           <fieldset disabled={readOnly} className="grid gap-3 p-5 sm:grid-cols-2">
-            <div className="sm:col-span-2"><Label>المرسل إليه</Label><Input value={form.destination_name || ""} onChange={(event) => set("destination_name", event.target.value)} maxLength={150} /></div>
-            <div><Label>السيارة</Label><Dropdown value={form.car_id ?? null} options={cars} optionLabel="label" optionValue="value" filter showClear placeholder="اختر السيارة" disabled={readOnly} onChange={(event: any) => set("car_id", event.value ?? null)} className="w-full" appendTo="self" /></div>
-            <div><Label>السائق</Label><Dropdown value={form.driver_id ?? null} options={drivers} optionLabel="label" optionValue="value" filter showClear placeholder="اختر السائق" disabled={readOnly} onChange={(event: any) => { set("driver_id", event.value ?? null) }} className="w-full" appendTo="self" /></div>
-            <div><Label>المنطقة</Label><Dropdown value={form.city_id ?? null} options={cities} optionLabel="label" optionValue="value" filter showClear placeholder="اختر المنطقة" disabled={readOnly} onChange={(event: any) => set("city_id", event.value ?? null)} className="w-full" appendTo="self" /></div>
-            <div><Label>ص.ب</Label><Input value={form.po_box || ""} onChange={(event) => set("po_box", event.target.value)} maxLength={30} dir="ltr" /></div>
-            <div className="sm:col-span-2"><Label>الهاتف</Label><Input value={form.phone || ""} onChange={(event) => set("phone", event.target.value)} maxLength={30} dir="ltr" /></div>
-            <div className="sm:col-span-2"><Label>العنوان</Label><Textarea value={form.address || ""} onChange={(event) => set("address", event.target.value)} rows={3} maxLength={500} /></div>
+            <div className="sm:col-span-2"><Label>{tr("المرسل إليه")}</Label><Input value={form.destination_name || ""} onChange={(event) => set("destination_name", event.target.value)} maxLength={150} /></div>
+            <div><Label>{tr("السيارة")}</Label><Dropdown value={form.car_id ?? null} options={cars} optionLabel="label" optionValue="value" filter showClear placeholder={tr("اختر السيارة")} disabled={readOnly} onChange={(event: any) => set("car_id", event.value ?? null)} className="w-full" appendTo="self" /></div>
+            <div><Label>{tr("السائق")}</Label><Dropdown value={form.driver_id ?? null} options={drivers} optionLabel="label" optionValue="value" filter showClear placeholder={tr("اختر السائق")} disabled={readOnly} onChange={(event: any) => { set("driver_id", event.value ?? null) }} className="w-full" appendTo="self" /></div>
+            <div><Label>{tr("المنطقة")}</Label><Dropdown value={form.city_id ?? null} options={cities} optionLabel="label" optionValue="value" filter showClear placeholder={tr("اختر المنطقة")} disabled={readOnly} onChange={(event: any) => set("city_id", event.value ?? null)} className="w-full" appendTo="self" /></div>
+            <div><Label>{tr("ص.ب")}</Label><Input value={form.po_box || ""} onChange={(event) => set("po_box", event.target.value)} maxLength={30} dir="ltr" /></div>
+            <div className="sm:col-span-2"><Label>{tr("الهاتف")}</Label><Input value={form.phone || ""} onChange={(event) => set("phone", event.target.value)} maxLength={30} dir="ltr" /></div>
+            <div className="sm:col-span-2"><Label>{tr("العنوان")}</Label><Textarea value={form.address || ""} onChange={(event) => set("address", event.target.value)} rows={3} maxLength={500} /></div>
           </fieldset>
           <div className="flex items-center justify-between border-t bg-slate-50 px-5 py-3">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" />يُحفظ مع السند عند الحفظ</span>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{tr("يُحفظ مع السند عند الحفظ")}</span>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? "إغلاق" : "إلغاء"}</Button>
-              {!readOnly && <Button onClick={() => { onSave(form); onOpenChange(false) }}>موافق</Button>}
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{readOnly ? tr("إغلاق") : tr("إلغاء")}</Button>
+              {!readOnly && <Button onClick={() => { onSave(form); onOpenChange(false) }}>{tr("موافق")}</Button>}
             </div>
           </div>
         </DialogContent>

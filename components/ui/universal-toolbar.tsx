@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState } from "react"
 import { cancelVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Save, Copy, Trash2, FileText, Download, Printer, Menu, Loader2, MessageCircle, MessageSquareText } from "lucide-react"
@@ -52,8 +53,8 @@ interface UniversalToolbarProps {
 }
 
 const defaultLabels = {
-  new: "جديد", save: "حفظ", previous: "السابق", next: "التالي", first: "الأول", last: "الأخير",
-  delete: "حذف", report: "استعلام", exportExcel: "تصدير إكسل", print: "طباعة", clone: "نسخ",
+  new: tr("جديد"), save: tr("حفظ"), previous: tr("السابق"), next: tr("التالي"), first: tr("الأول"), last: tr("الأخير"),
+  delete: tr("حذف"), report: tr("استعلام"), exportExcel: tr("تصدير إكسل"), print: tr("طباعة"), clone: tr("نسخ"),
 }
 
 const navClass = "h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
@@ -136,7 +137,7 @@ export function UniversalToolbar({
   const next = () => isNewRecord ? onFirst?.() : onNext?.()
 
   const navigation = (
-    <div className="universal-toolbar-navigation flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="التنقل بين السجلات">
+    <div className="universal-toolbar-navigation flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label={tr("التنقل بين السجلات")}>
       {onFirst && <Button type="button" variant="ghost" title={hint(labels.first, "first")} onClick={onFirst} disabled={navigationBusy || !hasRecords || (!isNewRecord && isFirstRecord)} aria-label={labels.first} className={navClass}><ChevronsRight className="h-4 w-4" /></Button>}
       {onPrevious && <Button type="button" variant="ghost" title={hint(labels.previous, "previous")} onClick={previous} disabled={navigationBusy || !hasRecords || (!isNewRecord && isFirstRecord)} aria-label={labels.previous} className={navClass}><ChevronRight className="h-4 w-4" /></Button>}
       <div className="universal-toolbar-record flex h-9 min-w-[84px] items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200">
@@ -149,20 +150,20 @@ export function UniversalToolbar({
   )
 
   return (
-    <div ref={toolbarRef} data-toolbar-template={template} data-toolbar-narrow={compact} data-toolbar-show-utility-labels={showUtilityLabels || undefined} className="universal-toolbar relative w-full overflow-visible rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_10px_30px_-20px_rgba(15,23,42,0.45)]" dir="rtl">
+    <div ref={toolbarRef} data-toolbar-template={template} data-toolbar-narrow={compact} data-toolbar-show-utility-labels={showUtilityLabels || undefined} className="universal-toolbar relative w-full overflow-visible rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_10px_30px_-20px_rgba(15,23,42,0.45)]" dir={appDir()}>
       <div className="universal-toolbar-accent pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-l from-transparent via-indigo-400 to-transparent" />
       <div className="universal-toolbar-layout flex min-w-0 flex-wrap items-center gap-2">
         <div className="universal-toolbar-primary flex shrink-0 items-center gap-2">
           {onNew && <Button type="button" onClick={onNew} disabled={navigationBusy} aria-label={labels.new} title={hint(labels.new, "new")} className="universal-toolbar-new h-10 gap-2 rounded-xl bg-slate-900 px-3.5 font-bold text-white shadow-sm hover:bg-slate-800"><Plus className="h-4 w-4" />{!veryCompact && !iconOnly && <span>{labels.new}</span>}</Button>}
-          {onSave && <Button type="button" onClick={onSave} disabled={navigationBusy || !canSave} aria-label={labels.save} title={hint(labels.save, "save")} className="universal-toolbar-save h-10 gap-2 rounded-xl bg-indigo-600 px-3.5 font-bold text-white shadow-sm shadow-indigo-200 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{!veryCompact && !iconOnly && <span>{isSaving ? "جاري الحفظ" : labels.save}</span>}</Button>}
+          {onSave && <Button type="button" onClick={onSave} disabled={navigationBusy || !canSave} aria-label={labels.save} title={hint(labels.save, "save")} className="universal-toolbar-save h-10 gap-2 rounded-xl bg-indigo-600 px-3.5 font-bold text-white shadow-sm shadow-indigo-200 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{!veryCompact && !iconOnly && <span>{isSaving ? tr("جاري الحفظ") : labels.save}</span>}</Button>}
         </div>
 
         <div className={`universal-toolbar-nav-wrap ${compact ? "order-3 flex w-full justify-center border-t border-slate-100 pt-2" : "flex"}`}>{navigation}</div>
 
-        <div className="universal-toolbar-utilities mr-auto flex items-center gap-1">
+        <div className="universal-toolbar-utilities ms-auto flex items-center gap-1">
           {!compact && onPrint && <Button type="button" variant="ghost" aria-label={labels.print} title={hint(labels.print, "print")} onClick={printAction} disabled={isLoading || isSaving || !canPrint} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-amber-50 hover:text-amber-700"><Printer className="h-4 w-4" />{!iconOnly && <span>{labels.print}</span>}</Button>}
-          {!compact && onWhatsApp && <Button type="button" variant="ghost" aria-label="واتساب" title="إرسال السند PDF عبر واتساب للعميل" onClick={onWhatsApp} disabled={isLoading || isSaving || !canPrint} className="h-9 gap-2 rounded-lg px-3 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"><MessageCircle className="h-4 w-4" />{!iconOnly && <span>واتساب</span>}</Button>}
-          {!compact && onSms && <Button type="button" variant="ghost" aria-label="رسالة SMS" title="إرسال رسالة SMS للعميل" onClick={onSms} disabled={isLoading || isSaving} className="h-9 gap-2 rounded-lg px-3 text-sky-600 hover:bg-sky-50 hover:text-sky-700"><MessageSquareText className="h-4 w-4" />{!iconOnly && <span>SMS</span>}</Button>}
+          {!compact && onWhatsApp && <Button type="button" variant="ghost" aria-label={tr("واتساب")} title={tr("إرسال السند PDF عبر واتساب للعميل")} onClick={onWhatsApp} disabled={isLoading || isSaving || !canPrint} className="h-9 gap-2 rounded-lg px-3 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"><MessageCircle className="h-4 w-4" />{!iconOnly && <span>{tr("واتساب")}</span>}</Button>}
+          {!compact && onSms && <Button type="button" variant="ghost" aria-label={tr("رسالة SMS")} title={tr("إرسال رسالة SMS للعميل")} onClick={onSms} disabled={isLoading || isSaving} className="h-9 gap-2 rounded-lg px-3 text-sky-600 hover:bg-sky-50 hover:text-sky-700"><MessageSquareText className="h-4 w-4" />{!iconOnly && <span>SMS</span>}</Button>}
           {!compact && onClone && <Button type="button" variant="ghost" aria-label={labels.clone} title={hint(labels.clone, "clone")} onClick={onClone} disabled={navigationBusy || !canClone} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-sky-50 hover:text-sky-700"><Copy className="h-4 w-4" />{!iconOnly && <span>{labels.clone}</span>}</Button>}
           {!compact && onReport && <Button type="button" variant="ghost" title={hint(labels.report, "report")} aria-label={labels.report} disabled={navigationBusy} onClick={onReport} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-violet-50 hover:text-violet-700"><FileText className="h-4 w-4" />{!iconOnly && <span>{labels.report}</span>}</Button>}
           {!compact && onExportExcel && <Button type="button" variant="ghost" title={labels.exportExcel} aria-label={labels.exportExcel} disabled={navigationBusy} onClick={onExportExcel} className="h-9 gap-2 rounded-lg px-3 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"><Download className="h-4 w-4" />{!iconOnly && <span>{labels.exportExcel}</span>}</Button>}
@@ -170,11 +171,11 @@ export function UniversalToolbar({
 
           {compact && hasUtilities && (
             <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild><Button type="button" variant="outline" className="universal-toolbar-menu h-10 gap-2 rounded-xl border-slate-200 bg-slate-50 px-3 text-slate-700 hover:bg-slate-100"><Menu className="h-4 w-4" />{!veryCompact && "الأدوات"}</Button></DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button type="button" variant="outline" className="universal-toolbar-menu h-10 gap-2 rounded-xl border-slate-200 bg-slate-50 px-3 text-slate-700 hover:bg-slate-100"><Menu className="h-4 w-4" />{!veryCompact && tr("الأدوات")}</Button></DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="z-[100] min-w-48 [direction:rtl]">
                 {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={printAction}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
-                {onWhatsApp && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onWhatsApp}><MessageCircle className="ml-2 h-4 w-4 text-emerald-600" />واتساب</DropdownMenuItem>}
-                {onSms && <DropdownMenuItem disabled={isLoading || isSaving} onSelect={onSms}><MessageSquareText className="ml-2 h-4 w-4 text-sky-600" />رسالة SMS</DropdownMenuItem>}
+                {onWhatsApp && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onWhatsApp}><MessageCircle className="ml-2 h-4 w-4 text-emerald-600" />{tr("واتساب")}</DropdownMenuItem>}
+                {onSms && <DropdownMenuItem disabled={isLoading || isSaving} onSelect={onSms}><MessageSquareText className="ml-2 h-4 w-4 text-sky-600" />{tr("رسالة SMS")}</DropdownMenuItem>}
                 {onClone && <DropdownMenuItem disabled={navigationBusy || !canClone} onSelect={onClone}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
                 {onReport && <DropdownMenuItem disabled={navigationBusy} onSelect={onReport}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
                 {onExportExcel && <DropdownMenuItem disabled={navigationBusy} onSelect={onExportExcel}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}

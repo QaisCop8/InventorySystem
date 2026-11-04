@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr } from "@/lib/i18n"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ProductSearch } from "@/components/search/product-search"
@@ -71,7 +72,7 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
       <Dialog open={searchType === "products"} onOpenChange={(open) => !open && closeSearch()}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-right">البحث عن الأصناف</DialogTitle>
+            <DialogTitle className="text-right">{tr("البحث عن الأصناف")}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[75vh]">
             <ProductSearch onSelect={handleProductSelect} onClose={closeSearch} isModal={false} />
@@ -83,7 +84,7 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
       <Dialog open={searchType === "customers-suppliers"} onOpenChange={(open) => !open && closeSearch()}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-right">البحث عن العملاء والموردين</DialogTitle>
+            <DialogTitle className="text-right">{tr("البحث عن العملاء والموردين")}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[75vh]">
             <CustomerSupplierSearch

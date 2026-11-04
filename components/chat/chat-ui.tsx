@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 // عناصر عرض مشتركة للدردشة: صورة رمزية ملوّنة بالاسم مع نقطة الاتصال، وتنسيقات الوقت.
@@ -15,7 +16,7 @@ export function ChatAvatar({ name, online, size = "md" }: { name: string; online
         {letter}
       </span>
       {online !== undefined && (
-        <span className={cn("absolute bottom-0 left-0 h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-900", online ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600")} />
+        <span className={cn("absolute bottom-0 end-0 h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-900", online ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600")} />
       )}
     </span>
   )
@@ -44,15 +45,15 @@ export function shortWhen(iso: string | null) {
 export function dayLabel(iso: string) {
   const date = new Date(iso)
   const now = new Date()
-  if (sameDay(date, now)) return "اليوم"
+  if (sameDay(date, now)) return tr("اليوم")
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
-  if (sameDay(date, yesterday)) return "أمس"
+  if (sameDay(date, yesterday)) return tr("أمس")
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
 export function presenceLabel(online: boolean, lastSeen: string | null) {
-  if (online) return "متصل الآن"
-  if (!lastSeen) return "غير متصل"
-  return `آخر ظهور ${shortWhen(lastSeen)}`
+  if (online) return tr("متصل الآن")
+  if (!lastSeen) return tr("غير متصل")
+  return tr("آخر ظهور {0}", shortWhen(lastSeen))
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { PackageOpen } from "lucide-react"
@@ -50,10 +51,10 @@ interface WarehouseOption {
 }
 
 const TYPE_LABELS: Record<StockVoucherType, { title: string; listTitle: string; addLabel: string }> = {
-  8: { title: "سند ادخال بضاعة", listTitle: "سندات ادخال البضاعة", addLabel: "إضافة سند ادخال بضاعة" },
-  9: { title: "سند اخراج بضاعة", listTitle: "سندات اخراج البضاعة", addLabel: "إضافة سند اخراج بضاعة" },
-  10: { title: "ارسالية داخلية", listTitle: "الارساليات الداخلية", addLabel: "إضافة ارسالية داخلية" },
-  11: { title: "سند استعمال", listTitle: "سندات الاستعمال", addLabel: "إضافة سند استعمال" },
+  8: { title: tr("سند ادخال بضاعة"), listTitle: tr("سندات ادخال البضاعة"), addLabel: tr("إضافة سند ادخال بضاعة") },
+  9: { title: tr("سند اخراج بضاعة"), listTitle: tr("سندات اخراج البضاعة"), addLabel: tr("إضافة سند اخراج بضاعة") },
+  10: { title: tr("ارسالية داخلية"), listTitle: tr("الارساليات الداخلية"), addLabel: tr("إضافة ارسالية داخلية") },
+  11: { title: tr("سند استعمال"), listTitle: tr("سندات الاستعمال"), addLabel: tr("إضافة سند استعمال") },
 }
 
 const emptyItemRow: VoucherItemRow = {
@@ -464,7 +465,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     if (!(form.id > 0) || form.status === 3) return
 
     let isPrinted = form.is_printed || 0
-    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+    const copyLabel = form.status !== 2 ? tr("نسخة للتدقيق") : isPrinted === 1 ? tr("نسخة") : tr("نسخة اصلية")
 
     if (form.status === 2 && isPrinted !== 1) {
       try {
@@ -499,20 +500,20 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   }
 
   const validateVoucher = (data: VoucherRecord): string | null => {
-    if (!data.vch_code.trim()) return "رقم السند مطلوب"
-    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
-    if (!data.currency_id) return "العملة مطلوبة"
-    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+    if (!data.vch_code.trim()) return tr("رقم السند مطلوب")
+    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return tr("يجب تحديد دفتر السندات")
+    if (!data.currency_id) return tr("العملة مطلوبة")
+    if (!(Number(data.rate) > 0)) return tr("سعر الصرف يجب أن يكون أكبر من صفر")
     const items = (data.items || []).filter((i) => i.product_id)
-    if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
+    if (items.length === 0) return tr("يجب إدخال صنف واحد على الأقل")
     // فحص مستودع رأس السند الآن للإرسالية الداخلية فقط (لها فحص from/to منفصل أدناه) — بقية الأنواع
     // الثلاثة (ادخال/اخراج بضاعة، استعمال) لها جميعاً عمود "المستودع" الخاص بها بالسطر (أصنافها قد
     // تدخل/تُصرف من مستودعات مختلفة)، فيكفيها الفحص العام "يجب اختيار المستودع لكل صنف" أدناه.
     if (voucherType !== INTERNAL_DELIVERY_VCH_TYPE && voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && !data.to_store_id) {
-      return "يجب اختيار المستودع"
+      return tr("يجب اختيار المستودع")
     }
-    if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
-    if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+    if (items.some((i) => !i.warehouse_id)) return tr("يجب اختيار المستودع لكل صنف")
+    if (items.some((i) => !(Number(i.quantity || 0) > 0))) return tr("يجب إدخال الكمية لكل صنف")
     const itemWithMissingAttributes = items.find((item) => {
       const attributes = Array.isArray((item as any).attributes) ? (item as any).attributes : []
       const selected = (item as any).selected_attributes && typeof (item as any).selected_attributes === "object"
@@ -521,7 +522,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       return attributes.length > 0 && attributes.some((attribute: any) => !String(selected[attribute.name] || "").trim())
     })
     if (itemWithMissingAttributes) {
-      return `الصنف - ${itemWithMissingAttributes.product_name || itemWithMissingAttributes.product_code} له ميزات وخصائص يجب تحديدها لا يمكن حفظ السند`
+      return tr("الصنف - {0} له ميزات وخصائص يجب تحديدها لا يمكن حفظ السند", itemWithMissingAttributes.product_name || itemWithMissingAttributes.product_code)
     }
     // أبعاد/عدد الصنف (نوع قياس غير عادي) — يُفحَص لكل أنواع السندات (لا سند ادخال بضاعة فقط)، إذ
     // الأبعاد خاصية بمستوى السطر مستقلة عن اتجاه الحركة. الخادم يعيد نفس الفحص مستقلاً (_lib.ts).
@@ -531,9 +532,9 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
     if (voucherType === STOCK_IN_VCH_TYPE) {
       const missingExpiry = items.find((i) => i.has_expiry && !String(i.expiry_date || "").trim())
-      if (missingExpiry) return `يجب إدخال تاريخ الصلاحية للصنف: ${missingExpiry.product_name || missingExpiry.product_code}`
+      if (missingExpiry) return tr("يجب إدخال تاريخ الصلاحية للصنف: {0}", missingExpiry.product_name || missingExpiry.product_code)
       const missingBatch = items.find((i) => i.has_batch && !String(i.batch_number || "").trim())
-      if (missingBatch) return `يجب إدخال الرقم التشغيلي للصنف: ${missingBatch.product_name || missingBatch.product_code}`
+      if (missingBatch) return tr("يجب إدخال الرقم التشغيلي للصنف: {0}", missingBatch.product_name || missingBatch.product_code)
       // تاريخ الصلاحية الافتراضي عند اختيار صنف له تتبع صلاحية هو 1990-01-01 (قيمة اصطلاحية يُعدّلها
       // المستخدم لاحقاً عبر التقويم) — أي تاريخ أقدم من 2020-01-01 عملياً يعني نسيان تعديل هذه القيمة
       // الافتراضية قبل الحفظ، فيُرفَض الحفظ بدل قبول تاريخ غير منطقي لبضاعة داخلة حديثاً.
@@ -541,15 +542,15 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         (i) => i.has_expiry && i.expiry_date && new Date(i.expiry_date).getTime() < new Date("2020-01-01").getTime(),
       )
       if (implausibleExpiry) {
-        return `يرجى التأكد من تاريخ الصلاحية للصنف - ${implausibleExpiry.product_name || implausibleExpiry.product_code}`
+        return tr("يرجى التأكد من تاريخ الصلاحية للصنف - {0}", implausibleExpiry.product_name || implausibleExpiry.product_code)
       }
     }
-    if (voucherType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) return "يجب اختيار المستودع المرسل والمستودع المستلم"
+    if (voucherType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) return tr("يجب اختيار المستودع المرسل والمستودع المستلم")
     if (voucherType === INTERNAL_DELIVERY_VCH_TYPE && data.from_store_id && data.to_store_id && Number(data.from_store_id) === Number(data.to_store_id)) {
-      return "لا يمكن عمل ارسالية لنفس المستودع"
+      return tr("لا يمكن عمل ارسالية لنفس المستودع")
     }
     if (voucherType === USE_VOUCHER_VCH_TYPE && items.some((i) => !i.expense_account_id || !i.purchase_account_id)) {
-      return "يجب اختيار حساب المصروف وحساب المشتريات لكل صنف"
+      return tr("يجب اختيار حساب المصروف وحساب المشتريات لكل صنف")
     }
     return null
   }
@@ -594,7 +595,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       })
       if (!response.ok) {
         const error = await response.json()
-        setErrorMessages([error.error || "فشل في حفظ السند"])
+        setErrorMessages([error.error || tr("فشل في حفظ السند")])
         return false
       }
       const saved = await response.json()
@@ -604,7 +605,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         const rows = (dataToSave.items || []).filter((i) => i.product_id)
         setPrintData({
           title: labels.title,
-          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          copyLabel: action === "post_print" ? tr("نسخة اصلية") : tr("نسخة للتدقيق"),
           vch_code: saved.vch_code,
           vch_date: saved.vch_date,
           manual_voucher: saved.manual_voucher,
@@ -636,7 +637,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       return true
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ السند"])
+      setErrorMessages([tr("فشل في حفظ السند")])
       return false
     } finally {
       setIsSaving(false)
@@ -682,7 +683,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
-          setErrorMessages([error?.error || "فشل في إلغاء السند"])
+          setErrorMessages([error?.error || tr("فشل في إلغاء السند")])
           return
         }
         const saved = await response.json()
@@ -693,14 +694,14 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         const response = await fetch(`/api/stock-vouchers/${form.id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
-          setErrorMessages([error?.error || "فشل في حذف السند"])
+          setErrorMessages([error?.error || tr("فشل في حذف السند")])
           return
         }
         await advanceAfterDelete()
       }
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حذف/إلغاء السند"])
+      setErrorMessages([tr("فشل في حذف/إلغاء السند")])
     } finally {
       setIsSaving(false)
     }
@@ -715,16 +716,16 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       const query = new URLSearchParams({ direction, currentId: String(Math.max(0, form.id)), vch_type: String(voucherType) })
       const response = await fetch(`/api/transaction-navigation?${query}`, { cache: "no-store" })
       const record = await response.json()
-      if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين السندات")
+      if (!response.ok) throw new Error(record?.error || tr("تعذر التنقل بين السندات"))
       if (!record?.id) return
       const details = await fetchVoucherDetails(record.id)
-      if (!details) throw new Error("تعذر تحميل تفاصيل السند")
+      if (!details) throw new Error(tr("تعذر تحميل تفاصيل السند"))
       setForm(normalizeVoucher(details, voucherType))
       setCurrentIndex(filteredVouchers.findIndex(row => row.id === record.id))
       setErrorMessages([])
       setDialogOpen(true)
     } catch (error) {
-      setErrorMessages([error instanceof Error ? error.message : "تعذر التنقل بين السندات"])
+      setErrorMessages([error instanceof Error ? error.message : tr("تعذر التنقل بين السندات")])
     } finally {
       navigationPending.current = false
       setIsLoading(false)
@@ -742,45 +743,45 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     setIsLoading(true)
     try {
       const details = await fetchVoucherDetails(voucherId)
-      if (!details) throw new Error("تعذر تحميل تفاصيل السند")
+      if (!details) throw new Error(tr("تعذر تحميل تفاصيل السند"))
       setForm(normalizeVoucher(details, voucherType))
       setCurrentIndex(filteredVouchers.findIndex(row => row.id === voucherId))
       setErrorMessages([])
       setDialogOpen(true)
     } catch (error) {
-      setErrorMessages([error instanceof Error ? error.message : "تعذر عرض السند"])
+      setErrorMessages([error instanceof Error ? error.message : tr("تعذر عرض السند")])
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
+    <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
       <VoucherListHero icon={PackageOpen} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي {0}", labels.listTitle)}</>, value: <>{totalVouchers}</> }, { label: <>{tr("إجمالي المبالغ")}</>, value: <>{totalAmount.toLocaleString("en-US")}</> }]} />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث
+            {tr("البحث")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-[1fr_1fr_1fr_auto]" onKeyDown={searchOnEnter(runSearch)}>
             <div>
-              <Label htmlFor="search-code">رقم السند</Label>
+              <Label htmlFor="search-code">{tr("رقم السند")}</Label>
               <Input
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث برقم السند..."
+                placeholder={tr("ابحث برقم السند...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-date-from">من تاريخ</Label>
+              <Label htmlFor="search-date-from">{tr("من تاريخ")}</Label>
               <Input
                 id="search-date-from"
                 type="date"
@@ -789,7 +790,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
               />
             </div>
             <div>
-              <Label htmlFor="search-date-to">إلى تاريخ</Label>
+              <Label htmlFor="search-date-to">{tr("إلى تاريخ")}</Label>
               <Input
                 id="search-date-to"
                 type="date"
@@ -812,10 +813,10 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
               loading={listSearch.loading}
               rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
-                { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
-                { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
-                { header: "المبلغ", name: "display_amount", width: 140, isReadOnly: true },
-                { header: "حالة السند", name: "voucher_status", width: 140, isReadOnly: true },
+                { header: tr("رقم السند"), name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
+                { header: tr("التاريخ"), name: "display_date", width: 130, isReadOnly: true },
+                { header: tr("المبلغ"), name: "display_amount", width: 140, isReadOnly: true },
+                { header: tr("حالة السند"), name: "voucher_status", width: 140, isReadOnly: true },
               ]}
               onOpen={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
             />

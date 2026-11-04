@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { CreditCard, Edit, LayoutGrid, Loader2, Mail, MapPin, Package, Plus, Printer, RefreshCw, Save, Search, StickyNote, Store, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -132,7 +133,7 @@ export default function RestaurantLocations() {
         fetch("/api/restaurant/locations?options=1", { cache: "no-store" }),
       ])
       if (listRes) {
-        if (!listRes.ok) throw new Error(await errorText(listRes, "تعذر تحميل المواقع"))
+        if (!listRes.ok) throw new Error(await errorText(listRes, tr("تعذر تحميل المواقع")))
         setRows(await listRes.json())
       }
       if (optionsRes.ok) {
@@ -144,10 +145,10 @@ export default function RestaurantLocations() {
         })
         nextCodeRef.current = String(data.next_code || "")
       } else {
-        setError(await errorText(optionsRes, "تعذر تحميل بيانات الشاشة"))
+        setError(await errorText(optionsRes, tr("تعذر تحميل بيانات الشاشة")))
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذر تحميل المواقع")
+      setError(e instanceof Error ? e.message : tr("تعذر تحميل المواقع"))
     } finally {
       setLoading(false)
     }
@@ -164,12 +165,12 @@ export default function RestaurantLocations() {
 
   const dirty = open && JSON.stringify(form) !== initialRef.current
   useNavigationGuard(() => dirty, (continueNavigation) => {
-    void confirmYesNo("توجد تغييرات غير محفوظة على الموقع. هل تريد المتابعة دون حفظ؟").then((ok) => { if (ok) { setOpen(false); continueNavigation() } })
+    void confirmYesNo(tr("توجد تغييرات غير محفوظة على الموقع. هل تريد المتابعة دون حفظ؟")).then((ok) => { if (ok) { setOpen(false); continueNavigation() } })
   })
 
   const openForm = (value: Form) => { setForm(value); initialRef.current = JSON.stringify(value); setFormError(""); setOpen(true) }
   const closeForm = async () => {
-    if (dirty && !(await confirmYesNo("توجد تغييرات غير محفوظة. هل تريد الإغلاق دون حفظ؟"))) return
+    if (dirty && !(await confirmYesNo(tr("توجد تغييرات غير محفوظة. هل تريد الإغلاق دون حفظ؟")))) return
     setOpen(false)
   }
   const set = (patch: Partial<Form>) => setForm((current) => ({ ...current, ...patch }))
@@ -188,7 +189,7 @@ export default function RestaurantLocations() {
   const save = async () => {
     const required: [string, string][] = [[form.name.trim(), "اسم الموقع"], [form.branch_id, "الفرع"], [form.warehouse_id, "المستودع"], [form.currency_id, "العملة"], [form.price_category_id, "فئة السعر"], [form.sales_book_id, "دفتر فواتير البيع"]]
     const missing = required.filter(([value]) => !value).map(([, label]) => label)
-    if (missing.length) { setFormError(`الحقول المطلوبة: ${missing.join("، ")}`); return }
+    if (missing.length) { setFormError(tr("الحقول المطلوبة: {0}", missing.join("، "))); return }
     setSaving(true); setFormError("")
     try {
       const response = await fetch("/api/restaurant/locations", {
@@ -203,12 +204,12 @@ export default function RestaurantLocations() {
           sort_order: Number(form.sort_order) || 0, status: form.active ? 1 : 2,
         }),
       })
-      if (!response.ok) throw new Error(await errorText(response, "تعذر حفظ الموقع"))
+      if (!response.ok) throw new Error(await errorText(response, tr("تعذر حفظ الموقع")))
       initialRef.current = JSON.stringify(form)
       setOpen(false)
       await load()
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر حفظ الموقع")
+      setFormError(e instanceof Error ? e.message : tr("تعذر حفظ الموقع"))
     } finally {
       setSaving(false)
     }
@@ -218,9 +219,9 @@ export default function RestaurantLocations() {
   saveRef.current = save
 
   const remove = async (row: Location) => {
-    if (!(await confirmYesNo(`حذف الموقع "${row.name}"؟`))) return
+    if (!(await confirmYesNo(tr("حذف الموقع \"{0}\"؟", row.name)))) return
     const response = await fetch(`/api/restaurant/locations?id=${row.id}`, { method: "DELETE" })
-    if (!response.ok) { setError(await errorText(response, "تعذر حذف الموقع")); return }
+    if (!response.ok) { setError(await errorText(response, tr("تعذر حذف الموقع"))); return }
     await load()
   }
 
@@ -270,18 +271,18 @@ export default function RestaurantLocations() {
   const configured = (row: Location) => row.warehouse_id && row.currency_id && row.price_category_id && row.sales_book_id
 
   return (
-    <div dir="rtl" className="flex h-full flex-col gap-4 p-3 sm:p-5">
+    <div dir={appDir()} className="flex h-full flex-col gap-4 p-3 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-teal-700 to-emerald-600 p-4 text-white shadow">
         <div className="flex items-center gap-3">
           <MapPin className="h-8 w-8" />
           <div>
-            <h1 className="text-xl font-bold">مواقع المطعم</h1>
-            <p className="text-sm text-teal-50">الصالات والطوابق والمناطق الخارجية — لكل موقع فرعه وإعدادات البيع الخاصة به (مستقلة عن الكاشير)</p>
+            <h1 className="text-xl font-bold">{tr("مواقع المطعم")}</h1>
+            <p className="text-sm text-teal-50">{tr("الصالات والطوابق والمناطق الخارجية — لكل موقع فرعه وإعدادات البيع الخاصة به (مستقلة عن الكاشير)")}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="ml-1 h-4 w-4" />تحديث</Button>
-          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={addLocation}><Plus className="ml-1 h-4 w-4" />إضافة موقع</Button>}
+          <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="ml-1 h-4 w-4" />{tr("تحديث")}</Button>
+          {canCreate && <Button size="sm" className="bg-white text-teal-800 hover:bg-teal-50" onClick={addLocation}><Plus className="ml-1 h-4 w-4" />{tr("إضافة موقع")}</Button>}
         </div>
       </div>
       {licenseRequest.element}
@@ -289,20 +290,20 @@ export default function RestaurantLocations() {
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pr-9" placeholder="بحث بالاسم أو الرقم" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input className="pr-9" placeholder={tr("بحث بالاسم أو الرقم")} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={branchFilter} onValueChange={setBranchFilter}>
-          <SelectTrigger className="sm:w-56"><SelectValue placeholder="الفرع" /></SelectTrigger>
+          <SelectTrigger className="sm:w-56"><SelectValue placeholder={tr("الفرع")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">كل الفروع</SelectItem>
+            <SelectItem value="all">{tr("كل الفروع")}</SelectItem>
             {options.branches.map((branch) => <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {!canView && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">لا توجد لديك صلاحية استعلام مواقع المطاعم.</div>}
+      {!canView && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{tr("لا توجد لديك صلاحية استعلام مواقع المطاعم.")}</div>}
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>
@@ -315,54 +316,54 @@ export default function RestaurantLocations() {
                   <div className="text-lg font-bold">{row.name}</div>
                   <div className="text-xs text-muted-foreground">{row.code}</div>
                 </div>
-                <Badge variant={Number(row.status) === 2 ? "secondary" : "default"}>{Number(row.status) === 2 ? "موقوف" : "نشط"}</Badge>
+                <Badge variant={Number(row.status) === 2 ? "secondary" : "default"}>{Number(row.status) === 2 ? tr("موقوف") : tr("نشط")}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-1"><Store className="h-4 w-4 text-muted-foreground" />{row.branch_name || "-"}</div>
-                <div className="flex items-center gap-1"><LayoutGrid className="h-4 w-4 text-muted-foreground" />{row.tables_count ?? 0} طاولة</div>
+                <div className="flex items-center gap-1"><LayoutGrid className="h-4 w-4 text-muted-foreground" />{row.tables_count ?? 0}{tr(" طاولة")}</div>
                 <div className="flex items-center gap-1"><Package className="h-4 w-4 text-muted-foreground" />{row.warehouse_name || "—"}</div>
                 <div className="flex items-center gap-1"><CreditCard className="h-4 w-4 text-muted-foreground" />{row.currency_code || "—"} · {row.price_category_name || "—"}</div>
-                {!configured(row) && <div className="col-span-2 text-amber-600">إعدادات البيع غير مكتملة — لا يمكن البيع على هذا الموقع</div>}
+                {!configured(row) && <div className="col-span-2 text-amber-600">{tr("إعدادات البيع غير مكتملة — لا يمكن البيع على هذا الموقع")}</div>}
               </div>
               <div className="mt-auto flex justify-end gap-2">
-                <Button size="sm" variant="outline" onClick={() => openForm(toForm(row))}><Edit className="ml-1 h-4 w-4" />{canUpdate ? "تعديل" : "عرض"}</Button>
-                {canDelete && <Button size="sm" variant="outline" className="text-red-600" onClick={() => void remove(row)}><Trash2 className="ml-1 h-4 w-4" />حذف</Button>}
+                <Button size="sm" variant="outline" onClick={() => openForm(toForm(row))}><Edit className="ml-1 h-4 w-4" />{canUpdate ? tr("تعديل") : tr("عرض")}</Button>
+                {canDelete && <Button size="sm" variant="outline" className="text-red-600" onClick={() => void remove(row)}><Trash2 className="ml-1 h-4 w-4" />{tr("حذف")}</Button>}
               </div>
             </div>
           ))}
-          {canView && !filtered.length && <div className="col-span-full rounded-xl border border-dashed p-10 text-center text-muted-foreground">لا توجد مواقع معرّفة</div>}
+          {canView && !filtered.length && <div className="col-span-full rounded-xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد مواقع معرّفة")}</div>}
         </div>
       )}
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void closeForm() }}>
-        <DialogContent dir="rtl" className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0" onKeyDown={onDialogKeyDown}>
+        <DialogContent dir={appDir()} className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0" onKeyDown={onDialogKeyDown}>
           <div className="bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><MapPin className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1 text-right">
-                <DialogTitle className="truncate text-lg font-bold text-white">{form.id ? `تعديل موقع — ${form.name || ""}` : "إضافة موقع جديد"}</DialogTitle>
-                <DialogDescription className="text-xs text-emerald-50/90">الصالة أو الطابق وإعدادات البيع الخاصة به · Enter للانتقال للحقل التالي</DialogDescription>
+              <div className="min-w-0 flex-1 text-start">
+                <DialogTitle className="truncate text-lg font-bold text-white">{form.id ? tr("تعديل موقع — {0}", form.name || "") : tr("إضافة موقع جديد")}</DialogTitle>
+                <DialogDescription className="text-xs text-emerald-50/90">{tr("الصالة أو الطابق وإعدادات البيع الخاصة به · Enter للانتقال للحقل التالي")}</DialogDescription>
               </div>
               <div className="ml-8 flex shrink-0 items-center gap-2">
-                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">الرقم: {form.code || "تلقائي"}</span>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${form.active ? "bg-white text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{form.active ? "نشط" : "موقوف"}</span>
+                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{tr("الرقم: ")}{form.code || tr("تلقائي")}</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${form.active ? "bg-white text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{form.active ? tr("نشط") : tr("موقوف")}</span>
               </div>
             </div>
           </div>
 
           <div ref={formBodyRef} onKeyDownCapture={onFormKeyDownCapture} onKeyDown={onFormKeyDown} className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-muted/20 px-4 py-4 sm:px-5">
             <Messages innerRef={messagesRef} />
-            <FormSection icon={<Store className="h-4 w-4" />} title="البيانات الأساسية">
+            <FormSection icon={<Store className="h-4 w-4" />} title={tr("البيانات الأساسية")}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
-                  <Label>الرقم</Label>
-                  <Input value={form.code || "تلقائي"} readOnly tabIndex={-1} className="cursor-not-allowed bg-muted font-mono text-muted-foreground" title="يُولَّد تلقائياً ولا يمكن تعديله" />
+                  <Label>{tr("الرقم")}</Label>
+                  <Input value={form.code || "تلقائي"} readOnly tabIndex={-1} className="cursor-not-allowed bg-muted font-mono text-muted-foreground" title={tr("يُولَّد تلقائياً ولا يمكن تعديله")} />
                 </div>
-                <div className="space-y-1 lg:col-span-3"><Label>اسم الموقع *</Label><Input value={form.name} disabled={readOnly} onChange={(e) => set({ name: e.target.value })} placeholder="الصالة الرئيسية" autoFocus /></div>
-                <div className="space-y-1 sm:col-span-2"><Label>الفرع *</Label><OptionSelect value={form.branch_id} disabled={readOnly} onChange={(value) => set({ branch_id: value })} options={options.branches} placeholder="اختر الفرع" /></div>
-                <div className="space-y-1"><Label>الترتيب</Label><Input type="number" min={0} value={form.sort_order} disabled={readOnly} onChange={(e) => set({ sort_order: e.target.value })} /></div>
+                <div className="space-y-1 lg:col-span-3"><Label>{tr("اسم الموقع *")}</Label><Input value={form.name} disabled={readOnly} onChange={(e) => set({ name: e.target.value })} placeholder={tr("الصالة الرئيسية")} autoFocus /></div>
+                <div className="space-y-1 sm:col-span-2"><Label>{tr("الفرع *")}</Label><OptionSelect value={form.branch_id} disabled={readOnly} onChange={(value) => set({ branch_id: value })} options={options.branches} placeholder={tr("اختر الفرع")} /></div>
+                <div className="space-y-1"><Label>{tr("الترتيب")}</Label><Input type="number" min={0} value={form.sort_order} disabled={readOnly} onChange={(e) => set({ sort_order: e.target.value })} /></div>
                 <div className="space-y-1">
-                  <Label>اللون</Label>
+                  <Label>{tr("اللون")}</Label>
                   <div className="flex h-10 items-center gap-2 rounded-md border bg-background px-2">
                     <input type="color" className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0" value={form.color} disabled={readOnly} onChange={(e) => set({ color: e.target.value })} />
                     <span className="font-mono text-xs text-muted-foreground">{form.color}</span>
@@ -371,69 +372,69 @@ export default function RestaurantLocations() {
               </div>
             </FormSection>
 
-            <FormSection icon={<Package className="h-4 w-4" />} title="إعدادات البيع">
+            <FormSection icon={<Package className="h-4 w-4" />} title={tr("إعدادات البيع")}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>المستودع *</Label><OptionSelect value={form.warehouse_id} disabled={readOnly} onChange={(value) => set({ warehouse_id: value })} options={options.warehouses} placeholder="اختر المستودع" /></div>
-                <div className="space-y-1"><Label>العملة *</Label><OptionSelect value={form.currency_id} disabled={readOnly} onChange={(value) => set({ currency_id: value })} options={options.currencies} placeholder="اختر العملة" /></div>
-                <div className="space-y-1"><Label>فئة السعر *</Label><OptionSelect value={form.price_category_id} disabled={readOnly} onChange={(value) => set({ price_category_id: value })} options={options.priceCategories} placeholder="اختر فئة السعر" /></div>
-                <div className="space-y-1"><Label>دفتر فواتير البيع *</Label><OptionSelect value={form.sales_book_id} disabled={readOnly} onChange={(value) => set({ sales_book_id: value })} options={options.books} placeholder="اختر الدفتر" /></div>
-                <div className="space-y-1"><Label>أعلى نسبة خصم %</Label><Input type="number" min={0} max={100} value={form.max_discount_percent} disabled={readOnly} onChange={(e) => set({ max_discount_percent: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{tr("المستودع *")}</Label><OptionSelect value={form.warehouse_id} disabled={readOnly} onChange={(value) => set({ warehouse_id: value })} options={options.warehouses} placeholder={tr("اختر المستودع")} /></div>
+                <div className="space-y-1"><Label>{tr("العملة *")}</Label><OptionSelect value={form.currency_id} disabled={readOnly} onChange={(value) => set({ currency_id: value })} options={options.currencies} placeholder={tr("اختر العملة")} /></div>
+                <div className="space-y-1"><Label>{tr("فئة السعر *")}</Label><OptionSelect value={form.price_category_id} disabled={readOnly} onChange={(value) => set({ price_category_id: value })} options={options.priceCategories} placeholder={tr("اختر فئة السعر")} /></div>
+                <div className="space-y-1"><Label>{tr("دفتر فواتير البيع *")}</Label><OptionSelect value={form.sales_book_id} disabled={readOnly} onChange={(value) => set({ sales_book_id: value })} options={options.books} placeholder={tr("اختر الدفتر")} /></div>
+                <div className="space-y-1"><Label>{tr("أعلى نسبة خصم %")}</Label><Input type="number" min={0} max={100} value={form.max_discount_percent} disabled={readOnly} onChange={(e) => set({ max_discount_percent: e.target.value })} /></div>
                 <div className="space-y-1">
-                  <Label>طباعة الفاتورة بعد الدفع</Label>
-                  <OptionSelect value={form.invoice_print_mode} disabled={readOnly} onChange={(value) => set({ invoice_print_mode: value })} options={PRINT_MODES.map((mode) => ({ id: Number(mode.id), name: mode.name }))} placeholder="اختر" />
+                  <Label>{tr("طباعة الفاتورة بعد الدفع")}</Label>
+                  <OptionSelect value={form.invoice_print_mode} disabled={readOnly} onChange={(value) => set({ invoice_print_mode: value })} options={PRINT_MODES.map((mode) => ({ id: Number(mode.id), name: mode.name }))} placeholder={tr("اختر")} />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
-                  <Label>خدمة الطاولات</Label>
+                  <Label>{tr("خدمة الطاولات")}</Label>
                   <Select value={form.table_service_id || "none"} disabled={readOnly} onValueChange={(value) => set({ table_service_id: value === "none" ? "" : value })}>
-                    <SelectTrigger><SelectValue placeholder="بدون خدمة" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={tr("بدون خدمة")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">بدون خدمة</SelectItem>
+                      <SelectItem value="none">{tr("بدون خدمة")}</SelectItem>
                       {options.services.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} — ` : ""}{option.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <p className="text-[11px] text-muted-foreground">تُضاف تلقائياً عند فتح أي طاولة في هذا الموقع بسعرها في فئة السعر، وتُرحَّل على "حساب المبيعات" المعرّف في الخدمة.</p>
+                  <p className="text-[11px] text-muted-foreground">{tr("تُضاف تلقائياً عند فتح أي طاولة في هذا الموقع بسعرها في فئة السعر، وتُرحَّل على \"حساب المبيعات\" المعرّف في الخدمة.")}</p>
                 </div>
               </div>
             </FormSection>
 
-            <FormSection icon={<Printer className="h-4 w-4" />} title="خيارات المطبخ والحالة">
+            <FormSection icon={<Printer className="h-4 w-4" />} title={tr("خيارات المطبخ والحالة")}>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <SwitchRow checked={form.print_by_item_group} disabled={readOnly} onChange={(value) => set({ print_by_item_group: value })} title="طباعة قسائم المطبخ حسب طابعة مجموعة الصنف" hint="كل مجموعة أصناف تُطبع على طابعتها" />
-                <SwitchRow checked={form.kitchen_print_confirm} disabled={readOnly} onChange={(value) => set({ kitchen_print_confirm: value })} title="اظهار رسالة طباعة عند ارسال الطلب الى المطبخ" hint="سؤال قبل الطباعة عند ارسال الى المطبخ" />
-                <SwitchRow checked={form.active} disabled={readOnly} onChange={(value) => set({ active: value })} title="نشط" hint="الموقع الموقوف لا يظهر في شاشة المطعم" />
+                <SwitchRow checked={form.print_by_item_group} disabled={readOnly} onChange={(value) => set({ print_by_item_group: value })} title={tr("طباعة قسائم المطبخ حسب طابعة مجموعة الصنف")} hint={tr("كل مجموعة أصناف تُطبع على طابعتها")} />
+                <SwitchRow checked={form.kitchen_print_confirm} disabled={readOnly} onChange={(value) => set({ kitchen_print_confirm: value })} title={tr("اظهار رسالة طباعة عند ارسال الطلب الى المطبخ")} hint={tr("سؤال قبل الطباعة عند ارسال الى المطبخ")} />
+                <SwitchRow checked={form.active} disabled={readOnly} onChange={(value) => set({ active: value })} title={tr("نشط")} hint={tr("الموقع الموقوف لا يظهر في شاشة المطعم")} />
               </div>
             </FormSection>
 
-            <FormSection icon={<CreditCard className="h-4 w-4" />} title="حسابات الدفع" hint="اختيارية: عند تركها فارغة تُستخدم حسابات المستخدم الافتراضية لعملة الموقع ثم حسابات النظام (كما في الكاشير).">
+            <FormSection icon={<CreditCard className="h-4 w-4" />} title={tr("حسابات الدفع")} hint={tr("اختيارية: عند تركها فارغة تُستخدم حسابات المستخدم الافتراضية لعملة الموقع ثم حسابات النظام (كما في الكاشير).")}>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {ACCOUNT_FIELDS.map(([key, label]) => (
                   <AutoCompleteAccount key={key} label={label} value={form[key]} valueMode="id" disabled={readOnly}
-                    onValueChange={(value: string) => set({ [key]: value } as Partial<Form>)} placeholder="اختياري — الحساب الافتراضي"
+                    onValueChange={(value: string) => set({ [key]: value } as Partial<Form>)} placeholder={tr("اختياري — الحساب الافتراضي")}
                     leafOnly showCostCenterButton={false} showCostCenterDialog={false} />
                 ))}
               </div>
             </FormSection>
 
-            <FormSection icon={<Mail className="h-4 w-4" />} title="ايميلات الموافقة على الصلاحيات">
-              <p className="mb-2 text-xs text-muted-foreground">عند طلب صلاحية غير ممنوحة في شاشة المطعم: يُرسل رمز تفعيل لهذين الايميلين، أو يكتب مدير النظام/المسؤول رمز PIN الخاص به على الشاشة مباشرة.</p>
+            <FormSection icon={<Mail className="h-4 w-4" />} title={tr("ايميلات الموافقة على الصلاحيات")}>
+              <p className="mb-2 text-xs text-muted-foreground">{tr("عند طلب صلاحية غير ممنوحة في شاشة المطعم: يُرسل رمز تفعيل لهذين الايميلين، أو يكتب مدير النظام/المسؤول رمز PIN الخاص به على الشاشة مباشرة.")}</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>ايميل مدير النظام</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
-                <div className="space-y-1"><Label>ايميل المسؤول</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
-                <div className="space-y-1"><Label>PIN مدير النظام</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.admin_pin} disabled={readOnly} onChange={(e) => set({ admin_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_admin_pin: false })} placeholder={form.has_admin_pin && !form.clear_admin_pin ? "محفوظ — اتركه فارغاً للإبقاء" : "4 إلى 8 أرقام"} />{form.has_admin_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ admin_pin: "", clear_admin_pin: !form.clear_admin_pin })}>{form.clear_admin_pin ? "تراجع عن الحذف" : "حذف الرمز المحفوظ"}</button>}</div>
-                <div className="space-y-1"><Label>PIN المسؤول</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.manager_pin} disabled={readOnly} onChange={(e) => set({ manager_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_manager_pin: false })} placeholder={form.has_manager_pin && !form.clear_manager_pin ? "محفوظ — اتركه فارغاً للإبقاء" : "4 إلى 8 أرقام"} />{form.has_manager_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ manager_pin: "", clear_manager_pin: !form.clear_manager_pin })}>{form.clear_manager_pin ? "تراجع عن الحذف" : "حذف الرمز المحفوظ"}</button>}</div>
+                <div className="space-y-1"><Label>{tr("ايميل مدير النظام")}</Label><Input type="email" dir="ltr" value={form.admin_email} disabled={readOnly} onChange={(e) => set({ admin_email: e.target.value })} placeholder="admin@example.com" /></div>
+                <div className="space-y-1"><Label>{tr("ايميل المسؤول")}</Label><Input type="email" dir="ltr" value={form.manager_email} disabled={readOnly} onChange={(e) => set({ manager_email: e.target.value })} placeholder="manager@example.com" /></div>
+                <div className="space-y-1"><Label>{tr("PIN مدير النظام")}</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.admin_pin} disabled={readOnly} onChange={(e) => set({ admin_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_admin_pin: false })} placeholder={form.has_admin_pin && !form.clear_admin_pin ? tr("محفوظ — اتركه فارغاً للإبقاء") : tr("4 إلى 8 أرقام")} />{form.has_admin_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ admin_pin: "", clear_admin_pin: !form.clear_admin_pin })}>{form.clear_admin_pin ? tr("تراجع عن الحذف") : tr("حذف الرمز المحفوظ")}</button>}</div>
+                <div className="space-y-1"><Label>{tr("PIN المسؤول")}</Label><Input type="password" inputMode="numeric" autoComplete="new-password" dir="ltr" maxLength={8} value={form.manager_pin} disabled={readOnly} onChange={(e) => set({ manager_pin: e.target.value.replace(/\D/g, "").slice(0, 8), clear_manager_pin: false })} placeholder={form.has_manager_pin && !form.clear_manager_pin ? tr("محفوظ — اتركه فارغاً للإبقاء") : tr("4 إلى 8 أرقام")} />{form.has_manager_pin && !readOnly && <button type="button" className="text-[11px] text-rose-600 underline" onClick={() => set({ manager_pin: "", clear_manager_pin: !form.clear_manager_pin })}>{form.clear_manager_pin ? tr("تراجع عن الحذف") : tr("حذف الرمز المحفوظ")}</button>}</div>
               </div>
             </FormSection>
 
-            <FormSection icon={<StickyNote className="h-4 w-4" />} title="ملاحظات">
-              <Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => set({ notes: e.target.value })} placeholder="ملاحظات اختيارية" />
+            <FormSection icon={<StickyNote className="h-4 w-4" />} title={tr("ملاحظات")}>
+              <Textarea rows={2} value={form.notes} disabled={readOnly} onChange={(e) => set({ notes: e.target.value })} placeholder={tr("ملاحظات اختيارية")} />
             </FormSection>
           </div>
 
           <div className="flex items-center justify-between gap-2 border-t bg-background px-5 py-3">
-            <span className="hidden text-xs text-muted-foreground sm:inline"><kbd className="rounded border px-1">F3</kbd> حفظ · <kbd className="rounded border px-1">Enter</kbd> التالي ·<kbd className="rounded border px-1">Esc</kbd> إغلاق</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline"><kbd className="rounded border px-1">F3</kbd>{tr(" حفظ · ")}<kbd className="rounded border px-1">Enter</kbd>{tr(" التالي ·")}<kbd className="rounded border px-1">Esc</kbd>{tr(" إغلاق")}</span>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => void closeForm()}>إغلاق</Button>
-              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}حفظ (F3)</Button>}
+              <Button variant="outline" onClick={() => void closeForm()}>{tr("إغلاق")}</Button>
+              {!readOnly && <Button ref={saveButtonRef} onClick={() => void save()} disabled={saving} className="min-w-24 bg-emerald-600 hover:bg-emerald-700">{saving ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}{tr("حفظ (F3)")}</Button>}
             </div>
           </div>
         </DialogContent>

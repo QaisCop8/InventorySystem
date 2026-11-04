@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { CreditCard as CreditCardIcon } from "lucide-react"
@@ -192,16 +193,16 @@ export default function CreditCards() {
   )
 
   const validateForm = (data: CreditCardRecord): string | null => {
-    if (!data.name.trim()) return "اسم البطاقة (ar) مطلوب"
-    if (!data.name_lang2.trim()) return "اسم البطاقة (en) مطلوب"
-    if (hasDuplicateName) return "اسم البطاقة مستخدم مسبقاً"
-    if (!data.main_type) return "نوع البطاقة مطلوب"
-    if (!data.currency_id) return "العملة مطلوبة"
-    if (!data.bank_id) return "البنك مطلوب"
-    if (!data.financial_account_id) return "الحساب محاسبي مطلوب"
-    if (!data.waseet_account_id) return "حساب الوسيط مطلوب"
-    if (!data.commission_type_id) return "نوع العمولة مطلوب"
-    if (data.link_bank_machine && !data.pinpad_machine_id) return "جهاز الدفع (الماكينة) مطلوب"
+    if (!data.name.trim()) return tr("اسم البطاقة (ar) مطلوب")
+    if (!data.name_lang2.trim()) return tr("اسم البطاقة (en) مطلوب")
+    if (hasDuplicateName) return tr("اسم البطاقة مستخدم مسبقاً")
+    if (!data.main_type) return tr("نوع البطاقة مطلوب")
+    if (!data.currency_id) return tr("العملة مطلوبة")
+    if (!data.bank_id) return tr("البنك مطلوب")
+    if (!data.financial_account_id) return tr("الحساب محاسبي مطلوب")
+    if (!data.waseet_account_id) return tr("حساب الوسيط مطلوب")
+    if (!data.commission_type_id) return tr("نوع العمولة مطلوب")
+    if (data.link_bank_machine && !data.pinpad_machine_id) return tr("جهاز الدفع (الماكينة) مطلوب")
     return null
   }
 
@@ -234,7 +235,7 @@ export default function CreditCards() {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        setErrorMessages([responseError.error || "فشل في حفظ البطاقة"])
+        setErrorMessages([responseError.error || tr("فشل في حفظ البطاقة")])
         return
       }
       await fetchCards()
@@ -243,7 +244,7 @@ export default function CreditCards() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ البطاقة"])
+      setErrorMessages([tr("فشل في حفظ البطاقة")])
     } finally {
       setIsSaving(false)
     }
@@ -260,7 +261,7 @@ export default function CreditCards() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف البطاقة")
+        throw new Error(error.error || tr("فشل في حذف البطاقة"))
       }
       const updated = await fetchCards()
       setShowDeleteConfirm(false)
@@ -306,28 +307,28 @@ export default function CreditCards() {
   }
 
   return (
-    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir={appDir()}>
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={CreditCardIcon}
-        title="بطاقات الائتمان"
-        subtitle="إدارة أنواع بطاقات الائتمان والصراف الآلي"
-        addLabel="إضافة بطاقة جديدة"
+        title={tr("بطاقات الائتمان")}
+        subtitle={tr("إدارة أنواع بطاقات الائتمان والصراف الآلي")}
+        addLabel={tr("إضافة بطاقة جديدة")}
         onNew={openNewDialog}
         addDisabled={loading}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي بطاقات الائتمان</>, value: <>{visibleCards.length}</> }, { label: <>بطاقات ائتمان</>, value: <>{visibleCards.filter((c) => c.main_type === 1).length}</> }, { label: <>بطاقات صراف</>, value: <>{visibleCards.filter((c) => c.main_type === 2).length}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي بطاقات الائتمان")}</>, value: <>{visibleCards.length}</> }, { label: <>{tr("بطاقات ائتمان")}</>, value: <>{visibleCards.filter((c) => c.main_type === 1).length}</> }, { label: <>{tr("بطاقات صراف")}</>, value: <>{visibleCards.filter((c) => c.main_type === 2).length}</> }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
-          <div className="text-xl font-semibold">بطاقات الائتمان</div>
-          <div className="text-sm text-muted-foreground">إدارة أنواع بطاقات الائتمان والصراف الآلي</div>
+          <div className="text-xl font-semibold">{tr("بطاقات الائتمان")}</div>
+          <div className="text-sm text-muted-foreground">{tr("إدارة أنواع بطاقات الائتمان والصراف الآلي")}</div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="بحث باسم البطاقة"
+              placeholder={tr("بحث باسم البطاقة")}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               className="min-w-[260px]"
@@ -335,7 +336,7 @@ export default function CreditCards() {
             />
             <Button variant="outline" size="sm" disabled={loading}>
               <Search className="h-4 w-4" />
-              بحث
+              {tr("بحث")}
             </Button>
           </div>
         </div>
@@ -345,13 +346,13 @@ export default function CreditCards() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">اسم البطاقة</TableHead>
-              <TableHead className="text-right">النوع</TableHead>
-              <TableHead className="text-right">البنك</TableHead>
-              <TableHead className="text-right">العملة</TableHead>
-              <TableHead className="text-right">نوع العمولة</TableHead>
-              <TableHead className="text-right">الحالة</TableHead>
-              <TableHead className="text-right">إجراءات</TableHead>
+              <TableHead className="text-right">{tr("اسم البطاقة")}</TableHead>
+              <TableHead className="text-right">{tr("النوع")}</TableHead>
+              <TableHead className="text-right">{tr("البنك")}</TableHead>
+              <TableHead className="text-right">{tr("العملة")}</TableHead>
+              <TableHead className="text-right">{tr("نوع العمولة")}</TableHead>
+              <TableHead className="text-right">{tr("الحالة")}</TableHead>
+              <TableHead className="text-right">{tr("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -362,7 +363,7 @@ export default function CreditCards() {
                 <TableCell className="text-right">{card.bank_name}</TableCell>
                 <TableCell className="text-right">{card.currency_name || card.currency_code}</TableCell>
                 <TableCell className="text-right">{card.commission_type_name}</TableCell>
-                <TableCell className="text-right">{card.status === 1 ? "نشط" : "متوقف"}</TableCell>
+                <TableCell className="text-right">{card.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="outline"
@@ -380,7 +381,7 @@ export default function CreditCards() {
             {filteredCards.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground">
-                  لا توجد نتائج
+                  {tr("لا توجد نتائج")}
                 </TableCell>
               </TableRow>
             )}

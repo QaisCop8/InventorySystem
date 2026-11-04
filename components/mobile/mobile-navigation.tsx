@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -15,24 +16,24 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
   const [isOpen, setIsOpen] = useState(false)
 
   const mainNavItems = [
-    { id: "dashboard", title: "الرئيسية", icon: Home, badge: null },
-    { id: "products", title: "المنتجات", icon: Package, badge: null },
-    { id: "sales-orders", title: "المبيعات", icon: ShoppingCart, badge: 3 },
-    { id: "customers", title: "العملاء", icon: Users, badge: null },
-    { id: "inventory-analytics", title: "التحليلات", icon: BarChart3, badge: null },
+    { id: "dashboard", title: tr("الرئيسية"), icon: Home, badge: null },
+    { id: "products", title: tr("المنتجات"), icon: Package, badge: null },
+    { id: "sales-orders", title: tr("المبيعات"), icon: ShoppingCart, badge: 3 },
+    { id: "customers", title: tr("العملاء"), icon: Users, badge: null },
+    { id: "inventory-analytics", title: tr("التحليلات"), icon: BarChart3, badge: null },
   ]
 
   const quickActions = [
-    { title: "طلبية جديدة", action: () => onSectionChange("sales-orders"), icon: Plus },
-    { title: "بحث", action: () => {}, icon: Search },
-    { title: "التنبيهات", action: () => {}, icon: Bell, badge: 5 },
+    { title: tr("طلبية جديدة"), action: () => onSectionChange("sales-orders"), icon: Plus },
+    { title: tr("بحث"), action: () => {}, icon: Search },
+    { title: tr("التنبيهات"), action: () => {}, icon: Bell, badge: 5 },
   ]
 
   return (
     <>
       {/* Top Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between" dir="rtl">
+      <div className="md:hidden fixed top-0 end-0 start-0 z-50 bg-background border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between" dir={appDir()}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden="true">
@@ -52,7 +53,7 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
             {quickActions.map((action, index) => (
               <Button key={index} variant="ghost" size="sm" onClick={action.action} className="relative">
                 <action.icon className="h-5 w-5" />
-                {action.badge && <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs">{action.badge}</Badge>}
+                {action.badge && <Badge className="absolute -top-1 -start-1 h-5 w-5 p-0 text-xs">{action.badge}</Badge>}
               </Button>
             ))}
 
@@ -62,7 +63,7 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-80 p-0" dir="rtl">
+              <SheetContent side="right" className="w-80 p-0" dir={appDir()}>
                 <div className="p-6 border-b border-border bg-primary">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
@@ -83,24 +84,24 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
 
                 <div className="p-4 space-y-2">
                   {[
-                    { section: "dashboard", title: "لوحة التحكم", icon: Home },
-                    { section: "inventory-analytics", title: "تحليلات المخزون", icon: BarChart3 },
-                    { section: "products", title: "المنتجات", icon: Package },
-                    { section: "sales-orders", title: "طلبيات المبيعات", icon: ShoppingCart },
-                    { section: "purchase-orders", title: "طلبيات المشتريات", icon: ShoppingCart },
-                    { section: "customers", title: "العملاء", icon: Users },
-                    { section: "suppliers", title: "الموردين", icon: Users },
-                    { section: "settings", title: "الإعدادات", icon: Settings },
+                    { section: "dashboard", title: tr("لوحة التحكم"), icon: Home },
+                    { section: "inventory-analytics", title: tr("تحليلات المخزون"), icon: BarChart3 },
+                    { section: "products", title: tr("المنتجات"), icon: Package },
+                    { section: "sales-orders", title: tr("طلبيات المبيعات"), icon: ShoppingCart },
+                    { section: "purchase-orders", title: tr("طلبيات المشتريات"), icon: ShoppingCart },
+                    { section: "customers", title: tr("العملاء"), icon: Users },
+                    { section: "suppliers", title: tr("الموردين"), icon: Users },
+                    { section: "settings", title: tr("الإعدادات"), icon: Settings },
                   ].map((item) => (
                     <Button
                       key={item.section}
                       variant={activeSection === item.section ? "secondary" : "ghost"}
-                      className="w-full justify-start text-right"
+                      className="w-full justify-start text-start"
                       onClick={() => {
                         onSectionChange(item.section)
                         setIsOpen(false)
                       }}
-                      dir="rtl"
+                      dir={appDir()}
                     >
                       <div className="flex items-center gap-3">
                         <item.icon className="h-5 w-5" />
@@ -116,8 +117,8 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
       </div>
 
       {/* Bottom Mobile Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border px-2 py-2 safe-area-bottom">
-        <div className="flex items-center justify-around" dir="rtl">
+      <div className="md:hidden fixed bottom-0 end-0 start-0 z-50 bg-background border-t border-border px-2 py-2 safe-area-bottom">
+        <div className="flex items-center justify-around" dir={appDir()}>
           {mainNavItems.map((item) => (
             <Button
               key={item.id}
@@ -128,7 +129,7 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
             >
               <item.icon className="h-5 w-5" />
               <span className="text-xs">{item.title}</span>
-              {item.badge && <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs">{item.badge}</Badge>}
+              {item.badge && <Badge className="absolute -top-1 -start-1 h-4 w-4 p-0 text-xs">{item.badge}</Badge>}
             </Button>
           ))}
         </div>

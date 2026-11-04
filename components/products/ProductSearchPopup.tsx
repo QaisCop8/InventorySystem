@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import { pickRoleUnit, type UnitRole } from "@/lib/product-unit-roles";
 import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
@@ -128,7 +129,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     setProductNumbers((current) => ({ ...current, [type]: numbers }));
     return numbers;
   }, []);
-  const numberLabel = numberType === "factory" ? "رقم المصنع" : numberType === "original" ? "الرقم الأصلي" : "الباركود";
+  const numberLabel = numberType === "factory" ? tr("رقم المصنع") : numberType === "original" ? tr("الرقم الأصلي") : tr("الباركود");
   const numbersOf = useCallback((productId: unknown) => (numberType === "barcode" ? "" : productNumbers[numberType]?.[Number(productId)] || ""), [numberType, productNumbers]);
   const [selectedTypes, setSelectedTypes] = useState<number[]>(() =>
     Array.isArray(productTypes) && productTypes.length > 0
@@ -176,13 +177,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       const query = new URLSearchParams({ account_id: String(customerId), ...(transactionDate ? { date: String(transactionDate).slice(0, 10) } : {}) });
       const response = await fetch(`/api/customer-product-templates/customer-products?${query}`, { cache: "no-store" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل أصناف النموذج");
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل أصناف النموذج"));
       const ids: number[] = Array.isArray(data.product_ids) ? data.product_ids.map(Number) : [];
-      if (!ids.length) { setTemplateMessage("لا توجد نماذج فعّالة لهذا العميل بتاريخ الحركة"); return; }
+      if (!ids.length) { setTemplateMessage(tr("لا توجد نماذج فعّالة لهذا العميل بتاريخ الحركة")); return; }
       const names = (Array.isArray(data.templates) ? data.templates : []).map((row: any) => row.name || row.code).filter(Boolean);
       setTemplateFilter({ ids: new Set(ids), label: names.join("، ") });
     } catch (error) {
-      setTemplateMessage(error instanceof Error ? error.message : "تعذر تحميل أصناف النموذج");
+      setTemplateMessage(error instanceof Error ? error.message : tr("تعذر تحميل أصناف النموذج"));
     } finally {
       setTemplateLoading(false);
     }
@@ -738,7 +739,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         <input
           type="checkbox"
           checked={!!product.selected}
-          aria-label={`اختيار ${product.product_name}`}
+          aria-label={tr("اختيار {0}", product.product_name)}
           tabIndex={-1}
           onClick={(event) => event.stopPropagation()}
           onDoubleClick={(event) => event.stopPropagation()}
@@ -748,12 +749,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       ),
     }] : []),
     { key: "image", header: "", width: "44px", align: "center", render: (product) => productThumb(product.display_image || product.product_image || product.image_url, product.product_name) },
-    { key: "product_code", header: "رقم الصنف", width: "120px", className: "font-mono text-xs text-slate-600" },
-    { key: "product_name", header: "اسم الصنف", className: "max-w-[340px] truncate font-semibold text-slate-800" },
-    { key: "first_unit", header: "الوحدة", width: "80px", className: "text-slate-600" },
-    { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => displayPrice(product).toLocaleString("en-US") },
+    { key: "product_code", header: tr("رقم الصنف"), width: "120px", className: "font-mono text-xs text-slate-600" },
+    { key: "product_name", header: tr("اسم الصنف"), className: "max-w-[340px] truncate font-semibold text-slate-800" },
+    { key: "first_unit", header: tr("الوحدة"), width: "80px", className: "text-slate-600" },
+    { key: "first_price", header: tr("السعر"), width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => displayPrice(product).toLocaleString("en-US") },
     numberType === "barcode"
-      ? { key: "first_barcode", header: "الباركود", width: "140px", className: "font-mono text-xs text-slate-500" }
+      ? { key: "first_barcode", header: tr("الباركود"), width: "140px", className: "font-mono text-xs text-slate-500" }
       : { key: "first_barcode", header: numberLabel, width: "160px", className: "font-mono text-xs text-slate-600", render: (product: Product) => numbersOf(product.id) || "—" },
   ], [ShowSelect, toggleProductChecked, displayPrice, numberType, numberLabel, numbersOf]);
 
@@ -769,7 +770,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         <input
           type="checkbox"
           checked={row.selected}
-          aria-label="اختيار القيمة"
+          aria-label={tr("اختيار القيمة")}
           tabIndex={-1}
           onClick={(event) => event.stopPropagation()}
           onDoubleClick={(event) => event.stopPropagation()}
@@ -778,8 +779,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         />
       ),
     }] : []),
-    { key: "attribute_name", header: "المتغير", className: "font-semibold text-slate-700" },
-    { key: "value_name", header: "القيمة" },
+    { key: "attribute_name", header: tr("المتغير"), className: "font-semibold text-slate-700" },
+    { key: "value_name", header: tr("القيمة") },
     { key: "image_url", header: "", width: "40px", align: "center", render: (row) => productThumb(row.image_url) },
   ], [ShowSelect, toggleAttributeKey]);
 
@@ -792,9 +793,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   });
 
   const unitColumns = useMemo<SearchColumn<Unit>[]>(() => [
-    { key: "unit_name", header: "الوحدة", className: "font-semibold text-slate-700" },
-    { key: "price", header: "السعر", width: "80px", align: "end", className: "tabular-nums", render: (unit) => Number(unit.price ?? 0).toLocaleString("en-US") },
-    { key: "barcode", header: "الباركود", className: "font-mono text-xs text-slate-500", render: (unit) => unit.barcode || "—" },
+    { key: "unit_name", header: tr("الوحدة"), className: "font-semibold text-slate-700" },
+    { key: "price", header: tr("السعر"), width: "80px", align: "end", className: "tabular-nums", render: (unit) => Number(unit.price ?? 0).toLocaleString("en-US") },
+    { key: "barcode", header: tr("الباركود"), className: "font-mono text-xs text-slate-500", render: (unit) => unit.barcode || "—" },
   ], []);
 
   if (!visible) return null;
@@ -811,12 +812,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       <div
         ref={setDialogElement}
         className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50 shadow-2xl sm:h-[min(84dvh,780px)] sm:max-w-[1320px] sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"
-        dir="rtl"
+        dir={appDir()}
       >
         <SearchDialogHeader
           icon={<Boxes className="h-4 w-4" />}
-          title={title || "بحث الأصناف"}
-          subtitle="Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار"
+          title={title || tr("بحث الأصناف")}
+          subtitle={tr("Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار")}
           count={filteredProducts.length}
           onClose={onClose}
           actions={
@@ -826,11 +827,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               tabIndex={-1}
               disabled={!customerId || templateLoading}
               onClick={() => void toggleTemplateFilter()}
-              title={customerId ? "عرض أصناف نماذج هذا العميل فقط" : "متاح من الحركة بعد اختيار العميل"}
+              title={customerId ? tr("عرض أصناف نماذج هذا العميل فقط") : tr("متاح من الحركة بعد اختيار العميل")}
               className={`h-8 gap-1.5 rounded-lg px-2.5 text-xs font-bold ${templateFilter ? "bg-amber-400 text-amber-950 hover:bg-amber-300" : "bg-white text-indigo-700 hover:bg-indigo-50"}`}
             >
               <ListFilter className="h-3.5 w-3.5" />
-              <span>{templateLoading ? "جاري التحميل..." : templateFilter ? "كل الأصناف" : "من نموذج"}</span>
+              <span>{templateLoading ? tr("جاري التحميل...") : templateFilter ? tr("كل الأصناف") : tr("من نموذج")}</span>
             </Button>
             <Button
               type="button"
@@ -839,7 +840,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
             >
               <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">إضافة صنف</span>
+              <span className="hidden sm:inline">{tr("إضافة صنف")}</span>
             </Button>
             </>
           }
@@ -851,48 +852,48 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
             <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 items-end gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.8fr_0.8fr_1.1fr_1.3fr]">
-              <SearchFilterField label="رقم الصنف">
-                <Input ref={searchCodeRef} className={searchInputClassName} placeholder="رقم الصنف" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} />
+              <SearchFilterField label={tr("رقم الصنف")}>
+                <Input ref={searchCodeRef} className={searchInputClassName} placeholder={tr("رقم الصنف")} value={searchCode} onChange={(e) => setSearchCode(e.target.value)} />
               </SearchFilterField>
-              <SearchFilterField label="اسم الصنف" className="col-span-2 sm:col-span-1">
-                <Input ref={searchNameRef} className={searchInputClassName} placeholder="يمكن كتابة أكثر من كلمة" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+              <SearchFilterField label={tr("اسم الصنف")} className="col-span-2 sm:col-span-1">
+                <Input ref={searchNameRef} className={searchInputClassName} placeholder={tr("يمكن كتابة أكثر من كلمة")} value={searchName} onChange={(e) => setSearchName(e.target.value)} />
               </SearchFilterField>
-              <SearchFilterField label="السعر">
-                <Input ref={searchPriceRef} className={searchInputClassName} placeholder="السعر" value={searchPrice} onChange={(e) => setSearchPrice(e.target.value)} />
+              <SearchFilterField label={tr("السعر")}>
+                <Input ref={searchPriceRef} className={searchInputClassName} placeholder={tr("السعر")} value={searchPrice} onChange={(e) => setSearchPrice(e.target.value)} />
               </SearchFilterField>
               <SearchFilterField label={
                 <span className="flex items-center justify-between gap-2">
                   <span>{numberLabel}</span>
                   <select
                     tabIndex={-1}
-                    aria-label="نوع الرقم"
+                    aria-label={tr("نوع الرقم")}
                     value={numberType}
                     onChange={(event) => setNumberType(event.target.value as "barcode" | "factory" | "original")}
                     className="h-5 rounded-md border border-slate-200 bg-slate-50 px-1 text-[11px] font-semibold text-emerald-700 outline-none focus:border-emerald-400"
                   >
-                    <option value="barcode">باركود</option>
-                    <option value="factory">رقم المصنع</option>
-                    <option value="original">الرقم الأصلي</option>
+                    <option value="barcode">{tr("باركود")}</option>
+                    <option value="factory">{tr("رقم المصنع")}</option>
+                    <option value="original">{tr("الرقم الأصلي")}</option>
                   </select>
                 </span>
               }>
                 <Input ref={searchBarcodeRef} className={searchInputClassName} placeholder={numberLabel} value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} />
               </SearchFilterField>
               {Array.isArray(productTypes) && productTypes.length === 1 ? (
-                <SearchFilterField label="النوع">
+                <SearchFilterField label={tr("النوع")}>
                   {/* نوع ثابت مفروض من الشاشة المستدعية — لا منتقي قابل للتعديل كي لا تُخلَط الأصناف بالخدمات. */}
                   <div className="flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600">
-                    {productTypes[0] === 2 ? "الخدمات" : "الأصناف"}
+                    {productTypes[0] === 2 ? tr("الخدمات") : tr("الأصناف")}
                   </div>
                 </SearchFilterField>
               ) : (
                 // نفس مكوّن الاختيار المتعدد المستخدم في التقارير؛ القائمة تُفتح داخل النافذة (portalContainer)
                 // وإلا تظهر خلف هذه اللوحة (z-[100]) لأن Popover يُركَّب افتراضياً على document.body.
                 <ReportMultiChoice
-                  label="النوع"
+                  label={tr("النوع")}
                   options={PRODUCT_TYPE_OPTIONS}
                   selected={selectedTypes}
-                  placeholder="اختر النوع"
+                  placeholder={tr("اختر النوع")}
                   portalContainer={dialogElement}
                   onChange={(ids) => setSelectedTypes(ids.length > 0 ? ids.map(Number) : [1, 2])}
                 />
@@ -905,14 +906,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               className="h-9 shrink-0 rounded-lg border-slate-200 px-3 text-xs text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
             >
               <RotateCcw className="ml-1.5 h-3.5 w-3.5" />
-              مسح الفلاتر
+              {tr("مسح الفلاتر")}
             </Button>
           </div>
         </div>
 
         {(templateFilter || templateMessage) && (
           <div className={`shrink-0 border-b px-4 py-2 text-xs font-semibold ${templateFilter ? "border-amber-200 bg-amber-50 text-amber-900" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
-            {templateFilter ? `أصناف من نموذج: ${templateFilter.label || "نماذج العميل"} (${templateFilter.ids.size} صنف)` : templateMessage}
+            {templateFilter ? tr("أصناف من نموذج: {0} ({1} صنف)", templateFilter.label || "نماذج العميل", templateFilter.ids.size) : templateMessage}
           </div>
         )}
 
@@ -920,10 +921,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         <div className="flex shrink-0 flex-col gap-3 p-3 lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
           <div className="flex h-[min(360px,55dvh)] min-w-0 flex-col gap-1.5 lg:h-auto lg:min-h-[200px] lg:flex-1">
             <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
-              <span>نتائج البحث</span>
+              <span>{tr("نتائج البحث")}</span>
               <span>
-                {filteredProducts.length > 200 ? `عرض أول 200 من ${filteredProducts.length.toLocaleString("en-US")}` : `${filteredProducts.length.toLocaleString("en-US")} صنف`}
-                {checkedCount > 0 && <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">مؤشَّر {checkedCount}</span>}
+                {filteredProducts.length > 200 ? tr("عرض أول 200 من {0}", filteredProducts.length.toLocaleString("en-US")) : tr("{0} صنف", filteredProducts.length.toLocaleString("en-US"))}
+                {checkedCount > 0 && <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{tr("مؤشَّر ")}{checkedCount}</span>}
               </span>
             </div>
             <SearchResultsTable<Product>
@@ -935,18 +936,18 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               onActiveChange={(product) => handleActiveProductChange(product)}
               onToggle={ShowSelect ? (product) => setProducts((current) => current.map((item) => item._variant_key === product._variant_key ? { ...item, selected: !item.selected } : item)) : undefined}
               isRowMarked={(product) => !!product.selected}
-              emptyText={productsLoading && products.length === 0 ? "جاري تحميل البيانات..." : "لا توجد أصناف مطابقة"}
+              emptyText={productsLoading && products.length === 0 ? tr("جاري تحميل البيانات...") : tr("لا توجد أصناف مطابقة")}
             />
           </div>
 
           <div className="flex h-[240px] min-w-0 flex-col gap-1.5 lg:h-auto lg:min-h-[160px] lg:w-[300px] lg:shrink-0">
             <div className="flex items-center justify-between gap-2 px-1 text-[11px] font-bold text-slate-500">
-              <span>{showingAttributes ? "المتغيرات والخصائص" : "وحدات الصنف"}</span>
+              <span>{showingAttributes ? tr("المتغيرات والخصائص") : tr("وحدات الصنف")}</span>
               <span className="truncate text-slate-700">{selectedProduct?.product_name || ""}</span>
             </div>
             {!selectedProduct ? (
               <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-4 text-center text-xs text-slate-400">
-                اختر صنفاً من النتائج لعرض وحداته
+                {tr("اختر صنفاً من النتائج لعرض وحداته")}
               </div>
             ) : showingAttributes ? (
               <SearchResultsTable<AttributeRow>
@@ -968,7 +969,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
                 onPick={(unit) => handleUnitRowDoubleClick(unit)}
                 onActiveChange={(unit) => { if (unit) handleSelectUnit(unit) }}
                 isRowMarked={(unit) => selectedProduct.selected_unit?.unit_id === unit.unit_id}
-                emptyText="لا توجد وحدات"
+                emptyText={tr("لا توجد وحدات")}
                 rowHeightClassName="h-9"
               />
             )}
@@ -978,14 +979,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
         <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-2.5">
           <span className="hidden text-[11px] text-slate-400 sm:block">
-            {ShowSelect ? "Space لتأشير أكثر من صنف ثم موافق" : "نقر مزدوج أو Enter للاختيار"}
+            {ShowSelect ? tr("Space لتأشير أكثر من صنف ثم موافق") : tr("نقر مزدوج أو Enter للاختيار")}
           </span>
           <div className="flex flex-1 gap-2 sm:flex-none">
             <Button onClick={handleConfirm} className="h-9 flex-1 rounded-lg bg-emerald-600 px-6 font-bold text-white hover:bg-emerald-700 sm:flex-none">
-              موافق
+              {tr("موافق")}
             </Button>
             <Button variant="outline" onClick={onClose} className="h-9 flex-1 rounded-lg border-slate-200 px-6 text-slate-600 sm:flex-none">
-              إغلاق
+              {tr("إغلاق")}
             </Button>
           </div>
         </div>

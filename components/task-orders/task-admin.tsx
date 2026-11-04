@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState, useMemo } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
@@ -77,7 +78,7 @@ export function TaskAdmin() {
       const stepTypesData = await stepTypesRes.json()
       setStepTypes(Array.isArray(stepTypesData) ? stepTypesData : [])
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب بيانات الإدارة", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب بيانات الإدارة"), variant: "destructive" })
     } finally {
       setInitialLoading(false)
     }
@@ -97,20 +98,20 @@ export function TaskAdmin() {
   }
 
   return (
-    <div dir="rtl" className="w-full space-y-5">
+    <div dir={appDir()} className="w-full space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white"><Building2 className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{sections.length}</div><div className="text-xs text-slate-500">أقسام العمل</div></div></CardContent></Card>
-        <Card className="border-violet-100 bg-gradient-to-br from-white to-violet-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-600 text-white"><GitBranch className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{workflows.length}</div><div className="text-xs text-slate-500">مسارات سير العمل</div></div></CardContent></Card>
-        <Card className="border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white"><UserRoundCheck className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{sections.reduce((total, section) => total + section.members.length, 0)}</div><div className="text-xs text-slate-500">الأعضاء المعيّنون</div></div></CardContent></Card>
+        <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white"><Building2 className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{sections.length}</div><div className="text-xs text-slate-500">{tr("أقسام العمل")}</div></div></CardContent></Card>
+        <Card className="border-violet-100 bg-gradient-to-br from-white to-violet-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-600 text-white"><GitBranch className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{workflows.length}</div><div className="text-xs text-slate-500">{tr("مسارات سير العمل")}</div></div></CardContent></Card>
+        <Card className="border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white"><UserRoundCheck className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{sections.reduce((total, section) => total + section.members.length, 0)}</div><div className="text-xs text-slate-500">{tr("الأعضاء المعيّنون")}</div></div></CardContent></Card>
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col gap-3 rounded-2xl border bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-slate-100 p-1 sm:w-[620px]">
-            <TabsTrigger value="sections" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"><Users className="h-4 w-4" />الأقسام والأعضاء</TabsTrigger>
-            <TabsTrigger value="step-types" className="gap-2 rounded-lg py-2.5">انواع الخطوات</TabsTrigger>
-            <TabsTrigger value="workflows" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"><GitBranch className="h-4 w-4" />مخطط سير العمل</TabsTrigger>
+            <TabsTrigger value="sections" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"><Users className="h-4 w-4" />{tr("الأقسام والأعضاء")}</TabsTrigger>
+            <TabsTrigger value="step-types" className="gap-2 rounded-lg py-2.5">{tr("انواع الخطوات")}</TabsTrigger>
+            <TabsTrigger value="workflows" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"><GitBranch className="h-4 w-4" />{tr("مخطط سير العمل")}</TabsTrigger>
           </TabsList>
-          <Button variant="outline" size="sm" onClick={() => void loadAll()}><RefreshCw className="ml-2 h-4 w-4" />تحديث البيانات</Button>
+          <Button variant="outline" size="sm" onClick={() => void loadAll()}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث البيانات")}</Button>
         </div>
         <TabsContent value="sections" className="mt-4 w-full">
           <SectionsAdmin sections={sections} branches={branches} departments={departments} users={users} userId={userId} onChanged={loadAll} />
@@ -165,7 +166,7 @@ function SectionsAdmin({
     // Prevent duplicate section (same name + branch)
     const duplicate = sections.some((s) => s.name === department.department_name && (s.branch_id ?? null) === targetBranchId)
     if (duplicate) {
-      toast({ title: "تعذّر الإنشاء", description: "الفرع والقسم تم اضافتهم مسبقا", variant: "destructive" })
+      toast({ title: tr("تعذّر الإنشاء"), description: tr("الفرع والقسم تم اضافتهم مسبقا"), variant: "destructive" })
       return
     }
     setBusy(true)
@@ -180,7 +181,7 @@ function SectionsAdmin({
       setDepartmentId(null)
       onChanged()
     } catch (error: any) {
-      toast({ title: "تعذّر الإنشاء", description: error?.message, variant: "destructive" })
+      toast({ title: tr("تعذّر الإنشاء"), description: error?.message, variant: "destructive" })
     } finally {
       setBusy(false)
     }
@@ -212,7 +213,7 @@ function SectionsAdmin({
       setMemberPicks((m) => ({ ...m, [sectionId]: { userId: null, isManager: false } }))
       onChanged()
     } catch (error: any) {
-      toast({ title: "تعذّر الإضافة", description: error?.message, variant: "destructive" })
+      toast({ title: tr("تعذّر الإضافة"), description: error?.message, variant: "destructive" })
     }
   }
 
@@ -229,7 +230,7 @@ function SectionsAdmin({
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-400 to-purple-600 text-white shadow-sm">
             <Users className="h-4 w-4" />
           </span>
-          الأقسام وأعضاؤها
+          {tr("الأقسام وأعضاؤها")}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 space-y-4 overflow-visible">
@@ -240,7 +241,7 @@ function SectionsAdmin({
               options={activeDepartments}
               optionLabel="department_name"
               optionValue="id"
-              placeholder="القسم (من تعريفات الأقسام)"
+              placeholder={tr("القسم (من تعريفات الأقسام)")}
               filter
               className="invoice-currency-dropdown w-full"
               panelClassName="invoice-currency-dropdown-panel"
@@ -250,11 +251,11 @@ function SectionsAdmin({
           </div>
           {/* branch selector removed: sections are tied to department.branch_id */}
           <Button onClick={createSection} disabled={busy || !departmentId} className="shrink-0 gap-1">
-            <Plus className="h-4 w-4" /> إضافة
+            <Plus className="h-4 w-4" />{tr(" إضافة")}
           </Button>
         </div>
         {activeDepartments.length === 0 && (
-          <p className="text-xs text-slate-400">لا توجد أقسام معرَّفة بعد — أضِفها أولاً من التعريفات ثم عُد لهذه الصفحة</p>
+          <p className="text-xs text-slate-400">{tr("لا توجد أقسام معرَّفة بعد — أضِفها أولاً من التعريفات ثم عُد لهذه الصفحة")}</p>
         )}
 
         <Separator />
@@ -263,21 +264,21 @@ function SectionsAdmin({
           {sections.map((section) => (
             <div
               key={section.id}
-              className="rounded-xl border border-r-4 border-slate-200 border-r-indigo-400 bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
+              className="rounded-xl border border-s-4 border-slate-200 border-s-indigo-400 bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
             >
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="font-semibold text-slate-800">
                   {section.name}
                   {!section.is_active && (
                     <Badge variant="outline" className="mr-2 border-red-200 text-red-500">
-                      معطّل
+                      {tr("معطّل")}
                     </Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   
                   <Button size="sm" variant="ghost" onClick={() => toggleActive(section)}>
-                    {section.is_active ? "تعطيل" : "تفعيل"}
+                    {section.is_active ? tr("تعطيل") : tr("تفعيل")}
                   </Button>
                 </div>
               </div>
@@ -286,14 +287,14 @@ function SectionsAdmin({
                 {section.members.map((m) => (
                   <div key={m.id} className="flex items-center justify-between text-sm">
                     <span>
-                      {m.full_name} {m.is_manager && <Badge className="mr-1 bg-indigo-50 text-indigo-700 border-indigo-200">مدير القسم</Badge>}
+                      {m.full_name} {m.is_manager && <Badge className="mr-1 bg-indigo-50 text-indigo-700 border-indigo-200">{tr("مدير القسم")}</Badge>}
                     </span>
                     <Button size="icon" variant="ghost" onClick={() => removeMember(section.id, m.user_id)}>
                       <Trash2 className="h-3.5 w-3.5 text-red-500" />
                     </Button>
                   </div>
                 ))}
-                {section.members.length === 0 && <div className="text-xs text-slate-400">لا يوجد أعضاء بعد</div>}
+                {section.members.length === 0 && <div className="text-xs text-slate-400">{tr("لا يوجد أعضاء بعد")}</div>}
               </div>
 
               <div className="mt-2 flex items-center gap-2">
@@ -303,7 +304,7 @@ function SectionsAdmin({
                     options={users.filter((u) => !section.members.some((m) => m.user_id === u.user_id))}
                     optionLabel="full_name"
                     optionValue="user_id"
-                    placeholder="إضافة عضو"
+                    placeholder={tr("إضافة عضو")}
                     filter
                     className="invoice-currency-dropdown h-8 w-full text-xs"
                     panelClassName="invoice-currency-dropdown-panel"
@@ -318,10 +319,10 @@ function SectionsAdmin({
                     checked={!!memberPicks[section.id]?.isManager}
                     onCheckedChange={(c) => setMemberPicks((p) => ({ ...p, [section.id]: { userId: p[section.id]?.userId ?? null, isManager: !!c } }))}
                   />
-                  مدير
+                  {tr("مدير")}
                 </label>
                 <Button size="sm" variant="outline" onClick={() => addMember(section.id)} disabled={!memberPicks[section.id]?.userId}>
-                  إضافة
+                  {tr("إضافة")}
                 </Button>
               </div>
             </div>
@@ -404,19 +405,19 @@ function StepTypesAdmin({ stepTypes, onChanged }: { stepTypes: TaskStepType[]; o
       const response = await fetch("/api/task-orders/step-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(drafts[type.id]) })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error)
-      toast({ title: "تم", description: "تم حفظ نوع الخطوة" })
+      toast({ title: tr("تم"), description: tr("تم حفظ نوع الخطوة") })
       onChanged()
-    } catch (error: any) { toast({ title: "تعذر الحفظ", description: error.message, variant: "destructive" }) } finally { setSaving(null) }
+    } catch (error: any) { toast({ title: tr("تعذر الحفظ"), description: error.message, variant: "destructive" }) } finally { setSaving(null) }
   }
   const add = async () => {
     if (!newName.trim()) return
     const response = await fetch("/api/task-orders/step-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName }) })
     const data = await response.json()
-    if (!response.ok) { toast({ title: "تعذر الإضافة", description: data.error, variant: "destructive" }); return }
+    if (!response.ok) { toast({ title: tr("تعذر الإضافة"), description: data.error, variant: "destructive" }); return }
     setNewName("")
     onChanged()
   }
-  return <Card><CardHeader><CardTitle className="text-base">انواع الخطوات</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex gap-2"><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="اسم نوع خطوة جديد" /><Button onClick={() => void add()}><Plus className="ml-2 h-4 w-4" />إضافة</Button></div>{stepTypes.map((type) => { const draft = drafts[type.id] || type; return <div key={type.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto]"><Input value={draft.name} onChange={(event) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, name: event.target.value } }))} /><Label className="flex items-center gap-2"><Checkbox checked={draft.mandatory} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, mandatory: checked === true } }))} />اجباري</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.show_all_items} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, show_all_items: checked === true } }))} />إظهار كافة أصناف الطلبية</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.print_barcode} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, print_barcode: checked === true } }))} />طباعة باركود</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.attachment_required} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, attachment_required: checked === true } }))} />المرفق اجباري</Label><Button onClick={() => void save(draft)} disabled={saving === type.id}><Save className="ml-2 h-4 w-4" />حفظ</Button></div>})}</CardContent></Card>
+  return <Card><CardHeader><CardTitle className="text-base">{tr("انواع الخطوات")}</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex gap-2"><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder={tr("اسم نوع خطوة جديد")} /><Button onClick={() => void add()}><Plus className="ml-2 h-4 w-4" />{tr("إضافة")}</Button></div>{stepTypes.map((type) => { const draft = drafts[type.id] || type; return <div key={type.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto]"><Input value={draft.name} onChange={(event) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, name: event.target.value } }))} /><Label className="flex items-center gap-2"><Checkbox checked={draft.mandatory} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, mandatory: checked === true } }))} />{tr("اجباري")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.show_all_items} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, show_all_items: checked === true } }))} />{tr("إظهار كافة أصناف الطلبية")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.print_barcode} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, print_barcode: checked === true } }))} />{tr("طباعة باركود")}</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.attachment_required} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, attachment_required: checked === true } }))} />{tr("المرفق اجباري")}</Label><Button onClick={() => void save(draft)} disabled={saving === type.id}><Save className="ml-2 h-4 w-4" />{tr("حفظ")}</Button></div>})}</CardContent></Card>
 }
 
 function WorkflowsAdmin({
@@ -492,11 +493,11 @@ function WorkflowsAdmin({
         body: JSON.stringify({ userId, name: department.department_name, branch_id: department.branch_id ?? null }),
       })
       const data = await res.json()
-      if (!res.ok || !data?.id) throw new Error(data?.error || "تعذّر إنشاء القسم")
+      if (!res.ok || !data?.id) throw new Error(data?.error || tr("تعذّر إنشاء القسم"))
       setCreatedSections((current) => [...current, { id: Number(data.id), name: department.department_name }])
       updateStep(index, { section_id: String(data.id), assigned_user_id: "" })
     } catch (error) {
-      toast({ title: "خطأ", description: error instanceof Error ? error.message : "تعذّر إنشاء القسم", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error instanceof Error ? error.message : tr("تعذّر إنشاء القسم"), variant: "destructive" })
     }
   }
 
@@ -566,12 +567,12 @@ function WorkflowsAdmin({
   const saveWorkflow = async () => {
     if (!name.trim() || !userId) return
     if (type === "group" && !groupId) {
-      toast({ title: "مطلوب", description: "يجب تحديد مجموعة الصنف", variant: "destructive" })
+      toast({ title: tr("مطلوب"), description: tr("يجب تحديد مجموعة الصنف"), variant: "destructive" })
       groupInputRef.current?.focus()
       return
     }
     if (type === "specific" && itemIds.length === 0) {
-      toast({ title: "مطلوب", description: "يجب اختيار صنف واحد على الأقل", variant: "destructive" })
+      toast({ title: tr("مطلوب"), description: tr("يجب اختيار صنف واحد على الأقل"), variant: "destructive" })
       return
     }
     setBusy(true)
@@ -598,7 +599,7 @@ function WorkflowsAdmin({
       setFormOpen(false)
       onChanged()
     } catch (error: any) {
-      toast({ title: editingId ? "تعذّر التعديل" : "تعذّر الإنشاء", description: error?.message, variant: "destructive" })
+      toast({ title: editingId ? tr("تعذّر التعديل") : tr("تعذّر الإنشاء"), description: error?.message, variant: "destructive" })
     } finally {
       setBusy(false)
     }
@@ -646,15 +647,15 @@ function WorkflowsAdmin({
   const saveSteps = async () => {
     if (!selectedWorkflow || !userId) return
     if (editSteps.some((s) => !s.label.trim() || !s.section_id)) {
-      toast({ title: "بيانات ناقصة", description: "لكل خطوة تسمية وقسم مطلوبان", variant: "destructive" })
+      toast({ title: tr("بيانات ناقصة"), description: tr("لكل خطوة تسمية وقسم مطلوبان"), variant: "destructive" })
       return
     }
     if (editSteps.some((s) => s.sla_hours && (Number(s.sla_hours) < 0 || Number(s.sla_hours) > 999))) {
-      toast({ title: "بيانات غير صالحة", description: "مدة العمل المتوقعة يجب أن تكون رقماً بين 0 و999", variant: "destructive" })
+      toast({ title: tr("بيانات غير صالحة"), description: tr("مدة العمل المتوقعة يجب أن تكون رقماً بين 0 و999"), variant: "destructive" })
       return
     }
     if (editSteps.some((s) => s.assignment_type === "specific" && !s.assigned_user_id)) {
-      toast({ title: "بيانات ناقصة", description: "يجب اختيار المستخدم عند تحديد ل مستخدم معين", variant: "destructive" })
+      toast({ title: tr("بيانات ناقصة"), description: tr("يجب اختيار المستخدم عند تحديد ل مستخدم معين"), variant: "destructive" })
       return
     }
     setSavingSteps(true)
@@ -690,10 +691,10 @@ function WorkflowsAdmin({
       // نسخ لإصدار جديد (السير مُستخدَم فعلاً) يُغيّر المعرّف الفعلي — يُتابَع هنا حتى يبقى نفس
       // السير معروضاً بخطواته المحفوظة للتو بدل الاختفاء المفاجئ خلف الإصدار القديم "قديم".
       setSelectedWorkflowId(data.id)
-      toast({ title: "تم", description: "تم حفظ خطوات سير العمل" })
+      toast({ title: tr("تم"), description: tr("تم حفظ خطوات سير العمل") })
       onChanged()
     } catch (error: any) {
-      toast({ title: "تعذّر الحفظ", description: error?.message, variant: "destructive" })
+      toast({ title: tr("تعذّر الحفظ"), description: error?.message, variant: "destructive" })
     } finally {
       setSavingSteps(false)
     }
@@ -710,7 +711,7 @@ function WorkflowsAdmin({
       setDeletingWorkflow(null)
       onChanged()
     } catch (error: any) {
-      toast({ title: "تعذّر الحذف", description: error?.message, variant: "destructive" })
+      toast({ title: tr("تعذّر الحذف"), description: error?.message, variant: "destructive" })
     } finally {
       setDeletingBusy(false)
     }
@@ -720,25 +721,25 @@ function WorkflowsAdmin({
     <div className="grid w-full gap-4 lg:grid-cols-[460px_1fr]">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">سير العمل</CardTitle>
+          <CardTitle className="text-base">{tr("سير العمل")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {!formOpen && (
             <Button onClick={openCreateForm} className="w-full gap-1">
-              <Plus className="h-4 w-4" /> جديد
+              <Plus className="h-4 w-4" />{tr(" جديد")}
             </Button>
           )}
 
           {formOpen && (
             <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <Input placeholder="اسم سير العمل" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input placeholder={tr("اسم سير العمل")} value={name} onChange={(e) => setName(e.target.value)} />
               <div className="invoice-currency-dropdown-wrap w-full">
                 <PrimeDropdown
                   value={type}
                   options={[
-                    { value: "general", label: "عام" },
-                    { value: "group", label: "حسب مجموعة صنف" },
-                    { value: "specific", label: "لصنف معين" },
+                    { value: "general", label: tr("عام") },
+                    { value: "group", label: tr("حسب مجموعة صنف") },
+                    { value: "specific", label: tr("لصنف معين") },
                   ]}
                   optionLabel="label"
                   optionValue="value"
@@ -754,7 +755,7 @@ function WorkflowsAdmin({
                   options={branchOptions}
                   optionLabel="branch_name"
                   optionValue="id"
-                  placeholder="الفرع"
+                  placeholder={tr("الفرع")}
                   filter
                   className="invoice-currency-dropdown w-full"
                   panelClassName="invoice-currency-dropdown-panel"
@@ -769,7 +770,7 @@ function WorkflowsAdmin({
                     readOnly
                     value={groupCode}
                     onFocus={() => setGroupSearchOpen(true)}
-                    placeholder="مجموعة الصنف"
+                    placeholder={tr("مجموعة الصنف")}
                     className="flex-1 cursor-pointer"
                     onClick={() => setGroupSearchOpen(true)}
                   />
@@ -788,15 +789,15 @@ function WorkflowsAdmin({
                   showFilter
                   showMultiSelect
                   maxSelectedLabels={3}
-                  selectedItemsLabel="تم تحديد اكثر من 3 عناصر"
-                  placeholder="اختر صنفاً واحداً أو أكثر"
+                  selectedItemsLabel={tr("تم تحديد اكثر من 3 عناصر")}
+                  placeholder={tr("اختر صنفاً واحداً أو أكثر")}
                   className="w-full"
                   onChange={(e: any) => setItemIds(Array.isArray(e.value) ? e.value : [])}
                 />
               )}
               <div className="flex gap-2">
                 <Button onClick={saveWorkflow} disabled={busy || !name.trim()} className="flex-1 gap-1">
-                  <Save className="h-4 w-4" /> {editingId ? "حفظ التعديل" : "إضافة سير عمل"}
+                  <Save className="h-4 w-4" /> {editingId ? tr("حفظ التعديل") : tr("إضافة سير عمل")}
                 </Button>
                 <Button
                   variant="outline"
@@ -805,7 +806,7 @@ function WorkflowsAdmin({
                     setFormOpen(false)
                   }}
                 >
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
               </div>
             </div>
@@ -818,7 +819,7 @@ function WorkflowsAdmin({
               <div
                 key={w.id}
                 onClick={() => setSelectedWorkflowId(w.id)}
-                className={`w-full cursor-pointer rounded-md border p-2 text-right text-sm ${
+                className={`w-full cursor-pointer rounded-md border p-2 text-start text-sm ${
                   selectedWorkflowId === w.id ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -829,7 +830,7 @@ function WorkflowsAdmin({
                   <div className="flex items-center gap-1">
                     {!w.is_active && (
                       <Badge variant="outline" className="border-slate-300 text-slate-400 text-[10px]">
-                        قديم
+                        {tr("قديم")}
                       </Badge>
                     )}
                     <Button
@@ -858,11 +859,11 @@ function WorkflowsAdmin({
                 </div>
                 <div className="text-xs text-slate-400">
                   {w.type === "specific"
-                    ? `أصناف محددة (${w.item_ids?.length || 0})`
+                    ? tr("أصناف محددة ({0})", w.item_ids?.length || 0)
                     : w.type === "group"
-                    ? `مجموعة: ${w.group_name || w.group_id || "-"}`
-                    : "عام"}{" "}
-                  · {w.branch_name || "كل الفروع"} · {w.steps.length} خطوات · {w.usage_count} صنف
+                    ? tr("مجموعة: {0}", w.group_name || w.group_id || "-")
+                    : tr("عام")}{" "}
+                  · {w.branch_name || tr("كل الفروع")} · {w.steps.length}{tr(" خطوات · ")}{w.usage_count}{tr(" صنف")}
                 </div>
               </div>
             ))}
@@ -873,21 +874,21 @@ function WorkflowsAdmin({
       {selectedWorkflow && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">خطوات "{selectedWorkflow.name}"</CardTitle>
+            <CardTitle className="text-base">{tr("خطوات \"")}{selectedWorkflow.name}"</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {selectedWorkflow.usage_count > 0 && (
               <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-700">
-                يوجد {selectedWorkflow.usage_count} صنف يستخدم هذا الإصدار — الحفظ سيُنشئ إصداراً جديداً دون التأثير على الأصناف الجارية.
+                {tr("يوجد ")}{selectedWorkflow.usage_count}{tr(" صنف يستخدم هذا الإصدار — الحفظ سيُنشئ إصداراً جديداً دون التأثير على الأصناف الجارية.")}
               </p>
             )}
-            {!selectedWorkflow.is_active && <p className="rounded-md bg-slate-100 p-2 text-xs text-slate-500">هذا إصدار قديم غير نشِط — للعرض فقط.</p>}
+            {!selectedWorkflow.is_active && <p className="rounded-md bg-slate-100 p-2 text-xs text-slate-500">{tr("هذا إصدار قديم غير نشِط — للعرض فقط.")}</p>}
 
             <div className="space-y-3">
               {editSteps.map((step, index) => (
                 <div key={step.key} className="space-y-3 rounded-lg border border-slate-200 p-3">
                   <div className="flex items-center gap-2">
-                    <Input className="flex-1" placeholder="تسمية الخطوة" value={step.label} onChange={(e) => updateStep(index, { label: e.target.value })} />
+                    <Input className="flex-1" placeholder={tr("تسمية الخطوة")} value={step.label} onChange={(e) => updateStep(index, { label: e.target.value })} />
                     <Button size="icon" variant="ghost" onClick={() => removeStep(index)}>
                       <Trash2 className="h-3.5 w-3.5 text-red-500" />
                     </Button>
@@ -895,14 +896,14 @@ function WorkflowsAdmin({
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">القسم</Label>
+                      <Label className="text-xs text-slate-500">{tr("القسم")}</Label>
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           value={step.section_id ? Number(step.section_id) : null}
                           options={departmentSectionOptions}
                           optionLabel="department_name"
                           optionValue="id"
-                          placeholder="القسم"
+                          placeholder={tr("القسم")}
                           filter
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
@@ -913,13 +914,13 @@ function WorkflowsAdmin({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">تحديد ل</Label>
+                      <Label className="text-xs text-slate-500">{tr("تحديد ل")}</Label>
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           value={step.assignment_type}
                           options={[
-                            { value: "all", label: "كل القسم" },
-                            { value: "specific", label: "مستخدم محدد" },
+                            { value: "all", label: tr("كل القسم") },
+                            { value: "specific", label: tr("مستخدم محدد") },
                           ]}
                           optionLabel="label"
                           optionValue="value"
@@ -932,7 +933,7 @@ function WorkflowsAdmin({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">نوع الخطوة</Label>
+                      <Label className="text-xs text-slate-500">{tr("نوع الخطوة")}</Label>
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           value={step.step_type}
@@ -949,14 +950,14 @@ function WorkflowsAdmin({
 
                     {step.assignment_type === "specific" && (
                       <div className="space-y-1">
-                        <Label className="text-xs text-slate-500">المستخدم</Label>
+                        <Label className="text-xs text-slate-500">{tr("المستخدم")}</Label>
                         <div className="invoice-currency-dropdown-wrap">
                           <PrimeDropdown
                             value={step.assigned_user_id || null}
                             options={sectionMembersMap.get(Number(step.section_id))?.length ? sectionMembersMap.get(Number(step.section_id)) : users}
                             optionLabel="full_name"
                             optionValue="user_id"
-                            placeholder="المستخدم"
+                            placeholder={tr("المستخدم")}
                             filter
                             className="invoice-currency-dropdown w-full"
                             panelClassName="invoice-currency-dropdown-panel"
@@ -968,12 +969,12 @@ function WorkflowsAdmin({
                     )}
 
                     <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">مدة العمل المتوقعة</Label>
+                      <Label className="text-xs text-slate-500">{tr("مدة العمل المتوقعة")}</Label>
                       <Input
                         type="number"
                         min={0}
                         max={999}
-                        placeholder="ساعة"
+                        placeholder={tr("ساعة")}
                         value={step.sla_hours}
                         onChange={(e) => {
                           const raw = e.target.value
@@ -985,11 +986,11 @@ function WorkflowsAdmin({
 
                     <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                       <ReportMultiChoice
-                        label="عند تجاوز مدة العمل المتوقعة"
+                        label={tr("عند تجاوز مدة العمل المتوقعة")}
                         options={SLA_ACTION_OPTIONS}
                         selected={SLA_ACTION_OPTIONS.filter((option) => step.sla_actions.includes(option.value)).map((option) => option.id)}
                         onChange={(ids) => updateStep(index, { sla_actions: SLA_ACTION_OPTIONS.filter((option) => ids.includes(option.id)).map((option) => option.value) })}
-                        placeholder="لا شيء"
+                        placeholder={tr("لا شيء")}
                       />
                     </div>
                   </div>
@@ -1001,24 +1002,24 @@ function WorkflowsAdmin({
                 onClick={addStep}
                 className="w-full gap-1.5 bg-emerald-600 py-5 text-base font-semibold text-white shadow-md hover:bg-emerald-700"
               >
-                <Plus className="h-5 w-5" /> إضافة خطوة
+                <Plus className="h-5 w-5" />{tr(" إضافة خطوة")}
               </Button>
             </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <div className="text-sm font-semibold text-slate-600">الانتقالات (من ← إلى)</div>
+              <div className="text-sm font-semibold text-slate-600">{tr("الانتقالات (من ← إلى)")}</div>
               {editTransitions.map((t, index) => (
                 <div key={index} className="flex items-center gap-2 rounded-md border border-slate-200 p-2">
                   <div className="invoice-currency-dropdown-wrap flex-1 space-y-1">
-                    <Label className="text-xs text-slate-500">من خطوة</Label>
+                    <Label className="text-xs text-slate-500">{tr("من خطوة")}</Label>
                     <PrimeDropdown
                       value={t.from_key || null}
                       options={editSteps.map((s) => ({ key: s.key, label: s.label || s.key }))}
                       optionLabel="label"
                       optionValue="key"
-                      placeholder="من خطوة"
+                      placeholder={tr("من خطوة")}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -1027,13 +1028,13 @@ function WorkflowsAdmin({
                   </div>
                   <span className="mt-5 text-slate-400">←</span>
                   <div className="invoice-currency-dropdown-wrap flex-1 space-y-1">
-                    <Label className="text-xs text-slate-500">إلى خطوة</Label>
+                    <Label className="text-xs text-slate-500">{tr("إلى خطوة")}</Label>
                     <PrimeDropdown
                       value={t.to_key || null}
                       options={editSteps.map((s) => ({ key: s.key, label: s.label || s.key }))}
                       optionLabel="label"
                       optionValue="key"
-                      placeholder="إلى خطوة"
+                      placeholder={tr("إلى خطوة")}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -1050,13 +1051,13 @@ function WorkflowsAdmin({
                 disabled={editSteps.length < 2}
                 className="w-full gap-1.5 bg-blue-600 py-5 text-base font-semibold text-white shadow-md hover:bg-blue-700 disabled:opacity-50"
               >
-                <Plus className="h-5 w-5" /> إضافة انتقال
+                <Plus className="h-5 w-5" />{tr(" إضافة انتقال")}
               </Button>
-              <p className="text-[11px] text-slate-400">كل الانتقالات غير مشروطة الآن. أكثر من انتقال خارج من نفس الخطوة = تفرّع متوازٍ.</p>
+              <p className="text-[11px] text-slate-400">{tr("كل الانتقالات غير مشروطة الآن. أكثر من انتقال خارج من نفس الخطوة = تفرّع متوازٍ.")}</p>
             </div>
 
             <Button onClick={saveSteps} disabled={savingSteps || editSteps.length === 0} className="gap-1">
-              <Save className="h-4 w-4" /> حفظ الخطوات والانتقالات
+              <Save className="h-4 w-4" />{tr(" حفظ الخطوات والانتقالات")}
             </Button>
           </CardContent>
         </Card>
@@ -1066,7 +1067,7 @@ function WorkflowsAdmin({
 
       <ConfirmDialogYesNo
         visible={!!deletingWorkflow}
-        message={`هل انت متاكد من حذف سير العمل "${deletingWorkflow?.name}"؟`}
+        message={tr("هل انت متاكد من حذف سير العمل \"{0}\"؟", deletingWorkflow?.name)}
         onConfirm={confirmDeleteWorkflow}
         onCancel={() => setDeletingWorkflow(null)}
       />

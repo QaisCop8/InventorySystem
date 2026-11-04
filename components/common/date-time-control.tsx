@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { forwardRef, useImperativeHandle, useRef, useState } from "react"
 import { CalendarDays } from "lucide-react"
 
@@ -63,7 +64,7 @@ const DateTimeControl = forwardRef<HTMLInputElement, DateTimeControlProps>(
       if (!raw) return null
       const year = Number(raw.slice(0, 4))
       if (!Number.isFinite(year) || year < minYear || year > maxYear) {
-        return `السنة يجب أن تكون بين ${minYear} و ${maxYear}`
+        return tr("السنة يجب أن تكون بين {0} و {1}", minYear, maxYear)
       }
       return null
     }
@@ -106,7 +107,7 @@ const DateTimeControl = forwardRef<HTMLInputElement, DateTimeControlProps>(
             onClick={openPicker}
             tabIndex={-1}
             disabled={disabled}
-            aria-label="فتح التقويم"
+            aria-label={tr("فتح التقويم")}
           >
             <CalendarDays className="h-4 w-4" />
           </button>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Clock, Combine, LayoutGrid, Loader2, Plus, RefreshCw, ShoppingBag, Users, UtensilsCrossed, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { money, type FloorLocation, type FloorTable } from "./restaurant-dialogs"
@@ -68,35 +69,35 @@ export function RestaurantFloor(p: Props) {
   const unconfigured = locations.filter((location) => !location.configured)
 
   return (
-    <div dir="rtl" className="flex h-full min-h-0 flex-col bg-gradient-to-b from-rose-50/60 to-background dark:from-rose-950/10">
+    <div dir={appDir()} className="flex h-full min-h-0 flex-col bg-gradient-to-b from-rose-50/60 to-background dark:from-rose-950/10">
       {/* الشريط العلوي */}
       <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-background/90 px-3 py-2.5 backdrop-blur sm:px-4">
         <div className="flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-600 to-orange-500 text-white shadow"><UtensilsCrossed className="h-5 w-5" /></span>
           <div>
-            <h1 className="text-lg font-extrabold leading-tight">شاشة المطعم</h1>
-            <p className="text-xs text-muted-foreground">اختر طاولة لفتحها أو متابعة طلبها</p>
+            <h1 className="text-lg font-extrabold leading-tight">{tr("شاشة المطعم")}</h1>
+            <p className="text-xs text-muted-foreground">{tr("اختر طاولة لفتحها أو متابعة طلبها")}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {p.canTakeaway && locations.length > 0 && <Button className="h-10 bg-violet-600 hover:bg-violet-700" disabled={p.busy} onClick={p.onNewTakeaway}><ShoppingBag className="ml-1 h-4 w-4" />سفري جديد</Button>}
-          {p.canCustody && locations.length > 0 && <Button variant="outline" className="h-10" onClick={p.onCustody}><Wallet className="ml-1 h-4 w-4" />العهدة</Button>}
-          <Button variant="outline" size="icon" className="h-10 w-10" onClick={p.onRefresh} disabled={p.loading} title="تحديث"><RefreshCw className={`h-4 w-4 ${p.loading ? "animate-spin" : ""}`} /></Button>
+          {p.canTakeaway && locations.length > 0 && <Button className="h-10 bg-violet-600 hover:bg-violet-700" disabled={p.busy} onClick={p.onNewTakeaway}><ShoppingBag className="ml-1 h-4 w-4" />{tr("سفري جديد")}</Button>}
+          {p.canCustody && locations.length > 0 && <Button variant="outline" className="h-10" onClick={p.onCustody}><Wallet className="ml-1 h-4 w-4" />{tr("العهدة")}</Button>}
+          <Button variant="outline" size="icon" className="h-10 w-10" onClick={p.onRefresh} disabled={p.loading} title={tr("تحديث")}><RefreshCw className={`h-4 w-4 ${p.loading ? "animate-spin" : ""}`} /></Button>
         </div>
       </header>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-          <Stat label="طاولات فارغة" value={tables.length - busyCount} tone="bg-emerald-100 text-emerald-700 dark:bg-emerald-950" icon={LayoutGrid} />
-          <Stat label="طاولات مشغولة" value={busyCount} tone="bg-amber-100 text-amber-700 dark:bg-amber-950" icon={Users} />
-          <Stat label="طلبات سفري" value={takeaways.length} tone="bg-violet-100 text-violet-700 dark:bg-violet-950" icon={ShoppingBag} />
-          <Stat label="إجمالي المفتوح" value={money(openTotal)} tone="bg-rose-100 text-rose-700 dark:bg-rose-950" icon={Wallet} />
+          <Stat label={tr("طاولات فارغة")} value={tables.length - busyCount} tone="bg-emerald-100 text-emerald-700 dark:bg-emerald-950" icon={LayoutGrid} />
+          <Stat label={tr("طاولات مشغولة")} value={busyCount} tone="bg-amber-100 text-amber-700 dark:bg-amber-950" icon={Users} />
+          <Stat label={tr("طلبات سفري")} value={takeaways.length} tone="bg-violet-100 text-violet-700 dark:bg-violet-950" icon={ShoppingBag} />
+          <Stat label={tr("إجمالي المفتوح")} value={money(openTotal)} tone="bg-rose-100 text-rose-700 dark:bg-rose-950" icon={Wallet} />
         </div>
 
         <div className="sticky top-0 z-10 -mx-3 flex flex-col gap-2 bg-background/90 px-3 py-2 backdrop-blur sm:-mx-4 sm:px-4 md:flex-row md:items-center md:justify-between">
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             <button type="button" onClick={() => p.onLocationFilter("all")}
-              className={`h-10 shrink-0 rounded-full px-4 text-sm font-bold transition ${p.locationFilter === "all" ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>كل المواقع</button>
+              className={`h-10 shrink-0 rounded-full px-4 text-sm font-bold transition ${p.locationFilter === "all" ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>{tr("كل المواقع")}</button>
             {locations.map((location) => {
               const active = p.locationFilter === location.id
               return (
@@ -119,24 +120,24 @@ export function RestaurantFloor(p: Props) {
         {p.error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{p.error}</div>}
         {unconfigured.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            إعدادات البيع غير مكتملة للموقع: {unconfigured.map((l) => l.name).join("، ")} — أكملها من شاشة المواقع لتظهر الأصناف ويمكن الدفع.
+            {tr("إعدادات البيع غير مكتملة للموقع: ")}{unconfigured.map((l) => l.name).join("، ")}{tr(" — أكملها من شاشة المواقع لتظهر الأصناف ويمكن الدفع.")}
           </div>
         )}
 
         {takeaways.length > 0 && (
           <section>
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-extrabold text-violet-700"><ShoppingBag className="h-4 w-4" />طلبات سفري مفتوحة</h2>
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-extrabold text-violet-700"><ShoppingBag className="h-4 w-4" />{tr("طلبات سفري مفتوحة")}</h2>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {takeaways.map((row) => (
                 <button key={row.order_id} type="button" disabled={p.busy} onClick={() => p.onOrder(row.order_id)}
-                  className="rounded-2xl border-2 border-violet-200 bg-card p-3 text-right shadow-sm transition hover:border-violet-400 active:scale-[0.98]">
+                  className="rounded-2xl border-2 border-violet-200 bg-card p-3 text-start shadow-sm transition hover:border-violet-400 active:scale-[0.98]">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="truncate font-extrabold">{row.takeaway_name || "سفري"}</span>
+                    <span className="truncate font-extrabold">{row.takeaway_name || tr("سفري")}</span>
                     <span className="shrink-0 text-[11px] text-muted-foreground"><Clock className="ml-0.5 inline h-3 w-3" />{elapsed(row.opened_at, now)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">{row.order_no} · {row.items_count} صنف</div>
+                  <div className="text-xs text-muted-foreground">{row.order_no} · {row.items_count}{tr(" صنف")}</div>
                   <div className="mt-1 text-base font-black text-violet-700 dark:text-violet-300">{money(row.remaining)}</div>
-                  {row.paid_amount > 0 && <div className="text-[11px] text-emerald-700">مدفوع {money(row.paid_amount)}</div>}
+                  {row.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(row.paid_amount)}</div>}
                 </button>
               ))}
             </div>
@@ -146,13 +147,13 @@ export function RestaurantFloor(p: Props) {
         {p.loading && !tables.length ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-rose-600" /></div>
         ) : !locations.length ? (
-          <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">لا توجد مواقع نشطة لهذا الفرع. عرّف المواقع والطاولات من قائمة المطاعم.</div>
+          <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد مواقع نشطة لهذا الفرع. عرّف المواقع والطاولات من قائمة المطاعم.")}</div>
         ) : (
           groups.map(({ location, tables: list }) => (
             <section key={location.id}>
               <h2 className="mb-2 flex items-center gap-2 text-sm font-extrabold">
                 <span className="h-3 w-3 rounded-full" style={{ backgroundColor: location.color || "#e11d48" }} />{location.name}
-                <span className="font-normal text-muted-foreground">· {list.filter((t) => !t.order_id).length} فارغة من {list.length}</span>
+                <span className="font-normal text-muted-foreground">· {list.filter((t) => !t.order_id).length}{tr(" فارغة من ")}{list.length}</span>
               </h2>
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
                 {list.map((table) => {
@@ -168,11 +169,11 @@ export function RestaurantFloor(p: Props) {
                             <span><Clock className="ml-0.5 inline h-3 w-3" />{elapsed(table.opened_at, now)}</span>
                             <span><Users className="ml-0.5 inline h-3 w-3" />{table.guests}/{table.seats}</span>
                           </div>
-                          {table.merged_with && <div className="truncate text-[11px] font-semibold text-blue-700"><Combine className="ml-0.5 inline h-3 w-3" />مع {table.merged_with}</div>}
-                          {table.paid_amount > 0 && <div className="text-[11px] text-emerald-700">مدفوع {money(table.paid_amount)}</div>}
+                          {table.merged_with && <div className="truncate text-[11px] font-semibold text-blue-700"><Combine className="ml-0.5 inline h-3 w-3" />{tr("مع ")}{table.merged_with}</div>}
+                          {table.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(table.paid_amount)}</div>}
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center gap-1 text-sm font-bold text-emerald-700"><Plus className="h-4 w-4" />فتح · {table.seats} مقاعد</div>
+                        <div className="flex items-center justify-center gap-1 text-sm font-bold text-emerald-700"><Plus className="h-4 w-4" />{tr("فتح · ")}{table.seats}{tr(" مقاعد")}</div>
                       )}
                     </button>
                   )
@@ -181,7 +182,7 @@ export function RestaurantFloor(p: Props) {
             </section>
           ))
         )}
-        {!p.loading && locations.length > 0 && !groups.length && <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">لا توجد طاولات مطابقة</div>}
+        {!p.loading && locations.length > 0 && !groups.length && <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد طاولات مطابقة")}</div>}
       </div>
     </div>
   )

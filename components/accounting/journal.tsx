@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { BookOpen } from "lucide-react"
@@ -350,21 +351,21 @@ export default function Journal() {
 
   const validateVoucher = (data: JournalVoucherRecord): string | null => {
     const code = data.vch_code.trim()
-    if (!code) return "رقم السند مطلوب"
-    if (!/^[A-Z0-9-]+$/.test(code)) return "رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط"
-    if (!data.vch_date) return "تاريخ السند مطلوب"
-    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
+    if (!code) return tr("رقم السند مطلوب")
+    if (!/^[A-Z0-9-]+$/.test(code)) return tr("رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط")
+    if (!data.vch_date) return tr("تاريخ السند مطلوب")
+    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return tr("يجب تحديد دفتر السندات")
     if (!data.currency_id || !currencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
-      return "يجب اختيار العملة"
+      return tr("يجب اختيار العملة")
     }
-    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+    if (!(Number(data.rate) > 0)) return tr("سعر الصرف يجب أن يكون أكبر من صفر")
 
     const journalRows = (data.journal || []).filter((row) => row.account_id && (Number(row.debit || 0) > 0 || Number(row.credit || 0) > 0))
-    if (journalRows.length < 2) return "يجب أن يحتوي السند على قيدين محاسبيين على الأقل (طرف مدين وطرف دائن)"
+    if (journalRows.length < 2) return tr("يجب أن يحتوي السند على قيدين محاسبيين على الأقل (طرف مدين وطرف دائن)")
     const totalDebit = journalRows.reduce((sum, row) => sum + Number(row.debit || 0), 0)
     const totalCredit = journalRows.reduce((sum, row) => sum + Number(row.credit || 0), 0)
     if (Math.round((totalDebit - totalCredit) * 100) / 100 !== 0) {
-      return "القيد غير متوازن: مجموع المدين لا يساوي مجموع الدائن"
+      return tr("القيد غير متوازن: مجموع المدين لا يساوي مجموع الدائن")
     }
     return null
   }
@@ -400,7 +401,7 @@ export default function Journal() {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        setErrorMessages([responseError.error || "فشل في حفظ سند القيد"])
+        setErrorMessages([responseError.error || tr("فشل في حفظ سند القيد")])
         return
       }
       const saved = await response.json()
@@ -409,8 +410,8 @@ export default function Journal() {
       if (action === "post_print" || action === "save_print") {
         const journalRows = Array.isArray(saved.journal) ? saved.journal : []
         setPrintData({
-          title: "سند قيد",
-          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          title: tr("سند قيد"),
+          copyLabel: action === "post_print" ? tr("نسخة اصلية") : tr("نسخة للتدقيق"),
           vch_code: saved.vch_code,
           vch_date: saved.vch_date,
           currency_name: currencies.find((c) => Number(c.currency_id ?? c.id) === saved.currency_id)?.currency_name,
@@ -438,7 +439,7 @@ export default function Journal() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ سند القيد"])
+      setErrorMessages([tr("فشل في حفظ سند القيد")])
     } finally {
       setIsSaving(false)
     }
@@ -451,7 +452,7 @@ export default function Journal() {
     if (!(form.id > 0) || form.status === 3) return
 
     let isPrinted = form.is_printed || 0
-    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+    const copyLabel = form.status !== 2 ? tr("نسخة للتدقيق") : isPrinted === 1 ? tr("نسخة") : tr("نسخة اصلية")
 
     if (form.status === 2 && isPrinted !== 1) {
       try {
@@ -466,7 +467,7 @@ export default function Journal() {
     }
 
     setPrintData({
-      title: "سند قيد",
+      title: tr("سند قيد"),
       copyLabel,
       vch_code: form.vch_code,
       vch_date: form.vch_date,
@@ -524,7 +525,7 @@ export default function Journal() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في إلغاء سند القيد")
+        throw new Error(error.error || tr("فشل في إلغاء سند القيد"))
       }
       const saved = await response.json()
       await fetchVouchers()
@@ -535,7 +536,7 @@ export default function Journal() {
     } catch (error) {
       console.error(error)
       setShowDeleteConfirm(false)
-      setErrorMessages([error instanceof Error ? error.message : "فشل في إلغاء سند القيد"])
+      setErrorMessages([error instanceof Error ? error.message : tr("فشل في إلغاء سند القيد")])
     } finally {
       setIsSaving(false)
     }
@@ -550,13 +551,13 @@ export default function Journal() {
       const response = await fetch(`/api/journal-vouchers/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف سند القيد")
+        throw new Error(error.error || tr("فشل في حذف سند القيد"))
       }
       await advanceAfterDelete()
     } catch (error) {
       console.error(error)
       setShowDeleteConfirm(false)
-      setErrorMessages([error instanceof Error ? error.message : "فشل في حذف سند القيد"])
+      setErrorMessages([error instanceof Error ? error.message : tr("فشل في حذف سند القيد")])
     } finally {
       setIsSaving(false)
     }
@@ -594,41 +595,41 @@ export default function Journal() {
   const navigationIndex = listIndex >= 0 ? vouchers.length - 1 - listIndex : vouchers.length
 
   return (
-    <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
-      <VoucherListHero icon={BookOpen} title={<>سندات القيد</>} addLabel={<>إضافة سند قيد</>} onNew={openNewDialog} />
+    <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
+      <VoucherListHero icon={BookOpen} title={<>{tr("سندات القيد")}</>} addLabel={<>{tr("إضافة سند قيد")}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>إجمالي سندات القيد</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي سندات القيد")}</>, value: <>{totalVouchers}</> }, { label: <>{tr("سندات هذا الشهر")}</>, value: <>{thisMonthCount}</> }, { label: <>{tr("إجمالي المبالغ")}</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>{tr("متوسط قيمة السند")}</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث المتقدم
+            {tr("البحث المتقدم")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" onKeyDown={searchOnEnter(runSearch)}>
             <div>
-              <Label htmlFor="search-code">رقم السند</Label>
+              <Label htmlFor="search-code">{tr("رقم السند")}</Label>
               <Input
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث برقم السند..."
+                placeholder={tr("ابحث برقم السند...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-currency">العملة</Label>
+              <Label htmlFor="search-currency">{tr("العملة")}</Label>
               <Select
                 value={searchDraft.currencyId}
                 onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر العملة" />
+                  <SelectValue placeholder={tr("اختر العملة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">جميع العملات</SelectItem>
+                  <SelectItem value="__all__">{tr("جميع العملات")}</SelectItem>
                   {currencies.map((c) => (
                     <SelectItem key={c.currency_id ?? c.id} value={String(c.currency_id ?? c.id)}>
                       {c.currency_name || c.currency_code}
@@ -639,7 +640,7 @@ export default function Journal() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label htmlFor="search-date-from">من تاريخ</Label>
+                <Label htmlFor="search-date-from">{tr("من تاريخ")}</Label>
                 <Input
                   id="search-date-from"
                   type="date"
@@ -648,7 +649,7 @@ export default function Journal() {
                 />
               </div>
               <div>
-                <Label htmlFor="search-date-to">إلى تاريخ</Label>
+                <Label htmlFor="search-date-to">{tr("إلى تاريخ")}</Label>
                 <Input
                   id="search-date-to"
                   type="date"
@@ -666,7 +667,7 @@ export default function Journal() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{`سندات القيد (${filteredVouchers.length})`}</CardTitle>
+          <CardTitle>{tr("سندات القيد ({0})", filteredVouchers.length)}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="min-h-0">
@@ -674,18 +675,18 @@ export default function Journal() {
               loading={listSearch.loading}
               rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
-                { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
-                { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
-                { header: "العملة", name: "display_currency", width: 120, isReadOnly: true },
-                { header: "المبلغ", name: "display_amount", width: 130, isReadOnly: true },
-                { header: "الملاحظة", name: "note", width: "*", isReadOnly: true },
+                { header: tr("رقم السند"), name: "vch_code", width: 150, isReadOnly: true },
+                { header: tr("التاريخ"), name: "display_date", width: 130, isReadOnly: true },
+                { header: tr("العملة"), name: "display_currency", width: 120, isReadOnly: true },
+                { header: tr("المبلغ"), name: "display_amount", width: 130, isReadOnly: true },
+                { header: tr("الملاحظة"), name: "note", width: "*", isReadOnly: true },
               ]}
               onOpen={(row: any) => openRow(row.item || row)}
             />
           </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                عرض {pageStart} إلى {pageEnd} من {filteredVouchers.length}
+                {tr("عرض ")}{pageStart}{tr(" إلى ")}{pageEnd}{tr(" من ")}{filteredVouchers.length}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -694,7 +695,7 @@ export default function Journal() {
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 >
-                  السابق
+                  {tr("السابق")}
                 </Button>
                 <Button
                   size="sm"
@@ -702,7 +703,7 @@ export default function Journal() {
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 >
-                  التالي
+                  {tr("التالي")}
                 </Button>
                 <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
                   <SelectTrigger className="h-10 w-24">

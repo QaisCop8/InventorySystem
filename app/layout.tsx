@@ -47,6 +47,11 @@ import { ThemeSettingsProvider } from "@/contexts/theme-context"
 import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
 import { USER_FONT_BOOT_SCRIPT } from "@/lib/user-font"
+import { cookies } from "next/headers"
+import Script from "next/script"
+import { LANG_COOKIE, tr } from "@/lib/i18n"
+import { I18N_BUILD } from "@/lib/i18n-build"
+import { HydrationLanguageGate } from "@/components/i18n/hydration-language-gate"
 import "./globals.css"
 
 const inter = Inter({
@@ -57,7 +62,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "NoonERP System",
-  description: "نون ERP — نظام عربي متكامل لإدارة الأعمال",
+  description: tr("نون ERP — نظام عربي متكامل لإدارة الأعمال"),
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -84,14 +89,17 @@ export const viewport = {
   themeColor: "#059669",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // لغة الواجهة (lib/i18n.ts): من كوكي app_lang — الإنجليزية ⇐ اتجاه LTR وتحميل القاموس قبل تشغيل التطبيق
+  const language = (await cookies()).get(LANG_COOKIE)?.value === "en" ? "en" : "ar"
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang={language} dir={language === "en" ? "ltr" : "rtl"} suppressHydrationWarning>
       <body className={`font-sans ${inter.variable} antialiased`} suppressHydrationWarning>
+        {language === "en" && <Script src={`/locales/en.js?v=${I18N_BUILD}`} strategy="beforeInteractive" />}
         {/* خط المستخدم المحفوظ قبل أول رسم (lib/user-font.ts) — لا وميض للحجم الافتراضي ولا انتظار للشبكة */}
         <script dangerouslySetInnerHTML={{ __html: USER_FONT_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -111,7 +119,9 @@ export default function RootLayout({
               <ThemeSettingsProvider>
                 <WindowManagerProvider>
                     <ClientProviders>
-                      <Suspense fallback={null}>{children}</Suspense>
+                      <HydrationLanguageGate language={language}>
+                        <Suspense fallback={null}>{children}</Suspense>
+                      </HydrationLanguageGate>
                     </ClientProviders>
                 </WindowManagerProvider>
               </ThemeSettingsProvider>

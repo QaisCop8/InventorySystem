@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -76,7 +77,7 @@ const inventoryStatusData = [
 
 const kpiData = [
   {
-    title: "إجمالي المبيعات",
+    title: tr("إجمالي المبيعات"),
     value: "328,450",
     unit: "شيكل",
     change: "+12.5%",
@@ -86,7 +87,7 @@ const kpiData = [
     bgColor: "bg-green-50",
   },
   {
-    title: "إجمالي المشتريات",
+    title: tr("إجمالي المشتريات"),
     value: "231,200",
     unit: "شيكل",
     change: "+8.3%",
@@ -96,7 +97,7 @@ const kpiData = [
     bgColor: "bg-blue-50",
   },
   {
-    title: "صافي الربح",
+    title: tr("صافي الربح"),
     value: "97,250",
     unit: "شيكل",
     change: "+18.7%",
@@ -106,7 +107,7 @@ const kpiData = [
     bgColor: "bg-purple-50",
   },
   {
-    title: "عدد العملاء النشطين",
+    title: tr("عدد العملاء النشطين"),
     value: "156",
     unit: "عميل",
     change: "+5.2%",
@@ -116,7 +117,7 @@ const kpiData = [
     bgColor: "bg-indigo-50",
   },
   {
-    title: "عدد الطلبيات",
+    title: tr("عدد الطلبيات"),
     value: "89",
     unit: "طلبية",
     change: "-2.1%",
@@ -126,7 +127,7 @@ const kpiData = [
     bgColor: "bg-orange-50",
   },
   {
-    title: "متوسط قيمة الطلبية",
+    title: tr("متوسط قيمة الطلبية"),
     value: "3,690",
     unit: "شيكل",
     change: "+15.3%",
@@ -174,7 +175,7 @@ export function AdvancedReportingDashboard() {
     return kpiData.map((kpi, index) => (
       <Card
         key={index}
-        className="erp-card hover:shadow-lg transition-all duration-200 border-l-4"
+        className="erp-card hover:shadow-lg transition-all duration-200 border-e-4"
         style={{ borderLeftColor: kpi.color.replace("text-", "#") }}
       >
         <CardHeader className="pb-2">
@@ -190,8 +191,8 @@ export function AdvancedReportingDashboard() {
             {kpi.value} <span className="text-sm font-normal text-muted-foreground">{kpi.unit}</span>
           </div>
           <p className={`text-xs flex items-center ${kpi.trend === "up" ? "text-green-600" : "text-red-600"}`}>
-            {kpi.trend === "up" ? <TrendingUp className="h-3 w-3 ml-1" /> : <TrendingDown className="h-3 w-3 ml-1" />}
-            {kpi.change} من الشهر الماضي
+            {kpi.trend === "up" ? <TrendingUp className="h-3 w-3 me-1" /> : <TrendingDown className="h-3 w-3 me-1" />}
+            {kpi.change}{tr(" من الشهر الماضي")}
           </p>
         </CardContent>
       </Card>
@@ -200,7 +201,7 @@ export function AdvancedReportingDashboard() {
 
   return (
     <ReportPage>
-<ReportHeader title="لوحة التقارير المتقدمة" actions={<>
+<ReportHeader title={tr("لوحة التقارير المتقدمة")} actions={<>
               <Button data-report-apply
                 onClick={refreshData}
                 disabled={state.refreshing}
@@ -208,8 +209,8 @@ export function AdvancedReportingDashboard() {
                 size="sm"
                 className="border-blue-300 text-blue-700 hover:bg-blue-50 bg-transparent"
               >
-                <RefreshCw className={`h-4 w-4 ml-2 ${state.refreshing ? "animate-spin" : ""}`} />
-                {state.refreshing ? "جاري التحديث..." : "تحديث البيانات"}
+                <RefreshCw className={`h-4 w-4 me-2 ${state.refreshing ? "animate-spin" : ""}`} />
+                {state.refreshing ? tr("جاري التحديث...") : tr("تحديث البيانات")}
               </Button>
               <Button
                 variant="outline"
@@ -217,8 +218,8 @@ export function AdvancedReportingDashboard() {
                 className="border-green-300 text-green-700 hover:bg-green-50 bg-transparent"
                 onClick={() => exportReport("excel", "شامل")}
               >
-                <Download className="h-4 w-4 ml-2" />
-                تصدير شامل
+                <Download className="h-4 w-4 me-2" />
+                {tr("تصدير شامل")}
               </Button>
             </>} />
       {/* Header with filters and actions */}
@@ -227,7 +228,7 @@ export function AdvancedReportingDashboard() {
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
             <div>
-              <Label className="text-sm font-medium mb-2 block">من تاريخ:</Label>
+              <Label className="text-sm font-medium mb-2 block">{tr("من تاريخ:")}</Label>
               <Input
                 type="date"
                 value={state.filters.fromDate}
@@ -236,7 +237,7 @@ export function AdvancedReportingDashboard() {
               />
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block">إلى تاريخ:</Label>
+              <Label className="text-sm font-medium mb-2 block">{tr("إلى تاريخ:")}</Label>
               <Input
                 type="date"
                 value={state.filters.toDate}
@@ -245,55 +246,55 @@ export function AdvancedReportingDashboard() {
               />
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block">المجموعة:</Label>
+              <Label className="text-sm font-medium mb-2 block">{tr("المجموعة:")}</Label>
               <Select value={state.filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="جميع المجموعات" />
+                  <SelectValue placeholder={tr("جميع المجموعات")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المجموعات</SelectItem>
-                  <SelectItem value="electronics">إلكترونيات</SelectItem>
-                  <SelectItem value="home">أدوات منزلية</SelectItem>
-                  <SelectItem value="clothes">ملابس</SelectItem>
+                  <SelectItem value="all">{tr("جميع المجموعات")}</SelectItem>
+                  <SelectItem value="electronics">{tr("إلكترونيات")}</SelectItem>
+                  <SelectItem value="home">{tr("أدوات منزلية")}</SelectItem>
+                  <SelectItem value="clothes">{tr("ملابس")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block">المستودع:</Label>
+              <Label className="text-sm font-medium mb-2 block">{tr("المستودع:")}</Label>
               <Select value={state.filters.warehouse} onValueChange={(value) => handleFilterChange("warehouse", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="جميع المستودعات" />
+                  <SelectValue placeholder={tr("جميع المستودعات")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المستودعات</SelectItem>
-                  <SelectItem value="main">المستودع الرئيسي</SelectItem>
-                  <SelectItem value="branch">مستودع الفرع</SelectItem>
+                  <SelectItem value="all">{tr("جميع المستودعات")}</SelectItem>
+                  <SelectItem value="main">{tr("المستودع الرئيسي")}</SelectItem>
+                  <SelectItem value="branch">{tr("مستودع الفرع")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block">العميل:</Label>
+              <Label className="text-sm font-medium mb-2 block">{tr("العميل:")}</Label>
               <Select value={state.filters.customer} onValueChange={(value) => handleFilterChange("customer", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="جميع العملاء" />
+                  <SelectValue placeholder={tr("جميع العملاء")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع العملاء</SelectItem>
-                  <SelectItem value="customer1">أحمد علي</SelectItem>
-                  <SelectItem value="customer2">فاطمة محمد</SelectItem>
+                  <SelectItem value="all">{tr("جميع العملاء")}</SelectItem>
+                  <SelectItem value="customer1">{tr("أحمد علي")}</SelectItem>
+                  <SelectItem value="customer2">{tr("فاطمة محمد")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block">المورد:</Label>
+              <Label className="text-sm font-medium mb-2 block">{tr("المورد:")}</Label>
               <Select value={state.filters.supplier} onValueChange={(value) => handleFilterChange("supplier", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="جميع الموردين" />
+                  <SelectValue placeholder={tr("جميع الموردين")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الموردين</SelectItem>
-                  <SelectItem value="supplier1">شركة التقنية</SelectItem>
-                  <SelectItem value="supplier2">مؤسسة الجودة</SelectItem>
+                  <SelectItem value="all">{tr("جميع الموردين")}</SelectItem>
+                  <SelectItem value="supplier1">{tr("شركة التقنية")}</SelectItem>
+                  <SelectItem value="supplier2">{tr("مؤسسة الجودة")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -308,22 +309,22 @@ export function AdvancedReportingDashboard() {
       <Tabs value={state.activeTab} onValueChange={(value) => setState((prev) => ({ ...prev, activeTab: value }))}>
         <TabsList className="grid w-full grid-cols-6 bg-gray-100">
           <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            نظرة عامة
+            {tr("نظرة عامة")}
           </TabsTrigger>
           <TabsTrigger value="sales" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
-            المبيعات
+            {tr("المبيعات")}
           </TabsTrigger>
           <TabsTrigger value="purchases" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-            المشتريات
+            {tr("المشتريات")}
           </TabsTrigger>
           <TabsTrigger value="inventory" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white">
-            المخزون
+            {tr("المخزون")}
           </TabsTrigger>
           <TabsTrigger value="financial" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
-            المالية
+            {tr("المالية")}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-            التحليلات
+            {tr("التحليلات")}
           </TabsTrigger>
         </TabsList>
 
@@ -334,8 +335,8 @@ export function AdvancedReportingDashboard() {
             <Card className="erp-card">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-lg">
                 <CardTitle className="flex items-center text-blue-800">
-                  <TrendingUp className="h-5 w-5 ml-2" />
-                  اتجاه المبيعات والمشتريات
+                  <TrendingUp className="h-5 w-5 me-2" />
+                  {tr("اتجاه المبيعات والمشتريات")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
@@ -388,8 +389,8 @@ export function AdvancedReportingDashboard() {
             <Card className="erp-card">
               <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg">
                 <CardTitle className="flex items-center text-purple-800">
-                  <PieChartIcon className="h-5 w-5 ml-2" />
-                  توزيع المبيعات حسب المجموعة
+                  <PieChartIcon className="h-5 w-5 me-2" />
+                  {tr("توزيع المبيعات حسب المجموعة")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
@@ -430,8 +431,8 @@ export function AdvancedReportingDashboard() {
             <Card className="erp-card">
               <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
                 <CardTitle className="flex items-center text-green-800">
-                  <Package className="h-5 w-5 ml-2" />
-                  أفضل المنتجات مبيعاً
+                  <Package className="h-5 w-5 me-2" />
+                  {tr("أفضل المنتجات مبيعاً")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
@@ -447,11 +448,11 @@ export function AdvancedReportingDashboard() {
                         </div>
                         <div>
                           <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-gray-600">{product.sales} قطعة</p>
+                          <p className="text-sm text-gray-600">{product.sales}{tr(" قطعة")}</p>
                         </div>
                       </div>
                       <div className="text-left">
-                        <p className="font-bold text-green-600">{product.revenue.toLocaleString("en-US")} شيكل</p>
+                        <p className="font-bold text-green-600">{product.revenue.toLocaleString("en-US")}{tr(" شيكل")}</p>
                       </div>
                     </div>
                   ))}
@@ -463,8 +464,8 @@ export function AdvancedReportingDashboard() {
             <Card className="erp-card">
               <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-t-lg">
                 <CardTitle className="flex items-center text-orange-800">
-                  <Archive className="h-5 w-5 ml-2" />
-                  حالة المخزون
+                  <Archive className="h-5 w-5 me-2" />
+                  {tr("حالة المخزون")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
@@ -475,7 +476,7 @@ export function AdvancedReportingDashboard() {
                       <div key={index} className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="font-medium">{status.status}</span>
-                          <span className="text-sm text-gray-600">{status.count} صنف</span>
+                          <span className="text-sm text-gray-600">{status.count}{tr(" صنف")}</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
@@ -483,7 +484,7 @@ export function AdvancedReportingDashboard() {
                             style={{ width: `${status.percentage}%` }}
                           />
                         </div>
-                        <div className="text-xs text-gray-500 text-left">{status.percentage}%</div>
+                        <div className="text-xs text-gray-500 text-end">{status.percentage}%</div>
                       </div>
                     )
                   })}
@@ -499,8 +500,8 @@ export function AdvancedReportingDashboard() {
             <Card className="erp-card">
               <CardHeader className="bg-gradient-to-r from-green-50 to-teal-50 rounded-t-lg">
                 <CardTitle className="flex items-center text-green-800">
-                  <BarChart3 className="h-5 w-5 ml-2" />
-                  تحليل المبيعات الشهرية
+                  <BarChart3 className="h-5 w-5 me-2" />
+                  {tr("تحليل المبيعات الشهرية")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
@@ -538,15 +539,15 @@ export function AdvancedReportingDashboard() {
             <Card className="erp-card">
               <CardHeader>
                 <CardTitle className="flex items-center text-blue-800">
-                  <Activity className="h-5 w-5 ml-2" />
-                  أداء المبيعات اليومي
+                  <Activity className="h-5 w-5 me-2" />
+                  {tr("أداء المبيعات اليومي")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8 text-muted-foreground">
                   <Activity className="h-12 w-12 mx-auto mb-4 text-blue-300" />
-                  <p className="text-lg font-medium">تحليل المبيعات اليومية</p>
-                  <p className="text-sm text-gray-500 mt-2">سيتم عرض البيانات التفصيلية هنا</p>
+                  <p className="text-lg font-medium">{tr("تحليل المبيعات اليومية")}</p>
+                  <p className="text-sm text-gray-500 mt-2">{tr("سيتم عرض البيانات التفصيلية هنا")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -558,15 +559,15 @@ export function AdvancedReportingDashboard() {
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center text-purple-800">
-                <ShoppingCart className="h-5 w-5 ml-2" />
-                تقارير المشتريات
+                <ShoppingCart className="h-5 w-5 me-2" />
+                {tr("تقارير المشتريات")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-purple-300" />
-                <p className="text-lg font-medium">تقارير المشتريات المتقدمة</p>
-                <p className="text-sm text-gray-500 mt-2">قريباً - تحليلات شاملة للمشتريات</p>
+                <p className="text-lg font-medium">{tr("تقارير المشتريات المتقدمة")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("قريباً - تحليلات شاملة للمشتريات")}</p>
               </div>
             </CardContent>
           </Card>
@@ -576,15 +577,15 @@ export function AdvancedReportingDashboard() {
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center text-orange-800">
-                <Package className="h-5 w-5 ml-2" />
-                تحليلات المخزون
+                <Package className="h-5 w-5 me-2" />
+                {tr("تحليلات المخزون")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-4 text-orange-300" />
-                <p className="text-lg font-medium">تحليلات المخزون المتقدمة</p>
-                <p className="text-sm text-gray-500 mt-2">قريباً - تقارير شاملة للمخزون</p>
+                <p className="text-lg font-medium">{tr("تحليلات المخزون المتقدمة")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("قريباً - تقارير شاملة للمخزون")}</p>
               </div>
             </CardContent>
           </Card>
@@ -594,15 +595,15 @@ export function AdvancedReportingDashboard() {
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center text-teal-800">
-                <DollarSign className="h-5 w-5 ml-2" />
-                التقارير المالية
+                <DollarSign className="h-5 w-5 me-2" />
+                {tr("التقارير المالية")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <DollarSign className="h-12 w-12 mx-auto mb-4 text-teal-300" />
-                <p className="text-lg font-medium">التقارير المالية المتقدمة</p>
-                <p className="text-sm text-gray-500 mt-2">قريباً - تحليلات مالية شاملة</p>
+                <p className="text-lg font-medium">{tr("التقارير المالية المتقدمة")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("قريباً - تحليلات مالية شاملة")}</p>
               </div>
             </CardContent>
           </Card>
@@ -612,15 +613,15 @@ export function AdvancedReportingDashboard() {
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center text-indigo-800">
-                <BarChart3 className="h-5 w-5 ml-2" />
-                التحليلات المتقدمة
+                <BarChart3 className="h-5 w-5 me-2" />
+                {tr("التحليلات المتقدمة")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <BarChart3 className="h-12 w-12 mx-auto mb-4 text-indigo-300" />
-                <p className="text-lg font-medium">التحليلات والذكاء الاصطناعي</p>
-                <p className="text-sm text-gray-500 mt-2">قريباً - تحليلات ذكية وتوقعات</p>
+                <p className="text-lg font-medium">{tr("التحليلات والذكاء الاصطناعي")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("قريباً - تحليلات ذكية وتوقعات")}</p>
               </div>
             </CardContent>
           </Card>

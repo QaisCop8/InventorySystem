@@ -436,7 +436,7 @@ async function postHandler(request: NextRequest) {
     const posPayments = Array.isArray(data.pos_payments)
       ? data.pos_payments
           .map((payment: any) => ({
-            payment_method: ["cash", "card", "cheque", "account", "gift_card"].includes(String(payment?.payment_method))
+            payment_method: ["cash", "card", "cheque", "account", "gift_card", "aid_voucher"].includes(String(payment?.payment_method))
               ? String(payment.payment_method)
               : "cash",
             amount: Math.round(Number(payment?.amount || 0) * 100) / 100,
@@ -496,7 +496,7 @@ async function postHandler(request: NextRequest) {
               account_id: receiptSettlementAccount && ["cash", "cheque", "card"].includes(payment.payment_method) ? receiptSettlementAccount : payment.account_id,
               amount: payment.amount,
               base_curr_amount: Math.round(payment.amount * Number(data.rate || 1) * 100) / 100,
-              note: ({ cash: "دفعة نقدية", card: "دفعة بطاقة", cheque: "دفعة شيك", account: "دفعة على الحساب", gift_card: "بطاقة هدية" } as Record<string,string>)[payment.payment_method] + " - نقطة البيع",
+              note: ({ cash: "دفعة نقدية", card: "دفعة بطاقة", cheque: "دفعة شيك", account: "دفعة على الحساب", gift_card: "بطاقة هدية", aid_voucher: "قسيمة مساعدة" } as Record<string,string>)[payment.payment_method] + " - نقطة البيع",
             })),
             ...journalRows
               .filter((row: any) => row !== counterRow)

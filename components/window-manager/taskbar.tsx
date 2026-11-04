@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { useWindowManager } from "@/contexts/window-manager-context"
 import {
@@ -45,13 +46,13 @@ export function Taskbar() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 right-4 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2 z-[9999]"
-      dir="rtl"
+      className="fixed bottom-4 end-4 start-4 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2 z-[9999]"
+      dir={appDir()}
     >
       <div className="flex items-center gap-2 overflow-x-auto">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground px-2 whitespace-nowrap border-l border-border pl-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground px-2 whitespace-nowrap border-e border-border pe-3">
           <Layers className="h-4 w-4" />
-          <span className="font-medium">النوافذ المفتوحة ({modalWindows.length})</span>
+          <span className="font-medium">{tr("النوافذ المفتوحة (")}{modalWindows.length})</span>
         </div>
 
         <div className="flex items-center gap-2 flex-1">
@@ -91,7 +92,7 @@ export function Taskbar() {
                     <TooltipContent side="top">
                       <p>{window.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {window.isMinimized ? "مصغرة - انقر للاستعادة" : isActive ? "نافذة نشطة" : "انقر للتفعيل"}
+                        {window.isMinimized ? tr("مصغرة - انقر للاستعادة") : isActive ? tr("نافذة نشطة") : tr("انقر للتفعيل")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -115,7 +116,7 @@ export function Taskbar() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                      <p>{window.isMinimized ? "استعادة النافذة" : "تصغير النافذة"}</p>
+                      <p>{window.isMinimized ? tr("استعادة النافذة") : tr("تصغير النافذة")}</p>
                     </TooltipContent>
                   </Tooltip>
 
@@ -134,7 +135,7 @@ export function Taskbar() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                      <p>إغلاق النافذة</p>
+                      <p>{tr("إغلاق النافذة")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </div>

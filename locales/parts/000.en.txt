@@ -1,0 +1,300 @@
+A server error occurred
+This email is not registered in the system
+Email is required
+Unable to send the email right now — the server mail settings are incomplete or the mail provider rejected the message. Contact your system administrator.{0}
+A verification code has been sent to your email
+Code verified successfully
+Invalid operation type
+User ID is required
+Daily summaries have been sent
+Failed to send daily summaries
+Failed to load notification log
+Customer or order ID is required
+Notification is disabled for this status
+Required data is incomplete
+Customer not found
+Update on your order no. {0}
+Notification sent successfully
+Failed to send notification
+No notification settings are enabled for this customer
+The customer has no phone number
+Notification settings deleted successfully
+Invalid delivery method
+Failed to load notification settings
+Failed to delete notification settings
+Customer ID is required
+Test notification sent successfully
+Failed to send test notification
+Failed to test notification
+Unable to load dashboard data
+No branches available
+An error occurred while sending notifications
+An error occurred while loading the login log
+Unable to connect to the management database: the PostgreSQL username or password in DATABASE_URL is incorrect
+An error occurred while signing in
+An error occurred while signing out
+An error occurred while confirming the email
+Failed to load statistics
+All alerts marked as read
+Failed to update alerts
+Failed to load alerts
+An error occurred while sending the message
+Phone number and message are required
+WhatsApp message sent successfully
+An error occurred while sending the WhatsApp message
+Session expired — please sign in again
+Failed to load dashboard data
+Noon ERP — an integrated business management system
+Create new user
+Order entry - mobile app
+Mobile app for entering sales orders
+Latest notifications sent
+Send a test SMS via Twilio
+Send a test WhatsApp message via Twilio
+Send SMS
+Send WhatsApp
+Send automatic notifications for products that reached their reorder point
+Inventory notifications
+Test sending SMS
+Test sending WhatsApp
+Test reorder notifications
+Test the notification system
+Test sending notifications via SMS and WhatsApp
+Please enter the phone number and message
+Log
+{0} notifications sent successfully!
+Message sent successfully!
+WhatsApp message sent successfully!
+Checking and sending...
+Loading log...
+An error occurred connecting to the server
+Phone number (with country code)
+All inventory products will be checked and notifications sent for products that reached or passed their reorder point.
+Character count:
+Check and send notifications
+Failed to send notifications
+Failed to send the message
+Failed to send the WhatsApp message
+Sending
+No notifications recorded
+Example: +966501234567 (Saudi Arabia)
+Hello! This is a test WhatsApp message from the ERP system
+Hello! This is a test message from the ERP system
+• Choose the right time period for the analysis
+• Use the analytics to make strategic decisions
+• Apply the suggested recommendations and monitor the results
+• Compare analytics across different periods
+1. The system collects data from the database
+2. The data is analyzed using AI (Grok)
+3. Tailored insights and recommendations are generated
+4. You can refresh the analysis at any time for new insights
+Last 30 days
+Last 60 days
+Last 7 days
+Last 90 days
+Press "Generate analysis" to get smart insights and recommendations
+Insights and recommendations
+Customer analysis
+Sales analysis
+Inventory analysis
+Workflow analysis
+Inventory status assessment and improvement recommendations
+Process efficiency and bottleneck assessment
+Generate analysis
+Analyzing...
+Insights and recommendations on sales performance
+AI-powered insights and recommendations
+Understand customer behavior and growth opportunities
+How does smart analysis work?
+Smart analytics dashboard
+Tips to get the most out of it
+Customer management
+User management
+Warehouse management
+Supplier management
+System settings
+Settings
+Search
+Item search
+Customer and supplier search
+Reports
+Permissions
+Branches
+Sales
+Inventory
+Subscribers
+Purchases
+Order confirmation
+Item classifications
+Sales reports
+Inventory reports
+Purchase reports
+Inventory movement
+Sales orders
+Recent sales orders
+Purchase orders
+Quality inspection
+Sales invoices
+Purchase invoices
+Order checklists
+Dashboard
+Item groups
+Sales order drafts
+Sign-in failed
+in the current branch.
+No permission
+You do not have permission to open the screen
+Branch performance today
+Enter username
+Enter your details to manage inventory, orders and accounts from one workspace.
+Enter password
+Hide password
+Connected management, clearer decisions
+Show password
+Secure connection
+Username or email
+Keep me signed in on this device
+Your data is protected and encrypted
+Track inventory, fulfil orders and monitor financial performance in real time across branches.
+Verifying...
+A sign-in error occurred
+Sign in to the system
+Sign in to your account
+Fine-grained permissions for every user and branch
+Completed order
+Active branches
+in one smart dashboard.
+All your company's operations
+Password
+Welcome back
+Forgot your password?
+Sales growth
+Noon — business management system
+Manage your companies
+Security and permissions
+Encrypted connection ·
+Subscriptions and licenses
+Email or username
+Sales this month
+Backup completed
+smartly and securely
+System management portal
+Isolated data for each company
+Remember me on this device
+Verifying…
+Fine-grained sessions and permissions
+Sign in
+Sign in to continue to the management portal
+Multiple companies
+Don't have an account?
+Track the status of every company
+One place to manage your companies, their databases and subscriptions, and open any of them with one click.
+1. Email
+2. Verification code
+3. New password
+At least 6 characters
+Code sent to:
+Re-enter the password
+Send verification code
+Show
+Resend code
+Resend in {0} s
+Recover password
+Email
+Confirm password
+Verify code
+Set a new password
+Change email
+Password changed successfully
+Sending...
+Redirecting you to sign in...
+An error occurred sending the verification code
+An error occurred verifying the code
+A system error occurred
+An error occurred changing the password
+Save password
+Back to sign in
+Verification code
+The verification code is 6 digits
+You will receive a 6-digit verification code at this email (valid for 15 minutes)
+Does not match the new password
+New password
+The password and its confirmation do not match
+The password must be at least 6 characters
+for the account
+Redirecting to sign in...
+Loading the system...
+Unauthorized
+You do not have permission to access this section
+Please wait
+" in the current branch. Contact your system administrator to grant you the permission.
+You do not have the permission "
+Contact your system administrator to grant you the permission.
+You do not have permission to open the {0} screen in the current branch.
+This screen is for the administrator or whoever has the "{0}" permission.
+The balance exceeded the credit limit ({0})
+Current account balance: all non-cancelled vouchers
+You do not have the «Allow viewing the account balance in transactions» permission
+Save the record first to add attachments
+Choose files
+Drag files here or
+Download
+Failed to delete the attachment
+File upload failed: {0}
+File upload failed: {0} — {1}
+No attachments
+— None —
+Mandatory
+Requirement
+Loading cost centers...
+No cost center types are defined
+Default cost center
+Not allowed
+Center type
+The year must be between {0} and {1}
+Open calendar
+Remove image
+Could not read the image
+The image is too large — maximum 2 MB
+View image
+Image preview
+Please choose a valid image file
+/ Required:
+Total allocated:
+Lot number
+The available quantity is not enough to fulfil the full requested quantity
+Available quantity
+Issued quantity
+Warehouse
+Expiry date
+Item expiry dates /
+Allocate quantities to expiry dates, oldest first
+No lots are available for this item
+Length
+Count
+Calculated quantity
+Measurement data
+— any further increase requires a new approval
+Enter the 6-digit activation code
+Send a code to the manager and system administrator, then enter it here
+Resend
+Approve a discount up to
+by email
+Requires a one-time approval from the system manager or administrator for
+Verify and continue
+Unable to send the activation code
+Unable to determine the point of sale/location
+Unable to determine the point of sale/location to send the code
+Unable to complete the request
+Activation code sent to:
+then Enter
+Sending the activation code...
+The activation code is incorrect
+Manager code (PIN)
+The manager code is incorrect
+The manager code is 4 to 8 digits
+Activation code by email
+You do not have permission
+Approve and continue
+Restaurant location
+The manager or administrator types their personal code on this screen now

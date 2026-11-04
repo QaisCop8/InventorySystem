@@ -17,7 +17,7 @@ export type PosReceiptContext = {
   onMessage: (message: { type: "success" | "error"; text: string }) => void
 }
 
-export const paymentLabels: Record<string, string> = { cash: "نقدي", card: "بطاقة", cheque: "شيك", account: "على الحساب", gift_card: "بطاقة هدية" }
+export const paymentLabels: Record<string, string> = { cash: "نقدي", card: "بطاقة", cheque: "شيك", account: "على الحساب", gift_card: "بطاقة هدية", aid_voucher: "قسيمة مساعدة" }
 
 export const isMobilePrintDevice=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)
 const escapeHtml=(value:unknown)=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]||char))

@@ -1,0 +1,300 @@
+Choose one value for the attribute «{0}»
+Items with serial numbers are counted by scanning their numbers
+The count is not in counting status
+The count is approved or cancelled
+Session no. - {0} belongs to {1} — only its owner or someone with the post count permission can do it
+Session no. - {0} is not open
+Session not found
+The session is already cancelled
+Number {0} is counted in session no. - {1}{2} — it can't be cancelled from your session
+Number {0} is already counted on item {1}
+Number {0} is already counted in session no. - {1}{2}
+The line doesn't exist or the item doesn't track serial numbers
+Invalid counted quantity for item {0}
+Session no. - {0} finished
+Unable to create the issue voucher (shortage): {0}
+Unable to create the receipt voucher (surplus): {0}{1}
+Unable to load the count document
+Unable to delete the count document
+The selected voucher book is invalid
+Invalid piece count for item {0}
+There are no finished count sessions for this document
+No differences — the count was posted without adjustment vouchers
+You have no open count session in this document
+An approved count can't be cancelled — cancel its adjustment vouchers first
+Can't edit — the count is not in counting status
+An approved or cancelled count can't be refreshed
+Can't post: {0}{1} — add the lot with its correct size and count again
+The line can't be deleted — it has a counted quantity in session no. - {0}
+An approved count can't be deleted
+No item with the number or barcode {0}
+The user has an open session no. - {0} — finish it first
+Count document not found
+The height must be entered
+The lot number must be entered
+The length must be entered
+The width must be entered
+The expiry date must be entered
+The count must be finished and the differences reviewed before posting
+Only a finished, unapproved count can be reopened
+Only a finished session can be reopened
+Only manually added lines without a book balance can be deleted
+Warehouse not found
+Unable to create the count document
+Unable to load count documents
+The count date must be set
+There is an open count for this branch and warehouse (no. {0}) — finish or cancel it first
+The account set for item - {0} - doesn't exist
+The account set for item - {0} - is inactive
+The requested quantity is greater than the available quantity of item {0}{1}
+The warehouse set for item - {0} - doesn't exist
+The warehouse set for item - {0} - is inactive
+The unit set for item - {0} - doesn't exist
+The unit set for item - {0} - is inactive
+Editing the voucher caused negative quantities for item {0}{1}
+The voucher can't be deleted/cancelled: the quantity of item {0}{1} is already consumed in another voucher
+The supplier classification "{0}" can't be deleted because it is used in {1} supplier cards — you can suspend it instead of deleting it
+The supplier number already exists
+Failed to create the supplier
+Failed to update the supplier
+An error occurred while fetching the settings
+Auto-fix error:
+Error clearing test data:
+Failed to clear test data
+System check error:
+Failed to check the system
+Failed to update the branch
+The branch code and name are required
+Failed to create the branch
+Failed to fetch branches
+Failed to approve the order
+Failed to finish the stage
+The rejection reason is required
+Failed to reject the stage
+Failed to create the order
+Failed to fetch orders
+Failed to edit the item
+Failed to fetch the item
+The title is required
+Failed to create the item
+Failed to add the member
+Failed to delete the member
+Failed to update the department
+Failed to create the department
+Failed to fetch departments
+Unable to load step types
+Unable to save the step type
+Failed to finish the task
+Failed to force close
+Failed to reject the task
+Failed to start the task
+Failed to stop the task
+The transfer reason is required
+Failed to transfer the task
+Workflow not found
+Failed to update the workflow
+Failed to delete the workflow
+Failed to save the workflow steps
+At least one step must be defined
+The workflow name is required
+Failed to create the workflow
+Invalid navigation data
+Invalid transaction type or action
+Unit not found
+Failed to delete the unit
+Failed to fetch the unit
+Invalid unit ID
+The unit name or code already exists
+The unit name is required
+The unit name already exists
+Unit "{0}" is deleted; restore the unit or use another name
+The unit doesn't exist; the unit name is required to create it
+The unit code already exists
+The unit code must not exceed 10 characters
+Failed to create the unit
+This shortcut already exists in favorites
+Unable to load the vouchers archive
+The source user and target user are required
+Can't copy to the same user
+The default book must be one of the selected books
+The user is required
+The user and voucher type are required
+Unable to save the print snapshot
+The invoice data is required
+An error occurred creating the invoice
+An error occurred fetching invoices
+The invoice items are required
+Unknown report
+The file is required
+Unable to send the file
+The file size exceeds the allowed limit (15MB)
+The phone number is required
+Report permissions are not defined
+You do not have permission to send this report via WhatsApp
+Unable to fetch alerts
+Failed to submit the order to the next stage
+Invalid order ID
+Invalid order type
+Failed to update the priority
+There is no workflow status for this order
+Invalid priority level
+Failed to reject the order
+The sequence name and type are required
+Sequence created successfully
+Failed to create the sequence
+Failed to fetch sequences
+Stage created successfully
+Failed to create the stage
+Failed to fetch stages
+An error occurred fetching statistics
+Choose the retained earnings account
+Set the fiscal year
+Invalid request
+asset
+Create
+Choose an approved invoice line to convert it into one or more assets (e.g. 5 devices ← 5 separate assets).
+Credit account (reclassification)
+The line is already recorded on the asset account — no entry will be created
+Capitalized amount
+Capitalization failed
+Change line
+Activate the assets directly
+Cost of each asset ≈ {0}
+Line account
+Capitalize from a purchase invoice
+Invoice number, item or supplier…
+Uncapitalized
+Uncapitalized:
+Line value
+There are no approved invoice lines that can be capitalized
+The purchase invoice structure in this company doesn't support direct capitalization — enter the asset manually with the "purchase invoice" source.
+The amount moves from the invoice line account to the asset account
+→ Last connection: 5 minutes ago
+→ of 10 GB available
+↑ 2 new keys this month
+↑ 99.8% success rate
++ Add webhook
++ Create a new key
++ Block
+⚠️ Recent security alerts
+⚠️ Warning:
+📡 Endpoints
+🔄 Refresh
+🔑 API keys
+🔒 Encryption
+🔷 Customer management
+🚨 Alert:
+🚫 Blocked IP addresses
+🛡️ Protection settings
+🛡️ Security
+ℹ️ Info:
+Token expiry (hours)
+v1 (stable)
+v2 (beta)
+Last run
+Enter an IP address or range (e.g. 192.168.1.0/24)
+Add data (POST)
+New webhook setup
+Settings
+Security settings
+Unblock
+Create webhook
+Create key
+Create a new API key
+Leave empty for a permanent key
+Test
+Choose the environment
+Choose the algorithm
+Choose the authentication type
+Bandwidth usage
+Use of an expired API key: sk_test_expired_123
+Webhook name *
+Key name
+Key name *
+Events
+Monitored events
+Environment *
+Verify request signatures
+Connected applications
+Get a specific customer
+Get the customer list
+Logs
+Secret
+Method
+Path
+Parameters
+Active keys
+Key
+Automatic system
+Access to resources
+Production environment
+Testing environment
+Staging environment
+Development environment
+Block date
+Update data (PUT)
+Update customer data
+Log failed attempts
+Desktop app
+Mobile app
+Web app
+Suspend
+Enable HTTPS only
+Enable IP whitelisting
+Enable rate limiting
+SSL certificate updated successfully
+5 failed authentication attempts were detected from IP: 192.168.50.100
+All versions
+Daily request limit
+Requests per minute limit
+Delete data (DELETE)
+Delete customer
+Save security settings
+External service
+Encryption algorithm
+Authentication header
+Will be generated automatically
+API permissions
+API requests today
+Maximum attempts
+Base API URL:
+IP address
+URL *
+10 minutes ago
+3 days ago
+An hour ago
+Read data (GET)
+Example: inventory update
+Example: mobile app
+Repeated intrusion attempts
+API keys
+Timeout (seconds)
+Suspicious range
+External ERP system
+Available endpoints
+Application type *
+You do not have permission on one of the selected accounts
+Account {0} - {1} is stopped for transactions in {2}{3}
+The entry is not balanced: debit {0} and credit {1}
+Unable to generate the journal voucher number
+Unable to save the journal voucher
+A journal voucher needs at least two lines (debit and credit)
+No currency is defined in the system
+There is no default journal voucher book for this user (voucher book permissions)
+There is no exchange rate defined for the voucher currency on its date
+The AI service was slow to respond — try again, or use a smaller file/clearer image
+The AI service usage limit was exceeded temporarily — try again after {0} seconds
+The AI service usage quota was exceeded — try again later or check the Gemini key quota
+The AI service is under heavy load right now, and it was retried automatically without success — try again in a minute
+No AI model is available
+The selected AI model isn't available for this account — check the GEMINI_MODEL setting on the server
+Unable to save {0}
+There is no default cards account for this currency in the current branch
+There is no default cash account for this currency in the current branch (the user's default accounts)
+There is no default cheques cash account for this currency in the current branch (the user's default accounts)
+There is no default voucher book for {0} for this user (voucher book permissions)
+The total of cash, cheques and card doesn't equal the voucher amount
+The voucher amount must be entered
+{0}: mention the bank account the cheques will be paid from. Available: {1}
+{0}: mention a valid due date
+{0}: mention the cheque amount

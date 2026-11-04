@@ -1,9 +1,10 @@
+import { tr } from "@/lib/i18n"
 import type React from "react"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "إدخال الطلبيات - تطبيق الموبايل",
-  description: "تطبيق موبايل لإدخال طلبيات البيع",
+  title: tr("إدخال الطلبيات - تطبيق الموبايل"),
+  description: tr("تطبيق موبايل لإدخال طلبيات البيع"),
 }
 
 export const viewport = {

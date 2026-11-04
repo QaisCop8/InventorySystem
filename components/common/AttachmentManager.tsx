@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -79,14 +80,14 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
           const response = await fetch("/api/attachments", { method: "POST", body: formData })
           if (!response.ok) {
             const error = await response.json().catch(() => null)
-            toast({ title: "خطأ", description: error?.error || `فشل رفع الملف: ${file.name}`, variant: "destructive" })
+            toast({ title: tr("خطأ"), description: error?.error || tr("فشل رفع الملف: {0}", file.name), variant: "destructive" })
           }
         } catch (error) {
           // خطأ شبكة/استثناء غير متوقَّع أثناء هذا الملف تحديداً — يُعرَض فوراً ويُكمَل رفع بقية
           // الملفات بدل توقف الحلقة بالكامل بصمت (وعد مرفوض غير مُعالَج) دون أي إشعار للمستخدم.
           console.error("Failed to upload attachment", file.name, error)
           const message = error instanceof Error ? error.message : String(error)
-          toast({ title: "خطأ", description: `فشل رفع الملف: ${file.name} — ${message}`, variant: "destructive" })
+          toast({ title: tr("خطأ"), description: tr("فشل رفع الملف: {0} — {1}", file.name, message), variant: "destructive" })
         }
       }
       await fetchAttachments()
@@ -100,7 +101,7 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
       const response = await fetch(`/api/attachments/${attachment.id}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json().catch(() => null)
-        toast({ title: "خطأ", description: error?.error || "فشل حذف المرفق", variant: "destructive" })
+        toast({ title: tr("خطأ"), description: error?.error || tr("فشل حذف المرفق"), variant: "destructive" })
         return
       }
       setAttachments((prev) => prev.filter((a) => a.id !== attachment.id))
@@ -113,7 +114,7 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-10 text-slate-400">
         <Paperclip className="h-6 w-6" />
-        <p className="text-sm">احفظ السجل أولاً لإضافة مرفقات</p>
+        <p className="text-sm">{tr("احفظ السجل أولاً لإضافة مرفقات")}</p>
       </div>
     )
   }
@@ -137,9 +138,9 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
           }}
         >
           {uploading ? <Loader2 className="h-6 w-6 animate-spin text-emerald-600" /> : <UploadCloud className="h-6 w-6 text-slate-400" />}
-          <p className="text-sm text-slate-500">اسحب الملفات هنا أو</p>
+          <p className="text-sm text-slate-500">{tr("اسحب الملفات هنا أو")}</p>
           <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-            اختر ملفات
+            {tr("اختر ملفات")}
           </Button>
           <input
             ref={fileInputRef}
@@ -155,14 +156,14 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
       )}
 
       {loading ? (
-        <p className="py-4 text-center text-sm text-slate-400">جارٍ التحميل...</p>
+        <p className="py-4 text-center text-sm text-slate-400">{tr("جارٍ التحميل...")}</p>
       ) : attachments.length === 0 ? (
-        <p className="py-4 text-center text-sm text-slate-400">لا توجد مرفقات</p>
+        <p className="py-4 text-center text-sm text-slate-400">{tr("لا توجد مرفقات")}</p>
       ) : (
         // ارتفاع أقصى + تمرير عمودي خاص بالقائمة نفسها — بلا هذا كانت المرفقات الإضافية (بعد عدد
         // معيّن) تُقطَع بصمت عند حدود النافذة المنبثقة (compact-product-form.tsx) دون أي شريط
         // تمرير، إذ لا يمكن الاعتماد على أن الحاوية الخارجية تمرّر دوماً بارتفاع كافٍ لعرضها كاملة.
-        <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-64 space-y-2 overflow-y-auto ps-1">
           {attachments.map((attachment) => (
             <div key={attachment.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
@@ -181,7 +182,7 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
                   size="sm"
                   className="h-8 w-8 p-0"
                   onClick={() => window.open(`/api/attachments/${attachment.id}?download=1`, "_blank")}
-                  title="تنزيل"
+                  title={tr("تنزيل")}
                 >
                   <Download className="h-4 w-4" />
                 </Button>
@@ -192,7 +193,7 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
                     size="sm"
                     className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                     onClick={() => handleDelete(attachment)}
-                    title="حذف"
+                    title={tr("حذف")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

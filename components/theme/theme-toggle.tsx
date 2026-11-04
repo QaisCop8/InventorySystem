@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { Moon, Sun, Palette, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -34,42 +35,42 @@ export function ThemeToggle() {
         <Button variant="outline" size="icon">
           <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">تبديل المظهر</span>
+          <span className="sr-only">{tr("تبديل المظهر")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>المظهر</DropdownMenuLabel>
+        <DropdownMenuLabel>{tr("المظهر")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={toggleDarkMode}>
           {settings.dark_mode ? (
             <>
               <Sun className="mr-2 h-4 w-4" />
-              <span>الوضع الفاتح</span>
+              <span>{tr("الوضع الفاتح")}</span>
             </>
           ) : (
             <>
               <Moon className="mr-2 h-4 w-4" />
-              <span>الوضع الداكن</span>
+              <span>{tr("الوضع الداكن")}</span>
             </>
           )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>الألوان السريعة</DropdownMenuLabel>
+        <DropdownMenuLabel>{tr("الألوان السريعة")}</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => changeColorScheme("#059669", "#10b981", "emerald")}>
           <div className="mr-2 h-4 w-4 rounded-full bg-emerald-500" />
-          <span>الزمرد</span>
+          <span>{tr("الزمرد")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => changeColorScheme("#0891b2", "#06b6d4", "blue")}>
           <div className="mr-2 h-4 w-4 rounded-full bg-cyan-500" />
-          <span>الأزرق</span>
+          <span>{tr("الأزرق")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => changeColorScheme("#7c3aed", "#a855f7", "purple")}>
           <div className="mr-2 h-4 w-4 rounded-full bg-purple-500" />
-          <span>البنفسجي</span>
+          <span>{tr("البنفسجي")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => changeColorScheme("#ea580c", "#f97316", "orange")}>
           <div className="mr-2 h-4 w-4 rounded-full bg-orange-500" />
-          <span>البرتقالي</span>
+          <span>{tr("البرتقالي")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -91,10 +92,10 @@ export function QuickThemeToggle() {
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggle} title={dark ? "الوضع الفاتح" : "الوضع الداكن"}
+    <Button variant="ghost" size="icon" onClick={toggle} title={dark ? tr("الوضع الفاتح") : tr("الوضع الداكن")}
       className="h-8 w-8 rounded-full text-slate-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-emerald-300">
       {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-      <span className="sr-only">{dark ? "الوضع الفاتح" : "الوضع الداكن"}</span>
+      <span className="sr-only">{dark ? tr("الوضع الفاتح") : tr("الوضع الداكن")}</span>
     </Button>
   )
 }
@@ -119,9 +120,9 @@ export function ColorSchemeToggle() {
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggleColorScheme} title={`تغيير إلى ${nextScheme.name}`}>
+    <Button variant="ghost" size="icon" onClick={toggleColorScheme} title={tr("تغيير إلى {0}", nextScheme.name)}>
       <Palette className="h-[1.2rem] w-[1.2rem]" style={{ color: settings.primary_color }} />
-      <span className="sr-only">تبديل نظام الألوان</span>
+      <span className="sr-only">{tr("تبديل نظام الألوان")}</span>
     </Button>
   )
 }
@@ -130,7 +131,7 @@ export function ThemeSettingsButton({ onClick }: { onClick?: () => void }) {
   return (
     <Button variant="ghost" size="icon" onClick={onClick}>
       <Settings className="h-[1.2rem] w-[1.2rem]" />
-      <span className="sr-only">إعدادات المظهر</span>
+      <span className="sr-only">{tr("إعدادات المظهر")}</span>
     </Button>
   )
 }

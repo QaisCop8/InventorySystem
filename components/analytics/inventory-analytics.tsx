@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -127,22 +128,22 @@ export function InventoryAnalytics() {
   const getStatusIndicator = (status: string) => {
     switch (status) {
       case "healthy":
-        return <div className="status-indicator healthy">صحي</div>
+        return <div className="status-indicator healthy">{tr("صحي")}</div>
       case "warning":
-        return <div className="status-indicator warning">تحذير</div>
+        return <div className="status-indicator warning">{tr("تحذير")}</div>
       case "critical":
-        return <div className="status-indicator critical">حرج</div>
+        return <div className="status-indicator critical">{tr("حرج")}</div>
       default:
-        return <div className="status-indicator info">عادي</div>
+        return <div className="status-indicator info">{tr("عادي")}</div>
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[600px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[600px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل التحليلات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل التحليلات...")}</p>
         </div>
       </div>
     )
@@ -151,15 +152,15 @@ export function InventoryAnalytics() {
   if (!metrics) return null
 
   return (
-    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 min-h-screen" dir={appDir()}>
       {/* Header */}
       <div className="analytics-header">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <BarChart3 className="h-8 w-8 text-primary" />
-            تحليلات المخزون المتقدمة
+            {tr("تحليلات المخزون المتقدمة")}
           </h1>
-          <p className="text-muted-foreground mt-1">رؤى شاملة وتحليلات تنبؤية للمخزون</p>
+          <p className="text-muted-foreground mt-1">{tr("رؤى شاملة وتحليلات تنبؤية للمخزون")}</p>
         </div>
         <div className="flex items-center gap-4">
           <Select value={timeRange} onValueChange={setTimeRange}>
@@ -167,15 +168,15 @@ export function InventoryAnalytics() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7d">آخر 7 أيام</SelectItem>
-              <SelectItem value="30d">آخر 30 يوم</SelectItem>
-              <SelectItem value="90d">آخر 90 يوم</SelectItem>
-              <SelectItem value="1y">آخر سنة</SelectItem>
+              <SelectItem value="7d">{tr("آخر 7 أيام")}</SelectItem>
+              <SelectItem value="30d">{tr("آخر 30 يوم")}</SelectItem>
+              <SelectItem value="90d">{tr("آخر 90 يوم")}</SelectItem>
+              <SelectItem value="1y">{tr("آخر سنة")}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" className="bg-white border-blue-200 hover:bg-blue-50">
-            <Filter className="h-4 w-4 ml-2" />
-            تصفية
+            <Filter className="h-4 w-4 me-2" />
+            {tr("تصفية")}
           </Button>
         </div>
       </div>
@@ -185,12 +186,12 @@ export function InventoryAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">إجمالي المنتجات</p>
+                <p className="text-sm font-medium text-blue-600">{tr("إجمالي المنتجات")}</p>
                 <p className="text-3xl font-bold text-gray-900">{metrics.totalProducts.toLocaleString("en-US")}</p>
                 <div className="flex items-center gap-1 text-sm">
                   <ArrowUp className="h-4 w-4 text-green-500" />
                   <span className="text-green-500 font-medium">+12%</span>
-                  <span className="text-gray-500">من الشهر الماضي</span>
+                  <span className="text-gray-500">{tr("من الشهر الماضي")}</span>
                 </div>
               </div>
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-full">
@@ -204,12 +205,12 @@ export function InventoryAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">قيمة المخزون</p>
-                <p className="text-3xl font-bold text-gray-900">{metrics.totalValue.toLocaleString("en-US")} ر.س</p>
+                <p className="text-sm font-medium text-green-600">{tr("قيمة المخزون")}</p>
+                <p className="text-3xl font-bold text-gray-900">{metrics.totalValue.toLocaleString("en-US")}{tr(" ر.س")}</p>
                 <div className="flex items-center gap-1 text-sm">
                   <ArrowUp className="h-4 w-4 text-green-500" />
                   <span className="text-green-500 font-medium">+8.5%</span>
-                  <span className="text-gray-500">من الشهر الماضي</span>
+                  <span className="text-gray-500">{tr("من الشهر الماضي")}</span>
                 </div>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-full">
@@ -223,12 +224,12 @@ export function InventoryAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-yellow-600">مخزون منخفض</p>
+                <p className="text-sm font-medium text-yellow-600">{tr("مخزون منخفض")}</p>
                 <p className="text-3xl font-bold text-gray-900">{metrics.lowStockItems}</p>
                 <div className="flex items-center gap-1 text-sm">
                   <ArrowDown className="h-4 w-4 text-red-500" />
                   <span className="text-red-500 font-medium">+3</span>
-                  <span className="text-gray-500">من الأسبوع الماضي</span>
+                  <span className="text-gray-500">{tr("من الأسبوع الماضي")}</span>
                 </div>
               </div>
               <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-3 rounded-full">
@@ -242,12 +243,12 @@ export function InventoryAnalytics() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600">معدل الدوران</p>
+                <p className="text-sm font-medium text-purple-600">{tr("معدل الدوران")}</p>
                 <p className="text-3xl font-bold text-gray-900">{metrics.turnoverRate}x</p>
                 <div className="flex items-center gap-1 text-sm">
                   <ArrowUp className="h-4 w-4 text-green-500" />
                   <span className="text-green-500 font-medium">+0.3</span>
-                  <span className="text-gray-500">من الربع الماضي</span>
+                  <span className="text-gray-500">{tr("من الربع الماضي")}</span>
                 </div>
               </div>
               <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-full">
@@ -261,16 +262,16 @@ export function InventoryAnalytics() {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm border border-blue-200">
           <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            نظرة عامة
+            {tr("نظرة عامة")}
           </TabsTrigger>
           <TabsTrigger value="trends" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            الاتجاهات
+            {tr("الاتجاهات")}
           </TabsTrigger>
           <TabsTrigger value="predictive" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            التحليل التنبؤي
+            {tr("التحليل التنبؤي")}
           </TabsTrigger>
           <TabsTrigger value="performance" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            الأداء
+            {tr("الأداء")}
           </TabsTrigger>
         </TabsList>
 
@@ -280,7 +281,7 @@ export function InventoryAnalytics() {
               <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
-                  مستويات المخزون حسب الفئة
+                  {tr("مستويات المخزون حسب الفئة")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -318,7 +319,7 @@ export function InventoryAnalytics() {
               <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
-                  المنتجات الأكثر حركة
+                  {tr("المنتجات الأكثر حركة")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -334,7 +335,7 @@ export function InventoryAnalytics() {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{product.name}</p>
-                          <p className="text-sm text-green-600 font-medium">{product.movement} حركة</p>
+                          <p className="text-sm text-green-600 font-medium">{product.movement}{tr(" حركة")}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -347,7 +348,7 @@ export function InventoryAnalytics() {
                           variant={product.trend === "up" ? "default" : "destructive"}
                           className={product.trend === "up" ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}
                         >
-                          {product.trend === "up" ? "صاعد" : "هابط"}
+                          {product.trend === "up" ? tr("صاعد") : tr("هابط")}
                         </Badge>
                       </div>
                     </div>
@@ -360,7 +361,7 @@ export function InventoryAnalytics() {
           {/* Category Status Overview */}
           <Card className="analytics-card">
             <CardHeader>
-              <CardTitle>حالة الفئات</CardTitle>
+              <CardTitle>{tr("حالة الفئات")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -372,11 +373,11 @@ export function InventoryAnalytics() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>الحالي:</span>
+                        <span>{tr("الحالي:")}</span>
                         <span className="font-medium">{category.current}%</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>المثالي:</span>
+                        <span>{tr("المثالي:")}</span>
                         <span className="font-medium">{category.optimal}%</span>
                       </div>
                       <div className="w-full bg-muted/30 rounded-full h-2">
@@ -405,7 +406,7 @@ export function InventoryAnalytics() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                الاتجاهات الشهرية
+                {tr("الاتجاهات الشهرية")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -446,15 +447,15 @@ export function InventoryAnalytics() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
-                  تنبيهات إعادة الطلب
+                  {tr("تنبيهات إعادة الطلب")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center">
                   <div className="analytics-metric-warning">{metrics.predictiveAnalytics.reorderAlerts}</div>
-                  <p className="text-muted-foreground">منتج يحتاج إعادة طلب</p>
+                  <p className="text-muted-foreground">{tr("منتج يحتاج إعادة طلب")}</p>
                   <Button className="mt-4" size="sm">
-                    عرض التفاصيل
+                    {tr("عرض التفاصيل")}
                   </Button>
                 </div>
               </CardContent>
@@ -465,7 +466,7 @@ export function InventoryAnalytics() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5 text-primary" />
-                  توقعات الطلب
+                  {tr("توقعات الطلب")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -474,10 +475,10 @@ export function InventoryAnalytics() {
                     <div key={index} className="flex items-center justify-between p-3 bg-muted/10 rounded-lg">
                       <div>
                         <p className="font-medium">{forecast.product}</p>
-                        <p className="text-sm text-muted-foreground">الطلب المتوقع: {forecast.predictedDemand}</p>
+                        <p className="text-sm text-muted-foreground">{tr("الطلب المتوقع: ")}{forecast.predictedDemand}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium">الثقة: {forecast.confidence}%</p>
+                        <p className="text-sm font-medium">{tr("الثقة: ")}{forecast.confidence}%</p>
                         <div className="w-16 bg-muted/30 rounded-full h-2 mt-1">
                           <div className="h-2 rounded-full bg-primary" style={{ width: `${forecast.confidence}%` }} />
                         </div>
@@ -497,7 +498,7 @@ export function InventoryAnalytics() {
               <CardContent className="p-6 text-center">
                 <Clock className="h-12 w-12 text-primary mx-auto mb-4" />
                 <div className="analytics-metric-primary">{metrics.averageDaysToReorder}</div>
-                <p className="text-muted-foreground">متوسط أيام إعادة الطلب</p>
+                <p className="text-muted-foreground">{tr("متوسط أيام إعادة الطلب")}</p>
               </CardContent>
             </Card>
 
@@ -505,7 +506,7 @@ export function InventoryAnalytics() {
               <CardContent className="p-6 text-center">
                 <Activity className="h-12 w-12 text-green-400 mx-auto mb-4" />
                 <div className="analytics-metric-success">{metrics.turnoverRate}x</div>
-                <p className="text-muted-foreground">معدل دوران المخزون</p>
+                <p className="text-muted-foreground">{tr("معدل دوران المخزون")}</p>
               </CardContent>
             </Card>
 
@@ -513,7 +514,7 @@ export function InventoryAnalytics() {
               <CardContent className="p-6 text-center">
                 <Target className="h-12 w-12 text-purple-400 mx-auto mb-4" />
                 <div className="analytics-metric">94.2%</div>
-                <p className="text-muted-foreground">دقة التوقعات</p>
+                <p className="text-muted-foreground">{tr("دقة التوقعات")}</p>
               </CardContent>
             </Card>
           </div>

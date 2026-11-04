@@ -1,3 +1,4 @@
+import { tr } from "@/lib/i18n"
 export interface TaskBranch {
   id: number
   code: string
@@ -284,37 +285,37 @@ export interface AppUser {
 }
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
-  low: "منخفضة",
-  normal: "عادية",
-  high: "عالية",
-  urgent: "عاجلة",
+  low: tr("منخفضة"),
+  normal: tr("عادية"),
+  high: tr("عالية"),
+  urgent: tr("عاجلة"),
 }
 
 export const STEP_TYPE_LABELS: Record<StepType, string> = {
-  normal: "خطوة عادية",
-  audit: "تدقيق",
-  approval: "اعتماد",
-  preparation: "تجهيز",
-  loading: "تحميل",
+  normal: tr("خطوة عادية"),
+  audit: tr("تدقيق"),
+  approval: tr("اعتماد"),
+  preparation: tr("تجهيز"),
+  loading: tr("تحميل"),
 }
 
 export const STEP_STATUS_LABELS: Record<StepInstanceStatus, string> = {
-  pending: "بالانتظار",
-  in_progress: "قيد العمل",
-  paused: "متوقف مؤقتاً",
-  completed: "مكتمل",
-  rejected: "مرفوض",
-  cancelled: "ملغى",
+  pending: tr("بالانتظار"),
+  in_progress: tr("قيد العمل"),
+  paused: tr("متوقف مؤقتاً"),
+  completed: tr("مكتمل"),
+  rejected: tr("مرفوض"),
+  cancelled: tr("ملغى"),
 }
 
 export const ACTION_LABELS: Record<string, string> = {
-  create: "إنشاء",
-  start: "بدء",
-  stop: "إيقاف مؤقت",
-  complete: "إنهاء",
-  force_complete: "إنهاء إجباري (إداري)",
-  reject: "رفض",
-  force_reject: "رفض إجباري (إداري)",
-  transfer: "تحويل إداري",
-  force_close: "إغلاق إجباري للطلبية",
+  create: tr("إنشاء"),
+  start: tr("بدء"),
+  stop: tr("إيقاف مؤقت"),
+  complete: tr("إنهاء"),
+  force_complete: tr("إنهاء إجباري (إداري)"),
+  reject: tr("رفض"),
+  force_reject: tr("رفض إجباري (إداري)"),
+  transfer: tr("تحويل إداري"),
+  force_close: tr("إغلاق إجباري للطلبية"),
 }

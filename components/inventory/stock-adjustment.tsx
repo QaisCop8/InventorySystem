@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { SearchButton } from "@/components/search/search-button"
@@ -68,7 +69,7 @@ export function StockAdjustment() {
     e.preventDefault()
 
     if (!selectedProduct || !adjustmentData.reason.trim()) {
-      showAlert("يرجى ملء جميع الحقول المطلوبة")
+      showAlert(tr("يرجى ملء جميع الحقول المطلوبة"))
       return
     }
 
@@ -89,23 +90,23 @@ export function StockAdjustment() {
         setSelectedProduct(null)
         setAdjustmentData({ newQuantity: 0, reason: "" })
         fetchProducts()
-        showAlert("تم تعديل المخزون بنجاح")
+        showAlert(tr("تم تعديل المخزون بنجاح"))
       } else {
-        throw new Error("فشل في تعديل المخزون")
+        throw new Error(tr("فشل في تعديل المخزون"))
       }
     } catch (error) {
       console.error("Error adjusting stock:", error)
-      showAlert("حدث خطأ في تعديل المخزون")
+      showAlert(tr("حدث خطأ في تعديل المخزون"))
     }
   }
 
   const getStockStatusBadge = (status: string, currentStock: number, reorderLevel: number) => {
     if (currentStock === 0) {
-      return <Badge className="bg-red-100 text-red-800">نفد المخزون</Badge>
+      return <Badge className="bg-red-100 text-red-800">{tr("نفد المخزون")}</Badge>
     } else if (currentStock <= reorderLevel) {
-      return <Badge className="bg-yellow-100 text-yellow-800">مخزون منخفض</Badge>
+      return <Badge className="bg-yellow-100 text-yellow-800">{tr("مخزون منخفض")}</Badge>
     } else {
-      return <Badge className="bg-green-100 text-green-800">متوفر</Badge>
+      return <Badge className="bg-green-100 text-green-800">{tr("متوفر")}</Badge>
     }
   }
 
@@ -151,9 +152,9 @@ export function StockAdjustment() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">تعديل المخزون</h2>
+          <h2 className="text-2xl font-bold">{tr("تعديل المخزون")}</h2>
           <Badge variant="outline" className="text-xs mt-1">
-            F2: بحث سريع عن صنف
+            {tr("F2: بحث سريع عن صنف")}
           </Badge>
         </div>
         <SearchButton type="products" onSelect={handleProductSelect} variant="outline" data-search-type="products" />
@@ -161,20 +162,20 @@ export function StockAdjustment() {
 
       <Card>
         <CardHeader>
-          <CardTitle>قائمة المنتجات</CardTitle>
+          <CardTitle>{tr("قائمة المنتجات")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-right p-4 font-semibold">كود المنتج</th>
-                  <th className="text-right p-4 font-semibold">اسم المنتج</th>
-                  <th className="text-right p-4 font-semibold">الوحدة</th>
-                  <th className="text-right p-4 font-semibold">المخزون الحالي</th>
-                  <th className="text-right p-4 font-semibold">الحد الأدنى</th>
-                  <th className="text-right p-4 font-semibold">حالة المخزون</th>
-                  <th className="text-right p-4 font-semibold">الإجراءات</th>
+                  <th className="text-right p-4 font-semibold">{tr("كود المنتج")}</th>
+                  <th className="text-right p-4 font-semibold">{tr("اسم المنتج")}</th>
+                  <th className="text-right p-4 font-semibold">{tr("الوحدة")}</th>
+                  <th className="text-right p-4 font-semibold">{tr("المخزون الحالي")}</th>
+                  <th className="text-right p-4 font-semibold">{tr("الحد الأدنى")}</th>
+                  <th className="text-right p-4 font-semibold">{tr("حالة المخزون")}</th>
+                  <th className="text-right p-4 font-semibold">{tr("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,7 +199,7 @@ export function StockAdjustment() {
                     <td className="p-4">
                       <Button size="sm" variant="outline" onClick={() => handleAdjustStock(product)}>
                         <Settings className="ml-2 h-4 w-4" />
-                        تعديل
+                        {tr("تعديل")}
                       </Button>
                     </td>
                   </tr>
@@ -212,21 +213,21 @@ export function StockAdjustment() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>تعديل مخزون المنتج</DialogTitle>
+            <DialogTitle>{tr("تعديل مخزون المنتج")}</DialogTitle>
           </DialogHeader>
 
           {selectedProduct && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium">{selectedProduct.product_name}</h4>
-                <p className="text-sm text-gray-600">كود المنتج: {selectedProduct.product_code}</p>
+                <p className="text-sm text-gray-600">{tr("كود المنتج: ")}{selectedProduct.product_code}</p>
                 <p className="text-sm text-gray-600">
-                  المخزون الحالي: {selectedProduct.current_stock?.toLocaleString("en-US") || 0} {selectedProduct.main_unit}
+                  {tr("المخزون الحالي: ")}{selectedProduct.current_stock?.toLocaleString("en-US") || 0} {selectedProduct.main_unit}
                 </p>
               </div>
 
               <div>
-                <Label htmlFor="newQuantity">الكمية الجديدة *</Label>
+                <Label htmlFor="newQuantity">{tr("الكمية الجديدة *")}</Label>
                 <Input
                   id="newQuantity"
                   type="number"
@@ -241,27 +242,27 @@ export function StockAdjustment() {
                   required
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  التغيير: {(adjustmentData.newQuantity - (selectedProduct.current_stock || 0)).toLocaleString("en-US")}
+                  {tr("التغيير: ")}{(adjustmentData.newQuantity - (selectedProduct.current_stock || 0)).toLocaleString("en-US")}
                 </p>
               </div>
 
               <div>
-                <Label htmlFor="reason">سبب التعديل *</Label>
+                <Label htmlFor="reason">{tr("سبب التعديل *")}</Label>
                 <Textarea
                   id="reason"
                   value={adjustmentData.reason}
                   onChange={(e) => setAdjustmentData((prev) => ({ ...prev, reason: e.target.value }))}
                   rows={3}
-                  placeholder="أدخل سبب تعديل المخزون..."
+                  placeholder={tr("أدخل سبب تعديل المخزون...")}
                   required
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
-                <Button type="submit">تأكيد التعديل</Button>
+                <Button type="submit">{tr("تأكيد التعديل")}</Button>
               </div>
             </form>
           )}

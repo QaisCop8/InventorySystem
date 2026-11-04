@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { SECTION_TITLES } from "@/components/sidebar"
 import { formatStoredUtcDateTimeInHebron } from "@/lib/date-utils"
@@ -34,7 +35,7 @@ const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf
 const readAttachment = (file: File) => new Promise<Attachment>((resolve, reject) => {
   const reader = new FileReader()
   reader.onload = () => resolve({ name: file.name, data: String(reader.result || "") })
-  reader.onerror = () => reject(new Error(`تعذرت قراءة ${file.name}`))
+  reader.onerror = () => reject(new Error(tr("تعذرت قراءة {0}", file.name)))
   reader.readAsDataURL(file)
 })
 
@@ -62,9 +63,9 @@ export default function FeatureRequests() {
     try {
       const response = await fetch("/api/feature-requests", { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل الرسائل")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل الرسائل"))
       setRows(Array.isArray(data) ? data : [])
-    } catch (e: any) { show("error", e.message || "تعذر تحميل الرسائل") }
+    } catch (e: any) { show("error", e.message || tr("تعذر تحميل الرسائل")) }
     finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
@@ -72,25 +73,25 @@ export default function FeatureRequests() {
   const onFiles = async (selected: FileList | null) => {
     if (!selected?.length) return
     const chosen = Array.from(selected)
-    if (files.length + chosen.length > 8) { show("error", "الحد الأقصى 8 مرفقات"); return }
+    if (files.length + chosen.length > 8) { show("error", tr("الحد الأقصى 8 مرفقات")); return }
     if (chosen.some((file) => file.size > 5 * 1024 * 1024 || !ALLOWED_TYPES.includes(file.type))) {
-      show("error", "المسموح صور PNG/JPG/WebP أو PDF، بحد أقصى 5MB للملف"); return
+      show("error", tr("المسموح صور PNG/JPG/WebP أو PDF، بحد أقصى 5MB للملف")); return
     }
     try { const loaded = await Promise.all(chosen.map(readAttachment)); setFiles((current) => [...current, ...loaded]) }
-    catch (e: any) { show("error", e.message || "تعذرت قراءة المرفقات") }
+    catch (e: any) { show("error", e.message || tr("تعذرت قراءة المرفقات")) }
   }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!type || !screen || details.trim().length < 5) { show("error", "أكمل النوع والشاشة والتفاصيل"); return }
+    if (!type || !screen || details.trim().length < 5) { show("error", tr("أكمل النوع والشاشة والتفاصيل")); return }
     setSaving(true)
     try {
       const response = await fetch("/api/feature-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_type: type, screen_name: screens.find((item) => item.value === screen)?.label || screen, details, attachments: files }) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر إرسال الرسالة")
+      if (!response.ok) throw new Error(data.error || tr("تعذر إرسال الرسالة"))
       setRows((current) => [data, ...current]); setType(""); setScreen(""); setDetails(""); setFiles([])
-      show("success", "تمت العملية بنجاح — تم إرسال رسالتك")
-    } catch (e: any) { show("error", e.message || "تعذر إرسال الرسالة") }
+      show("success", tr("تمت العملية بنجاح — تم إرسال رسالتك"))
+    } catch (e: any) { show("error", e.message || tr("تعذر إرسال الرسالة")) }
     finally { setSaving(false) }
   }
 
@@ -104,22 +105,22 @@ export default function FeatureRequests() {
   const doneCount = rows.filter((row) => row.status === "تمت" || row.status === "تمت باصدار سابق").length
 
   return (
-    <div dir="rtl" className="w-full space-y-4 p-4">
+    <div dir={appDir()} className="w-full space-y-4 p-4">
       <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
-        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 start-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Lightbulb /></div>
             <div>
-              <p className="text-xs font-semibold text-emerald-50/90">أدوات</p>
-              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">بريد الرسائل والتحسينات</h1>
-              <p className="mt-1 text-sm text-emerald-50/85">أرسل مشكلة أو تعديلاً أو فكرة تطوير، وتابع حالة طلبات قاعدة بياناتك</p>
+              <p className="text-xs font-semibold text-emerald-50/90">{tr("أدوات")}</p>
+              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">{tr("بريد الرسائل والتحسينات")}</h1>
+              <p className="mt-1 text-sm text-emerald-50/85">{tr("أرسل مشكلة أو تعديلاً أو فكرة تطوير، وتابع حالة طلبات قاعدة بياناتك")}</p>
             </div>
           </div>
           <div className="flex gap-2 text-center text-xs">
-            {[{ label: "كل الطلبات", value: rows.length }, { label: "قيد المتابعة", value: openCount }, { label: "تمت", value: doneCount }].map((stat) => (
+            {[{ label: tr("كل الطلبات"), value: rows.length }, { label: tr("قيد المتابعة"), value: openCount }, { label: tr("تمت"), value: doneCount }].map((stat) => (
               <div key={stat.label} className="min-w-20 rounded-xl bg-white/15 px-3 py-2 text-white ring-1 ring-white/20 backdrop-blur">
                 <div className="text-lg font-black">{stat.value}</div>{stat.label}
               </div>
@@ -132,10 +133,10 @@ export default function FeatureRequests() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
         <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-background p-4 shadow-sm xl:sticky xl:top-4">
-          <h2 className="flex items-center gap-2 text-sm font-bold"><FilePlus2 className="h-4 w-4 text-emerald-600" />رسالة جديدة</h2>
+          <h2 className="flex items-center gap-2 text-sm font-bold"><FilePlus2 className="h-4 w-4 text-emerald-600" />{tr("رسالة جديدة")}</h2>
 
           <div className="grid gap-1.5">
-            <Label>النوع *</Label>
+            <Label>{tr("النوع *")}</Label>
             <div className="grid grid-cols-3 gap-2">
               {TYPES.map((item) => {
                 const active = type === item.value
@@ -150,52 +151,52 @@ export default function FeatureRequests() {
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="request-screen">الشاشة *</Label>
+            <Label htmlFor="request-screen">{tr("الشاشة *")}</Label>
             <div className="relative">
-              <Monitor className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <select id="request-screen" value={screen} onChange={(e) => setScreen(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background pr-9 pl-3 text-sm">
-                <option value="">اختر الشاشة</option>
+              <Monitor className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <select id="request-screen" value={screen} onChange={(e) => setScreen(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background ps-9 pe-3 text-sm">
+                <option value="">{tr("اختر الشاشة")}</option>
                 {screens.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </div>
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="request-details">التفاصيل *</Label>
-            <Textarea id="request-details" value={details} onChange={(e) => setDetails(e.target.value)} rows={7} maxLength={10000} placeholder="اشرح المشكلة أو التعديل أو التطوير المطلوب، وخطوات الوصول إليه إن أمكن..." />
+            <Label htmlFor="request-details">{tr("التفاصيل *")}</Label>
+            <Textarea id="request-details" value={details} onChange={(e) => setDetails(e.target.value)} rows={7} maxLength={10000} placeholder={tr("اشرح المشكلة أو التعديل أو التطوير المطلوب، وخطوات الوصول إليه إن أمكن...")} />
             <span className="text-left text-[11px] text-muted-foreground" dir="ltr">{details.length} / 10000</span>
           </div>
 
           <div className="grid gap-1.5">
-            <Label>المرفقات <span className="text-xs font-normal text-muted-foreground">(صور أو PDF — حتى 8، 5MB للملف)</span></Label>
+            <Label>{tr("المرفقات ")}<span className="text-xs font-normal text-muted-foreground">{tr("(صور أو PDF — حتى 8، 5MB للملف)")}</span></Label>
             <input ref={fileInputRef} type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={(e) => { void onFiles(e.target.files); e.currentTarget.value = "" }} />
             <button type="button" onClick={() => fileInputRef.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void onFiles(e.dataTransfer.files) }}
               className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/50 px-4 py-5 text-sm text-emerald-800 transition hover:bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
-              <Paperclip className="h-5 w-5" />اضغط لاختيار الملفات أو اسحبها هنا
+              <Paperclip className="h-5 w-5" />{tr("اضغط لاختيار الملفات أو اسحبها هنا")}
             </button>
             {files.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {files.map((file, index) => (
                   <span key={`${file.name}-${index}`} className="flex max-w-full items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-xs">
                     <Paperclip className="h-3 w-3 shrink-0" /><span className="truncate">{file.name}</span>
-                    <button type="button" className="text-red-600 hover:text-red-700" aria-label={`إزالة ${file.name}`} onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}><X className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="text-red-600 hover:text-red-700" aria-label={tr("إزالة {0}", file.name)} onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}><X className="h-3.5 w-3.5" /></button>
                   </span>
                 ))}
               </div>
             )}
           </div>
 
-          <Button type="submit" disabled={saving} className="h-11 w-full gap-2">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}إرسال</Button>
+          <Button type="submit" disabled={saving} className="h-11 w-full gap-2">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{tr("إرسال")}</Button>
         </form>
 
         <section className="space-y-3">
           <div className="flex flex-col gap-3 rounded-2xl border bg-background p-3 shadow-sm lg:flex-row lg:items-center">
-            <h2 className="flex shrink-0 items-center gap-2 text-sm font-bold"><Inbox className="h-4 w-4 text-emerald-600" />الرسائل والطلبات السابقة</h2>
+            <h2 className="flex shrink-0 items-center gap-2 text-sm font-bold"><Inbox className="h-4 w-4 text-emerald-600" />{tr("الرسائل والطلبات السابقة")}</h2>
             <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="pr-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث في التفاصيل أو الشاشة أو المرسل..." />
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="pr-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث في التفاصيل أو الشاشة أو المرسل...")} />
             </div>
-            <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
+            <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
           </div>
 
           {statuses.length > 1 && (
@@ -203,7 +204,7 @@ export default function FeatureRequests() {
               {["", ...statuses].map((status) => (
                 <button key={status || "all"} type="button" onClick={() => setStatusFilter(status)}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${statusFilter === status ? "border-emerald-600 bg-emerald-600 text-white" : "bg-background text-muted-foreground hover:bg-muted"}`}>
-                  {status || "الكل"} <span className="opacity-70">({status ? rows.filter((row) => row.status === status).length : rows.length})</span>
+                  {status || tr("الكل")} <span className="opacity-70">({status ? rows.filter((row) => row.status === status).length : rows.length})</span>
                 </button>
               ))}
             </div>
@@ -213,7 +214,7 @@ export default function FeatureRequests() {
             <div className="flex justify-center rounded-2xl border bg-background p-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : visible.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed bg-background p-10 text-center text-sm text-muted-foreground">
-              <Inbox className="mx-auto mb-2 h-10 w-10 text-emerald-500" />{rows.length ? "لا توجد نتائج مطابقة" : "لا توجد رسائل لهذه القاعدة حتى الآن."}
+              <Inbox className="mx-auto mb-2 h-10 w-10 text-emerald-500" />{rows.length ? tr("لا توجد نتائج مطابقة") : tr("لا توجد رسائل لهذه القاعدة حتى الآن.")}
             </div>
           ) : (
             <div className="grid gap-3 2xl:grid-cols-2">

@@ -1,0 +1,300 @@
+Salesman name *
+The classification type name is required
+Add a new line
+Financial and tax information
+Search for {0}
+Basic {0} data — fields marked * are mandatory
+Salesman data
+Stop date
+Classification
+Cost center {0} linked
+Classification type added successfully
+Cost center type added successfully
+Credit limit
+Parent account (main account)
+Default voucher books
+Voucher book
+{0} number *
+Salesman number *
+Payment terms
+{0} image
+Collection commission %
+Sales commission %
+Failed to save the classification
+Failed to save the classification type
+Failed to save the cost center type
+No default voucher books. Add a new line to start.
+Choose the license type
+Driver name *
+Edit driver data
+License type *
+Printer name in Windows — the group's items are printed on it at the point of sale
+Printer
+No parent group
+Confirm group deletion
+Edit item group
+Add unit
+Choose the item unit then press OK or double-click it
+Selected unit:
+No units for this item
+No unit selected
+Below minimum
+Inventory details by warehouse
+-- Choose the customer --
+F2: customer search
+F3: item search
+Order saved successfully{0}
+The order was saved but the workflow steps weren't opened — make sure a matching workflow exists for these items in the departments and workflow screen
+The order was saved, but the workflow steps couldn't be opened for some items
+Save order
+Quick sales order
+The quantity must be entered for the item
+Zero balances
+Choose at least one account
+Balances up to
+Closing balance
+Unable to load the balances report
+Unable to load the report options
+Accounting reports
+Account balances at a date report
+Receivable balances at a date report
+All accounts
+All available branches
+Balance behaviour
+Show accounting account balances up to a specific date
+Show customer and supplier balances up to a specific date
+Show results
+All balances
+No balances
+. Search by number or name for more.
+· Discount
+· Price
+· Quantity
+% · Total
+Show counter accounts
+Show returned only
+Show previous balance
+Show cheque details
+Show invoice details
+Show transaction currency
+Show not yet due only
+Deselect
+Search the results...
+Choose the accounts
+Receivable name
+Show the first
+Action
+Selected accounts
+Selected receivables
+Previous balance
+Previous balance for the period
+Salesmen
+Search by number or name
+Not due
+The start date must be before the end date
+{0} selected
+Account transactions
+transactions within the selected period
+accounts
+Other options
+Display options
+Receivable
+Cheque #
+Show entries, transactions and running balances of accounting accounts
+Change the period or accounts then show the results
+No transactions to show
+to show its transactions
+Track customer and supplier transactions, balances and cheques from one screen
+Draft only
+Approved only
+Lot number transactions archive
+Total lots
+Total quantity:
+Damaged lots
+Active lots
+Total value
+Total value:
+General summary
+Percentage
+Recent transactions analysis
+Validity status details
+Breakdown by product
+Lot transaction reports
+Comprehensive reports and detailed statistics of lot transactions
+Validity report
+Lot transactions report
+Lot status distribution
+Validity status distribution
+All products
+Lot transactions
+Last month's transactions
+Number of transactions:
+Number of lots
+Failed to export the report
+Item total
+Cashier name
+Item details of each transaction and invoice
+Cashier transactions summary report
+Cashier transactions detailed report
+Cashier tracking report
+All shifts
+Open invoice
+All transaction types
+All cashiers
+All payment methods
+All points of sale
+Track all cashier transactions
+Summary of cashier transactions at operation level
+Show returned cheques
+Total (
+Grouping
+Report on the period's cheques only
+Expected balance at the end of the period
+Outgoing cheques
+Outgoing cheques ({0})
+Incoming cheques
+Incoming cheques ({0})
+Incoming and outgoing
+Cheque reports
+Cheques summary report
+Cheques detailed report
+Period net
+All currencies (in the base currency)
+All bank accounts
+Each outstanding cheque on a line by due date with the running balance after the bank balance
+No outstanding cheques for the selected period and filters
+Totals of incoming and outgoing cheques by due date, daily or monthly, with the running balance
+Cheque type
+0 = unspecified
+Total
+Total assets
+Total liabilities and equity
+Total expenses
+Show account details
+Show cost center details
+Choose the filters then press show results
+Choose one or more accounts
+Choose one or more centers
+Choose the cost center type
+Total (debit − credit)
+Accounts{0}
+Difference (profit/loss of the unclosed period)
+Saved and posted
+Approved only
+At
+Search in the results...
+Analysis of transactions charged to cost centers
+Cost center reports
+All centers of the type
+Voucher status
+Up to {0}
+Net profit / (loss)
+Show transactions with the cost centers charged to them
+All accounts
+No types defined
+No matching data
+No cost centers defined yet — define cost center types and centers and charge them to transactions so they appear in these reports.
+Grouped by cost center
+Cost centers{0}
+Account level
+Cost center level
+From {0} to {1}
+At least one cost center must be chosen
+{0} invoices/returns
+Delivery items and their remainder
+Sales, purchase and consignment deliveries and their invoicing status
+Choose the delivery
+Choose the delivery then press show results
+Internal deliveries between warehouses
+Delivery:
+Please choose the delivery number
+Invoices issued from a consignment delivery
+Invoices and returns issued from a consignment delivery and their remainder
+Salesman:
+To date
+To warehouse
+Enabling it shows the details of each invoice below it
+Delivery reports
+Deliveries report
+Internal deliveries report
+All items
+Delivery status
+Discount {0}%
+Delivery number *
+When more than one item is selected, deliveries containing all the selected items are shown
+Not invoiced
+No consignment deliveries
+No matching vouchers
+There are no invoices for this delivery
+Invoiced
+Fully invoiced
+Partially invoiced
+From {0} to {1} · {2} vouchers
+Delivery type
+Item balances by expiry date
+Show balances without an expiry date for the selected items
+Show balances without expiry
+Search by item, lot number or warehouse...
+Balances by expiry up to
+Days remaining
+Expiry to
+Expiry from
+No expiry
+Group by item
+Unable to read the server response ({0})
+Each item's balance split across expiry dates and lot numbers in each warehouse, with the days remaining
+Valid
+Valid ({0} lots)
+item ·
+Near expiry ({0} lots)
+Near expiry within (days)
+No matching balances
+Expired ({0} lots)
+Expired {0} days ago
+Expires today
+Voucher types
+Show counter account
+Choose the filters then press show report
+Opening balances, debit and credit movements and the closing balance for each account
+Counter account
+Current credit balance
+Current debit balance
+Search within the results...
+Statement item
+Analysis of revenue, expenses and the net result of the financial period
+Details of all accounting lines with the counter account, currency and branch
+Inventory valuation
+All voucher types
+Up to level
+Previous credit balance
+Previous debit balance
+Show assets and liabilities by the items defined in the chart of accounts
+Show report
+No results to show
+Movements total
+Credit movements total
+Debit movements total
+Review vouchers, their values, posting status and linked accounts
+results
+Unable to load the filters
+All branches
+(first 200 — narrow the search)
+Search by voucher number or customer name/number — Enter or double-click to choose
+Sales and returns
+Search sales invoice / return
+Voucher number or customer...
+Sales
+Sales returns
+Inventory balances at a date
+Total balance
+Total out
+Total in
+Show zero balances
+Search within the results...
+Search items
+Unable to load item balances
+Item number/name
+Show item balances and inventory movements up to the selected date
+Open the item definition in a new tab
+Item balances results
+Double-click to open the item card in a new tab

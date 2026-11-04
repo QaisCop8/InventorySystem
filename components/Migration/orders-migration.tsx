@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import React, { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
@@ -110,7 +111,7 @@ export function OrderMigrate() {
         showErrors.current = false;
 
         const selectedOrders = data.filter(d => d.selected);
-        if (selectedOrders.length === 0) return void showAlert("اختر طلبية واحدة على الأقل");
+        if (selectedOrders.length === 0) return void showAlert(tr("اختر طلبية واحدة على الأقل"));
         setLoading(true)
         try {
             const res = await fetch("/api/migration/post-orders", {
@@ -139,19 +140,19 @@ export function OrderMigrate() {
 
                 if (failedOrders.length > 0) {
                     if (successOrders.length > 0)
-                        showAlert(`تم ترحيل بعض الطلبيات بنجاح، والبعض فشل. تحقق من عمود الخطأ.`);
+                        showAlert(tr("تم ترحيل بعض الطلبيات بنجاح، والبعض فشل. تحقق من عمود الخطأ."));
                     else
-                        showAlert(`فشل ترحيل جميع الطلبيات. تحقق من عمود الخطأ.`);
+                        showAlert(tr("فشل ترحيل جميع الطلبيات. تحقق من عمود الخطأ."));
                     showErrors.current = true;
                 } else {
-                    showAlert(`تم ترحيل جميع الطلبيات بنجاح`);
+                    showAlert(tr("تم ترحيل جميع الطلبيات بنجاح"));
                 }
             } else {
-                showAlert(result.error || "فشل الترحيل");
+                showAlert(result.error || tr("فشل الترحيل"));
             }
         } catch (err) {
             console.error(err);
-            showAlert("حدث خطأ أثناء الترحيل");
+            showAlert(tr("حدث خطأ أثناء الترحيل"));
         }
         finally {
             setLoading(false)
@@ -172,14 +173,14 @@ export function OrderMigrate() {
         columns: [
             { header: "#", name: "ser", width: 50, visible: true, isReadOnly: true },
             { header: "✔", name: "selected", width: 60, isCheckbox: true },
-            { header: "رقم الطلبية", name: "order_number", width: 150, isReadOnly: true },
-            { header: "تاريخ الطلبية", name: "order_date", width: 150, isReadOnly: true },
-            { header: "نوع الطلبية", name: "order_type", width: 140, isReadOnly: true },
-            { header: "المبلغ", name: "total_amount", width: 120, isReadOnly: true },
-            { header: "حالة التسليم", name: "order_status2", width: 140, isReadOnly: true },
-            { header: "رقم العميل", name: "customer_code", width: 120, isReadOnly: true },
-            { header: "اسم العميل", name: "customer_name", width: "*", isReadOnly: true },
-            { header: "الخطأ", name: "error", width: 250, isReadOnly: true, visible: showErrors.current },
+            { header: tr("رقم الطلبية"), name: "order_number", width: 150, isReadOnly: true },
+            { header: tr("تاريخ الطلبية"), name: "order_date", width: 150, isReadOnly: true },
+            { header: tr("نوع الطلبية"), name: "order_type", width: 140, isReadOnly: true },
+            { header: tr("المبلغ"), name: "total_amount", width: 120, isReadOnly: true },
+            { header: tr("حالة التسليم"), name: "order_status2", width: 140, isReadOnly: true },
+            { header: tr("رقم العميل"), name: "customer_code", width: 120, isReadOnly: true },
+            { header: tr("اسم العميل"), name: "customer_name", width: "*", isReadOnly: true },
+            { header: tr("الخطأ"), name: "error", width: 250, isReadOnly: true, visible: showErrors.current },
 
         ],
     })
@@ -187,8 +188,8 @@ export function OrderMigrate() {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                    <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
-                    <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى هذه الصفحة</p>
+                    <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("لا يوجد صلاحية")}</h2>
+                    <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى هذه الصفحة")}</p>
                 </div>
             </div>
         )
@@ -199,7 +200,7 @@ export function OrderMigrate() {
             <ProgressSpinner loading={loading} />
             <Card>
                 <CardHeader>
-                    <CardTitle>ترحيل الطلبيات</CardTitle>
+                    <CardTitle>{tr("ترحيل الطلبيات")}</CardTitle>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
@@ -207,7 +208,7 @@ export function OrderMigrate() {
                     <div className="flex flex-wrap gap-4 items-end">
                         {/* رقم الطلبية */}
                         <div className="flex flex-col min-w-[200px]">
-                            <label className="text-sm mb-1">رقم الطلبية</label>
+                            <label className="text-sm mb-1">{tr("رقم الطلبية")}</label>
                             <Input
                                 value={filters.order_number}
                                 onChange={(e) =>
@@ -218,7 +219,7 @@ export function OrderMigrate() {
 
                         {/* من تاريخ */}
                         <div className="flex flex-col min-w-[160px]">
-                            <label className="text-sm mb-1">من تاريخ</label>
+                            <label className="text-sm mb-1">{tr("من تاريخ")}</label>
                             <Input
                                 type="date"
                                 value={filters.from_date}
@@ -230,7 +231,7 @@ export function OrderMigrate() {
 
                         {/* إلى تاريخ */}
                         <div className="flex flex-col min-w-[160px]">
-                            <label className="text-sm mb-1">إلى تاريخ</label>
+                            <label className="text-sm mb-1">{tr("إلى تاريخ")}</label>
                             <Input
                                 type="date"
                                 value={filters.to_date}
@@ -242,7 +243,7 @@ export function OrderMigrate() {
 
                         {/* نوع الطلبية */}
                         <div className="flex flex-col min-w-[160px]">
-                            <label className="text-sm mb-1">نوع الطلبية</label>
+                            <label className="text-sm mb-1">{tr("نوع الطلبية")}</label>
                             <select
                                 value={filters.order_type}
                                 onChange={(e) => {
@@ -252,14 +253,14 @@ export function OrderMigrate() {
                                 }}
                                 className="h-11 border rounded px-2"
                             >
-                                <option value="all">الكل</option>
-                                <option value="sales">طلبية مبيعات</option>
-                                <option value="purchase">طلبية مشتريات</option>
+                                <option value="all">{tr("الكل")}</option>
+                                <option value="sales">{tr("طلبية مبيعات")}</option>
+                                <option value="purchase">{tr("طلبية مشتريات")}</option>
                             </select>
                         </div>
 
                         <Button onClick={fetchOrders} className="h-11">
-                            بحث
+                            {tr("بحث")}
                         </Button>
                     </div>
 
@@ -268,13 +269,13 @@ export function OrderMigrate() {
 
                         <div className="flex gap-2">
                             <Button className="px-4 py-1 bg-green-500 text-white rounded" variant="secondary" onClick={selectAll}>
-                                تحديد الكل
+                                {tr("تحديد الكل")}
                             </Button>
                             <Button className="px-4 py-1 bg-red-500 text-white rounded" variant="secondary" onClick={unselectAll}>
-                                إلغاء تحديد الكل
+                                {tr("إلغاء تحديد الكل")}
                             </Button>
                             <Button className="px-4 py-1 bg-blue-500 text-white rounded" variant="secondary" onClick={invertSelection}>
-                                عكس التحديد
+                                {tr("عكس التحديد")}
                             </Button>
                         </div>
 
@@ -285,7 +286,7 @@ export function OrderMigrate() {
                                 className="flex items-center gap-4 px-114 py-1 bg-green-700 text-white rounded"
                             >
                                 <Upload className="w-4 h-4" /> {/* الأيقونة */}
-                                ترحيل
+                                {tr("ترحيل")}
                             </Button>
                         </div>
                     </div>

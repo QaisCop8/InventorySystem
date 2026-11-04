@@ -1,3 +1,4 @@
+import { appDir } from "@/lib/i18n"
 import React, { Component, RefObject } from "react";
 import styles from "./Dropdown.module.scss";
 import { Dropdown as PrimeDropdown } from "primereact/dropdown";
@@ -199,7 +200,7 @@ export default class Dropdown extends Component<DropdownProps, DropdownState> {
                             style={{ flex: "1", overflow: "hidden", width: "100%" }}
                             className={`${styles.dropDown} ${innerClass || ""}`}
                             {...this.props}
-                            tooltipOptions={{ position: "top", style: { direction: "rtl" } }}
+                            tooltipOptions={{ position: "top", style: { direction: appDir() } }}
                             placeholder={placeholder}
                             itemTemplate={this.optionsTemplate}
                             valueTemplate={this.selectedOptionTemplate}
@@ -226,7 +227,7 @@ export default class Dropdown extends Component<DropdownProps, DropdownState> {
                         style={{  width: "100%" }}
                         className={`${styles.dropDown} ${innerClass || ""}`}
                         {...this.props}
-                        tooltipOptions={{ position: "top", style: { direction: "rtl" } }}
+                        tooltipOptions={{ position: "top", style: { direction: appDir() } }}
                         placeholder={placeholder}
                         itemTemplate={this.optionsTemplate}
                         valueTemplate={this.selectedOptionTemplate}

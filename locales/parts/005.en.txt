@@ -1,0 +1,300 @@
+The cash amount must be positive with two decimal places
+Online
+Items total
+The total of the payment details is less than the invoice total
+Item group
+Return
+Sales return
+Sync
+Sales area
+Clear search
+Clear search and category
+Clear number
+Invoice note
+Draft note
+A draft note is required
+Local copy awaiting sync
+Current point of sale
+Gift
+Do you want to make a return from an invoice?
+An internet connection is required to check the open shift on the point of sale
+A point of sale must be defined first
+You must open the custody before saving the draft
+You must open a custody
+You must open a shift and load the point of sale first while online
+There is an item without a sales account
+There is an item without a sales return account
+Enter a discount between zero and
+Enter discount
+Close Esc
+Net after discount:
+No discount
+Apply discount
+Item discount:
+Item value before discount:
+OK F3
+The discount must not exceed the item value or
+Add a note for this operation (optional)
+Total amount due (
+Total amount counted (
+Manage the shift custody and balances by currency
+Close shift
+Deposit
+Receive custody
+Cards
+Date and time
+Details
+Receivables
+Available balance
+Expected balance
+Operation
+Difference (
+Cash invoices
+Amount handed over
+Amount handed over {0}
+Amount counted
+Amount counted {0}
+The amount counted from the amounts entered in the handover details by currency
+Valued amount
+Valued amount (
+Gift cards
+Hand over custody
+Deposit details
+Handover details by currency
+Withdrawal details
+Shift number
+Custody log for this shift
+Withdraw
+Open shift
+Aid vouchers
+No transactions recorded in this shift
+Deposit amount
+Withdrawal amount
+Sales total
+Shift activity summary
+Search, then choose an invoice to show it on the cashier screen.
+Invoice number or customer...
+Payment voucher:
+Receipt voucher:
+Shift invoices
+All invoices
+· Available
+(first 200 results)
+↑↓ to navigate · Enter or double-click to add the item with this unit · Esc to go back
+Search by item name, number or barcode…
+Choose a unit: {0}
+Type the name, number or barcode · ↑↓ to navigate · Enter or double-click to choose
+No price
+Back to items
+Units
+Search by name or number…
+Choose {0}
+Search by name or number
+Searching…
+Clear {0}
+✓ Completed on the device
+10 digits
+Enter the redemption code (10 digits) and the PIN (4 digits)
+Choose the card
+Remaining amount
+Amount paid
+Valued amount
+Amount to return
+Amount from the voucher
+Available for this invoice's items
+Verify
+Unable to connect to the server — the aid voucher requires an internet connection
+Refund details
+Receivable details
+Cheque details
+Cash details by currency
+Receivables
+A gift issue voucher will be created with no payment.
+Payment methods
+Visa
+Anything above the available amount is paid another way (cash/card).
+{0} amount
+Invoice amount
+This card is linked to a payment terminal — press «Send to terminal» to send the amount for the customer to present their card, or enter the data manually.
+4 to 8 digits
+Administrator PIN
+System manager PIN
+Maximum discount %
+Add the first point of sale
+Add a point of sale
+Leave everyone unselected to make the point available to all users in the branch.
+Optional — default account
+Point-of-sale name *
+Items and printing
+Definition and warehouse
+Books and accounts
+Policies and cashier
+Allowed users
+Administrator email *
+System manager email *
+Item grouping
+Group on entry
+Group on printing
+Undo delete
+The full invoice is printed after each save.
+Edit point of sale
+Unable to generate the point-of-sale code
+All accounts are optional. If an account is left empty, the user's account for the point's currency or the system default is used.
+Delete the saved code
+Delete point of sale {0}?
+Save setup
+Return book
+Sales invoice book *
+Point-of-sale code
+Invoice printing
+Print by item group
+No grouping
+No printing
+Price category *
+All users
+The invoice is not printed after saving.
+No points of sale defined yet
+Saved — leave empty to keep it
+A separate warehouse, accounts, books and permissions for each point
+New point
+These settings are enforced on the cashier for sales and returns.
+The cashier receives tobacco item quantities with the custody and hands over the remainder before handing it over
+Only a QR code that holds all the invoice data when scanned is printed.
+Has tobacco custody
+Generated automatically
+Unable to open the print screen
+Preview {0}
+Please install the latest Android app version to enable printing
+· Sold:
+Add selected to cashier
+Choose at least one item
+Choose a sales invoice, then select the items to return.
+Choose a source invoice
+Search invoices
+Loading invoice items...
+Loading invoices...
+Select the items and quantities to return.
+Invoice number or customer name...
+Return quantity {0}
+The return quantity must be greater than zero and not exceed the invoice quantity
+No items in the invoice
+No matching sales invoices
+Return from invoice {0}
+. It must be closed or its custody handed over before opening a new shift.
+Choose the custody to receive
+Time
+The custody to receive by currency
+Handed over
+Valued
+under {0}
+Shift data
+Shift date
+A shift is already open on the point of sale
+Saving…
+Shift opening balance
+Custody no.
+Opening or receiving the custody requires a server connection.
+There is no open custody for the current user. Open a shift or receive a handed-over custody.
+Sales employee
+Enter the opening quantity of each tobacco item (in the main unit)
+Receive
+Receive tobacco custody
+Opening
+Quantities are suggested from what the previous cashier handed over — adjust them to what is actually there
+Opening quantity
+Sold
+Expected
+Expected = opening − sold. Enter the actual quantity handed over for each item — tobacco is handed over before cash
+Actually handed over
+After the handover, continue with the cash handover
+Hand over tobacco
+Hand over tobacco custody
+Unable to cancel the tobacco custody
+Unable to load the tobacco custody
+Unable to save the tobacco custody
+No tobacco items are defined — enable the "Tobacco" option in the item card
+There is no tobacco custody with this shift
+The tobacco custody must be received before selling
+· all day
+"From amount" is greater than "to amount"
+{0}: enter the discount amount for item "{1}"
+{0}: item "{1}" is duplicated
+{0}: the quantity for item "{1}" must be at least 1
+Purchase items
+Add at least one purchase item
+Add at least one item to the added items / gifts
+First quantity
+Add all items
+Add a number of items
+Add a specific quantity
+To amount
+Campaign name *
+Campaign name is required
+Added items
+Added items / gifts
+Items and gifts
+Name, type and price category
+Maximum applications per invoice
+Price category
+First quantity
+The first quantity must be a positive whole number
+Scope and notes
+None selected: the campaign is available to all branches
+None selected: the campaign is available to all warehouses
+Campaign data
+The campaign end date is before its start date
+The campaign starts at the start date and time and ends at the end date and time
+Edit campaign {0}
+Unable to save the campaign
+Unable to save the campaign: {0}
+Campaign definition
+Define sales offers, item conditions and gifts
+The campaign runs daily between the two times throughout the period
+The campaign was changed, do you want to save the changes?
+Campaign saved successfully
+Loading item prices...
+Set the end date
+Set the campaign start date
+Set the campaign end date
+Set the start and end time of the daily period
+Item price discounts
+Item total discounts
+Invoice total discounts
+Item bundle discounts
+Campaign code *
+Campaign code is required
+The daily period end time must be after the start time
+Buy all items
+Buy a number of items
+Buy a specific quantity
+Item condition
+Add condition
+Purchase item conditions
+Added item conditions
+Campaign period
+Daily sales period
+Upcoming
+All price categories
+{0} selected
+Campaign duration {0} days
+From the start of the campaign until its end
+From amount
+The discount rate must be between 0 and 100
+Campaign type
+Time type
+This type doesn't need items.
+Do you want to delete campaign {0}?
+The campaign end time must be after its start time
+Cash deposit:
+Received from:
+Closing/handover
+Tobacco
+Payments
+Opening
+Returns:
+Expected cash
+Cash and transactions
+Point
+Custody status
+Cash withdrawal:
+Handed over to:

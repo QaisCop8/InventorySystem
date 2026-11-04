@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowRight, Ban, FileSearch, PackagePlus, Plus, RefreshCw, Save, Search, Ship, Trash2 } from "lucide-react"
@@ -66,7 +67,7 @@ export default function LandedCosts() {
       const [metaData, list] = await Promise.all([api<Meta>("/api/landed-costs?meta=1"), api<{ rows: ListRow[] }>("/api/landed-costs")])
       setMeta(metaData); setRows(list.rows || [])
     } catch (error) {
-      toast({ title: "خطأ", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     } finally { setLoading(false) }
   }, [toast])
   useEffect(() => { void load() }, [load])
@@ -79,34 +80,34 @@ export default function LandedCosts() {
   if (mode === "view" && viewId && meta) return <LandedCostView id={viewId} meta={meta} onBack={() => { setMode("list"); void load() }} />
 
   return (
-    <div dir="rtl" className="space-y-5 p-3 md:p-6">
+    <div dir={appDir()} className="space-y-5 p-3 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><Ship className="h-6 w-6 text-teal-600" />تحميل تكاليف الشحن والجمارك</h1>
-          <p className="mt-1 text-sm text-muted-foreground">وزّع الشحن والجمارك والتخليص والتأمين على أصناف فاتورة المشتريات لتصبح كلفة الصنف حقيقية في تقييم المخزون وأرباح الأصناف.</p>
+          <h1 className="flex items-center gap-2 text-2xl font-bold"><Ship className="h-6 w-6 text-teal-600" />{tr("تحميل تكاليف الشحن والجمارك")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("وزّع الشحن والجمارك والتخليص والتأمين على أصناف فاتورة المشتريات لتصبح كلفة الصنف حقيقية في تقييم المخزون وأرباح الأصناف.")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
-          <Button onClick={() => setMode("new")} disabled={!meta}><Plus className="ml-2 h-4 w-4" />مستند جديد</Button>
+          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
+          <Button onClick={() => setMode("new")} disabled={!meta}><Plus className="ml-2 h-4 w-4" />{tr("مستند جديد")}</Button>
         </div>
       </div>
 
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="font-bold">المستندات</span>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />إظهار الملغاة</label>
+            <span className="font-bold">{tr("المستندات")}</span>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />{tr("إظهار الملغاة")}</label>
           </div>
-          {loading ? <div className="p-10 text-center text-muted-foreground">جاري تحميل البيانات...</div> : visible.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">لا توجد مستندات تكاليف بعد</div>
+          {loading ? <div className="p-10 text-center text-muted-foreground">{tr("جاري تحميل البيانات...")}</div> : visible.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">{tr("لا توجد مستندات تكاليف بعد")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-sm">
                 <thead className="bg-slate-50 text-xs text-slate-500">
                   <tr>
-                    <th className="p-3 text-right">الرقم</th><th className="p-3 text-right">التاريخ</th><th className="p-3 text-right">فاتورة المشتريات</th>
-                    <th className="p-3 text-right">المورد</th><th className="p-3 text-right">البنود</th><th className="p-3 text-right">التوزيع</th>
-                    <th className="p-3 text-left">المبلغ</th><th className="p-3 text-right">القيد</th><th className="p-3 text-center">الحالة</th>
+                    <th className="p-3 text-start">{tr("الرقم")}</th><th className="p-3 text-start">{tr("التاريخ")}</th><th className="p-3 text-start">{tr("فاتورة المشتريات")}</th>
+                    <th className="p-3 text-start">{tr("المورد")}</th><th className="p-3 text-start">{tr("البنود")}</th><th className="p-3 text-start">{tr("التوزيع")}</th>
+                    <th className="p-3 text-end">{tr("المبلغ")}</th><th className="p-3 text-start">{tr("القيد")}</th><th className="p-3 text-center">{tr("الحالة")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -118,11 +119,11 @@ export default function LandedCosts() {
                       <td className="p-3">{row.supplier_name || "—"}</td>
                       <td className="p-3">{String(row.charge_types || "").split(",").filter(Boolean).map(chargeLabel).join("، ")}</td>
                       <td className="p-3">{methodLabel(row.method)}</td>
-                      <td className="p-3 text-left font-mono">{money(row.total_amount)} <span className="text-xs text-muted-foreground">{row.currency_code}</span></td>
+                      <td className="p-3 text-end font-mono">{money(row.total_amount)} <span className="text-xs text-muted-foreground">{row.currency_code}</span></td>
                       <td className="p-3 font-mono">{row.journal_code || "—"}</td>
                       <td className="p-3 text-center">{Number(row.status) === 3
-                        ? <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">ملغى</span>
-                        : <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-700">فعّال</span>}</td>
+                        ? <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{tr("ملغى")}</span>
+                        : <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-700">{tr("فعّال")}</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -165,7 +166,7 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
       setPurchase(data)
       if (!branchId && data.header?.branch_id) setBranchId(String(data.header.branch_id))
     } catch (error) {
-      toast({ title: "تعذر تحميل الفاتورة", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("تعذر تحميل الفاتورة"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     }
   }
 
@@ -192,9 +193,9 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
   const setCharge = (key: number, patch: Partial<Charge>) => setCharges((current) => current.map((charge) => (charge.key === key ? { ...charge, ...patch } : charge)))
 
   const save = async () => {
-    if (!purchase) { toast({ title: "اختر فاتورة المشتريات", variant: "destructive" }); return }
-    if (method === "weight" && !(allocation.basisTotal > 0)) { toast({ title: "أصناف الفاتورة بلا وزن معرّف", description: "عرّف وزن الأصناف أو وزّع حسب القيمة/الكمية", variant: "destructive" }); return }
-    if (!(await confirmYesNo(`حفظ تحميل ${money(total)} على أصناف الفاتورة ${purchase.header.vch_code} وإنشاء القيد؟`))) return
+    if (!purchase) { toast({ title: tr("اختر فاتورة المشتريات"), variant: "destructive" }); return }
+    if (method === "weight" && !(allocation.basisTotal > 0)) { toast({ title: tr("أصناف الفاتورة بلا وزن معرّف"), description: tr("عرّف وزن الأصناف أو وزّع حسب القيمة/الكمية"), variant: "destructive" }); return }
+    if (!(await confirmYesNo(tr("حفظ تحميل {0} على أصناف الفاتورة {1} وإنشاء القيد؟", money(total), purchase.header.vch_code)))) return
     setSaving(true)
     try {
       const result = await api<{ id: number; code: string; journal: { code: string } }>("/api/landed-costs", {
@@ -205,92 +206,92 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
           charges: charges.filter((charge) => num(charge.amount) || charge.account_id).map((charge) => ({ ...charge, account_id: Number(charge.account_id) || null, amount: num(charge.amount) })),
         }),
       })
-      toast({ title: "تم الحفظ", description: `المستند ${result.code} — القيد ${result.journal.code}` })
+      toast({ title: tr("تم الحفظ"), description: tr("المستند {0} — القيد {1}", result.code, result.journal.code) })
       onSaved(result.id)
     } catch (error) {
-      toast({ title: "تعذر الحفظ", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("تعذر الحفظ"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     } finally { setSaving(false) }
   }
 
   const currencyCode = meta.currencies.find((currency) => String(currency.id) === currencyId)?.currency_code || ""
 
   return (
-    <div dir="rtl" className="space-y-4 p-3 md:p-6">
+    <div dir={appDir()} className="space-y-4 p-3 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-xl font-bold"><PackagePlus className="h-5 w-5 text-teal-600" />مستند تحميل تكاليف جديد</h1>
+        <h1 className="flex items-center gap-2 text-xl font-bold"><PackagePlus className="h-5 w-5 text-teal-600" />{tr("مستند تحميل تكاليف جديد")}</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack}><ArrowRight className="ml-2 h-4 w-4" />رجوع</Button>
-          <Button onClick={() => void save()} disabled={saving || !purchase}><Save className="ml-2 h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ وإنشاء القيد"}</Button>
+          <Button variant="outline" onClick={onBack}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
+          <Button onClick={() => void save()} disabled={saving || !purchase}><Save className="ml-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ وإنشاء القيد")}</Button>
         </div>
       </div>
 
       <Card>
         <CardContent className="grid gap-3 pt-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>فاتورة المشتريات</Label>
+            <Label>{tr("فاتورة المشتريات")}</Label>
             <button type="button" onClick={() => setPickerOpen(true)}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm hover:border-teal-400">
               {purchase
-                ? <span className="truncate"><b className="font-mono">{purchase.header.vch_code}</b> — {purchase.header.supplier_name || "بدون مورد"} — {purchase.header.vch_date}</span>
-                : <span className="text-muted-foreground">اختر فاتورة المشتريات...</span>}
+                ? <span className="truncate"><b className="font-mono">{purchase.header.vch_code}</b> — {purchase.header.supplier_name || tr("بدون مورد")} — {purchase.header.vch_date}</span>
+                : <span className="text-muted-foreground">{tr("اختر فاتورة المشتريات...")}</span>}
               <Search className="h-4 w-4 text-muted-foreground" />
             </button>
           </div>
-          <div className="space-y-1.5"><Label>التاريخ</Label><Input type="date" value={docDate} onChange={(event) => setDocDate(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{tr("التاريخ")}</Label><Input type="date" value={docDate} onChange={(event) => setDocDate(event.target.value)} /></div>
           <div className="space-y-1.5">
-            <Label>الفرع</Label>
+            <Label>{tr("الفرع")}</Label>
             <select className={selectClass} value={branchId} onChange={(event) => setBranchId(event.target.value)}>
-              <option value="">فرع الفاتورة</option>
+              <option value="">{tr("فرع الفاتورة")}</option>
               {meta.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label>طريقة التوزيع</Label>
+            <Label>{tr("طريقة التوزيع")}</Label>
             <select className={selectClass} value={method} onChange={(event) => setMethod(event.target.value)}>
               {meta.methods.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label>العملة</Label>
+            <Label>{tr("العملة")}</Label>
             <select className={selectClass} value={currencyId} onChange={(event) => setCurrencyId(event.target.value)}>
               {meta.currencies.map((currency) => <option key={currency.id} value={currency.id}>{currency.currency_name} ({currency.currency_code})</option>)}
             </select>
           </div>
-          <div className="space-y-1.5"><Label>سعر الصرف</Label><Input type="number" step="any" dir="ltr" value={rate} onChange={(event) => setRate(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{tr("سعر الصرف")}</Label><Input type="number" step="any" dir="ltr" value={rate} onChange={(event) => setRate(event.target.value)} /></div>
           <div className="space-y-1.5">
-            <AutoCompleteAccount label="حساب المخزون/المشتريات (مدين)" value={debitAccountId} valueMode="id" onValueChange={setDebitAccountId} showCostCenterButton={false} placeholder="كود الحساب" />
+            <AutoCompleteAccount label={tr("حساب المخزون/المشتريات (مدين)")} value={debitAccountId} valueMode="id" onValueChange={setDebitAccountId} showCostCenterButton={false} placeholder={tr("كود الحساب")} />
           </div>
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-4"><Label>ملاحظة</Label><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="مثلاً: بوليصة شحن رقم ..." /></div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-4"><Label>{tr("ملاحظة")}</Label><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr("مثلاً: بوليصة شحن رقم ...")} /></div>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="font-bold">بنود التكاليف (فواتير الشحن والجمارك)</span>
-            <Button size="sm" variant="outline" onClick={() => setCharges((current) => [...current, emptyCharge("other")])}><Plus className="ml-1 h-3.5 w-3.5" />بند</Button>
+            <span className="font-bold">{tr("بنود التكاليف (فواتير الشحن والجمارك)")}</span>
+            <Button size="sm" variant="outline" onClick={() => setCharges((current) => [...current, emptyCharge("other")])}><Plus className="ml-1 h-3.5 w-3.5" />{tr("بند")}</Button>
           </div>
           <div className="space-y-3 p-4">
             {charges.map((charge) => (
               <div key={charge.key} className="grid gap-2 rounded-xl border bg-slate-50/50 p-3 md:grid-cols-[130px_minmax(220px,2fr)_130px_1fr_1fr_auto] md:items-end">
                 <div className="space-y-1">
-                  <Label className="text-xs">النوع</Label>
+                  <Label className="text-xs">{tr("النوع")}</Label>
                   <select className={selectClass} value={charge.charge_type} onChange={(event) => setCharge(charge.key, { charge_type: event.target.value })}>
                     {meta.charge_types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <AutoCompleteAccount label="الحساب الدائن (المورد/مزوّد الخدمة)" value={charge.account_id} valueMode="id" onValueChange={(value) => setCharge(charge.key, { account_id: value })} showCostCenterButton={false} placeholder="كود الحساب" />
+                  <AutoCompleteAccount label={tr("الحساب الدائن (المورد/مزوّد الخدمة)")} value={charge.account_id} valueMode="id" onValueChange={(value) => setCharge(charge.key, { account_id: value })} showCostCenterButton={false} placeholder={tr("كود الحساب")} />
                 </div>
-                <div className="space-y-1"><Label className="text-xs">المبلغ ({currencyCode})</Label><Input type="number" step="any" dir="ltr" value={charge.amount} onChange={(event) => setCharge(charge.key, { amount: event.target.value })} /></div>
-                <div className="space-y-1"><Label className="text-xs">رقم الفاتورة/المرجع</Label><Input value={charge.reference} onChange={(event) => setCharge(charge.key, { reference: event.target.value })} /></div>
-                <div className="space-y-1"><Label className="text-xs">ملاحظة</Label><Input value={charge.note} onChange={(event) => setCharge(charge.key, { note: event.target.value })} /></div>
+                <div className="space-y-1"><Label className="text-xs">{tr("المبلغ (")}{currencyCode})</Label><Input type="number" step="any" dir="ltr" value={charge.amount} onChange={(event) => setCharge(charge.key, { amount: event.target.value })} /></div>
+                <div className="space-y-1"><Label className="text-xs">{tr("رقم الفاتورة/المرجع")}</Label><Input value={charge.reference} onChange={(event) => setCharge(charge.key, { reference: event.target.value })} /></div>
+                <div className="space-y-1"><Label className="text-xs">{tr("ملاحظة")}</Label><Input value={charge.note} onChange={(event) => setCharge(charge.key, { note: event.target.value })} /></div>
                 <Button size="icon" variant="ghost" className="text-rose-600" disabled={charges.length === 1} onClick={() => setCharges((current) => current.filter((item) => item.key !== charge.key))}><Trash2 className="h-4 w-4" /></Button>
               </div>
             ))}
             <div className="flex justify-end gap-6 rounded-xl bg-teal-50 px-4 py-2.5 text-sm">
-              <span>الإجمالي: <b className="font-mono">{money(total)}</b> {currencyCode}</span>
-              {purchase && <span>بعملة الفاتورة: <b className="font-mono">{money(totalInInvoiceCurrency)}</b> {purchase.header.currency_code}</span>}
+              <span>{tr("الإجمالي: ")}<b className="font-mono">{money(total)}</b> {currencyCode}</span>
+              {purchase && <span>{tr("بعملة الفاتورة: ")}<b className="font-mono">{money(totalInInvoiceCurrency)}</b> {purchase.header.currency_code}</span>}
             </div>
           </div>
         </CardContent>
@@ -305,23 +306,23 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
 function AllocationTable({ purchase, lines, method }: { purchase: PurchaseData | null; lines: any[]; method: string }) {
   if (!purchase) return (
     <Card><CardContent className="flex flex-col items-center gap-2 p-10 text-center text-sm text-muted-foreground">
-      <FileSearch className="h-8 w-8 text-slate-300" />اختر فاتورة المشتريات لمعاينة توزيع التكاليف على أصنافها
+      <FileSearch className="h-8 w-8 text-slate-300" />{tr("اختر فاتورة المشتريات لمعاينة توزيع التكاليف على أصنافها")}
     </CardContent></Card>
   )
-  const basisLabel = method === "quantity" ? "الكمية (رئيسية)" : method === "weight" ? "الوزن" : "صافي القيمة"
+  const basisLabel = method === "quantity" ? tr("الكمية (رئيسية)") : method === "weight" ? tr("الوزن") : tr("صافي القيمة")
   const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0)
   return (
     <Card>
       <CardContent className="p-0">
-        <div className="border-b px-4 py-2.5 font-bold">توزيع التكاليف على الأصناف <span className="text-xs font-normal text-muted-foreground">(بعملة الفاتورة {purchase.header.currency_code})</span></div>
-        {lines.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">لا توجد أصناف مخزنية في الفاتورة</div> : (
+        <div className="border-b px-4 py-2.5 font-bold">{tr("توزيع التكاليف على الأصناف ")}<span className="text-xs font-normal text-muted-foreground">{tr("(بعملة الفاتورة ")}{purchase.header.currency_code})</span></div>
+        {lines.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">{tr("لا توجد أصناف مخزنية في الفاتورة")}</div> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-slate-50 text-xs text-slate-500">
                 <tr>
-                  <th className="p-2.5 text-right">الصنف</th><th className="p-2.5 text-right">الوحدة</th><th className="p-2.5 text-left">الكمية</th>
-                  <th className="p-2.5 text-left">{basisLabel}</th><th className="p-2.5 text-left">النسبة</th><th className="p-2.5 text-left">حصة التكاليف</th>
-                  <th className="p-2.5 text-left">إضافة لكلفة الوحدة الرئيسية</th><th className="p-2.5 text-left">محمّل سابقاً</th>
+                  <th className="p-2.5 text-start">{tr("الصنف")}</th><th className="p-2.5 text-start">{tr("الوحدة")}</th><th className="p-2.5 text-end">{tr("الكمية")}</th>
+                  <th className="p-2.5 text-end">{basisLabel}</th><th className="p-2.5 text-end">{tr("النسبة")}</th><th className="p-2.5 text-end">{tr("حصة التكاليف")}</th>
+                  <th className="p-2.5 text-end">{tr("إضافة لكلفة الوحدة الرئيسية")}</th><th className="p-2.5 text-end">{tr("محمّل سابقاً")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -329,17 +330,17 @@ function AllocationTable({ purchase, lines, method }: { purchase: PurchaseData |
                   <tr key={line.id} className="border-t">
                     <td className="p-2.5"><span className="font-mono text-xs text-muted-foreground">{line.product_code}</span> {line.product_name}</td>
                     <td className="p-2.5">{line.unit_name || "—"}</td>
-                    <td className="p-2.5 text-left font-mono">{money(num(line.qnty) + num(line.bonus), 2)}</td>
-                    <td className="p-2.5 text-left font-mono">{money(line.basis, 2)}</td>
-                    <td className="p-2.5 text-left font-mono">{(line.share * 100).toFixed(2)}%</td>
-                    <td className="p-2.5 text-left font-mono font-semibold text-teal-700">{money(line.amount)}</td>
-                    <td className="p-2.5 text-left font-mono">{money(line.perUnit, 4)}</td>
-                    <td className="p-2.5 text-left font-mono text-muted-foreground">{num(line.allocated_before) ? money(line.allocated_before) : "—"}</td>
+                    <td className="p-2.5 text-end font-mono">{money(num(line.qnty) + num(line.bonus), 2)}</td>
+                    <td className="p-2.5 text-end font-mono">{money(line.basis, 2)}</td>
+                    <td className="p-2.5 text-end font-mono">{(line.share * 100).toFixed(2)}%</td>
+                    <td className="p-2.5 text-end font-mono font-semibold text-teal-700">{money(line.amount)}</td>
+                    <td className="p-2.5 text-end font-mono">{money(line.perUnit, 4)}</td>
+                    <td className="p-2.5 text-end font-mono text-muted-foreground">{num(line.allocated_before) ? money(line.allocated_before) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t-2 bg-slate-50 font-bold">
-                <tr><td className="p-2.5" colSpan={5}>الإجمالي</td><td className="p-2.5 text-left font-mono">{money(totalAmount)}</td><td colSpan={2} /></tr>
+                <tr><td className="p-2.5" colSpan={5}>{tr("الإجمالي")}</td><td className="p-2.5 text-end font-mono">{money(totalAmount)}</td><td colSpan={2} /></tr>
               </tfoot>
             </table>
           </div>
@@ -362,26 +363,26 @@ function PurchasePicker({ open, onOpenChange, onPick }: { open: boolean; onOpenC
   useEffect(() => { if (open) void run(search) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(760px,calc(100vw-1.5rem))] max-w-none gap-3" dir="rtl">
-        <DialogTitle>اختيار فاتورة مشتريات</DialogTitle>
-        <DialogDescription>ابحث برقم الفاتورة أو اسم المورد أو السند اليدوي</DialogDescription>
+      <DialogContent className="w-[min(760px,calc(100vw-1.5rem))] max-w-none gap-3" dir={appDir()}>
+        <DialogTitle>{tr("اختيار فاتورة مشتريات")}</DialogTitle>
+        <DialogDescription>{tr("ابحث برقم الفاتورة أو اسم المورد أو السند اليدوي")}</DialogDescription>
         <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void run(search) }}>
-          <Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث..." />
-          <Button type="submit" variant="outline"><Search className="ml-1.5 h-4 w-4" />بحث</Button>
+          <Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث...")} />
+          <Button type="submit" variant="outline"><Search className="ml-1.5 h-4 w-4" />{tr("بحث")}</Button>
         </form>
         <div className="max-h-[55vh] overflow-auto rounded-lg border">
-          {loading ? <div className="p-8 text-center text-sm text-muted-foreground">جاري تحميل البيانات...</div> : rows.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">لا توجد فواتير مطابقة</div>
+          {loading ? <div className="p-8 text-center text-sm text-muted-foreground">{tr("جاري تحميل البيانات...")}</div> : rows.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">{tr("لا توجد فواتير مطابقة")}</div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500"><tr><th className="p-2 text-right">الرقم</th><th className="p-2 text-right">التاريخ</th><th className="p-2 text-right">المورد</th><th className="p-2 text-left">المبلغ</th><th className="p-2 text-center">تكاليف محمّلة</th></tr></thead>
+              <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500"><tr><th className="p-2 text-start">{tr("الرقم")}</th><th className="p-2 text-start">{tr("التاريخ")}</th><th className="p-2 text-start">{tr("المورد")}</th><th className="p-2 text-end">{tr("المبلغ")}</th><th className="p-2 text-center">{tr("تكاليف محمّلة")}</th></tr></thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id} className="cursor-pointer border-t hover:bg-teal-50" onClick={() => onPick(row.id)}>
                     <td className="p-2 font-mono font-semibold">{row.vch_code}</td>
                     <td className="p-2 font-mono">{row.vch_date}</td>
                     <td className="p-2">{row.supplier_name || "—"}</td>
-                    <td className="p-2 text-left font-mono">{money(row.amount)} <span className="text-xs text-muted-foreground">{row.currency_code}</span></td>
+                    <td className="p-2 text-end font-mono">{money(row.amount)} <span className="text-xs text-muted-foreground">{row.currency_code}</span></td>
                     <td className="p-2 text-center">{row.landed_count ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">{row.landed_count}</span> : "—"}</td>
                   </tr>
                 ))}
@@ -400,19 +401,19 @@ function LandedCostView({ id, meta, onBack }: { id: number; meta: Meta; onBack: 
   const [busy, setBusy] = useState(false)
   const load = useCallback(async () => {
     try { setData(await api(`/api/landed-costs/${id}`)) }
-    catch (error) { toast({ title: "خطأ", description: error instanceof Error ? error.message : "", variant: "destructive" }) }
+    catch (error) { toast({ title: tr("خطأ"), description: error instanceof Error ? error.message : "", variant: "destructive" }) }
   }, [id, toast])
   useEffect(() => { void load() }, [load])
 
   const cancel = async () => {
-    if (!(await confirmYesNo("إلغاء المستند وقيده؟ ستُزال التكاليف من كلفة الأصناف."))) return
+    if (!(await confirmYesNo(tr("إلغاء المستند وقيده؟ ستُزال التكاليف من كلفة الأصناف.")))) return
     setBusy(true)
-    try { await api(`/api/landed-costs/${id}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) }); toast({ title: "أُلغي المستند" }); await load() }
-    catch (error) { toast({ title: "تعذر الإلغاء", description: error instanceof Error ? error.message : "", variant: "destructive" }) }
+    try { await api(`/api/landed-costs/${id}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) }); toast({ title: tr("أُلغي المستند") }); await load() }
+    catch (error) { toast({ title: tr("تعذر الإلغاء"), description: error instanceof Error ? error.message : "", variant: "destructive" }) }
     finally { setBusy(false) }
   }
 
-  if (!data) return <div className="p-10 text-center text-muted-foreground">جاري تحميل البيانات...</div>
+  if (!data) return <div className="p-10 text-center text-muted-foreground">{tr("جاري تحميل البيانات...")}</div>
   const { header, charges, allocations } = data
   const cancelled = Number(header.status) === 3
   const method = meta.methods.find((option) => option.value === header.method)?.label || header.method
@@ -428,35 +429,35 @@ function LandedCostView({ id, meta, onBack }: { id: number; meta: Meta; onBack: 
     ["القيد", <span key="j" className="font-mono">{header.journal_code || "—"}</span>],
   ]
   return (
-    <div dir="rtl" className="space-y-4 p-3 md:p-6">
+    <div dir={appDir()} className="space-y-4 p-3 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold">
-          <Ship className="h-5 w-5 text-teal-600" />مستند تكاليف <span className="font-mono">{header.code}</span>
-          {cancelled && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">ملغى</span>}
+          <Ship className="h-5 w-5 text-teal-600" />{tr("مستند تكاليف ")}<span className="font-mono">{header.code}</span>
+          {cancelled && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{tr("ملغى")}</span>}
         </h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onBack}><ArrowRight className="ml-2 h-4 w-4" />رجوع</Button>
-          {!cancelled && <Button variant="outline" className="text-rose-600" disabled={busy} onClick={() => void cancel()}><Ban className="ml-2 h-4 w-4" />إلغاء المستند</Button>}
+          <Button variant="outline" onClick={onBack}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
+          {!cancelled && <Button variant="outline" className="text-rose-600" disabled={busy} onClick={() => void cancel()}><Ban className="ml-2 h-4 w-4" />{tr("إلغاء المستند")}</Button>}
         </div>
       </div>
       <Card>
         <CardContent className="grid gap-x-6 gap-y-3 pt-5 sm:grid-cols-2 lg:grid-cols-4">
           {fields.map(([label, value]) => <div key={label}><div className="text-xs text-muted-foreground">{label}</div><div className="font-semibold">{value}</div></div>)}
-          {header.note && <div className="sm:col-span-2 lg:col-span-4"><div className="text-xs text-muted-foreground">ملاحظة</div><div>{header.note}</div></div>}
+          {header.note && <div className="sm:col-span-2 lg:col-span-4"><div className="text-xs text-muted-foreground">{tr("ملاحظة")}</div><div>{header.note}</div></div>}
         </CardContent>
       </Card>
       <Card>
         <CardContent className="p-0">
-          <div className="border-b px-4 py-2.5 font-bold">بنود التكاليف</div>
+          <div className="border-b px-4 py-2.5 font-bold">{tr("بنود التكاليف")}</div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2.5 text-right">النوع</th><th className="p-2.5 text-right">الحساب الدائن</th><th className="p-2.5 text-left">المبلغ</th><th className="p-2.5 text-right">المرجع</th><th className="p-2.5 text-right">ملاحظة</th></tr></thead>
+              <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2.5 text-start">{tr("النوع")}</th><th className="p-2.5 text-start">{tr("الحساب الدائن")}</th><th className="p-2.5 text-end">{tr("المبلغ")}</th><th className="p-2.5 text-start">{tr("المرجع")}</th><th className="p-2.5 text-start">{tr("ملاحظة")}</th></tr></thead>
               <tbody>
                 {charges.map((charge) => (
                   <tr key={charge.id} className="border-t">
                     <td className="p-2.5">{chargeLabel(charge.charge_type)}</td>
                     <td className="p-2.5">{charge.account_code} - {charge.account_name}</td>
-                    <td className="p-2.5 text-left font-mono">{money(charge.amount)}</td>
+                    <td className="p-2.5 text-end font-mono">{money(charge.amount)}</td>
                     <td className="p-2.5">{charge.reference || "—"}</td>
                     <td className="p-2.5">{charge.note || "—"}</td>
                   </tr>
@@ -469,18 +470,18 @@ function LandedCostView({ id, meta, onBack }: { id: number; meta: Meta; onBack: 
       {!cancelled && (
         <Card>
           <CardContent className="p-0">
-            <div className="border-b px-4 py-2.5 font-bold">التوزيع الحالي على أصناف الفاتورة <span className="text-xs font-normal text-muted-foreground">(بعملة الفاتورة {header.purchase_currency_code} — يُعاد حسابه تلقائياً إن عُدّلت الفاتورة)</span></div>
+            <div className="border-b px-4 py-2.5 font-bold">{tr("التوزيع الحالي على أصناف الفاتورة ")}<span className="text-xs font-normal text-muted-foreground">{tr("(بعملة الفاتورة ")}{header.purchase_currency_code}{tr(" — يُعاد حسابه تلقائياً إن عُدّلت الفاتورة)")}</span></div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2.5 text-right">الصنف</th><th className="p-2.5 text-right">الوحدة</th><th className="p-2.5 text-left">الكمية</th><th className="p-2.5 text-left">أساس التوزيع</th><th className="p-2.5 text-left">الحصة</th></tr></thead>
+                <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2.5 text-start">{tr("الصنف")}</th><th className="p-2.5 text-start">{tr("الوحدة")}</th><th className="p-2.5 text-end">{tr("الكمية")}</th><th className="p-2.5 text-end">{tr("أساس التوزيع")}</th><th className="p-2.5 text-end">{tr("الحصة")}</th></tr></thead>
                 <tbody>
                   {allocations.map((line) => (
                     <tr key={line.voucher_item_id} className="border-t">
                       <td className="p-2.5"><span className="font-mono text-xs text-muted-foreground">{line.product_code}</span> {line.product_name}</td>
                       <td className="p-2.5">{line.unit_name || "—"}</td>
-                      <td className="p-2.5 text-left font-mono">{money(num(line.qnty) + num(line.bonus))}</td>
-                      <td className="p-2.5 text-left font-mono">{money(line.basis)}</td>
-                      <td className="p-2.5 text-left font-mono font-semibold text-teal-700">{money(line.amount)}</td>
+                      <td className="p-2.5 text-end font-mono">{money(num(line.qnty) + num(line.bonus))}</td>
+                      <td className="p-2.5 text-end font-mono">{money(line.basis)}</td>
+                      <td className="p-2.5 text-end font-mono font-semibold text-teal-700">{money(line.amount)}</td>
                     </tr>
                   ))}
                 </tbody>

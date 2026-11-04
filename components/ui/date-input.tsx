@@ -81,7 +81,7 @@ export function DateInput({
       {label && (
         <Label htmlFor={id}>
           {label}
-          {required && <span className="text-red-500 mr-1">*</span>}
+          {required && <span className="text-red-500 ms-1">*</span>}
         </Label>
       )}
       <div className="flex gap-2">

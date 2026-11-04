@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -19,45 +20,45 @@ type Column = { key: string; label: string; align?: "end" | "center"; format?: "
 const STATUS_OPTIONS = [{ id: 2, name: "معتمد" }, { id: 1, name: "غير معتمد" }] as unknown as ReportOption[]
 const CONFIG: Record<View, { title: string; description: string; icon: LucideIcon; columns: Column[]; valueKey: string }> = {
   detailed: {
-    title: "تقرير الانتاج تفصيلي", icon: ListTree, valueKey: "value",
-    description: "سطر لكل صنف في كل سند انتاج — المواد المنتجة والمواد الخام بالكمية وسعر الشراء والقيمة",
+    title: tr("تقرير الانتاج تفصيلي"), icon: ListTree, valueKey: "value",
+    description: tr("سطر لكل صنف في كل سند انتاج — المواد المنتجة والمواد الخام بالكمية وسعر الشراء والقيمة"),
     columns: [
-      { key: "code", label: "رقم السند" }, { key: "vch_date", label: "التاريخ" }, { key: "status", label: "الحالة", align: "center", format: "status" },
-      { key: "branch_name", label: "الفرع" }, { key: "role", label: "النوع", align: "center", format: "role" },
-      { key: "product_code", label: "رمز الصنف" }, { key: "product_name", label: "الصنف" }, { key: "unit_name", label: "الوحدة" },
-      { key: "warehouse_name", label: "المستودع" }, { key: "quantity", label: "الكمية", align: "end", format: "qty" },
-      { key: "price", label: "السعر", align: "end", format: "money" }, { key: "value", label: "القيمة", align: "end", format: "money" },
+      { key: "code", label: tr("رقم السند") }, { key: "vch_date", label: tr("التاريخ") }, { key: "status", label: tr("الحالة"), align: "center", format: "status" },
+      { key: "branch_name", label: tr("الفرع") }, { key: "role", label: tr("النوع"), align: "center", format: "role" },
+      { key: "product_code", label: tr("رمز الصنف") }, { key: "product_name", label: tr("الصنف") }, { key: "unit_name", label: tr("الوحدة") },
+      { key: "warehouse_name", label: tr("المستودع") }, { key: "quantity", label: tr("الكمية"), align: "end", format: "qty" },
+      { key: "price", label: tr("السعر"), align: "end", format: "money" }, { key: "value", label: tr("القيمة"), align: "end", format: "money" },
     ],
   },
   produced: {
-    title: "المواد المنتجة حسب الصنف", icon: PackagePlus, valueKey: "value",
-    description: "إجمالي الكميات المنتجة لكل صنف وقيمتها ومتوسط تكلفتها وعدد سندات الانتاج",
+    title: tr("المواد المنتجة حسب الصنف"), icon: PackagePlus, valueKey: "value",
+    description: tr("إجمالي الكميات المنتجة لكل صنف وقيمتها ومتوسط تكلفتها وعدد سندات الانتاج"),
     columns: [
-      { key: "product_code", label: "رمز الصنف" }, { key: "product_name", label: "الصنف" }, { key: "unit_name", label: "الوحدة" },
-      { key: "vouchers", label: "عدد السندات", align: "center", format: "int", sum: true }, { key: "quantity", label: "الكمية المنتجة", align: "end", format: "qty", sum: true },
-      { key: "avg_price", label: "متوسط السعر", align: "end", format: "money" }, { key: "value", label: "القيمة", align: "end", format: "money", sum: true },
+      { key: "product_code", label: tr("رمز الصنف") }, { key: "product_name", label: tr("الصنف") }, { key: "unit_name", label: tr("الوحدة") },
+      { key: "vouchers", label: tr("عدد السندات"), align: "center", format: "int", sum: true }, { key: "quantity", label: tr("الكمية المنتجة"), align: "end", format: "qty", sum: true },
+      { key: "avg_price", label: tr("متوسط السعر"), align: "end", format: "money" }, { key: "value", label: tr("القيمة"), align: "end", format: "money", sum: true },
     ],
   },
   raw: {
-    title: "استهلاك المواد الخام حسب الصنف", icon: Boxes, valueKey: "value",
-    description: "إجمالي ما صُرف من كل مادة خام في سندات الانتاج بالكمية والقيمة",
+    title: tr("استهلاك المواد الخام حسب الصنف"), icon: Boxes, valueKey: "value",
+    description: tr("إجمالي ما صُرف من كل مادة خام في سندات الانتاج بالكمية والقيمة"),
     columns: [
-      { key: "product_code", label: "رمز الصنف" }, { key: "product_name", label: "المادة الخام" }, { key: "unit_name", label: "الوحدة" },
-      { key: "vouchers", label: "عدد السندات", align: "center", format: "int", sum: true }, { key: "quantity", label: "الكمية المستهلكة", align: "end", format: "qty", sum: true },
-      { key: "avg_price", label: "متوسط السعر", align: "end", format: "money" }, { key: "value", label: "القيمة", align: "end", format: "money", sum: true },
+      { key: "product_code", label: tr("رمز الصنف") }, { key: "product_name", label: tr("المادة الخام") }, { key: "unit_name", label: tr("الوحدة") },
+      { key: "vouchers", label: tr("عدد السندات"), align: "center", format: "int", sum: true }, { key: "quantity", label: tr("الكمية المستهلكة"), align: "end", format: "qty", sum: true },
+      { key: "avg_price", label: tr("متوسط السعر"), align: "end", format: "money" }, { key: "value", label: tr("القيمة"), align: "end", format: "money", sum: true },
     ],
   },
   vouchers: {
-    title: "تكلفة سندات الانتاج", icon: Factory, valueKey: "produced_value",
-    description: "لكل سند انتاج: قيمة المواد المنتجة مقابل قيمة المواد الخام المستهلكة والفرق",
+    title: tr("تكلفة سندات الانتاج"), icon: Factory, valueKey: "produced_value",
+    description: tr("لكل سند انتاج: قيمة المواد المنتجة مقابل قيمة المواد الخام المستهلكة والفرق"),
     columns: [
-      { key: "code", label: "رقم السند" }, { key: "vch_date", label: "التاريخ" }, { key: "status", label: "الحالة", align: "center", format: "status" },
-      { key: "branch_name", label: "الفرع" }, { key: "produced_names", label: "المواد المنتجة" },
-      { key: "finished_store_name", label: "مستودع المواد الجاهزة" }, { key: "raw_store_name", label: "مستودع المواد الخام" },
-      { key: "produced_quantity", label: "الكمية المنتجة", align: "end", format: "qty", sum: true },
-      { key: "produced_value", label: "قيمة المنتَج", align: "end", format: "money", sum: true },
-      { key: "raw_value", label: "قيمة الخام", align: "end", format: "money", sum: true },
-      { key: "difference", label: "الفرق", align: "end", format: "money", sum: true },
+      { key: "code", label: tr("رقم السند") }, { key: "vch_date", label: tr("التاريخ") }, { key: "status", label: tr("الحالة"), align: "center", format: "status" },
+      { key: "branch_name", label: tr("الفرع") }, { key: "produced_names", label: tr("المواد المنتجة") },
+      { key: "finished_store_name", label: tr("مستودع المواد الجاهزة") }, { key: "raw_store_name", label: tr("مستودع المواد الخام") },
+      { key: "produced_quantity", label: tr("الكمية المنتجة"), align: "end", format: "qty", sum: true },
+      { key: "produced_value", label: tr("قيمة المنتَج"), align: "end", format: "money", sum: true },
+      { key: "raw_value", label: tr("قيمة الخام"), align: "end", format: "money", sum: true },
+      { key: "difference", label: tr("الفرق"), align: "end", format: "money", sum: true },
     ],
   },
 }
@@ -75,11 +76,11 @@ function cell(column: Column, row: Record<string, any>) {
     case "qty": return <span dir="ltr" className="font-mono">{qty(value)}</span>
     case "int": return <span className="font-mono">{Number(value || 0)}</span>
     case "role": return Number(value) === 1
-      ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">منتَج</span>
-      : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">خام</span>
+      ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{tr("منتَج")}</span>
+      : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">{tr("خام")}</span>
     case "status": return Number(value) === 2
-      ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">معتمد</span>
-      : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">غير معتمد</span>
+      ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{tr("معتمد")}</span>
+      : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">{tr("غير معتمد")}</span>
     default: return value === null || value === undefined || value === "" ? "—" : String(value)
   }
 }
@@ -106,10 +107,10 @@ export function ProductionReport({ view }: { view: View }) {
       })
       const response = await fetch(`/api/reports/production?${query}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(data.rows || [])
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل التقرير"))
     } finally { setLoading(false) }
   }, [filters, view])
 
@@ -128,23 +129,23 @@ export function ProductionReport({ view }: { view: View }) {
     <ReportPage loading={loading}>
       <ReportHeader
         icon={Icon}
-        category="تقارير الانتاج"
+        category={tr("تقارير الانتاج")}
         title={config.title}
         description={config.description}
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="ml-2 h-4 w-4" />طباعة</Button>}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="space-y-2"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
-          <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
-          <ReportMultiChoice label="الفرع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder="كل الفروع" />
-          <ReportMultiChoice label="المستودع" options={meta.warehouses} selected={filters.warehouseIds} onChange={(warehouseIds) => setFilters({ ...filters, warehouseIds })} placeholder="كل المستودعات" />
-          <ReportMultiChoice label="حالة السند" options={STATUS_OPTIONS} selected={filters.statuses} onChange={(statuses) => setFilters({ ...filters, statuses })} placeholder="المعتمدة" />
-          <div className="space-y-2"><Label>الصنف أو رقم السند</Label><Input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} className="rounded-xl" placeholder="بحث" /></div>
+          <div className="space-y-2"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
+          <ReportMultiChoice label={tr("الفرع")} options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("كل الفروع")} />
+          <ReportMultiChoice label={tr("المستودع")} options={meta.warehouses} selected={filters.warehouseIds} onChange={(warehouseIds) => setFilters({ ...filters, warehouseIds })} placeholder={tr("كل المستودعات")} />
+          <ReportMultiChoice label={tr("حالة السند")} options={STATUS_OPTIONS} selected={filters.statuses} onChange={(statuses) => setFilters({ ...filters, statuses })} placeholder={tr("المعتمدة")} />
+          <div className="space-y-2"><Label>{tr("الصنف أو رقم السند")}</Label><Input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} className="rounded-xl" placeholder={tr("بحث")} /></div>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />عرض النتائج</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 
@@ -153,16 +154,16 @@ export function ProductionReport({ view }: { view: View }) {
       {rows && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <ReportSummaryCard label="عدد الأسطر">{String(rows.length)}</ReportSummaryCard>
+            <ReportSummaryCard label={tr("عدد الأسطر")}>{String(rows.length)}</ReportSummaryCard>
             {view === "detailed" ? (
               <>
-                <ReportSummaryCard label="قيمة المواد المنتجة">{money(totals.produced)}</ReportSummaryCard>
-                <ReportSummaryCard label="قيمة المواد الخام">{money(totals.raw)}</ReportSummaryCard>
+                <ReportSummaryCard label={tr("قيمة المواد المنتجة")}>{money(totals.produced)}</ReportSummaryCard>
+                <ReportSummaryCard label={tr("قيمة المواد الخام")}>{money(totals.raw)}</ReportSummaryCard>
               </>
             ) : (
-              <ReportSummaryCard label={view === "raw" ? "قيمة المواد المستهلكة" : "قيمة المواد المنتجة"}>{money(totals[config.valueKey])}</ReportSummaryCard>
+              <ReportSummaryCard label={view === "raw" ? tr("قيمة المواد المستهلكة") : tr("قيمة المواد المنتجة")}>{money(totals[config.valueKey])}</ReportSummaryCard>
             )}
-            {view === "vouchers" && <ReportSummaryCard label="قيمة المواد الخام">{money(totals.raw_value)}</ReportSummaryCard>}
+            {view === "vouchers" && <ReportSummaryCard label={tr("قيمة المواد الخام")}>{money(totals.raw_value)}</ReportSummaryCard>}
           </div>
 
           <div className="overflow-x-auto rounded-2xl border bg-white">
@@ -172,7 +173,7 @@ export function ProductionReport({ view }: { view: View }) {
               </thead>
               <tbody>
                 {rows.length === 0
-                  ? <tr><td colSpan={config.columns.length} className="p-8 text-center text-muted-foreground">لا توجد بيانات للفترة والفلاتر المحددة</td></tr>
+                  ? <tr><td colSpan={config.columns.length} className="p-8 text-center text-muted-foreground">{tr("لا توجد بيانات للفترة والفلاتر المحددة")}</td></tr>
                   : rows.map((row, index) => (
                     <tr key={index} className="border-t hover:bg-emerald-50/40">
                       {config.columns.map((column) => <td key={column.key} className={`p-2 ${alignClass(column.align)}`}>{cell(column, row)}</td>)}
@@ -184,7 +185,7 @@ export function ProductionReport({ view }: { view: View }) {
                   <tr>
                     {config.columns.map((column, index) => (
                       <td key={column.key} className={`p-2 ${alignClass(column.align)}`}>
-                        {index === 0 ? "الإجمالي" : column.sum ? (column.format === "money" ? <span dir="ltr" className="font-mono">{money(totals[column.key])}</span> : column.format === "int" ? totals[column.key] : <span dir="ltr" className="font-mono">{qty(totals[column.key])}</span>) : ""}
+                        {index === 0 ? tr("الإجمالي") : column.sum ? (column.format === "money" ? <span dir="ltr" className="font-mono">{money(totals[column.key])}</span> : column.format === "int" ? totals[column.key] : <span dir="ltr" className="font-mono">{qty(totals[column.key])}</span>) : ""}
                       </td>
                     ))}
                   </tr>

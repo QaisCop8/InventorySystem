@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { reverseAidForVoucher } from "@/lib/aid-program"
 
 // Called inside the invoice transaction from every cancellation entry point.
 // Removing the POS allocations after reversal makes retries a no-op; invoice
@@ -25,6 +26,8 @@ export async function reversePosSessionPayments(voucher: { id: number; vch_type:
       await sql`UPDATE pos_gift_cards_tbl SET balance=balance+${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference || "")}`
     }
   }
+  // قسيمة مساعدة: قيد عكس مرتبط بقيد الصرف الأصلي يعيد رصيد المستفيد وينقص مستحقات المتجر (مرة واحدة)
+  if (payments.some((payment: any) => payment.payment_method === "aid_voucher")) await reverseAidForVoucher(Number(voucher.id), null)
   for (const sessionId of sessions) {
     await sql`DELETE FROM pos_cash_movements_tbl WHERE session_id=${sessionId} AND reference=${voucher.vch_code} AND movement_type IN ('sale','refund')`
   }

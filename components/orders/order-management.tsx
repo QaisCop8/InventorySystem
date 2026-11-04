@@ -1,3 +1,4 @@
+import { tr } from "@/lib/i18n"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import React, { useState, useMemo, useEffect } from "react";
 import {
@@ -76,27 +77,27 @@ export const OrderManagement: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       notCompleted: {
-        label: "غير جاهزة",
+        label: tr("غير جاهزة"),
         variant: "secondary",
         className: "bg-amber-100 text-amber-800 border-amber-200",
       },
       Completed: {
-        label: "جاهزة",
+        label: tr("جاهزة"),
         variant: "secondary",
         className: "bg-emerald-100 text-emerald-800 border-emerald-200",
       },
       cancelled: {
-        label: "ملغاة",
+        label: tr("ملغاة"),
         variant: "secondary",
         className: "bg-red-100 text-red-800 border-red-200",
       },
       sentPartially: {
-        label: "مرسلة جزئيا",
+        label: tr("مرسلة جزئيا"),
         variant: "secondary",
         className: "bg-blue-100 text-blue-800 border-blue-200",
       },
       sent: {
-        label: "مرسلة كليا",
+        label: tr("مرسلة كليا"),
         variant: "secondary",
         className: "bg-blue-100 text-blue-800 border-blue-200",
       },
@@ -127,13 +128,13 @@ export const OrderManagement: React.FC = () => {
       "1" | "2" | "3",
       { label: string; className: string }
     > = {
-      "1": { label: "غير مسلم", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-      "2": { label: "مسلم", className: "bg-red-100 text-red-800 border-red-200" },
-      "3": { label: "ملغي", className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+      "1": { label: tr("غير مسلم"), className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+      "2": { label: tr("مسلم"), className: "bg-red-100 text-red-800 border-red-200" },
+      "3": { label: tr("ملغي"), className: "bg-yellow-100 text-yellow-800 border-yellow-200" },
     };
     const config =
       decisionConfig[decision as keyof typeof decisionConfig] || {
-        label: "غير معروف",
+        label: tr("غير معروف"),
         className: "bg-slate-100 text-slate-800 border-slate-200",
       };
     return <Badge className={config.className}>{config.label}</Badge>;
@@ -174,7 +175,7 @@ export const OrderManagement: React.FC = () => {
     } catch (err) {
       setState(prev => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+        error: err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"),
         salesOrders: [],
       }));
     } finally {
@@ -288,7 +289,7 @@ export const OrderManagement: React.FC = () => {
     });
     setLoading(false)
 
-    void showAlert(status === 1 ? "تم تجهيز الطلبيات" : "تم تسليم الطلبيات");
+    void showAlert(status === 1 ? tr("تم تجهيز الطلبيات") : tr("تم تسليم الطلبيات"));
   }
   const handleUpdateStatus = async (
     order: SalesOrder,
@@ -390,18 +391,18 @@ export const OrderManagement: React.FC = () => {
       <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-800">
-            <Filter className="h-5 w-5" /> البحث والتصفية المتقدمة
+            <Filter className="h-5 w-5" />{tr(" البحث والتصفية المتقدمة")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4 items-end">
             {/* Search */}
             <div className="lg:col-span-3">
-              <Label className="text-slate-700 font-medium">البحث الذكي</Label>
+              <Label className="text-slate-700 font-medium">{tr("البحث الذكي")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الطلبية، اسم العميل..."
+                  placeholder={tr("رقم الطلبية، اسم العميل...")}
                   value={state.filters.search}
                   onChange={e =>
                     setState(prev => ({ ...prev, filters: { ...prev.filters, search: e.target.value } }))
@@ -413,7 +414,7 @@ export const OrderManagement: React.FC = () => {
 
             {/* Status */}
             <div className="lg:col-span-2">
-              <Label className="text-slate-700 font-medium">حالة الطلبية</Label>
+              <Label className="text-slate-700 font-medium">{tr("حالة الطلبية")}</Label>
               <Select
                 value={state.filters.status}
                 onValueChange={v =>
@@ -424,11 +425,11 @@ export const OrderManagement: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">جميع الحالات</SelectItem>
-                  <SelectItem value="1">غير جاهزة</SelectItem>
-                  <SelectItem value="2">جاهزة</SelectItem>
-                  <SelectItem value="3">مرسلة جزئيا</SelectItem>
-                  <SelectItem value="4">مرسلة كليا</SelectItem>
+                  <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="1">{tr("غير جاهزة")}</SelectItem>
+                  <SelectItem value="2">{tr("جاهزة")}</SelectItem>
+                  <SelectItem value="3">{tr("مرسلة جزئيا")}</SelectItem>
+                  <SelectItem value="4">{tr("مرسلة كليا")}</SelectItem>
 
                 </SelectContent>
               </Select>
@@ -436,7 +437,7 @@ export const OrderManagement: React.FC = () => {
 
             {/* Order Decision */}
             <div className="lg:col-span-2">
-              <Label className="text-slate-700 font-medium">حالة التسليم</Label>
+              <Label className="text-slate-700 font-medium">{tr("حالة التسليم")}</Label>
               <Select
                 value={state.filters.order_status2}
                 onValueChange={v =>
@@ -447,17 +448,17 @@ export const OrderManagement: React.FC = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">جميع الحالات</SelectItem>
-                  <SelectItem value="1">غير مسلم</SelectItem>
-                  <SelectItem value="2">مسلم</SelectItem>
-                  <SelectItem value="3">ملغي</SelectItem>
+                  <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="1">{tr("غير مسلم")}</SelectItem>
+                  <SelectItem value="2">{tr("مسلم")}</SelectItem>
+                  <SelectItem value="3">{tr("ملغي")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* From Date */}
             <div>
-              <Label className="text-slate-700 font-medium">من تاريخ</Label>
+              <Label className="text-slate-700 font-medium">{tr("من تاريخ")}</Label>
               <Input
                 type="date"
                 value={state.filters.dateFrom}
@@ -470,7 +471,7 @@ export const OrderManagement: React.FC = () => {
 
             {/* To Date */}
             <div>
-              <Label className="text-slate-700 font-medium">إلى تاريخ</Label>
+              <Label className="text-slate-700 font-medium">{tr("إلى تاريخ")}</Label>
               <Input
                 type="date"
                 value={state.filters.dateTo}
@@ -487,27 +488,27 @@ export const OrderManagement: React.FC = () => {
                 className="bg-blue-500 text-white"
                 onClick={fetchSalesOrders}
               >
-                بحث
+                {tr("بحث")}
               </Button>
               <Button className="bg-blue-500 text-white" onClick={async () => {
-                if ((await confirmYesNo("هل أنت متأكد من تجهيز كل الطلبيات؟"))) {
+                if ((await confirmYesNo(tr("هل أنت متأكد من تجهيز كل الطلبيات؟")))) {
                   handleUpdateAllStatus(1);
                 }
               }}>
-                تجهيز الكل
+                {tr("تجهيز الكل")}
               </Button>
               <Button className="bg-blue-500 text-white" onClick={() => {
                 if (selectedOrders.size === 0) {
-                  setErrorMessage("يجب تحديد طلبية واحدة على الاقل");
+                  setErrorMessage(tr("يجب تحديد طلبية واحدة على الاقل"));
                   return;
                 }
                 setBatchDeliveryMode(true);
                 setReceivedByPopupVisible(true);
               }}>
-                تسليم المحدد
+                {tr("تسليم المحدد")}
               </Button>
               <Button variant="outline" onClick={resetFilters}>
-                إعادة تعيين
+                {tr("إعادة تعيين")}
               </Button>
             </div>
           </div>
@@ -517,9 +518,9 @@ export const OrderManagement: React.FC = () => {
       {/* ORDERS TABLE */}
       <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-slate-800">قائمة الطلبيات</CardTitle>
+          <CardTitle className="text-slate-800">{tr("قائمة الطلبيات")}</CardTitle>
           <CardDescription className="text-slate-600">
-            عرض {filteredOrders.length} من أصل {state.salesOrders.length} طلبية
+            {tr("عرض ")}{filteredOrders.length}{tr(" من أصل ")}{state.salesOrders.length}{tr(" طلبية")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -527,7 +528,7 @@ export const OrderManagement: React.FC = () => {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="p-4 text-right font-semibold text-slate-700">##</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">##</th>
                   <th className="p-4 text-center font-semibold text-slate-700">
                     <input
                       type="checkbox"
@@ -540,33 +541,33 @@ export const OrderManagement: React.FC = () => {
                         }
                       }}
                       className="w-4 h-4 cursor-pointer"
-                      title="تحديد/إلغاء الكل"
+                      title={tr("تحديد/إلغاء الكل")}
                     />
                   </th>
-                  <th className="p-4 text-right font-semibold text-slate-700">رقم الطلبية</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">التاريخ</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">تجهيز الطلبية</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">تسليم الطلبية</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">العميل</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">الحالة</th>
-                  <th className="p-4 text-right font-semibold text-slate-700"> حالة التسليم</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">السند اليدوي</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">رقم طلبية العميل</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">المبلغ</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">استلمت بواسطة</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("رقم الطلبية")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("التاريخ")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("تجهيز الطلبية")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("تسليم الطلبية")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("العميل")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("الحالة")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr(" حالة التسليم")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("السند اليدوي")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("رقم طلبية العميل")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("المبلغ")}</th>
+                  <th className="p-4 text-start font-semibold text-slate-700">{tr("استلمت بواسطة")}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="text-center p-8 text-slate-600">
-                      لا توجد طلبات مطابقة للبحث
+                      {tr("لا توجد طلبات مطابقة للبحث")}
                     </td>
                   </tr>
                 ) : (
                   filteredOrders.map(order => (
                     <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="p-4 font-medium text-right">{order.ser}</td>
+                      <td className="p-4 font-medium text-start">{order.ser}</td>
                       <td className="p-4 text-center">
                         <input
                           type="checkbox"
@@ -583,13 +584,13 @@ export const OrderManagement: React.FC = () => {
                           className="w-4 h-4 cursor-pointer"
                         />
                       </td>
-                      <td className="p-4 font-medium text-right">{order.order_number}</td>
-                      <td className="p-4 text-right">{order.order_date}</td>
-                      <td className="p-4 font-medium text-right">
-                        <Button title={"تغيير حالة الطلبية الى جاهز"} variant="outline" size="sm"
+                      <td className="p-4 font-medium text-start">{order.order_number}</td>
+                      <td className="p-4 text-start">{order.order_date}</td>
+                      <td className="p-4 font-medium text-start">
+                        <Button title={tr("تغيير حالة الطلبية الى جاهز")} variant="outline" size="sm"
                           className="border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700"
                           onClick={async () => {
-                            if ((await confirmYesNo("هل أنت متأكد من تجهيز الطلبية؟"))) {
+                            if ((await confirmYesNo(tr("هل أنت متأكد من تجهيز الطلبية؟")))) {
                               handleUpdateStatus(order, 1);
                             }
                           }}
@@ -598,9 +599,9 @@ export const OrderManagement: React.FC = () => {
                         </Button>
 
                       </td>
-                      <td className="p-4 font-medium text-right">
+                      <td className="p-4 font-medium text-start">
                         <Button
-                          title={"تغيير حالة الطلبية الى مسلم"}
+                          title={tr("تغيير حالة الطلبية الى مسلم")}
                           variant="outline"
                           size="sm"
                           className="border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
@@ -613,15 +614,15 @@ export const OrderManagement: React.FC = () => {
                         </Button>
 
                       </td>
-                      <td className="p-4 text-right">{order.customer_name}</td>
-                      <td className="p-4 text-right">{getStatusBadge(String(order.order_status))}</td>
-                      <td className="p-4 text-right">{getOrderDecisionBadge(String(order.order_status2))}</td>
-                      <td className="p-4 text-right">{order.reference_number}</td>
-                      <td className="p-4 text-right">{order.customer_order_no}</td>
-                      <td className="p-4 text-right font-bold">
+                      <td className="p-4 text-start">{order.customer_name}</td>
+                      <td className="p-4 text-start">{getStatusBadge(String(order.order_status))}</td>
+                      <td className="p-4 text-start">{getOrderDecisionBadge(String(order.order_status2))}</td>
+                      <td className="p-4 text-start">{order.reference_number}</td>
+                      <td className="p-4 text-start">{order.customer_order_no}</td>
+                      <td className="p-4 text-start font-bold">
                         {order.total_amount?.toLocaleString("en-US")} {order.currency_code}
                       </td>
-                      <td className="p-4 text-right">{order.received_by}</td>
+                      <td className="p-4 text-start">{order.received_by}</td>
 
                     </tr>
                   ))

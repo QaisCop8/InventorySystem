@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,7 +13,7 @@ export default function DatabaseExport() {
 
   const exportFullDatabase = async () => {
     setIsExporting(true)
-    setExportStatus("جاري تصدير قاعدة البيانات الكاملة...")
+    setExportStatus(tr("جاري تصدير قاعدة البيانات الكاملة..."))
 
     try {
       const response = await fetch("/api/admin/export-database", {
@@ -31,12 +32,12 @@ export default function DatabaseExport() {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        setExportStatus("تم تصدير قاعدة البيانات بنجاح!")
+        setExportStatus(tr("تم تصدير قاعدة البيانات بنجاح!"))
       } else {
-        setExportStatus("فشل في تصدير قاعدة البيانات")
+        setExportStatus(tr("فشل في تصدير قاعدة البيانات"))
       }
     } catch (error) {
-      setExportStatus("حدث خطأ أثناء التصدير")
+      setExportStatus(tr("حدث خطأ أثناء التصدير"))
       console.error("Export error:", error)
     } finally {
       setIsExporting(false)
@@ -45,7 +46,7 @@ export default function DatabaseExport() {
 
   const exportDataOnly = async () => {
     setIsExporting(true)
-    setExportStatus("جاري تصدير البيانات فقط...")
+    setExportStatus(tr("جاري تصدير البيانات فقط..."))
 
     try {
       const response = await fetch("/api/admin/export-database", {
@@ -64,12 +65,12 @@ export default function DatabaseExport() {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        setExportStatus("تم تصدير البيانات بنجاح!")
+        setExportStatus(tr("تم تصدير البيانات بنجاح!"))
       } else {
-        setExportStatus("فشل في تصدير البيانات")
+        setExportStatus(tr("فشل في تصدير البيانات"))
       }
     } catch (error) {
-      setExportStatus("حدث خطأ أثناء التصدير")
+      setExportStatus(tr("حدث خطأ أثناء التصدير"))
       console.error("Export error:", error)
     } finally {
       setIsExporting(false)
@@ -80,7 +81,7 @@ export default function DatabaseExport() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Database className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">تصدير قاعدة البيانات</h1>
+        <h1 className="text-2xl font-bold">{tr("تصدير قاعدة البيانات")}</h1>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -88,18 +89,18 @@ export default function DatabaseExport() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="h-5 w-5" />
-              نسخة احتياطية كاملة
+              {tr("نسخة احتياطية كاملة")}
             </CardTitle>
-            <CardDescription>تصدير قاعدة البيانات الكاملة بما في ذلك البنية والبيانات</CardDescription>
+            <CardDescription>{tr("تصدير قاعدة البيانات الكاملة بما في ذلك البنية والبيانات")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Badge variant="secondary">SQL Format</Badge>
-              <p className="text-sm text-muted-foreground">يشمل: جميع الجداول، البيانات، الفهارس، والقيود</p>
+              <p className="text-sm text-muted-foreground">{tr("يشمل: جميع الجداول، البيانات، الفهارس، والقيود")}</p>
             </div>
             <Button onClick={exportFullDatabase} disabled={isExporting} className="w-full">
-              {isExporting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Download className="h-4 w-4 ml-2" />}
-              تصدير النسخة الكاملة
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Download className="h-4 w-4 me-2" />}
+              {tr("تصدير النسخة الكاملة")}
             </Button>
           </CardContent>
         </Card>
@@ -108,18 +109,18 @@ export default function DatabaseExport() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              البيانات فقط
+              {tr("البيانات فقط")}
             </CardTitle>
-            <CardDescription>تصدير البيانات فقط بدون بنية قاعدة البيانات</CardDescription>
+            <CardDescription>{tr("تصدير البيانات فقط بدون بنية قاعدة البيانات")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Badge variant="secondary">JSON Format</Badge>
-              <p className="text-sm text-muted-foreground">يشمل: البيانات من الجداول الرئيسية فقط</p>
+              <p className="text-sm text-muted-foreground">{tr("يشمل: البيانات من الجداول الرئيسية فقط")}</p>
             </div>
             <Button onClick={exportDataOnly} disabled={isExporting} variant="outline" className="w-full bg-transparent">
-              {isExporting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Download className="h-4 w-4 ml-2" />}
-              تصدير البيانات فقط
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Download className="h-4 w-4 me-2" />}
+              {tr("تصدير البيانات فقط")}
             </Button>
           </CardContent>
         </Card>
@@ -135,21 +136,21 @@ export default function DatabaseExport() {
 
       <Card>
         <CardHeader>
-          <CardTitle>معلومات قاعدة البيانات</CardTitle>
+          <CardTitle>{tr("معلومات قاعدة البيانات")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">50</div>
-              <div className="text-sm text-muted-foreground">جدول</div>
+              <div className="text-sm text-muted-foreground">{tr("جدول")}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">Neon</div>
-              <div className="text-sm text-muted-foreground">منصة الاستضافة</div>
+              <div className="text-sm text-muted-foreground">{tr("منصة الاستضافة")}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">PostgreSQL</div>
-              <div className="text-sm text-muted-foreground">نوع قاعدة البيانات</div>
+              <div className="text-sm text-muted-foreground">{tr("نوع قاعدة البيانات")}</div>
             </div>
           </div>
         </CardContent>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { ExcelImportWizard, type ImportConfig, type ImportIssue } from "@/components/import/excel-import-wizard"
 
@@ -7,9 +8,9 @@ export type PartyImportKind = "customers" | "suppliers" | "subscribers"
 
 // parentSetting: مفتاح حساب الأب في "الحسابات الافتراضية" بإعدادات النظام — نفس ما يقرؤه الخادم عند الحفظ.
 const LABELS: Record<PartyImportKind, { plural: string; single: string; type: number; parentSetting: string; parentLabel: string }> = {
-  customers: { plural: "العملاء", single: "العميل", type: 1, parentSetting: "default_customer_parent_account", parentLabel: "للعملاء" },
-  suppliers: { plural: "الموردين", single: "المورد", type: 2, parentSetting: "default_supplier_parent_account", parentLabel: "للموردين" },
-  subscribers: { plural: "المشتركين", single: "المشترك", type: 4, parentSetting: "default_customer_subscription_account", parentLabel: "للمشتركين" },
+  customers: { plural: "العملاء", single: "العميل", type: 1, parentSetting: "default_customer_parent_account", parentLabel: tr("للعملاء") },
+  suppliers: { plural: "الموردين", single: "المورد", type: 2, parentSetting: "default_supplier_parent_account", parentLabel: tr("للموردين") },
+  subscribers: { plural: "المشتركين", single: "المشترك", type: 4, parentSetting: "default_customer_subscription_account", parentLabel: tr("للمشتركين") },
 }
 
 type Lookups = { cities: string[]; classifications: string[]; priceCategories: Array<{ id: number; name: string }>; currencies: Array<{ id: number; code: string; name: string }>; hasParentAccount: boolean }
@@ -41,43 +42,43 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported, showKi
   const config = useMemo<ImportConfig | null>(() => {
     if (!lookups) return null
     return {
-      title: `استيراد ${label.plural} من Excel`,
-      description: showKindNotice ? `يتم ادخال السجلات حسب نوع الذمة المختار: ${label.plural}` : undefined,
-      blockingMessage: lookups.hasParentAccount ? undefined : `يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب ${label.parentLabel}`,
+      title: tr("استيراد {0} من Excel", label.plural),
+      description: showKindNotice ? tr("يتم ادخال السجلات حسب نوع الذمة المختار: {0}", label.plural) : undefined,
+      blockingMessage: lookups.hasParentAccount ? undefined : tr("يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب {0}", label.parentLabel),
       templateFileName: `نموذج-${label.plural}`,
       fields: [
-        { key: "customer_code", label: `رقم ${label.single}`, aliases: ["customer_code", "code", "رقم", "الرقم", "كود"], unique: true, description: "يُولَّد تلقائياً إن تُرك فارغاً", example: "" },
-        { key: "customer_name", label: `اسم ${label.single}`, required: true, aliases: ["customer_name", "name", "الاسم", "اسم العميل", "اسم المورد", "اسم المشترك"], maxLength: 150, example: "شركة النور" },
-        { key: "mobile1", label: "الجوال الأول", aliases: ["mobile1", "mobile", "الجوال", "الموبايل", "هاتف"], maxLength: 30, example: "0599000000" },
-        { key: "mobile2", label: "الجوال الثاني", aliases: ["mobile2"], maxLength: 30 },
-        { key: "whatsapp1", label: "واتساب", aliases: ["whatsapp1", "whatsapp", "واتساب الأول"], maxLength: 30 },
-        { key: "city", label: "المدينة", aliases: ["city", "المنطقة"], options: lookups.cities.map((name) => ({ value: name, label: name })) },
-        { key: "address", label: "العنوان", aliases: ["address"], maxLength: 300 },
-        { key: "email", label: "البريد الإلكتروني", aliases: ["email", "الايميل"], maxLength: 150 },
-        { key: "classification", label: "التصنيف", aliases: ["classification", "classifications"], options: lookups.classifications.map((name) => ({ value: name, label: name })) },
-        { key: "price_category", label: "فئة السعر", aliases: ["priceClass", "price_category", "pricecategory"], options: lookups.priceCategories.map((price) => ({ value: price.id, label: price.name, aliases: [String(price.id)] })) },
+        { key: "customer_code", label: tr("رقم {0}", label.single), aliases: ["customer_code", "code", "رقم", "الرقم", "كود"], unique: true, description: tr("يُولَّد تلقائياً إن تُرك فارغاً"), example: "" },
+        { key: "customer_name", label: tr("اسم {0}", label.single), required: true, aliases: ["customer_name", "name", "الاسم", "اسم العميل", "اسم المورد", "اسم المشترك"], maxLength: 150, example: "شركة النور" },
+        { key: "mobile1", label: tr("الجوال الأول"), aliases: ["mobile1", "mobile", "الجوال", "الموبايل", "هاتف"], maxLength: 30, example: "0599000000" },
+        { key: "mobile2", label: tr("الجوال الثاني"), aliases: ["mobile2"], maxLength: 30 },
+        { key: "whatsapp1", label: tr("واتساب"), aliases: ["whatsapp1", "whatsapp", "واتساب الأول"], maxLength: 30 },
+        { key: "city", label: tr("المدينة"), aliases: ["city", "المنطقة"], options: lookups.cities.map((name) => ({ value: name, label: name })) },
+        { key: "address", label: tr("العنوان"), aliases: ["address"], maxLength: 300 },
+        { key: "email", label: tr("البريد الإلكتروني"), aliases: ["email", "الايميل"], maxLength: 150 },
+        { key: "classification", label: tr("التصنيف"), aliases: ["classification", "classifications"], options: lookups.classifications.map((name) => ({ value: name, label: name })) },
+        { key: "price_category", label: tr("فئة السعر"), aliases: ["priceClass", "price_category", "pricecategory"], options: lookups.priceCategories.map((price) => ({ value: price.id, label: price.name, aliases: [String(price.id)] })) },
         {
-          key: "opening_balance", label: "الرصيد", type: "number",
+          key: "opening_balance", label: tr("الرصيد"), type: "number",
           aliases: ["opening_balance", "balance", "الرصيد", "الرصيد الافتتاحي", "رصيد افتتاحي"],
           description: kind === "suppliers"
-            ? "رصيد افتتاحي: موجب = دائن (له)، سالب = مدين (عليه). يُقيَّد بسند قيد مقابل الحساب الوسيط للأرصدة الافتتاحية"
-            : "رصيد افتتاحي: موجب = مدين (عليه)، سالب = دائن (له). يُقيَّد بسند قيد مقابل الحساب الوسيط للأرصدة الافتتاحية",
+            ? tr("رصيد افتتاحي: موجب = دائن (له)، سالب = مدين (عليه). يُقيَّد بسند قيد مقابل الحساب الوسيط للأرصدة الافتتاحية")
+            : tr("رصيد افتتاحي: موجب = مدين (عليه)، سالب = دائن (له). يُقيَّد بسند قيد مقابل الحساب الوسيط للأرصدة الافتتاحية"),
         },
         {
-          key: "opening_currency", label: "عملة الرصيد الافتتاحي",
+          key: "opening_currency", label: tr("عملة الرصيد الافتتاحي"),
           aliases: ["opening_currency", "currency", "العملة", "عملة الرصيد", "عملة الرصيد الافتتاحي"],
           options: lookups.currencies.map((currency) => ({ value: currency.id, label: currency.code || currency.name, aliases: [currency.name, String(currency.id)] })),
-          description: "وهي عملة الحساب أيضاً. فارغة ⇐ عملة الأساس",
+          description: tr("وهي عملة الحساب أيضاً. فارغة ⇐ عملة الأساس"),
         },
-        { key: "opening_date", label: "تاريخ الرصيد", type: "date", aliases: ["opening_date", "تاريخ الرصيد", "تاريخ الرصيد الافتتاحي"], description: "تاريخ سند القيد — فارغ ⇐ تاريخ اليوم" },
+        { key: "opening_date", label: tr("تاريخ الرصيد"), type: "date", aliases: ["opening_date", "تاريخ الرصيد", "تاريخ الرصيد الافتتاحي"], description: tr("تاريخ سند القيد — فارغ ⇐ تاريخ اليوم") },
       ],
       validate: async (rows) => {
         const result = new Map<number, ImportIssue[]>()
         const add = (id: number, issue: ImportIssue) => result.set(id, [...(result.get(id) || []), issue])
         for (const row of rows) {
           const email = String(row.data.email || "")
-          if (Number(row.data.opening_balance) && !row.data.opening_currency && lookups.currencies.length > 1) add(row.id, { field: "opening_currency", message: "حدّد عملة الرصيد الافتتاحي" })
-          if (email && !/^\S+@\S+\.\S+$/.test(email)) add(row.id, { field: "email", message: "صيغة البريد الإلكتروني غير صحيحة" })
+          if (Number(row.data.opening_balance) && !row.data.opening_currency && lookups.currencies.length > 1) add(row.id, { field: "opening_currency", message: tr("حدّد عملة الرصيد الافتتاحي") })
+          if (email && !/^\S+@\S+\.\S+$/.test(email)) add(row.id, { field: "email", message: tr("صيغة البريد الإلكتروني غير صحيحة") })
         }
         // الأرقام الموجودة مسبقاً في النظام
         const codes = rows.map((row) => String(row.data.customer_code || "").trim()).filter(Boolean)
@@ -88,7 +89,7 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported, showKi
           const normalized = new Map<string, string>(Object.entries(data.normalized || {}))
           for (const row of rows) {
             const code = String(row.data.customer_code || "").trim()
-            if (code && existing.has(normalized.get(code) || code)) add(row.id, { field: "customer_code", message: `الرقم ${normalized.get(code) || code} موجود مسبقاً في النظام` })
+            if (code && existing.has(normalized.get(code) || code)) add(row.id, { field: "customer_code", message: tr("الرقم {0} موجود مسبقاً في النظام", normalized.get(code) || code) })
           }
         }
         return result
@@ -113,15 +114,15 @@ export function PartyImportDialog({ kind, open, onOpenChange, onImported, showKi
           try {
             const response = await fetch("/api/import/customers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: payload }), signal })
             const data = await response.json().catch(() => ({}))
-            if (!response.ok) throw new Error(data.error || "فشل الاستيراد")
+            if (!response.ok) throw new Error(data.error || tr("فشل الاستيراد"))
             const byRow = new Map<number, any>((data.results || []).map((item: any) => [Number(item.rowIndex), item]))
             for (const row of batch) {
               const item = byRow.get(row.id)
-              report(row.id, item?.status === "success" ? { ok: true } : { ok: false, message: item?.error || "لم يُحفظ" })
+              report(row.id, item?.status === "success" ? { ok: true } : { ok: false, message: item?.error || tr("لم يُحفظ") })
             }
           } catch (error: any) {
             if (signal.aborted) return
-            for (const row of batch) report(row.id, { ok: false, message: error?.message || "خطأ في الاتصال" })
+            for (const row of batch) report(row.id, { ok: false, message: error?.message || tr("خطأ في الاتصال") })
           }
         }
       },

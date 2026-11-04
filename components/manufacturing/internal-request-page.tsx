@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -218,7 +219,7 @@ export default function InternalRequestPage() {
       setProductOpen(false)
       window.setTimeout(() => barcodeInputRef.current?.focus(), 0)
     } catch (error) {
-      showMessage(error instanceof Error ? error.message : "تعذر إضافة توابع الصنف", "error")
+      showMessage(error instanceof Error ? error.message : tr("تعذر إضافة توابع الصنف"), "error")
     }
   }
   const addProductByBarcode = async () => {
@@ -229,14 +230,14 @@ export default function InternalRequestPage() {
       const response = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(barcode)}`)
       const product = await response.json()
       if (!response.ok || !product?.id) {
-        showMessage("رقم الباركود المدخل غير صحيح", "error")
+        showMessage(tr("رقم الباركود المدخل غير صحيح"), "error")
         return
       }
       const expanded = await expandProductWithRelatedItems(product)
       setItems((current) => { const next = [...current]; for (const expandedProduct of expanded) if (!next.some((item) => Number(item.product_id) === Number(expandedProduct.id))) next.push(buildRequestItem(expandedProduct, Number(expandedProduct.id) === Number(product.id) ? barcode : undefined)); return next })
       setBarcodeInput("")
     } catch {
-      showMessage("رقم الباركود المدخل غير صحيح", "error")
+      showMessage(tr("رقم الباركود المدخل غير صحيح"), "error")
     } finally {
       setBarcodeSearching(false)
       window.setTimeout(() => barcodeInputRef.current?.focus(), 0)
@@ -244,19 +245,19 @@ export default function InternalRequestPage() {
   }
   const saveRequest = async () => {
     messagesRef.current?.clear?.()
-    if (items.length === 0) { showMessage("يجب اضافة صنف واحد على الأقل", "error"); return }
-    if (items.some((item) => !(Number(item.quantity) > 0))) { showMessage("يجب أن تكون كمية كل صنف أكبر من صفر", "error"); return }
-    if (!sourceWarehouse) { showMessage("يجب اختيار مستودع مقدم الطلب", "error"); return }
-    if (!destinationBranch) { showMessage("يجب اختيار الفرع المطلوب منه البضاعة", "error"); return }
-    if (!destinationWarehouse) { showMessage("يجب اختيار المستودع المطلوب منه البضاعة", "error"); return }
-    if (String(sourceWarehouse) === String(destinationWarehouse)) { showMessage("لا يمكن أن يكون نفس المستودع", "error"); return }
+    if (items.length === 0) { showMessage(tr("يجب اضافة صنف واحد على الأقل"), "error"); return }
+    if (items.some((item) => !(Number(item.quantity) > 0))) { showMessage(tr("يجب أن تكون كمية كل صنف أكبر من صفر"), "error"); return }
+    if (!sourceWarehouse) { showMessage(tr("يجب اختيار مستودع مقدم الطلب"), "error"); return }
+    if (!destinationBranch) { showMessage(tr("يجب اختيار الفرع المطلوب منه البضاعة"), "error"); return }
+    if (!destinationWarehouse) { showMessage(tr("يجب اختيار المستودع المطلوب منه البضاعة"), "error"); return }
+    if (String(sourceWarehouse) === String(destinationWarehouse)) { showMessage(tr("لا يمكن أن يكون نفس المستودع"), "error"); return }
     setLoading(true)
     try {
       const saveItems = items.map(({ base_product_name, units, ...item }) => ({ ...item, product_name: base_product_name || item.product_name }))
       const response = await fetch(editing && editingRequest ? `/api/internal-manufacturing-requests/${editingRequest.id}` : "/api/internal-manufacturing-requests", { method: editing && editingRequest ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vch_date: date, branch_id: activeBranchId, source_warehouse_id: sourceWarehouse, manufacturing_branch_id: destinationBranch, destination_warehouse_id: destinationWarehouse, items: saveItems }) })
       const data = await response.json()
-      if (!response.ok) { showMessage(data.error || "تعذر حفظ الطلب", "error"); return }
-      showMessage(`تم حفظ الطلب ${data.vch_code}`, "success")
+      if (!response.ok) { showMessage(data.error || tr("تعذر حفظ الطلب"), "error"); return }
+      showMessage(tr("تم حفظ الطلب {0}", data.vch_code), "success")
       setRequests((current) => [data, ...current.filter((request) => request.id !== data.id)])
       setOpen(false)
       setEditing(false)
@@ -271,26 +272,26 @@ export default function InternalRequestPage() {
   const performDeleteRequest = async (requestId: number) => {
     const response = await fetch(`/api/internal-manufacturing-requests/${requestId}?_=${Date.now()}`, { method: "DELETE", cache: "no-store" })
     const data = await response.json()
-    if (!response.ok) { showMessage(data.error || "تعذر حذف الطلب", "error"); return }
+    if (!response.ok) { showMessage(data.error || tr("تعذر حذف الطلب"), "error"); return }
     setRequests((current) => current.filter((request) => request.id !== requestId))
     await loadRequests()
   }
 
-  return <div dir="rtl" className="space-y-4 p-3 md:p-5">
-    <InternalPageHeader title="طلب بضاعة داخلي" description={INTERNAL_STEPS[0].description} icon={INTERNAL_STEPS[0].icon} branchLabel={workflow.branchId ? workflow.branchName(workflow.branchId) : undefined} sideLabel="تُنفَّذ من: فرع مقدم الطلب" actions={<><RefreshButton loading={loading} onClick={() => { void loadRequests(); void workflow.reload() }} />{can("create") && <Button data-hotkey-new onClick={openNewRequest}><Plus className="ml-2 h-4 w-4" />إضافة طلب داخلي <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span></Button>}</>} />
-    {!workflow.loading && !can("create") && <InternalLockedState title="لا توجد صلاحية" message={`لا يوجد لديك صلاحية "إنشاء طلب بضاعة داخلي" في فرع ${workflow.branchName(workflow.branchId)}.`} />}
-    <div className="rounded-xl border bg-muted/20 p-4"><div className="mb-3 grid gap-3 md:grid-cols-2"><div><Label>من تاريخ طلب</Label><Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div><div><Label>إلى تاريخ طلب</Label><Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div></div><div className="grid gap-3 md:grid-cols-2"><div><Label>فرع مقدم الطلب</Label><MultiSelect value={requesterBranches} options={branches} optionLabel="branch_name" optionValue="id" showFilter showMultiSelect placeholder="كل الفروع" selectedItemsLabel="تم تحديد {0} فروع" onChange={(event: any) => setRequesterBranches(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setRequesterBranches(selectedOptionIds(branches, event))} /></div><div><Label>الفرع المطلوب من البضاعة</Label><MultiSelect value={manufacturingBranches} options={branches} optionLabel="branch_name" optionValue="id" showFilter showMultiSelect placeholder="كل الفروع" selectedItemsLabel="تم تحديد {0} فروع" onChange={(event: any) => setManufacturingBranches(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setManufacturingBranches(selectedOptionIds(branches, event))} /></div><div><Label>مستودع مقدم الطلب</Label><MultiSelect value={sourceWarehouses} options={warehouses} optionLabel="warehouse_name" optionValue="id" showFilter showMultiSelect placeholder="كل المستودعات" selectedItemsLabel="تم تحديد {0} مستودعات" onChange={(event: any) => setSourceWarehouses(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setSourceWarehouses(selectedOptionIds(warehouses, event))} /></div><div><Label>المستودع المطلوب منه البضاعة</Label><MultiSelect value={destinationWarehouses} options={warehouses} optionLabel="warehouse_name" optionValue="id" showFilter showMultiSelect placeholder="كل المستودعات" selectedItemsLabel="تم تحديد {0} مستودعات" onChange={(event: any) => setDestinationWarehouses(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setDestinationWarehouses(selectedOptionIds(warehouses, event))} /></div></div></div>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{filteredRequests.map((request) => { const status = Number(request.internal_status); const editable = canEditOrDelete(request); const statusLabel = INTERNAL_STATUS_LABELS[status] || "قيد المعالجة"; return <Card key={request.id}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><Badge>{statusLabel}</Badge></CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><div>التاريخ: <b>{String(request.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(request.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(request.destination_warehouse_id)}</b></div><div className="flex gap-2"><Button className="flex-1" variant="outline" onClick={() => openExistingRequest(request)}>{editable ? "تعديل" : <><Search className="ml-2 h-4 w-4" />مشاهدة</>}</Button>{editableStatus(request) && can("delete") && <Button variant="destructive" onClick={() => void deleteRequest(request.id)}><Trash2 className="h-4 w-4" /></Button>}</div></CardContent></Card> })}</div>
-    {!loading && filteredRequests.length === 0 && <div className="rounded-xl border-2 border-dashed py-16 text-center"><ClipboardCheck className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><h2 className="font-bold">لا توجد طلبات مطابقة للفلاتر</h2></div>}
-    <ConfirmDialogYesNo visible={deleteRequestId !== null} message="هل أنت متأكد من حذف الطلب؟" onConfirm={() => { const requestId = deleteRequestId; setDeleteRequestId(null); if (requestId !== null) void performDeleteRequest(requestId) }} onCancel={() => setDeleteRequestId(null)} />
+  return <div dir={appDir()} className="space-y-4 p-3 md:p-5">
+    <InternalPageHeader title={tr("طلب بضاعة داخلي")} description={INTERNAL_STEPS[0].description} icon={INTERNAL_STEPS[0].icon} branchLabel={workflow.branchId ? workflow.branchName(workflow.branchId) : undefined} sideLabel={tr("تُنفَّذ من: فرع مقدم الطلب")} actions={<><RefreshButton loading={loading} onClick={() => { void loadRequests(); void workflow.reload() }} />{can("create") && <Button data-hotkey-new onClick={openNewRequest}><Plus className="ml-2 h-4 w-4" />{tr("إضافة طلب داخلي ")}<span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span></Button>}</>} />
+    {!workflow.loading && !can("create") && <InternalLockedState title={tr("لا توجد صلاحية")} message={tr("لا يوجد لديك صلاحية \"إنشاء طلب بضاعة داخلي\" في فرع {0}.", workflow.branchName(workflow.branchId))} />}
+    <div className="rounded-xl border bg-muted/20 p-4"><div className="mb-3 grid gap-3 md:grid-cols-2"><div><Label>{tr("من تاريخ طلب")}</Label><Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div><div><Label>{tr("إلى تاريخ طلب")}</Label><Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div></div><div className="grid gap-3 md:grid-cols-2"><div><Label>{tr("فرع مقدم الطلب")}</Label><MultiSelect value={requesterBranches} options={branches} optionLabel="branch_name" optionValue="id" showFilter showMultiSelect placeholder={tr("كل الفروع")} selectedItemsLabel={tr("تم تحديد {0} فروع")} onChange={(event: any) => setRequesterBranches(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setRequesterBranches(selectedOptionIds(branches, event))} /></div><div><Label>{tr("الفرع المطلوب من البضاعة")}</Label><MultiSelect value={manufacturingBranches} options={branches} optionLabel="branch_name" optionValue="id" showFilter showMultiSelect placeholder={tr("كل الفروع")} selectedItemsLabel={tr("تم تحديد {0} فروع")} onChange={(event: any) => setManufacturingBranches(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setManufacturingBranches(selectedOptionIds(branches, event))} /></div><div><Label>{tr("مستودع مقدم الطلب")}</Label><MultiSelect value={sourceWarehouses} options={warehouses} optionLabel="warehouse_name" optionValue="id" showFilter showMultiSelect placeholder={tr("كل المستودعات")} selectedItemsLabel={tr("تم تحديد {0} مستودعات")} onChange={(event: any) => setSourceWarehouses(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setSourceWarehouses(selectedOptionIds(warehouses, event))} /></div><div><Label>{tr("المستودع المطلوب منه البضاعة")}</Label><MultiSelect value={destinationWarehouses} options={warehouses} optionLabel="warehouse_name" optionValue="id" showFilter showMultiSelect placeholder={tr("كل المستودعات")} selectedItemsLabel={tr("تم تحديد {0} مستودعات")} onChange={(event: any) => setDestinationWarehouses(Array.isArray(event.value) ? event.value.map(Number) : [])} onSelectAll={(event: any) => setDestinationWarehouses(selectedOptionIds(warehouses, event))} /></div></div></div>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{filteredRequests.map((request) => { const status = Number(request.internal_status); const editable = canEditOrDelete(request); const statusLabel = INTERNAL_STATUS_LABELS[status] || tr("قيد المعالجة"); return <Card key={request.id}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><Badge>{statusLabel}</Badge></CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><div>{tr("التاريخ: ")}<b>{String(request.vch_date).slice(0, 10)}</b></div><div>{tr("فرع البضاعة: ")}<b>{branchName(request.manufacturing_branch_id)}</b></div><div>{tr("المستودع: ")}<b>{warehouseName(request.destination_warehouse_id)}</b></div><div className="flex gap-2"><Button className="flex-1" variant="outline" onClick={() => openExistingRequest(request)}>{editable ? tr("تعديل") : <><Search className="ml-2 h-4 w-4" />{tr("مشاهدة")}</>}</Button>{editableStatus(request) && can("delete") && <Button variant="destructive" onClick={() => void deleteRequest(request.id)}><Trash2 className="h-4 w-4" /></Button>}</div></CardContent></Card> })}</div>
+    {!loading && filteredRequests.length === 0 && <div className="rounded-xl border-2 border-dashed py-16 text-center"><ClipboardCheck className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><h2 className="font-bold">{tr("لا توجد طلبات مطابقة للفلاتر")}</h2></div>}
+    <ConfirmDialogYesNo visible={deleteRequestId !== null} message={tr("هل أنت متأكد من حذف الطلب؟")} onConfirm={() => { const requestId = deleteRequestId; setDeleteRequestId(null); if (requestId !== null) void performDeleteRequest(requestId) }} onCancel={() => setDeleteRequestId(null)} />
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent dir="rtl" className="flex max-h-[min(calc(100%-1.5rem),94dvh)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+      <DialogContent dir={appDir()} className="flex max-h-[min(calc(100%-1.5rem),94dvh)] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
         <div className="bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><ClipboardCheck className="h-5 w-5" /></span>
-            <div className="min-w-0 flex-1 text-right">
-              <DialogTitle className="truncate text-lg font-bold text-white">{selectedRequest ? "مشاهدة طلب البضاعة" : editingRequest ? "تعديل طلب داخلي" : "إضافة طلب داخلي"}</DialogTitle>
-              <DialogDescription className="text-xs text-emerald-50/90">{selectedRequest ? "عرض بيانات الطلب وأصنافه" : "حدد المستودعات ثم أضف الأصناف بالبحث أو بالباركود"}</DialogDescription>
+            <div className="min-w-0 flex-1 text-start">
+              <DialogTitle className="truncate text-lg font-bold text-white">{selectedRequest ? tr("مشاهدة طلب البضاعة") : editingRequest ? tr("تعديل طلب داخلي") : tr("إضافة طلب داخلي")}</DialogTitle>
+              <DialogDescription className="text-xs text-emerald-50/90">{selectedRequest ? tr("عرض بيانات الطلب وأصنافه") : tr("حدد المستودعات ثم أضف الأصناف بالبحث أو بالباركود")}</DialogDescription>
             </div>
             {(selectedRequest || editingRequest) && <span className="ml-8 shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/25">{(selectedRequest || editingRequest)?.vch_code}</span>}
           </div>
@@ -305,12 +306,12 @@ export default function InternalRequestPage() {
               ))}
             </div>
             <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><Package className="h-4 w-4" /></span>الأصناف <Badge variant="secondary">{(selectedRequest.items || []).length}</Badge></h3>
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><Package className="h-4 w-4" /></span>{tr("الأصناف ")}<Badge variant="secondary">{(selectedRequest.items || []).length}</Badge></h3>
               <div className="space-y-2">
                 {(selectedRequest.items || []).map((item: any, index: number) => (
                   <div key={item.id || index} className="flex items-center gap-3 rounded-lg border bg-background p-2">
                     <ItemThumb src={item.product_image} alt={item.item_name} />
-                    <div className="min-w-0 flex-1"><div className="truncate font-bold text-blue-700 dark:text-blue-300">{item.item_name || "-"}</div><div className="text-xs text-muted-foreground">{item.unit_name || "بدون وحدة"}</div></div>
+                    <div className="min-w-0 flex-1"><div className="truncate font-bold text-blue-700 dark:text-blue-300">{item.item_name || "-"}</div><div className="text-xs text-muted-foreground">{item.unit_name || tr("بدون وحدة")}</div></div>
                     <div className="shrink-0 rounded-lg bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{Number(item.qnty || 0)}</div>
                   </div>
                 ))}
@@ -319,38 +320,38 @@ export default function InternalRequestPage() {
           </> : <>
             <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr]">
               <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"><Store className="h-4 w-4" /></span>مقدم الطلب</h3>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"><Store className="h-4 w-4" /></span>{tr("مقدم الطلب")}</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1 sm:col-span-2"><Label>تاريخ الطلب</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div>
-                  <div className="space-y-1"><Label>الفرع</Label><Input value={String(branchName(Number(activeBranchId)))} disabled className="bg-muted" /></div>
-                  <div className="space-y-1"><Label>المستودع *</Label><select className={SELECT_CLASS} value={sourceWarehouse} onChange={(event) => setSourceWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div>
+                  <div className="space-y-1 sm:col-span-2"><Label>{tr("تاريخ الطلب")}</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div>
+                  <div className="space-y-1"><Label>{tr("الفرع")}</Label><Input value={String(branchName(Number(activeBranchId)))} disabled className="bg-muted" /></div>
+                  <div className="space-y-1"><Label>{tr("المستودع *")}</Label><select className={SELECT_CLASS} value={sourceWarehouse} onChange={(event) => setSourceWarehouse(event.target.value)}><option value="">{tr("اختر المستودع")}</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div>
                 </div>
               </section>
               <div className="hidden items-center justify-center lg:flex"><span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-600 text-white shadow"><ArrowLeft className="h-5 w-5" /></span></div>
               <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><Warehouse className="h-4 w-4" /></span>المطلوب منه البضاعة</h3>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><Warehouse className="h-4 w-4" /></span>{tr("المطلوب منه البضاعة")}</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1"><Label>الفرع *</Label><select className={SELECT_CLASS} value={destinationBranch} onChange={(event) => setDestinationBranch(event.target.value)}><option value="">اختر الفرع</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div>
-                  <div className="space-y-1"><Label>المستودع *</Label><select className={SELECT_CLASS} value={destinationWarehouse} onChange={(event) => setDestinationWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div>
+                  <div className="space-y-1"><Label>{tr("الفرع *")}</Label><select className={SELECT_CLASS} value={destinationBranch} onChange={(event) => setDestinationBranch(event.target.value)}><option value="">{tr("اختر الفرع")}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div>
+                  <div className="space-y-1"><Label>{tr("المستودع *")}</Label><select className={SELECT_CLASS} value={destinationWarehouse} onChange={(event) => setDestinationWarehouse(event.target.value)}><option value="">{tr("اختر المستودع")}</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div>
                 </div>
               </section>
             </div>
 
             <section className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><Package className="h-4 w-4" /></span>الأصناف <Badge variant="secondary">{items.length}</Badge></h3>
-                <Button type="button" variant="outline" size="sm" onClick={() => setProductOpen(true)}><Search className="ml-1 h-4 w-4" />بحث وإضافة صنف</Button>
+                <h3 className="flex items-center gap-2 text-sm font-bold"><span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><Package className="h-4 w-4" /></span>{tr("الأصناف ")}<Badge variant="secondary">{items.length}</Badge></h3>
+                <Button type="button" variant="outline" size="sm" onClick={() => setProductOpen(true)}><Search className="ml-1 h-4 w-4" />{tr("بحث وإضافة صنف")}</Button>
               </div>
               <div className="relative mb-3">
-                <ScanBarcode className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input ref={barcodeInputRef} data-enter-action className="h-11 pl-24 pr-9 text-base" value={barcodeInput} disabled={barcodeSearching} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addProductByBarcode() } }} placeholder="امسح أو أدخل الباركود ثم Enter" />
-                <Button type="button" size="sm" className="absolute left-1.5 top-1/2 -translate-y-1/2" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addProductByBarcode()}>{barcodeSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="ml-1 h-4 w-4" />}إضافة</Button>
+                <ScanBarcode className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input ref={barcodeInputRef} data-enter-action className="h-11 pe-24 ps-9 text-base" value={barcodeInput} disabled={barcodeSearching} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addProductByBarcode() } }} placeholder={tr("امسح أو أدخل الباركود ثم Enter")} />
+                <Button type="button" size="sm" className="absolute end-1.5 top-1/2 -translate-y-1/2" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addProductByBarcode()}>{barcodeSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="ml-1 h-4 w-4" />}{tr("إضافة")}</Button>
               </div>
               {items.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-lg border-2 border-dashed py-10 text-sm text-muted-foreground"><Package className="h-9 w-9 text-emerald-500/70" />لم تتم إضافة أصناف بعد</div>
+                <div className="flex flex-col items-center gap-2 rounded-lg border-2 border-dashed py-10 text-sm text-muted-foreground"><Package className="h-9 w-9 text-emerald-500/70" />{tr("لم تتم إضافة أصناف بعد")}</div>
               ) : (
                 <div className="space-y-2">
-                  <div className="hidden grid-cols-[48px_1fr_170px_150px_40px] gap-3 px-2 text-xs font-semibold text-muted-foreground md:grid"><span /><span>الصنف</span><span>الوحدة</span><span>الكمية</span><span /></div>
+                  <div className="hidden grid-cols-[48px_1fr_170px_150px_40px] gap-3 px-2 text-xs font-semibold text-muted-foreground md:grid"><span /><span>{tr("الصنف")}</span><span>{tr("الوحدة")}</span><span>{tr("الكمية")}</span><span /></div>
                   {items.map((item, index) => {
                     const units: any[] = Array.isArray(item.units) ? item.units : []
                     return (
@@ -359,8 +360,8 @@ export default function InternalRequestPage() {
                         <div className="min-w-0"><div className="truncate font-bold text-blue-700 dark:text-blue-300">{item.product_name}</div>{item.barcode && <div className="truncate font-mono text-[11px] text-muted-foreground">{item.barcode}</div>}</div>
                         <Button type="button" variant="ghost" size="icon" className="text-red-600 hover:bg-red-50 hover:text-red-700 md:order-last" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button>
                         <div className="col-span-3 grid grid-cols-2 gap-2 md:col-span-2 md:grid-cols-[170px_150px] md:gap-3">
-                          <select className={SELECT_CLASS} value={item.unit_id ? String(item.unit_id) : ""} disabled={units.length <= 1} onChange={(event) => changeItemUnit(index, Number(event.target.value))} title="الوحدة">
-                            {!units.length && <option value={item.unit_id ? String(item.unit_id) : ""}>{item.unit_name || "بدون وحدة"}</option>}
+                          <select className={SELECT_CLASS} value={item.unit_id ? String(item.unit_id) : ""} disabled={units.length <= 1} onChange={(event) => changeItemUnit(index, Number(event.target.value))} title={tr("الوحدة")}>
+                            {!units.length && <option value={item.unit_id ? String(item.unit_id) : ""}>{item.unit_name || tr("بدون وحدة")}</option>}
                             {units.map((unit) => <option key={unit.unit_id} value={String(unit.unit_id)}>{unit.unit_name}{Number(unit.to_main_qnty) > 1 ? ` (×${Number(unit.to_main_qnty)})` : ""}</option>)}
                           </select>
                           <div className="flex h-10 items-center overflow-hidden rounded-md border bg-background">
@@ -379,10 +380,10 @@ export default function InternalRequestPage() {
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t bg-background px-5 py-3">
-          <span className="text-xs text-muted-foreground">{selectedRequest ? "" : <>عدد الأصناف: <b className="text-foreground">{items.length}</b> · إجمالي الكميات: <b className="text-foreground">{items.reduce((total, item) => total + Number(item.quantity || 0), 0)}</b></>}</span>
+          <span className="text-xs text-muted-foreground">{selectedRequest ? "" : <>{tr("عدد الأصناف: ")}<b className="text-foreground">{items.length}</b>{tr(" · إجمالي الكميات: ")}<b className="text-foreground">{items.reduce((total, item) => total + Number(item.quantity || 0), 0)}</b></>}</span>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>إغلاق</Button>
-            {!selectedRequest && <Button onClick={() => void saveRequest()} disabled={loading} className="min-w-32 bg-emerald-600 hover:bg-emerald-700">{loading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}حفظ مسودة الطلب</Button>}
+            <Button variant="outline" onClick={() => setOpen(false)}>{tr("إغلاق")}</Button>
+            {!selectedRequest && <Button onClick={() => void saveRequest()} disabled={loading} className="min-w-32 bg-emerald-600 hover:bg-emerald-700">{loading ? <Loader2 className="ml-1 h-4 w-4 animate-spin" /> : <Save className="ml-1 h-4 w-4" />}{tr("حفظ مسودة الطلب")}</Button>}
           </div>
         </div>
         {productOpen && <ProductSearchPopup open={productOpen} onClose={() => setProductOpen(false)} onSelect={addProduct} />}

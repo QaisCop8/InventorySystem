@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -121,32 +122,32 @@ export function SmartInventoryRecommendations() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       <div>
-        <h2 className="text-3xl font-bold">توصيات المخزون الذكية</h2>
-        <p className="text-muted-foreground mt-1">توصيات مدعومة بالذكاء الاصطناعي لإدارة المخزون بكفاءة</p>
+        <h2 className="text-3xl font-bold">{tr("توصيات المخزون الذكية")}</h2>
+        <p className="text-muted-foreground mt-1">{tr("توصيات مدعومة بالذكاء الاصطناعي لإدارة المخزون بكفاءة")}</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="single">توصيات منتج واحد</TabsTrigger>
-          <TabsTrigger value="bulk">توصيات شاملة</TabsTrigger>
+          <TabsTrigger value="single">{tr("توصيات منتج واحد")}</TabsTrigger>
+          <TabsTrigger value="bulk">{tr("توصيات شاملة")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="single" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>اختر منتج للحصول على توصيات</CardTitle>
-              <CardDescription>ابحث عن منتج أو اختر من المنتجات منخفضة المخزون</CardDescription>
+              <CardTitle>{tr("اختر منتج للحصول على توصيات")}</CardTitle>
+              <CardDescription>{tr("ابحث عن منتج أو اختر من المنتجات منخفضة المخزون")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>البحث عن منتج</Label>
+                <Label>{tr("البحث عن منتج")}</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute start-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="ابحث بالاسم أو الكود..."
+                      placeholder={tr("ابحث بالاسم أو الكود...")}
                       value={searchQuery}
                       onChange={(e) => {
                         setSearchQuery(e.target.value)
@@ -164,7 +165,7 @@ export function SmartInventoryRecommendations() {
                         <Button
                           key={product.id}
                           variant="ghost"
-                          className="w-full justify-start text-right"
+                          className="w-full justify-start text-start"
                           onClick={() => {
                             setProductId(product.id.toString())
                             setSearchQuery(product.product_name)
@@ -194,7 +195,7 @@ export function SmartInventoryRecommendations() {
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    منتجات تحتاج إعادة طلب
+                    {tr("منتجات تحتاج إعادة طلب")}
                   </Label>
                   <ScrollArea className="h-[200px] rounded-lg border p-2">
                     <div className="space-y-2">
@@ -202,7 +203,7 @@ export function SmartInventoryRecommendations() {
                         <Button
                           key={product.id}
                           variant="ghost"
-                          className="w-full justify-start text-right"
+                          className="w-full justify-start text-start"
                           onClick={() => {
                             setProductId(product.id.toString())
                             setSearchQuery(product.product_name)
@@ -231,33 +232,33 @@ export function SmartInventoryRecommendations() {
           {productData && (
             <Card>
               <CardHeader>
-                <CardTitle>معلومات المنتج</CardTitle>
+                <CardTitle>{tr("معلومات المنتج")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="text-muted-foreground">اسم المنتج</Label>
+                    <Label className="text-muted-foreground">{tr("اسم المنتج")}</Label>
                     <p className="font-medium">{productData.product_name}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">كود المنتج</Label>
+                    <Label className="text-muted-foreground">{tr("كود المنتج")}</Label>
                     <p className="font-medium">{productData.product_code}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">المخزون الحالي</Label>
+                    <Label className="text-muted-foreground">{tr("المخزون الحالي")}</Label>
                     <p className="font-medium">{productData.current_stock}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">مستوى إعادة الطلب</Label>
+                    <Label className="text-muted-foreground">{tr("مستوى إعادة الطلب")}</Label>
                     <p className="font-medium">{productData.reorder_level}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">المخزون المتاح</Label>
+                    <Label className="text-muted-foreground">{tr("المخزون المتاح")}</Label>
                     <p className="font-medium">{productData.available_stock}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">سعر الوحدة</Label>
-                    <p className="font-medium">{productData.unit_price} ريال</p>
+                    <Label className="text-muted-foreground">{tr("سعر الوحدة")}</Label>
+                    <p className="font-medium">{productData.unit_price}{tr(" ريال")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -268,16 +269,16 @@ export function SmartInventoryRecommendations() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>التوصيات الذكية</CardTitle>
+                  <CardTitle>{tr("التوصيات الذكية")}</CardTitle>
                   <Button variant="outline" size="sm" onClick={() => getRecommendations(productId)}>
-                    <Sparkles className="h-4 w-4 ml-2" />
-                    تحديث
+                    <Sparkles className="h-4 w-4 me-2" />
+                    {tr("تحديث")}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px] rounded-lg border p-4 bg-muted/30">
-                  <div className="prose prose-sm max-w-none whitespace-pre-wrap" dir="rtl">
+                  <div className="prose prose-sm max-w-none whitespace-pre-wrap" dir={appDir()}>
                     {recommendations}
                   </div>
                 </ScrollArea>
@@ -290,7 +291,7 @@ export function SmartInventoryRecommendations() {
               <CardContent className="py-12">
                 <div className="text-center">
                   <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">اختر منتجاً للحصول على توصيات ذكية</p>
+                  <p className="text-muted-foreground">{tr("اختر منتجاً للحصول على توصيات ذكية")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -301,7 +302,7 @@ export function SmartInventoryRecommendations() {
               <CardContent className="py-12">
                 <div className="text-center">
                   <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-                  <p className="text-muted-foreground">جاري توليد التوصيات...</p>
+                  <p className="text-muted-foreground">{tr("جاري توليد التوصيات...")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -313,19 +314,19 @@ export function SmartInventoryRecommendations() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>توصيات شاملة للمخزون</CardTitle>
-                  <CardDescription>احصل على توصيات لجميع المنتجات التي تحتاج إعادة طلب</CardDescription>
+                  <CardTitle>{tr("توصيات شاملة للمخزون")}</CardTitle>
+                  <CardDescription>{tr("احصل على توصيات لجميع المنتجات التي تحتاج إعادة طلب")}</CardDescription>
                 </div>
                 <Button onClick={getBulkRecommendations} disabled={isLoading}>
                   {isLoading ? (
                     <>
-                      <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                      جاري التحليل...
+                      <Loader2 className="h-4 w-4 me-2 animate-spin" />
+                      {tr("جاري التحليل...")}
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4 ml-2" />
-                      توليد التوصيات
+                      <Sparkles className="h-4 w-4 me-2" />
+                      {tr("توليد التوصيات")}
                     </>
                   )}
                 </Button>
@@ -336,7 +337,7 @@ export function SmartInventoryRecommendations() {
                 <div className="mb-4">
                   <Label className="flex items-center gap-2 mb-2">
                     <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    المنتجات التي ستتم تغطيتها ({lowStockProducts.length})
+                    {tr("المنتجات التي ستتم تغطيتها (")}{lowStockProducts.length})
                   </Label>
                   <div className="grid gap-2 md:grid-cols-2">
                     {lowStockProducts.slice(0, 6).map((product) => (
@@ -350,21 +351,21 @@ export function SmartInventoryRecommendations() {
                     ))}
                   </div>
                   {lowStockProducts.length > 6 && (
-                    <p className="text-sm text-muted-foreground mt-2">و {lowStockProducts.length - 6} منتجات أخرى...</p>
+                    <p className="text-sm text-muted-foreground mt-2">{tr("و ")}{lowStockProducts.length - 6}{tr(" منتجات أخرى...")}</p>
                   )}
                 </div>
               )}
 
               {recommendations ? (
                 <ScrollArea className="h-[500px] rounded-lg border p-4 bg-muted/30">
-                  <div className="prose prose-sm max-w-none whitespace-pre-wrap" dir="rtl">
+                  <div className="prose prose-sm max-w-none whitespace-pre-wrap" dir={appDir()}>
                     {recommendations}
                   </div>
                 </ScrollArea>
               ) : (
                 <div className="text-center py-12">
                   <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">اضغط على "توليد التوصيات" للحصول على تحليل شامل</p>
+                  <p className="text-muted-foreground">{tr("اضغط على \"توليد التوصيات\" للحصول على تحليل شامل")}</p>
                 </div>
               )}
             </CardContent>

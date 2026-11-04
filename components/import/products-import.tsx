@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { ExcelImportWizard, type ImportConfig, type ImportField, type ImportIssue } from "@/components/import/excel-import-wizard"
@@ -55,7 +56,7 @@ function createLookupResolver<T extends { id: number }>(records: T[], url: strin
     const record = await response.json().catch(() => ({}))
     const id = Number(record?.id)
     if (!response.ok || !Number.isInteger(id) || id <= 0) {
-      throw new Error(record?.error || record?.message || `فشل إنشاء ${label}: ${value}`)
+      throw new Error(record?.error || record?.message || tr("فشل إنشاء {0}: {1}", label, value))
     }
     records.push({ ...record, id })
     resolved.set(key, id)
@@ -81,41 +82,41 @@ const UPDATE_EXCLUDED_FIELDS = new Set(["last_purchase_price", "initial_quantity
 
 function buildFields(lookups: Lookups, mode: ImportMode = "create"): ImportField[] {
   const fields: ImportField[] = [
-    { key: "product_code", label: "رقم الصنف", required: true, unique: true, aliases: ["product_code", "code", "رقم", "كود الصنف"], description: "يُكمَّل إلى 10 خانات تلقائياً", example: "1001" },
-    { key: "product_name", label: "اسم الصنف", required: true, aliases: ["product_name", "name", "الاسم"], maxLength: 200, example: "سكر أبيض 1 كغم" },
-    { key: "product_name_en", label: "اسم الصنف إنجليزي", aliases: ["product_name_en", "name_en", "english name"], maxLength: 200 },
-    { key: "description", label: "الوصف", aliases: ["description"] },
-    { key: "category_id", label: "التصنيف", aliases: ["category_id", "category", "التصنيف (رقم)"], options: lookups.productCategories.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
-    { key: "main_stock_group", label: "مجموعة الصنف", aliases: ["main_stock_group", "main_stock_id", "item_group", "item_group_id", "group_name", "group_code", "group_id", "رقم المجموعة", "المجموعة", "group"], description: "الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة" },
-    { key: "default_store", label: "المستودع الافتراضي", aliases: ["default_store", "warehouse", "المستودع"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
-    { key: "last_purchase_price", label: "سعر الشراء", type: "number", min: 0, aliases: ["last_purchase_price", "آخر سعر شراء", "سعر الشراء", "التكلفة", "purchase_price"], description: "يُستخدم أيضاً كسعر الوحدة في سند إدخال الكمية الابتدائية" },
-    { key: "initial_quantity", label: "الكمية الابتدائية", type: "number", min: 0, aliases: ["initial_quantity", "opening_quantity", "الكمية الابتدائية", "الكمية الافتتاحية", "رصيد افتتاحي"], description: "إن وُجدت تُحفظ بسند إدخال بضاعة بالوحدة الرئيسية وسعر الشراء" },
-    { key: "initial_warehouse", label: "مستودع الكمية الابتدائية", aliases: ["initial_warehouse", "opening_warehouse", "مستودع الكمية الابتدائية", "مستودع الكمية"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })), description: "مطلوب عند وجود كمية ابتدائية" },
-    { key: "price_category", label: "فئة السعر", aliases: ["price_category", "price_category_id", "pricecategory", "priceCategoryId", "priceClass", "price category", "فئة البيع", "فئة الأسعار"], description: "الاسم أو الرقم؛ تُنشأ إن لم تكن موجودة. عند تركها فارغة تُستخدم فئة السعر الافتراضية" },
+    { key: "product_code", label: tr("رقم الصنف"), required: true, unique: true, aliases: ["product_code", "code", "رقم", "كود الصنف"], description: tr("يُكمَّل إلى 10 خانات تلقائياً"), example: "1001" },
+    { key: "product_name", label: tr("اسم الصنف"), required: true, aliases: ["product_name", "name", "الاسم"], maxLength: 200, example: "سكر أبيض 1 كغم" },
+    { key: "product_name_en", label: tr("اسم الصنف إنجليزي"), aliases: ["product_name_en", "name_en", "english name"], maxLength: 200 },
+    { key: "description", label: tr("الوصف"), aliases: ["description"] },
+    { key: "category_id", label: tr("التصنيف"), aliases: ["category_id", "category", "التصنيف (رقم)"], options: lookups.productCategories.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
+    { key: "main_stock_group", label: tr("مجموعة الصنف"), aliases: ["main_stock_group", "main_stock_id", "item_group", "item_group_id", "group_name", "group_code", "group_id", "رقم المجموعة", "المجموعة", "group"], description: tr("الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة") },
+    { key: "default_store", label: tr("المستودع الافتراضي"), aliases: ["default_store", "warehouse", "المستودع"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
+    { key: "last_purchase_price", label: tr("سعر الشراء"), type: "number", min: 0, aliases: ["last_purchase_price", "آخر سعر شراء", "سعر الشراء", "التكلفة", "purchase_price"], description: tr("يُستخدم أيضاً كسعر الوحدة في سند إدخال الكمية الابتدائية") },
+    { key: "initial_quantity", label: tr("الكمية الابتدائية"), type: "number", min: 0, aliases: ["initial_quantity", "opening_quantity", "الكمية الابتدائية", "الكمية الافتتاحية", "رصيد افتتاحي"], description: tr("إن وُجدت تُحفظ بسند إدخال بضاعة بالوحدة الرئيسية وسعر الشراء") },
+    { key: "initial_warehouse", label: tr("مستودع الكمية الابتدائية"), aliases: ["initial_warehouse", "opening_warehouse", "مستودع الكمية الابتدائية", "مستودع الكمية"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })), description: tr("مطلوب عند وجود كمية ابتدائية") },
+    { key: "price_category", label: tr("فئة السعر"), aliases: ["price_category", "price_category_id", "pricecategory", "priceCategoryId", "priceClass", "price category", "فئة البيع", "فئة الأسعار"], description: tr("الاسم أو الرقم؛ تُنشأ إن لم تكن موجودة. عند تركها فارغة تُستخدم فئة السعر الافتراضية") },
   ]
   for (let unit = 1; unit <= UNIT_COUNT; unit++) {
-    fields.push({ key: `unit_${unit}`, label: unit === 1 ? "الوحدة الرئيسية" : `الوحدة ${unit}`, required: unit === 1, aliases: [`unit_${unit}`, `الوحدة ${unit}`, ...(unit === 1 ? ["الوحدة", "unit", "unit_id", "unit_name", "unit_code", "الوحدة 1"] : [])], description: "الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة", example: unit === 1 ? "حبة" : undefined })
-    if (unit > 1) fields.push({ key: `unit_${unit}_to_main_qnty`, label: `العلاقة بالوحدة الرئيسية ${unit}`, type: "number", aliases: [`unit_${unit}_to_main_qnty`, `معامل التحويل ${unit}`] })
+    fields.push({ key: `unit_${unit}`, label: unit === 1 ? tr("الوحدة الرئيسية") : tr("الوحدة {0}", unit), required: unit === 1, aliases: [`unit_${unit}`, `الوحدة ${unit}`, ...(unit === 1 ? ["الوحدة", "unit", "unit_id", "unit_name", "unit_code", "الوحدة 1"] : [])], description: tr("الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة"), example: unit === 1 ? "حبة" : undefined })
+    if (unit > 1) fields.push({ key: `unit_${unit}_to_main_qnty`, label: tr("العلاقة بالوحدة الرئيسية {0}", unit), type: "number", aliases: [`unit_${unit}_to_main_qnty`, `معامل التحويل ${unit}`] })
     for (let barcode = 1; barcode <= BARCODES_PER_UNIT; barcode++) {
-      fields.push({ key: `unit_${unit}_barcode_${barcode}`, label: `باركود الوحدة ${unit} - ${barcode}`, aliases: [`unit_${unit}_barcode_${barcode}`, ...(unit === 1 && barcode === 1 ? ["الباركود", "barcode"] : [])], example: unit === 1 && barcode === 1 ? "6281000000001" : undefined })
+      fields.push({ key: `unit_${unit}_barcode_${barcode}`, label: tr("باركود الوحدة {0} - {1}", unit, barcode), aliases: [`unit_${unit}_barcode_${barcode}`, ...(unit === 1 && barcode === 1 ? ["الباركود", "barcode"] : [])], example: unit === 1 && barcode === 1 ? "6281000000001" : undefined })
     }
-    fields.push({ key: `unit_${unit}_sale_price`, label: `سعر بيع الوحدة ${unit}`, type: "number", min: 0, aliases: [`unit_${unit}_sale_price`, ...(unit === 1 ? ["سعر البيع", "price", "السعر"] : [])], example: unit === 1 ? 4.5 : undefined })
+    fields.push({ key: `unit_${unit}_sale_price`, label: tr("سعر بيع الوحدة {0}", unit), type: "number", min: 0, aliases: [`unit_${unit}_sale_price`, ...(unit === 1 ? ["سعر البيع", "price", "السعر"] : [])], example: unit === 1 ? 4.5 : undefined })
   }
   fields.push(
-    { key: "expiry_tracking", label: "له تاريخ صلاحية", type: "boolean", aliases: ["expiry_tracking", "صلاحية"] },
-    { key: "batch_tracking", label: "له رقم تشغيلي", type: "boolean", aliases: ["batch_tracking"] },
-    { key: "serial_tracking", label: "له رقم متسلسل", type: "boolean", aliases: ["serial_tracking", "سيريال"] },
+    { key: "expiry_tracking", label: tr("له تاريخ صلاحية"), type: "boolean", aliases: ["expiry_tracking", "صلاحية"] },
+    { key: "batch_tracking", label: tr("له رقم تشغيلي"), type: "boolean", aliases: ["batch_tracking"] },
+    { key: "serial_tracking", label: tr("له رقم متسلسل"), type: "boolean", aliases: ["serial_tracking", "سيريال"] },
     ...[1, 2, 3].flatMap((index) => [
-      { key: `factory_number_${index}`, label: `رقم المصنع ${index}`, aliases: [`factory_number_${index}`] } as ImportField,
-      { key: `original_number_${index}`, label: `الرقم الأصلي ${index}`, aliases: [`original_number_${index}`] } as ImportField,
+      { key: `factory_number_${index}`, label: tr("رقم المصنع {0}", index), aliases: [`factory_number_${index}`] } as ImportField,
+      { key: `original_number_${index}`, label: tr("الرقم الأصلي {0}", index), aliases: [`original_number_${index}`] } as ImportField,
     ]),
-    { key: "notes", label: "ملاحظات", aliases: ["notes"] },
+    { key: "notes", label: tr("ملاحظات"), aliases: ["notes"] },
   )
   if (mode === "create") return fields
   return fields
     .filter((field) => !UPDATE_EXCLUDED_FIELDS.has(field.key))
-    .map((field) => field.key === "product_name" || field.key === "unit_1" ? { ...field, required: false, description: "اتركه فارغاً لإبقاء القيمة الحالية" }
-      : field.key === "product_code" ? { ...field, description: "رقم صنف موجود — يُكمَّل إلى 10 خانات تلقائياً" } : field)
+    .map((field) => field.key === "product_name" || field.key === "unit_1" ? { ...field, required: false, description: tr("اتركه فارغاً لإبقاء القيمة الحالية") }
+      : field.key === "product_code" ? { ...field, description: tr("رقم صنف موجود — يُكمَّل إلى 10 خانات تلقائياً") } : field)
 }
 
 const barcodesOf = (data: Record<string, any>) => {
@@ -176,20 +177,20 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
   const config = useMemo<ImportConfig | null>(() => {
     if (!lookups) return null
     return {
-      title: mode === "update" ? "تحديث الأصناف من Excel" : "استيراد الأصناف من Excel",
+      title: mode === "update" ? tr("تحديث الأصناف من Excel") : tr("استيراد الأصناف من Excel"),
       description: mode === "update"
-        ? "تحديث أصناف موجودة برقمها: تُحدَّث الأعمدة المعبّأة فقط، وتُضاف الوحدات/الباركودات الجديدة وتُحدَّث أسعار البيع. سعر الشراء والكميات لا تُستورد في هذا الوضع."
+        ? tr("تحديث أصناف موجودة برقمها: تُحدَّث الأعمدة المعبّأة فقط، وتُضاف الوحدات/الباركودات الجديدة وتُحدَّث أسعار البيع. سعر الشراء والكميات لا تُستورد في هذا الوضع.")
         : undefined,
       templateFileName: mode === "update" ? "نموذج-تحديث-الأصناف" : "نموذج-الأصناف",
       fields: buildFields(lookups, mode),
       uploadExtras: ({ busy }) => (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 text-sm">
-          <span className="px-1 font-semibold text-slate-600">نوع الاستيراد:</span>
+          <span className="px-1 font-semibold text-slate-600">{tr("نوع الاستيراد:")}</span>
           {([["create", "إضافة أصناف جديدة"], ["update", "تحديث أصناف موجودة"]] as const).map(([value, label]) => (
             <button key={value} type="button" disabled={busy} onClick={() => setMode(value)}
               className={`rounded-lg px-3 py-1.5 font-semibold transition ${mode === value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 hover:bg-emerald-50"}`}>{label}</button>
           ))}
-          {mode === "update" && <span className="text-xs text-amber-700">لا يُحدَّث سعر الشراء ولا يُنشأ سند إدخال بضاعة</span>}
+          {mode === "update" && <span className="text-xs text-amber-700">{tr("لا يُحدَّث سعر الشراء ولا يُنشأ سند إدخال بضاعة")}</span>}
         </div>
       ),
       validate: async (rows) => {
@@ -200,20 +201,20 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
           const seenInRow = new Set<string>()
           for (const { field, value } of barcodesOf(row.data)) {
             const key = value.toLowerCase()
-            if (seenInRow.has(key)) add(row.id, { field, message: `الباركود ${value} مكرر داخل نفس الصنف` })
+            if (seenInRow.has(key)) add(row.id, { field, message: tr("الباركود {0} مكرر داخل نفس الصنف", value) })
             seenInRow.add(key)
             const previous = barcodeRows.get(key)
-            if (previous !== undefined && previous !== row.rowNumber) add(row.id, { field, message: `الباركود ${value} مكرر مع السطر ${previous}` })
+            if (previous !== undefined && previous !== row.rowNumber) add(row.id, { field, message: tr("الباركود {0} مكرر مع السطر {1}", value, previous) })
             else barcodeRows.set(key, row.rowNumber)
           }
           const initialQuantity = mode === "create" ? Number(row.data.initial_quantity) || 0 : 0
           if (initialQuantity > 0) {
-            if (!Number(row.data.initial_warehouse)) add(row.id, { field: "initial_warehouse", message: "مستودع الكمية الابتدائية مطلوب عند وجود كمية ابتدائية" })
-            if (row.data.expiry_tracking || row.data.batch_tracking || row.data.serial_tracking) add(row.id, { field: "initial_quantity", message: "الأصناف ذات تاريخ الصلاحية أو الرقم التشغيلي أو المتسلسل لا تقبل كمية ابتدائية بالاستيراد؛ أدخلها بسند إدخال" })
+            if (!Number(row.data.initial_warehouse)) add(row.id, { field: "initial_warehouse", message: tr("مستودع الكمية الابتدائية مطلوب عند وجود كمية ابتدائية") })
+            if (row.data.expiry_tracking || row.data.batch_tracking || row.data.serial_tracking) add(row.id, { field: "initial_quantity", message: tr("الأصناف ذات تاريخ الصلاحية أو الرقم التشغيلي أو المتسلسل لا تقبل كمية ابتدائية بالاستيراد؛ أدخلها بسند إدخال") })
           }
           for (let unit = 2; unit <= UNIT_COUNT; unit++) {
             if (mode === "create" && String(row.data[`unit_${unit}`] || "").trim() && !(Number(row.data[`unit_${unit}_to_main_qnty`]) > 0)) {
-              add(row.id, { field: `unit_${unit}_to_main_qnty`, message: `العلاقة بالوحدة الرئيسية ${unit} يجب أن تكون أكبر من صفر` })
+              add(row.id, { field: `unit_${unit}_to_main_qnty`, message: tr("العلاقة بالوحدة الرئيسية {0} يجب أن تكون أكبر من صفر", unit) })
             }
           }
         }
@@ -226,10 +227,10 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
           const existingBarcodes: Record<string, string> = data.barcodes || {}
           for (const row of rows) {
             const code = adjustProductCodeTo10(String(row.data.product_code || ""))
-            if (mode === "create" && code && existingCodes.has(code)) add(row.id, { field: "product_code", message: `رقم الصنف ${code} موجود مسبقاً في النظام — اختر «تحديث أصناف موجودة» لتحديثه` })
-            if (mode === "update" && code && !existingCodes.has(code)) add(row.id, { field: "product_code", message: `رقم الصنف ${code} غير موجود — التحديث للأصناف الموجودة فقط` })
+            if (mode === "create" && code && existingCodes.has(code)) add(row.id, { field: "product_code", message: tr("رقم الصنف {0} موجود مسبقاً في النظام — اختر «تحديث أصناف موجودة» لتحديثه", code) })
+            if (mode === "update" && code && !existingCodes.has(code)) add(row.id, { field: "product_code", message: tr("رقم الصنف {0} غير موجود — التحديث للأصناف الموجودة فقط", code) })
             // في التحديث: باركود الصنف نفسه ليس تعارضاً
-            for (const { field, value } of barcodesOf(row.data)) if (existingBarcodes[value] && !(mode === "update" && existingBarcodes[value] === code)) add(row.id, { field, message: `الباركود ${value} مستخدم للصنف ${existingBarcodes[value]}` })
+            for (const { field, value } of barcodesOf(row.data)) if (existingBarcodes[value] && !(mode === "update" && existingBarcodes[value] === code)) add(row.id, { field, message: tr("الباركود {0} مستخدم للصنف {1}", value, existingBarcodes[value]) })
           }
         }
         return result
@@ -305,7 +306,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
                 }),
               })
               const updated = await updateResponse.json().catch(() => ({}))
-              report(row.id, updateResponse.ok ? { ok: true } : { ok: false, message: updated?.error || "تعذر تحديث الصنف" })
+              report(row.id, updateResponse.ok ? { ok: true } : { ok: false, message: updated?.error || tr("تعذر تحديث الصنف") })
               return
             }
             // الحفظ بالتوازي: إعادة المحاولة (حتى 3 مرات) عند تعارض أقفال قاعدة البيانات (deadlock/serialization)
@@ -319,7 +320,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
               await new Promise((resolve) => setTimeout(resolve, 150 * attempt + Math.random() * 200))
             }
             if (!response.ok) {
-              report(row.id, { ok: false, message: saved.message || saved.error || "خطأ في حفظ الصنف" })
+              report(row.id, { ok: false, message: saved.message || saved.error || tr("خطأ في حفظ الصنف") })
               return
             }
             const productId = Number(saved.id || saved.productId || saved.product?.id)
@@ -330,7 +331,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
             } else report(row.id, { ok: true })
           } catch (error: any) {
             if (signal.aborted) return
-            report(row.id, { ok: false, message: error?.message || "خطأ غير متوقع" })
+            report(row.id, { ok: false, message: error?.message || tr("خطأ غير متوقع") })
           }
         }
 
@@ -343,7 +344,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
 
         // سند إدخال بضاعة (نوع 8) لكل مستودع: بالوحدة الرئيسية وسعر الشراء، على دفعات حتى 500 سطر للسند
         const failStock = (lines: typeof pendingStock, reason: string) =>
-          lines.forEach((line) => report(line.rowId, { ok: false, message: `تم حفظ الصنف لكن تعذر حفظ سند إدخال الكمية الابتدائية: ${reason}` }))
+          lines.forEach((line) => report(line.rowId, { ok: false, message: tr("تم حفظ الصنف لكن تعذر حفظ سند إدخال الكمية الابتدائية: {0}", reason) }))
         let bookId = 0
         try {
           const booksResponse = await fetch(`/api/receipts/voucher-books?vch_type=8${user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""}`, { signal })
@@ -361,7 +362,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
             try {
               const codeResponse = await fetch(`/api/stock-vouchers/generate-number?vch_type=8&vch_book_id=${bookId}${activeBranchId ? `&branch_id=${activeBranchId}` : ""}`, { cache: "no-store", signal })
               const code = String((await codeResponse.json().catch(() => ({})))?.code || "")
-              if (!code) throw new Error("تعذر توليد رقم سند الإدخال")
+              if (!code) throw new Error(tr("تعذر توليد رقم سند الإدخال"))
               const voucherResponse = await fetch("/api/stock-vouchers", {
                 method: "POST", headers: { "Content-Type": "application/json" }, signal,
                 body: JSON.stringify({
@@ -375,7 +376,7 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
                 }),
               })
               const voucher = await voucherResponse.json().catch(() => ({}))
-              if (!voucherResponse.ok) throw new Error(voucher?.error || "خطأ غير معروف")
+              if (!voucherResponse.ok) throw new Error(voucher?.error || tr("خطأ غير معروف"))
               chunk.forEach((line) => report(line.rowId, { ok: true }))
             } catch (error: any) {
               if (signal.aborted) return

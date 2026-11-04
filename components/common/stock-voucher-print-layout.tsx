@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useVoucherPrinter } from "./use-voucher-printer"
 import type { PrintDocument } from "@/lib/voucher-print/document"
 
@@ -32,15 +33,15 @@ export function stockVoucherDocument(data: StockVoucherPrintData, voucherTypeId:
     copyLabel: data.copyLabel,
     code: data.vch_code,
     date: data.vch_date,
-    fields: [{ label: "سند يدوي", value: data.manual_voucher }],
+    fields: [{ label: tr("سند يدوي"), value: data.manual_voucher }],
     columns: [
-      { key: "item_code", label: "رقم الصنف", weight: 0.9 },
-      { key: "item_name", label: "اسم الصنف", weight: 2.2 },
-      { key: "warehouse", label: "المستودع", weight: 1 },
-      { key: "unit", label: "الوحدة", weight: 0.7, align: "center" },
-      { key: "quantity", label: "الكمية", numeric: true, weight: 0.8 },
-      { key: "price", label: "السعر", numeric: true, weight: 0.8 },
-      { key: "total", label: "المبلغ", numeric: true },
+      { key: "item_code", label: tr("رقم الصنف"), weight: 0.9 },
+      { key: "item_name", label: tr("اسم الصنف"), weight: 2.2 },
+      { key: "warehouse", label: tr("المستودع"), weight: 1 },
+      { key: "unit", label: tr("الوحدة"), weight: 0.7, align: "center" },
+      { key: "quantity", label: tr("الكمية"), numeric: true, weight: 0.8 },
+      { key: "price", label: tr("السعر"), numeric: true, weight: 0.8 },
+      { key: "total", label: tr("المبلغ"), numeric: true },
     ],
     rows: data.rows.map(row => ({
       item_code: row.product_code,
@@ -52,8 +53,8 @@ export function stockVoucherDocument(data: StockVoucherPrintData, voucherTypeId:
       total: row.total_price ?? "",
     })),
     totals: [
-      { label: "إجمالي الكمية", value: totalQuantity },
-      { label: "إجمالي المبلغ", value: totalAmount, strong: true },
+      { label: tr("إجمالي الكمية"), value: totalQuantity },
+      { label: tr("إجمالي المبلغ"), value: totalAmount, strong: true },
     ],
     amount: totalAmount,
     notes: data.note,

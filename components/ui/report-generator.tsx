@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState } from "react"
 import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
@@ -152,12 +153,12 @@ export function ReportGenerator({ title, data, columns, isOpen, onClose }: Repor
             <span>{title}</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={exportToExcel} disabled={isExporting}>
-                <Download className="h-4 w-4 ml-2" />
-                {isExporting ? "جاري التصدير..." : "تصدير إكسل"}
+                <Download className="h-4 w-4 me-2" />
+                {isExporting ? tr("جاري التصدير...") : tr("تصدير إكسل")}
               </Button>
               <Button variant="outline" size="sm" onClick={printReport} disabled={isPrinting}>
-                <Printer className="h-4 w-4 ml-2" />
-                {isPrinting ? "جاري الطباعة..." : "طباعة"}
+                <Printer className="h-4 w-4 me-2" />
+                {isPrinting ? tr("جاري الطباعة...") : tr("طباعة")}
               </Button>
             </div>
           </DialogTitle>
@@ -179,11 +180,11 @@ export function ReportGenerator({ title, data, columns, isOpen, onClose }: Repor
             />
           </div>
 
-          {data.length === 0 && <div className="text-center py-8 text-muted-foreground">لا توجد بيانات للعرض</div>}
+          {data.length === 0 && <div className="text-center py-8 text-muted-foreground">{tr("لا توجد بيانات للعرض")}</div>}
         </div>
 
         <div className="border-t pt-4 text-sm text-muted-foreground text-center">
-          إجمالي السجلات: {data.length} | تاريخ التقرير: {formatDateToBritish(new Date())}
+          {tr("إجمالي السجلات: ")}{data.length}{tr(" | تاريخ التقرير: ")}{formatDateToBritish(new Date())}
         </div>
       </DialogContent>
     </Dialog>

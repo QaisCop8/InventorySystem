@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountNumberFormat } from "@/lib/decimals"
 import "@/components/accounting/cheque-theme.css"
 
@@ -31,10 +32,10 @@ function useMeta(date: string) {
     fetch(`/api/auto-journals/meta?date=${date}`, { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json()
-        if (!response.ok) throw new Error(data.error || "تعذر تحميل البيانات")
+        if (!response.ok) throw new Error(data.error || tr("تعذر تحميل البيانات"))
         if (active) { setMeta(data); setError("") }
       })
-      .catch((e) => active && setError(e instanceof Error ? e.message : "تعذر تحميل البيانات"))
+      .catch((e) => active && setError(e instanceof Error ? e.message : tr("تعذر تحميل البيانات")))
     return () => { active = false }
   }, [date])
   return { meta, error }
@@ -53,7 +54,7 @@ function useMessages() {
 async function postJson(url: string, body: unknown) {
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
   const data = await response.json()
-  if (!response.ok) throw new Error(data.error || "تعذر تنفيذ العملية")
+  if (!response.ok) throw new Error(data.error || tr("تعذر تنفيذ العملية"))
   return data
 }
 
@@ -81,7 +82,7 @@ function AccountPicker({ label, accounts, value, onChange, dark, filter }: {
         value={query}
         onFocus={() => setOpen(true)}
         onChange={(event) => { setQuery(event.target.value); onChange(null); setOpen(true) }}
-        placeholder="ابحث برقم أو اسم الحساب..."
+        placeholder={tr("ابحث برقم أو اسم الحساب...")}
         className={dark ? "border-white/10 bg-white/10 text-white placeholder:text-slate-500" : ""}
       />
       {open && (
@@ -92,12 +93,12 @@ function AccountPicker({ label, accounts, value, onChange, dark, filter }: {
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => { onChange(account.id); setQuery(accountLabel(account)); setOpen(false) }}
-              className="block w-full rounded-lg p-2 text-right text-sm hover:bg-emerald-50"
+              className="block w-full rounded-lg p-2 text-start text-sm hover:bg-emerald-50"
             >
               <b className="font-mono">{account.code}</b> {account.name}
             </button>
           ))}
-          {!options.length && <p className="p-3 text-center text-sm text-slate-400">لا توجد نتائج</p>}
+          {!options.length && <p className="p-3 text-center text-sm text-slate-400">{tr("لا توجد نتائج")}</p>}
         </div>
       )}
     </div>
@@ -113,7 +114,7 @@ function CurrencySelect({ currencies, value, onChange, className, allowAll, excl
 }) {
   return (
     <select value={value ?? ""} onChange={(event) => onChange(Number(event.target.value) || null)} className={cn("h-10 w-full rounded-md border bg-white px-3 text-slate-900", className)}>
-      {allowAll ? <option value="">جميع العملات</option> : <option value="">اختر العملة</option>}
+      {allowAll ? <option value="">{tr("جميع العملات")}</option> : <option value="">{tr("اختر العملة")}</option>}
       {currencies.filter((currency) => currency.id !== exclude).map((currency) => (
         <option key={currency.id} value={currency.id}>{currency.currency_code} — {currency.currency_name}</option>
       ))}
@@ -125,15 +126,15 @@ function PageShell({ title, description, icon: Icon, gradient, stat, children, m
   title: string; description: string; icon: any; gradient: string; stat?: React.ReactNode; children: React.ReactNode; messagesRef: any
 }) {
   return (
-    <main dir="rtl" className="h-full min-h-0 w-full overflow-auto bg-slate-50/80 p-3 sm:p-5">
+    <main dir={appDir()} className="h-full min-h-0 w-full overflow-auto bg-slate-50/80 p-3 sm:p-5">
       <div className="flex min-h-full w-full flex-col gap-4">
         <header className={cn("cheque-page-header relative overflow-hidden rounded-[30px] bg-gradient-to-l p-5 text-white shadow-xl sm:p-7", gradient)}>
-          <div className="absolute -left-16 -top-20 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -end-16 -top-20 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur"><Icon className="h-7 w-7" /></span>
               <div>
-                <p className="text-xs font-bold text-white/70">القيود الآلية</p>
+                <p className="text-xs font-bold text-white/70">{tr("القيود الآلية")}</p>
                 <h1 className="text-2xl font-black sm:text-3xl">{title}</h1>
                 <p className="mt-1 max-w-2xl text-sm text-white/75">{description}</p>
               </div>
@@ -152,7 +153,7 @@ function JournalLinks({ journals }: { journals: Journal[] }) {
   if (!journals.length) return null
   return (
     <div className="space-y-1">
-      <p className="text-xs text-slate-400">القيود المنشأة</p>
+      <p className="text-xs text-slate-400">{tr("القيود المنشأة")}</p>
       <div className="flex flex-wrap gap-1">
         {journals.map((journal) => (
           <a key={journal.id} href={`/?section=journal-vouchers&voucher_id=${journal.id}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-emerald-400/15 px-2 py-1 font-mono text-xs font-bold text-emerald-300">{journal.code}</a>
@@ -174,7 +175,7 @@ function ExecutePanel({ title, subtitle, children, onExecute, saving, disabled, 
       {children}
       <JournalLinks journals={journals} />
       <Button onClick={onExecute} disabled={saving || disabled} className="h-12 w-full bg-emerald-400 text-base font-black text-slate-950 hover:bg-emerald-300">
-        {saving ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="ml-2 h-5 w-5" />}تنفيذ القيود
+        {saving ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="ml-2 h-5 w-5" />}{tr("تنفيذ القيود")}
       </Button>
       {footer && <p className="text-center text-[11px] leading-5 text-slate-500">{footer}</p>}
     </aside>
@@ -202,13 +203,13 @@ function SelectableTable<T>({ title, hint, rows, keyOf, columns, selection, load
         <div><h2 className="font-black">{title}</h2><p className="text-xs text-slate-500">{hint}</p></div>
         <Button variant="outline" onClick={selection.toggleAll} disabled={!rows.length || loading}>
           {selection.allSelected ? <X className="ml-2 h-4 w-4" /> : <CheckCheck className="ml-2 h-4 w-4" />}
-          {selection.allSelected ? "إلغاء تحديد الكل" : "تحديد الكل"}
+          {selection.allSelected ? tr("إلغاء تحديد الكل") : tr("تحديد الكل")}
         </Button>
       </div>
       <div className="min-h-[320px] flex-1 overflow-auto">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="cheque-table-header sticky top-0 z-10 bg-slate-900 text-white">
-            <tr><th className="w-14 p-3">تحديد</th>{columns.map((column) => <th key={column.header} className="p-3 text-right text-xs">{column.header}</th>)}</tr>
+            <tr><th className="w-14 p-3">{tr("تحديد")}</th>{columns.map((column) => <th key={column.header} className="p-3 text-start text-xs">{column.header}</th>)}</tr>
           </thead>
           <tbody>
             {rows.map((row, index) => {
@@ -266,10 +267,10 @@ export function VisaCommissionJournalsPage() {
       if (cardTypeId) params.set("card_type_ids", cardTypeId)
       const response = await fetch(`/api/auto-journals/visa-commission?${params}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل الحركات")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل الحركات"))
       setRows(data.rows || [])
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر تحميل الحركات")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر تحميل الحركات"))
     } finally {
       setLoading(false)
     }
@@ -280,7 +281,7 @@ export function VisaCommissionJournalsPage() {
   const commission = selection.selectedRows.reduce((sum, row) => sum + row.commission, 0)
   const execute = async () => {
     messages.clear()
-    if (!selection.selectedRows.length) return messages.show("error", "اختر حركة واحدة على الأقل")
+    if (!selection.selectedRows.length) return messages.show("error", tr("اختر حركة واحدة على الأقل"))
     setSaving(true)
     try {
       const data = await postJson("/api/auto-journals/visa-commission", { ids: selection.selectedRows.map((row) => row.id), vch_date: date, note })
@@ -288,7 +289,7 @@ export function VisaCommissionJournalsPage() {
       setJournals(data.journal_vouchers || [])
       await load()
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر تنفيذ القيود")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر تنفيذ القيود"))
     } finally {
       setSaving(false)
     }
@@ -296,53 +297,53 @@ export function VisaCommissionJournalsPage() {
 
   return (
     <PageShell
-      title="قيود عمولة الفيزا"
-      description="حركات بطاقات الائتمان في سندات القبض المعتمدة التي لم يُنشأ لها قيد عمولة: قيد لكل حركة ينقل المبلغ من حساب البطاقات إلى حساب البنك ويُثبت عمولة البنك."
+      title={tr("قيود عمولة الفيزا")}
+      description={tr("حركات بطاقات الائتمان في سندات القبض المعتمدة التي لم يُنشأ لها قيد عمولة: قيد لكل حركة ينقل المبلغ من حساب البطاقات إلى حساب البنك ويُثبت عمولة البنك.")}
       icon={CreditCard}
       gradient="from-sky-700 via-indigo-700 to-violet-800"
       messagesRef={messages.ref}
-      stat={<div className="rounded-2xl bg-black/15 px-5 py-3 text-center backdrop-blur"><small className="text-white/70">العمولة المحددة</small><p className="text-2xl font-black">{fmt(commission)}</p></div>}
+      stat={<div className="rounded-2xl bg-black/15 px-5 py-3 text-center backdrop-blur"><small className="text-white/70">{tr("العمولة المحددة")}</small><p className="text-2xl font-black">{fmt(commission)}</p></div>}
     >
       <section className="rounded-3xl border bg-white p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <Field label="من تاريخ"><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></Field>
-          <Field label="إلى تاريخ"><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></Field>
-          <Field label="العملة"><CurrencySelect currencies={meta.currencies} value={currencyId} onChange={setCurrencyId} allowAll /></Field>
-          <Field label="البطاقة">
+          <Field label={tr("من تاريخ")}><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></Field>
+          <Field label={tr("إلى تاريخ")}><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></Field>
+          <Field label={tr("العملة")}><CurrencySelect currencies={meta.currencies} value={currencyId} onChange={setCurrencyId} allowAll /></Field>
+          <Field label={tr("البطاقة")}>
             <select value={cardTypeId} onChange={(e) => setCardTypeId(e.target.value)} className="h-10 w-full rounded-md border bg-white px-3">
-              <option value="">جميع البطاقات</option>
+              <option value="">{tr("جميع البطاقات")}</option>
               {meta.card_types.filter((card) => Number(card.main_type || 1) === 1).map((card) => <option key={card.id} value={card.id}>{card.name}</option>)}
             </select>
           </Field>
-          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض الحركات</Button></div>
+          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض الحركات")}</Button></div>
         </div>
       </section>
       <section className="grid min-h-[460px] flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <SelectableTable
-          title="حركات البطاقات" hint="تظهر حركات بطاقات الائتمان التي لم يُنشأ لها قيد عمولة فقط."
-          rows={rows} keyOf={(row) => String(row.id)} selection={selection} loading={loading} empty="لا توجد حركات بطاقات بانتظار قيد عمولة"
+          title={tr("حركات البطاقات")} hint={tr("تظهر حركات بطاقات الائتمان التي لم يُنشأ لها قيد عمولة فقط.")}
+          rows={rows} keyOf={(row) => String(row.id)} selection={selection} loading={loading} empty={tr("لا توجد حركات بطاقات بانتظار قيد عمولة")}
           columns={[
-            { header: "سند القبض", cell: (row) => <span className="font-mono font-black text-cyan-700">{row.vch_code}</span> },
-            { header: "التاريخ", cell: (row) => <span dir="ltr">{row.vch_date}</span> },
-            { header: "العميل", cell: (row) => <b>{row.customer_name || "—"}</b> },
-            { header: "البطاقة", cell: (row) => <>{row.card_type_name}<small className="block font-mono text-slate-400">{row.card_no}</small></> },
-            { header: "المبلغ", cell: (row) => <span className="font-black text-emerald-700" dir="ltr">{fmt(row.amount)} {row.currency_code}</span> },
-            { header: "العمولة", cell: (row) => <span className="font-black text-rose-700" dir="ltr">{fmt(row.commission)} <small className="text-slate-400">({row.commission_percent}%)</small></span> },
-            { header: "حساب البنك", cell: (row) => row.financial_account_name || <span className="text-rose-600">غير معرّف</span> },
-            { header: "حساب البطاقات", cell: (row) => row.card_account_name || "—" },
+            { header: tr("سند القبض"), cell: (row) => <span className="font-mono font-black text-cyan-700">{row.vch_code}</span> },
+            { header: tr("التاريخ"), cell: (row) => <span dir="ltr">{row.vch_date}</span> },
+            { header: tr("العميل"), cell: (row) => <b>{row.customer_name || "—"}</b> },
+            { header: tr("البطاقة"), cell: (row) => <>{row.card_type_name}<small className="block font-mono text-slate-400">{row.card_no}</small></> },
+            { header: tr("المبلغ"), cell: (row) => <span className="font-black text-emerald-700" dir="ltr">{fmt(row.amount)} {row.currency_code}</span> },
+            { header: tr("العمولة"), cell: (row) => <span className="font-black text-rose-700" dir="ltr">{fmt(row.commission)} <small className="text-slate-400">({row.commission_percent}%)</small></span> },
+            { header: tr("حساب البنك"), cell: (row) => row.financial_account_name || <span className="text-rose-600">{tr("غير معرّف")}</span> },
+            { header: tr("حساب البطاقات"), cell: (row) => row.card_account_name || "—" },
           ]}
         />
         <ExecutePanel
-          title="تنفيذ قيود العمولة" subtitle="قيد مستقل لكل حركة بطاقة" saving={saving} disabled={!selection.selectedRows.length}
+          title={tr("تنفيذ قيود العمولة")} subtitle={tr("قيد مستقل لكل حركة بطاقة")} saving={saving} disabled={!selection.selectedRows.length}
           onExecute={() => void execute()} journals={journals}
-          footer="تُحسب العمولة من إعدادات نوع البطاقة (نسبة أو مبلغ مقطوع بحد أقصى). عند فشل أي حركة لا يُنشأ أي قيد."
+          footer={tr("تُحسب العمولة من إعدادات نوع البطاقة (نسبة أو مبلغ مقطوع بحد أقصى). عند فشل أي حركة لا يُنشأ أي قيد.")}
         >
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">عدد الحركات</small><p className="text-xl font-black">{selection.selectedRows.length}</p></div>
-            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">الإجمالي</small><p className="text-xl font-black text-emerald-300">{fmt(total)}</p></div>
+            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">{tr("عدد الحركات")}</small><p className="text-xl font-black">{selection.selectedRows.length}</p></div>
+            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">{tr("الإجمالي")}</small><p className="text-xl font-black text-emerald-300">{fmt(total)}</p></div>
           </div>
-          <Field label="تاريخ القيد"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-white/10 bg-white/10 text-white" /></Field>
-          <Field label="ملاحظة"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="قيد عمولة فيزا" className="w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm outline-none focus:border-emerald-400" /></Field>
+          <Field label={tr("تاريخ القيد")}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-white/10 bg-white/10 text-white" /></Field>
+          <Field label={tr("ملاحظة")}><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={tr("قيد عمولة فيزا")} className="w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm outline-none focus:border-emerald-400" /></Field>
         </ExecutePanel>
       </section>
     </PageShell>
@@ -401,7 +402,7 @@ export function CurrencyTransferJournalPage() {
       setJournals(data.journal_vouchers || [])
       setFromAmount(""); setToAmount(""); setToAmountEdited(false); setFirstNote(""); setSecondNote("")
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر تنفيذ القيد")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر تنفيذ القيد"))
     } finally {
       setSaving(false)
     }
@@ -412,8 +413,8 @@ export function CurrencyTransferJournalPage() {
   )
   return (
     <PageShell
-      title="قيد تحويل عملة"
-      description="تحويل مبلغ من حساب بعملة إلى حساب بعملة أخرى عبر حساب تحويل العملة، بقيدين مترابطين كلٌّ بعملة واحدة."
+      title={tr("قيد تحويل عملة")}
+      description={tr("تحويل مبلغ من حساب بعملة إلى حساب بعملة أخرى عبر حساب تحويل العملة، بقيدين مترابطين كلٌّ بعملة واحدة.")}
       icon={ArrowLeftRight}
       gradient="from-emerald-700 via-teal-700 to-cyan-800"
       messagesRef={messages.ref}
@@ -421,37 +422,37 @@ export function CurrencyTransferJournalPage() {
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid gap-4 lg:grid-cols-2">
           {side("التحويل من", "border-rose-200", <>
-            <AccountPicker label="الحساب المحوَّل منه" accounts={meta.accounts} value={fromAccountId} onChange={setFromAccountId} />
+            <AccountPicker label={tr("الحساب المحوَّل منه")} accounts={meta.accounts} value={fromAccountId} onChange={setFromAccountId} />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="العملة"><CurrencySelect currencies={meta.currencies} value={fromCurrencyId} onChange={setFromCurrencyId} /></Field>
-              <Field label="سعر الصرف"><Input type="number" step="0.0001" value={fromRate} onChange={(e) => setFromRate(e.target.value)} disabled={isBase(fromCurrencyId)} title={isBase(fromCurrencyId) ? "عملة الأساس — سعر الصرف 1" : undefined} dir="ltr" /></Field>
+              <Field label={tr("العملة")}><CurrencySelect currencies={meta.currencies} value={fromCurrencyId} onChange={setFromCurrencyId} /></Field>
+              <Field label={tr("سعر الصرف")}><Input type="number" step="0.0001" value={fromRate} onChange={(e) => setFromRate(e.target.value)} disabled={isBase(fromCurrencyId)} title={isBase(fromCurrencyId) ? tr("عملة الأساس — سعر الصرف 1") : undefined} dir="ltr" /></Field>
             </div>
-            <Field label={`المبلغ المحوَّل ${fromCode}`}><Input type="number" step="0.01" value={fromAmount} onChange={(e) => setFromAmount(e.target.value)} dir="ltr" className="text-lg font-black" /></Field>
-            <Field label="ملاحظة القيد الأول"><Input value={firstNote} onChange={(e) => setFirstNote(e.target.value)} placeholder="قيد تحويل عملة" /></Field>
+            <Field label={tr("المبلغ المحوَّل {0}", fromCode)}><Input type="number" step="0.01" value={fromAmount} onChange={(e) => setFromAmount(e.target.value)} dir="ltr" className="text-lg font-black" /></Field>
+            <Field label={tr("ملاحظة القيد الأول")}><Input value={firstNote} onChange={(e) => setFirstNote(e.target.value)} placeholder={tr("قيد تحويل عملة")} /></Field>
           </>)}
           {side("التحويل إلى", "border-emerald-200", <>
-            <AccountPicker label="الحساب المحوَّل إليه" accounts={meta.accounts} value={toAccountId} onChange={setToAccountId} />
+            <AccountPicker label={tr("الحساب المحوَّل إليه")} accounts={meta.accounts} value={toAccountId} onChange={setToAccountId} />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="العملة"><CurrencySelect currencies={meta.currencies} value={toCurrencyId} onChange={setToCurrencyId} /></Field>
-              <Field label="سعر الصرف"><Input type="number" step="0.0001" value={toRate} onChange={(e) => setToRate(e.target.value)} disabled={isBase(toCurrencyId)} title={isBase(toCurrencyId) ? "عملة الأساس — سعر الصرف 1" : undefined} dir="ltr" /></Field>
+              <Field label={tr("العملة")}><CurrencySelect currencies={meta.currencies} value={toCurrencyId} onChange={setToCurrencyId} /></Field>
+              <Field label={tr("سعر الصرف")}><Input type="number" step="0.0001" value={toRate} onChange={(e) => setToRate(e.target.value)} disabled={isBase(toCurrencyId)} title={isBase(toCurrencyId) ? tr("عملة الأساس — سعر الصرف 1") : undefined} dir="ltr" /></Field>
             </div>
-            <Field label={`المبلغ المحوَّل له ${toCode}`}>
+            <Field label={tr("المبلغ المحوَّل له {0}", toCode)}>
               <Input type="number" step="0.01" value={toAmount} onChange={(e) => { setToAmount(e.target.value); setToAmountEdited(true) }} dir="ltr" className="text-lg font-black" />
             </Field>
-            {toAmountEdited && <button type="button" className="text-xs text-teal-700" onClick={() => setToAmountEdited(false)}>إعادة الاحتساب حسب أسعار الصرف</button>}
-            <Field label="ملاحظة القيد الثاني"><Input value={secondNote} onChange={(e) => setSecondNote(e.target.value)} placeholder="قيد تحويل عملة" /></Field>
+            {toAmountEdited && <button type="button" className="text-xs text-teal-700" onClick={() => setToAmountEdited(false)}>{tr("إعادة الاحتساب حسب أسعار الصرف")}</button>}
+            <Field label={tr("ملاحظة القيد الثاني")}><Input value={secondNote} onChange={(e) => setSecondNote(e.target.value)} placeholder={tr("قيد تحويل عملة")} /></Field>
           </>)}
         </div>
         <ExecutePanel
-          title="تنفيذ التحويل" subtitle="قيدان مترابطان مرحّلان" saving={saving}
+          title={tr("تنفيذ التحويل")} subtitle={tr("قيدان مترابطان مرحّلان")} saving={saving}
           disabled={!fromAccountId || !toAccountId || !convertAccountId || !(Number(fromAmount) > 0) || !(Number(toAmount) > 0)}
           onExecute={() => void execute()} journals={journals}
-          footer="أي فرق بين قيمتي الطرفين بعملة الأساس يبقى في حساب تحويل العملة. إلغاء أحد القيدين من شاشة سند القيد يُلغي الآخر."
+          footer={tr("أي فرق بين قيمتي الطرفين بعملة الأساس يبقى في حساب تحويل العملة. إلغاء أحد القيدين من شاشة سند القيد يُلغي الآخر.")}
         >
-          <Field label="تاريخ القيد"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-white/10 bg-white/10 text-white" /></Field>
-          <AccountPicker label="حساب تحويل العملة" accounts={meta.accounts} value={convertAccountId} onChange={setConvertAccountId} dark />
+          <Field label={tr("تاريخ القيد")}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-white/10 bg-white/10 text-white" /></Field>
+          <AccountPicker label={tr("حساب تحويل العملة")} accounts={meta.accounts} value={convertAccountId} onChange={setConvertAccountId} dark />
           <div className="rounded-2xl bg-white/[.07] p-3 text-sm">
-            <p className="text-slate-400">بعملة الأساس</p>
+            <p className="text-slate-400">{tr("بعملة الأساس")}</p>
             <p className="font-black" dir="ltr">{fmt(Number(fromAmount) * Number(fromRate))} ← {fmt(Number(toAmount) * Number(toRate))}</p>
           </div>
         </ExecutePanel>
@@ -492,12 +493,12 @@ export function AccountCurrencyTransferJournalsPage() {
       if (accountId) params.set("account_ids", String(accountId))
       const response = await fetch(`/api/auto-journals/account-currency-transfer?${params}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر احتساب الأرصدة")
+      if (!response.ok) throw new Error(data.error || tr("تعذر احتساب الأرصدة"))
       const nextRows: BalanceRow[] = data.rows || []
       setRows(nextRows)
       setRates(Object.fromEntries(nextRows.map((row) => [keyOf(row), { trans: row.trans_rate ? String(row.trans_rate) : "", account: row.account_rate ? String(row.account_rate) : "" }])))
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر احتساب الأرصدة")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر احتساب الأرصدة"))
     } finally {
       setLoading(false)
     }
@@ -513,8 +514,8 @@ export function AccountCurrencyTransferJournalsPage() {
 
   const execute = async () => {
     messages.clear()
-    if (!selection.selectedRows.length) return messages.show("error", "اختر حساباً واحداً على الأقل")
-    if (!convertAccountId) return messages.show("error", "اختر حساب تحويل العملة")
+    if (!selection.selectedRows.length) return messages.show("error", tr("اختر حساباً واحداً على الأقل"))
+    if (!convertAccountId) return messages.show("error", tr("اختر حساب تحويل العملة"))
     setSaving(true)
     try {
       const data = await postJson("/api/auto-journals/account-currency-transfer", {
@@ -525,7 +526,7 @@ export function AccountCurrencyTransferJournalsPage() {
       setJournals(data.journal_vouchers || [])
       await load()
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر تنفيذ القيود")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر تنفيذ القيود"))
     } finally {
       setSaving(false)
     }
@@ -536,45 +537,45 @@ export function AccountCurrencyTransferJournalsPage() {
   )
   return (
     <PageShell
-      title="قيود تحويل عملة حساب"
-      description="أرصدة الحسابات المتراكمة بعملات غير عملة الحساب: يُقفل كل رصيد أجنبي ويُعاد إثباته بعملة الحساب عبر حساب تحويل العملة."
+      title={tr("قيود تحويل عملة حساب")}
+      description={tr("أرصدة الحسابات المتراكمة بعملات غير عملة الحساب: يُقفل كل رصيد أجنبي ويُعاد إثباته بعملة الحساب عبر حساب تحويل العملة.")}
       icon={Repeat2}
       gradient="from-amber-700 via-orange-700 to-rose-700"
       messagesRef={messages.ref}
     >
       <section className="rounded-3xl border bg-white p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="الرصيد حتى تاريخ"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="النوع">
+          <Field label={tr("الرصيد حتى تاريخ")}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label={tr("النوع")}>
             <select value={balanceType} onChange={(e) => setBalanceType(e.target.value)} className="h-10 w-full rounded-md border bg-white px-3">
-              <option value="0">الكل</option><option value="1">أرصدة مدينة</option><option value="2">أرصدة دائنة</option>
+              <option value="0">{tr("الكل")}</option><option value="1">{tr("أرصدة مدينة")}</option><option value="2">{tr("أرصدة دائنة")}</option>
             </select>
           </Field>
-          <AccountPicker label="الحساب (اختياري)" accounts={meta.accounts} value={accountId} onChange={setAccountId} />
-          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}تنفيذ أولي</Button></div>
+          <AccountPicker label={tr("الحساب (اختياري)")} accounts={meta.accounts} value={accountId} onChange={setAccountId} />
+          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("تنفيذ أولي")}</Button></div>
         </div>
       </section>
       <section className="grid min-h-[460px] flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <SelectableTable
-          title="الأرصدة بعملات أخرى" hint="الرصيد: مدين موجب، دائن سالب. أسعار الصرف قابلة للتعديل قبل التنفيذ."
-          rows={rows} keyOf={keyOf} selection={selection} loading={loading} empty="اضغط تنفيذ أولي لاحتساب الأرصدة"
+          title={tr("الأرصدة بعملات أخرى")} hint={tr("الرصيد: مدين موجب، دائن سالب. أسعار الصرف قابلة للتعديل قبل التنفيذ.")}
+          rows={rows} keyOf={keyOf} selection={selection} loading={loading} empty={tr("اضغط تنفيذ أولي لاحتساب الأرصدة")}
           columns={[
-            { header: "الحساب", cell: (row) => <><b className="font-mono">{row.account_code}</b> {row.account_name}</> },
-            { header: "المبلغ المحوَّل", cell: (row) => <span className={cn("font-black", row.balance > 0 ? "text-emerald-700" : "text-rose-700")} dir="ltr">{fmt(row.balance)} {row.trans_currency_code}</span> },
-            { header: "سعر الصرف", cell: (row) => rateInput(row, "trans") },
-            { header: "عملة الحساب", cell: (row) => row.account_currency_code },
-            { header: "سعر صرف الحساب", cell: (row) => rateInput(row, "account") },
-            { header: "المبلغ المحوَّل له", cell: (row) => { const value = converted(row); return value == null ? <span className="text-rose-600">لا يوجد سعر</span> : <span className="font-black" dir="ltr">{fmt(value)} {row.account_currency_code}</span> } },
+            { header: tr("الحساب"), cell: (row) => <><b className="font-mono">{row.account_code}</b> {row.account_name}</> },
+            { header: tr("المبلغ المحوَّل"), cell: (row) => <span className={cn("font-black", row.balance > 0 ? "text-emerald-700" : "text-rose-700")} dir="ltr">{fmt(row.balance)} {row.trans_currency_code}</span> },
+            { header: tr("سعر الصرف"), cell: (row) => rateInput(row, "trans") },
+            { header: tr("عملة الحساب"), cell: (row) => row.account_currency_code },
+            { header: tr("سعر صرف الحساب"), cell: (row) => rateInput(row, "account") },
+            { header: tr("المبلغ المحوَّل له"), cell: (row) => { const value = converted(row); return value == null ? <span className="text-rose-600">{tr("لا يوجد سعر")}</span> : <span className="font-black" dir="ltr">{fmt(value)} {row.account_currency_code}</span> } },
           ]}
         />
         <ExecutePanel
-          title="تنفيذ التحويل" subtitle="قيدان مترابطان لكل رصيد" saving={saving} disabled={!selection.selectedRows.length}
+          title={tr("تنفيذ التحويل")} subtitle={tr("قيدان مترابطان لكل رصيد")} saving={saving} disabled={!selection.selectedRows.length}
           onExecute={() => void execute()} journals={journals}
-          footer="يُعاد احتساب الرصيد عند التنفيذ. عند فشل أي حساب لا يُنشأ أي قيد."
+          footer={tr("يُعاد احتساب الرصيد عند التنفيذ. عند فشل أي حساب لا يُنشأ أي قيد.")}
         >
-          <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">الأرصدة المحددة</small><p className="text-xl font-black">{selection.selectedRows.length}</p></div>
-          <AccountPicker label="حساب تحويل العملة" accounts={meta.accounts} value={convertAccountId} onChange={setConvertAccountId} dark />
-          <Field label="ملاحظة"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="تحويل عملة حساب" className="w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm outline-none focus:border-emerald-400" /></Field>
+          <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">{tr("الأرصدة المحددة")}</small><p className="text-xl font-black">{selection.selectedRows.length}</p></div>
+          <AccountPicker label={tr("حساب تحويل العملة")} accounts={meta.accounts} value={convertAccountId} onChange={setConvertAccountId} dark />
+          <Field label={tr("ملاحظة")}><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={tr("تحويل عملة حساب")} className="w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm outline-none focus:border-emerald-400" /></Field>
         </ExecutePanel>
       </section>
     </PageShell>
@@ -609,18 +610,18 @@ export function CurrencyDifferenceJournalsPage() {
   const inputsKey = `${date}|${currencyId}|${rate}`
   const load = useCallback(async () => {
     messages.clear()
-    if (!currencyId) return messages.show("error", "خطأ. الرجاء اختيار العملة أولا")
-    if (!(Number(rate) > 0)) return messages.show("error", "خطأ. الرجاء ادخال سعر الصرف")
+    if (!currencyId) return messages.show("error", tr("خطأ. الرجاء اختيار العملة أولا"))
+    if (!(Number(rate) > 0)) return messages.show("error", tr("خطأ. الرجاء ادخال سعر الصرف"))
     setLoading(true)
     try {
       const params = new URLSearchParams({ date, currency_id: String(currencyId), rate })
       const response = await fetch(`/api/auto-journals/currency-difference?${params}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر احتساب فرق العملة")
+      if (!response.ok) throw new Error(data.error || tr("تعذر احتساب فرق العملة"))
       setRows(data.rows || [])
       setCalculatedFor(`${date}|${currencyId}|${rate}`)
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر احتساب فرق العملة")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر احتساب فرق العملة"))
     } finally {
       setLoading(false)
     }
@@ -630,9 +631,9 @@ export function CurrencyDifferenceJournalsPage() {
   const stale = rows.length > 0 && calculatedFor !== inputsKey
   const execute = async () => {
     messages.clear()
-    if (stale) return messages.show("error", "تغيّر التاريخ أو العملة أو سعر الصرف — أعد الاحتساب قبل التنفيذ")
-    if (!differenceAccountId) return messages.show("error", "خطأ. الرجاء اختيار حساب فرق العملة أولا")
-    if (!selection.selectedRows.length) return messages.show("error", "اختر حساباً واحداً على الأقل")
+    if (stale) return messages.show("error", tr("تغيّر التاريخ أو العملة أو سعر الصرف — أعد الاحتساب قبل التنفيذ"))
+    if (!differenceAccountId) return messages.show("error", tr("خطأ. الرجاء اختيار حساب فرق العملة أولا"))
+    if (!selection.selectedRows.length) return messages.show("error", tr("اختر حساباً واحداً على الأقل"))
     setSaving(true)
     try {
       const data = await postJson("/api/auto-journals/currency-difference", {
@@ -643,7 +644,7 @@ export function CurrencyDifferenceJournalsPage() {
       setJournals(data.journal_vouchers || [])
       await load()
     } catch (e) {
-      messages.show("error", e instanceof Error ? e.message : "تعذر تنفيذ القيود")
+      messages.show("error", e instanceof Error ? e.message : tr("تعذر تنفيذ القيود"))
     } finally {
       setSaving(false)
     }
@@ -651,47 +652,47 @@ export function CurrencyDifferenceJournalsPage() {
 
   return (
     <PageShell
-      title="قيود فرق عملة"
-      description="إعادة تقييم أرصدة حسابات الميزانية الخاضعة لفرق العملة بسعر صرف جديد، وإثبات الفرق ربحاً أو خسارة على حساب فرق العملة."
+      title={tr("قيود فرق عملة")}
+      description={tr("إعادة تقييم أرصدة حسابات الميزانية الخاضعة لفرق العملة بسعر صرف جديد، وإثبات الفرق ربحاً أو خسارة على حساب فرق العملة.")}
       icon={Scale}
       gradient="from-fuchsia-700 via-purple-700 to-indigo-800"
       messagesRef={messages.ref}
-      stat={<div className="rounded-2xl bg-black/15 px-5 py-3 text-center backdrop-blur"><small className="text-white/70">صافي الفرق</small><p className="text-2xl font-black" dir="ltr">{fmt(totals.profit + totals.loss)}</p></div>}
+      stat={<div className="rounded-2xl bg-black/15 px-5 py-3 text-center backdrop-blur"><small className="text-white/70">{tr("صافي الفرق")}</small><p className="text-2xl font-black" dir="ltr">{fmt(totals.profit + totals.loss)}</p></div>}
     >
       <section className="rounded-3xl border bg-white p-4 shadow-sm">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Field label="احتساب فرق العملة لغاية"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="العملة"><CurrencySelect currencies={meta.currencies} value={currencyId} onChange={setCurrencyId} exclude={meta.base_currency_id} /></Field>
-          <Field label="سعر الصرف"><Input type="number" step="0.0001" value={rate} onChange={(e) => setRate(e.target.value)} dir="ltr" /></Field>
-          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}تنفيذ أولي</Button></div>
+          <Field label={tr("احتساب فرق العملة لغاية")}><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label={tr("العملة")}><CurrencySelect currencies={meta.currencies} value={currencyId} onChange={setCurrencyId} exclude={meta.base_currency_id} /></Field>
+          <Field label={tr("سعر الصرف")}><Input type="number" step="0.0001" value={rate} onChange={(e) => setRate(e.target.value)} dir="ltr" /></Field>
+          <div className="flex items-end"><Button onClick={() => void load()} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("تنفيذ أولي")}</Button></div>
         </div>
-        {stale && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">تغيّرت المدخلات بعد الاحتساب — أعد الاحتساب قبل التنفيذ.</p>}
+        {stale && <p className="mt-3 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">{tr("تغيّرت المدخلات بعد الاحتساب — أعد الاحتساب قبل التنفيذ.")}</p>}
       </section>
       <section className="grid min-h-[460px] flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <SelectableTable
-          title={`فرق العملة ${currencyCode}`} hint="حسابات الميزانية الخاضعة لفرق العملة التي لها حركات بهذه العملة. القيم بعملة الأساس عدا الرصيد."
-          rows={rows} keyOf={(row) => String(row.account_id)} selection={selection} loading={loading} empty="اختر العملة وسعر الصرف ثم اضغط تنفيذ أولي"
+          title={tr("فرق العملة {0}", currencyCode)} hint={tr("حسابات الميزانية الخاضعة لفرق العملة التي لها حركات بهذه العملة. القيم بعملة الأساس عدا الرصيد.")}
+          rows={rows} keyOf={(row) => String(row.account_id)} selection={selection} loading={loading} empty={tr("اختر العملة وسعر الصرف ثم اضغط تنفيذ أولي")}
           columns={[
-            { header: "الحساب", cell: (row) => <><b className="font-mono">{row.account_code}</b> {row.account_name}</> },
-            { header: `الرصيد ${currencyCode}`, cell: (row) => <span dir="ltr">{fmt(row.balance)}</span> },
-            { header: "الرصيد بعملة الأساس", cell: (row) => <span dir="ltr">{fmt(row.base_balance)}</span> },
-            { header: "فروقات سابقة", cell: (row) => <span dir="ltr">{fmt(row.previous_differences)}</span> },
-            { header: "الرصيد مقيّم", cell: (row) => <span dir="ltr">{fmt(row.evaluated_balance)}</span> },
-            { header: "ربح", cell: (row) => row.difference > 0 ? <span className="font-black text-emerald-700" dir="ltr">{fmt(row.difference)}</span> : "" },
-            { header: "خسارة", cell: (row) => row.difference < 0 ? <span className="font-black text-rose-700" dir="ltr">{fmt(Math.abs(row.difference))}</span> : "" },
+            { header: tr("الحساب"), cell: (row) => <><b className="font-mono">{row.account_code}</b> {row.account_name}</> },
+            { header: tr("الرصيد {0}", currencyCode), cell: (row) => <span dir="ltr">{fmt(row.balance)}</span> },
+            { header: tr("الرصيد بعملة الأساس"), cell: (row) => <span dir="ltr">{fmt(row.base_balance)}</span> },
+            { header: tr("فروقات سابقة"), cell: (row) => <span dir="ltr">{fmt(row.previous_differences)}</span> },
+            { header: tr("الرصيد مقيّم"), cell: (row) => <span dir="ltr">{fmt(row.evaluated_balance)}</span> },
+            { header: tr("ربح"), cell: (row) => row.difference > 0 ? <span className="font-black text-emerald-700" dir="ltr">{fmt(row.difference)}</span> : "" },
+            { header: tr("خسارة"), cell: (row) => row.difference < 0 ? <span className="font-black text-rose-700" dir="ltr">{fmt(Math.abs(row.difference))}</span> : "" },
           ]}
         />
         <ExecutePanel
-          title="تنفيذ قيود فرق العملة" subtitle="قيد بعملة الأساس لكل حساب" saving={saving} disabled={!selection.selectedRows.length || stale}
+          title={tr("تنفيذ قيود فرق العملة")} subtitle={tr("قيد بعملة الأساس لكل حساب")} saving={saving} disabled={!selection.selectedRows.length || stale}
           onExecute={() => void execute()} journals={journals}
-          footer="ربح: مدين الحساب / دائن حساب فرق العملة. خسارة: العكس. القيود السابقة لنفس العملة تُطرح تلقائياً فلا يتكرر الفرق."
+          footer={tr("ربح: مدين الحساب / دائن حساب فرق العملة. خسارة: العكس. القيود السابقة لنفس العملة تُطرح تلقائياً فلا يتكرر الفرق.")}
         >
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">ربح</small><p className="text-lg font-black text-emerald-300">{fmt(totals.profit)}</p></div>
-            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">خسارة</small><p className="text-lg font-black text-rose-300">{fmt(Math.abs(totals.loss))}</p></div>
+            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">{tr("ربح")}</small><p className="text-lg font-black text-emerald-300">{fmt(totals.profit)}</p></div>
+            <div className="rounded-2xl bg-white/[.07] p-3"><small className="text-slate-400">{tr("خسارة")}</small><p className="text-lg font-black text-rose-300">{fmt(Math.abs(totals.loss))}</p></div>
           </div>
-          <AccountPicker label="حساب فرق العملة" accounts={meta.accounts} value={differenceAccountId} onChange={setDifferenceAccountId} dark />
-          <Field label="ملاحظة"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="فرق عملة حساب" className="w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm outline-none focus:border-emerald-400" /></Field>
+          <AccountPicker label={tr("حساب فرق العملة")} accounts={meta.accounts} value={differenceAccountId} onChange={setDifferenceAccountId} dark />
+          <Field label={tr("ملاحظة")}><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={tr("فرق عملة حساب")} className="w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm outline-none focus:border-emerald-400" /></Field>
         </ExecutePanel>
       </section>
     </PageShell>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -135,10 +136,10 @@ export default function ItemExpiryDatePicker({
       showFooter: false,
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number" },
-        { header: "الرقم التشغيلي", name: "batch_number", width: '*', minWidth: 120, isReadOnly: true, visible: hasBatch },
-        { header: "تاريخ انتهاء الصلاحية", name: "expiry_date_display", width: '*', minWidth: 120, isReadOnly: true },
-        { header: "الكمية المتوفرة", name: "available_quantity", width: 130, isReadOnly: true, dataType: "Number" },
-        { header: "الكمية المخرجة", name: "out_quantity", width: 130, dataType: "Number" },
+        { header: tr("الرقم التشغيلي"), name: "batch_number", width: '*', minWidth: 120, isReadOnly: true, visible: hasBatch },
+        { header: tr("تاريخ انتهاء الصلاحية"), name: "expiry_date_display", width: '*', minWidth: 120, isReadOnly: true },
+        { header: tr("الكمية المتوفرة"), name: "available_quantity", width: 130, isReadOnly: true, dataType: "Number" },
+        { header: tr("الكمية المخرجة"), name: "out_quantity", width: 130, dataType: "Number" },
       ],
     }),
     [hasBatch],
@@ -173,7 +174,7 @@ export default function ItemExpiryDatePicker({
       <DialogContent
         hideCloseButton
         className="max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl"
-        dir="rtl"
+        dir={appDir()}
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
@@ -182,13 +183,13 @@ export default function ItemExpiryDatePicker({
             variant="ghost"
             onClick={onCancel}
             className="h-8 w-8 rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-sm hover:bg-slate-100"
-            aria-label="إغلاق"
-            title="إغلاق"
+            aria-label={tr("إغلاق")}
+            title={tr("إغلاق")}
           >
             <X className="h-4 w-4" />
           </Button>
           <h2 className="text-base font-extrabold text-blue-700">
-            تواريخ الصلاحية للصنف / {productName}
+            {tr("تواريخ الصلاحية للصنف / ")}{productName}
             {productCode ? ` — ${productCode}` : ""}
           </h2>
         </div>
@@ -196,15 +197,15 @@ export default function ItemExpiryDatePicker({
         <div className="space-y-4 px-4 py-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-1.5">
-              <Label>الكمية</Label>
+              <Label>{tr("الكمية")}</Label>
               <Input value={requiredQuantity} readOnly disabled className="text-right" />
             </div>
             <div className="grid gap-1.5">
-              <Label>الوحدة</Label>
+              <Label>{tr("الوحدة")}</Label>
               <Input value={unitName} readOnly disabled className="text-right" />
             </div>
             <div className="grid gap-1.5">
-              <Label>المستودع</Label>
+              <Label>{tr("المستودع")}</Label>
               <Input value={warehouseName} readOnly disabled className="text-right" />
             </div>
           </div>
@@ -216,14 +217,14 @@ export default function ItemExpiryDatePicker({
               onCheckedChange={(checked) => handleDistributeChange(checked === true)}
             />
             <Label htmlFor="distribute_expiry_qty" className="cursor-pointer text-sm font-medium">
-              توزيع الكميات على تواريخ الصلاحية حسب الاقدم فالاحدث
+              {tr("توزيع الكميات على تواريخ الصلاحية حسب الاقدم فالاحدث")}
             </Label>
           </div>
 
           {loading ? (
-            <div className="py-8 text-center text-sm text-slate-400">جارٍ التحميل...</div>
+            <div className="py-8 text-center text-sm text-slate-400">{tr("جارٍ التحميل...")}</div>
           ) : lots.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">لا توجد دفعات متاحة لهذا الصنف</div>
+            <div className="py-8 text-center text-sm text-slate-400">{tr("لا توجد دفعات متاحة لهذا الصنف")}</div>
           ) : (
             <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
               <DataGridView
@@ -241,10 +242,10 @@ export default function ItemExpiryDatePicker({
 
           <div className="flex items-center justify-between border-t border-slate-200 pt-3 text-sm">
             <span>
-              الإجمالي المُخصَّص: <strong>{totalAllocated}</strong> / المطلوب: <strong>{requiredQuantity}</strong>
+              {tr("الإجمالي المُخصَّص: ")}<strong>{totalAllocated}</strong>{tr(" / المطلوب: ")}<strong>{requiredQuantity}</strong>
             </span>
             {totalAllocated < requiredQuantity && (
-              <span className="text-amber-600">الكمية المتاحة غير كافية للوفاء بكامل الكمية المطلوبة</span>
+              <span className="text-amber-600">{tr("الكمية المتاحة غير كافية للوفاء بكامل الكمية المطلوبة")}</span>
             )}
           </div>
         </div>
@@ -254,8 +255,8 @@ export default function ItemExpiryDatePicker({
             onClick={handleConfirm}
             disabled={totalAllocated <= 0}
             className="h-9 w-9 rounded-full border border-emerald-200 bg-emerald-50 p-0 text-emerald-600 shadow-sm hover:bg-emerald-100"
-            aria-label="تأكيد"
-            title="تأكيد"
+            aria-label={tr("تأكيد")}
+            title={tr("تأكيد")}
           >
             <Check className="h-5 w-5" />
           </Button>
@@ -263,8 +264,8 @@ export default function ItemExpiryDatePicker({
             variant="ghost"
             onClick={onCancel}
             className="h-9 w-9 rounded-full border border-rose-200 bg-rose-50 p-0 text-rose-600 shadow-sm hover:bg-rose-100"
-            aria-label="إلغاء"
-            title="إلغاء"
+            aria-label={tr("إلغاء")}
+            title={tr("إلغاء")}
           >
             <X className="h-5 w-5" />
           </Button>

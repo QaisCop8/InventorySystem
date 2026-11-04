@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 
 import { ReportFilters } from "@/components/reports/report-filters"
@@ -23,9 +24,9 @@ import { ACTION_LABELS, PRIORITY_LABELS } from "./types"
 import { PRIORITY_BADGE_CLASS, formatDuration } from "./utils"
 
 const ITEM_STATUS_LABELS: Record<string, string> = {
-  in_workflow: "جارٍ",
-  completed: "مكتمل",
-  cancelled: "ملغى",
+  in_workflow: tr("جارٍ"),
+  completed: tr("مكتمل"),
+  cancelled: tr("ملغى"),
 }
 const ITEM_STATUS_BADGE_CLASS: Record<string, string> = {
   in_workflow: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -71,7 +72,7 @@ export function TaskReport() {
       const data = await res.json()
       setItems(Array.isArray(data) ? data : [])
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب تقرير أصناف الطلبية", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب تقرير أصناف الطلبية"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -95,7 +96,7 @@ export function TaskReport() {
       if (!res.ok) throw new Error()
       setDetailItem(await res.json())
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب تفاصيل الصنف", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب تفاصيل الصنف"), variant: "destructive" })
       setDetailId(null)
     } finally {
       setDetailLoading(false)
@@ -113,15 +114,15 @@ export function TaskReport() {
 
   return (
     <ReportPage loading={loading}>
-      <ReportHeader title={<>تقرير متابعة أصناف الطلبية</>} description={<>كل الأصناف بحالاتها ومراحلها الحالية وآخر ملاحظة مسجَّلة عليها</>} />
+      <ReportHeader title={<>{tr("تقرير متابعة أصناف الطلبية")}</>} description={<>{tr("كل الأصناف بحالاتها ومراحلها الحالية وآخر ملاحظة مسجَّلة عليها")}</>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {[
-          { label: "الإجمالي", value: summary.total, icon: ListChecks, tone: "bg-slate-100 text-slate-600" },
-          { label: "جارٍ بسير العمل", value: summary.inWorkflow, icon: PlayCircle, tone: "bg-emerald-100 text-emerald-700" },
-          { label: "مكتمل", value: summary.completed, icon: CheckCircle2, tone: "bg-sky-100 text-sky-700" },
-          { label: "ملغى", value: summary.cancelled, icon: XCircle, tone: "bg-slate-100 text-slate-400" },
-          { label: "متأخر عن SLA", value: summary.overdue, icon: AlarmClock, tone: "bg-red-100 text-red-600" },
+          { label: tr("الإجمالي"), value: summary.total, icon: ListChecks, tone: "bg-slate-100 text-slate-600" },
+          { label: tr("جارٍ بسير العمل"), value: summary.inWorkflow, icon: PlayCircle, tone: "bg-emerald-100 text-emerald-700" },
+          { label: tr("مكتمل"), value: summary.completed, icon: CheckCircle2, tone: "bg-sky-100 text-sky-700" },
+          { label: tr("ملغى"), value: summary.cancelled, icon: XCircle, tone: "bg-slate-100 text-slate-400" },
+          { label: tr("متأخر عن SLA"), value: summary.overdue, icon: AlarmClock, tone: "bg-red-100 text-red-600" },
         ].map((card) => (
           <div key={card.label} className="flex items-center justify-between rounded-2xl border bg-white p-4 shadow-sm">
             <div>
@@ -137,13 +138,13 @@ export function TaskReport() {
 
       <ReportFilters><div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
-          <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="رقم الصنف، العنوان، العميل أو الطلبية" className="pr-8" />
+          <Search className="pointer-events-none absolute start-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("رقم الصنف، العنوان، العميل أو الطلبية")} className="pr-8" />
         </div>
         <div className="flex items-center gap-1 text-xs text-slate-500">
-          من
+          {tr("من")}
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
-          إلى
+          {tr("إلى")}
           <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -151,18 +152,18 @@ export function TaskReport() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">كل الحالات</SelectItem>
-            <SelectItem value="in_workflow">جارٍ</SelectItem>
-            <SelectItem value="completed">مكتمل</SelectItem>
-            <SelectItem value="cancelled">ملغى</SelectItem>
+            <SelectItem value="all">{tr("كل الحالات")}</SelectItem>
+            <SelectItem value="in_workflow">{tr("جارٍ")}</SelectItem>
+            <SelectItem value="completed">{tr("مكتمل")}</SelectItem>
+            <SelectItem value="cancelled">{tr("ملغى")}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
           <SelectTrigger className="w-56">
-            <SelectValue placeholder="كل سير العمل" />
+            <SelectValue placeholder={tr("كل سير العمل")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">كل سير العمل</SelectItem>
+            <SelectItem value="all">{tr("كل سير العمل")}</SelectItem>
             {workflows.map((w) => (
               <SelectItem key={w.id} value={String(w.id)}>
                 {w.name}
@@ -171,7 +172,7 @@ export function TaskReport() {
             ))}
           </SelectContent>
         </Select>
-        <Button data-report-apply variant="outline" size="icon" onClick={fetchItems} title="تحديث">
+        <Button data-report-apply variant="outline" size="icon" onClick={fetchItems} title={tr("تحديث")}>
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </div></ReportFilters>
@@ -182,17 +183,17 @@ export function TaskReport() {
             <Table>
               <TableHeader className="bg-emerald-100">
                 <TableRow className="hover:bg-emerald-100">
-                  <TableHead className="text-right">رقم الصنف</TableHead>
-                  <TableHead className="text-right">العنوان</TableHead>
-                  <TableHead className="text-right">الطلبية / العميل</TableHead>
-                  <TableHead className="text-right">سير العمل</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">المرحلة الحالية</TableHead>
-                  <TableHead className="text-right">الأولوية</TableHead>
-                  <TableHead className="text-right">وقت العمل</TableHead>
-                  <TableHead className="text-right">آخر ملاحظة</TableHead>
-                  <TableHead className="text-right">أنشئ بواسطة</TableHead>
-                  <TableHead className="text-right">تاريخ الإنشاء</TableHead>
+                  <TableHead className="text-right">{tr("رقم الصنف")}</TableHead>
+                  <TableHead className="text-right">{tr("العنوان")}</TableHead>
+                  <TableHead className="text-right">{tr("الطلبية / العميل")}</TableHead>
+                  <TableHead className="text-right">{tr("سير العمل")}</TableHead>
+                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-right">{tr("المرحلة الحالية")}</TableHead>
+                  <TableHead className="text-right">{tr("الأولوية")}</TableHead>
+                  <TableHead className="text-right">{tr("وقت العمل")}</TableHead>
+                  <TableHead className="text-right">{tr("آخر ملاحظة")}</TableHead>
+                  <TableHead className="text-right">{tr("أنشئ بواسطة")}</TableHead>
+                  <TableHead className="text-right">{tr("تاريخ الإنشاء")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -212,7 +213,7 @@ export function TaskReport() {
                       {item.current_steps || (item.status === "in_workflow" ? "-" : "—")}
                       {Number(item.overdue_task_count || 0) > 0 && (
                         <span className="mr-1 inline-flex items-center gap-0.5 rounded bg-red-100 px-1 py-0.5 text-[10px] font-semibold text-red-700">
-                          <AlarmClock className="h-3 w-3" /> متأخر
+                          <AlarmClock className="h-3 w-3" />{tr(" متأخر")}
                         </span>
                       )}
                     </TableCell>
@@ -233,7 +234,7 @@ export function TaskReport() {
                 {!loading && items.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={11} className="py-10 text-center text-sm text-slate-400">
-                      لا توجد أصناف مطابقة
+                      {tr("لا توجد أصناف مطابقة")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -253,7 +254,7 @@ export function TaskReport() {
       {/* نافذة عرض تفاصيل صنف — للعرض والتدقيق فقط (بلا أزرار إجراءات)؛ التحكم الفعلي بالمهام من
           لوحة Kanban، هذه شاشة تقرير/تتبّع تُبرز الحالة والملاحظات وسجلّ الأحداث الكامل. */}
       <Dialog open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           {detailLoading || !detailItem ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
@@ -270,11 +271,11 @@ export function TaskReport() {
 
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-slate-400">سير العمل: </span>
+                  <span className="text-slate-400">{tr("سير العمل: ")}</span>
                   {detailItem.workflow_name}
                 </div>
                 <div>
-                  <span className="text-slate-400">أنشئ بواسطة: </span>
+                  <span className="text-slate-400">{tr("أنشئ بواسطة: ")}</span>
                   {detailItem.created_by_name || "-"}
                 </div>
               </div>
@@ -283,14 +284,14 @@ export function TaskReport() {
               <Separator />
 
               <div className="space-y-1">
-                <div className="text-sm font-semibold text-slate-600">مراحل التنفيذ</div>
+                <div className="text-sm font-semibold text-slate-600">{tr("مراحل التنفيذ")}</div>
                 {detailItem.instances.map((instance) => (
                   <div key={instance.id} className="flex items-center justify-between rounded-md border border-slate-200 px-2 py-1.5 text-sm">
                     <span>
                       {instance.step_label} <span className="text-xs text-slate-400">({instance.section_name})</span>
                     </span>
                     <span className="text-xs text-slate-500">
-                      {instance.claimed_by_name || "غير مسند"} · {formatDuration(instance.total_duration_seconds)}
+                      {instance.claimed_by_name || tr("غير مسند")} · {formatDuration(instance.total_duration_seconds)}
                     </span>
                   </div>
                 ))}
@@ -299,14 +300,14 @@ export function TaskReport() {
               <Separator />
 
               <div>
-                <div className="mb-2 text-sm font-semibold text-slate-600">سجلّ الأحداث والملاحظات</div>
+                <div className="mb-2 text-sm font-semibold text-slate-600">{tr("سجلّ الأحداث والملاحظات")}</div>
                 <ScrollArea className="max-h-64">
-                  <div className="space-y-2 pl-2">
+                  <div className="space-y-2 pe-2">
                     {detailItem.logs.map((log) => (
                       <div key={log.id} className="flex items-start gap-2 text-xs">
                         <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
                         <div>
-                          <span className="font-medium text-slate-700">{log.user_name || "النظام"}</span>{" "}
+                          <span className="font-medium text-slate-700">{log.user_name || tr("النظام")}</span>{" "}
                           <span className="text-slate-500">{ACTION_LABELS[log.action] || log.action}</span>
                           {log.duration_sec > 0 && <span className="text-slate-500"> — {formatDuration(log.duration_sec)}</span>}
                           {log.note && <div className="mt-0.5 rounded bg-slate-50 p-1.5 text-slate-600">{log.note}</div>}
@@ -314,7 +315,7 @@ export function TaskReport() {
                         </div>
                       </div>
                     ))}
-                    {detailItem.logs.length === 0 && <div className="text-xs text-slate-400">لا توجد أحداث بعد</div>}
+                    {detailItem.logs.length === 0 && <div className="text-xs text-slate-400">{tr("لا توجد أحداث بعد")}</div>}
                   </div>
                 </ScrollArea>
               </div>

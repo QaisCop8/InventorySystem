@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 
 // محرر مراكز التكلفة الافتراضية (صف لكل نوع مركز تكلفة: المركز الافتراضي + الإلزام) — نفس بنية
@@ -8,9 +9,9 @@ import { useEffect, useState } from "react"
 export type CostCenterDefaultValue = { cost_center_type_id: number; default_cost_center_id: number | null; required_in_transactions: number }
 
 const REQUIRED_OPTIONS = [
-  { value: 1, label: "اختياري" },
-  { value: 2, label: "اجباري" },
-  { value: 3, label: "ممنوع" },
+  { value: 1, label: tr("اختياري") },
+  { value: 2, label: tr("اجباري") },
+  { value: 3, label: tr("ممنوع") },
 ]
 
 export default function CostCenterDefaultsEditor({ value, onChange, disabled }: {
@@ -43,8 +44,8 @@ export default function CostCenterDefaultsEditor({ value, onChange, disabled }: 
     onChange([...others, { ...rowFor(typeId), ...changes }].sort((a, b) => a.cost_center_type_id - b.cost_center_type_id))
   }
 
-  if (loading) return <div className="py-4 text-center text-xs text-slate-400">جاري تحميل مراكز التكلفة...</div>
-  if (!types.length) return <div className="rounded-lg border border-dashed py-4 text-center text-xs text-slate-400">لا توجد أنواع مراكز تكلفة معرّفة</div>
+  if (loading) return <div className="py-4 text-center text-xs text-slate-400">{tr("جاري تحميل مراكز التكلفة...")}</div>
+  if (!types.length) return <div className="rounded-lg border border-dashed py-4 text-center text-xs text-slate-400">{tr("لا توجد أنواع مراكز تكلفة معرّفة")}</div>
 
   const selectClass = "h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-slate-50"
   return (
@@ -52,9 +53,9 @@ export default function CostCenterDefaultsEditor({ value, onChange, disabled }: 
       <table className="w-full text-sm">
         <thead className="bg-emerald-50 text-emerald-900">
           <tr>
-            <th className="p-2 text-right font-semibold">نوع المركز</th>
-            <th className="p-2 text-right font-semibold">مركز التكلفة الافتراضي</th>
-            <th className="w-28 p-2 text-right font-semibold">الإلزام</th>
+            <th className="p-2 text-start font-semibold">{tr("نوع المركز")}</th>
+            <th className="p-2 text-start font-semibold">{tr("مركز التكلفة الافتراضي")}</th>
+            <th className="w-28 p-2 text-start font-semibold">{tr("الإلزام")}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +68,7 @@ export default function CostCenterDefaultsEditor({ value, onChange, disabled }: 
                 <td className="p-2">
                   <select className={selectClass} disabled={disabled} value={row.default_cost_center_id ?? ""}
                     onChange={(event) => patch(Number(type.id), { default_cost_center_id: event.target.value ? Number(event.target.value) : null })}>
-                    <option value="">— بلا —</option>
+                    <option value="">{tr("— بلا —")}</option>
                     {options.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
                   </select>
                 </td>

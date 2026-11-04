@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +12,7 @@ export function DatabaseSetup() {
 
   const setupDatabase = async () => {
     setStatus("loading")
-    setMessage("جاري إعداد قاعدة البيانات...")
+    setMessage(tr("جاري إعداد قاعدة البيانات..."))
 
     try {
       const response = await fetch("/api/setup-database", {
@@ -22,27 +23,27 @@ export function DatabaseSetup() {
 
       if (response.ok) {
         setStatus("success")
-        setMessage("تم إعداد قاعدة البيانات بنجاح!")
+        setMessage(tr("تم إعداد قاعدة البيانات بنجاح!"))
       } else {
         setStatus("error")
-        setMessage(`خطأ: ${result.error}`)
+        setMessage(tr("خطأ: {0}", result.error))
       }
     } catch (error) {
       setStatus("error")
-      setMessage("فشل في الاتصال بقاعدة البيانات")
+      setMessage(tr("فشل في الاتصال بقاعدة البيانات"))
     }
   }
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <CardTitle>إعداد قاعدة البيانات</CardTitle>
-        <CardDescription>اضغط على الزر أدناه لإنشاء الجداول والبيانات التجريبية</CardDescription>
+        <CardTitle>{tr("إعداد قاعدة البيانات")}</CardTitle>
+        <CardDescription>{tr("اضغط على الزر أدناه لإنشاء الجداول والبيانات التجريبية")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button onClick={setupDatabase} disabled={status === "loading"} className="w-full">
           {status === "loading" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          إعداد قاعدة البيانات
+          {tr("إعداد قاعدة البيانات")}
         </Button>
 
         {message && (
@@ -64,7 +65,7 @@ export function DatabaseSetup() {
 
         {status === "success" && (
           <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
-            إعادة تحميل الصفحة
+            {tr("إعادة تحميل الصفحة")}
           </Button>
         )}
       </CardContent>

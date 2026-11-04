@@ -1,0 +1,300 @@
+Undo failed
+Check failed
+Year {0} closed
+The fiscal year was closed
+Undone
+The closing of {0} was undone
+Account — debit
+Retained earnings account (equity)
+Posted to the retained earnings account — entries:
+Closing log
+Net loss
+Net profit
+Open the new year
+Check the year
+A closing entry for each branch dated
+No year has been closed yet
+Continue
+Continue despite {0} warnings
+Posts net revenue and expenses to the retained earnings account, locks the year's vouchers, and carries balance-sheet balances to the new year.
+Prevents adding/editing/posting/deleting any voucher dated within the year for all branches (shown in period locks)
+Total accounts
+Account management
+Manage accounting accounts and their classifications
+Search by account number or name
+Choose the status
+Choose the financial statement
+Choose the account type
+Import from Excel
+Add or edit an account
+Actions
+Name in another language
+Financial statement
+Balance sheet
+Details
+Inventory valuation
+Account created successfully
+Account updated successfully
+Account deleted successfully
+Loading accounting accounts...
+New account
+Save account
+Account number and account name are required
+Account list
+Income statement
+All statuses
+All financial statements
+No matching accounts
+Deleted
+Suspended
+Active
+Accounts system
+Account type
+Are you sure you want to delete the account?
+Please choose the financial statement
+Bank account auto-creation settings
+Under each parent account an account named after the bank is created (once per bank), then a sub-account for each bank account with the bank name, actual account number and currency. Collection commission account: one account per bank under the parent account.
+Unable to load the settings
+Unable to save the settings
+— in the voucher currency only
+Enter to move between fields • ↓ to results • Enter on a row to choose
+Search by account name
+Search by account number
+Name
+Actual:
+Selected: {0} — {1}
+Bank accounts search
+Account
+Actual account number
+OK
+Actions
+Total bank accounts
+Manage the company's accounts at banks and branches
+Add bank account
+The account name is already in use
+Bank accounts
+Active accounts
+Disabled accounts
+Files
+Operation completed successfully
+Bank accounts
+The actual account number is already in use
+Account number is required
+The account number must contain only uppercase English letters, digits and -
+Failed to delete the bank account
+Failed to save the bank account
+Stopped
+The account name must be entered in Arabic or English
+The bank and branch must be chosen
+All accounting accounts must be filled in
+Bank search
+Bank number
+Total banks
+Manage the company's banks and their basic codes
+Add a new bank
+Bank name in English
+Banks
+Active banks
+Disabled banks
+Search by bank number or name
+Failed to delete the bank
+Failed to save the bank
+There are branches linked to the bank; it cannot be deleted
+Branch search
+Branch number
+No bank chosen yet — all branches will be shown.
+Total branches
+Add branch
+Active branches
+Disabled branches
+Branch symbol
+Bank branches
+Bank branches that bank accounts and cheques are linked to — company branches are defined from Settings ← Definitions
+Failed to delete the branch
+Failed to save the branch
+Each branch is linked to a bank
+Search by cheque number
+Cheque books search
+Loading...
+Cheque book
+No cheques are available for this bank account
+Total cheque books
+Manage bank cheque books and issuing cheques
+Add cheque book
+Bank account name
+Available cheques
+Used cheques
+Available
+Search by book number or account name
+Issue date
+Cheque books
+Bank account number
+Bank account number is required
+Book number
+Book number is required
+cheques)
+Failed to delete the cheque book
+Failed to save the cheque book
+Enter to move between filters then to results • ↑↓ to navigate • Enter to choose
+Search by {0}
+Choose
+Total credit cards
+Manage credit and ATM card types
+Add a new card
+Card name
+Card name (ar) is required
+Card name (en) is required
+The card name is already in use
+Bank is required
+Accounting account is required
+Currency is required
+Search by card name
+Credit cards
+Credit cards
+Debit cards
+The payment terminal (machine) is required
+The intermediary account is required
+Failed to delete the card
+Failed to save the card
+Card type is required
+Commission type
+Commission type is required
+• The files contain comments for clarity
+• Make sure you have sufficient permissions before importing
+• Backup files are available in the scripts/ folder
+• The files can be run directly on the database
+• Regular backups are recommended
+37 tables
+Views and Functions
+Last backup:
+Total records
+Reference data
+Orders
+Customers
+Products
+Suppliers
+Export data
+Export full data
+Export structure
+Export all data stored in the database
+Export the structure of tables, indexes and relations only, without data
+Export the database structure (Schema)
+Full details of the database structure and stored data
+Data file downloaded
+Database file downloaded
+Schema exported successfully
+Data exported successfully
+Exporting...
+table
+All tables
+An error occurred while exporting the data
+An error occurred while exporting the database
+Export error
+record
+View
+Indexes and relations
+index
+Database information
+Important notes
+Database backup
+Data only
+Export data only
+Export data only without the database structure
+Export full copy
+Export database
+Export the full database including structure and data
+Data exported successfully!
+Database exported successfully!
+Exporting data only...
+Exporting the full database...
+An error occurred while exporting
+Failed to export the data
+Failed to export the database
+Hosting platform
+Full backup
+Database type
+Includes: data from the main tables only
+Includes: all tables, data, indexes and constraints
+Errors
+Logs (
+Context
+Page:
+User:
+Warnings
+Export
+Error details
+Error logs
+No logs to show
+Clear all
+Info
+Are you sure you want to delete all logs?
+Heap used:
+Last updated:
+System errors
+Query performance
+Database statistics
+Memory usage
+Simple query:
+Complex query:
+Errors
+Performance
+Version:
+Environment
+Diagnostics took {0}ms - may affect performance
+Memory
+Architecture:
+Platform:
+Auto refresh
+System diagnostics
+Checking...
+Table status
+Component status
+System status
+Diagnostics error
+General health error
+Response time:
+Healthy
+Number of tables:
+Not available
+Not found
+Check now
+Database
+No system errors
+Degraded
+Down
+Disabled
+Server information
+Overview
+Uptime
+"Run" fills the branch, currency and name in the form; enter the account number and actual account number then save — the accounting accounts are created on save.
+(new)
+(existing)
+Enter the bank account data and its accounting accounts
+Hide
+Hide auto-creation
+Add a new bank account
+Add the returned cheques commission to the customer
+Choose the bank
+Choose the bank first
+Choose the bank, branch and currencies then press "Choose"
+Choose the bank, branch and currency
+Choose accounts manually
+Account name (ar) *
+Account name (en)
+Currency name
+Settings
+Bank *
+Bank and branch
+Accounting account *
+Parent accounts used for auto-creation
+Accounting accounts
+Commissions
+Branch *
+Auto-create
+Auto-create — the following accounts are created on save:
+Search for a bank account (F10)
+Account data
+Under:
+Edit bank account
+Unable to prepare the accounts
+Preparing the accounts...

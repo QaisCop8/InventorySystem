@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import React from "react"
 import { Dropdown as PrimeDropdown, type DropdownChangeEvent } from "primereact/dropdown"
 import {
@@ -144,7 +145,7 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
     const statusColor = option?.status && option.status !== 1 ? "red" : ""
 
     return (
-      <div style={{ color: statusColor }} dir="rtl">
+      <div style={{ color: statusColor }} dir={appDir()}>
         {optionText}
       </div>
     )
@@ -279,7 +280,7 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
         style={{ width: "100%", ...(restProps.appendTo === "self" ? {} : { overflow: "hidden" }), ...(withgroup ? { flex: "1" } : {}) }}
         className={`${styles.dropDown} ${innerClass || ""}`}
         onChange={this.handleChange}
-        tooltipOptions={{ position: "top", style: { direction: "rtl" } }}
+        tooltipOptions={{ position: "top", style: { direction: appDir() } }}
         placeholder={placeholder}
         optionLabel={optionLabel}
         itemTemplate={this.optionsTemplate}

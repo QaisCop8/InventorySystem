@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -59,11 +60,11 @@ export default function RestaurantMonitorReport() {
       })
       const response = await fetch(`/api/reports/restaurant-monitor?${query}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(data.rows || [])
       setTruncated(Boolean(data.truncated))
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل التقرير"))
     } finally { setLoading(false) }
   }, [filters])
 
@@ -81,38 +82,38 @@ export default function RestaurantMonitorReport() {
     <ReportPage loading={loading}>
       <ReportHeader
         icon={Eye}
-        category="تقارير المطاعم"
-        title="مراقبة المطعم"
-        description="كل ما يقوم به المستخدمون في شاشة المطعم: فتح واستلام وتسليم العهدة، فتح الطاولات، إضافة وحذف الأصناف، الخصومات، النقل والدمج، الدفع والإلغاء"
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="ml-2 h-4 w-4" />طباعة</Button>}
+        category={tr("تقارير المطاعم")}
+        title={tr("مراقبة المطعم")}
+        description={tr("كل ما يقوم به المستخدمون في شاشة المطعم: فتح واستلام وتسليم العهدة، فتح الطاولات، إضافة وحذف الأصناف، الخصومات، النقل والدمج، الدفع والإلغاء")}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows?.length}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="space-y-2"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
-          <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
-          <ReportMultiChoice label="الموقع" options={meta.locations} selected={filters.locationIds} onChange={(locationIds) => setFilters({ ...filters, locationIds })} placeholder="كل المواقع" />
-          <ReportMultiChoice label="الفرع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder="كل الفروع" />
-          <ReportMultiChoice label="المستخدم" options={meta.users} selected={filters.userIds as any} onChange={(userIds: any) => setFilters({ ...filters, userIds })} placeholder="كل المستخدمين" />
-          <ReportMultiChoice label="نوع الحركة" options={ACTION_OPTIONS} selected={filters.actions as any} onChange={(actions: any) => setFilters({ ...filters, actions })} placeholder="كل الحركات" />
-          <div className="space-y-2"><Label>رقم الطلب</Label><Input value={filters.orderNo} onChange={(event) => setFilters({ ...filters, orderNo: event.target.value })} placeholder="الكل" className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
+          <ReportMultiChoice label={tr("الموقع")} options={meta.locations} selected={filters.locationIds} onChange={(locationIds) => setFilters({ ...filters, locationIds })} placeholder={tr("كل المواقع")} />
+          <ReportMultiChoice label={tr("الفرع")} options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("كل الفروع")} />
+          <ReportMultiChoice label={tr("المستخدم")} options={meta.users} selected={filters.userIds as any} onChange={(userIds: any) => setFilters({ ...filters, userIds })} placeholder={tr("كل المستخدمين")} />
+          <ReportMultiChoice label={tr("نوع الحركة")} options={ACTION_OPTIONS} selected={filters.actions as any} onChange={(actions: any) => setFilters({ ...filters, actions })} placeholder={tr("كل الحركات")} />
+          <div className="space-y-2"><Label>{tr("رقم الطلب")}</Label><Input value={filters.orderNo} onChange={(event) => setFilters({ ...filters, orderNo: event.target.value })} placeholder={tr("الكل")} className="rounded-xl" /></div>
         </div>
         <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 pt-3">
-          <Button type="button" variant="outline" onClick={() => setFilters(emptyFilters())} disabled={loading} className="min-w-32 rounded-xl"><RefreshCcw className="ml-2 h-4 w-4" />مسح الفلاتر</Button>
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />عرض النتائج</Button>
+          <Button type="button" variant="outline" onClick={() => setFilters(emptyFilters())} disabled={loading} className="min-w-32 rounded-xl"><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 
       {error && <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>}
-      {truncated && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">النتائج كثيرة وتم عرض أحدث الحركات فقط؛ ضيّق الفترة أو الفلاتر</p>}
+      {truncated && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">{tr("النتائج كثيرة وتم عرض أحدث الحركات فقط؛ ضيّق الفترة أو الفلاتر")}</p>}
 
       {rows && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <ReportSummaryCard label="عدد الحركات">{String(rows.length)}</ReportSummaryCard>
-            <ReportSummaryCard label="حذف/تخفيض أصناف">{`${summary.deleted} · ${money(summary.deletedValue)}`}</ReportSummaryCard>
-            <ReportSummaryCard label="طلبات ملغاة">{String(summary.cancelled)}</ReportSummaryCard>
-            <ReportSummaryCard label="حركات العهدة">{String(summary.custody)}</ReportSummaryCard>
+            <ReportSummaryCard label={tr("عدد الحركات")}>{String(rows.length)}</ReportSummaryCard>
+            <ReportSummaryCard label={tr("حذف/تخفيض أصناف")}>{`${summary.deleted} · ${money(summary.deletedValue)}`}</ReportSummaryCard>
+            <ReportSummaryCard label={tr("طلبات ملغاة")}>{String(summary.cancelled)}</ReportSummaryCard>
+            <ReportSummaryCard label={tr("حركات العهدة")}>{String(summary.custody)}</ReportSummaryCard>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border bg-white">
@@ -126,7 +127,7 @@ export default function RestaurantMonitorReport() {
               </thead>
               <tbody>
                 {rows.length === 0
-                  ? <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">لا توجد حركات للفترة والفلاتر المحددة</td></tr>
+                  ? <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">{tr("لا توجد حركات للفترة والفلاتر المحددة")}</td></tr>
                   : rows.map((row, index) => (
                     <tr key={row.row_id} className={`border-t hover:bg-emerald-50/40 ${DELETE_ACTIONS.has(row.action) || row.action === "cancel" ? "bg-rose-50/40" : ""}`}>
                       <td className="p-2 font-mono text-xs text-slate-400">{index + 1}</td>
@@ -137,8 +138,8 @@ export default function RestaurantMonitorReport() {
                       <td className="whitespace-nowrap p-2 font-mono">{row.order_no || "—"}</td>
                       <td className="p-2">{row.place || "—"}</td>
                       <td className="p-2">{row.item_name || "—"}</td>
-                      <td className="p-2 text-left">{row.quantity === null ? "—" : <span dir="ltr" className="font-mono">{qty(row.quantity)}</span>}</td>
-                      <td className="p-2 text-left">{row.amount === null ? "—" : <span dir="ltr" className="font-mono">{money(row.amount)}</span>}</td>
+                      <td className="p-2 text-end">{row.quantity === null ? "—" : <span dir="ltr" className="font-mono">{qty(row.quantity)}</span>}</td>
+                      <td className="p-2 text-end">{row.amount === null ? "—" : <span dir="ltr" className="font-mono">{money(row.amount)}</span>}</td>
                       <td className="whitespace-nowrap p-2 text-xs text-slate-500">{row.shift_name || "—"}</td>
                       <td className="min-w-[220px] p-2 text-xs text-slate-600">{row.description || "—"}</td>
                     </tr>

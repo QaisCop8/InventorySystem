@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Download, Loader2, MessageCircle, Send, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -61,7 +62,7 @@ export default function VoucherWhatsAppHost() {
       setPdf(null)
       setPhone("")
       setRecipient("")
-      setMessage(`مرفق ${detail.document.title} رقم ${detail.document.code}${detail.document.date ? ` بتاريخ ${String(detail.document.date).slice(0, 10)}` : ""}`)
+      setMessage(tr("مرفق {0} رقم {1}{2}", detail.document.title, detail.document.code, detail.document.date ? ` بتاريخ ${String(detail.document.date).slice(0, 10)}` : ""))
       if (detail.accountId) {
         void fetch(`/api/customers/contact?account_id=${detail.accountId}`, { cache: "no-store" })
           .then((response) => (response.ok ? response.json() : null))
@@ -79,7 +80,7 @@ export default function VoucherWhatsAppHost() {
 
   const buildPdf = async () => {
     if (pdf) return pdf
-    if (!request) throw new Error("لا يوجد سند")
+    if (!request) throw new Error(tr("لا يوجد سند"))
     const { voucherPdfBlob } = await import("@/lib/voucher-print/print")
     const built = { blob: await voucherPdfBlob(request.document), filename: fileNameOf(request.document) }
     setPdf(built)
@@ -93,7 +94,7 @@ export default function VoucherWhatsAppHost() {
 
   const run = async (mode: "direct" | "share" | "wa" | "pdf") => {
     if ((mode === "direct" || mode === "wa") && !waNumber(phone)) {
-      toast({ title: "أدخل رقم واتساب العميل", variant: "destructive" })
+      toast({ title: tr("أدخل رقم واتساب العميل"), variant: "destructive" })
       return
     }
     // تُفتح نافذة واتساب فوراً (قبل أي انتظار) وإلا يحجبها المتصفح
@@ -113,9 +114,9 @@ export default function VoucherWhatsAppHost() {
         form.append("recipient", recipient)
         const response = await fetch("/api/whatsapp/send-document", { method: "POST", body: form })
         const data = await response.json().catch(() => ({}))
-        if (!response.ok) throw new Error(data.error || "تعذر الإرسال عبر واتساب")
+        if (!response.ok) throw new Error(data.error || tr("تعذر الإرسال عبر واتساب"))
         audit("whatsapp", "business_api")
-        toast({ title: "تم إرسال السند عبر واتساب" })
+        toast({ title: tr("تم إرسال السند عبر واتساب") })
         setRequest(null)
       } else if (mode === "share") {
         await navigator.share({ files: [new File([blob], filename, { type: "application/pdf" })], title: filename, text: message })
@@ -127,12 +128,12 @@ export default function VoucherWhatsAppHost() {
         if (waWindow) waWindow.location.href = url
         else window.open(url, "_blank")
         audit("whatsapp", "wa_link")
-        toast({ title: "تم تنزيل ملف PDF", description: "أرفق الملف في محادثة واتساب التي فُتحت للعميل." })
+        toast({ title: tr("تم تنزيل ملف PDF"), description: tr("أرفق الملف في محادثة واتساب التي فُتحت للعميل.") })
       }
     } catch (error) {
       waWindow?.close()
       if ((error as any)?.name === "AbortError") return
-      toast({ title: "تعذر تجهيز السند", description: error instanceof Error ? error.message : String(error), variant: "destructive" })
+      toast({ title: tr("تعذر تجهيز السند"), description: error instanceof Error ? error.message : String(error), variant: "destructive" })
     } finally {
       setBusy("")
     }
@@ -141,39 +142,39 @@ export default function VoucherWhatsAppHost() {
   if (!request) return null
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !busy) setRequest(null) }}>
-      <DialogContent dir="rtl" className="max-w-lg">
+      <DialogContent dir={appDir()} className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><MessageCircle className="h-5 w-5 text-emerald-600" />إرسال السند عبر واتساب</DialogTitle>
-          <DialogDescription>{request.document.title} رقم <b className="font-mono">{request.document.code}</b> — يُحفظ PDF بنفس شكل الطباعة ويُرسل للعميل.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><MessageCircle className="h-5 w-5 text-emerald-600" />{tr("إرسال السند عبر واتساب")}</DialogTitle>
+          <DialogDescription>{request.document.title}{tr(" رقم ")}<b className="font-mono">{request.document.code}</b>{tr(" — يُحفظ PDF بنفس شكل الطباعة ويُرسل للعميل.")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div><Label>العميل</Label><Input className="mt-1" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="اسم المستلم" /></div>
-            <div><Label>رقم واتساب</Label><Input className="mt-1" dir="ltr" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="05xxxxxxxx" /></div>
+            <div><Label>{tr("العميل")}</Label><Input className="mt-1" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder={tr("اسم المستلم")} /></div>
+            <div><Label>{tr("رقم واتساب")}</Label><Input className="mt-1" dir="ltr" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="05xxxxxxxx" /></div>
           </div>
-          {!phone && request.accountId && <p className="text-xs text-amber-700">لا يوجد رقم واتساب/جوال في ملف العميل — أدخله يدوياً.</p>}
-          <div><Label>الرسالة</Label><Textarea className="mt-1" rows={2} value={message} onChange={(event) => setMessage(event.target.value)} /></div>
+          {!phone && request.accountId && <p className="text-xs text-amber-700">{tr("لا يوجد رقم واتساب/جوال في ملف العميل — أدخله يدوياً.")}</p>}
+          <div><Label>{tr("الرسالة")}</Label><Textarea className="mt-1" rows={2} value={message} onChange={(event) => setMessage(event.target.value)} /></div>
           <div className="grid gap-2 sm:grid-cols-2">
             {configured && (
               <Button type="button" disabled={Boolean(busy)} onClick={() => void run("direct")} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                {busy === "direct" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}إرسال مباشر
+                {busy === "direct" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{tr("إرسال مباشر")}
               </Button>
             )}
             {canShareFiles && (
               <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => void run("share")} className="gap-2">
-                {busy === "share" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}مشاركة الملف (واتساب)
+                {busy === "share" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}{tr("مشاركة الملف (واتساب)")}
               </Button>
             )}
             <Button type="button" variant={configured ? "outline" : "default"} disabled={Boolean(busy)} onClick={() => void run("wa")} className={`gap-2 ${configured ? "" : "bg-emerald-600 hover:bg-emerald-700"}`}>
-              {busy === "wa" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}فتح واتساب + تنزيل PDF
+              {busy === "wa" ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}{tr("فتح واتساب + تنزيل PDF")}
             </Button>
             <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => void run("pdf")} className="gap-2">
-              {busy === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}تنزيل PDF فقط
+              {busy === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}{tr("تنزيل PDF فقط")}
             </Button>
           </div>
           <p className="text-[11px] text-slate-500">
-            {configured ? "«إرسال مباشر» يرسل الملف من رقم الشركة عبر واتساب للأعمال." : "واتساب على الويب لا يسمح بإرفاق ملف تلقائياً: يُنزَّل الملف وتُفتح محادثة العميل لإرفاقه."}
-            {canShareFiles ? " على الجوال: «مشاركة الملف» يرسله مباشرة عبر تطبيق واتساب." : ""}
+            {configured ? tr("«إرسال مباشر» يرسل الملف من رقم الشركة عبر واتساب للأعمال.") : tr("واتساب على الويب لا يسمح بإرفاق ملف تلقائياً: يُنزَّل الملف وتُفتح محادثة العميل لإرفاقه.")}
+            {canShareFiles ? tr(" على الجوال: «مشاركة الملف» يرسله مباشرة عبر تطبيق واتساب.") : ""}
           </p>
         </div>
       </DialogContent>

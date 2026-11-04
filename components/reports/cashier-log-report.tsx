@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { RefreshCcw, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -32,7 +33,7 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
   const loadLookups = async () => {
     const response = await fetch("/api/pos/cashier-log?lookups=1")
     const data = await response.json()
-    if (!response.ok) throw new Error(data.error || "تعذر تحميل خيارات التقرير")
+    if (!response.ok) throw new Error(data.error || tr("تعذر تحميل خيارات التقرير"))
     setPoints(data.points || [])
     setCashiers(data.cashiers || [])
     setShifts(data.shifts || [])
@@ -44,7 +45,7 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
       const params = new URLSearchParams({ from_date: filters.from_date, to_date: filters.to_date, point_ids: filters.point_ids.join(","), cashier_ids: filters.cashier_ids.join(","), session_ids: filters.session_ids.join(","), movement_types: filters.movement_types.join(","), payment_methods: filters.payment_methods.join(","), ...(detail ? { detail: "1" } : {}), ...(reportType !== "followup" ? { invoice_report: "1" } : {}) })
       const response = await fetch(`/api/pos/cashier-log?${params}`)
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(data.rows || [])
     } catch { setRows([]) } finally { setLoading(false) }
   }
@@ -71,21 +72,21 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
   }, [])
   const scheme = { name: detail ? "CashierLogDetailedReportTable" : "CashierLogReportTable", filter: false, showFooter: showTotals && reportType === "total", sortable: true, allowGrouping: false, columns: [
     { header: "##", name: detail ? "row_id" : "id", width: 60, visible: true },
-    { header: "التاريخ", name: "occurred_at", width: 180, visible: true },
-    { header: "اسم الكاشير", name: "cashier_name", width: 170, visible: true },
-    { header: "نوع الحركة", name: "movement_type", width: 150, visible: true },
-    { header: "رقم الحركة", name: "transaction_no", width: 150, visible: true },
-    { header: "نقطة البيع", name: "point_name", width: 150, visible: true },
-    { header: "الوردية", name: "shift_name", width: 180, visible: true },
+    { header: tr("التاريخ"), name: "occurred_at", width: 180, visible: true },
+    { header: tr("اسم الكاشير"), name: "cashier_name", width: 170, visible: true },
+    { header: tr("نوع الحركة"), name: "movement_type", width: 150, visible: true },
+    { header: tr("رقم الحركة"), name: "transaction_no", width: 150, visible: true },
+    { header: tr("نقطة البيع"), name: "point_name", width: 150, visible: true },
+    { header: tr("الوردية"), name: "shift_name", width: 180, visible: true },
     ...(detail ? [
-      { header: "اسم الصنف", name: "item_name", width: 220, visible: true },
-      { header: "الكمية", name: "quantity", width: 100, visible: true },
-      { header: "السعر", name: "price", width: 110, visible: true },
-      { header: "إجمالي الصنف", name: "line_total", width: 130, visible: true },
-      { header: "طريقة الدفع", name: "payment_method", width: 130, visible: true },
+      { header: tr("اسم الصنف"), name: "item_name", width: 220, visible: true },
+      { header: tr("الكمية"), name: "quantity", width: 100, visible: true },
+      { header: tr("السعر"), name: "price", width: 110, visible: true },
+      { header: tr("إجمالي الصنف"), name: "line_total", width: 130, visible: true },
+      { header: tr("طريقة الدفع"), name: "payment_method", width: 130, visible: true },
     ] : []),
-    ...(!detail && reportType === "total" ? [{ header: "عدد الأصناف", name: "item_count", width: 110, visible: true, dataType: "Number", aggregate: 1 }, { header: "الإجمالي", name: "total_amount", width: 130, visible: true, dataType: "Number", aggregate: 1 }, { header: "طريقة الدفع", name: "payment_method", width: 130, visible: true }] : []),
-    { header: "ملاحظات", name: "notes", width: "*", minWidth: 220, visible: true },
+    ...(!detail && reportType === "total" ? [{ header: tr("عدد الأصناف"), name: "item_count", width: 110, visible: true, dataType: "Number", aggregate: 1 }, { header: tr("الإجمالي"), name: "total_amount", width: 130, visible: true, dataType: "Number", aggregate: 1 }, { header: tr("طريقة الدفع"), name: "payment_method", width: 130, visible: true }] : []),
+    { header: tr("ملاحظات"), name: "notes", width: "*", minWidth: 220, visible: true },
   ] }
 
   const invoiceGroups = useMemo(() => {
@@ -122,37 +123,37 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
     ? {
         ...scheme,
         columns: scheme.columns.map((column: any) => column.name === "transaction_no"
-          ? { ...column, buttonBody: "button", title: "فتح الفاتورة", onClick: (_event: any, context: any) => openInvoice(context.row.dataItem) }
+          ? { ...column, buttonBody: "button", title: tr("فتح الفاتورة"), onClick: (_event: any, context: any) => openInvoice(context.row.dataItem) }
           : column),
       }
     : scheme
 
   return <ReportPage loading={loading}>
-    <ReportHeader title={detail ? "تقرير حركات الكاشير تفصيلي" : reportType === "total" ? "تقرير حركات الكاشير إجمالي" : "تقرير متابعة الكاشير"} description={detail ? "تفاصيل أصناف كل حركة وفاتورة" : reportType === "total" ? "ملخص حركات الكاشير على مستوى العملية" : "متابعة جميع حركات الكاشير"} />
+    <ReportHeader title={detail ? tr("تقرير حركات الكاشير تفصيلي") : reportType === "total" ? tr("تقرير حركات الكاشير إجمالي") : tr("تقرير متابعة الكاشير")} description={detail ? tr("تفاصيل أصناف كل حركة وفاتورة") : reportType === "total" ? tr("ملخص حركات الكاشير على مستوى العملية") : tr("متابعة جميع حركات الكاشير")} />
     <ReportFilters><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      <label className="text-sm">من تاريخ<Input type="date" value={filters.from_date} onChange={event => setFilters(current => ({ ...current, from_date: event.target.value }))} /></label>
-      <label className="text-sm">إلى تاريخ<Input type="date" value={filters.to_date} onChange={event => setFilters(current => ({ ...current, to_date: event.target.value }))} /></label>
-      <ReportMultiChoice label="نقطة البيع" options={points} selected={filters.point_ids} onChange={point_ids => setFilters(current => ({ ...current, point_ids }))} placeholder="كل نقاط البيع" />
-      <ReportMultiChoice label="الكاشير" options={cashiers} selected={filters.cashier_ids} onChange={cashier_ids => setFilters(current => ({ ...current, cashier_ids }))} placeholder="كل الكاشير" />
-      {reportType !== "followup" && <ReportMultiChoice label="الوردية" options={shifts} selected={filters.session_ids} onChange={session_ids => setFilters(current => ({ ...current, session_ids }))} placeholder="جميع الورديات" />}
-      <ReportMultiChoice label="نوع الحركة" options={(reportType === "followup" ? ACTIONS : INVOICE_MOVEMENTS).map((label, id) => ({ id, name: label }))} selected={filters.movement_types.map(type => (reportType === "followup" ? ACTIONS : INVOICE_MOVEMENTS).indexOf(type))} onChange={ids => setFilters(current => ({ ...current, movement_types: ids.map(id => (reportType === "followup" ? ACTIONS : INVOICE_MOVEMENTS)[id]).filter(Boolean) }))} placeholder="كل أنواع الحركات" />
-      {reportType !== "followup" && <ReportMultiChoice label="طريقة الدفع" options={PAYMENT_METHODS.map((name, id) => ({ id, name }))} selected={filters.payment_methods.map(method => PAYMENT_METHODS.indexOf(method))} onChange={ids => setFilters(current => ({ ...current, payment_methods: ids.map(id => PAYMENT_METHODS[id]).filter(Boolean) }))} placeholder="كل طرق الدفع" />}
+      <label className="text-sm">{tr("من تاريخ")}<Input type="date" value={filters.from_date} onChange={event => setFilters(current => ({ ...current, from_date: event.target.value }))} /></label>
+      <label className="text-sm">{tr("إلى تاريخ")}<Input type="date" value={filters.to_date} onChange={event => setFilters(current => ({ ...current, to_date: event.target.value }))} /></label>
+      <ReportMultiChoice label={tr("نقطة البيع")} options={points} selected={filters.point_ids} onChange={point_ids => setFilters(current => ({ ...current, point_ids }))} placeholder={tr("كل نقاط البيع")} />
+      <ReportMultiChoice label={tr("الكاشير")} options={cashiers} selected={filters.cashier_ids} onChange={cashier_ids => setFilters(current => ({ ...current, cashier_ids }))} placeholder={tr("كل الكاشير")} />
+      {reportType !== "followup" && <ReportMultiChoice label={tr("الوردية")} options={shifts} selected={filters.session_ids} onChange={session_ids => setFilters(current => ({ ...current, session_ids }))} placeholder={tr("جميع الورديات")} />}
+      <ReportMultiChoice label={tr("نوع الحركة")} options={(reportType === "followup" ? ACTIONS : INVOICE_MOVEMENTS).map((label, id) => ({ id, name: label }))} selected={filters.movement_types.map(type => (reportType === "followup" ? ACTIONS : INVOICE_MOVEMENTS).indexOf(type))} onChange={ids => setFilters(current => ({ ...current, movement_types: ids.map(id => (reportType === "followup" ? ACTIONS : INVOICE_MOVEMENTS)[id]).filter(Boolean) }))} placeholder={tr("كل أنواع الحركات")} />
+      {reportType !== "followup" && <ReportMultiChoice label={tr("طريقة الدفع")} options={PAYMENT_METHODS.map((name, id) => ({ id, name }))} selected={filters.payment_methods.map(method => PAYMENT_METHODS.indexOf(method))} onChange={ids => setFilters(current => ({ ...current, payment_methods: ids.map(id => PAYMENT_METHODS[id]).filter(Boolean) }))} placeholder={tr("كل طرق الدفع")} />}
       <div className="mt-2 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3 md:col-span-2 xl:col-span-5">
         <Button type="button" variant="outline" onClick={resetFilters} disabled={loading} className="min-w-32 rounded-xl border-slate-200 bg-white shadow-sm">
           <RefreshCcw className="ml-2 h-4 w-4" />
-          مسح الفلاتر
+          {tr("مسح الفلاتر")}
         </Button>
         <Button data-report-apply onClick={() => void load()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600 text-white shadow-lg shadow-teal-600/20 hover:from-teal-700 hover:to-emerald-700">
           <Search className="ml-2 h-4 w-4" />
-          عرض النتائج
+          {tr("عرض النتائج")}
         </Button>
       </div>
     </div></ReportFilters>
     {detail ? (
       <div className="h-[42vh] min-h-[280px] overflow-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[1500px] border-collapse text-sm" dir="rtl">
+        <table className="w-full min-w-[1500px] border-collapse text-sm" dir={appDir()}>
           <thead className="sticky top-0 z-10 bg-slate-800 text-white"><tr>
-            {['#', 'التاريخ', 'اسم الكاشير', 'نوع الحركة', 'رقم الحركة', 'نقطة البيع', 'الوردية', 'طريقة الدفع', 'اسم الصنف', 'الكمية', 'السعر', 'خصم الصنف %', 'خصم الصنف من الفاتورة', 'خصم الحملات', 'إجمالي الصنف', 'ملاحظات'].map((header) => <th key={header} className="border border-slate-600 px-3 py-2 text-right">{header}</th>)}
+            {['#', 'التاريخ', 'اسم الكاشير', 'نوع الحركة', 'رقم الحركة', 'نقطة البيع', 'الوردية', 'طريقة الدفع', 'اسم الصنف', 'الكمية', 'السعر', 'خصم الصنف %', 'خصم الصنف من الفاتورة', 'خصم الحملات', 'إجمالي الصنف', 'ملاحظات'].map((header) => <th key={header} className="border border-slate-600 px-3 py-2 text-start">{header}</th>)}
           </tr></thead>
           <tbody>{invoiceGroups.flatMap((group, groupIndex) => group.map((row, rowIndex) => {
             const merged = rowIndex === 0 ? { rowSpan: group.length } : null
@@ -164,7 +165,7 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
             </tr>
           }))}</tbody>
           {showTotals && <tfoot className="sticky bottom-0 z-10 bg-emerald-50 font-semibold text-slate-800 shadow-[0_-2px_6px_rgba(15,23,42,0.12)]"><tr>
-            <td colSpan={9} className="border border-emerald-200 px-3 py-2 text-right">الإجمالي</td>
+            <td colSpan={9} className="border border-emerald-200 px-3 py-2 text-start">{tr("الإجمالي")}</td>
             <td className="border border-emerald-200 px-3 py-2">{totals.quantity}</td>
             <td className="border border-emerald-200 px-3 py-2">{totals.price.toFixed(2)}</td>
             <td className="border border-emerald-200 px-3 py-2">{totals.discount_percent.toFixed(2)}</td>

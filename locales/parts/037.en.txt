@@ -1,0 +1,300 @@
+{0}: cheque no. {1} isn't available in the cheque books of account {2} (manual entry isn't allowed)
+{0}: there are no available leaves in the cheque books of account {1} — mention the cheque number
+{0}: I couldn't find the bank account "{1}" in the voucher currency. Available: {2}
+Mention the bank account the cheques will be paid from, the cheque amount and the due date (the cheque number is optional and taken from the cheque book)
+Mention the cheque details: number, amount, due date, bank and branch
+Mention the cheque details: each cheque's number, due date, bank, branch, account number and amount
+Mention the card amount
+Mention the card type and its amount details
+Mention the card type and its amount
+Mention a card type defined in the voucher currency specifically
+Bank account {0} isn't linked to a defined bank and branch
+Bank account {0} has no current account defined
+The voucher supports one card. Create a separate voucher for each card
+Cheque {0}
+Cheque {0}: mention the bank name or code specifically
+Cheque {0}: mention the number, amount and a valid due date
+Cheque {0}: mention the bank branch or its code specifically
+Invalid card expiry date
+There are no bank accounts defined in the voucher currency to pay cheques from
+The card amount doesn't equal the cards amount mentioned
+The total of cash, cheques and card must equal the voucher total. Mention the amount of each part
+The total of the cheque amounts doesn't equal the cheques amount mentioned
+The company open in this tab isn't available right now (subscription expired or not approved) — choose the company again
+Unable to verify the session right now, try again
+The serial number is registered to another company and the device can't be linked
+The company is inactive and an ADMS device can't be linked
+Unable to determine the current company in the management database
+Invalid company database
+Employee not found
+Days in month for the daily wage calculation
+Night shift allowance per day
+Attendance entitlements account (overtime/bonuses)
+Attendance deductions account (lateness/absence/penalties)
+Working day hours for the hourly wage calculation
+Overtime factor
+Holiday overtime factor
+Account {0} - {1} is a parent account and doesn't accept transactions
+Account {0} - {1} is suspended
+Account {0} does not exist
+The entry needs at least two sides with an amount greater than zero
+{0} failed ({1}): {2}
+Restoring the management database is done manually (pg_restore) because it contains the backup log itself
+The backup doesn't exist or is incomplete
+Backup storage isn't set up: set BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY_ID and BACKUP_S3_SECRET_ACCESS_KEY
+Unable to run {0}: {1}{2}
+There is a backup/restore in progress on {0}
+{0}: the account does not exist
+The selected branch isn't linked to a bank
+Unable to generate a new account number
+Set in the auto-creation "Settings": {0}
+The bank's collection commission account ({0} - {1}) is a parent account; choose a sub-account manually
+Near expiry ({0} days left)
+No expiry date
+The branch symbol must be 0 or a single English letter (A-Z)
+Choose "{0}"
+Choose at least one field to edit or a price change rate
+Field not allowed: {0}
+Invalid value of "{0}"
+No matching items to edit
+The price change rate must be greater than -100% and up to 1000%
+Enter a valid positive value
+The discount doesn't exceed the items' value
+The campaign value doesn't exceed the original value
+The discount rate doesn't exceed 100%
+Unknown cheque operation
+You do not have the {0} permission
+The connection to the cheque reader closed before the result was received
+The cheque reader timed out
+Error connecting to the cheque reader — make sure the cashier service (CashService) is running on this device
+The requested numbers are invalid
+Renewal is available when less than {0} days remain in the subscription
+Online payment is not enabled
+The company isn't ready for renewal
+The company is currently being approved
+The requested number must be between 1 and 1000
+Unable to find the company owner
+Convert the trial version to a full version instead of renewing
+The number of branches can't be less than the current branches ({0})
+The number of users can't be less than the current users ({0})
+The number of restaurant locations can't be less than the current locations ({0})
+The number of points of sale can't be less than the current points ({0})
+Payment not found
+Invalid price value
+There is no successful payment for this company
+There is no successful payment for this company — complete the payment first
+There is no valid email for your account — add it from the user data first
+The subscription price isn't set yet — contact system administration
+The price of this item isn't set yet — send a request for approval
+The payment amount doesn't match the required amount — contact system administration
+This company isn't awaiting payment
+This company isn't a trial version
+There is a request to increase {0} awaiting approval
+Delivery {0} isn't approved
+The delivery is from another branch
+The source voucher isn't a consignment delivery
+Item {0} doesn't match the delivery line
+The quantity of item {0} ({1}) is greater than the remainder in the delivery ({2})
+A return ({0}) was made for this delivery — can't {1}
+A return was made from the delivery; the invoice can't be deleted — delete the return first
+A line that doesn't exist in the delivery
+All invoice lines must be from the selected delivery
+All return lines must be from a consignment delivery — choose the delivery first
+All lines must be from a single consignment delivery
+All of the delivery's remainder must be returned: item {0} remaining {1} and returned {2}
+The credit limit of customer "{0}" was exceeded: limit {1}, current balance {2}, and balance after the transaction {3}. You don't have the "{4}" permission.
+The account is not available
+The link is invalid or expired — ask the company for a new link
+{0}{1} can't be deleted because it is used in: {2} — you can suspend it instead of deleting it
+An error occurred during the operation. Please try again.
+A database error occurred.
+Invalid branch
+The user isn't authorized to work on this branch
+You do not have the {0} permission in the current branch
+Invalid file type
+The value is already used (duplicate code)
+Invalid request data
+Invalid ID
+Choose the credit account for the acquisition entry (supplier, cash or invoice account)
+Choose the credit account for the addition
+Choose the opening balances account (the credit side)
+Choose the proceeds account (cash or customer)
+The asset name is required
+Asset {0} was disposed after this depreciation and can't be reversed
+The main asset does not exist
+The main asset is disposed
+The main asset is a component of another asset — components are one level only
+The asset is disposed and can't be edited
+The opening accumulated depreciation is greater than the depreciable value
+The run is already reversed
+Invalid useful life
+The useful life must be between 1 and 1200 months
+The new life ends before the last approved period ({0})
+The period must be in YYYY-MM format
+The new value is less than the asset's residual value
+The new value equals the current book value
+Invalid new value
+The residual value must not exceed the current book value
+The residual value must be between zero and the asset cost
+The posting date must be within the period or after it
+The ready-for-use date is before the acquisition date
+The depreciation start date is before the acquisition date
+The asset classification is inactive
+The asset classification does not exist
+The asset classification is required
+The asset cost can't be negative
+The asset cost must be greater than zero
+There are later depreciation runs on the same assets — reverse them first
+The asset account isn't defined in the classification
+The accumulated depreciation account isn't defined in the classification
+The depreciation accounts aren't defined in the classification "{0}"
+The depreciation book does not exist
+The asset number is already used
+The sale value can't be negative
+No base currency is defined
+Can't {0} an asset whose status is {1}
+An asset can't be a component of itself
+There is no accounting depreciation book for this asset — the asset must be activated first
+The asset has recorded transactions
+The asset has components linked to it
+None of the location data changed
+The addition amount must be greater than zero
+The impairment amount must be positive and not exceed the depreciable book value
+The declining balance rate must be between 0 and 100
+The asset's components must be disposed first
+All the accounts required for the entry must be defined in the asset classification
+Only draft assets can be deleted; an active asset is disposed
+There is unapproved depreciation since period {0} — post the depreciation up to the previous month first
+The request doesn't exist or isn't at the required stage
+The prepared quantity must be between 0 and 100000
+Invalid received quantity
+The maximum internal delivery numbers was exceeded
+The maximum goods request numbers for year {0} was exceeded
+The request was processed by another user
+Voucher type number 20 is used for a different type
+The requesting branch doesn't match
+You do not have the "{0}" permission in this branch
+The requesting warehouse and the warehouse the goods are requested from must be chosen
+The requesting branch must be set
+A base currency must be defined before saving the goods request
+A currency must be defined before approving the internal delivery
+One of the two vouchers doesn't exist
+The link doesn't exist
+The amount is greater than the unallocated balance in {0} {1} ({2})
+The amount is greater than the remainder on invoice {0} ({1})
+The settlement amount must be greater than zero
+This voucher type doesn't support invoice settlement
+The two vouchers must be for the same customer
+Both vouchers must be approved
+A sales invoice must be linked to a receipt voucher, credit note or sales return
+Internal delivery (transfer from production voucher {0})
+Goods production voucher (raw materials)
+Goods production voucher (produced goods)
+Serial number {0} was issued in voucher {1}
+Serial number {0} has an unapproved transaction in voucher {1} — that voucher must be posted or deleted first
+Serial number {0} is not in stock
+Serial number {0} is duplicated in the voucher ({1})
+Serial number {0} is in another warehouse{1}
+Serial number {0} already exists in stock{1} — voucher {2}
+Item {0}: the number of serial numbers ({1}) must equal the quantity + bonus ({2})
+The voucher can't be cancelled/deleted: serial number {0} ({1}) has a later transaction in voucher {2}
+Line/serial number {0} ({1}) can't be deleted: it has a later transaction in voucher {2} — that transaction must be deleted first
+Unable to determine the user running the entry
+A default journal voucher book must be assigned to the user (voucher book permissions) before running automatic entries
+Unable to load the payment window
+Unable to open the payment window
+The Lahza payment gateway isn't enabled on the server (LAHZA_SECRET_KEY)
+The payment gateway didn't return the payment page link
+A parent account (with sub-accounts) can't be used — choose a sub-account
+{0}: the balance will become negative for items {1}{2} — allowing negative balances isn't enabled in the general voucher settings
+Unable to create the journal voucher
+Unable to generate a number for the opening balances intermediary account
+One of the selected items doesn't exist
+Account {0} - {1} is stopped for transactions in «Receipt voucher»{2}
+Allowed attachments are images or PDF, up to 5MB per file
+Warehouse - {0} is frozen; the transaction can't be saved
+Warehouse - {0} is deleted; the transaction can't be saved
+Invalid item or quantity data
+The delivery date is required and invalid
+The order date is required and invalid
+Unable to determine the user to create the deposit receipt voucher
+Unable to determine the receipt voucher book code — check the default receipt book
+Unable to generate the deposit receipt voucher number
+The customer account doesn't exist or isn't of type 2
+The customer account is required
+The deposit voucher is approved and the draft can't be edited
+Deposit receipt voucher {0} is approved — cancel it from the receipt voucher screen first then {1} again
+The deposit voucher currency differs from the account currency and it can't be chosen: {0} - {1}
+The warehouse must be set for item {0}
+A unit must be set for item {0}
+The item specifications must be filled in - by pressing the specifications button
+The user's cash account and default currency must be defined before saving a deposit
+A default receipt voucher book must be defined for the user before saving the deposit amount
+Lot number {0} already exists. Please check the data and try again.
+Manual voucher {0} already exists. Please check the data and try again.
+Item - {0} is linked to workflow chart - {1}; the voucher can't be deleted
+The order currency differs from the account currency and it can't be chosen: {0} - {1}
+There is no actual order linked to this order
+{0} ({1}) is handled by the browser itself and no website can stop it
+{0} is used in the system ({1})
+Unsupported key — use a letter, digit or F1..F12
+The shortcut must start with Ctrl or Alt (or an F key)
+Too many attempts — request a new code
+Incorrect verification code
+The verification code is incorrect or expired
+{0} does not exist
+{0} must be 4 to 8 digits
+Unknown permission
+Unable to send the email — check the email settings on the server
+Too many attempts — try again after {0} minutes
+The activation code expired — request a new code
+Incorrect manager code — entry locked for {0} minutes
+Incorrect manager code — {0} attempts left
+The system manager or administrator email isn't defined in the {0} "{1}" definition
+The system manager or administrator PIN isn't defined in the {0} "{1}" definition
+Enter the card amount first
+The payment terminal timed out — check the terminal and try again or enter the data manually
+Unable to connect to the cashier service (CashService) on this device
+The payment terminal rejected the transaction: {0}
+The cashier service didn't confirm saving the settings
+The transaction wasn't completed on the payment terminal
+The cashier service (CashService) was not found on this device
+The card type isn't linked to a payment terminal
+Choose a valid currency in the sale prices for line {0}
+The currency set in the sale prices for line {0} doesn't exist. Choose the currency again then save the item.
+Unable to load the linked items of item {0}
+This voucher was created from production voucher {0} — edit it (or unpost/delete it) from the production voucher screen
+This delivery was created from "Transfer to warehouse" in production voucher {0} — cancel the transfer from the production voucher
+{0}: invalid price
+{0}: the item doesn't exist
+{0}: the quantity is greater than the remainder to transfer ({1})
+{0}: the quantity must be greater than zero
+{0}: a {1} item can't be used in the production voucher
+{0}: the lot number must be entered
+{0}: the expiry date must be entered
+Choose {0}
+Choose a warehouse other than the finished goods warehouse
+Invalid date
+The transfer doesn't exist or is already cancelled
+Transfer is available for an approved production voucher only
+Unable to {0} {1}: {2}
+Unable to cancel voucher {0}: {1}
+Unable to create the internal delivery: {0}
+Unable to generate the production voucher number — try again
+Unable to delete voucher {0}: {1}
+Invalid voucher book
+A line that doesn't exist in the produced goods
+The production voucher isn't approved
+The production voucher is approved — unpost it first then delete it
+The production voucher is already approved or cancelled
+The production voucher is approved or cancelled and can't be edited — unpost it first
+The production voucher needs produced goods and raw materials
+Production voucher no. {0}{1}
+There aren't enough lots in the raw materials warehouse: {0}
+There is no voucher book allowed for you for {0} — define it from the voucher book permissions
+There is a transfer to warehouse linked to the voucher — cancel the transfer first
+Unable to build the connection link for the new company database
+Unable to generate a unique ID for the company database
+Filter
+Unable to prepare the PDF file
+The barcode of an item sold by electronic scale must be 7 digits, like 2000001

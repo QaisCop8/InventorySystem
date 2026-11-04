@@ -6,7 +6,7 @@ import { hasPermissionApproval, permissionRequiredBody, stripPinHashes } from "@
 import { POS_CASHIER_PERMISSIONS, type PosCashierPermission } from "@/lib/transaction-permission-definitions"
 import { runSchemaOnce } from "@/lib/schema-once"
 
-export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card"] as const
+export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card", "aid_voucher"] as const
 
 export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib.ts#ensurePosTables", async () => {
   await sql`CREATE TABLE IF NOT EXISTS users_currencies_default_account_tbl (

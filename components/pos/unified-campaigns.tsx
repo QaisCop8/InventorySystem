@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -59,38 +60,38 @@ type Warehouse = { id: number; code?: string; name: string }
 type Option = { label: string; value: number }
 
 export const campaignTypeOptions: Option[] = [
-  { value: 1, label: "خصومات أسعار الأصناف" },
-  { value: 2, label: "خصومات حزم الأصناف" },
-  { value: 3, label: "خصومات إجمالي الفاتورة" },
-  { value: 4, label: "خصومات إجمالي أصناف" },
-  { value: 5, label: "أول كمية" },
+  { value: 1, label: tr("خصومات أسعار الأصناف") },
+  { value: 2, label: tr("خصومات حزم الأصناف") },
+  { value: 3, label: tr("خصومات إجمالي الفاتورة") },
+  { value: 4, label: tr("خصومات إجمالي أصناف") },
+  { value: 5, label: tr("أول كمية") },
 ]
 const timeTypeOptions: Option[] = [
-  { value: 1, label: "من بداية الحملة حتى نهايتها" },
-  { value: 2, label: "فترة بيع يومية" },
+  { value: 1, label: tr("من بداية الحملة حتى نهايتها") },
+  { value: 2, label: tr("فترة بيع يومية") },
 ]
 const buyConditionOptions: Option[] = [
-  { value: 1, label: "شراء جميع الأصناف" },
-  { value: 2, label: "شراء عدد من الأصناف" },
-  { value: 3, label: "شراء كمية محددة" },
+  { value: 1, label: tr("شراء جميع الأصناف") },
+  { value: 2, label: tr("شراء عدد من الأصناف") },
+  { value: 3, label: tr("شراء كمية محددة") },
 ]
 const addedConditionOptions: Option[] = [
-  { value: 1, label: "إضافة جميع الأصناف" },
-  { value: 2, label: "إضافة عدد من الأصناف" },
-  { value: 3, label: "إضافة كمية محددة" },
+  { value: 1, label: tr("إضافة جميع الأصناف") },
+  { value: 2, label: tr("إضافة عدد من الأصناف") },
+  { value: 3, label: tr("إضافة كمية محددة") },
 ]
 
 const today = () => new Date().toISOString().slice(0, 10)
 
 export function campaignStatus(record: Pick<CampaignRecord, "start_date" | "end_date"> & { status?: number | string | null }) {
   // موقوفة يدوياً (ايقاف حملة) — لا يطبّقها الكاشير مهما كانت فترتها
-  if (Number(record.status) === 2) return { label: "موقوفة", tone: "bg-amber-100 text-amber-800" }
+  if (Number(record.status) === 2) return { label: tr("موقوفة"), tone: "bg-amber-100 text-amber-800" }
   const now = today()
   const start = String(record.start_date || "").slice(0, 10)
   const end = String(record.end_date || "").slice(0, 10)
-  if (start && now < start) return { label: "قادمة", tone: "bg-sky-100 text-sky-700" }
-  if (end && now > end) return { label: "منتهية", tone: "bg-slate-200 text-slate-600" }
-  return { label: "فعّالة", tone: "bg-emerald-100 text-emerald-700" }
+  if (start && now < start) return { label: tr("قادمة"), tone: "bg-sky-100 text-sky-700" }
+  if (end && now > end) return { label: tr("منتهية"), tone: "bg-slate-200 text-slate-600" }
+  return { label: tr("فعّالة"), tone: "bg-emerald-100 text-emerald-700" }
 }
 
 const emptyCampaign: CampaignRecord = {
@@ -186,7 +187,7 @@ export default function UnifiedCampaigns({
         const data = await response.json()
         if (!response.ok) throw new Error(data.error)
         setCatalogProducts(data.products || [])
-        setPriceClasses([{ value: 0, label: "كل الفئات السعرية" }, ...(data.priceClasses || []).map((row: any) => ({ value: Number(row.id), label: row.name }))])
+        setPriceClasses([{ value: 0, label: tr("كل الفئات السعرية") }, ...(data.priceClasses || []).map((row: any) => ({ value: Number(row.id), label: row.name }))])
       })
       .catch(reason => { if (reason.name !== "AbortError") setError(reason.message) })
       .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false) })
@@ -246,49 +247,49 @@ export default function UnifiedCampaigns({
   // discount — except bundle and "other" campaigns that already give added items — every added
   // item needs a discount, quantity at least 1, and no item repeated in the same grid.
   const validateItems = (items: CampaignItem[], grid: "buy" | "added", allowZeroDiscount: boolean): Issue | null => {
-    const label = grid === "buy" ? "أصناف الشراء" : "الأصناف المضافة"
+    const label = grid === "buy" ? tr("أصناف الشراء") : tr("الأصناف المضافة")
     const seen = new Map<string, number>()
     for (let row = 0; row < items.length; row++) {
       const item = items[row]
       if (!item.item_id) continue
       const name = item.item_name || item.item_code || `السطر ${row + 1}`
-      if (!(Number(item.quantity) >= 1)) return { message: `${label}: الكمية للصنف "${name}" يجب أن تكون 1 على الأقل`, tab: "items", grid, row, field: "quantity" }
-      if (!(Number(item.discount) > 0) && !allowZeroDiscount) return { message: `${label}: أدخل مبلغ الخصم للصنف "${name}"`, tab: "items", grid, row, field: "discount" }
+      if (!(Number(item.quantity) >= 1)) return { message: tr("{0}: الكمية للصنف \"{1}\" يجب أن تكون 1 على الأقل", label, name), tab: "items", grid, row, field: "quantity" }
+      if (!(Number(item.discount) > 0) && !allowZeroDiscount) return { message: tr("{0}: أدخل مبلغ الخصم للصنف \"{1}\"", label, name), tab: "items", grid, row, field: "discount" }
       const key = `${item.item_id}:${item.unit_id ?? ""}`
-      if (seen.has(key)) return { message: `${label}: الصنف "${name}" مكرر`, tab: "items", grid, row, field: "item_code" }
+      if (seen.has(key)) return { message: tr("{0}: الصنف \"{1}\" مكرر", label, name), tab: "items", grid, row, field: "item_code" }
       seen.set(key, row)
     }
     return null
   }
 
   const validate = (current: CampaignRecord): Issue | null => {
-    if (!current.code.trim()) return { message: "رمز الحملة مطلوب", tab: "overview", focusId: "campaign-code" }
-    if (!current.name.trim()) return { message: "اسم الحملة مطلوب", tab: "overview", focusId: "campaign-name" }
-    if (!current.start_date) return { message: "حدد تاريخ بداية الحملة", tab: "overview", focusId: "campaign-start_date" }
-    if (!current.end_date) return { message: "حدد تاريخ نهاية الحملة", tab: "overview", focusId: "campaign-end_date" }
-    if (current.start_date > current.end_date) return { message: "تاريخ نهاية الحملة قبل تاريخ بدايتها", tab: "overview", focusId: "campaign-end_date" }
-    if (current.time_type === 2 && Boolean(current.from_time) !== Boolean(current.to_time)) return { message: "حدد ساعة البداية والنهاية للفترة اليومية", tab: "overview", focusId: current.from_time ? "campaign-to_time" : "campaign-from_time" }
-    if (current.time_type === 2 && current.from_time && current.from_time >= current.to_time) return { message: "ساعة نهاية الفترة اليومية يجب أن تكون بعد ساعة البداية", tab: "overview", focusId: "campaign-to_time" }
+    if (!current.code.trim()) return { message: tr("رمز الحملة مطلوب"), tab: "overview", focusId: "campaign-code" }
+    if (!current.name.trim()) return { message: tr("اسم الحملة مطلوب"), tab: "overview", focusId: "campaign-name" }
+    if (!current.start_date) return { message: tr("حدد تاريخ بداية الحملة"), tab: "overview", focusId: "campaign-start_date" }
+    if (!current.end_date) return { message: tr("حدد تاريخ نهاية الحملة"), tab: "overview", focusId: "campaign-end_date" }
+    if (current.start_date > current.end_date) return { message: tr("تاريخ نهاية الحملة قبل تاريخ بدايتها"), tab: "overview", focusId: "campaign-end_date" }
+    if (current.time_type === 2 && Boolean(current.from_time) !== Boolean(current.to_time)) return { message: tr("حدد ساعة البداية والنهاية للفترة اليومية"), tab: "overview", focusId: current.from_time ? "campaign-to_time" : "campaign-from_time" }
+    if (current.time_type === 2 && current.from_time && current.from_time >= current.to_time) return { message: tr("ساعة نهاية الفترة اليومية يجب أن تكون بعد ساعة البداية"), tab: "overview", focusId: "campaign-to_time" }
     if (current.time_type === 1 && current.start_date === current.end_date && current.from_time && current.to_time && current.from_time >= current.to_time)
-      return { message: "وقت نهاية الحملة يجب أن يكون بعد وقت بدايتها", tab: "overview", focusId: "campaign-to_time" }
+      return { message: tr("وقت نهاية الحملة يجب أن يكون بعد وقت بدايتها"), tab: "overview", focusId: "campaign-to_time" }
     if (current.type_id === 5 && (!Number.isInteger(Number(current.condition_items_val)) || Number(current.condition_items_val) < 1))
-      return { message: "الكمية الأولى يجب أن تكون عدداً صحيحاً موجباً", tab: "overview", focusId: "campaign-first-qty" }
+      return { message: tr("الكمية الأولى يجب أن تكون عدداً صحيحاً موجباً"), tab: "overview", focusId: "campaign-first-qty" }
     if ((current.type_id === 3 || current.type_id === 4) && (current.discount_perc < 0 || current.discount_perc > 100))
-      return { message: "نسبة الخصم يجب أن تكون بين 0 و 100", tab: "overview", focusId: "campaign-discount" }
+      return { message: tr("نسبة الخصم يجب أن تكون بين 0 و 100"), tab: "overview", focusId: "campaign-discount" }
     if ((current.type_id === 3 || current.type_id === 4) && current.to_amount > 0 && current.from_amount > current.to_amount)
-      return { message: "\"من مبلغ\" أكبر من \"إلى مبلغ\"", tab: "overview", focusId: "campaign-to-amount" }
+      return { message: tr("\"من مبلغ\" أكبر من \"إلى مبلغ\""), tab: "overview", focusId: "campaign-to-amount" }
     const buy = buyItemsRef.current.filter(item => item.item_id)
     const added = addedItemsRef.current.filter(item => item.item_id)
     const usesBuy = current.type_id !== 3
     const usesAdded = ![1, 5].includes(current.type_id)
-    if (usesBuy && !buy.length) return { message: "أضف صنف شراء واحداً على الأقل", tab: "items" }
+    if (usesBuy && !buy.length) return { message: tr("أضف صنف شراء واحداً على الأقل"), tab: "items" }
     if (usesBuy) {
       const bundleWithGifts = (current.type_id === 2 || current.type_id === 4) && added.length > 0
       const issue = validateItems(buyItemsRef.current, "buy", bundleWithGifts)
       if (issue) return issue
     }
     if (usesAdded) {
-      if (!added.length && !(current.type_id === 3 && current.discount_perc > 0)) return { message: "أضف صنفاً واحداً على الأقل في الأصناف المضافة / الهدايا", tab: "items" }
+      if (!added.length && !(current.type_id === 3 && current.discount_perc > 0)) return { message: tr("أضف صنفاً واحداً على الأقل في الأصناف المضافة / الهدايا"), tab: "items" }
       const issue = validateItems(addedItemsRef.current, "added", false)
       if (issue) return issue
     }
@@ -329,7 +330,7 @@ export default function UnifiedCampaigns({
       }
     } catch (reason) {
       console.error("Campaign save failed before submit", reason)
-      showMessage("error", reason instanceof Error ? `تعذر حفظ الحملة: ${reason.message}` : "تعذر حفظ الحملة")
+      showMessage("error", reason instanceof Error ? tr("تعذر حفظ الحملة: {0}", reason.message) : tr("تعذر حفظ الحملة"))
       return false
     }
     setSaving(true)
@@ -345,16 +346,16 @@ export default function UnifiedCampaigns({
         }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر حفظ الحملة")
+      if (!response.ok) throw new Error(data.error || tr("تعذر حفظ الحملة"))
       const saved = { ...current, id: Number(data.id) }
       setForm(saved)
       formRef.current = saved
       baselineRef.current = snapshotOf(saved, buyItemsRef.current, addedItemsRef.current)
       onSaved(Number(data.id))
-      showMessage("success", "تم حفظ الحملة بنجاح")
+      showMessage("success", tr("تم حفظ الحملة بنجاح"))
       return true
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر حفظ الحملة")
+      setError(reason instanceof Error ? reason.message : tr("تعذر حفظ الحملة"))
       return false
     } finally {
       setSaving(false)
@@ -369,11 +370,11 @@ export default function UnifiedCampaigns({
     try {
       const response = await fetch(`/api/campaigns?id=${form.id}`, { method: "DELETE" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر حذف الحملة")
+      if (!response.ok) throw new Error(data.error || tr("تعذر حذف الحملة"))
       showCampaign(null)
       onDeleted()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر حذف الحملة")
+      setError(reason instanceof Error ? reason.message : tr("تعذر حذف الحملة"))
     } finally {
       setSaving(false)
     }
@@ -420,7 +421,7 @@ export default function UnifiedCampaigns({
   return <>
     <Dialog open={open} onOpenChange={next => { if (!next) requestClose() }}>
       <DialogContent
-        dir="rtl"
+        dir={appDir()}
         className="flex h-[90dvh] max-h-[90dvh] w-[96vw] max-w-[1280px] flex-col gap-0 overflow-hidden p-0"
         onOpenAutoFocus={event => event.preventDefault()}
         onCloseAutoFocus={event => event.preventDefault()}
@@ -449,8 +450,8 @@ export default function UnifiedCampaigns({
         <div className="flex items-center gap-3 border-b bg-slate-50 px-5 py-3 dark:bg-slate-900/60">
           <span className="rounded-xl bg-teal-600 p-2 text-white"><Megaphone size={20} /></span>
           <div className="min-w-0 flex-1">
-            <DialogTitle className="truncate text-lg font-black">{form.id ? `تعديل الحملة ${form.name || ""}` : "حملة جديدة"}</DialogTitle>
-            <DialogDescription className="text-xs">تعريف عروض البيع وشروط الأصناف والهدايا</DialogDescription>
+            <DialogTitle className="truncate text-lg font-black">{form.id ? tr("تعديل الحملة {0}", form.name || "") : tr("حملة جديدة")}</DialogTitle>
+            <DialogDescription className="text-xs">{tr("تعريف عروض البيع وشروط الأصناف والهدايا")}</DialogDescription>
           </div>
           <span className="rounded-full bg-white px-3 py-1 font-mono text-xs font-bold text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300" dir="ltr">{form.code}</span>
           {form.id ? <span className={`rounded-full px-3 py-1 text-xs font-bold ${status.tone}`}>{status.label}</span> : null}
@@ -458,36 +459,36 @@ export default function UnifiedCampaigns({
 
         <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto px-5 pb-4" data-enter-tab-root="true">
           <div className="sticky top-0 z-30 -mx-5 bg-white/95 px-5 pt-2 backdrop-blur dark:bg-slate-950/95"><Messages innerRef={messagesRef} /></div>
-          <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} dir={appDir()} className="space-y-4">
             <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-800">
-              <TabsTrigger value="overview">بيانات الحملة</TabsTrigger>
-              <TabsTrigger value="items">الأصناف والهدايا{(buyItems.length + addedItems.length) ? ` (${buyItems.length + addedItems.length})` : ""}</TabsTrigger>
-              <TabsTrigger value="scope">النطاق والملاحظات</TabsTrigger>
+              <TabsTrigger value="overview">{tr("بيانات الحملة")}</TabsTrigger>
+              <TabsTrigger value="items">{tr("الأصناف والهدايا")}{(buyItems.length + addedItems.length) ? ` (${buyItems.length + addedItems.length})` : ""}</TabsTrigger>
+              <TabsTrigger value="scope">{tr("النطاق والملاحظات")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-0">
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
                 <section className={cardClass}>
-                  {cardTitle(<Megaphone size={18} />, "تعريف الحملة", "الاسم والنوع والفئة السعرية")}
+                  {cardTitle(<Megaphone size={18} />, tr("تعريف الحملة"), tr("الاسم والنوع والفئة السعرية"))}
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2"><Label htmlFor="campaign-code">رمز الحملة *</Label><Input id="campaign-code" dir="ltr" className="text-right" value={form.code} onChange={event => update({ code: event.target.value })} maxLength={40} /></div>
-                    <div className="grid gap-2"><Label htmlFor="campaign-name">اسم الحملة *</Label><Input id="campaign-name" ref={nameRef} value={form.name} onChange={event => update({ name: event.target.value })} maxLength={160} /></div>
-                    <div className="grid gap-2"><Label htmlFor="campaign-type">نوع الحملة</Label>{dropdown("campaign-type", form.type_id, campaignTypeOptions, typeId => update({ type_id: typeId, ...(typeId === 5 ? { max_campaigns: 1, condition_items_val: Math.max(1, Math.floor(Number(form.condition_items_val) || 1)) } : {}) }))}</div>
-                    <div className="grid gap-2"><Label htmlFor="campaign-price-class">الفئة السعرية</Label>{dropdown("campaign-price-class", form.price_class, priceClasses, value => update({ price_class: value }), true)}</div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-code">{tr("رمز الحملة *")}</Label><Input id="campaign-code" dir="ltr" className="text-right" value={form.code} onChange={event => update({ code: event.target.value })} maxLength={40} /></div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-name">{tr("اسم الحملة *")}</Label><Input id="campaign-name" ref={nameRef} value={form.name} onChange={event => update({ name: event.target.value })} maxLength={160} /></div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-type">{tr("نوع الحملة")}</Label>{dropdown("campaign-type", form.type_id, campaignTypeOptions, typeId => update({ type_id: typeId, ...(typeId === 5 ? { max_campaigns: 1, condition_items_val: Math.max(1, Math.floor(Number(form.condition_items_val) || 1)) } : {}) }))}</div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-price-class">{tr("الفئة السعرية")}</Label>{dropdown("campaign-price-class", form.price_class, priceClasses, value => update({ price_class: value }), true)}</div>
                     {form.type_id === 5
-                      ? <div className="grid gap-2"><Label htmlFor="campaign-first-qty">الكمية الأولى</Label>{numberInput("campaign-first-qty", form.condition_items_val, value => update({ condition_items_val: value }), { min: 1, step: 1 })}</div>
-                      : <div className="grid gap-2"><Label htmlFor="campaign-max">الحد الأقصى للتطبيق في الفاتورة</Label>{numberInput("campaign-max", form.max_campaigns, value => update({ max_campaigns: value }), { min: 1, step: 1 })}</div>}
+                      ? <div className="grid gap-2"><Label htmlFor="campaign-first-qty">{tr("الكمية الأولى")}</Label>{numberInput("campaign-first-qty", form.condition_items_val, value => update({ condition_items_val: value }), { min: 1, step: 1 })}</div>
+                      : <div className="grid gap-2"><Label htmlFor="campaign-max">{tr("الحد الأقصى للتطبيق في الفاتورة")}</Label>{numberInput("campaign-max", form.max_campaigns, value => update({ max_campaigns: value }), { min: 1, step: 1 })}</div>}
                   </div>
                   {hasInvoiceDiscount && <div className="mt-4 grid gap-4 rounded-xl bg-amber-50/70 p-3 sm:grid-cols-3 dark:bg-amber-950/30">
-                    <div className="grid gap-2"><Label htmlFor="campaign-from-amount">من مبلغ</Label>{numberInput("campaign-from-amount", form.from_amount, value => update({ from_amount: value }), { min: 0 })}</div>
-                    <div className="grid gap-2"><Label htmlFor="campaign-to-amount">إلى مبلغ</Label>{numberInput("campaign-to-amount", form.to_amount, value => update({ to_amount: value }), { min: 0 })}</div>
-                    <div className="grid gap-2"><Label htmlFor="campaign-discount">نسبة الخصم %</Label>{numberInput("campaign-discount", form.discount_perc, value => update({ discount_perc: value }), { min: 0, max: 100 })}</div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-from-amount">{tr("من مبلغ")}</Label>{numberInput("campaign-from-amount", form.from_amount, value => update({ from_amount: value }), { min: 0 })}</div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-to-amount">{tr("إلى مبلغ")}</Label>{numberInput("campaign-to-amount", form.to_amount, value => update({ to_amount: value }), { min: 0 })}</div>
+                    <div className="grid gap-2"><Label htmlFor="campaign-discount">{tr("نسبة الخصم %")}</Label>{numberInput("campaign-discount", form.discount_perc, value => update({ discount_perc: value }), { min: 0, max: 100 })}</div>
                   </div>}
                 </section>
 
                 <section className={cardClass}>
-                  {cardTitle(<CalendarClock size={18} />, "فترة الحملة", form.time_type === 1 ? "تبدأ الحملة من تاريخ ووقت البداية وتنتهي بتاريخ ووقت النهاية" : "تعمل الحملة يومياً بين الساعتين طوال الفترة")}
-                  <div className="grid gap-2"><Label htmlFor="campaign-time-type">نوع الوقت</Label>{dropdown("campaign-time-type", form.time_type, timeTypeOptions, value => update({ time_type: value }))}</div>
+                  {cardTitle(<CalendarClock size={18} />, tr("فترة الحملة"), form.time_type === 1 ? tr("تبدأ الحملة من تاريخ ووقت البداية وتنتهي بتاريخ ووقت النهاية") : tr("تعمل الحملة يومياً بين الساعتين طوال الفترة"))}
+                  <div className="grid gap-2"><Label htmlFor="campaign-time-type">{tr("نوع الوقت")}</Label>{dropdown("campaign-time-type", form.time_type, timeTypeOptions, value => update({ time_type: value }))}</div>
                   <div className="mt-4 grid gap-3">
                     {([
                       ["start", "البداية", "start_date", "from_time", form.time_type === 1 ? "وقت البداية" : "من الساعة"],
@@ -495,55 +496,55 @@ export default function UnifiedCampaigns({
                     ] as const).map(([key, title, dateField, timeField, timeLabel]) => (
                       <div key={key} className="grid grid-cols-[auto_minmax(0,1.4fr)_minmax(0,1fr)] items-end gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/50">
                         <span className={`mb-1 rounded-lg px-2 py-1.5 text-xs font-black ${key === "start" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{title}</span>
-                        <div className="grid gap-1.5"><Label htmlFor={`campaign-${dateField}`} className="text-xs text-slate-500">التاريخ</Label><Input id={`campaign-${dateField}`} type="date" value={form[dateField] || ""} onChange={event => update({ [dateField]: event.target.value })} /></div>
+                        <div className="grid gap-1.5"><Label htmlFor={`campaign-${dateField}`} className="text-xs text-slate-500">{tr("التاريخ")}</Label><Input id={`campaign-${dateField}`} type="date" value={form[dateField] || ""} onChange={event => update({ [dateField]: event.target.value })} /></div>
                         <div className="grid gap-1.5"><Label htmlFor={`campaign-${timeField}`} className="text-xs text-slate-500">{timeLabel}</Label><Input id={`campaign-${timeField}`} type="time" value={form[timeField] || ""} onChange={event => update({ [timeField]: event.target.value })} /></div>
                       </div>
                     ))}
                   </div>
-                  <p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><CalendarRange size={14} />{durationDays ? `مدة الحملة ${durationDays} يوم` : "حدد تاريخ النهاية"}{!form.from_time && !form.to_time && " · طوال اليوم"}</p>
+                  <p className="mt-3 flex items-center gap-2 text-xs text-slate-500"><CalendarRange size={14} />{durationDays ? tr("مدة الحملة {0} يوم", durationDays) : tr("حدد تاريخ النهاية")}{!form.from_time && !form.to_time && tr(" · طوال اليوم")}</p>
                 </section>
               </div>
             </TabsContent>
 
             <TabsContent value="items" className="mt-0 space-y-4">
               {form.type_id === 2 && <section className="grid gap-3 sm:grid-cols-2">
-                <div className={cardClass}><p className="text-sm text-slate-500">القيمة الأصلية</p><strong className="text-lg">{bundleOriginalTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</strong></div>
-                <div className={cardClass}><p className="text-sm text-slate-500">قيمة الحملة</p><strong className="text-lg text-teal-700">{bundleCampaignTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</strong></div>
+                <div className={cardClass}><p className="text-sm text-slate-500">{tr("القيمة الأصلية")}</p><strong className="text-lg">{bundleOriginalTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</strong></div>
+                <div className={cardClass}><p className="text-sm text-slate-500">{tr("قيمة الحملة")}</p><strong className="text-lg text-teal-700">{bundleCampaignTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</strong></div>
               </section>}
-              {!hasBuyItems && !hasAddedItems && <p className="text-sm text-slate-500">هذا النوع لا يحتاج أصنافاً.</p>}
-              {catalogLoading ? <p className="text-sm text-slate-500">جاري تحميل أسعار الأصناف...</p> : <>
+              {!hasBuyItems && !hasAddedItems && <p className="text-sm text-slate-500">{tr("هذا النوع لا يحتاج أصنافاً.")}</p>}
+              {catalogLoading ? <p className="text-sm text-slate-500">{tr("جاري تحميل أسعار الأصناف...")}</p> : <>
                 {hasBuyConditions && <section className={cardClass}>
-                  {cardTitle(<PackagePlus size={18} />, "شروط أصناف الشراء")}
+                  {cardTitle(<PackagePlus size={18} />, tr("شروط أصناف الشراء"))}
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2"><Label htmlFor="campaign-buy-condition">شرط الأصناف</Label>{dropdown("campaign-buy-condition", form.condition_items_opt, buyConditionOptions, value => update({ condition_items_opt: value }))}</div>
-                    {form.condition_items_opt !== 1 && <div className="grid gap-2"><Label htmlFor="campaign-buy-value">{form.condition_items_opt === 2 ? "عدد الأصناف" : "الكمية"}</Label>{numberInput("campaign-buy-value", form.condition_items_val, value => update({ condition_items_val: value }), { min: 1 })}</div>}
+                    <div className="grid gap-2"><Label htmlFor="campaign-buy-condition">{tr("شرط الأصناف")}</Label>{dropdown("campaign-buy-condition", form.condition_items_opt, buyConditionOptions, value => update({ condition_items_opt: value }))}</div>
+                    {form.condition_items_opt !== 1 && <div className="grid gap-2"><Label htmlFor="campaign-buy-value">{form.condition_items_opt === 2 ? tr("عدد الأصناف") : tr("الكمية")}</Label>{numberInput("campaign-buy-value", form.condition_items_val, value => update({ condition_items_val: value }), { min: 1 })}</div>}
                   </div>
                 </section>}
-                {hasBuyItems && <CampaignItemsGrid title="أصناف الشراء" items={buyItems} setItems={items => { buyItemsRef.current = items; setBuyItems(items) }} products={catalogProducts} priceClass={Number(form.price_class) || 1} gridRef={buyGrid} onError={message => showMessage("error", message)} />}
+                {hasBuyItems && <CampaignItemsGrid title={tr("أصناف الشراء")} items={buyItems} setItems={items => { buyItemsRef.current = items; setBuyItems(items) }} products={catalogProducts} priceClass={Number(form.price_class) || 1} gridRef={buyGrid} onError={message => showMessage("error", message)} />}
                 {hasAddedItems && <>
                   <section className={cardClass}>
-                    {cardTitle(<PackagePlus size={18} />, "شروط الأصناف المضافة")}
+                    {cardTitle(<PackagePlus size={18} />, tr("شروط الأصناف المضافة"))}
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="grid gap-2"><Label htmlFor="campaign-added-condition">شرط الإضافة</Label>{dropdown("campaign-added-condition", form.added_items_option, addedConditionOptions, value => update({ added_items_option: value }))}</div>
-                      {form.added_items_option !== 1 && <div className="grid gap-2"><Label htmlFor="campaign-added-value">{form.added_items_option === 2 ? "عدد الأصناف" : "الكمية"}</Label>{numberInput("campaign-added-value", form.added_items_value, value => update({ added_items_value: value }), { min: 1 })}</div>}
+                      <div className="grid gap-2"><Label htmlFor="campaign-added-condition">{tr("شرط الإضافة")}</Label>{dropdown("campaign-added-condition", form.added_items_option, addedConditionOptions, value => update({ added_items_option: value }))}</div>
+                      {form.added_items_option !== 1 && <div className="grid gap-2"><Label htmlFor="campaign-added-value">{form.added_items_option === 2 ? tr("عدد الأصناف") : tr("الكمية")}</Label>{numberInput("campaign-added-value", form.added_items_value, value => update({ added_items_value: value }), { min: 1 })}</div>}
                     </div>
                   </section>
-                  <CampaignItemsGrid title="الأصناف المضافة / الهدايا" items={addedItems} setItems={items => { addedItemsRef.current = items; setAddedItems(items) }} products={catalogProducts} priceClass={Number(form.price_class) || 1} gridRef={addedGrid} onError={message => showMessage("error", message)} />
+                  <CampaignItemsGrid title={tr("الأصناف المضافة / الهدايا")} items={addedItems} setItems={items => { addedItemsRef.current = items; setAddedItems(items) }} products={catalogProducts} priceClass={Number(form.price_class) || 1} gridRef={addedGrid} onError={message => showMessage("error", message)} />
                 </>}
               </>}
             </TabsContent>
 
             <TabsContent value="scope" className="mt-0 space-y-4">
               <section className={cardClass}>
-                {cardTitle(<Store size={18} />, "المستودعات", form.warehouse_ids.length ? `محدد ${form.warehouse_ids.length}` : "بدون تحديد: الحملة متاحة لكل المستودعات")}
+                {cardTitle(<Store size={18} />, tr("المستودعات"), form.warehouse_ids.length ? tr("محدد {0}", form.warehouse_ids.length) : tr("بدون تحديد: الحملة متاحة لكل المستودعات"))}
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{warehouses.map(warehouse => <label key={warehouse.id} className="flex cursor-pointer items-center gap-2 rounded-xl border p-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"><Checkbox checked={form.warehouse_ids.includes(warehouse.id)} onCheckedChange={checked => update({ warehouse_ids: checked ? [...form.warehouse_ids, warehouse.id] : form.warehouse_ids.filter(id => id !== warehouse.id) })} />{warehouse.code ? `${warehouse.code} — ` : ""}{warehouse.name}</label>)}</div>
               </section>
               <section className={cardClass}>
-                {cardTitle(<Store size={18} />, "الفروع", form.branch_ids.length ? `محدد ${form.branch_ids.length}` : "بدون تحديد: الحملة متاحة لكل الفروع")}
+                {cardTitle(<Store size={18} />, tr("الفروع"), form.branch_ids.length ? tr("محدد {0}", form.branch_ids.length) : tr("بدون تحديد: الحملة متاحة لكل الفروع"))}
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{branches.map(branch => <label key={branch.id} className="flex cursor-pointer items-center gap-2 rounded-xl border p-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"><Checkbox checked={form.branch_ids.includes(branch.id)} onCheckedChange={checked => update({ branch_ids: checked ? [...form.branch_ids, branch.id] : form.branch_ids.filter(id => id !== branch.id) })} />{branch.code ? `${branch.code} — ` : ""}{branch.name}</label>)}</div>
               </section>
               <section className={cardClass}>
-                <Label htmlFor="campaign-notes">ملاحظات</Label>
+                <Label htmlFor="campaign-notes">{tr("ملاحظات")}</Label>
                 <Textarea id="campaign-notes" className="mt-2" value={form.notes} onChange={event => update({ notes: event.target.value })} rows={3} maxLength={400} />
               </section>
             </TabsContent>
@@ -552,11 +553,11 @@ export default function UnifiedCampaigns({
         <InlineConfirm
           open={showUnsavedConfirm}
           tone="save"
-          message="تم تعديل الحملة، هل تريد حفظ التغييرات؟"
+          message={tr("تم تعديل الحملة، هل تريد حفظ التغييرات؟")}
           busy={saving}
-          yesLabel="نعم"
-          noLabel="لا"
-          backLabel="رجوع"
+          yesLabel={tr("نعم")}
+          noLabel={tr("لا")}
+          backLabel={tr("رجوع")}
           onYes={async () => {
             const action = pendingActionRef.current
             setShowUnsavedConfirm(false)
@@ -574,10 +575,10 @@ export default function UnifiedCampaigns({
         <InlineConfirm
           open={showDeleteConfirm}
           tone="delete"
-          message={`هل تريد حذف الحملة ${form.name || ""}؟`}
+          message={tr("هل تريد حذف الحملة {0}؟", form.name || "")}
           busy={saving}
-          yesLabel="حذف"
-          noLabel="إلغاء"
+          yesLabel={tr("حذف")}
+          noLabel={tr("إلغاء")}
           onYes={() => void remove()}
           onNo={() => setShowDeleteConfirm(false)}
         />
@@ -614,7 +615,7 @@ function InlineConfirm({ open, tone, message, busy, yesLabel, noLabel, backLabel
       <span className={`mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full ${tone === "save" ? "bg-blue-50 text-blue-600" : "bg-rose-50 text-rose-600"}`}><Icon size={26} /></span>
       <p className="mb-5 text-base font-semibold leading-7 text-slate-700 dark:text-slate-200">{message}</p>
       <div className="flex flex-wrap justify-center gap-2">
-        <button ref={yesRef} type="button" disabled={busy} onClick={onYes} className={`rounded-xl px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50 ${tone === "save" ? "bg-teal-600 hover:bg-teal-700" : "bg-rose-600 hover:bg-rose-700"}`}>{busy ? "جاري الحفظ…" : yesLabel}</button>
+        <button ref={yesRef} type="button" disabled={busy} onClick={onYes} className={`rounded-xl px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50 ${tone === "save" ? "bg-teal-600 hover:bg-teal-700" : "bg-rose-600 hover:bg-rose-700"}`}>{busy ? tr("جاري الحفظ…") : yesLabel}</button>
         <button type="button" disabled={busy} onClick={onNo} className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">{noLabel}</button>
         {onBack && backLabel && <button type="button" disabled={busy} onClick={onBack} className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300">{backLabel}</button>}
       </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight, Save, Trash2, Plus, Eye, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -82,7 +83,7 @@ export default function UnifiedAccounts() {
       ])
 
       if (!typesResponse.ok || !accountsResponse.ok) {
-        setError("حدث خطأ أثناء تحميل البيانات")
+        setError(tr("حدث خطأ أثناء تحميل البيانات"))
         return
       }
 
@@ -111,7 +112,7 @@ export default function UnifiedAccounts() {
       )
     } catch (err) {
       console.error(err)
-      setError("حدث خطأ أثناء تحميل البيانات")
+      setError(tr("حدث خطأ أثناء تحميل البيانات"))
     } finally {
       setLoading(false)
     }
@@ -159,7 +160,7 @@ export default function UnifiedAccounts() {
     setMessage("")
 
     if (!accountCode.trim() || !accountName.trim()) {
-      setError("يرجى إدخال كود الحساب واسم الحساب")
+      setError(tr("يرجى إدخال كود الحساب واسم الحساب"))
       return
     }
 
@@ -188,11 +189,11 @@ export default function UnifiedAccounts() {
 
       if (!response.ok) {
         const data = await response.json()
-        setError(data.error || "حدث خطأ أثناء الحفظ")
+        setError(data.error || tr("حدث خطأ أثناء الحفظ"))
         return
       }
 
-      setMessage(editMode ? "تم تحديث الحساب بنجاح" : "تم حفظ الحساب بنجاح")
+      setMessage(editMode ? tr("تم تحديث الحساب بنجاح") : tr("تم حفظ الحساب بنجاح"))
       setEditMode(false)
       await loadData()
       if (!editMode) {
@@ -200,7 +201,7 @@ export default function UnifiedAccounts() {
         setAccountName("")
         setClassificationTypeId("")
         setAccountNature("")
-        setStatus("نشط")
+        setStatus(tr("نشط"))
         setParentAccountId("none")
         setOpeningBalance("0")
         setAllowedRatio("0")
@@ -208,7 +209,7 @@ export default function UnifiedAccounts() {
       }
     } catch (err) {
       console.error(err)
-      setError("حدث خطأ أثناء الحفظ")
+      setError(tr("حدث خطأ أثناء الحفظ"))
     }
   }
 
@@ -221,34 +222,34 @@ export default function UnifiedAccounts() {
       })
 
       if (!response.ok) {
-        setError("فشل حذف الحساب")
+        setError(tr("فشل حذف الحساب"))
         return
       }
 
-      setMessage("تم حذف الحساب بنجاح")
+      setMessage(tr("تم حذف الحساب بنجاح"))
       setDeleteDialogOpen(false)
       await loadData()
       setCurrentIndex(0)
       setSelectedAccount(null)
     } catch (err) {
       console.error(err)
-      setError("حدث خطأ أثناء الحذف")
+      setError(tr("حدث خطأ أثناء الحذف"))
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل البيانات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل البيانات...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 p-4 lg:p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir="rtl">
+    <div className="space-y-4 p-4 lg:p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir={appDir()}>
       {/* Toolbar */}
       <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
         <CardContent className="p-4">
@@ -261,11 +262,11 @@ export default function UnifiedAccounts() {
                 disabled={currentIndex === 0 || accounts.length === 0}
               >
                 <ChevronRight className="h-4 w-4" />
-                السابق
+                {tr("السابق")}
               </Button>
               
               <span className="px-4 py-2 text-sm font-medium text-slate-600">
-                {accounts.length > 0 ? `${currentIndex + 1} / ${accounts.length}` : "لا توجد حسابات"}
+                {accounts.length > 0 ? `${currentIndex + 1} / ${accounts.length}` : tr("لا توجد حسابات")}
               </span>
 
               <Button
@@ -274,7 +275,7 @@ export default function UnifiedAccounts() {
                 onClick={handleNext}
                 disabled={currentIndex === accounts.length - 1 || accounts.length === 0}
               >
-                التالي
+                {tr("التالي")}
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             </div>
@@ -286,8 +287,8 @@ export default function UnifiedAccounts() {
                 className="bg-green-600 hover:bg-green-700"
                 disabled={!selectedAccount && !editMode}
               >
-                <Save className="h-4 w-4 ml-2" />
-                حفظ
+                <Save className="h-4 w-4 me-2" />
+                {tr("حفظ")}
               </Button>
 
               <Button
@@ -296,8 +297,8 @@ export default function UnifiedAccounts() {
                 onClick={() => setDeleteDialogOpen(true)}
                 disabled={!currentAccount}
               >
-                <Trash2 className="h-4 w-4 ml-2" />
-                حذف
+                <Trash2 className="h-4 w-4 me-2" />
+                {tr("حذف")}
               </Button>
 
               <Button
@@ -306,7 +307,7 @@ export default function UnifiedAccounts() {
                 onClick={() => setEditMode(!editMode)}
                 disabled={!currentAccount}
               >
-                {editMode ? "إلغاء" : "تحرير"}
+                {editMode ? tr("إلغاء") : tr("تحرير")}
               </Button>
 
               <Button
@@ -316,7 +317,7 @@ export default function UnifiedAccounts() {
                   setAccountName("")
                   setClassificationTypeId("")
                   setAccountNature("")
-                  setStatus("نشط")
+                  setStatus(tr("نشط"))
                   setParentAccountId("none")
                   setOpeningBalance("0")
                   setAllowedRatio("0")
@@ -325,8 +326,8 @@ export default function UnifiedAccounts() {
                   setEditMode(true)
                 }}
               >
-                <Plus className="h-4 w-4 ml-2" />
-                جديد
+                <Plus className="h-4 w-4 me-2" />
+                {tr("جديد")}
               </Button>
             </div>
           </div>
@@ -348,18 +349,18 @@ export default function UnifiedAccounts() {
         {/* Accounts List */}
         <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg h-fit">
           <CardHeader>
-            <CardTitle className="text-base">قائمة الحسابات</CardTitle>
+            <CardTitle className="text-base">{tr("قائمة الحسابات")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-[500px] overflow-y-auto">
               {accounts.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">لا توجد حسابات</p>
+                <p className="text-sm text-slate-500 text-center py-4">{tr("لا توجد حسابات")}</p>
               ) : (
                 accounts.map((account) => (
                   <div
                     key={account.id}
                     onClick={() => handleSelectAccount(account)}
-                    className={`p-3 rounded-lg cursor-pointer transition-all text-right ${
+                    className={`p-3 rounded-lg cursor-pointer transition-all text-start ${
                       selectedAccount?.id === account.id
                         ? "bg-blue-100 border border-blue-400"
                         : "bg-slate-100 hover:bg-slate-200"
@@ -381,34 +382,34 @@ export default function UnifiedAccounts() {
         {currentAccount || editMode ? (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
-              <CardTitle>بيانات الحساب</CardTitle>
+              <CardTitle>{tr("بيانات الحساب")}</CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="basic" className="space-y-4">
-                <TabsList className="w-full justify-start" dir="rtl">
-                  <TabsTrigger value="basic">البيانات الأساسية</TabsTrigger>
-                  <TabsTrigger value="financial">البيانات المالية</TabsTrigger>
-                  <TabsTrigger value="related">الحسابات ذات العلاقة</TabsTrigger>
-                  <TabsTrigger value="classification">التصنيف</TabsTrigger>
+                <TabsList className="w-full justify-start" dir={appDir()}>
+                  <TabsTrigger value="basic">{tr("البيانات الأساسية")}</TabsTrigger>
+                  <TabsTrigger value="financial">{tr("البيانات المالية")}</TabsTrigger>
+                  <TabsTrigger value="related">{tr("الحسابات ذات العلاقة")}</TabsTrigger>
+                  <TabsTrigger value="classification">{tr("التصنيف")}</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="basic" className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <Label className="mb-2 block">كود الحساب</Label>
+                      <Label className="mb-2 block">{tr("كود الحساب")}</Label>
                       <Input
                         value={accountCode}
                         onChange={(e) => setAccountCode(e.target.value)}
-                        placeholder="مثال: 1000"
+                        placeholder={tr("مثال: 1000")}
                         disabled={!editMode && currentAccount}
                       />
                     </div>
                     <div>
-                      <Label className="mb-2 block">اسم الحساب</Label>
+                      <Label className="mb-2 block">{tr("اسم الحساب")}</Label>
                       <Input
                         value={accountName}
                         onChange={(e) => setAccountName(e.target.value)}
-                        placeholder="اسم الحساب"
+                        placeholder={tr("اسم الحساب")}
                         disabled={!editMode && currentAccount}
                       />
                     </div>
@@ -416,10 +417,10 @@ export default function UnifiedAccounts() {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <Label className="mb-2 block">نوع الحساب</Label>
+                      <Label className="mb-2 block">{tr("نوع الحساب")}</Label>
                       <Select value={classificationTypeId} onValueChange={setClassificationTypeId} disabled={!editMode && currentAccount}>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر النوع" />
+                          <SelectValue placeholder={tr("اختر النوع")} />
                         </SelectTrigger>
                         <SelectContent>
                           {types.map((type) => (
@@ -431,39 +432,39 @@ export default function UnifiedAccounts() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="mb-2 block">طبيعة الحساب</Label>
+                      <Label className="mb-2 block">{tr("طبيعة الحساب")}</Label>
                       <Select value={accountNature} onValueChange={setAccountNature} disabled={!editMode && currentAccount}>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر الطبيعة" />
+                          <SelectValue placeholder={tr("اختر الطبيعة")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="مدين">مدين</SelectItem>
-                          <SelectItem value="دائن">دائن</SelectItem>
-                          <SelectItem value="حيادي">حيادي</SelectItem>
+                          <SelectItem value="مدين">{tr("مدين")}</SelectItem>
+                          <SelectItem value="دائن">{tr("دائن")}</SelectItem>
+                          <SelectItem value="حيادي">{tr("حيادي")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">الحالة</Label>
+                    <Label className="mb-2 block">{tr("الحالة")}</Label>
                     <Select value={status} onValueChange={setStatus} disabled={!editMode && currentAccount}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="نشط">نشط</SelectItem>
-                        <SelectItem value="موقوف">موقوف</SelectItem>
+                        <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                        <SelectItem value="موقوف">{tr("موقوف")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
-                    <Label className="mb-2 block">الملاحظات</Label>
+                    <Label className="mb-2 block">{tr("الملاحظات")}</Label>
                     <Textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="أضف ملاحظات"
+                      placeholder={tr("أضف ملاحظات")}
                       disabled={!editMode && currentAccount}
                       className="h-20"
                     />
@@ -473,13 +474,13 @@ export default function UnifiedAccounts() {
                 <TabsContent value="financial" className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <Label className="mb-2 block">الحساب الرئيسي</Label>
+                      <Label className="mb-2 block">{tr("الحساب الرئيسي")}</Label>
                       <Select value={parentAccountId} onValueChange={setParentAccountId} disabled={!editMode && currentAccount}>
                         <SelectTrigger>
-                          <SelectValue placeholder="اختر حساباً رئيسياً" />
+                          <SelectValue placeholder={tr("اختر حساباً رئيسياً")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">بدون حساب رئيسي</SelectItem>
+                          <SelectItem value="none">{tr("بدون حساب رئيسي")}</SelectItem>
                           {accounts.map((account) => (
                             <SelectItem key={account.id} value={String(account.id)}>
                               {account.account_code} - {account.account_name}
@@ -489,7 +490,7 @@ export default function UnifiedAccounts() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="mb-2 block">الرصيد الافتتاحي</Label>
+                      <Label className="mb-2 block">{tr("الرصيد الافتتاحي")}</Label>
                       <Input
                         type="number"
                         value={openingBalance}
@@ -502,7 +503,7 @@ export default function UnifiedAccounts() {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <Label className="mb-2 block">نسبة الحصول المسموحة</Label>
+                      <Label className="mb-2 block">{tr("نسبة الحصول المسموحة")}</Label>
                       <Input
                         type="number"
                         value={allowedRatio}
@@ -512,7 +513,7 @@ export default function UnifiedAccounts() {
                       />
                     </div>
                     <div>
-                      <Label className="mb-2 block">الرصيد الحالي</Label>
+                      <Label className="mb-2 block">{tr("الرصيد الحالي")}</Label>
                       <Input
                         type="number"
                         value={currentAccount?.balance || 0}
@@ -525,15 +526,15 @@ export default function UnifiedAccounts() {
                   {currentAccount && (
                     <div className="grid gap-4 md:grid-cols-3 p-4 bg-slate-50 rounded-lg">
                       <div>
-                        <p className="text-xs text-slate-600">المدين</p>
+                        <p className="text-xs text-slate-600">{tr("المدين")}</p>
                         <p className="font-semibold">{currentAccount.debit_amount.toLocaleString("en-US")}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-600">الدائن</p>
+                        <p className="text-xs text-slate-600">{tr("الدائن")}</p>
                         <p className="font-semibold">{currentAccount.credit_amount.toLocaleString("en-US")}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-600">الرصيد</p>
+                        <p className="text-xs text-slate-600">{tr("الرصيد")}</p>
                         <p className="font-semibold text-green-600">{currentAccount.balance.toLocaleString("en-US")}</p>
                       </div>
                     </div>
@@ -542,22 +543,22 @@ export default function UnifiedAccounts() {
 
                 <TabsContent value="related" className="space-y-4">
                   <div className="text-right">
-                    <h4 className="font-semibold mb-3">الحسابات ذات العلاقة على الحساب</h4>
+                    <h4 className="font-semibold mb-3">{tr("الحسابات ذات العلاقة على الحساب")}</h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100">
                           <tr>
-                            <th className="px-3 py-2 text-right">الكود</th>
-                            <th className="px-3 py-2 text-right">الاسم</th>
-                            <th className="px-3 py-2 text-right">النسبة</th>
-                            <th className="px-3 py-2 text-center">إجراءات</th>
+                            <th className="px-3 py-2 text-start">{tr("الكود")}</th>
+                            <th className="px-3 py-2 text-start">{tr("الاسم")}</th>
+                            <th className="px-3 py-2 text-start">{tr("النسبة")}</th>
+                            <th className="px-3 py-2 text-center">{tr("إجراءات")}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
                           {relatedAccounts.length === 0 ? (
                             <tr>
                               <td colSpan={4} className="text-center py-4 text-slate-500">
-                                لا توجد حسابات مرتبطة
+                                {tr("لا توجد حسابات مرتبطة")}
                               </td>
                             </tr>
                           ) : (
@@ -583,21 +584,21 @@ export default function UnifiedAccounts() {
                 <TabsContent value="classification" className="space-y-4">
                   <div className="text-right space-y-3">
                     <div>
-                      <Label className="mb-2 block">النوع</Label>
+                      <Label className="mb-2 block">{tr("النوع")}</Label>
                       <p className="font-semibold">{
-                        types.find((t) => String(t.id) === classificationTypeId)?.name || "غير محدد"
+                        types.find((t) => String(t.id) === classificationTypeId)?.name || tr("غير محدد")
                       }</p>
                     </div>
                     <div>
-                      <Label className="mb-2 block">طبيعة الحساب</Label>
-                      <p className="font-semibold">{accountNature || "غير محدد"}</p>
+                      <Label className="mb-2 block">{tr("طبيعة الحساب")}</Label>
+                      <p className="font-semibold">{accountNature || tr("غير محدد")}</p>
                     </div>
                     <div>
-                      <Label className="mb-2 block">الحساب الرئيسي</Label>
+                      <Label className="mb-2 block">{tr("الحساب الرئيسي")}</Label>
                       <p className="font-semibold">{
                         parentAccountId === "none"
-                          ? "بدون"
-                          : accounts.find((a) => String(a.id) === parentAccountId)?.account_name || "غير محدد"
+                          ? tr("بدون")
+                          : accounts.find((a) => String(a.id) === parentAccountId)?.account_name || tr("غير محدد")
                       }</p>
                     </div>
                   </div>
@@ -608,7 +609,7 @@ export default function UnifiedAccounts() {
         ) : (
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg flex items-center justify-center">
             <CardContent className="text-center py-12">
-              <p className="text-slate-500">اختر حساباً من القائمة أو أنشئ حساباً جديداً</p>
+              <p className="text-slate-500">{tr("اختر حساباً من القائمة أو أنشئ حساباً جديداً")}</p>
             </CardContent>
           </Card>
         )}
@@ -616,19 +617,19 @@ export default function UnifiedAccounts() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-sm" dir="rtl">
+        <DialogContent className="max-w-sm" dir={appDir()}>
           <DialogHeader className="text-right">
-            <DialogTitle>تأكيد حذف الحساب</DialogTitle>
+            <DialogTitle>{tr("تأكيد حذف الحساب")}</DialogTitle>
           </DialogHeader>
           <p className="text-right text-slate-600 text-sm">
-            هل أنت متأكد من حذف الحساب <strong>{currentAccount?.account_name}</strong>؟ هذا الإجراء لا يمكن التراجع عنه.
+            {tr("هل أنت متأكد من حذف الحساب ")}<strong>{currentAccount?.account_name}</strong>{tr("؟ هذا الإجراء لا يمكن التراجع عنه.")}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              إلغاء
+              {tr("إلغاء")}
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
-              حذف
+              {tr("حذف")}
             </Button>
           </DialogFooter>
         </DialogContent>

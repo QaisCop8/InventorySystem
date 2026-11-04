@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -207,11 +208,11 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
       } else {
         const errorData = await response.json()
         console.error("[v0] Error saving batch data:", errorData)
-        showAlert("خطأ في حفظ بيانات الدفعة: " + (errorData.error || "خطأ غير معروف"))
+        showAlert(tr("خطأ في حفظ بيانات الدفعة: ") + (errorData.error || tr("خطأ غير معروف")))
       }
     } catch (error) {
       console.error("[v0] Error saving batch data:", error)
-      showAlert("حدث خطأ في حفظ بيانات الدفعة")
+      showAlert(tr("حدث خطأ في حفظ بيانات الدفعة"))
     }
 
     setEditingIndex(null)
@@ -225,11 +226,11 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
     const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
     if (daysUntilExpiry < 0) {
-      return <Badge variant="destructive">منتهي الصلاحية</Badge>
+      return <Badge variant="destructive">{tr("منتهي الصلاحية")}</Badge>
     } else if (daysUntilExpiry <= 30) {
-      return <Badge className="bg-orange-100 text-orange-800">قريب الانتهاء ({daysUntilExpiry} يوم)</Badge>
+      return <Badge className="bg-orange-100 text-orange-800">{tr("قريب الانتهاء (")}{daysUntilExpiry}{tr(" يوم)")}</Badge>
     } else {
-      return <Badge className="bg-green-100 text-green-800">صالح</Badge>
+      return <Badge className="bg-green-100 text-green-800">{tr("صالح")}</Badge>
     }
   }
 
@@ -255,7 +256,7 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package2 className="h-5 w-5" />
-            تفاصيل الدفعات والتتبع
+            {tr("تفاصيل الدفعات والتتبع")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -273,12 +274,12 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Package2 className="h-5 w-5" />
-            تفاصيل الدفعات والتتبع
+            {tr("تفاصيل الدفعات والتتبع")}
           </CardTitle>
           {!readOnly && (
             <Button onClick={addNewRow} size="sm" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              إضافة دفعة
+              {tr("إضافة دفعة")}
             </Button>
           )}
         </div>
@@ -287,11 +288,11 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
         {batchData.length === 0 ? (
           <div className="text-center py-8">
             <Package2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">لا توجد دفعات مسجلة لهذا المنتج</p>
+            <p className="text-muted-foreground">{tr("لا توجد دفعات مسجلة لهذا المنتج")}</p>
             {!readOnly && (
               <Button onClick={addNewRow} className="mt-4">
-                <Plus className="h-4 w-4 mr-2" />
-                إضافة دفعة جديدة
+                <Plus className="h-4 w-4 ms-2" />
+                {tr("إضافة دفعة جديدة")}
               </Button>
             )}
           </div>
@@ -300,20 +301,20 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">رقم الدفعة</TableHead>
-                  <TableHead className="text-right">تاريخ الإنتاج</TableHead>
-                  <TableHead className="text-right">تاريخ الانتهاء</TableHead>
-                  <TableHead className="text-right">حالة الصلاحية</TableHead>
-                  <TableHead className="text-right">المورد</TableHead>
-                  <TableHead className="text-right">الكمية الأولية</TableHead>
-                  <TableHead className="text-right">الكمية الحالية</TableHead>
-                  <TableHead className="text-right">محجوز</TableHead>
-                  <TableHead className="text-right">متاح</TableHead>
-                  <TableHead className="text-right">تكلفة الوحدة</TableHead>
-                  <TableHead className="text-right">المستودع</TableHead>
-                  <TableHead className="text-right">الموقع</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  {!readOnly && <TableHead className="text-right">الإجراءات</TableHead>}
+                  <TableHead className="text-right">{tr("رقم الدفعة")}</TableHead>
+                  <TableHead className="text-right">{tr("تاريخ الإنتاج")}</TableHead>
+                  <TableHead className="text-right">{tr("تاريخ الانتهاء")}</TableHead>
+                  <TableHead className="text-right">{tr("حالة الصلاحية")}</TableHead>
+                  <TableHead className="text-right">{tr("المورد")}</TableHead>
+                  <TableHead className="text-right">{tr("الكمية الأولية")}</TableHead>
+                  <TableHead className="text-right">{tr("الكمية الحالية")}</TableHead>
+                  <TableHead className="text-right">{tr("محجوز")}</TableHead>
+                  <TableHead className="text-right">{tr("متاح")}</TableHead>
+                  <TableHead className="text-right">{tr("تكلفة الوحدة")}</TableHead>
+                  <TableHead className="text-right">{tr("المستودع")}</TableHead>
+                  <TableHead className="text-right">{tr("الموقع")}</TableHead>
+                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                  {!readOnly && <TableHead className="text-right">{tr("الإجراءات")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -325,7 +326,7 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                           value={row.lot_number}
                           onChange={(e) => updateRow(index, "lot_number", e.target.value)}
                           className="w-32"
-                          placeholder="رقم الدفعة"
+                          placeholder={tr("رقم الدفعة")}
                         />
                       ) : (
                         <span className="font-medium">{row.lot_number}</span>
@@ -373,7 +374,7 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                           onValueChange={(value) => updateRow(index, "supplier_id", Number.parseInt(value))}
                         >
                           <SelectTrigger className="w-32">
-                            <SelectValue placeholder="اختر المورد" />
+                            <SelectValue placeholder={tr("اختر المورد")} />
                           </SelectTrigger>
                           <SelectContent>
                             {suppliers.map((supplier) => (
@@ -444,7 +445,7 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                           onValueChange={(value) => updateRow(index, "warehouse_id", Number.parseInt(value))}
                         >
                           <SelectTrigger className="w-32">
-                            <SelectValue placeholder="اختر المستودع" />
+                            <SelectValue placeholder={tr("اختر المستودع")} />
                           </SelectTrigger>
                           <SelectContent>
                             {warehouses.map((warehouse) => (
@@ -465,19 +466,19 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                             value={row.floor}
                             onChange={(e) => updateRow(index, "floor", e.target.value)}
                             className="w-12"
-                            placeholder="طابق"
+                            placeholder={tr("طابق")}
                           />
                           <Input
                             value={row.area}
                             onChange={(e) => updateRow(index, "area", e.target.value)}
                             className="w-12"
-                            placeholder="منطقة"
+                            placeholder={tr("منطقة")}
                           />
                           <Input
                             value={row.shelf}
                             onChange={(e) => updateRow(index, "shelf", e.target.value)}
                             className="w-12"
-                            placeholder="رف"
+                            placeholder={tr("رف")}
                           />
                         </div>
                       ) : (
@@ -512,10 +513,10 @@ export function BatchTrackingTable({ productId, onDataChange, readOnly = false }
                                 onClick={() => saveRow(index)}
                                 className="bg-green-600 hover:bg-green-700"
                               >
-                                حفظ
+                                {tr("حفظ")}
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => setEditingIndex(null)}>
-                                إلغاء
+                                {tr("إلغاء")}
                               </Button>
                             </>
                           ) : (

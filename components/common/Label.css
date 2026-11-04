@@ -1,7 +1,7 @@
 
 .labelReport {
-    margin-right: 5px !important;
-    margin-left: 5px !important;
+    margin-inline-start: 5px !important;
+    margin-inline-end: 5px !important;
     margin-top: 5px !important;
     margin-bottom: 10px !important;
     vertical-align: middle !important;
@@ -16,8 +16,8 @@
 
   
 .label {
-    margin-right: 5px !important;
-    margin-left: 5px !important;
+    margin-inline-start: 5px !important;
+    margin-inline-end: 5px !important;
     margin-top: 5px !important;
     margin-bottom: 10px !important;
     vertical-align: middle !important;
@@ -26,8 +26,8 @@
   
   
   .overflowContainer {
-    margin-right: 5px !important;
-    margin-left: 5px !important;
+    margin-inline-start: 5px !important;
+    margin-inline-end: 5px !important;
     margin-top: 5px !important;
     margin-bottom: 10px !important;
     vertical-align: middle !important;

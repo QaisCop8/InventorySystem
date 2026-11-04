@@ -1,0 +1,300 @@
+Choose the purchase invoice
+Choose the purchase invoice to preview the cost allocation on its items
+Choose the purchase invoice...
+Choose a purchase invoice
+Total:
+Lines
+Allocation
+Current allocation on the invoice items
+Credit account
+Credit account (supplier/service provider)
+Share
+Number
+Item
+Entry
+Quantity
+Quantity (main)
+Amount (
+Document {0} — entry {1}
+Documents
+Supplier
+Ratio
+Unit
+Weight
+Search
+No supplier
+In the invoice currency:
+Line
+Cost lines
+Cost lines (shipping and customs invoices)
+Landed costs (shipping and customs)
+Cancel failed
+Save failed
+Unable to load the invoice
+Landed costs
+Saved
+Allocate costs to items
+Saving...
+Loading data...
+Inventory/purchases account (debit)
+Cost share
+Save the allocation of {0} to the items of invoice {1} and create the entry?
+Save and create the entry
+Invoice number/reference
+Net value
+Allocation method
+Define the item weights or allocate by value/quantity
+Purchase invoice
+Invoice branch
+Active
+Account code
+No stock items in the invoice
+No matching invoices
+No cost documents yet
+e.g. bill of lading no. ...
+Previously loaded
+New landed cost document
+Cost document
+New document
+Cancelled
+Allocate shipping, customs, clearance and insurance to the purchase invoice items so the item cost is real in inventory valuation and item profits.
+The last period locked for all branches ends on
+Show open periods
+Lock
+Lock {0} ← {1} for all branches?
+Period locks
+Lock period
+Quick lock (all branches):
+Vouchers
+Current month
+Previous month
+Periods
+Period
+After a period is locked, no voucher dated inside it can be added, edited, posted, cancelled or deleted — for a specific branch or for all branches.
+Permanently delete this period's record?
+Open
+Open period {0} ← {1}? Its vouchers will become editable.
+All branches
+No locked periods
+e.g. locked after audit
+Locked
+The accounts tab total must equal the total amount
+Add payment voucher
+Add receipt voucher
+The bank is required in the cheques tab
+The selected bank account has no current account (jary_account_id) defined in the bank accounts definition
+The branch is required in the cheques tab
+Paid to
+Received from
+The due date is required in the cheques tab
+The account number is required in the cheques tab
+The cheque number is required in the cheques tab
+Payment voucher
+Receipt voucher
+Payment vouchers
+Receipt vouchers
+The cheques amount does not equal the total of the cheque amounts
+The total (cash + cheques + cards) must equal the total amount
+All cheques must be from the same bank account
+The cards account must be chosen
+The cash account must be chosen
+Choose a counter account (on account) or add a line in the accounts tab
+The card type must be chosen in the card details tab
+The cheques cash account must be entered
+{0} vouchers
+Enter the account number or open search
+Total cheque payment vouchers
+Add cheque payment voucher
+Close
+Close cheque payment voucher
+Deselect all
+Choose the branch
+Choose the voucher book
+Choose a cheque or several cheques in the same currency.
+Choose one cheque or several cheques in the same currency.
+Select all
+Choose selected
+Check changes
+The account doesn't exist or is an accounting account — choose a customer, supplier or subscriber
+Double-click to open the voucher
+Search incoming cheques
+Search and add cheques
+Voucher data
+Voucher date
+Unable to navigate between vouchers
+Unable to determine the voucher number
+Unable to load voucher books
+Unable to generate the voucher number
+Unable to delete the voucher
+Unable to save the voucher
+Unable to show the voucher
+Selected
+The data was changed, do you want to save?
+Delete
+Delete cheque payment voucher
+Beneficiary account *
+Voucher book *
+Invalid voucher number
+Cheque number, customer or bank...
+New voucher
+Cheque payment vouchers
+Cheque
+Pay incoming cheques to beneficiaries with a separate voucher
+View voucher
+No
+No cheque payment vouchers to show
+No permitted voucher book for the cheque payment voucher
+Saved
+Draft
+Approved
+Note on the voucher (optional)
+Cancelled
+Logically cancelled
+Yes
+Are you sure you want to delete the cheque payment voucher?
+Cheques from the same currency must be chosen
+Must specify: {0}
+Save the voucher first
+Choose
+Credit account *
+Debit account *
+Account not found
+The voucher is approved, do you want to cancel it logically?
+Tax *
+Currency *
+Customer *
+The selected customer does not exist
+Amounts and tax
+Amount *
+Total *
+Additional data
+Confirm voucher deletion
+Voucher date *
+Manual voucher date
+Invoice settlement
+Payment classification
+Voucher details
+Customer details
+Tax account
+Tax account *
+Save
+Voucher number *
+Exchange rate *
+Manual voucher
+Don't save
+Not specified
+General note for the voucher
+Salesman
+Tax rate % *
+Do you want to delete this {0}?
+— Total credit:
+— Difference: {0}
+Total debit:
+Add line
+Add note
+Account name
+Accounts
+The voucher is balanced — there is no difference to add
+Attachments
+Salesman
+Search for an account (F10)
+Additional data
+Unable to choose the account
+Warning
+Delete line (F7)
+Credit
+Uploading attachments is not available in this version yet
+Account number
+The account number must be English letters/digits only without spaces
+The voucher currency differs from the account currency
+The voucher currency differs from the account currency and cannot be chosen
+No notes
+No account with this number: {0}
+Debit
+Cost centers
+Do you want to delete this journal voucher?
+The account must be entered first
+The debit or credit value must be entered
+The account must be specified first
+— Difference from the total amount: {0}
+{0} (cancel)
+✓ Completed on the payment terminal
+Accounts total:
+Cheques total:
+Add cheque
+Unlink and enter manually
+Bank name
+Branch name
+Payee name
+Payer name
+Cheque owner name
+Terminal:
+The selected bank account has no branch defined in the bank accounts definition — please set the branch there first
+The bank account entered does not exist
+Default accounts
+The field must contain English letters/digits only without spaces
+Additional fields
+Home
+Cheque no. {0}{1}
+Cards
+The cheque data is incomplete
+Confirm deleting {0}
+Cheque due date
+Invalid due date
+Card expiry date
+Used when the voucher amount is split across more than one counter account instead of the "on account" field alone. Choosing an account enables its cost centers button.
+Unable to determine the branch bank linked to this bank account
+Unable to load default accounts
+Unable to load the cheque image
+Card details
+The full cheque amount has been entered, no extra line is needed
+Loading image…
+Cash account
+Cheques cash account
+Save changes
+Card number
+Transaction no.:
+Approval no.:
+Image
+On account
+Read cheques
+Read cheques with the cheque reader device through the cashier service (CashService)
+No additional fields are defined for this voucher type
+No image
+Cash
+Card type
+This card is linked to a payment terminal — press «Send to terminal» to send the card amount for the customer to present their card, or enter the number manually.
+The account number or bank must be entered
+The cheque number must be entered
+The cheque amount must be entered
+The bank must be specified first
+The account number must be specified first
+Due on
+-12-31 — the closing entry dated
+(carried forward automatically; no opening entry needed)
+(all months open)
+(locked)
+{0} blocking
+/ credit
+Balance-sheet balances carried forward to the new year:
+Close the year
+Fiscal year closing
+Close fiscal year {0}? The closing entry will be created{1}.
+Close another year
+Close the year's vouchers
+Optional
+Retained earnings
+Revenue
+Undo the closing of year {0}? The closing entries ({1}) will be cancelled and the year unlocked.
+Year
+Fiscal year
+Net
+Period:
+Entries
+Expenses
+Result
+In the base currency: debit accounts (expenses) are closed with a credit and credit accounts (revenue) with a debit, and the difference goes to retained earnings.
+by
+Switch the working year in the general settings to
+Undo
+Closing failed

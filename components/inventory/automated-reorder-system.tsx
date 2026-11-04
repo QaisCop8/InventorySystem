@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -169,7 +170,7 @@ export function AutomatedReorderSystem() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: "فشل في تحميل بيانات النظام التلقائي",
+        error: tr("فشل في تحميل بيانات النظام التلقائي"),
       }))
     } finally {
       setState((prev) => ({ ...prev, loading: false }))
@@ -186,13 +187,13 @@ export function AutomatedReorderSystem() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في تشغيل فحص إعادة الطلب")
+        throw new Error(tr("فشل في تشغيل فحص إعادة الطلب"))
       }
 
       const result = await response.json()
       setState((prev) => ({
         ...prev,
-        successMessage: `تم فحص ${result.checked} منتج، تم إنشاء ${result.created} طلبية جديدة`,
+        successMessage: tr("تم فحص {0} منتج، تم إنشاء {1} طلبية جديدة", result.checked, result.created),
       }))
 
       await fetchData()
@@ -203,7 +204,7 @@ export function AutomatedReorderSystem() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "حدث خطأ أثناء تشغيل الفحص",
+        error: error instanceof Error ? error.message : tr("حدث خطأ أثناء تشغيل الفحص"),
       }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
@@ -221,13 +222,13 @@ export function AutomatedReorderSystem() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في حفظ الإعدادات")
+        throw new Error(tr("فشل في حفظ الإعدادات"))
       }
 
       setState((prev) => ({
         ...prev,
         showSettingsDialog: false,
-        successMessage: "تم حفظ الإعدادات بنجاح",
+        successMessage: tr("تم حفظ الإعدادات بنجاح"),
       }))
 
       setTimeout(() => {
@@ -236,7 +237,7 @@ export function AutomatedReorderSystem() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ الإعدادات",
+        error: error instanceof Error ? error.message : tr("حدث خطأ أثناء حفظ الإعدادات"),
       }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
@@ -267,12 +268,12 @@ export function AutomatedReorderSystem() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في إنشاء قاعدة إعادة الطلب")
+        throw new Error(tr("فشل في إنشاء قاعدة إعادة الطلب"))
       }
 
       setState((prev) => ({
         ...prev,
-        successMessage: "تم إنشاء قاعدة إعادة الطلب بنجاح",
+        successMessage: tr("تم إنشاء قاعدة إعادة الطلب بنجاح"),
       }))
 
       await fetchData()
@@ -283,7 +284,7 @@ export function AutomatedReorderSystem() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "حدث خطأ أثناء إنشاء القاعدة",
+        error: error instanceof Error ? error.message : tr("حدث خطأ أثناء إنشاء القاعدة"),
       }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
@@ -299,7 +300,7 @@ export function AutomatedReorderSystem() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في تحديث حالة القاعدة")
+        throw new Error(tr("فشل في تحديث حالة القاعدة"))
       }
 
       setState((prev) => ({
@@ -309,34 +310,34 @@ export function AutomatedReorderSystem() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "حدث خطأ أثناء تحديث القاعدة",
+        error: error instanceof Error ? error.message : tr("حدث خطأ أثناء تحديث القاعدة"),
       }))
     }
   }
 
   const getStockStatusBadge = (product: Product) => {
     if (product.current_stock === 0) {
-      return <Badge className="bg-red-100 text-red-800">نفد المخزون</Badge>
+      return <Badge className="bg-red-100 text-red-800">{tr("نفد المخزون")}</Badge>
     }
     if (product.current_stock <= product.reorder_point) {
-      return <Badge className="bg-orange-100 text-orange-800">مخزون منخفض</Badge>
+      return <Badge className="bg-orange-100 text-orange-800">{tr("مخزون منخفض")}</Badge>
     }
-    return <Badge className="bg-green-100 text-green-800">متوفر</Badge>
+    return <Badge className="bg-green-100 text-green-800">{tr("متوفر")}</Badge>
   }
 
   if (state.loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل نظام إعادة الطلب التلقائي...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل نظام إعادة الطلب التلقائي...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-background min-h-screen" dir={appDir()}>
       {/* Success Message */}
       {state.successMessage && (
         <Alert className="border-green-200 bg-green-50">
@@ -374,22 +375,22 @@ export function AutomatedReorderSystem() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <RefreshCw className="h-8 w-8 text-primary" />
-            نظام إعادة الطلب التلقائي
+            {tr("نظام إعادة الطلب التلقائي")}
           </h1>
-          <p className="text-muted-foreground mt-1">مراقبة المخزون وإنشاء طلبات الشراء تلقائياً</p>
+          <p className="text-muted-foreground mt-1">{tr("مراقبة المخزون وإنشاء طلبات الشراء تلقائياً")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setState((prev) => ({ ...prev, showSettingsDialog: true }))}>
-            <Settings className="h-4 w-4 ml-2" />
-            الإعدادات
+            <Settings className="h-4 w-4 me-2" />
+            {tr("الإعدادات")}
           </Button>
           <Button
             onClick={handleRunReorderCheck}
             disabled={state.isSubmitting}
             className="bg-primary hover:bg-primary/90"
           >
-            <RefreshCw className={`h-4 w-4 ml-2 ${state.isSubmitting ? "animate-spin" : ""}`} />
-            {state.isSubmitting ? "جاري الفحص..." : "تشغيل الفحص"}
+            <RefreshCw className={`h-4 w-4 me-2 ${state.isSubmitting ? "animate-spin" : ""}`} />
+            {state.isSubmitting ? tr("جاري الفحص...") : tr("تشغيل الفحص")}
           </Button>
         </div>
       </div>
@@ -407,11 +408,11 @@ export function AutomatedReorderSystem() {
                 <Pause className="h-6 w-6 text-orange-600" />
               )}
               <div>
-                <h3 className="font-semibold text-lg">{state.settings.enabled ? "النظام مفعل" : "النظام متوقف"}</h3>
+                <h3 className="font-semibold text-lg">{state.settings.enabled ? tr("النظام مفعل") : tr("النظام متوقف")}</h3>
                 <p className="text-sm text-muted-foreground">
                   {state.settings.enabled
-                    ? `يتم فحص المخزون كل ${state.settings.check_frequency_hours} ساعة`
-                    : "النظام التلقائي غير مفعل حالياً"}
+                    ? tr("يتم فحص المخزون كل {0} ساعة", state.settings.check_frequency_hours)
+                    : tr("النظام التلقائي غير مفعل حالياً")}
                 </p>
               </div>
             </div>
@@ -434,9 +435,9 @@ export function AutomatedReorderSystem() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">قواعد إعادة الطلب</p>
+                <p className="text-sm font-medium text-blue-600">{tr("قواعد إعادة الطلب")}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.totalRules}</p>
-                <p className="text-xs text-blue-600">نشط: {statistics.activeRules}</p>
+                <p className="text-xs text-blue-600">{tr("نشط: ")}{statistics.activeRules}</p>
               </div>
               <Settings className="h-8 w-8 text-blue-600" />
             </div>
@@ -447,9 +448,9 @@ export function AutomatedReorderSystem() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-600">نفد المخزون</p>
+                <p className="text-sm font-medium text-red-600">{tr("نفد المخزون")}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.criticalStock}</p>
-                <p className="text-xs text-red-600">يحتاج طلب فوري</p>
+                <p className="text-xs text-red-600">{tr("يحتاج طلب فوري")}</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-600" />
             </div>
@@ -460,9 +461,9 @@ export function AutomatedReorderSystem() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600">مخزون منخفض</p>
+                <p className="text-sm font-medium text-orange-600">{tr("مخزون منخفض")}</p>
                 <p className="text-3xl font-bold text-orange-900">{statistics.lowStock}</p>
-                <p className="text-xs text-orange-600">تحت نقطة إعادة الطلب</p>
+                <p className="text-xs text-orange-600">{tr("تحت نقطة إعادة الطلب")}</p>
               </div>
               <TrendingDown className="h-8 w-8 text-orange-600" />
             </div>
@@ -473,9 +474,9 @@ export function AutomatedReorderSystem() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-600">طلبات معلقة</p>
+                <p className="text-sm font-medium text-purple-600">{tr("طلبات معلقة")}</p>
                 <p className="text-3xl font-bold text-purple-900">{statistics.pendingOrders}</p>
-                <p className="text-xs text-purple-600">في انتظار الاعتماد</p>
+                <p className="text-xs text-purple-600">{tr("في انتظار الاعتماد")}</p>
               </div>
               <Clock className="h-8 w-8 text-purple-600" />
             </div>
@@ -486,11 +487,11 @@ export function AutomatedReorderSystem() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">طلبات تلقائية</p>
+                <p className="text-sm font-medium text-green-600">{tr("طلبات تلقائية")}</p>
                 <p className="text-3xl font-bold text-green-900">
-                  {state.settings.auto_create_purchase_orders ? "مفعل" : "معطل"}
+                  {state.settings.auto_create_purchase_orders ? tr("مفعل") : tr("معطل")}
                 </p>
-                <p className="text-xs text-green-600">إنشاء تلقائي</p>
+                <p className="text-xs text-green-600">{tr("إنشاء تلقائي")}</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-green-600" />
             </div>
@@ -503,17 +504,17 @@ export function AutomatedReorderSystem() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            المنتجات التي تحتاج إعادة طلب
+            {tr("المنتجات التي تحتاج إعادة طلب")}
           </CardTitle>
-          <CardDescription>المنتجات التي وصلت لنقطة إعادة الطلب أو نفد مخزونها</CardDescription>
+          <CardDescription>{tr("المنتجات التي وصلت لنقطة إعادة الطلب أو نفد مخزونها")}</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
-              <Label>البحث</Label>
+              <Label>{tr("البحث")}</Label>
               <Input
-                placeholder="اسم المنتج أو الكود"
+                placeholder={tr("اسم المنتج أو الكود")}
                 value={state.filters.search}
                 onChange={(e) =>
                   setState((prev) => ({
@@ -524,7 +525,7 @@ export function AutomatedReorderSystem() {
               />
             </div>
             <div>
-              <Label>حالة المخزون</Label>
+              <Label>{tr("حالة المخزون")}</Label>
               <Select
                 value={state.filters.status}
                 onValueChange={(value) =>
@@ -538,9 +539,9 @@ export function AutomatedReorderSystem() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="critical">نفد المخزون</SelectItem>
-                  <SelectItem value="low">مخزون منخفض</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="critical">{tr("نفد المخزون")}</SelectItem>
+                  <SelectItem value="low">{tr("مخزون منخفض")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -554,7 +555,7 @@ export function AutomatedReorderSystem() {
                   }))
                 }
               >
-                إعادة تعيين
+                {tr("إعادة تعيين")}
               </Button>
             </div>
           </div>
@@ -564,13 +565,13 @@ export function AutomatedReorderSystem() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">كود المنتج</TableHead>
-                  <TableHead className="text-right">اسم المنتج</TableHead>
-                  <TableHead className="text-right">المخزون الحالي</TableHead>
-                  <TableHead className="text-right">نقطة إعادة الطلب</TableHead>
-                  <TableHead className="text-right">المورد</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">الإجراءات</TableHead>
+                  <TableHead className="text-right">{tr("كود المنتج")}</TableHead>
+                  <TableHead className="text-right">{tr("اسم المنتج")}</TableHead>
+                  <TableHead className="text-right">{tr("المخزون الحالي")}</TableHead>
+                  <TableHead className="text-right">{tr("نقطة إعادة الطلب")}</TableHead>
+                  <TableHead className="text-right">{tr("المورد")}</TableHead>
+                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -580,7 +581,7 @@ export function AutomatedReorderSystem() {
                     <TableCell>{product.product_name}</TableCell>
                     <TableCell className="font-medium">{product.current_stock}</TableCell>
                     <TableCell>{product.reorder_point || product.min_stock_level || "-"}</TableCell>
-                    <TableCell>{product.supplier_name || "غير محدد"}</TableCell>
+                    <TableCell>{product.supplier_name || tr("غير محدد")}</TableCell>
                     <TableCell>{getStockStatusBadge(product)}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -606,8 +607,8 @@ export function AutomatedReorderSystem() {
           {filteredProducts.length === 0 && (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">لا توجد منتجات</h3>
-              <p className="text-muted-foreground">جميع المنتجات في مستويات مخزون جيدة</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{tr("لا توجد منتجات")}</h3>
+              <p className="text-muted-foreground">{tr("جميع المنتجات في مستويات مخزون جيدة")}</p>
             </div>
           )}
         </CardContent>
@@ -618,17 +619,17 @@ export function AutomatedReorderSystem() {
         open={state.showSettingsDialog}
         onOpenChange={(open) => setState((prev) => ({ ...prev, showSettingsDialog: open }))}
       >
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              إعدادات نظام إعادة الطلب التلقائي
+              {tr("إعدادات نظام إعادة الطلب التلقائي")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>تكرار الفحص (بالساعات)</Label>
+                <Label>{tr("تكرار الفحص (بالساعات)")}</Label>
                 <Input
                   type="number"
                   min="1"
@@ -646,7 +647,7 @@ export function AutomatedReorderSystem() {
                 />
               </div>
               <div>
-                <Label>الحد الأدنى لقيمة الطلبية</Label>
+                <Label>{tr("الحد الأدنى لقيمة الطلبية")}</Label>
                 <Input
                   type="number"
                   min="0"
@@ -665,7 +666,7 @@ export function AutomatedReorderSystem() {
             </div>
 
             <div>
-              <Label>البريد الإلكتروني للإشعارات</Label>
+              <Label>{tr("البريد الإلكتروني للإشعارات")}</Label>
               <Input
                 type="email"
                 value={state.settings.notification_email}
@@ -681,7 +682,7 @@ export function AutomatedReorderSystem() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>إنشاء طلبات الشراء تلقائياً</Label>
+                <Label>{tr("إنشاء طلبات الشراء تلقائياً")}</Label>
                 <Switch
                   checked={state.settings.auto_create_purchase_orders}
                   onCheckedChange={(checked) =>
@@ -693,7 +694,7 @@ export function AutomatedReorderSystem() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label>إرسال إشعارات SMS</Label>
+                <Label>{tr("إرسال إشعارات SMS")}</Label>
                 <Switch
                   checked={state.settings.notification_sms}
                   onCheckedChange={(checked) =>
@@ -708,11 +709,11 @@ export function AutomatedReorderSystem() {
 
             <div className="flex gap-4 justify-end pt-4 border-t">
               <Button variant="outline" onClick={() => setState((prev) => ({ ...prev, showSettingsDialog: false }))}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button onClick={handleSaveSettings} disabled={state.isSubmitting}>
-                <Save className="h-4 w-4 ml-2" />
-                {state.isSubmitting ? "جاري الحفظ..." : "حفظ الإعدادات"}
+                <Save className="h-4 w-4 me-2" />
+                {state.isSubmitting ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
               </Button>
             </div>
           </div>

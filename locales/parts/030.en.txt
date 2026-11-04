@@ -1,0 +1,300 @@
+Paper size, print method and template content for each voucher type
+Signature boxes
+Print service only (direct print)
+Item vouchers
+Receipt and payment vouchers
+Company logo
+Thank you for dealing with us
+Report printing
+Print the customer's licensed dealer number
+Test print
+Print shipping details
+Print method
+Number of copies
+Modern
+On Android and iOS, or if the service isn't running, the browser print opens at the same size.
+On Windows, printing is sent directly to the printer through the print service (CashService) with no window.
+Portrait
+Signature labels
+Copy labels
+The browser print window was opened
+Classic with borders
+No columns for this voucher
+No matching types
+Custom color
+Custom
+Print preview
+Comma-separated
+Comma-separated, e.g. Original, Customer copy
+Text below the header
+Footer text
+Uses the general settings — saving creates custom settings
+This voucher now uses the general settings
+Shown in the preview and browser print; direct printing is black and white
+PNG, JPG or WEBP
+If the report table is wider than the portrait page
+Page border
+Show footer
+Show header
+Report print settings
+Image height (mm)
+Upload a full header image (logo and company data) at page width.
+Orientation
+Data
+Header
+Maximum about 1 MB
+The image is large
+Address, phone and email
+Licensed dealer
+Paper and margins
+Underline below the header
+Alternate row shading
+Unable to load the report settings
+Change image
+Report print settings saved
+Data font size
+Bold colored line
+Double line
+Single line
+Upload image
+Header image
+Header image
+Unsupported format
+Paper length (mm)
+Paper width (mm)
+Report title and period
+Flip the page to landscape automatically
+Table header color
+Example: internal report — not for circulation
+Report print preview
+Text (company data)
+Additional text below the header
+Header type
+Cell padding (mm)
+Repeated at the bottom of every page
+1. Job role
+2. The branch where the permissions apply
+Any change here applies to this role in this branch only.
+Choose the job role
+Restore the role's general permissions
+Role:
+Unable to load roles or branches
+Unable to load the role permissions
+Unable to save the role permissions
+The general permissions were restored
+Set each role's permissions independently in each branch.
+Job role permissions
+No job roles. Add a job role first.
+No branches are defined. Add a branch first.
+— No template —
+— replaced and encoded automatically.
+•••••• (saved — leave empty to keep it)
+Send automatically on creation
+Save the settings first, then send a test message or show the balance.
+Test connection
+Template name
+Automatic sending happens when the transaction is first created, to the customer's mobile number in their card (first mobile, then the second). The "SMS" button in the transaction toolbar sends manually at any time.
+Provider connection
+The service is not enabled
+The service is enabled
+Template
+Templates
+Templates (
+Variables:
+Search by mobile, customer or transaction number
+Without it no manual or automatic message is sent
+Edit template
+Unable to fetch the balance
+Enable the messaging service
+The test message was sent successfully
+Delete the template "{0}"?
+characters (a single Arabic message is 70 characters)
+Save template
+Send link
+Message balance link (optional)
+Link templates to transactions
+Connect the SMS provider, message templates, and send them to customers from invoices, deliveries, orders and receipt vouchers — manually or automatically on creation.
+Test message
+Message balance
+Message balance: {0}
+Mobile number for the test
+Send success code
+Dear [CustomerName], [TransactionType] no. [Code] has been issued with a value of [TransactionValue] [TransactionCurrency]. Your balance: [CustomerBalance]
+New template
+No templates yet
+For each transaction type: the default template, and automatic sending to the customer when the transaction is created
+e.g. invoice notice
+Country code
+Message text
+(A = voucher book, and the full code doesn't exceed 10 characters)
+{0}: only uppercase English letters A-Z are allowed, up to 3 letters, with no digits or special symbols
+{0}: must be a whole number from 1 to 999
+{0}: must be a whole number from 1 to 10000
+12 hours
+24 hours
+PNG, JPG, WEBP or SVG. The logo appears at the top of the sidebar.
+Settings sections
+Remove logo
+Reload
+Definitions settings (optional)
+Voucher settings (mandatory)
+Choose the account
+Company name (Arabic) *
+Company name is required
+General settings
+Name, address, contact details and logo
+Numbering starts from (
+Numbering starts from (consignment delivery)
+Numbering starts from (sales delivery)
+Numbering starts from (purchase delivery)
+Numbering starts from (internal delivery)
+Numbering starts from (internal delivery) *
+Numbering starts from (credit note)
+Numbering starts from (credit note) *
+Numbering starts from (debit note)
+Numbering starts from (debit note) *
+Numbering starts from (goods issue voucher)
+Numbering starts from (goods issue voucher) *
+Numbering starts from (goods receipt voucher)
+Numbering starts from (goods receipt voucher) *
+Numbering starts from (usage voucher)
+Numbering starts from (usage voucher) *
+Numbering starts from (payment vouchers)
+Numbering starts from (payment vouchers) *
+Numbering starts from (receipt vouchers)
+Numbering starts from (receipt vouchers) *
+Numbering starts from (journal vouchers)
+Numbering starts from (journal vouchers) *
+Numbering starts from (sales invoice)
+Numbering starts from (purchase invoice)
+Numbering starts from (consignment delivery return)
+Numbering starts from (sales return)
+Numbering starts from (purchase return)
+Default item accounts
+The number starts from
+The number starts from (employees)
+Vouchers and numbering
+Arabic
+Currency, language, time zone and formats
+Language
+Voucher and file prefixes and starting numbers
+Consignment delivery prefix
+Sales delivery prefix
+Purchase delivery prefix
+Internal delivery prefix
+Internal delivery prefix *
+Credit note prefix
+Credit note prefix *
+Debit note prefix
+Debit note prefix *
+Accounting accounts prefix
+Customers prefix
+Salesmen prefix
+Suppliers prefix
+Employees prefix
+Goods issue voucher prefix
+Goods issue voucher prefix *
+Goods receipt voucher prefix
+Goods receipt voucher prefix *
+Usage voucher prefix
+Usage voucher prefix *
+Payment vouchers prefix
+Payment vouchers prefix *
+Receipt vouchers prefix
+Receipt vouchers prefix *
+Journal vouchers prefix
+Journal vouchers prefix *
+Purchase orders prefix
+Purchase orders prefix *
+Sales orders prefix
+Sales orders prefix *
+Sales invoice prefix
+Purchase invoice prefix
+Item groups prefix
+Consignment delivery return prefix
+Sales return prefix
+Purchase return prefix
+Items numbering start
+Accounting accounts numbering start
+Customers numbering start
+Suppliers numbering start
+Purchase orders numbering start
+Purchase orders numbering start *
+The purchase orders numbering start is required and must be greater than zero
+Sales orders numbering start
+Sales orders numbering start *
+The sales orders numbering start is required and must be greater than zero
+Item groups numbering start
+Company data, numbering, default accounts, security and printing — in one place
+Settings saved successfully
+Note:
+Date format
+Time format
+Loading settings...
+Customers parent account in the customer definition file
+Subscribers parent account in the subscriber definition file
+Salesmen parent account in the salesman definition file
+Suppliers parent account in the supplier definition file
+Credit customers parent account in the credit customer definition file
+Currency exchange gain and loss account
+Default production account
+The default parent account when defining a new employee
+Discount received account
+Sales tax account
+Purchases tax account
+Default sales account
+Default purchases account
+Default municipal expenses account
+Default expense account in the usage voucher
+Currency transfers account
+Default closing inventory valuation account
+Default opening inventory valuation account
+Discount allowed account
+Default sales returns account
+Default purchase returns account
+Parent accounts for customers, suppliers and taxes
+Jordanian Dinar (JOD)
+year-month-day
+month/day/year
+Israeli Shekel (ILS)
+Working period, receipts and payments, accounts and items
+The numbering settings of vouchers that have saved transactions can't be changed
+The general settings were not saved — review the general settings tab
+Example:
+Tax rate
+Tax rate - clearing
+Are you sure you want to reset all settings?
+day/month/year
+Save your custom settings to apply them to the system
+Choose the toolbar template. The preview appears immediately in all system screens.
+Choose the right color scheme for your company
+Preset schemes
+Sample card
+Slow
+Customize shadows, transitions and spacing
+Customize appearance
+Customize the font type and size
+Enable right-to-left writing
+Settings saved successfully!
+Loading customization settings...
+Arabic support
+Sample button
+Increase contrast for clarity
+Button bar style
+Customize the system colors, fonts and effects
+Raised
+Effects preview
+Preview of the applied effects
+Small text for details and notes
+Color scheme
+This is sample text to preview the selected colors in the system
+This is sample text to preview the selected font. You can see how text will appear in the system with the chosen font and size.
+Select all for branch {0}
+Select all branches for this user
+Unable to load the matrix data
+Unable to save the branch matrix
+Unable to open the matrix
+Branch permissions saved
+Loading the matrix...
+Choose the branches each user works in. A user with no branch selected here reaches all branches without restriction.
+User permissions on branches

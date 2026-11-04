@@ -55,6 +55,6 @@ export function ReportArchiveTracker({ section, title, children }: { section: st
 
   return <div ref={rootRef} data-report-section={section} data-report-title={title} style={{ display: "contents" }}>
     {children}
-    {needsFloatingShare && <div className="fixed bottom-5 left-5 z-40 print:hidden"><ReportShareButton className="bg-white shadow-lg" /></div>}
+    {needsFloatingShare && <div className="fixed bottom-5 end-5 z-40 print:hidden"><ReportShareButton className="bg-white shadow-lg" /></div>}
   </div>
 }

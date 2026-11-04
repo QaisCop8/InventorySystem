@@ -1,0 +1,300 @@
+The preparation, ready-check and dispatch stages are done from
+Requested from your branch
+Completed this month
+of {0}
+Quantity fulfilment rate
+Incoming to your branch
+Incoming: {0}
+{0}% of total
+Complete management of all messages and notifications
+Send a new message
+Scheduled messages
+Templates
+Export report
+Delivered
+Today's messages
+Sending failed
+Messages dashboard
+Success rate
+| Minimum:
+Add product
+Quick statistics
+Analytics
+Alerts
+Recent orders
+Quick access
+Inventory alerts
+Pending orders
+New purchase order
+m
+Pending
+Completed
+Out-of-stock products
+A quick look at system activity
+{0} — and {1} more alerts in the bell
+Needs follow-up
+Mark all as read
+Unread
+No alerts
+✅ Scan complete! Found
+Critical errors
+Press "Start scan" to check system quality
+Suggestion
+Suggestions
+Suggested fix:
+Start scan
+File details
+Scanning the system...
+System quality check
+Problem in
+Scan results summary
+file
+files scanned
+Total files
+Auto-fix
+Start quality check
+Press "Start scan" to run the full quality check
+Recommendations
+Immediate recommendations
+Fix:
+Healthy files
+Problem details
+Files report
+Scanned
+Fixing...
+Full code quality check and problem detection
+No database problems
+Database problems
+problem
+files and found
+Quality check system
+Quality score
+Please wait while we scan all system files
+Ahmad Ali
+Daily sales performance
+Household tools
+Best-selling products
+Total purchases
+Electronics
+To date:
+Sales and purchases trend
+Advanced analytics
+Analytics and AI
+Financial reports
+Advanced financial reports
+Finance
+Group:
+Main warehouse
+Monthly sales analysis
+Daily sales analysis
+Full export
+Advanced purchase reports
+Sales distribution by group
+Updating...
+All customers
+All groups
+All warehouses
+All suppliers
+Detailed data will be shown here
+Tech Company
+Number of orders
+Active customers
+Fatima Mohammad
+Coming soon - smart analytics and forecasts
+Coming soon - full purchase analytics
+Coming soon - full financial analytics
+Coming soon - full inventory reports
+Advanced reports dashboard
+Quality Est.
+Branch warehouse
+Clothing
+From date:
+Tools
+Lot number archiving
+Brand types
+Departments and workflow management
+Close and post the payroll entry
+Search the menu...
+Approve ready orders
+User settings
+Job roles
+Basic definitions
+Contact management
+Constants
+Tables
+Brands
+Main menu
+General accounting
+Employee messages inbox
+Work order tracking
+Edit items
+Session setup and stock count entry
+Work order reports
+Profit report for a period
+Transactions report with cost center
+Tax sales and purchases report
+Salary items report
+Tax calculation statement report
+Clearing sales report
+Clearing purchases report
+Expand menu
+Saving the voucher, please wait
+Fingerprint transactions (attendance)
+Attendance transactions (overtime and deductions)
+Account movements by cost center
+User permissions on accounts
+Voucher book permissions
+Employee income tax
+Internal goods requests
+Collapse menu
+Salesman commissions
+Income statement with cost centers
+Income statement by cost center
+Journal entries
+Tax sales statement
+Tax purchases statement
+Account statement by cost center
+Account statement with cost center
+No screen with this name
+Order tracking dashboard
+Track my requests
+Order status processing
+Trial balance by accounts
+Trial balance by cost centers
+Balance sheet with cost centers
+Balance sheet by cost center
+Search results ({0})
+Resource management system
+Restaurant management system
+Suggestions to improve system performance and user experience
+Warnings
+Warnings (
+Recommendations (
+Critical problems
+Critical problems (
+The system is fully optimized!
+The system is running stably
+Needs review
+Automatic fixes applied
+Test data cleared successfully
+Recommendations
+Overall system health
+System check
+No warnings!
+No critical problems!
+to improve performance
+System health dashboard
+System monitoring and stability
+Clear test data
+Critical problems
+These issues don't affect how the system works but are worth reviewing
+These problems affect system stability and must be fixed immediately
+Must be fixed immediately
+Done successfully
+Data review
+Send a text message or use a ready template
+Total messages
+Manage messages, templates and customer inquiries
+WhatsApp management
+Send message
+Send WhatsApp message
+Notifications
+Create template
+Create a new template
+Choose a template...
+Customer inquiries
+New inquiries
+Type your message here...
+Inquiries
+Messages
+Recipient
+Active templates
+Template (optional)
+Awaiting reply
+No template
+Marketing
+Template created successfully
+Inquiry resolved successfully
+Read by customers
+All sent messages
+All sent WhatsApp messages
+An error occurred while sending the message
+An error occurred while creating the template
+Resolve
+Technical support
+Read messages
+Messages and inquiries received from customers
+Failed to send the message: {0}
+Failed to create the template: {0}
+to add dynamic variables
+No inquiries
+Variable
+Example: customer welcome
+Template content
+Resolved
+Hello {{customer_name}}, thank you for dealing with us...
+Sent
+Transactions
+Read
+Ready templates for quick messages
+Ready-to-use templates
+Sales orders
+Purchase orders
+Daily performance
+Search orders...
+Orders (
+Recent orders
+Late orders
+Stages
+Order distribution by stage
+All stages
+h
+Completed orders
+No stage data available
+Order tracking dashboard
+Late
+Late:
+Complete tracking of all orders and work stages
+Average duration:
+Department statistics
+Stage statistics
+Customer or supplier name...
+Administration
+Amount:
+Showing {0} to {1} of {2}
+Search filters
+At stage:
+Average time:
+Average processing time
+General information
+The username or email already exists
+Incorrect username or password
+An error occurred creating the user
+A database connection error occurred. Please try again.
+A system error occurred. Please try again.
+No user with this email exists in this company
+Enter the current password
+Full name is required
+Incorrect email or password
+The email is already in use
+Email and password are required
+This account has been suspended — please contact system administration
+Invalid verification code
+Verification code is required
+The new password is the same as the current one
+The current password is incorrect
+Please confirm your email before signing in
+Invalid phone number
+Failed to send SMS
+Failed to send WhatsApp
+Permission {0} is not defined
+Choose the donor account (the receivable the voucher value is recorded against)
+Choose the activity currency
+Activity name is required
+Amounts must be positive
+Specify the allowed items or item groups, or choose all items
+Specify the approved points of sale, or choose all points
+Donor account not found
+Invalid activity period
+The budget cannot be less than what has already been allocated ({0})
+Activity not found

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -94,18 +95,18 @@ export function WhatsAppNotificationSettings() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في حفظ الإعدادات")
+        throw new Error(tr("فشل في حفظ الإعدادات"))
       }
 
       const data = await response.json()
       setSettings(data)
-      setMessage({ type: "success", text: "تم حفظ الإعدادات بنجاح" })
+      setMessage({ type: "success", text: tr("تم حفظ الإعدادات بنجاح") })
 
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "حدث خطأ أثناء الحفظ",
+        text: error instanceof Error ? error.message : tr("حدث خطأ أثناء الحفظ"),
       })
     } finally {
       setSaving(false)
@@ -122,7 +123,7 @@ export function WhatsAppNotificationSettings() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في إرسال الإشعارات")
+        throw new Error(tr("فشل في إرسال الإشعارات"))
       }
 
       const result = await response.json()
@@ -130,16 +131,16 @@ export function WhatsAppNotificationSettings() {
       if (result.success) {
         setMessage({
           type: "success",
-          text: `${result.message} - تم فحص ${result.productsChecked} منتج`,
+          text: tr("{0} - تم فحص {1} منتج", result.message, result.productsChecked),
         })
         fetchNotificationLog()
       } else {
-        setMessage({ type: "error", text: result.message || "فشل في إرسال الإشعارات" })
+        setMessage({ type: "error", text: result.message || tr("فشل في إرسال الإشعارات") })
       }
     } catch (error) {
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "حدث خطأ أثناء الإرسال",
+        text: error instanceof Error ? error.message : tr("حدث خطأ أثناء الإرسال"),
       })
     } finally {
       setSending(false)
@@ -152,12 +153,12 @@ export function WhatsAppNotificationSettings() {
     // Basic validation for phone number
     const cleanNumber = newPhoneNumber.trim()
     if (!cleanNumber.match(/^\+?[0-9]{10,15}$/)) {
-      setMessage({ type: "error", text: "رقم الهاتف غير صحيح. يجب أن يبدأ بـ + ويحتوي على 10-15 رقم" })
+      setMessage({ type: "error", text: tr("رقم الهاتف غير صحيح. يجب أن يبدأ بـ + ويحتوي على 10-15 رقم") })
       return
     }
 
     if (settings.phone_numbers.includes(cleanNumber)) {
-      setMessage({ type: "error", text: "رقم الهاتف موجود مسبقاً" })
+      setMessage({ type: "error", text: tr("رقم الهاتف موجود مسبقاً") })
       return
     }
 
@@ -180,22 +181,22 @@ export function WhatsAppNotificationSettings() {
       case "sent":
         return (
           <Badge className="bg-green-100 text-green-800">
-            <CheckCircle className="h-3 w-3 ml-1" />
-            تم الإرسال
+            <CheckCircle className="h-3 w-3 me-1" />
+            {tr("تم الإرسال")}
           </Badge>
         )
       case "failed":
         return (
           <Badge className="bg-red-100 text-red-800">
-            <AlertTriangle className="h-3 w-3 ml-1" />
-            فشل
+            <AlertTriangle className="h-3 w-3 me-1" />
+            {tr("فشل")}
           </Badge>
         )
       case "pending":
         return (
           <Badge className="bg-yellow-100 text-yellow-800">
-            <Clock className="h-3 w-3 ml-1" />
-            قيد الانتظار
+            <Clock className="h-3 w-3 me-1" />
+            {tr("قيد الانتظار")}
           </Badge>
         )
       default:
@@ -205,29 +206,29 @@ export function WhatsAppNotificationSettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الأصناف...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background" dir="rtl">
+    <div className="space-y-6 p-6 bg-background" dir={appDir()}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <MessageSquare className="h-8 w-8 text-green-600" />
-            إعدادات إشعارات WhatsApp
+            {tr("إعدادات إشعارات WhatsApp")}
           </h1>
-          <p className="text-muted-foreground mt-1">إدارة إشعارات إعادة الطلب عبر WhatsApp</p>
+          <p className="text-muted-foreground mt-1">{tr("إدارة إشعارات إعادة الطلب عبر WhatsApp")}</p>
         </div>
         <Button onClick={handleSendTestNotifications} disabled={sending || !settings.is_enabled} className="gap-2">
           <Send className={`h-4 w-4 ${sending ? "animate-pulse" : ""}`} />
-          {sending ? "جاري الإرسال..." : "إرسال الإشعارات الآن"}
+          {sending ? tr("جاري الإرسال...") : tr("إرسال الإشعارات الآن")}
         </Button>
       </div>
 
@@ -252,7 +253,7 @@ export function WhatsAppNotificationSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>إعدادات الإشعارات</span>
+            <span>{tr("إعدادات الإشعارات")}</span>
             <Switch
               checked={settings.is_enabled}
               onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, is_enabled: checked }))}
@@ -260,14 +261,14 @@ export function WhatsAppNotificationSettings() {
           </CardTitle>
           <CardDescription>
             {settings.is_enabled
-              ? "الإشعارات مفعلة - سيتم إرسال تنبيهات عند الوصول لنقطة إعادة الطلب"
-              : "الإشعارات معطلة"}
+              ? tr("الإشعارات مفعلة - سيتم إرسال تنبيهات عند الوصول لنقطة إعادة الطلب")
+              : tr("الإشعارات معطلة")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Phone Numbers */}
           <div>
-            <Label className="text-base font-semibold mb-3 block">أرقام الهواتف</Label>
+            <Label className="text-base font-semibold mb-3 block">{tr("أرقام الهواتف")}</Label>
             <div className="flex gap-2 mb-3">
               <Input
                 placeholder="+966501234567"
@@ -277,13 +278,13 @@ export function WhatsAppNotificationSettings() {
                 className="flex-1"
               />
               <Button onClick={handleAddPhoneNumber} variant="outline">
-                <Plus className="h-4 w-4 ml-2" />
-                إضافة
+                <Plus className="h-4 w-4 me-2" />
+                {tr("إضافة")}
               </Button>
             </div>
             <div className="space-y-2">
               {settings.phone_numbers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">لا توجد أرقام مضافة. أضف رقم هاتف لتلقي الإشعارات.</p>
+                <p className="text-sm text-muted-foreground">{tr("لا توجد أرقام مضافة. أضف رقم هاتف لتلقي الإشعارات.")}</p>
               ) : (
                 settings.phone_numbers.map((number) => (
                   <div key={number} className="flex items-center justify-between p-3 bg-muted rounded-lg">
@@ -303,10 +304,10 @@ export function WhatsAppNotificationSettings() {
           {/* Message Template */}
           <div>
             <Label htmlFor="message-template" className="text-base font-semibold mb-2 block">
-              نموذج الرسالة
+              {tr("نموذج الرسالة")}
             </Label>
             <p className="text-sm text-muted-foreground mb-2">
-              استخدم المتغيرات: {"{product_name}"}, {"{product_code}"}, {"{current_stock}"}, {"{reorder_point}"},{" "}
+              {tr("استخدم المتغيرات: ")}{"{product_name}"}, {"{product_code}"}, {"{current_stock}"}, {"{reorder_point}"},{" "}
               {"{supplier_name}"}
             </p>
             <Textarea
@@ -315,15 +316,15 @@ export function WhatsAppNotificationSettings() {
               onChange={(e) => setSettings((prev) => ({ ...prev, message_template: e.target.value }))}
               rows={6}
               className="font-mono text-sm"
-              placeholder="🔔 تنبيه إعادة طلب&#10;&#10;📦 المنتج: {product_name}&#10;🔢 الكود: {product_code}&#10;📊 المخزون الحالي: {current_stock}&#10;⚠️ نقطة إعادة الطلب: {reorder_point}&#10;🏭 المورد: {supplier_name}&#10;&#10;يرجى اتخاذ الإجراء اللازم."
+              placeholder={tr("🔔 تنبيه إعادة طلب&#10;&#10;📦 المنتج: {product_name}&#10;🔢 الكود: {product_code}&#10;📊 المخزون الحالي: {current_stock}&#10;⚠️ نقطة إعادة الطلب: {reorder_point}&#10;🏭 المورد: {supplier_name}&#10;&#10;يرجى اتخاذ الإجراء اللازم.")}
             />
           </div>
 
           {/* Daily Summary */}
           <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
             <div>
-              <Label className="text-base font-semibold">ملخص يومي</Label>
-              <p className="text-sm text-muted-foreground">إرسال ملخص يومي بالمنتجات التي تحتاج إعادة طلب</p>
+              <Label className="text-base font-semibold">{tr("ملخص يومي")}</Label>
+              <p className="text-sm text-muted-foreground">{tr("إرسال ملخص يومي بالمنتجات التي تحتاج إعادة طلب")}</p>
             </div>
             <Switch
               checked={settings.send_daily_summary}
@@ -333,7 +334,7 @@ export function WhatsAppNotificationSettings() {
 
           {settings.send_daily_summary && (
             <div>
-              <Label htmlFor="summary-time">وقت إرسال الملخص اليومي</Label>
+              <Label htmlFor="summary-time">{tr("وقت إرسال الملخص اليومي")}</Label>
               <Input
                 id="summary-time"
                 type="time"
@@ -347,7 +348,7 @@ export function WhatsAppNotificationSettings() {
           <div className="flex justify-end pt-4 border-t">
             <Button onClick={handleSaveSettings} disabled={saving} className="gap-2">
               <Save className="h-4 w-4" />
-              {saving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+              {saving ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
             </Button>
           </div>
         </CardContent>
@@ -358,12 +359,12 @@ export function WhatsAppNotificationSettings() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>سجل الإشعارات</CardTitle>
-              <CardDescription>آخر 20 إشعار تم إرسالها</CardDescription>
+              <CardTitle>{tr("سجل الإشعارات")}</CardTitle>
+              <CardDescription>{tr("آخر 20 إشعار تم إرسالها")}</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={fetchNotificationLog}>
-              <RefreshCw className="h-4 w-4 ml-2" />
-              تحديث
+              <RefreshCw className="h-4 w-4 me-2" />
+              {tr("تحديث")}
             </Button>
           </div>
         </CardHeader>
@@ -371,19 +372,19 @@ export function WhatsAppNotificationSettings() {
           {notificationLog.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">لا توجد إشعارات</h3>
-              <p className="text-muted-foreground">لم يتم إرسال أي إشعارات بعد</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{tr("لا توجد إشعارات")}</h3>
+              <p className="text-muted-foreground">{tr("لم يتم إرسال أي إشعارات بعد")}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">كود المنتج</TableHead>
-                    <TableHead className="text-right">اسم المنتج</TableHead>
-                    <TableHead className="text-right">رقم الهاتف</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">التاريخ</TableHead>
+                    <TableHead className="text-right">{tr("كود المنتج")}</TableHead>
+                    <TableHead className="text-right">{tr("اسم المنتج")}</TableHead>
+                    <TableHead className="text-right">{tr("رقم الهاتف")}</TableHead>
+                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

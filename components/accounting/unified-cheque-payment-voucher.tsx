@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import "@/components/accounting/cheque-theme.css"
@@ -43,12 +44,12 @@ const emptyForm: Voucher = { id: 0, vch_code: "", vch_date: today(), vch_book_id
 const gridScheme = {
     name: "ChequePaymentGrid", columns: [
         { header: "#", name: "number", width: 55, isReadOnly: true },
-        { header: "رقم الشيك", name: "cheq_num", width: 150, isReadOnly: true },
-        { header: "العميل", name: "customer_name", width: '*', isReadOnly: true },
-        { header: "المبلغ", name: "amount_text", width: 100, isReadOnly: true },
-        { header: "العملة", name: "currency_code", width: 90, isReadOnly: true },
-        { header: "الاستحقاق", name: "due_date_text", width: 130, isReadOnly: true },
-        { header: "الحالة", name: "due_status", width: 110, isReadOnly: true },
+        { header: tr("رقم الشيك"), name: "cheq_num", width: 150, isReadOnly: true },
+        { header: tr("العميل"), name: "customer_name", width: '*', isReadOnly: true },
+        { header: tr("المبلغ"), name: "amount_text", width: 100, isReadOnly: true },
+        { header: tr("العملة"), name: "currency_code", width: 90, isReadOnly: true },
+        { header: tr("الاستحقاق"), name: "due_date_text", width: 130, isReadOnly: true },
+        { header: tr("الحالة"), name: "due_status", width: 110, isReadOnly: true },
     ]
 }
 
@@ -75,10 +76,10 @@ function ChequeSearch({ open, onOpenChange, currencyId, excluded, onSelect }: { 
             const response = await fetch(`/api/cheques?${params}`, { cache: "no-store", signal: controller.signal })
             const data = await response.json()
             if (controller.signal.aborted) return
-            if (!response.ok) throw new Error(data.error || "تعذر تحميل الشيكات")
+            if (!response.ok) throw new Error(data.error || tr("تعذر تحميل الشيكات"))
             setRows(data.rows || [])
         } catch (reason) {
-            if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "تعذر تحميل الشيكات")
+            if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : tr("تعذر تحميل الشيكات"))
         } finally {
             if (!controller.signal.aborted) setLoading(false)
         }
@@ -89,14 +90,14 @@ function ChequeSearch({ open, onOpenChange, currencyId, excluded, onSelect }: { 
     // تُفتح فوق نافذة المتصفح كاملة (ثابتة ومتوسطة) لا داخل منطقة التبويب — نفس نمط نافذة عنوان الشحن.
     // داخل التبويب كانت تتموضع خطأً (تبدأ من منتصفه وتخرج يميناً) وتزيح صفحة السند جانبياً.
     return <WorkspaceDialogProvider container={null} confined={false}><Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent dir="rtl" onPointerDownOutside={event => event.preventDefault()} onInteractOutside={event => event.preventDefault()} className="cheque-search-dialog z-[3001] flex max-h-[88dvh] w-[min(1024px,calc(100vw-1.5rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0">
-            <DialogHeader className="cheque-page-header bg-gradient-to-l from-emerald-700 to-teal-600 p-5 text-white"><DialogTitle>بحث الشيكات الواردة</DialogTitle><DialogDescription className="text-emerald-50">اختر شيكًا واحدًا أو عدة شيكات من نفس العملة.</DialogDescription></DialogHeader>
+        <DialogContent dir={appDir()} onPointerDownOutside={event => event.preventDefault()} onInteractOutside={event => event.preventDefault()} className="cheque-search-dialog z-[3001] flex max-h-[88dvh] w-[min(1024px,calc(100vw-1.5rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0">
+            <DialogHeader className="cheque-page-header bg-gradient-to-l from-emerald-700 to-teal-600 p-5 text-white"><DialogTitle>{tr("بحث الشيكات الواردة")}</DialogTitle><DialogDescription className="text-emerald-50">{tr("اختر شيكًا واحدًا أو عدة شيكات من نفس العملة.")}</DialogDescription></DialogHeader>
             <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
                 {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
-                <div className="flex gap-2"><Input value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} placeholder="رقم الشيك، العميل أو البنك..." autoFocus /><Button size="icon" onClick={() => void load()} aria-label="بحث"><Search className="h-4 w-4" /></Button></div>
-                <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSelected(new Set(rows.map(idOf)))} disabled={!rows.length || loading}><CheckCheck className="ml-1 h-4 w-4" />اختيار الكل</Button><Button size="sm" variant="outline" onClick={() => setSelected(new Set())} disabled={!selected.size}><X className="ml-1 h-4 w-4" />إلغاء اختيار الكل</Button><span className="self-center text-xs text-slate-500">تم اختيار {selected.size} شيكات</span></div>
-                <div className="min-h-0 flex-1 overflow-auto rounded-xl border"><table className="w-full min-w-[720px] text-sm"><thead className="sticky top-0 bg-emerald-50"><tr><th className="p-3"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map(idOf)))} aria-label="اختيار الكل" /></th>{["رقم الشيك", "العميل", "المبلغ", "العملة", "الاستحقاق", "البنك والفرع", "الحالة"].map(label => <th key={label} className="p-3 text-right text-xs">{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={idOf(row)} onClick={() => toggle(row)} className={`cursor-pointer border-b ${selected.has(idOf(row)) ? "bg-emerald-50" : ""}`}><td className="p-3"><input type="checkbox" checked={selected.has(idOf(row))} onChange={() => toggle(row)} onClick={event => event.stopPropagation()} aria-label={row.cheq_num} /></td><td className="p-3 font-mono font-bold">{row.cheq_num}</td><td className="p-3">{row.customer_name || "—"}<small className="block text-slate-400">{row.customer_code || ""}</small></td><td className="p-3 font-bold text-emerald-700">{money(row.amount)}</td><td className="p-3">{row.currency_code || "—"}</td><td className="p-3">{String(row.due_date || "").slice(0, 10) || "—"}</td><td className="p-3">{row.bank_name || "—"}<small className="block text-slate-400">{row.branch_name || ""}</small></td><td className="p-3"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold">{row.status_name || "—"}</span></td></tr>)}</tbody></table>{loading && <p className="p-8 text-center">جاري التحميل...</p>}</div>
-                <div className="flex justify-end gap-2 border-t pt-3"><Button onClick={() => onSelect(rows.filter(row => selected.has(idOf(row))))} disabled={!selected.size}>اختيار المحدد</Button><Button variant="outline" onClick={() => onOpenChange(false)}>إغلاق</Button></div>
+                <div className="flex gap-2"><Input value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} placeholder={tr("رقم الشيك، العميل أو البنك...")} autoFocus /><Button size="icon" onClick={() => void load()} aria-label={tr("بحث")}><Search className="h-4 w-4" /></Button></div>
+                <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => setSelected(new Set(rows.map(idOf)))} disabled={!rows.length || loading}><CheckCheck className="ml-1 h-4 w-4" />{tr("اختيار الكل")}</Button><Button size="sm" variant="outline" onClick={() => setSelected(new Set())} disabled={!selected.size}><X className="ml-1 h-4 w-4" />{tr("إلغاء اختيار الكل")}</Button><span className="self-center text-xs text-slate-500">{tr("تم اختيار ")}{selected.size}{tr(" شيكات")}</span></div>
+                <div className="min-h-0 flex-1 overflow-auto rounded-xl border"><table className="w-full min-w-[720px] text-sm"><thead className="sticky top-0 bg-emerald-50"><tr><th className="p-3"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map(idOf)))} aria-label={tr("اختيار الكل")} /></th>{["رقم الشيك", "العميل", "المبلغ", "العملة", "الاستحقاق", "البنك والفرع", "الحالة"].map(label => <th key={label} className="p-3 text-start text-xs">{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={idOf(row)} onClick={() => toggle(row)} className={`cursor-pointer border-b ${selected.has(idOf(row)) ? "bg-emerald-50" : ""}`}><td className="p-3"><input type="checkbox" checked={selected.has(idOf(row))} onChange={() => toggle(row)} onClick={event => event.stopPropagation()} aria-label={row.cheq_num} /></td><td className="p-3 font-mono font-bold">{row.cheq_num}</td><td className="p-3">{row.customer_name || "—"}<small className="block text-slate-400">{row.customer_code || ""}</small></td><td className="p-3 font-bold text-emerald-700">{money(row.amount)}</td><td className="p-3">{row.currency_code || "—"}</td><td className="p-3">{String(row.due_date || "").slice(0, 10) || "—"}</td><td className="p-3">{row.bank_name || "—"}<small className="block text-slate-400">{row.branch_name || ""}</small></td><td className="p-3"><span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold">{row.status_name || "—"}</span></td></tr>)}</tbody></table>{loading && <p className="p-8 text-center">{tr("جاري التحميل...")}</p>}</div>
+                <div className="flex justify-end gap-2 border-t pt-3"><Button onClick={() => onSelect(rows.filter(row => selected.has(idOf(row))))} disabled={!selected.size}>{tr("اختيار المحدد")}</Button><Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إغلاق")}</Button></div>
             </div>
         </DialogContent>
     </Dialog></WorkspaceDialogProvider>
@@ -112,8 +113,8 @@ export default function UnifiedChequePaymentVoucher() {
     // بحث السندات (زر بجانب رقم السند) — اختيار سند يعرضه مباشرة
     const [voucherSearchOpen, setVoucherSearchOpen] = useState(false)
     const [rows, setRows] = useState<Voucher[]>([]), [meta, setMeta] = useState<Meta>(emptyMeta), [voucherBooks, setVoucherBooks] = useState<VoucherBook[]>([]), [defaultBookId, setDefaultBookId] = useState<number | null>(null), [form, setForm] = useState<Voucher>(emptyForm), [dialogOpen, setDialogOpen] = useState(false), [searchOpen, setSearchOpen] = useState(false), [loading, setLoading] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(""), [deleteConfirm, setDeleteConfirm] = useState(false), [currentIndex, setCurrentIndex] = useState(0)
-    const load = async () => { setLoading(true); try { const response = await fetch("/api/cheque-payment-vouchers", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setRows(data.rows || []); setMeta(data.meta || emptyMeta) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر التحميل") } finally { setLoading(false) } }
-    const loadBooks = async () => { try { const query = user?.id ? `?vch_type=21&user_id=${encodeURIComponent(user.id)}` : "?vch_type=21"; const response = await fetch(`/api/receipts/voucher-books${query}`); const data = await response.json(); if (!response.ok) throw new Error(data.error || "تعذر تحميل دفاتر السندات"); const books = Array.isArray(data.books) ? data.books : []; setVoucherBooks(books); setDefaultBookId(data.default_book_id || books[0]?.id || null); if (!books.length) setError("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات") } catch (reason) { setVoucherBooks([]); setDefaultBookId(null); setError(reason instanceof Error ? reason.message : "تعذر تحميل دفاتر السندات") } }
+    const load = async () => { setLoading(true); try { const response = await fetch("/api/cheque-payment-vouchers", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setRows(data.rows || []); setMeta(data.meta || emptyMeta) } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر التحميل")) } finally { setLoading(false) } }
+    const loadBooks = async () => { try { const query = user?.id ? `?vch_type=21&user_id=${encodeURIComponent(user.id)}` : "?vch_type=21"; const response = await fetch(`/api/receipts/voucher-books${query}`); const data = await response.json(); if (!response.ok) throw new Error(data.error || tr("تعذر تحميل دفاتر السندات")); const books = Array.isArray(data.books) ? data.books : []; setVoucherBooks(books); setDefaultBookId(data.default_book_id || books[0]?.id || null); if (!books.length) setError(tr("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات")) } catch (reason) { setVoucherBooks([]); setDefaultBookId(null); setError(reason instanceof Error ? reason.message : tr("تعذر تحميل دفاتر السندات")) } }
     useEffect(() => { void load(); void loadBooks() }, [user?.id])
     // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة يتولاها UniversalToolbar (lib/hotkeys.ts)
 
@@ -126,8 +127,8 @@ export default function UnifiedChequePaymentVoucher() {
         if (hasUnsavedChanges()) { setCloseConfirm(true); return }
         setDialogOpen(false)
     }
-    const openRecord = async (id: number) => { setLoading(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${id}`); const data = await response.json(); if (!response.ok) throw new Error(data.error); setForm({ ...data, cheques: data.cheques || [] }); setCurrentIndex(Math.max(0, rows.findIndex(row => Number(row.id) === id))); setDialogOpen(true) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر عرض السند") } finally { setLoading(false) } }
-    const generateCode = async (bookId: number, branchId: number | null = null) => { try { const response = await fetch(`/api/cheque-payment-vouchers/generate-number?vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`); const data = await response.json(); if (!response.ok || !data.code) { setError(data.error || "تعذر توليد رقم السند"); return } setForm(current => ({ ...current, vch_book_id: bookId, vch_code: data.code })) } catch { setError("تعذر توليد رقم السند") } }
+    const openRecord = async (id: number) => { setLoading(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${id}`); const data = await response.json(); if (!response.ok) throw new Error(data.error); setForm({ ...data, cheques: data.cheques || [] }); setCurrentIndex(Math.max(0, rows.findIndex(row => Number(row.id) === id))); setDialogOpen(true) } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر عرض السند")) } finally { setLoading(false) } }
+    const generateCode = async (bookId: number, branchId: number | null = null) => { try { const response = await fetch(`/api/cheque-payment-vouchers/generate-number?vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`); const data = await response.json(); if (!response.ok || !data.code) { setError(data.error || tr("تعذر توليد رقم السند")); return } setForm(current => ({ ...current, vch_book_id: bookId, vch_code: data.code })) } catch { setError(tr("تعذر توليد رقم السند")) } }
     const handleBookChange = (value: number | null) => { setForm(current => ({ ...current, vch_book_id: value, vch_code: "" })); if (value && !form.id) void generateCode(value, form.branch_id) }
     // التركيز على تاريخ السند عند فتح الشاشة وعند "جديد" — يُعاد المحاولة لحظياً حتى يُرسم الحقل مفعّلاً (سجل جديد)
     const focusDate = () => {
@@ -139,7 +140,7 @@ export default function UnifiedChequePaymentVoucher() {
         }
         window.setTimeout(tryFocus, 0)
     }
-    const newRecord = async () => { setError(""); focusDate(); const bookId = defaultBookId || voucherBooks[0]?.id || null; setForm({ ...emptyForm, vch_date: today(), vch_book_id: bookId, branch_id: meta.branches[0]?.id || null }); setCurrentIndex(rows.length); setDialogOpen(true); if (!bookId) { setError("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات"); return } await generateCode(bookId, meta.branches[0]?.id || null) }
+    const newRecord = async () => { setError(""); focusDate(); const bookId = defaultBookId || voucherBooks[0]?.id || null; setForm({ ...emptyForm, vch_date: today(), vch_book_id: bookId, branch_id: meta.branches[0]?.id || null }); setCurrentIndex(rows.length); setDialogOpen(true); if (!bookId) { setError(tr("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات")); return } await generateCode(bookId, meta.branches[0]?.id || null) }
     useVoucherDeepLink(openRecord, true, 21)
     const navigationPending = useRef(false)
     const navigate = async (direction: "first" | "previous" | "next" | "last") => {
@@ -151,18 +152,18 @@ export default function UnifiedChequePaymentVoucher() {
             const query = new URLSearchParams({ direction, currentId: String(form.id || 0), vch_type: "21" })
             const response = await fetch("/api/transaction-navigation?" + query, { cache: "no-store" })
             const record = await response.json()
-            if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين السندات")
+            if (!response.ok) throw new Error(record?.error || tr("تعذر التنقل بين السندات"))
             if (record?.id) await openRecord(Number(record.id))
         } catch (reason) {
-            setError(reason instanceof Error ? reason.message : "تعذر التنقل بين السندات")
+            setError(reason instanceof Error ? reason.message : tr("تعذر التنقل بين السندات"))
         } finally {
             navigationPending.current = false
             setLoading(false)
         }
     }
-    const handleCodeBlur = async () => { const raw = form.vch_code.trim().toUpperCase(); if (!raw) return; try { const query = new URLSearchParams({ raw }); if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id)); if ((form as any).branch_id) query.set("branch_id", String((form as any).branch_id)); const response = await fetch(`/api/cheque-payment-vouchers/resolve-code?${query}`); const data = await response.json(); if (!response.ok) { setError(data.error || "رقم السند غير صحيح"); return } setForm(current => ({ ...current, vch_code: data.code || raw })); if (data.exists && Number(data.id) !== Number(form.id)) void openRecord(Number(data.id)) } catch { setError("تعذر تحديد رقم السند") } }
+    const handleCodeBlur = async () => { const raw = form.vch_code.trim().toUpperCase(); if (!raw) return; try { const query = new URLSearchParams({ raw }); if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id)); if ((form as any).branch_id) query.set("branch_id", String((form as any).branch_id)); const response = await fetch(`/api/cheque-payment-vouchers/resolve-code?${query}`); const data = await response.json(); if (!response.ok) { setError(data.error || tr("رقم السند غير صحيح")); return } setForm(current => ({ ...current, vch_code: data.code || raw })); if (data.exists && Number(data.id) !== Number(form.id)) void openRecord(Number(data.id)) } catch { setError(tr("تعذر تحديد رقم السند")) } }
     const selectedIds = (form.cheques || []).map(idOf)
-    const chooseCheques = (selected: Cheque[]) => { const currencies = new Set(selected.map(row => Number(row.currency_id))); if (currencies.size > 1) { setError("يجب اختيار شيكات من نفس العملة"); return } setForm(current => ({ ...current, currency_id: current.currency_id || Number(selected[0]?.currency_id) || null, cheques: [...current.cheques, ...selected.filter(row => !selectedIds.includes(idOf(row)))] })); setSearchOpen(false) }
+    const chooseCheques = (selected: Cheque[]) => { const currencies = new Set(selected.map(row => Number(row.currency_id))); if (currencies.size > 1) { setError(tr("يجب اختيار شيكات من نفس العملة")); return } setForm(current => ({ ...current, currency_id: current.currency_id || Number(selected[0]?.currency_id) || null, cheques: [...current.cheques, ...selected.filter(row => !selectedIds.includes(idOf(row)))] })); setSearchOpen(false) }
     // التحقق قبل نافذة خيارات الحفظ (حفظ / حفظ وطباعة / حفظ وترحيل) — لا تُفتح النافذة والسند ناقص
     const missingFields = () => [
         !form.vch_book_id && "دفتر السندات",
@@ -173,13 +174,13 @@ export default function UnifiedChequePaymentVoucher() {
     const requestSave = () => {
         if (savingRef.current || form.status !== 1) return
         const missing = missingFields()
-        if (missing.length) { setError(`يجب تحديد: ${missing.join("، ")}`); return }
+        if (missing.length) { setError(tr("يجب تحديد: {0}", missing.join("، "))); return }
         setError("")
         setPostDialogOpen(true)
     }
-    const save = async (action: PostVoucherAction) => { if (savingRef.current || form.status !== 1) return; setPostDialogOpen(false); const missing = missingFields(); if (missing.length) { setError(`يجب تحديد: ${missing.join("، ")}`); return } savingRef.current = true; setSaving(true); setError(""); try { const response = await fetch(form.id ? `/api/cheque-payment-vouchers/${form.id}` : "/api/cheque-payment-vouchers", { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, action, cheque_ids: form.cheques.map(idOf) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (action === "save_print" || action === "post_print") setPrintData({title:"سند صرف شيكات",copyLabel:action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",vch_code:data.vch_code,vch_date:data.vch_date,currency_name:data.currency_name,amount:Number(data.amount),note:data.note,rows:[{account_code:data.account_code,account_name:data.account_name,debit:Number(data.amount)},...(data.cheques || []).map((row:any)=>({account_name:row.customer_name,credit:Number(row.amount),note:row.cheq_num}))]}); setPostDialogOpen(false); announceSaved(); await load(); await newRecord() } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر حفظ السند") } finally { savingRef.current = false; setSaving(false) } }
+    const save = async (action: PostVoucherAction) => { if (savingRef.current || form.status !== 1) return; setPostDialogOpen(false); const missing = missingFields(); if (missing.length) { setError(tr("يجب تحديد: {0}", missing.join("، "))); return } savingRef.current = true; setSaving(true); setError(""); try { const response = await fetch(form.id ? `/api/cheque-payment-vouchers/${form.id}` : "/api/cheque-payment-vouchers", { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, action, cheque_ids: form.cheques.map(idOf) }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); if (action === "save_print" || action === "post_print") setPrintData({title:tr("سند صرف شيكات"),copyLabel:action === "post_print" ? tr("نسخة اصلية") : tr("نسخة للتدقيق"),vch_code:data.vch_code,vch_date:data.vch_date,currency_name:data.currency_name,amount:Number(data.amount),note:data.note,rows:[{account_code:data.account_code,account_name:data.account_name,debit:Number(data.amount)},...(data.cheques || []).map((row:any)=>({account_name:row.customer_name,credit:Number(row.amount),note:row.cheq_num}))]}); setPostDialogOpen(false); announceSaved(); await load(); await newRecord() } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر حفظ السند")) } finally { savingRef.current = false; setSaving(false) } }
     const remove = () => { if (form.id) setDeleteConfirm(true) }
-    const confirmDelete = async () => { if (savingRef.current) return; savingRef.current = true; setDeleteConfirm(false); setSaving(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${form.id}`, { method: "DELETE" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setDialogOpen(false); await load() } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر حذف السند") } finally { savingRef.current = false; setSaving(false) } }
+    const confirmDelete = async () => { if (savingRef.current) return; savingRef.current = true; setDeleteConfirm(false); setSaving(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${form.id}`, { method: "DELETE" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setDialogOpen(false); await load() } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر حذف السند")) } finally { savingRef.current = false; setSaving(false) } }
     const gridRows = form.cheques.map((row, index) => ({ ...row, number: index + 1, amount_text: money(row.amount), due_date_text: String(row.due_date || "").slice(0, 10), due_status: row.status_name || "—" }))
     const total = form.cheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
     const currency = meta.currencies.find(row => Number(row.id) === Number(form.currency_id))
@@ -187,12 +188,12 @@ export default function UnifiedChequePaymentVoucher() {
     const messagesRef = useRef<any>(null)
     useTransactionSuccessMessages(messagesRef)
     const announceSaved = useAnnounceTransactionSaved()
-    const statusLabel = !form.id ? "سند جديد" : Number(form.status) === 2 ? "معتمد" : Number(form.status) === 3 ? "ملغي" : "محفوظ"
+    const statusLabel = !form.id ? tr("سند جديد") : Number(form.status) === 2 ? tr("معتمد") : Number(form.status) === 3 ? tr("ملغي") : tr("محفوظ")
     const chequeScheme = {
         ...gridScheme,
         columns: [...gridScheme.columns, ...(!form.id ? [{
-            header: "حذف", name: "delete", width: 75, isReadOnly: true,
-            buttonBody: "button", buttonLabel: "حذف", className: "danger",
+            header: tr("حذف"), name: "delete", width: 75, isReadOnly: true,
+            buttonBody: "button", buttonLabel: tr("حذف"), className: "danger",
             onClick: (_event: any, context: any) => setForm(current => ({
                 ...current,
                 cheques: current.cheques.filter(row => idOf(row) !== idOf(context.item ?? context.row.dataItem)),
@@ -201,24 +202,24 @@ export default function UnifiedChequePaymentVoucher() {
     }
 
     return (
-        <main dir="rtl" className="voucher-list-page min-h-full space-y-5 bg-slate-50 p-3 sm:p-5">
+        <main dir={appDir()} className="voucher-list-page min-h-full space-y-5 bg-slate-50 p-3 sm:p-5">
             {/* نفس رأس صفحات الحركات: زر الإضافة يحمل data-hotkey-new ⇐ F5 يفتح سنداً جديداً */}
-            <VoucherListHero icon={FileCheck2} title="سندات صرف الشيكات" subtitle="صرف الشيكات الواردة للمستفيدين بسند مستقل" addLabel="إضافة سند صرف شيكات" onNew={() => void newRecord()} addDisabled={loading || saving} />
+            <VoucherListHero icon={FileCheck2} title={tr("سندات صرف الشيكات")} subtitle={tr("صرف الشيكات الواردة للمستفيدين بسند مستقل")} addLabel={tr("إضافة سند صرف شيكات")} onNew={() => void newRecord()} addDisabled={loading || saving} />
             <VoucherStats stats={[
-                { label: "إجمالي سندات صرف الشيكات", value: rows.length },
-                { label: "سندات هذا الشهر", value: rows.filter(row => String(row.vch_date || "").slice(0, 7) === new Date().toISOString().slice(0, 7)).length },
-                { label: "إجمالي المبالغ", value: money(rows.reduce((sum, row) => sum + Number(row.amount || 0), 0)) },
-                { label: "متوسط قيمة السند", value: money(rows.length ? rows.reduce((sum, row) => sum + Number(row.amount || 0), 0) / rows.length : 0) },
+                { label: tr("إجمالي سندات صرف الشيكات"), value: rows.length },
+                { label: tr("سندات هذا الشهر"), value: rows.filter(row => String(row.vch_date || "").slice(0, 7) === new Date().toISOString().slice(0, 7)).length },
+                { label: tr("إجمالي المبالغ"), value: money(rows.reduce((sum, row) => sum + Number(row.amount || 0), 0)) },
+                { label: tr("متوسط قيمة السند"), value: money(rows.length ? rows.reduce((sum, row) => sum + Number(row.amount || 0), 0) / rows.length : 0) },
             ]} />
             {!dialogOpen && error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-emerald-100 bg-gradient-to-l from-emerald-50 to-white px-5 py-4"><h2 className="font-bold text-emerald-900">سندات صرف الشيكات</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{loading ? "جاري التحميل..." : `${rows.length} سند`}</span></div>
+                <div className="flex items-center justify-between gap-3 border-b border-emerald-100 bg-gradient-to-l from-emerald-50 to-white px-5 py-4"><h2 className="font-bold text-emerald-900">{tr("سندات صرف الشيكات")}</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">{loading ? tr("جاري التحميل...") : tr("{0} سند", rows.length)}</span></div>
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[700px] text-sm">
-                        <thead className="bg-slate-50 text-slate-500"><tr>{["رقم السند", "التاريخ", "حساب المستفيد", "الإجمالي", "حالة السند", ""].map((label, index) => <th key={index} className="px-5 py-3 text-right text-xs font-semibold">{label}</th>)}</tr></thead>
-                        <tbody>{rows.map(row => <tr key={row.id} title="انقر نقراً مزدوجاً لفتح السند" onDoubleClick={() => { if (!loading && !saving) void openRecord(Number(row.id)) }} className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-emerald-50/40">
-                            <td className="px-5 py-4 font-mono font-bold text-emerald-800">{row.vch_code}</td><td className="px-5 py-4">{String(row.vch_date).slice(0, 10)}</td><td className="px-5 py-4">{row.account_name || "—"}</td><td className="px-5 py-4 font-semibold tabular-nums">{money(row.amount)}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${Number(row.status) === 2 ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : Number(row.status) === 3 ? "bg-red-600 text-white ring-red-700" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>{voucherStatusLabel(row.status) || "—"}</span></td><td className="px-5 py-4 text-left"><Button size="sm" variant="outline" className="rounded-lg" disabled={loading || saving} onClick={() => void openRecord(Number(row.id))}>عرض السند</Button></td>
-                        </tr>)}{!loading && !rows.length && <tr><td colSpan={6} className="px-5 py-14 text-center text-slate-500">لا توجد سندات صرف شيكات لعرضها</td></tr>}</tbody>
+                        <thead className="bg-slate-50 text-slate-500"><tr>{["رقم السند", "التاريخ", "حساب المستفيد", "الإجمالي", "حالة السند", ""].map((label, index) => <th key={index} className="px-5 py-3 text-start text-xs font-semibold">{label}</th>)}</tr></thead>
+                        <tbody>{rows.map(row => <tr key={row.id} title={tr("انقر نقراً مزدوجاً لفتح السند")} onDoubleClick={() => { if (!loading && !saving) void openRecord(Number(row.id)) }} className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-emerald-50/40">
+                            <td className="px-5 py-4 font-mono font-bold text-emerald-800">{row.vch_code}</td><td className="px-5 py-4">{String(row.vch_date).slice(0, 10)}</td><td className="px-5 py-4">{row.account_name || "—"}</td><td className="px-5 py-4 font-semibold tabular-nums">{money(row.amount)}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${Number(row.status) === 2 ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : Number(row.status) === 3 ? "bg-red-600 text-white ring-red-700" : "bg-amber-50 text-amber-700 ring-amber-200"}`}>{voucherStatusLabel(row.status) || "—"}</span></td><td className="px-5 py-4 text-end"><Button size="sm" variant="outline" className="rounded-lg" disabled={loading || saving} onClick={() => void openRecord(Number(row.id))}>{tr("عرض السند")}</Button></td>
+                        </tr>)}{!loading && !rows.length && <tr><td colSpan={6} className="px-5 py-14 text-center text-slate-500">{tr("لا توجد سندات صرف شيكات لعرضها")}</td></tr>}</tbody>
                     </table>
                 </div>
             </section>
@@ -233,20 +234,20 @@ export default function UnifiedChequePaymentVoucher() {
                     onPointerDownOutside={event => event.preventDefault()}
                     onInteractOutside={event => event.preventDefault()}
                     onEscapeKeyDown={event => { keepDialogOpenOnEscape(event, [closeConfirm, deleteConfirm, postDialogOpen, searchOpen, voucherSearchOpen, saving]) }}
-                    dir="rtl"
+                    dir={appDir()}
                     className={`cheque-payment-editor flex h-[94dvh] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[1360px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-slate-50 p-0 ${fullscreenEnabled ? "rounded-none" : ""}`}
                 >
                     {/* شريط الأدوات أعلى النافذة كبقية شاشات الحركات، وزر الإغلاق عائم أعلى اليسار */}
-                    <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] h-10 w-10 rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 hover:opacity-80"><X className="h-5 w-5" /></Button>
+                    <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label={tr("إغلاق سند صرف الشيكات")} className="universal-dialog-close absolute end-[14px] top-[10px] z-[100] h-10 w-10 rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 hover:opacity-80"><X className="h-5 w-5" /></Button>
                     <div className="shrink-0">
                         <UniversalToolbar showUtilityLabels currentRecord={form.id ? rows.length - Math.max(0, rows.findIndex(row => Number(row.id) === Number(form.id))) : rows.length + 1} totalRecords={rows.length} isFirstRecord={!!form.id && !rows.some(row => Number(row.id) < Number(form.id))} isLastRecord={!!form.id && !rows.some(row => Number(row.id) > Number(form.id))} onNew={newRecord} onSave={requestSave} onDelete={form.id ? remove : undefined} onFirst={() => navigate("first")} onPrevious={() => navigate("previous")} onNext={() => navigate("next")} onLast={() => navigate("last")} isLoading={loading} isSaving={saving} canSave={form.status === 1} canDelete={!!form.id} isNewRecord={!form.id} hotkeys={{ new: !form.id && !saving && !loading ? () => setSearchOpen(true) : null }} labels={{ new: "جديد", save: "حفظ", previous: "السابق", next: "التالي", first: "الأول", last: "الأخير", delete: "حذف", report: "استعلام", exportExcel: "تصدير إكسل", print: "طباعة", clone: "نسخ" }} />
                     </div>
                     <div className="shrink-0 px-2 pt-3 sm:px-6">
-                        <DialogHeader className="overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-right shadow-lg">
+                        <DialogHeader className="overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-start shadow-lg">
                             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
-                                <FileCheck2 className="h-5 w-5" />سند صرف شيكات
-                                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.id ? form.vch_code : "مسودة"}</span>
-                                <span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-white/70" : "rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-semibold text-amber-50 ring-1 ring-amber-200/40"}>{Number(form.status) === 3 ? "ملغي منطقياً" : statusLabel}</span>
+                                <FileCheck2 className="h-5 w-5" />{tr("سند صرف شيكات")}
+                                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.id ? form.vch_code : tr("مسودة")}</span>
+                                <span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-white/70" : "rounded-full bg-amber-400/20 px-2.5 py-0.5 text-xs font-semibold text-amber-50 ring-1 ring-amber-200/40"}>{Number(form.status) === 3 ? tr("ملغي منطقياً") : statusLabel}</span>
                             </DialogTitle>
                         </DialogHeader>
                     </div>
@@ -254,64 +255,64 @@ export default function UnifiedChequePaymentVoucher() {
                         <Messages innerRef={messagesRef} />
                         {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
                         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                            <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800"><BookOpen className="h-4 w-4 text-emerald-600" />بيانات السند</h3>
+                            <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800"><BookOpen className="h-4 w-4 text-emerald-600" />{tr("بيانات السند")}</h3>
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-book">دفتر السندات *</Label><FocusDropdown inputId="cheque-payment-book" value={form.vch_book_id} options={voucherBooks} optionLabel="name" optionValue="id" filter disabled={!!form.id || saving} placeholder="اختر دفتر السندات" className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo="self" onChange={event => handleBookChange(event.value ?? null)} /></div>
-                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-code">رقم السند</Label><div className="flex min-w-0 items-center gap-1.5"><Input id="cheque-payment-code" dir="ltr" className="h-11 rounded-xl text-right font-mono" value={form.vch_code} disabled={saving} onChange={event => setForm({ ...form, vch_code: event.target.value.toUpperCase() })} onBlur={handleCodeBlur} /><VoucherSearchButton onClick={() => setVoucherSearchOpen(true)} /></div></div>
-                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-date">تاريخ السند</Label><Input id="cheque-payment-date" className="h-11 rounded-xl" type="date" value={String(form.vch_date).slice(0, 10)} disabled={!!form.id || saving} onChange={event => setForm({ ...form, vch_date: event.target.value })} /></div>
-                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-branch">الفرع</Label><Select value={form.branch_id ? String(form.branch_id) : "none"} disabled={!!form.id || saving} onValueChange={value => { const branchId = Number(value); setForm({ ...form, branch_id: branchId }); if (!form.id && form.vch_book_id) void generateCode(form.vch_book_id, branchId) }}><SelectTrigger id="cheque-payment-branch" className="h-11 rounded-xl"><SelectValue placeholder="اختر الفرع" /></SelectTrigger><SelectContent>{meta.branches.map(branch => <SelectItem key={branch.id} value={String(branch.id)}>{branch.branch_code} - {branch.branch_name}</SelectItem>)}</SelectContent></Select></div>
+                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-book">{tr("دفتر السندات *")}</Label><FocusDropdown inputId="cheque-payment-book" value={form.vch_book_id} options={voucherBooks} optionLabel="name" optionValue="id" filter disabled={!!form.id || saving} placeholder={tr("اختر دفتر السندات")} className="invoice-currency-dropdown w-full" panelClassName="invoice-currency-dropdown-panel" appendTo="self" onChange={event => handleBookChange(event.value ?? null)} /></div>
+                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-code">{tr("رقم السند")}</Label><div className="flex min-w-0 items-center gap-1.5"><Input id="cheque-payment-code" dir="ltr" className="h-11 rounded-xl text-start font-mono" value={form.vch_code} disabled={saving} onChange={event => setForm({ ...form, vch_code: event.target.value.toUpperCase() })} onBlur={handleCodeBlur} /><VoucherSearchButton onClick={() => setVoucherSearchOpen(true)} /></div></div>
+                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-date">{tr("تاريخ السند")}</Label><Input id="cheque-payment-date" className="h-11 rounded-xl" type="date" value={String(form.vch_date).slice(0, 10)} disabled={!!form.id || saving} onChange={event => setForm({ ...form, vch_date: event.target.value })} /></div>
+                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-branch">{tr("الفرع")}</Label><Select value={form.branch_id ? String(form.branch_id) : "none"} disabled={!!form.id || saving} onValueChange={value => { const branchId = Number(value); setForm({ ...form, branch_id: branchId }); if (!form.id && form.vch_book_id) void generateCode(form.vch_book_id, branchId) }}><SelectTrigger id="cheque-payment-branch" className="h-11 rounded-xl"><SelectValue placeholder={tr("اختر الفرع")} /></SelectTrigger><SelectContent>{meta.branches.map(branch => <SelectItem key={branch.id} value={String(branch.id)}>{branch.branch_code} - {branch.branch_name}</SelectItem>)}</SelectContent></Select></div>
                             </div>
                             <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 lg:grid-cols-[2fr_1fr_2fr]">
                                 <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                                    label="حساب المستفيد *"
+                                    label={tr("حساب المستفيد *")}
                                     value={form.account_code || ""}
                                     onValueChange={value => setForm(current => current.account_code === value ? current : ({ ...current, account_code: value, account_id: null, account_name: "" }))}
                                     onAccountSelect={account => setForm(current => account ? ({ ...current, account_id: account.id, account_code: account.code, account_name: account.name }) : ({ ...current, account_id: null, account_name: "" }))}
-                                    placeholder="أدخل رقم الحساب أو افتح البحث"
+                                    placeholder={tr("أدخل رقم الحساب أو افتح البحث")}
                                     showCostCenterButton={false}
                                     showCostCenterDialog={false}
-                                    notFoundMessage="الحساب غير موجود أو أنه حساب محاسبي — اختر عميلاً أو مورداً أو مشتركاً"
+                                    notFoundMessage={tr("الحساب غير موجود أو أنه حساب محاسبي — اختر عميلاً أو مورداً أو مشتركاً")}
                                     disabled={!!form.id || saving}
                                     inputClassName="h-11 rounded-xl"
                                     requiredTypeValues={[2, 3, 5]}
                                 />
                                 <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${(form as any).status ?? ""}`} className="min-w-0 space-y-2" inputClassName="h-11 rounded-xl bg-slate-50" />
-                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-note">الملاحظة</Label><Input id="cheque-payment-note" className="h-11 rounded-xl" placeholder="ملاحظة على السند (اختياري)" value={form.note || ""} disabled={!!form.id || saving} onChange={event => setForm({ ...form, note: event.target.value })} /></div>
+                                <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-note">{tr("الملاحظة")}</Label><Input id="cheque-payment-note" className="h-11 rounded-xl" placeholder={tr("ملاحظة على السند (اختياري)")} value={form.note || ""} disabled={!!form.id || saving} onChange={event => setForm({ ...form, note: event.target.value })} /></div>
                             </div>
                         </section>
                         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
-                                <div><div className="flex items-center gap-2"><h3 className="font-bold text-slate-800">الشيكات</h3><span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{form.cheques.length}</span></div><p className="mt-1 text-xs text-slate-500">اختر شيكًا أو عدة شيكات من نفس العملة.</p></div>
-                                {!form.id && <Button disabled={saving || loading} onClick={() => setSearchOpen(true)} className="gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800"><Search className="h-4 w-4" />بحث وإضافة شيكات<kbd className="rounded bg-white/20 px-1.5 text-[10px] font-semibold">F5</kbd></Button>}
+                                <div><div className="flex items-center gap-2"><h3 className="font-bold text-slate-800">{tr("الشيكات")}</h3><span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">{form.cheques.length}</span></div><p className="mt-1 text-xs text-slate-500">{tr("اختر شيكًا أو عدة شيكات من نفس العملة.")}</p></div>
+                                {!form.id && <Button disabled={saving || loading} onClick={() => setSearchOpen(true)} className="gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800"><Search className="h-4 w-4" />{tr("بحث وإضافة شيكات")}<kbd className="rounded bg-white/20 px-1.5 text-[10px] font-semibold">F5</kbd></Button>}
                             </div>
                             <div className="h-[320px] min-w-0 overflow-hidden sm:h-[360px]"><DataGridView dataSource={gridRows} scheme={chequeScheme} defaultRowHeight={44} containerStyle={{ height: "100%" }} style={{ height: "100%" }} /></div>
                         </section>
                     </div>
                     <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-emerald-100 bg-white px-4 py-3 sm:px-6">
-                        <div className="flex items-center gap-2 text-sm text-slate-500"><Wallet className="h-5 w-5 text-emerald-600" /><span>{form.cheques.length} شيك{currency ? ` · ${currency.currency_name}` : ""}</span></div>
-                        <div className="flex items-baseline gap-3"><span className="text-sm text-slate-500">الإجمالي</span><strong className="text-2xl font-black tabular-nums text-emerald-800">{money(total)}</strong>{currency && <span className="text-sm font-semibold text-emerald-700">{currency.currency_code}</span>}</div>
+                        <div className="flex items-center gap-2 text-sm text-slate-500"><Wallet className="h-5 w-5 text-emerald-600" /><span>{form.cheques.length}{tr(" شيك")}{currency ? ` · ${currency.currency_name}` : ""}</span></div>
+                        <div className="flex items-baseline gap-3"><span className="text-sm text-slate-500">{tr("الإجمالي")}</span><strong className="text-2xl font-black tabular-nums text-emerald-800">{money(total)}</strong>{currency && <span className="text-sm font-semibold text-emerald-700">{currency.currency_code}</span>}</div>
                     </footer>
                 </DialogContent>
             </Dialog>
-            <VoucherSearchDialog open={voucherSearchOpen} onOpenChange={setVoucherSearchOpen} vchType={21} title="سندات صرف الشيكات" accountLabel="حساب المستفيد" onSelect={(voucherId) => void openRecord(voucherId)} />
+            <VoucherSearchDialog open={voucherSearchOpen} onOpenChange={setVoucherSearchOpen} vchType={21} title={tr("سندات صرف الشيكات")} accountLabel={tr("حساب المستفيد")} onSelect={(voucherId) => void openRecord(voucherId)} />
             <ChequeSearch open={searchOpen} onOpenChange={setSearchOpen} currencyId={form.currency_id} excluded={selectedIds} onSelect={chooseCheques} />
             <PostVoucherDialog visible={postDialogOpen} isSaving={saving} onSelect={action => void save(action)} onCancel={() => setPostDialogOpen(false)} />
             <VoucherPrintLayout data={printData} voucherTypeId={21} />
             <ConfirmDialogYesNo
                 useAppDialog
                 visible={closeConfirm}
-                title="التحقق من التغييرات"
-                message="تم تعديل البيانات، هل تريد الحفظ؟"
-                confirmLabel="نعم"
-                cancelLabel="لا"
-                backLabel="رجوع"
+                title={tr("التحقق من التغييرات")}
+                message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
+                confirmLabel={tr("نعم")}
+                cancelLabel={tr("لا")}
+                backLabel={tr("رجوع")}
                 showBack
                 onConfirm={() => { setCloseConfirm(false); requestSave() }}
                 onCancel={() => { setCloseConfirm(false); setDialogOpen(false) }}
                 onBack={() => setCloseConfirm(false)}
                 onDismiss={() => setCloseConfirm(false)}
             />
-            <ConfirmDialogYesNo useAppDialog busy={saving} title="حذف سند صرف شيكات" visible={deleteConfirm} message="هل أنت متأكد من حذف سند صرف الشيكات؟" onConfirm={() => void confirmDelete()} onCancel={() => setDeleteConfirm(false)} />
+            <ConfirmDialogYesNo useAppDialog busy={saving} title={tr("حذف سند صرف شيكات")} visible={deleteConfirm} message={tr("هل أنت متأكد من حذف سند صرف الشيكات؟")} onConfirm={() => void confirmDelete()} onCancel={() => setDeleteConfirm(false)} />
         </main>
     )
 }

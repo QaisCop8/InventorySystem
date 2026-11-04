@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Search, X, CircleDollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -198,10 +199,10 @@ export default function AutoCompleteAccount({
     if (!voucherCurrency || account.currency_id == null || Number(account.currency_id) === voucherCurrency) return true
     const mode = Number(account.allow_trans_with_diff_curr || 0)
     if (mode === 2) {
-      toast({ title: "تعذر اختيار الحساب", description: `عملة الحركة تختلف عن عملة الحساب لا يمكن اختياره: ${account.code} - ${account.name}`, variant: "destructive" })
+      toast({ title: tr("تعذر اختيار الحساب"), description: tr("عملة الحركة تختلف عن عملة الحساب لا يمكن اختياره: {0} - {1}", account.code, account.name), variant: "destructive" })
       return false
     }
-    if (mode === 1) toast({ title: "تنبيه", description: `عملة الحركة تختلف عن عملة الحساب: ${account.code} - ${account.name}` })
+    if (mode === 1) toast({ title: tr("تنبيه"), description: tr("عملة الحركة تختلف عن عملة الحساب: {0} - {1}", account.code, account.name) })
     return true
   }
 
@@ -394,7 +395,7 @@ export default function AutoCompleteAccount({
       const paddedTyped = padAccountCode(typed)
       const parent = allAccountsRef.current.find((item) => padAccountCode(normalizeAccountCode(item.code)) === paddedTyped)
       if (parent && isParentAccount(parent, allAccountsRef.current)) {
-        toast({ title: "تعذر اختيار الحساب", description: `${PARENT_ACCOUNT_MESSAGE}: ${parent.code} - ${parent.name}`, variant: "destructive" })
+        toast({ title: tr("تعذر اختيار الحساب"), description: `${PARENT_ACCOUNT_MESSAGE}: ${parent.code} - ${parent.name}`, variant: "destructive" })
         typedTextRef.current = null
         onValueChange("")
         setDisplayValue("")
@@ -410,7 +411,7 @@ export default function AutoCompleteAccount({
     // requiredTypeValues: الحقل لا يقبل إلا حسابات من هذا النوع — كود غير موجود أو من نوع آخر يُرفض
     // بالكامل بدل قبوله بصمت (خلاف searchAllowedTypeValues التي تُصفّي نافذة البحث فقط).
     if (requiredTypeValues && requiredTypeValues.length > 0) {
-      toast({ title: "خطأ", description: notFoundMessage || "الحساب غير موجود", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: notFoundMessage || tr("الحساب غير موجود"), variant: "destructive" })
     }
     typedTextRef.current = null
     onValueChange("")
@@ -461,7 +462,7 @@ export default function AutoCompleteAccount({
   const showAnyAction = showSearchAction || showCostCenterAction || showClearAction
 
   return (
-    <div className={className} dir="rtl">
+    <div className={className} dir={appDir()}>
       {label && <Label className="mb-2 block text-sm font-medium">{label}</Label>}
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
@@ -501,7 +502,7 @@ export default function AutoCompleteAccount({
                 type="button"
                 role="option"
                 aria-selected="false"
-                className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-right text-sm hover:bg-slate-100 focus:bg-slate-100"
+                className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-start text-sm hover:bg-slate-100 focus:bg-slate-100"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleSelectFromSearch(account)}
               >
@@ -522,7 +523,7 @@ export default function AutoCompleteAccount({
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                 onClick={() => void handleOpenSearch()}
                 disabled={disabled}
-                title="بحث عن الحساب"
+                title={tr("بحث عن الحساب")}
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -535,7 +536,7 @@ export default function AutoCompleteAccount({
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                 onClick={handleOpenCostCenters}
                 disabled={disabled || costCenterButtonDisabled || !selectedAccount}
-                title="مراكز الكلفة"
+                title={tr("مراكز الكلفة")}
               >
                 <CircleDollarSign className="h-4 w-4" />
               </Button>
@@ -548,7 +549,7 @@ export default function AutoCompleteAccount({
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                 onClick={handleClear}
                 disabled={disabled}
-                title="مسح"
+                title={tr("مسح")}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -563,7 +564,7 @@ export default function AutoCompleteAccount({
             className="h-9 px-3 shrink-0"
             onClick={() => void handleOpenSearch()}
             disabled={disabled}
-            title="بحث عن الحساب"
+            title={tr("بحث عن الحساب")}
           >
             <Search className="h-4 w-4" />
           </Button>

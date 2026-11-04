@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Loader2, Search, ShieldCheck, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,13 +25,13 @@ export function BranchUsersDialog({ branch, onClose }: { branch: { id: number; b
     fetch(`/api/branches/${branch.id}/users`, { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json()
-        if (!response.ok) throw new Error(data.error || "تعذر تحميل المستخدمين")
+        if (!response.ok) throw new Error(data.error || tr("تعذر تحميل المستخدمين"))
         if (!active) return
         const list: BranchUser[] = data.users || []
         setUsers(list)
         setSelected(new Set(list.filter((user) => user.has_access).map((user) => user.user_id)))
       })
-      .catch((reason) => active && setError(reason instanceof Error ? reason.message : "تعذر تحميل المستخدمين"))
+      .catch((reason) => active && setError(reason instanceof Error ? reason.message : tr("تعذر تحميل المستخدمين")))
       .finally(() => active && setLoading(false))
     return () => { active = false }
   }, [branch.id])
@@ -51,43 +52,43 @@ export function BranchUsersDialog({ branch, onClose }: { branch: { id: number; b
         body: JSON.stringify({ user_ids: [...selected] }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذر حفظ الصلاحيات")
+      if (!response.ok) throw new Error(data.error || tr("تعذر حفظ الصلاحيات"))
       setSaved(true)
       setTimeout(onClose, 700)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر حفظ الصلاحيات")
+      setError(reason instanceof Error ? reason.message : tr("تعذر حفظ الصلاحيات"))
     } finally { setSaving(false) }
   }
 
   return (
-    <div className="fixed inset-0 z-[3000] grid place-items-center bg-slate-950/45 p-3" dir="rtl" onKeyDown={(event) => { if (event.key === "Escape" && !saving) onClose() }}>
-      <div role="dialog" aria-modal="true" aria-label="صلاحيات المستخدمين" className="flex max-h-[88dvh] w-[min(560px,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+    <div className="fixed inset-0 z-[3000] grid place-items-center bg-slate-950/45 p-3" dir={appDir()} onKeyDown={(event) => { if (event.key === "Escape" && !saving) onClose() }}>
+      <div role="dialog" aria-modal="true" aria-label={tr("صلاحيات المستخدمين")} className="flex max-h-[88dvh] w-[min(560px,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
         <div className="flex items-center gap-3 bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-4 text-white">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><ShieldCheck className="h-6 w-6" /></span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold">صلاحيات المستخدمين</h2>
-            <p className="truncate text-xs text-white/85">المستخدمون الذين يعملون في فرع «{branch.branch_name}»</p>
+            <h2 className="text-base font-bold">{tr("صلاحيات المستخدمين")}</h2>
+            <p className="truncate text-xs text-white/85">{tr("المستخدمون الذين يعملون في فرع «")}{branch.branch_name}»</p>
           </div>
-          <button type="button" onClick={onClose} disabled={saving} aria-label="إغلاق" className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25 hover:bg-white/25"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} disabled={saving} aria-label={tr("إغلاق")} className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25 hover:bg-white/25"><X className="h-4 w-4" /></button>
         </div>
 
         <div className="space-y-3 border-b bg-slate-50 px-4 py-3 dark:bg-slate-800/60">
           <div className="relative">
-            <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث باسم المستخدم..." className="h-10 w-full rounded-xl border border-slate-200 bg-white pr-9 pl-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900" />
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث باسم المستخدم...")} className="h-10 w-full rounded-xl border border-slate-200 bg-white ps-9 pe-3 text-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-slate-700 dark:bg-slate-900" />
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-600 dark:text-slate-300"><Users className="ml-1 inline h-3.5 w-3.5" />{selected.size} من {users.length} مستخدم</span>
+            <span className="font-semibold text-slate-600 dark:text-slate-300"><Users className="ml-1 inline h-3.5 w-3.5" />{selected.size}{tr(" من ")}{users.length}{tr(" مستخدم")}</span>
             <span className="flex gap-2">
-              <button type="button" onClick={() => setAll(true)} className="rounded-lg px-2 py-1 font-bold text-emerald-700 hover:bg-emerald-50">تحديد الكل</button>
-              <button type="button" onClick={() => setAll(false)} className="rounded-lg px-2 py-1 font-bold text-slate-600 hover:bg-slate-100">إلغاء الكل</button>
+              <button type="button" onClick={() => setAll(true)} className="rounded-lg px-2 py-1 font-bold text-emerald-700 hover:bg-emerald-50">{tr("تحديد الكل")}</button>
+              <button type="button" onClick={() => setAll(false)} className="rounded-lg px-2 py-1 font-bold text-slate-600 hover:bg-slate-100">{tr("إلغاء الكل")}</button>
             </span>
           </div>
         </div>
 
         <div className="min-h-[200px] flex-1 overflow-y-auto p-3">
           {loading ? <div className="grid h-40 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
-            : visible.length === 0 ? <div className="grid h-40 place-items-center text-sm text-slate-500">لا يوجد مستخدمون</div>
+            : visible.length === 0 ? <div className="grid h-40 place-items-center text-sm text-slate-500">{tr("لا يوجد مستخدمون")}</div>
             : (
               <div className="space-y-1.5">
                 {visible.map((user) => {
@@ -100,22 +101,22 @@ export function BranchUsersDialog({ branch, onClose }: { branch: { id: number; b
                         <b className="block truncate text-sm text-slate-900 dark:text-slate-100">{user.full_name}</b>
                         <small className="text-xs text-slate-500">{user.username}</small>
                       </span>
-                      {user.unrestricted && <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-700" title="لا يوجد قيد فروع على هذا المستخدم">كل الفروع</span>}
-                      {!user.unrestricted && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{user.branch_count} فرع</span>}
+                      {user.unrestricted && <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-700" title={tr("لا يوجد قيد فروع على هذا المستخدم")}>{tr("كل الفروع")}</span>}
+                      {!user.unrestricted && <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{user.branch_count}{tr(" فرع")}</span>}
                     </label>
                   )
                 })}
               </div>
             )}
           {error && <p role="alert" className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-          {saved && <p role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">تم حفظ صلاحيات المستخدمين</p>}
+          {saved && <p role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{tr("تم حفظ صلاحيات المستخدمين")}</p>}
         </div>
 
         <div className="flex items-center justify-center gap-2 border-t bg-white px-4 py-3 dark:bg-slate-900">
           <Button onClick={() => void save()} disabled={saving || loading || !changed} className="h-10 w-36 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700">
-            {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}حفظ
+            {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}{tr("حفظ")}
           </Button>
-          <Button variant="outline" onClick={onClose} disabled={saving} className="h-10 w-28 rounded-xl">إغلاق</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving} className="h-10 w-28 rounded-xl">{tr("إغلاق")}</Button>
         </div>
       </div>
     </div>

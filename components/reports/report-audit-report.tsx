@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Eye, FileBarChart, MessageCircle, Printer, RefreshCw, Search } from "lucide-react"
 import { ReportHeader, ReportPage } from "@/components/reports/report-page"
@@ -22,7 +23,7 @@ type Row = {
   created_at: string
 }
 
-const ACTION_LABELS: Record<string, string> = { open: "فتح التقرير", run: "عرض التقرير", print: "طباعة التقرير", pdf: "حفظ PDF", whatsapp: "إرسال واتساب" }
+const ACTION_LABELS: Record<string, string> = { open: tr("فتح التقرير"), run: tr("عرض التقرير"), print: tr("طباعة التقرير"), pdf: tr("حفظ PDF"), whatsapp: tr("إرسال واتساب") }
 const ACTION_TONES: Record<string, string> = { open: "bg-slate-100 text-slate-700", run: "bg-indigo-100 text-indigo-800", print: "bg-sky-100 text-sky-800", pdf: "bg-amber-100 text-amber-800", whatsapp: "bg-green-100 text-green-800" }
 const CHANNELS: Record<string, string> = { business_api: "إرسال مباشر", share: "مشاركة", wa_link: "رابط واتساب", download: "تنزيل" }
 const today = (offset = 0) => { const value = new Date(); value.setDate(value.getDate() + offset); return value.toISOString().slice(0, 10) }
@@ -53,12 +54,12 @@ export default function ReportAuditReport() {
       const query = new URLSearchParams({ from, to, action, report, user_id: userId, q: search })
       const response = await fetch(`/api/report-audit?${query}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(Array.isArray(data.rows) ? data.rows : [])
       setUsers(Array.isArray(data.users) ? data.users : [])
       setReports(Array.isArray(data.reports) ? data.reports : [])
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل التقرير"))
     } finally {
       setLoading(false)
     }
@@ -73,9 +74,9 @@ export default function ReportAuditReport() {
   }), [rows])
 
   return <ReportPage loading={loading}>
-    <ReportHeader title="تقرير ارشفة التقارير" icon={FileBarChart} category="الرقابة والتدقيق"
-      description="من فتح أي تقرير ومتى، وبأي فلاتر عرضه، ومن طبعه أو حفظه PDF أو أرسله بواتساب ولمن."
-      actions={<Button onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>} />
+    <ReportHeader title={tr("تقرير ارشفة التقارير")} icon={FileBarChart} category={tr("الرقابة والتدقيق")}
+      description={tr("من فتح أي تقرير ومتى، وبأي فلاتر عرضه، ومن طبعه أو حفظه PDF أو أرسله بواتساب ولمن.")}
+      actions={<Button onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>} />
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {([["فتح/عرض", totals.runs, Eye], ["طباعة", totals.prints, Printer], ["PDF / واتساب", totals.shared, MessageCircle], ["مستخدمون", totals.users, FileBarChart]] as const).map(([label, value, Icon]) =>
@@ -84,27 +85,27 @@ export default function ReportAuditReport() {
 
     <ReportFilters>
       <CardContent className="grid gap-3 p-4 md:grid-cols-3 xl:grid-cols-[150px_150px_1.3fr_1fr_1fr_1.3fr_auto] xl:items-end">
-        <div><Label htmlFor="ra-from">من تاريخ</Label><Input id="ra-from" className="mt-1" type="date" value={from} onChange={event => setFrom(event.target.value)} /></div>
-        <div><Label htmlFor="ra-to">إلى تاريخ</Label><Input id="ra-to" className="mt-1" type="date" value={to} onChange={event => setTo(event.target.value)} /></div>
-        <div><Label htmlFor="ra-report">التقرير</Label>
+        <div><Label htmlFor="ra-from">{tr("من تاريخ")}</Label><Input id="ra-from" className="mt-1" type="date" value={from} onChange={event => setFrom(event.target.value)} /></div>
+        <div><Label htmlFor="ra-to">{tr("إلى تاريخ")}</Label><Input id="ra-to" className="mt-1" type="date" value={to} onChange={event => setTo(event.target.value)} /></div>
+        <div><Label htmlFor="ra-report">{tr("التقرير")}</Label>
           <select id="ra-report" className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={report} onChange={event => setReport(event.target.value)}>
-            <option value="">الكل</option>
+            <option value="">{tr("الكل")}</option>
             {reports.map(item => <option key={item.report_key} value={item.report_key}>{item.report_title || item.report_key}</option>)}
           </select></div>
-        <div><Label htmlFor="ra-action">العملية</Label>
+        <div><Label htmlFor="ra-action">{tr("العملية")}</Label>
           <select id="ra-action" className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={action} onChange={event => setAction(event.target.value)}>
-            <option value="">الكل</option>
+            <option value="">{tr("الكل")}</option>
             {Object.entries(ACTION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select></div>
-        <div><Label htmlFor="ra-user">المستخدم</Label>
+        <div><Label htmlFor="ra-user">{tr("المستخدم")}</Label>
           <select id="ra-user" className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={userId} onChange={event => setUserId(event.target.value)}>
-            <option value="">الكل</option>
+            <option value="">{tr("الكل")}</option>
             {users.map(user => <option key={user.user_id} value={user.user_id}>{user.user_name || user.user_id}</option>)}
           </select></div>
-        <div><Label htmlFor="ra-search">بحث بالفلاتر / العنوان</Label>
-          <div className="relative mt-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="ra-search" data-report-apply-on-enter className="pr-9" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} placeholder="مثال: اسم عميل أو حساب" /></div></div>
-        <Button data-report-apply onClick={() => void load()}>عرض</Button>
+        <div><Label htmlFor="ra-search">{tr("بحث بالفلاتر / العنوان")}</Label>
+          <div className="relative mt-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input id="ra-search" data-report-apply-on-enter className="pr-9" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === "Enter" && void load()} placeholder={tr("مثال: اسم عميل أو حساب")} /></div></div>
+        <Button data-report-apply onClick={() => void load()}>{tr("عرض")}</Button>
       </CardContent>
     </ReportFilters>
 
@@ -114,8 +115,8 @@ export default function ReportAuditReport() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1000px] text-sm">
           <thead className="bg-teal-50 text-teal-950"><tr>
-            <th className="p-3 text-right">الوقت</th><th className="p-3 text-right">المستخدم</th><th className="p-3 text-right">التقرير</th>
-            <th className="p-3 text-right">العملية</th><th className="p-3 text-right">الفلاتر</th><th className="p-3 text-right">الفرع</th><th className="p-3 text-right">إرسال إلى</th>
+            <th className="p-3 text-start">{tr("الوقت")}</th><th className="p-3 text-start">{tr("المستخدم")}</th><th className="p-3 text-start">{tr("التقرير")}</th>
+            <th className="p-3 text-start">{tr("العملية")}</th><th className="p-3 text-start">{tr("الفلاتر")}</th><th className="p-3 text-start">{tr("الفرع")}</th><th className="p-3 text-start">{tr("إرسال إلى")}</th>
           </tr></thead>
           <tbody>{rows.map(row => <tr key={row.id} className="border-t align-top hover:bg-teal-50/40">
             <td className="p-3 whitespace-nowrap font-mono" dir="ltr">{dateTime(row.created_at)}</td>
@@ -130,7 +131,7 @@ export default function ReportAuditReport() {
           </tr>)}</tbody>
         </table>
       </div>
-      {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">لا توجد عمليات مطابقة للفلاتر</div>}
+      {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">{tr("لا توجد عمليات مطابقة للفلاتر")}</div>}
     </div>
   </ReportPage>
 }

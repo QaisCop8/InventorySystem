@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import type React from "react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,7 +35,7 @@ export function MobileForm({ title, sections, actions }: MobileFormProps) {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={appDir()}>
       {title && <h2 className="text-xl font-bold text-center mb-6">{title}</h2>}
 
       {sections.map((section, index) => (

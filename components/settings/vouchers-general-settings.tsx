@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { CalendarRange, ChevronDown } from "lucide-react"
 import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
@@ -15,26 +16,26 @@ import { SPECIAL_PRICE_CATEGORIES } from "@/components/inventory/unified-stock-v
 import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 
 const CHEQUE_CHECK_MODES = [
-  { value: "no_check", label: "عدم التشييك" },
-  { value: "check_on_entry", label: "التشييك عند ادخال الشيك" },
-  { value: "check_on_save", label: "التشييك عند الحفظ" },
+  { value: "no_check", label: tr("عدم التشييك") },
+  { value: "check_on_entry", label: tr("التشييك عند ادخال الشيك") },
+  { value: "check_on_save", label: tr("التشييك عند الحفظ") },
 ]
 
 const NEGATIVE_BALANCE_SIGN_OPTIONS = [
-  { value: "credit", label: "الرصيد الدائن" },
-  { value: "debit", label: "الرصيد المدين" },
+  { value: "credit", label: tr("الرصيد الدائن") },
+  { value: "debit", label: tr("الرصيد المدين") },
 ]
 
 const GENERAL_ITEM_COST_METHOD_OPTIONS = [
-  { value: "last_purchase_price", label: "اخر سعر شراء" },
-  { value: "average_price", label: "متوسط الأسعار" },
-  { value: "fifo", label: "الداخل أول خارج أول" },
+  { value: "last_purchase_price", label: tr("اخر سعر شراء") },
+  { value: "average_price", label: tr("متوسط الأسعار") },
+  { value: "fifo", label: tr("الداخل أول خارج أول") },
 ]
 
 const DEFAULT_BARCODE_COLUMN_VALUE_OPTIONS = [
-  { value: "none", label: "بلا تحديد" },
-  { value: "item_code", label: "رقم الصنف" },
-  { value: "main_barcode", label: "الباركود الرئيسي" },
+  { value: "none", label: tr("بلا تحديد") },
+  { value: "item_code", label: tr("رقم الصنف") },
+  { value: "main_barcode", label: tr("الباركود الرئيسي") },
 ]
 
 const WORKING_MONTH_OPTIONS = [
@@ -52,8 +53,8 @@ const normalizeWorkingMonths = (value: unknown): number[] => {
 }
 
 const PRICE_SOURCE_OPTIONS = [
-  { value: "main_relation", label: "من العلاقة بالرئيسية" },
-  { value: "unit", label: "من الوحدة" },
+  { value: "main_relation", label: tr("من العلاقة بالرئيسية") },
+  { value: "unit", label: tr("من الوحدة") },
 ]
 
 interface VouchersGeneralSettingsState {
@@ -232,11 +233,11 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
 
   const handleSave = async (): Promise<boolean> => {
     if (!settings.workingYear) {
-      toast({ title: "خطأ", description: "يجب اختيار سنة العمل", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يجب اختيار سنة العمل"), variant: "destructive" })
       return false
     }
     if (settings.workingMonths.length === 0) {
-      toast({ title: "خطأ", description: "يجب اختيار شهر عمل واحد على الأقل", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("يجب اختيار شهر عمل واحد على الأقل"), variant: "destructive" })
       return false
     }
     setSaving(true)
@@ -279,11 +280,11 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
       // يُطلِق أيضاً حدثاً تلتقطه كل شبكة DataGridView مفتوحة حالياً لإعادة تنسيق خلاياها المعروضة.
       void syncSystemSettingsToLocalStorage()
       // ضمن صفحة إعدادات النظام: رسالة النجاح تعرضها الصفحة نفسها مرة واحدة لكل الأقسام
-      if (!embedded) toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات العامة بنجاح" })
+      if (!embedded) toast({ title: tr("تم الحفظ"), description: tr("تم حفظ الإعدادات العامة بنجاح") })
       return true
     } catch (error) {
       console.error("Failed to save general voucher settings", error)
-      toast({ title: "خطأ", description: "فشل حفظ الإعدادات العامة", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل حفظ الإعدادات العامة"), variant: "destructive" })
       return false
     } finally {
       setSaving(false)
@@ -306,12 +307,12 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
   }, [currentYear, settings.workingYear])
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={appDir()}>
       {!embedded && (
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">اعدادات عامة</h2>
+          <h2 className="text-xl font-semibold">{tr("اعدادات عامة")}</h2>
           <Button onClick={() => void handleSave()} disabled={saving || loading}>
-            {saving ? "جارٍ الحفظ..." : "حفظ"}
+            {saving ? tr("جارٍ الحفظ...") : tr("حفظ")}
           </Button>
         </div>
       )}
@@ -320,11 +321,11 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         <CardContent className="p-4">
           <div className="mb-3 flex items-center gap-2 text-base font-semibold">
             <CalendarRange className="h-4 w-4 text-emerald-600" />
-            فترة العمل
+            {tr("فترة العمل")}
           </div>
           <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
             <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-              <span className="text-sm">سنة العمل *</span>
+              <span className="text-sm">{tr("سنة العمل *")}</span>
               <PrimeDropdown
                 value={settings.workingYear}
                 options={workingYearOptions}
@@ -340,10 +341,10 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
             </div>
             {/* نفس مكوّن الاختيار المتعدد المستخدم في التقارير */}
             <ReportMultiChoice
-              label="شهر العمل *"
+              label={tr("شهر العمل *")}
               options={WORKING_MONTH_OPTIONS}
               selected={settings.workingMonths}
-              placeholder="اختر أشهر العمل"
+              placeholder={tr("اختر أشهر العمل")}
               onChange={(ids) => setSettings((s) => ({ ...s, workingMonths: normalizeWorkingMonths(ids) }))}
             />
           </div>
@@ -355,7 +356,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
           <TooltipProvider>
             <Collapsible open={receiptPaymentOpen} onOpenChange={setReceiptPaymentOpen}>
               <CollapsibleTrigger className="flex w-full items-center justify-between text-base font-semibold">
-                <span>القبض والصرف والقيد</span>
+                <span>{tr("القبض والصرف والقيد")}</span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${receiptPaymentOpen ? "-rotate-180" : ""}`} />
               </CollapsibleTrigger>
               <CollapsibleContent className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
@@ -368,16 +369,16 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                           setSettings((s) => ({ ...s, fetchChequeNoOnBankAccount: Boolean(checked) }))
                         }
                       />
-                      <span>احضار رقم الشيك بصورة الية في سند الصرف</span>
+                      <span>{tr("احضار رقم الشيك بصورة الية في سند الصرف")}</span>
                     </label>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-right" dir="rtl">
-                    عند التحقق من وجود شيكات حالتها الحالية راجع لهذا الحساب حسب الخيار المحدد هنا
+                  <TooltipContent side="top" className="max-w-xs text-start" dir={appDir()}>
+                    {tr("عند التحقق من وجود شيكات حالتها الحالية راجع لهذا الحساب حسب الخيار المحدد هنا")}
                   </TooltipContent>
                 </Tooltip>
 
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                  <span className="text-sm">التحقق من وجود شيكات حالتها الحالية راجع لهذا الحساب</span>
+                  <span className="text-sm">{tr("التحقق من وجود شيكات حالتها الحالية راجع لهذا الحساب")}</span>
                   <PrimeDropdown
                     value={settings.chequeStatusCheckMode}
                     options={CHEQUE_CHECK_MODES}
@@ -398,7 +399,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                       setSettings((s) => ({ ...s, allowPaymentExceedingCashBalance: Boolean(checked) }))
                     }
                   />
-                  <span>السماح باصدار سندات صرف بقيم تتجاوز رصيد الصندوق</span>
+                  <span>{tr("السماح باصدار سندات صرف بقيم تتجاوز رصيد الصندوق")}</span>
                 </label>
 
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -408,7 +409,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                       setSettings((s) => ({ ...s, disallowManualChequeEntryInPayment: Boolean(checked) }))
                     }
                   />
-                  <span>عدم السماح بادخال شيكات يدويا في سند الصرف</span>
+                  <span>{tr("عدم السماح بادخال شيكات يدويا في سند الصرف")}</span>
                 </label>
 
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -418,7 +419,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                       setSettings((s) => ({ ...s, returnedChequeStatusAlwaysRaje: Boolean(checked) }))
                     }
                   />
-                  <span>حالة الشيك المجير الذي يتم ارجاعه هي دائما "راجع"</span>
+                  <span>{tr("حالة الشيك المجير الذي يتم ارجاعه هي دائما \"راجع\"")}</span>
                 </label>
               </CollapsibleContent>
             </Collapsible>
@@ -430,12 +431,12 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         <CardContent className="p-4">
           <Collapsible open={accountsOpen} onOpenChange={setAccountsOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between text-base font-semibold">
-              <span>الحسابات</span>
+              <span>{tr("الحسابات")}</span>
               <ChevronDown className={`h-4 w-4 transition-transform ${accountsOpen ? "-rotate-180" : ""}`} />
             </CollapsibleTrigger>
             <CollapsibleContent className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">عدد الخانات العشرية في الكميات والاسعار والمبالغ</span>
+                <span className="text-sm">{tr("عدد الخانات العشرية في الكميات والاسعار والمبالغ")}</span>
                 <Input
                   type="number"
                   min={0}
@@ -446,7 +447,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
               </div>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">الاشارة السالبة للرصيد</span>
+                <span className="text-sm">{tr("الاشارة السالبة للرصيد")}</span>
                 <PrimeDropdown
                   value={settings.negativeBalanceSign}
                   options={NEGATIVE_BALANCE_SIGN_OPTIONS}
@@ -467,7 +468,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, showThousandsSeparator: Boolean(checked) }))
                   }
                 />
-                <span>اظهار فواصل الالاف في الكميات والاسعار والمبالغ</span>
+                <span>{tr("اظهار فواصل الالاف في الكميات والاسعار والمبالغ")}</span>
               </label>
             </CollapsibleContent>
           </Collapsible>
@@ -478,7 +479,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         <CardContent className="p-4">
           <Collapsible open={itemsOpen} onOpenChange={setItemsOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between text-base font-semibold">
-              <span>الاصناف</span>
+              <span>{tr("الاصناف")}</span>
               <ChevronDown className={`h-4 w-4 transition-transform ${itemsOpen ? "-rotate-180" : ""}`} />
             </CollapsibleTrigger>
             <CollapsibleContent className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
@@ -489,11 +490,11 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, itemGroupMandatory: Boolean(checked) }))
                   }
                 />
-                <span>مجموعة الصنف اجباري في ملف تعريف الصنف</span>
+                <span>{tr("مجموعة الصنف اجباري في ملف تعريف الصنف")}</span>
               </label>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">طريقة احتساب تكلفة الصنف في سندات ادخال/ اخراج/ استعمال</span>
+                <span className="text-sm">{tr("طريقة احتساب تكلفة الصنف في سندات ادخال/ اخراج/ استعمال")}</span>
                 <PrimeDropdown
                   value={settings.stockVoucherItemCostMethod}
                   options={combinedPriceCategories}
@@ -512,7 +513,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
               </div>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">طريقة احتساب تكلفة الصنف العامة /الانتاج</span>
+                <span className="text-sm">{tr("طريقة احتساب تكلفة الصنف العامة /الانتاج")}</span>
                 <PrimeDropdown
                   value={settings.generalItemCostMethod}
                   options={GENERAL_ITEM_COST_METHOD_OPTIONS}
@@ -533,7 +534,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, includePurchaseReturnsInCost: Boolean(checked) }))
                   }
                 />
-                <span>احتساب حركات مردودات المشتريات في حسابات تكلفة الاصناف</span>
+                <span>{tr("احتساب حركات مردودات المشتريات في حسابات تكلفة الاصناف")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -543,27 +544,27 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, allowNegativeItemBalances: Boolean(checked) }))
                   }
                 />
-                <span>السماح بكميات سالبة في ارصدة الاصناف</span>
+                <span>{tr("السماح بكميات سالبة في ارصدة الاصناف")}</span>
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer" title="نسبة ضريبة كل سطر = نسبة الصنف (تصنيفه الضريبي)، وضريبة السند = مجموع ضرائب الأسطر — في الإرساليات والفواتير وطلبيات المبيعات">
+              <label className="flex items-center gap-3 cursor-pointer" title={tr("نسبة ضريبة كل سطر = نسبة الصنف (تصنيفه الضريبي)، وضريبة السند = مجموع ضرائب الأسطر — في الإرساليات والفواتير وطلبيات المبيعات")}>
                 <Checkbox
                   checked={settings.vatOnItemLevel}
                   onCheckedChange={(checked) =>
                     setSettings((s) => ({ ...s, vatOnItemLevel: Boolean(checked) }))
                   }
                 />
-                <span>الضريبة على مستوى الصنف</span>
+                <span>{tr("الضريبة على مستوى الصنف")}</span>
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer" title="يُضاف زر بطلبية المبيعات يوزّع أصنافها على مستودعاتها ويطبع كل مجموعة على الطابعة الافتراضية لمستودعها">
+              <label className="flex items-center gap-3 cursor-pointer" title={tr("يُضاف زر بطلبية المبيعات يوزّع أصنافها على مستودعاتها ويطبع كل مجموعة على الطابعة الافتراضية لمستودعها")}>
                 <Checkbox
                   checked={settings.printOrderByWarehouse}
                   onCheckedChange={(checked) =>
                     setSettings((s) => ({ ...s, printOrderByWarehouse: Boolean(checked) }))
                   }
                 />
-                <span>طباعة حسب المستودع في الطلبية</span>
+                <span>{tr("طباعة حسب المستودع في الطلبية")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -576,11 +577,11 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     }))
                   }
                 />
-                <span>الاستمرار في تأكيد الطلبيات في حال عدم توفر مواد الانتاج</span>
+                <span>{tr("الاستمرار في تأكيد الطلبيات في حال عدم توفر مواد الانتاج")}</span>
               </label>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">القيمة الافتراضية لبيانات عمود الباركود</span>
+                <span className="text-sm">{tr("القيمة الافتراضية لبيانات عمود الباركود")}</span>
                 <PrimeDropdown
                   value={settings.defaultBarcodeColumnValue}
                   options={DEFAULT_BARCODE_COLUMN_VALUE_OPTIONS}
@@ -601,11 +602,11 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, showZeroQuantityItemsInSearch: Boolean(checked) }))
                   }
                 />
-                <span>اظهار الاصناف التي كميتها = 0 في بحث الاصناف</span>
+                <span>{tr("اظهار الاصناف التي كميتها = 0 في بحث الاصناف")}</span>
               </label>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">طول السيريال</span>
+                <span className="text-sm">{tr("طول السيريال")}</span>
                 <Input
                   type="number"
                   min={0}
@@ -615,7 +616,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
               </div>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">كفالات السيريال تبدأ بعد البيع بـ</span>
+                <span className="text-sm">{tr("كفالات السيريال تبدأ بعد البيع بـ")}</span>
                 <Input
                   type="number"
                   min={0}
@@ -633,7 +634,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, preventSellingNewerSerialBeforeOlder: Boolean(checked) }))
                   }
                 />
-                <span>منع بيع سيريال مع وجود سيريال اقدم غير مباع بعد</span>
+                <span>{tr("منع بيع سيريال مع وجود سيريال اقدم غير مباع بعد")}</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">
@@ -643,12 +644,12 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                     setSettings((s) => ({ ...s, autoAssignNextSerialOnPurchase: Boolean(checked) }))
                   }
                 />
-                <span>اعطاء اخر رقم سيريال متسلسل جديد للصنف عند الشراء</span>
+                <span>{tr("اعطاء اخر رقم سيريال متسلسل جديد للصنف عند الشراء")}</span>
               </label>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                 <span className="text-sm">
-                  تقرير الارقام المتسلسلة/ القيمة الافتراضية لفلتر "عدد الايام قبل"
+                  {tr("تقرير الارقام المتسلسلة/ القيمة الافتراضية لفلتر \"عدد الايام قبل\"")}
                 </span>
                 <Input
                   type="number"
@@ -661,7 +662,7 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
               </div>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                <span className="text-sm">اعتماد السعر من</span>
+                <span className="text-sm">{tr("اعتماد السعر من")}</span>
                 <PrimeDropdown
                   value={settings.priceSource}
                   options={PRICE_SOURCE_OPTIONS}

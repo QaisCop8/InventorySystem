@@ -1,3 +1,4 @@
+import { appDir } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 
@@ -15,7 +16,7 @@ export function LoadingSpinner({ size = "md", className, text }: LoadingSpinnerP
   }
 
   return (
-    <div className={cn("flex items-center justify-center gap-2", className)} dir="rtl">
+    <div className={cn("flex items-center justify-center gap-2", className)} dir={appDir()}>
       <Loader2 className={cn("animate-spin", sizeClasses[size])} />
       {text && <span className="text-sm text-muted-foreground">{text}</span>}
     </div>
@@ -24,7 +25,7 @@ export function LoadingSpinner({ size = "md", className, text }: LoadingSpinnerP
 
 export function LoadingCard({ title, description }: { title?: string; description?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center p-8 space-y-4" dir="rtl">
+    <div className="flex flex-col items-center justify-center p-8 space-y-4" dir={appDir()}>
       <LoadingSpinner size="lg" />
       {title && <h3 className="text-lg font-medium">{title}</h3>}
       {description && <p className="text-sm text-muted-foreground text-center">{description}</p>}

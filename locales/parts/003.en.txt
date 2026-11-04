@@ -1,0 +1,300 @@
+Unable to load the activity
+Unable to delete the activity
+The currency of an activity that has transactions cannot be changed
+An activity with transactions cannot be deleted — close it by changing its status to «Closed»
+Unable to load aid activities
+Unable to save the activity
+Choose the activity
+Unknown action
+Choose the participants
+Name is required
+Maximum {0} participants per import
+The code is cancelled
+The code is already cancelled
+Participant not found
+The file contains no participants
+The activity is closed
+Unable to load participants
+Invalid mobile number (the redemption code is sent to it)
+ID number {0} is already registered in this activity
+ID number {0} is duplicated in the file
+The ID number must be digits (5-20)
+The top-up amount must be greater than zero
+The file's total balances ({0}) exceed the activity's unallocated budget ({1})
+The top-up total ({0}) exceeds the activity's unallocated budget ({1})
+Unable to verify the code
+You do not have permission to sell from the cashier
+The point of sale is not available to this user
+Point of sale is required
+The order is already approved
+An error occurred while posting the orders
+The manual voucher number already exists ({0})
+No valid exchange rate up to today for the item's sale currency {0}
+No valid exchange rate up to today for the point-of-sale currency {0}
+You do not have the {0} permission
+Unable to determine a valid currency or exchange rate for the return payment voucher
+The cash account or exchange rate does not match the return payment voucher currency
+No payments to create the receipt voucher
+The invoice cannot be deleted before cancelling later transactions on the receipt voucher cheques
+Choose the customer account when there is an amount on account to create the return payment voucher
+Define the cash account in the point-of-sale or user settings for currency {0} to create the return payment voucher
+Define the cash account in the point of sale or in the user's accounts for the point-of-sale currency
+Assign a payment voucher book to the user to save a cash return with receivables
+Assign a receipt voucher book to the user to save a cash payment with receivables, cheque or card
+Choose the customer in the payment details instead of the cash customer
+Choose a valid bank and branch for the cheque
+Choose a valid customer for the payment details
+The change is greater than the cash received
+A gift doesn't need payment details
+The gift card is invalid or its balance is insufficient
+The gift card must be in the point-of-sale currency
+Unable to generate the gift issue voucher number
+Unable to generate the sales invoice number
+The card discount amount changed; re-apply the card and try again
+The cash details by currency are invalid
+The discount on item {0} ({1}%) exceeds the maximum allowed discount ({2}%) — requires the permission to exceed the discount rate in the settings
+The discount on item {0} must not exceed its value or 100%
+The card number or type is invalid
+Account number and cheque number are required
+Account number and cheque number must not exceed 20 characters
+Invalid payment currency or amount
+Aid vouchers are available for sales invoices only
+The aid voucher must be in the point-of-sale currency
+Only one aid voucher per invoice
+No account is assigned to the payment method {0}
+The change amount is invalid
+The voucher amount exceeds the available amount ({0}) — the participant's balance or the value of the activity's allowed items
+The total invoice and item discount ({0}%) exceeds the maximum allowed discount ({1}%) — requires the permission to exceed the discount rate in the settings
+The card type is not available
+Invalid point-of-sale transaction type
+The cheque and receivable customer must be the same customer
+Define the cash account in the point-of-sale settings
+Assign a default book to the sales invoice
+Unable to determine the cash payment currency to reverse the custody balance
+Unable to load campaign usage
+Point of sale and user are required
+Unknown user
+Cashier log data is incomplete
+Unable to load the cashier log
+Unable to record the cashier action
+The customer does not exist or is inactive
+Unable to load the point-of-sale items
+You do not have permission to use the cashier in this branch
+Discount card {0} not found
+Unable to search for the discount card
+{0} must be zero or greater
+The card is used in invoices, so it was suspended instead of deleted
+Discount card not found
+Start and end dates are required
+The end date must not be before the start date
+Unable to update the discount card
+Unable to delete the discount card
+Unable to save the discount card
+Card number {0} is used by another card
+Invalid card number
+Card number is required
+The discount rate must be between 0 and 100
+The draft does not exist or can no longer be edited
+The draft data is incomplete
+You do not have permission to manage cashier drafts in this branch
+Invalid draft ID
+The point of sale is not available
+The invoice does not exist in the point of sale
+The invoice is already deleted
+The point-of-sale data is incomplete
+Unable to load the point's invoices
+You do not have permission to view cashier invoices in this branch
+You do not have permission to edit a cashier invoice in this branch
+You do not have permission to delete a cashier invoice in this branch
+Invalid invoice or point-of-sale ID
+Invalid invoice ID
+Invalid shift ID
+The shift must be open to delete an invoice
+Only the current shift's invoices can be deleted
+{0} is invalid
+One of the point-of-sale settings does not exist or is inactive
+Point-of-sale name is required
+The selected account is inactive or doesn't match the point-of-sale currency
+Warehouse is required
+Unable to update the point of sale
+Unable to determine the user
+Unable to save the point of sale
+Invalid print-by-item-group option
+Invalid item grouping option
+Invalid invoice printing option
+Invalid tobacco custody option
+The sales invoice book is required
+The price category is required
+You do not have permission to add a point-of-sale definition for this branch
+You do not have permission to use the cashier in any branch
+You do not have permission to edit the point-of-sale definition for the selected branch
+You do not have permission to edit the point-of-sale definition for this branch
+Point-of-sale ID is required
+No point-of-sale codes are left
+Point of sale not found
+The custody session changed; refresh the screen and try again
+The point-of-sale transaction number is required
+Failed to save the sale
+You do not have permission to enter an item discount from the cashier
+You do not have permission to enter an invoice discount from the cashier
+You do not have permission to change the item quantity from the cashier
+You do not have permission to perform this transaction from the cashier
+You must open or receive a custody before selling
+Enter an amount greater than zero
+Close the current custody before receiving another one
+The custody to be received is not available
+The session data is incomplete
+Unable to complete the custody operation
+The custody amounts by currency are invalid
+A shift is already open on the point of sale. It must be closed or its custody handed over first
+A shift is already open on the point of sale. It must be closed or its custody handed over before opening a new shift
+Invalid shift GUID
+Unknown custody operation
+No currencies are available for the custody
+You do not have permission to receive the custody
+You do not have permission to hand over the custody
+The custody balance cannot become negative
+You have an open custody on the point of sale
+The {0} amount is greater than the available balance
+The handover amount is greater than the custody balance
+The withdrawal amount is greater than the available balance in one of the currencies
+Invalid custody amount
+The tobacco custody must be handed over first
+You must open or receive a custody first
+Quantities must be positive numbers
+The tobacco custody for this shift has been received
+The tobacco custody for this shift has been handed over
+Tobacco custody is not enabled for this point
+The tobacco custody for this shift has not been received
+Unable to load the custody report
+The location does not exist or is suspended
+A shift is open on this location; it must be handed over or closed first
+A shift is open on this location; it must be handed over or closed before opening a new shift
+Set the currency of location "{0}" from the locations screen first
+You have an open custody on this location
+The maximum discount rate must be between 0 and 100
+Location name is required
+Invalid currency
+The branch is invalid or not allowed for you
+Invalid warehouse
+Unable to update the location
+Invalid table service
+Invalid sales invoice book
+Location number is required
+Invalid price category
+The branch cannot be changed or the location suspended while it has open orders
+The location cannot be deleted because {0} tables are defined on it; delete the tables first
+A location with open takeaway orders cannot be deleted
+Invalid location ID
+There is an invalid account in the sales settings
+A location with the same number or name exists in this branch
+Choose the tables to merge
+Choose a table other than the current order's tables
+Choose an active location in this branch
+The item is not in this order
+The item is fully paid
+The table was taken by another user; refresh the screen
+The selected table is occupied; use merge instead of move
+The source table is not on this order
+The table belongs to another branch
+The table is invalid or suspended
+Table not found
+The table is not on this order
+The order is on one table only; there is nothing to separate
+The order has partial payments; delete the unpaid items and then close the table
+Invalid customer
+The quantity to pay for {0} is greater than the unpaid quantity ({1})
+The quantity split from {0} is greater than the unpaid quantity ({1})
+Invalid quantity
+Move the takeaway order to a table first, then merge
+The order was changed by another user; it was reloaded, review the amount and pay again
+Specify the items and quantities to split
+Invalid discount on item {0}
+A cancellation reason is required
+Invalid price for item {0}
+Too many items
+Invalid quantity for item {0}
+No items to add
+The order has no payments; use cancel order
+No unpaid quantities to pay
+You do not have permission to delete items from the table - restaurants
+The quantity cannot be less than the paid quantity ({0})
+The discount on a partly paid item cannot be changed
+There are still unpaid items
+Invalid order ID
+The order location does not exist
+The order location belongs to another branch
+Invalid discount rate
+This payment was already recorded; refresh the screen
+You must open or receive a custody on location "{0}" before paying
+There is an invalid or deleted item
+Unable to load images
+Choose a valid location
+Maximum 200 tables at a time
+Unable to update the table
+A table with the same name exists in this location
+A table with an open order cannot be deleted
+A table with an open order cannot be moved to another location or suspended
+Invalid table ID
+Invalid table number range
+Unable to load unposted vouchers
+No permission to post this type of voucher
+Choose the period and voucher type, then select the vouchers to post.
+Confirm voucher posting
+Select {0}
+Post vouchers
+Post selected (
+Posting failed
+Unable to load vouchers
+Unable to load the voucher data
+Specify a valid date range
+{0} voucher
+vouchers)
+{0} vouchers will be posted. Do you want to continue?
+Unposted
+All permitted types
+There are no unposted vouchers in the selected period that you have permission to post.
+not posted.
+succeeded,
+Posting result:
+Yes, post
+Voucher type
+This voucher type is not supported for posting from this screen
+— the first {0} are shown, use search
+(reverses #
+{0} participants
+{0} participants{1}
+Sent
+Their balances
+members)
+Maximum redemptions per participant
+Cardless voucher activities: participants and redemption codes, redeemed at the cashier with the «Aid voucher» payment method.
+Remove
+Issue a new PIN for «{0}» and send it by message? The old PIN stops working immediately.
+Add group
+Cancel code
+Cancel code
+Cancel the code of «{0}»? Their remaining balance ({1}) returns to the activity budget.
+Search for the account
+Choose the item
+Import participants
+Activity name *
+Donor
+Mobile
+The ledgers are not balanced — review the transactions (stored participant balances {0} vs. the total of their entries {1})
+The ledgers are balanced: budget {0} = unallocated {1} + participant balances {2} + shop dues {3}
+Message
+PIN
+Code
+Codes
+Row
+Invoice
+Default amount per participant
+Amount per participant
+Selected only (
+Due
+Participant
+Participants
+Redeemed
+Allocated
+Budget

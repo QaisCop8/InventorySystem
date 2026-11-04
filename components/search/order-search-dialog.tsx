@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -83,12 +84,12 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
     }
 
     const statusLabels = {
-      pending: "قيد التنفيذ",
-      confirmed: "مؤكدة",
-      shipped: "تم الشحن",
-      delivered: "تم التسليم",
-      cancelled: "ملغاة",
-      completed: "مكتملة",
+      pending: tr("قيد التنفيذ"),
+      confirmed: tr("مؤكدة"),
+      shipped: tr("تم الشحن"),
+      delivered: tr("تم التسليم"),
+      cancelled: tr("ملغاة"),
+      completed: tr("مكتملة"),
     }
 
     return (
@@ -104,26 +105,26 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث عن الطلبيات
+            {tr("البحث عن الطلبيات")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="ابحث برقم الطلبية أو اسم العميل/المورد..."
+              placeholder={tr("ابحث برقم الطلبية أو اسم العميل/المورد...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="text-right pr-10"
-              dir="rtl"
+              className="text-start ps-10"
+              dir={appDir()}
             />
           </div>
 
           {loading && (
             <div className="text-center py-4">
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              <p className="mt-2 text-sm text-muted-foreground">جاري البحث...</p>
+              <p className="mt-2 text-sm text-muted-foreground">{tr("جاري البحث...")}</p>
             </div>
           )}
 
@@ -132,13 +133,13 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">النوع</TableHead>
-                    <TableHead className="text-right">رقم الطلبية</TableHead>
-                    <TableHead className="text-right">التاريخ</TableHead>
-                    <TableHead className="text-right">العميل/المورد</TableHead>
-                    <TableHead className="text-right">المبلغ</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">إجراء</TableHead>
+                    <TableHead className="text-right">{tr("النوع")}</TableHead>
+                    <TableHead className="text-right">{tr("رقم الطلبية")}</TableHead>
+                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-right">{tr("العميل/المورد")}</TableHead>
+                    <TableHead className="text-right">{tr("المبلغ")}</TableHead>
+                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-right">{tr("إجراء")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -151,7 +152,7 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
                           ) : (
                             <Package className="h-4 w-4 text-blue-600" />
                           )}
-                          <span className="text-sm">{order.type === "sales" ? "مبيعات" : "مشتريات"}</span>
+                          <span className="text-sm">{order.type === "sales" ? tr("مبيعات") : tr("مشتريات")}</span>
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{order.order_number}</TableCell>
@@ -163,7 +164,7 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
                       <TableCell>{getStatusBadge(order)}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline" onClick={() => handleOrderSelect(order)} className="search-button">
-                          اختيار
+                          {tr("اختيار")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -176,22 +177,22 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
           {searchTerm.length >= 2 && orders.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>لا توجد طلبيات تطابق البحث</p>
-              <p className="text-sm mt-1">جرب البحث برقم طلبية مختلف أو اسم عميل/مورد</p>
+              <p>{tr("لا توجد طلبيات تطابق البحث")}</p>
+              <p className="text-sm mt-1">{tr("جرب البحث برقم طلبية مختلف أو اسم عميل/مورد")}</p>
             </div>
           )}
 
           {searchTerm.length < 2 && (
             <div className="text-center py-8 text-muted-foreground">
               <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>أدخل على الأقل حرفين للبحث</p>
+              <p>{tr("أدخل على الأقل حرفين للبحث")}</p>
             </div>
           )}
         </div>
 
         <div className="flex justify-end gap-2 border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button">
-            إغلاق
+            {tr("إغلاق")}
           </Button>
         </div>
       </DialogContent>

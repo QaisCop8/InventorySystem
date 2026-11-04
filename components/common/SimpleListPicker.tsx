@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -37,23 +38,23 @@ export default function SimpleListPicker({ open, onOpenChange, title, items, onS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-md"
-        dir="rtl"
+        dir={appDir()}
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <Input autoFocus placeholder="بحث..." value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input autoFocus placeholder={tr("بحث...")} value={query} onChange={(e) => setQuery(e.target.value)} />
         <div className="max-h-80 overflow-y-auto rounded-md border border-slate-200">
           {filtered.length === 0 ? (
-            <div className="p-4 text-center text-sm text-slate-400">لا توجد نتائج</div>
+            <div className="p-4 text-center text-sm text-slate-400">{tr("لا توجد نتائج")}</div>
           ) : (
             filtered.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className="block w-full border-b border-slate-100 px-3 py-2 text-right text-sm last:border-b-0 hover:bg-slate-50"
+                className="block w-full border-b border-slate-100 px-3 py-2 text-start text-sm last:border-b-0 hover:bg-slate-50"
                 onClick={() => {
                   onSelect(item)
                   onOpenChange(false)

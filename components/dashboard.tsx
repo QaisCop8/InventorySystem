@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -42,7 +43,7 @@ function DashboardContent() {
           orderType,
           orderId,
           newStatus,
-          reason: "تحديث من لوحة التحكم",
+          reason: tr("تحديث من لوحة التحكم"),
           changedBy: "المستخدم الحالي",
         }),
       })
@@ -57,9 +58,9 @@ function DashboardContent() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { label: "معلق", variant: "secondary" as const, icon: Clock },
-      approved: { label: "معتمد", variant: "default" as const, icon: CheckCircle },
-      completed: { label: "مكتمل", variant: "default" as const, icon: CheckCircle },
+      pending: { label: tr("معلق"), variant: "secondary" as const, icon: Clock },
+      approved: { label: tr("معتمد"), variant: "default" as const, icon: CheckCircle },
+      completed: { label: tr("مكتمل"), variant: "default" as const, icon: CheckCircle },
     }
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
@@ -74,17 +75,17 @@ function DashboardContent() {
   }
 
   if (isLoading) {
-    return <LoadingCard title="جاري تحميل لوحة التحكم..." description="يرجى الانتظار..." />
+    return <LoadingCard title={tr("جاري تحميل لوحة التحكم...")} description={tr("يرجى الانتظار...")} />
   }
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4" dir="rtl">
+      <div className="flex flex-col items-center justify-center h-64 space-y-4" dir={appDir()}>
         <AlertCircle className="h-12 w-12 text-red-500" />
-        <h3 className="text-lg font-medium">خطأ في تحميل البيانات</h3>
-        <p className="text-sm text-muted-foreground">حدث خطأ أثناء تحميل بيانات لوحة التحكم</p>
+        <h3 className="text-lg font-medium">{tr("خطأ في تحميل البيانات")}</h3>
+        <p className="text-sm text-muted-foreground">{tr("حدث خطأ أثناء تحميل بيانات لوحة التحكم")}</p>
         <Button onClick={() => refresh()} variant="outline">
-          إعادة المحاولة
+          {tr("إعادة المحاولة")}
         </Button>
       </div>
     )
@@ -97,46 +98,46 @@ function DashboardContent() {
       <div className="flex gap-4 mb-6">
         <Button onClick={() => setShowUnifiedOrder(true)} className="erp-btn-primary flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          طلبية مبيعات جديدة
+          {tr("طلبية مبيعات جديدة")}
         </Button>
         <Button variant="outline" className="flex items-center gap-2 bg-transparent">
           <ShoppingCart className="h-4 w-4" />
-          عرض جميع الطلبيات
+          {tr("عرض جميع الطلبيات")}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="erp-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">طلبيات المبيعات المعلقة</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{tr("طلبيات المبيعات المعلقة")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
               {formatEnglishNumber(stats?.salesStats.pending_sales || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              من إجمالي {formatEnglishNumber(stats?.salesStats.total_sales_orders || 0)} طلبية
+              {tr("من إجمالي ")}{formatEnglishNumber(stats?.salesStats.total_sales_orders || 0)}{tr(" طلبية")}
             </p>
           </CardContent>
         </Card>
 
         <Card className="erp-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">طلبيات المشتريات المعلقة</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{tr("طلبيات المشتريات المعلقة")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
               {formatEnglishNumber(stats?.purchaseStats.pending_purchases || 0)}
             </div>
             <p className="text-xs text-muted-foreground">
-              من إجمالي {formatEnglishNumber(stats?.purchaseStats.total_purchase_orders || 0)} طلبية
+              {tr("من إجمالي ")}{formatEnglishNumber(stats?.purchaseStats.total_purchase_orders || 0)}{tr(" طلبية")}
             </p>
           </CardContent>
         </Card>
 
         <Card className="erp-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">إجمالي قيمة المبيعات</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{tr("إجمالي قيمة المبيعات")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -147,14 +148,14 @@ function DashboardContent() {
               {currencyLabel}
             </div>
             <p className="text-xs text-muted-foreground">
-              طلبيات مكتملة: {formatEnglishNumber(stats?.salesStats.completed_sales || 0)}
+              {tr("طلبيات مكتملة: ")}{formatEnglishNumber(stats?.salesStats.completed_sales || 0)}
             </p>
           </CardContent>
         </Card>
 
         <Card className="erp-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">إجمالي قيمة المشتريات</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{tr("إجمالي قيمة المشتريات")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
@@ -165,7 +166,7 @@ function DashboardContent() {
               {currencyLabel}
             </div>
             <p className="text-xs text-muted-foreground">
-              طلبيات مكتملة: {formatEnglishNumber(stats?.purchaseStats.completed_purchases || 0)}
+              {tr("طلبيات مكتملة: ")}{formatEnglishNumber(stats?.purchaseStats.completed_purchases || 0)}
             </p>
           </CardContent>
         </Card>
@@ -174,8 +175,8 @@ function DashboardContent() {
       <Card className="erp-card">
         <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
           <CardTitle className="text-blue-800 flex items-center">
-            <BarChart3 className="h-5 w-5 ml-2" />
-            تقرير المبيعات الشهرية
+            <BarChart3 className="h-5 w-5 me-2" />
+            {tr("تقرير المبيعات الشهرية")}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
@@ -215,13 +216,13 @@ function DashboardContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-orange-600" />
-              طلبيات المبيعات المعلقة
+              {tr("طلبيات المبيعات المعلقة")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {stats?.pendingSalesOrders.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">لا توجد طلبيات معلقة</p>
+                <p className="text-muted-foreground text-center py-4">{tr("لا توجد طلبيات معلقة")}</p>
               ) : (
                 stats?.pendingSalesOrders.map((order, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -242,7 +243,7 @@ function DashboardContent() {
                           }
                           className="h-7 px-2 text-xs"
                         >
-                          اعتماد
+                          {tr("اعتماد")}
                         </Button>
                       )}
                     </div>
@@ -257,13 +258,13 @@ function DashboardContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-blue-600" />
-              طلبيات المشتريات المعلقة
+              {tr("طلبيات المشتريات المعلقة")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {stats?.pendingPurchaseOrders.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">لا توجد طلبيات معلقة</p>
+                <p className="text-muted-foreground text-center py-4">{tr("لا توجد طلبيات معلقة")}</p>
               ) : (
                 stats?.pendingPurchaseOrders.map((order, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -288,7 +289,7 @@ function DashboardContent() {
                           }
                           className="h-7 px-2 text-xs"
                         >
-                          اعتماد
+                          {tr("اعتماد")}
                         </Button>
                       )}
                     </div>

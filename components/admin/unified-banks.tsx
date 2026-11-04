@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -121,7 +122,7 @@ export default function UnifiedBanks({
   return (
     <>
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir="rtl">
+        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir={appDir()}>
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
@@ -141,12 +142,12 @@ export default function UnifiedBanks({
 
           <div className="rounded-b-3xl bg-background px-6 py-6">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل البنك" : "إضافة بنك جديد"}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل البنك") : tr("إضافة بنك جديد")}</DialogTitle>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="bank-code">رقم البنك</Label>
+                <Label htmlFor="bank-code">{tr("رقم البنك")}</Label>
                 <Input
                   id="bank-code"
                   value={form.bank_code}
@@ -162,22 +163,22 @@ export default function UnifiedBanks({
                   maxLength={4}
                 />
                 {hasDuplicateCode && (
-                  <p className="text-sm text-destructive">هذا الرقم مستخدم بالفعل. الرجاء اختيار رقم آخر.</p>
+                  <p className="text-sm text-destructive">{tr("هذا الرقم مستخدم بالفعل. الرجاء اختيار رقم آخر.")}</p>
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="bank-name">اسم البنك</Label>
+                <Label htmlFor="bank-name">{tr("اسم البنك")}</Label>
                 <Input
                   id="bank-name"
                   value={form.bank_name}
                   onChange={(e) => onFormChange("bank_name", e.target.value)}
                 />
                 {hasDuplicateName && (
-                  <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
+                  <p className="text-sm text-destructive">{tr("هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.")}</p>
                 )}
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="bank-name-en">اسم البنك انجليزي</Label>
+                <Label htmlFor="bank-name-en">{tr("اسم البنك انجليزي")}</Label>
                 <Input
                   id="bank-name-en"
                   value={form.bank_name_en}
@@ -194,7 +195,7 @@ export default function UnifiedBanks({
 
       <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
-        message="هل تريد حذف هذا البنك؟"
+        message={tr("هل تريد حذف هذا البنك؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

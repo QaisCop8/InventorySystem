@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/lib/i18n"
 import * as React from "react";
 import ProductNumbers from "./ProductNumbers";
 import { isScaleItemBarcode, SCALE_BARCODE_ERROR } from "@/lib/scale-barcode";
@@ -39,8 +40,8 @@ export default function ProductBarcodes({
         <ProductNumbers
             open={open}
             onOpenChange={onOpenChange}
-            title="الباركود"
-            subtitle={`${unitName ? `الوحدة: ${unitName}` : "الوحدة"} · يمكن إضافة أكثر من باركود`}
+            title={tr("الباركود")}
+            subtitle={tr("{0} · يمكن إضافة أكثر من باركود", unitName ? `الوحدة: ${unitName}` : "الوحدة")}
             numbers={barcodes}
             onUpdateNumbers={onUpdateBarcodes}
             currentProductName={unitName}

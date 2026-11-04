@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
@@ -296,11 +297,11 @@ export default function Suppliers() {
           setCurrentIndex(0)
         }
       } else {
-        setError("فشل في تحميل بيانات الموردين")
+        setError(tr("فشل في تحميل بيانات الموردين"))
       }
     } catch (error) {
       console.error("Error fetching suppliers:", error)
-      setError("حدث خطأ في تحميل البيانات")
+      setError(tr("حدث خطأ في تحميل البيانات"))
     } finally {
       setLoading(false)
     }
@@ -353,26 +354,26 @@ export default function Suppliers() {
         } else {
           const text = await response.text()
           console.error("[v0] Non-JSON response received:", text.substring(0, 200))
-          setError("خطأ في الخادم - الرجاء إعادة تحميل الصفحة والمحاولة مرة أخرى")
+          setError(tr("خطأ في الخادم - الرجاء إعادة تحميل الصفحة والمحاولة مرة أخرى"))
         }
       } else {
         const contentType = response.headers.get("content-type")
         if (contentType && contentType.includes("application/json")) {
           const errorData = await response.json()
           console.error("[v0] API error:", errorData)
-          setError(errorData.error || "فشل في توليد رقم المورد")
+          setError(errorData.error || tr("فشل في توليد رقم المورد"))
         } else {
           const text = await response.text()
           console.error("[v0] Non-JSON error response:", text.substring(0, 200))
-          setError("خطأ في الخادم - الرجاء التحقق من اتصال قاعدة البيانات")
+          setError(tr("خطأ في الخادم - الرجاء التحقق من اتصال قاعدة البيانات"))
         }
       }
     } catch (error) {
       console.error("Error generating supplier number:", error)
       if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        setError("خطأ في تحليل استجابة الخادم - الرجاء إعادة تحميل الصفحة")
+        setError(tr("خطأ في تحليل استجابة الخادم - الرجاء إعادة تحميل الصفحة"))
       } else {
-        setError("خطأ في الاتصال بالخادم")
+        setError(tr("خطأ في الاتصال بالخادم"))
       }
     } finally {
       setGeneratingNumber(false)
@@ -445,11 +446,11 @@ export default function Suppliers() {
         } else {
           const errorData = await response.json()
           console.error("[v0] Save error:", errorData)
-          setError(errorData.error || errorData.message || "فشل في حفظ البيانات")
+          setError(errorData.error || errorData.message || tr("فشل في حفظ البيانات"))
         }
       } catch (error) {
         console.error("[v0] Error saving supplier:", error)
-        setError("حدث خطأ في حفظ البيانات")
+        setError(tr("حدث خطأ في حفظ البيانات"))
       } finally {
         setSaving(false)
       }
@@ -459,7 +460,7 @@ export default function Suppliers() {
 
   const handleDeleteSupplier = useCallback(
     async (supplierId: number) => {
-      if (!(await confirmYesNo("هل أنت متأكد من حذف هذا المورد؟"))) return
+      if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذا المورد؟")))) return
 
       try {
         const response = await fetch(`/api/suppliers/${supplierId}`, {
@@ -472,11 +473,11 @@ export default function Suppliers() {
             setCurrentIndex(currentIndex - 1)
           }
         } else {
-          setError("فشل في حذف المورد")
+          setError(tr("فشل في حذف المورد"))
         }
       } catch (error) {
         console.error("Error deleting supplier:", error)
-        setError("حدث خطأ في حذف المورد")
+        setError(tr("حدث خطأ في حذف المورد"))
       }
     },
     [currentIndex, suppliers.length, fetchSuppliers],
@@ -535,22 +536,22 @@ export default function Suppliers() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الأصناف...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={appDir()}>
       {/* Success Message */}
       {showSuccessMessage && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50">
+        <div className="fixed top-4 start-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50">
           <CheckCircle className="h-4 w-4" />
-          تم حفظ البيانات بنجاح
+          {tr("تم حفظ البيانات بنجاح")}
         </div>
       )}
 
@@ -567,11 +568,11 @@ export default function Suppliers() {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">إدارة الموردين</h1>
+        <h1 className="text-3xl font-bold">{tr("إدارة الموردين")}</h1>
         <div className="flex gap-2">
           <Button onClick={handleNewSupplier} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            مورد جديد
+            {tr("مورد جديد")}
           </Button>
           <Button
             variant="outline"
@@ -579,7 +580,7 @@ export default function Suppliers() {
             className="flex items-center gap-2 bg-transparent"
           >
             <Upload className="h-4 w-4" />
-            استيراد من Excel
+            {tr("استيراد من Excel")}
           </Button>
         </div>
       </div>
@@ -590,7 +591,7 @@ export default function Suppliers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">إجمالي الموردين</p>
+                <p className="text-sm font-medium text-blue-700">{tr("إجمالي الموردين")}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
               </div>
               <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
@@ -604,7 +605,7 @@ export default function Suppliers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700">الموردين النشطين</p>
+                <p className="text-sm font-medium text-green-700">{tr("الموردين النشطين")}</p>
                 <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
               </div>
               <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
@@ -618,7 +619,7 @@ export default function Suppliers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">الموردين غير النشطين</p>
+                <p className="text-sm font-medium text-red-700">{tr("الموردين غير النشطين")}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
               </div>
               <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
@@ -632,7 +633,7 @@ export default function Suppliers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">جدد هذا الشهر</p>
+                <p className="text-sm font-medium text-purple-700">{tr("جدد هذا الشهر")}</p>
                 <p className="text-3xl font-bold text-purple-900">{statistics.newThisMonth}</p>
               </div>
               <div className="h-10 w-10 bg-purple-200 rounded-full flex items-center justify-center">
@@ -648,47 +649,47 @@ export default function Suppliers() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث المتقدم
+            {tr("البحث المتقدم")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="search-name">اسم المورد</Label>
+              <Label htmlFor="search-name">{tr("اسم المورد")}</Label>
               <Input
                 id="search-name"
                 value={searchFilters.name}
                 onChange={(e) => setSearchFilters((prev) => ({ ...prev, name: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث بالاسم..."
+                placeholder={tr("ابحث بالاسم...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-city">المدينة</Label>
+              <Label htmlFor="search-city">{tr("المدينة")}</Label>
               <Select
                 value={searchFilters.city}
                 onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, city: value === "all" ? "" : value }))}
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر المدينة" />
+                  <SelectValue placeholder={tr("اختر المدينة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المدن</SelectItem>
-                  <SelectItem value="الرياض">الرياض</SelectItem>
-                  <SelectItem value="جدة">جدة</SelectItem>
-                  <SelectItem value="الدمام">الدمام</SelectItem>
-                  <SelectItem value="مكة المكرمة">مكة المكرمة</SelectItem>
-                  <SelectItem value="المدينة المنورة">المدينة المنورة</SelectItem>
-                  <SelectItem value="الطائف">الطائف</SelectItem>
-                  <SelectItem value="تبوك">تبوك</SelectItem>
-                  <SelectItem value="بريدة">بريدة</SelectItem>
-                  <SelectItem value="خميس مشيط">خميس مشيط</SelectItem>
-                  <SelectItem value="حائل">حائل</SelectItem>
+                  <SelectItem value="all">{tr("جميع المدن")}</SelectItem>
+                  <SelectItem value="الرياض">{tr("الرياض")}</SelectItem>
+                  <SelectItem value="جدة">{tr("جدة")}</SelectItem>
+                  <SelectItem value="الدمام">{tr("الدمام")}</SelectItem>
+                  <SelectItem value="مكة المكرمة">{tr("مكة المكرمة")}</SelectItem>
+                  <SelectItem value="المدينة المنورة">{tr("المدينة المنورة")}</SelectItem>
+                  <SelectItem value="الطائف">{tr("الطائف")}</SelectItem>
+                  <SelectItem value="تبوك">{tr("تبوك")}</SelectItem>
+                  <SelectItem value="بريدة">{tr("بريدة")}</SelectItem>
+                  <SelectItem value="خميس مشيط">{tr("خميس مشيط")}</SelectItem>
+                  <SelectItem value="حائل">{tr("حائل")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="search-status">الحالة</Label>
+              <Label htmlFor="search-status">{tr("الحالة")}</Label>
               <Select
                 value={searchFilters.status}
                 onValueChange={(value) =>
@@ -696,17 +697,17 @@ export default function Suppliers() {
                 }
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر الحالة" />
+                  <SelectValue placeholder={tr("اختر الحالة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="نشط">نشط</SelectItem>
-                  <SelectItem value="غير نشط">غير نشط</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                  <SelectItem value="غير نشط">{tr("غير نشط")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="search-salesman">المندوب</Label>
+              <Label htmlFor="search-salesman">{tr("المندوب")}</Label>
               <Select
                 value={searchFilters.salesman}
                 onValueChange={(value) =>
@@ -714,10 +715,10 @@ export default function Suppliers() {
                 }
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر المندوب" />
+                  <SelectValue placeholder={tr("اختر المندوب")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المندوبين</SelectItem>
+                  <SelectItem value="all">{tr("جميع المندوبين")}</SelectItem>
                   {salesmen.map((salesman) => (
                     <SelectItem key={salesman.id} value={salesman.name}>
                       {salesman.name}
@@ -726,9 +727,9 @@ export default function Suppliers() {
                   {/* Fallback options if no salesmen loaded */}
                   {salesmen.length === 0 && (
                     <>
-                      <SelectItem value="أحمد">أحمد</SelectItem>
-                      <SelectItem value="محمد">محمد</SelectItem>
-                      <SelectItem value="علي">علي</SelectItem>
+                      <SelectItem value="أحمد">{tr("أحمد")}</SelectItem>
+                      <SelectItem value="محمد">{tr("محمد")}</SelectItem>
+                      <SelectItem value="علي">{tr("علي")}</SelectItem>
                     </>
                   )}
                 </SelectContent>
@@ -741,19 +742,19 @@ export default function Suppliers() {
       {/* Suppliers List */}
       <Card>
         <CardHeader>
-          <CardTitle>قائمة الموردين ({filteredSuppliers.length})</CardTitle>
+          <CardTitle>{tr("قائمة الموردين (")}{filteredSuppliers.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-right">رقم المورد</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">اسم المورد</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">الجوال</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">المدينة</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">الحالة</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">الإجراءات</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("رقم المورد")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("اسم المورد")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("الجوال")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("المدينة")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("الحالة")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-center">{tr("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -768,9 +769,9 @@ export default function Suppliers() {
                         variant={supplier.status === "نشط" || supplier.status === "active" ? "default" : "secondary"}
                       >
                         {supplier.status === "active"
-                          ? "نشط"
+                          ? tr("نشط")
                           : supplier.status === "inactive"
-                            ? "غير نشط"
+                            ? tr("غير نشط")
                             : supplier.status}
                       </Badge>
                     </td>
@@ -794,7 +795,7 @@ export default function Suppliers() {
 
       {/* Supplier Form Dialog */}
       <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0" dir="rtl">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0" dir={appDir()}>
           <div className="h-screen flex flex-col bg-background">
             {/* Universal Toolbar - Fixed at top */}
             <div className="flex-shrink-0">
@@ -826,9 +827,9 @@ export default function Suppliers() {
                   <div>
                     <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
                       <Plus className="h-7 w-7 text-primary" />
-                      {editingSupplier ? "تعديل المورد" : "مورد جديد"}
+                      {editingSupplier ? tr("تعديل المورد") : tr("مورد جديد")}
                     </h1>
-                    <p className="text-muted-foreground mt-1">جميع بيانات المورد في شاشة واحدة مضغوطة</p>
+                    <p className="text-muted-foreground mt-1">{tr("جميع بيانات المورد في شاشة واحدة مضغوطة")}</p>
                   </div>
                 </div>
 
@@ -844,7 +845,7 @@ export default function Suppliers() {
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Plus className="h-5 w-5 text-primary" />
-                        المعلومات الأساسية والتعريف
+                        {tr("المعلومات الأساسية والتعريف")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -852,7 +853,7 @@ export default function Suppliers() {
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <Label htmlFor="supplier_code" className="text-sm font-medium">
-                            رقم المورد *
+                            {tr("رقم المورد *")}
                           </Label>
                           <div className="flex gap-2">
                             <Input
@@ -860,7 +861,7 @@ export default function Suppliers() {
                               value={formData.supplier_code}
                               onChange={(e) => updateField("supplier_code", e.target.value)}
                               className="text-right"
-                              placeholder="رقم المورد"
+                              placeholder={tr("رقم المورد")}
                               readOnly
                             />
                             <Button
@@ -870,34 +871,34 @@ export default function Suppliers() {
                               disabled={generatingNumber}
                               size="sm"
                             >
-                              {generatingNumber ? "..." : "توليد"}
+                              {generatingNumber ? "..." : tr("توليد")}
                             </Button>
                           </div>
                         </div>
                         <div>
                           <Label htmlFor="status" className="text-sm font-medium">
-                            حالة المورد
+                            {tr("حالة المورد")}
                           </Label>
                           <Select value={formData.status} onValueChange={(value) => updateField("status", value)}>
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="نشط">نشط</SelectItem>
-                              <SelectItem value="غير نشط">غير نشط</SelectItem>
+                              <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                              <SelectItem value="غير نشط">{tr("غير نشط")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
                           <Label htmlFor="classification" className="text-sm font-medium">
-                            التصنيف
+                            {tr("التصنيف")}
                           </Label>
                           <Select
                             value={formData.classification}
                             onValueChange={(value) => updateField("classification", value)}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر التصنيف" />
+                              <SelectValue placeholder={tr("اختر التصنيف")} />
                             </SelectTrigger>
                             <SelectContent>
                               {classifications.map((classification) => (
@@ -908,9 +909,9 @@ export default function Suppliers() {
                               {/* Fallback options if no classifications loaded */}
                               {classifications.length === 0 && (
                                 <>
-                                  <SelectItem value="مورد رئيسي">مورد رئيسي</SelectItem>
-                                  <SelectItem value="مورد ثانوي">مورد ثانوي</SelectItem>
-                                  <SelectItem value="مورد محلي">مورد محلي</SelectItem>
+                                  <SelectItem value="مورد رئيسي">{tr("مورد رئيسي")}</SelectItem>
+                                  <SelectItem value="مورد ثانوي">{tr("مورد ثانوي")}</SelectItem>
+                                  <SelectItem value="مورد محلي">{tr("مورد محلي")}</SelectItem>
                                 </>
                               )}
                             </SelectContent>
@@ -918,7 +919,7 @@ export default function Suppliers() {
                         </div>
                         <div>
                           <Label htmlFor="registration_date" className="text-sm font-medium">
-                            تاريخ التسجيل
+                            {tr("تاريخ التسجيل")}
                           </Label>
                           <Input
                             id="registration_date"
@@ -934,14 +935,14 @@ export default function Suppliers() {
                       <div className="grid grid-cols-1 gap-4">
                         <div>
                           <Label htmlFor="supplier_name" className="text-sm font-medium">
-                            اسم المورد *
+                            {tr("اسم المورد *")}
                           </Label>
                           <Input
                             id="supplier_name"
                             value={formData.name}
                             onChange={(e) => updateField("name", e.target.value)}
                             className={`text-right ${validationErrors.supplier_name ? "border-red-500" : ""}`}
-                            placeholder="أدخل اسم المورد"
+                            placeholder={tr("أدخل اسم المورد")}
                             required
                           />
                           {validationErrors.supplier_name && (
@@ -957,21 +958,21 @@ export default function Suppliers() {
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Plus className="h-5 w-5 text-primary" />
-                        معلومات الاتصال
+                        {tr("معلومات الاتصال")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <Label htmlFor="mobile1" className="text-sm font-medium">
-                            الجوال الأول *
+                            {tr("الجوال الأول *")}
                           </Label>
                           <Input
                             id="mobile1"
                             value={formData.mobile1}
                             onChange={(e) => updateField("mobile1", e.target.value)}
                             className={`text-right ${validationErrors.mobile1 ? "border-red-500" : ""}`}
-                            placeholder="رقم الجوال الأول"
+                            placeholder={tr("رقم الجوال الأول")}
                             required
                           />
                           {validationErrors.mobile1 && (
@@ -980,38 +981,38 @@ export default function Suppliers() {
                         </div>
                         <div>
                           <Label htmlFor="mobile2" className="text-sm font-medium">
-                            الجوال الثاني
+                            {tr("الجوال الثاني")}
                           </Label>
                           <Input
                             id="mobile2"
                             value={formData.mobile2}
                             onChange={(e) => updateField("mobile2", e.target.value)}
                             className="text-right"
-                            placeholder="رقم الجوال الثاني"
+                            placeholder={tr("رقم الجوال الثاني")}
                           />
                         </div>
                         <div>
                           <Label htmlFor="whatsapp1" className="text-sm font-medium">
-                            واتساب الأول
+                            {tr("واتساب الأول")}
                           </Label>
                           <Input
                             id="whatsapp1"
                             value={formData.whatsapp1}
                             onChange={(e) => updateField("whatsapp1", e.target.value)}
                             className="text-right"
-                            placeholder="رقم واتساب الأول"
+                            placeholder={tr("رقم واتساب الأول")}
                           />
                         </div>
                         <div>
                           <Label htmlFor="whatsapp2" className="text-sm font-medium">
-                            واتساب الثاني
+                            {tr("واتساب الثاني")}
                           </Label>
                           <Input
                             id="whatsapp2"
                             value={formData.whatsapp2}
                             onChange={(e) => updateField("whatsapp2", e.target.value)}
                             className="text-right"
-                            placeholder="رقم واتساب الثاني"
+                            placeholder={tr("رقم واتساب الثاني")}
                           />
                         </div>
                       </div>
@@ -1019,7 +1020,7 @@ export default function Suppliers() {
                       <div className="grid grid-cols-1 gap-4 mt-4">
                         <div>
                           <Label htmlFor="email" className="text-sm font-medium">
-                            البريد الإلكتروني
+                            {tr("البريد الإلكتروني")}
                           </Label>
                           <Input
                             id="email"
@@ -1027,7 +1028,7 @@ export default function Suppliers() {
                             value={formData.email}
                             onChange={(e) => updateField("email", e.target.value)}
                             className={`text-right ${validationErrors.email ? "border-red-500" : ""}`}
-                            placeholder="البريد الإلكتروني"
+                            placeholder={tr("البريد الإلكتروني")}
                           />
                           {validationErrors.email && (
                             <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
@@ -1042,33 +1043,33 @@ export default function Suppliers() {
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Plus className="h-5 w-5 text-primary" />
-                        العنوان والموقع
+                        {tr("العنوان والموقع")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="city" className="text-sm font-medium">
-                            المدينة
+                            {tr("المدينة")}
                           </Label>
                           <Input
                             id="city"
                             value={formData.city}
                             onChange={(e) => updateField("city", e.target.value)}
                             className="text-right"
-                            placeholder="المدينة"
+                            placeholder={tr("المدينة")}
                           />
                         </div>
                         <div>
                           <Label htmlFor="address" className="text-sm font-medium">
-                            العنوان التفصيلي
+                            {tr("العنوان التفصيلي")}
                           </Label>
                           <Input
                             id="address"
                             value={formData.address}
                             onChange={(e) => updateField("address", e.target.value)}
                             className="text-right"
-                            placeholder="العنوان التفصيلي"
+                            placeholder={tr("العنوان التفصيلي")}
                           />
                         </div>
                       </div>
@@ -1080,30 +1081,30 @@ export default function Suppliers() {
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Plus className="h-5 w-5 text-primary" />
-                        معلومات العمل والمبيعات
+                        {tr("معلومات العمل والمبيعات")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="business_nature" className="text-sm font-medium">
-                            طبيعة العمل
+                            {tr("طبيعة العمل")}
                           </Label>
                           <Input
                             id="business_nature"
                             value={formData.business_nature}
                             onChange={(e) => updateField("business_nature", e.target.value)}
                             className="text-right"
-                            placeholder="طبيعة العمل"
+                            placeholder={tr("طبيعة العمل")}
                           />
                         </div>
                         <div>
                           <Label htmlFor="salesman" className="text-sm font-medium">
-                            المندوب
+                            {tr("المندوب")}
                           </Label>
                           <Select value={formData.salesman} onValueChange={(value) => updateField("salesman", value)}>
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر المندوب" />
+                              <SelectValue placeholder={tr("اختر المندوب")} />
                             </SelectTrigger>
                             <SelectContent>
                               {salesmen.map((salesman) => (
@@ -1114,9 +1115,9 @@ export default function Suppliers() {
                               {/* Fallback options if no salesmen loaded */}
                               {salesmen.length === 0 && (
                                 <>
-                                  <SelectItem value="أحمد">أحمد</SelectItem>
-                                  <SelectItem value="محمد">محمد</SelectItem>
-                                  <SelectItem value="علي">علي</SelectItem>
+                                  <SelectItem value="أحمد">{tr("أحمد")}</SelectItem>
+                                  <SelectItem value="محمد">{tr("محمد")}</SelectItem>
+                                  <SelectItem value="علي">{tr("علي")}</SelectItem>
                                 </>
                               )}
                             </SelectContent>
@@ -1131,26 +1132,26 @@ export default function Suppliers() {
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Plus className="h-5 w-5 text-primary" />
-                        بيانات الموقع الإلكتروني
+                        {tr("بيانات الموقع الإلكتروني")}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="web_username" className="text-sm font-medium">
-                            اسم المستخدم للموقع
+                            {tr("اسم المستخدم للموقع")}
                           </Label>
                           <Input
                             id="web_username"
                             value={formData.web_username}
                             onChange={(e) => updateField("web_username", e.target.value)}
                             className="text-right"
-                            placeholder="اسم المستخدم"
+                            placeholder={tr("اسم المستخدم")}
                           />
                         </div>
                         <div>
                           <Label htmlFor="web_password" className="text-sm font-medium">
-                            كلمة المرور للموقع
+                            {tr("كلمة المرور للموقع")}
                           </Label>
                           <Input
                             id="web_password"
@@ -1158,7 +1159,7 @@ export default function Suppliers() {
                             value={formData.web_password}
                             onChange={(e) => updateField("web_password", e.target.value)}
                             className="text-right"
-                            placeholder="كلمة المرور"
+                            placeholder={tr("كلمة المرور")}
                           />
                         </div>
                       </div>
@@ -1168,32 +1169,32 @@ export default function Suppliers() {
                   {/* ملاحظات وتفاصيل إضافية */}
                   <Card>
                     <CardHeader className="pb-4">
-                      <CardTitle className="text-lg">ملاحظات وتفاصيل إضافية</CardTitle>
+                      <CardTitle className="text-lg">{tr("ملاحظات وتفاصيل إضافية")}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
                         <Label htmlFor="transaction_notes" className="text-sm font-medium">
-                          ملاحظات الحركة
+                          {tr("ملاحظات الحركة")}
                         </Label>
                         <Textarea
                           id="transaction_notes"
                           value={formData.transaction_notes}
                           onChange={(e) => updateField("transaction_notes", e.target.value)}
                           className="text-right"
-                          placeholder="ملاحظات خاصة بالحركة المالية"
+                          placeholder={tr("ملاحظات خاصة بالحركة المالية")}
                           rows={3}
                         />
                       </div>
                       <div>
                         <Label htmlFor="general_notes" className="text-sm font-medium">
-                          الملاحظات العامة
+                          {tr("الملاحظات العامة")}
                         </Label>
                         <Textarea
                           id="general_notes"
                           value={formData.general_notes}
                           onChange={(e) => updateField("general_notes", e.target.value)}
                           className="text-right"
-                          placeholder="ملاحظات عامة"
+                          placeholder={tr("ملاحظات عامة")}
                           rows={3}
                         />
                       </div>
@@ -1209,12 +1210,12 @@ export default function Suppliers() {
                       disabled={saving}
                       className="min-w-[120px] bg-transparent"
                     >
-                      <X className="h-4 w-4 mr-2" />
-                      إلغاء
+                      <X className="h-4 w-4 ms-2" />
+                      {tr("إلغاء")}
                     </Button>
                     <Button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 min-w-[120px]">
-                      <Save className="h-4 w-4 mr-2" />
-                      {saving ? "جاري الحفظ..." : "حفظ المورد"}
+                      <Save className="h-4 w-4 ms-2" />
+                      {saving ? tr("جاري الحفظ...") : tr("حفظ المورد")}
                     </Button>
                   </div>
                 </form>

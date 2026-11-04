@@ -41,6 +41,8 @@ export const TRANSACTION_FAMILIES = {
   fixed_asset: "الأصول الثابتة",
   bank_reconciliation: "التسوية البنكية",
   promotion: "العروض والأسعار الخاصة",
+  // برامج المساعدات (قسائم بلا بطاقة، lib/aid-program.ts) — الصرف نفسه من الكاشير بصلاحية "ادخال فاتورة كاشير"
+  aid_program: "برامج المساعدات",
   period_lock: "إقفال الفترات",
   landed_cost: "تحميل تكاليف الشحن والجمارك",
   year_end_closing: "إقفال السنة المالية",
@@ -208,6 +210,7 @@ export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | nul
  */
 export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, TransactionAction[]>> = {
   bulk_items: ["access", "update"],
+  aid_program: ["access", "view", "create", "update", "delete"],
   cheque_book: ["access", "view", "create", "update"],
   cheque_register: ["access", "view"],
   cheque_operation: ["access"],
@@ -246,6 +249,7 @@ export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, Trans
 /** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
 export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFamily, Partial<Record<TransactionAction, string>>>> = {
   bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
+  aid_program: { view: "استعلام برامج المساعدات والمستفيدين", create: "إضافة نشاط مساعدة واستيراد مستفيدين", update: "تعديل نشاط مساعدة وتعبئة وإلغاء رموز المستفيدين", delete: "حذف نشاط مساعدة" },
   cheque_book: { view: "استعلام دفاتر الشيكات", create: "إضافة دفتر شيكات", update: "تعديل دفتر شيكات" },
   cheque_register: { view: "استعلام الشيكات وسجل عملياتها" },
   task_orders_admin: { view: "استعلام الأقسام وسير العمل", create: "إضافة قسم أو سير عمل", update: "تعديل الأقسام وسير العمل", delete: "حذف قسم أو سير عمل" },
@@ -343,6 +347,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "fixed-assets": "fixed_asset",
   "bank-reconciliation": "bank_reconciliation",
   promotions: "promotion",
+  "aid-program": "aid_program",
   "period-locks": "period_lock",
   "landed-costs": "landed_cost",
   "year-end-closing": "year_end_closing",

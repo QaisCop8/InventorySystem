@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { SearchButton } from "@/components/search/search-button"
@@ -92,7 +93,7 @@ export function StockMovements() {
     e.preventDefault()
 
     if (!formData.product_id || !formData.quantity) {
-      showAlert("يرجى ملء جميع الحقول المطلوبة")
+      showAlert(tr("يرجى ملء جميع الحقول المطلوبة"))
       return
     }
 
@@ -125,13 +126,13 @@ export function StockMovements() {
           notes: "",
         })
         fetchMovements()
-        showAlert("تم إضافة حركة المخزون بنجاح")
+        showAlert(tr("تم إضافة حركة المخزون بنجاح"))
       } else {
-        throw new Error("فشل في إضافة حركة المخزون")
+        throw new Error(tr("فشل في إضافة حركة المخزون"))
       }
     } catch (error) {
       console.error("Error creating movement:", error)
-      showAlert("حدث خطأ في إضافة حركة المخزون")
+      showAlert(tr("حدث خطأ في إضافة حركة المخزون"))
     }
   }
 
@@ -152,10 +153,10 @@ export function StockMovements() {
 
   const getMovementBadge = (type: string) => {
     const config = {
-      in: { color: "bg-green-100 text-green-800", text: "وارد" },
-      out: { color: "bg-red-100 text-red-800", text: "صادر" },
-      adjustment: { color: "bg-blue-100 text-blue-800", text: "تعديل" },
-      transfer: { color: "bg-purple-100 text-purple-800", text: "تحويل" },
+      in: { color: "bg-green-100 text-green-800", text: tr("وارد") },
+      out: { color: "bg-red-100 text-red-800", text: tr("صادر") },
+      adjustment: { color: "bg-blue-100 text-blue-800", text: tr("تعديل") },
+      transfer: { color: "bg-purple-100 text-purple-800", text: tr("تحويل") },
     }
 
     const { color, text } = config[type as keyof typeof config] || config.in
@@ -171,7 +172,7 @@ export function StockMovements() {
 
   const handleMovementSelect = (movement: StockMovement) => {
     // عرض تفاصيل الحركة أو فتح نافذة التعديل
-    showAlert(`تم اختيار الحركة: ${movement.product_name} - ${movement.transaction_type}`)
+    showAlert(tr("تم اختيار الحركة: {0} - {1}", movement.product_name, movement.transaction_type))
   }
 
   useEffect(() => {
@@ -199,9 +200,9 @@ export function StockMovements() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">حركات المخزون</h2>
+          <h2 className="text-2xl font-bold">{tr("حركات المخزون")}</h2>
           <Badge variant="outline" className="text-xs mt-1">
-            F2: بحث سريع عن صنف
+            {tr("F2: بحث سريع عن صنف")}
           </Badge>
         </div>
         <div className="flex gap-2">
@@ -209,7 +210,7 @@ export function StockMovements() {
           <SearchButton type="products" onSelect={handleProductSelect} variant="outline" data-search-type="products" />
           <Button onClick={() => setShowDialog(true)}>
             <Plus className="ml-2 h-4 w-4" />
-            إضافة حركة جديدة
+            {tr("إضافة حركة جديدة")}
           </Button>
         </div>
       </div>
@@ -218,7 +219,7 @@ export function StockMovements() {
         <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            سجل حركات المخزون
+            {tr("سجل حركات المخزون")}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -226,14 +227,14 @@ export function StockMovements() {
             <table className="w-full">
               <thead className="bg-gradient-to-r from-gray-50 to-blue-50/50">
                 <tr>
-                  <th className="text-right p-4 font-semibold text-gray-700">التاريخ</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">المنتج</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">نوع الحركة</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">الكمية</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">التكلفة</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">المرجع</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">المستخدم</th>
-                  <th className="text-right p-4 font-semibold text-gray-700">ملاحظات</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("التاريخ")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("المنتج")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("الكمية")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("التكلفة")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("المرجع")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("المستخدم")}</th>
+                  <th className="text-right p-4 font-semibold text-gray-700">{tr("ملاحظات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -276,7 +277,7 @@ export function StockMovements() {
             <DialogTitle className="flex items-center justify-between text-white">
               <span className="flex items-center gap-2">
                 <Plus className="h-5 w-5" />
-                إضافة حركة مخزون جديدة
+                {tr("إضافة حركة مخزون جديدة")}
               </span>
               <SearchButton
                 type="products"
@@ -292,13 +293,13 @@ export function StockMovements() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="product">المنتج *</Label>
+                <Label htmlFor="product">{tr("المنتج *")}</Label>
                 <Select
                   value={formData.product_id}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, product_id: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر المنتج" />
+                    <SelectValue placeholder={tr("اختر المنتج")} />
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((product) => (
@@ -311,7 +312,7 @@ export function StockMovements() {
               </div>
 
               <div>
-                <Label htmlFor="transaction_type">نوع الحركة *</Label>
+                <Label htmlFor="transaction_type">{tr("نوع الحركة *")}</Label>
                 <Select
                   value={formData.transaction_type}
                   onValueChange={(value: "in" | "out" | "adjustment" | "transfer") =>
@@ -322,10 +323,10 @@ export function StockMovements() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="in">وارد</SelectItem>
-                    <SelectItem value="out">صادر</SelectItem>
-                    <SelectItem value="adjustment">تعديل</SelectItem>
-                    <SelectItem value="transfer">تحويل</SelectItem>
+                    <SelectItem value="in">{tr("وارد")}</SelectItem>
+                    <SelectItem value="out">{tr("صادر")}</SelectItem>
+                    <SelectItem value="adjustment">{tr("تعديل")}</SelectItem>
+                    <SelectItem value="transfer">{tr("تحويل")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -333,7 +334,7 @@ export function StockMovements() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="quantity">الكمية *</Label>
+                <Label htmlFor="quantity">{tr("الكمية *")}</Label>
                 <Input
                   id="quantity"
                   type="number"
@@ -350,7 +351,7 @@ export function StockMovements() {
               </div>
 
               <div>
-                <Label htmlFor="unit_cost">التكلفة الوحدة</Label>
+                <Label htmlFor="unit_cost">{tr("التكلفة الوحدة")}</Label>
                 <Input
                   id="unit_cost"
                   type="number"
@@ -368,51 +369,51 @@ export function StockMovements() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="reference_type">نوع المرجع</Label>
+                <Label htmlFor="reference_type">{tr("نوع المرجع")}</Label>
                 <Select
                   value={formData.reference_type}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, reference_type: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر نوع المرجع" />
+                    <SelectValue placeholder={tr("اختر نوع المرجع")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="purchase_order">أمر شراء</SelectItem>
-                    <SelectItem value="sales_order">أمر بيع</SelectItem>
-                    <SelectItem value="adjustment">تعديل</SelectItem>
-                    <SelectItem value="transfer">تحويل</SelectItem>
-                    <SelectItem value="manual">يدوي</SelectItem>
+                    <SelectItem value="purchase_order">{tr("أمر شراء")}</SelectItem>
+                    <SelectItem value="sales_order">{tr("أمر بيع")}</SelectItem>
+                    <SelectItem value="adjustment">{tr("تعديل")}</SelectItem>
+                    <SelectItem value="transfer">{tr("تحويل")}</SelectItem>
+                    <SelectItem value="manual">{tr("يدوي")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="reference_id">رقم المرجع</Label>
+                <Label htmlFor="reference_id">{tr("رقم المرجع")}</Label>
                 <Input
                   id="reference_id"
                   value={formData.reference_id}
                   onChange={(e) => setFormData((prev) => ({ ...prev, reference_id: e.target.value }))}
-                  placeholder="رقم الأمر أو المرجع"
+                  placeholder={tr("رقم الأمر أو المرجع")}
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="notes">ملاحظات</Label>
+              <Label htmlFor="notes">{tr("ملاحظات")}</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
-                placeholder="أدخل أي ملاحظات إضافية..."
+                placeholder={tr("أدخل أي ملاحظات إضافية...")}
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
-              <Button type="submit">حفظ الحركة</Button>
+              <Button type="submit">{tr("حفظ الحركة")}</Button>
             </div>
           </form>
         </DialogContent>

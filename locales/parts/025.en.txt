@@ -1,0 +1,300 @@
+Show the bonus in a separate column
+Show transfers between the selected warehouses
+Choose the items and show the report
+Account / customer name
+Click the voucher number or double-click the transaction to open the voucher.
+Net price
+The item isn't available in the item card
+The item isn't in the item card list
+Quantities in the voucher unit · balance and totals in the main unit
+Main unit:
+Search by code or item name
+Search the report items
+Item movement card
+Bonus
+Unable to load the item card
+Loading the table...
+Loading item movements...
+Set the period and items then press show report
+Detailed voucher movements and balances for each item
+Closing balance
+Opening balance
+Manual voucher number
+Transactions log
+Show card {0}
+No items match the selected filters
+No movements in the selected period; the approved balance is shown below.
+Conversion factor
+Unable to load the inventory valuation
+Inventory valuation at a date
+Valuation of the stock quantity and value as of the cut-off date
+Valuation method
+Average item value
+Inventory valuation results
+Product name or lot number
+Damaged/closed
+Lot details
+Inventory report by lots
+Loading the inventory report by lots...
+New lots
+Valid
+A detailed view of all product lots in inventory
+Failed to load the inventory report by lots
+Near expiry
+Expired
+{0} customers/suppliers
+Top customers/suppliers by value
+Most requested items
+Delay
+Late orders (oldest 20)
+Orders per month
+Customer/supplier
+By status
+Late orders
+Open orders
+Failed to load the report data
+All salesmen
+No orders in the period
+No late orders 👍
+Order indicators for the period: count, value, open and late, monthly movement, top customers and items
+Average order {0}
+Partially sent
+Fully sent
+Sent/closed {0} · cancelled {1}
+Closed
+Open and past the delivery date
+Order type
+Last order
+Salesman performance: number of orders and customers, completed, cancelled and value
+Order lines item by item: quantity, delivered, remaining, price and value
+Days late
+Total quantities requested for each item with delivered, remaining and average price
+Customers/suppliers
+Remaining quantities in open orders (not cancelled or closed) with days late past the delivery date
+Remaining quantity
+Delivered
+Requested
+Suppliers
+Order number or name
+Item code, name or barcode
+Item code
+One order per line: number of items, quantities, delivered, remaining, discount, tax and total
+Number of orders and open ones, quantities and value for each customer or supplier
+Number of customers/suppliers
+Number of salesmen
+No data for the selected period and filters
+Average price
+Sent/closed
+2,500 shekels
+25 pieces
+P001 - Dell laptop
+Item balances
+Items below minimum
+Out-of-stock items
+Import count results
+Press "Start a new count" to begin the count
+Current balance:
+Actual balance
+Item:
+Quantities by batch
+Quantity out
+Quantity in
+Reserved quantity
+Group
+Search by item number or name
+Start a new count
+Download the count template
+Export PDF
+Apply filter
+Item and inventory reports
+Expiry dates
+Inventory count
+Item movement
+Data will be shown here when items with batches are available
+Data will be shown here when items with expiry dates are available
+No items with batch numbers
+No items with expiry dates
+No count has been started yet
+Average cost
+Average price:
+Item information
+Total quantities produced for each item, their value, average cost and number of production vouchers
+Total issued of each raw material in production vouchers by quantity and value
+Raw material consumption by item
+Item or voucher number
+Consumed quantity
+Produced quantity
+Raw material
+Produced goods by item
+Production reports
+Production detailed report
+Production voucher cost
+Raw
+One line per item in each production voucher — produced goods and raw materials by quantity, purchase price and value
+Number of lines
+Value of consumed materials
+For each production voucher: the value of produced goods vs the value of consumed raw materials and the difference
+Produced
+Enter the end of each period in days in ascending order — a last "and more" period is added automatically.
+Credit balances (owed by us)
+Debit balances (receivables owed to us)
+Total balances
+Add period
+Search by receivable or salesman number or name...
+Include cheques
+Include uncollected incoming cheques in the receivable balance (and unpaid outgoing ones)
+Choose at least one receivable
+Last period: from day
+Last transaction date
+Exceeded the limit
+Apply to this view
+Edit periods
+Edit aging periods
+Unable to load the receivables aging report
+Unable to save the periods
+Receivables aging at
+Receivables aging report
+Distribute customer and supplier balances over debt age periods up to a specific date
+Balance distribution over the periods
+All receivables
+Save as default
+Error in the periods entered; please enter ascending periods with positive days
+Balance limit {0}
+Within the first period ({0} days)
+and more
+Aging periods:
+Late (after the first period)
+From day
+Balance type
+Send to
+Send WhatsApp
+Report
+Control and audit
+Filters
+Search by filters / title
+Reports archive report
+Save PDF
+Print report
+Open report
+No operations match the filters
+Example: a customer or account name
+Who opened which report and when, with which filters they viewed it, and who printed it, saved it as PDF or sent it by WhatsApp and to whom.
+Show vouchers in other currencies
+Keep the filters open after showing the report
+Unpin filters
+Pin
+Pin filters
+0599123456 or 970599123456
+Send the report as PDF via WhatsApp
+Send directly to the customer (WhatsApp Business)
+Type the customer name to choose their number (optional)
+Unable to prepare the report
+The report was sent via WhatsApp
+Download PDF and open the customer chat
+Save PDF only
+Save the report as PDF and send it to the customer via WhatsApp
+There is no data shown in the report — show the report first
+To send directly without attaching manually, enable the "WhatsApp Business" link from the integration settings.
+Share file (choose WhatsApp)
+The report is saved as it appears now (with the same filters) as a PDF file and sent to the customer.
+Search by user, point of sale or shift number...
+No matching shifts
+Enter the invoice number then press show report
+Profits of sales and returns during a period, detailed or grouped as needed
+Profits of a specific invoice
+Show cost details
+Calculate the cost of each sales and return line by the pricing method and save it on the vouchers
+Choose sales or returns at least
+Cost (with bonus)
+Profit
+Item (items sold during the period)
+Next item
+Previous item
+Invoice search (F10)
+Group by
+Each line's cost is calculated at the moment the goods leave according to inventory movement, and saved on the voucher lines within the selected filters.
+Outgoing pricing
+Unable to load the profit report
+Unable to run outgoing pricing
+Line breakdown
+Item profit reports
+Profit report for a specific period
+Inventory profit ratio report
+Bonus cost
+Item sales cost
+Cost and profit of each item in a specific sales invoice or return
+{0} lines priced with the "{1}" method{2}
+Run outgoing pricing
+Save the calculated cost on the voucher lines (used by salesman commissions)
+Profitability of each item during a period with outgoing pricing applied automatically by the pricing method
+Voucher number — Enter or F10 to search
+Invoice / return number
+records — pricing method:
+lines whose items have no known cost (no purchases and no opening price) — their cost was counted as zero.
+Outgoing pricing method
+Cost and profit of each sale or return of a single item during a period
+No known cost for this item
+Preview without saving
+Sales rate
+Cost rate
+Sales ratio %
+Profit ratio %
+Profit on cost %
+Profit margin
+Profit margin %
+Outgoings are priced automatically when the report is shown (by inventory movement up to the end date) — no need to run the pricing beforehand.
+The invoice number must be entered to load the report
+An item must be chosen to load the report
+Item serial numbers and their current status, with all the vouchers that moved each number.
+Account / customer
+Serial number or item number/name
+Current warehouse:
+Click the voucher number or double-click the transaction to open the voucher. Cancelled vouchers are struck through and aren't counted in the current status.
+No movement
+No active movement
+Unable to load the number's movements
+Serial movements report
+Loading movements...
+Serial number movements
+Out of stock
+In stock
+No serial numbers match the filters
+No movements on this number
+Double-click to open the voucher
+Only the first 2000 numbers are shown — narrow the search
+Loss
+Balance sheet liabilities and equity
+Net
+Total
+· {0} vouchers
+· licensed dealer no.:
+A. Dealer details (seller)
+A. Dealer details (buyer)
+Show notes (credit and debit)
+Choose the period then press show results
+Customer / supplier name
+Supplier / service provider name
+Name:
+Tax on transactions − input tax (equipment and furniture + other purchases)
+Address:
+Buyer / service recipient
+Search by number, name or dealer number...
+Invoice details
+Tax reports
+All vouchers
+Licensed dealer number
+Buyer file number
+Supplier file number
+Sales voucher ·
+Purchase voucher · from
+VAT
+Value-added tax on sales and purchases for the selected period
+Statement period:
+Invoice value
+Services purch.
+Assets purch.
+VAT amount in the invoice
+Clearing sales · VAT form no. 879
+Purchases
+Clearing purchases · VAT form no. 878
+Exempt

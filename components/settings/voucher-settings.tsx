@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,22 +40,22 @@ const BARCODE_MODES = [
 
 const COLUMNS = [
     { id: "ser", label: "##" },
-    { id: "barcode", label: "الباركود" },
-    { id: "code", label: "رقم الصنف" },
-    { id: "store", label: "المستودع" },
-    { id: "batch", label: "الرقم التشغيلي" },
-    { id: "price", label: "السعر" },
-    { id: "price_excl_tax", label: "السعر شامل" },
-    { id: "unit", label: "الوحدة" },
-    { id: "bonus", label: "البونص" },
-    { id: "discount", label: "الخصم" },
-    { id: "tax", label: "الضريبة" },
-    { id: "expiry_date", label: "تاريخ الانتهاء" },
-    { id: "serial", label: "الرقم التسلسلي" },
-    { id: "length", label: "الطول" },
-    { id: "width", label: "العرض" },
-    { id: "height", label: "الارتفاع" },
-    { id: "count", label: "العدد" },
+    { id: "barcode", label: tr("الباركود") },
+    { id: "code", label: tr("رقم الصنف") },
+    { id: "store", label: tr("المستودع") },
+    { id: "batch", label: tr("الرقم التشغيلي") },
+    { id: "price", label: tr("السعر") },
+    { id: "price_excl_tax", label: tr("السعر شامل") },
+    { id: "unit", label: tr("الوحدة") },
+    { id: "bonus", label: tr("البونص") },
+    { id: "discount", label: tr("الخصم") },
+    { id: "tax", label: tr("الضريبة") },
+    { id: "expiry_date", label: tr("تاريخ الانتهاء") },
+    { id: "serial", label: tr("الرقم التسلسلي") },
+    { id: "length", label: tr("الطول") },
+    { id: "width", label: tr("العرض") },
+    { id: "height", label: tr("الارتفاع") },
+    { id: "count", label: tr("العدد") },
 ];
 
 // سندات الحركات (ادخال/اخراج بضاعة، ارسالية داخلية، سند استعمال) لا تملك بونص/خصم/ضريبة/تسلسلي،
@@ -136,15 +137,15 @@ export default function VoucherSettings() {
             });
 
             toast({
-                title: "تم الحفظ",
-                description: "تم حفظ إعدادات الأعمدة بنجاح",
+                title: tr("تم الحفظ"),
+                description: tr("تم حفظ إعدادات الأعمدة بنجاح"),
                 variant: "default",
             });
         } catch (err) {
             console.error(err);
             toast({
-                title: "خطأ",
-                description: "فشل حفظ الإعدادات",
+                title: tr("خطأ"),
+                description: tr("فشل حفظ الإعدادات"),
                 variant: "destructive",
             });
         } finally {
@@ -198,8 +199,8 @@ export default function VoucherSettings() {
         } catch (err) {
             console.error(err);
             toast({
-                title: "خطأ",
-                description: "فشل تحميل الإعدادات",
+                title: tr("خطأ"),
+                description: tr("فشل تحميل الإعدادات"),
                 variant: "destructive",
             });
         } finally {
@@ -225,7 +226,7 @@ export default function VoucherSettings() {
         <div className="grid grid-cols-3 gap-3 mt-3">
             {getColumnsForType(voucherType, target).map((col) => target === "screen" && col.id === "barcode" ? (
                 <div key={col.id} className="flex items-center gap-3">
-                    <span className="shrink-0">عمود الرقم</span>
+                    <span className="shrink-0">{tr("عمود الرقم")}</span>
                     <div className="w-44 invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                             value={state.barcode === false ? "none" : (screenOptions.barcode || "barcode")}
@@ -259,11 +260,11 @@ export default function VoucherSettings() {
 
 
     return (
-        <div className="p-6 space-y-6" dir="rtl">
+        <div className="p-6 space-y-6" dir={appDir()}>
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">إعدادات السندات وطباعتها</h1>
+                <h1 className="text-3xl font-bold">{tr("إعدادات السندات وطباعتها")}</h1>
                 <Button onClick={handleSave} disabled={loading}>
-                    حفظ
+                    {tr("حفظ")}
                 </Button>
             </div>
 
@@ -271,7 +272,7 @@ export default function VoucherSettings() {
                 <CardContent className="p-6 space-y-6">
                     {/* Voucher Type Selector */}
                     <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">نوع السند</span>
+                        <span className="text-sm font-medium">{tr("نوع السند")}</span>
                         <div className="w-56 invoice-currency-dropdown-wrap">
                             <PrimeDropdown
                                 value={voucherType}
@@ -291,8 +292,8 @@ export default function VoucherSettings() {
                     {/* Tabs */}
                     <Tabs defaultValue="screen" className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="screen">الأعمدة التي تظهر في السند</TabsTrigger>
-                            <TabsTrigger value="print">الأعمدة التي تظهر في الطباعة</TabsTrigger>
+                            <TabsTrigger value="screen">{tr("الأعمدة التي تظهر في السند")}</TabsTrigger>
+                            <TabsTrigger value="print">{tr("الأعمدة التي تظهر في الطباعة")}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="screen" className="pt-4">{renderCheckboxes(screenColumns, "screen")}</TabsContent>

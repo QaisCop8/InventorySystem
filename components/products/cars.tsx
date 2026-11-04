@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -87,12 +88,12 @@ export default function Cars() {
     if (!silent) setError(null)
     try {
       const res = await fetch("/api/cars")
-      if (!res.ok) throw new Error("فشل في تحميل السيارات")
+      if (!res.ok) throw new Error(tr("فشل في تحميل السيارات"))
       const data: Car[] = await res.json()
       setCars(data)
       return data
     } catch (err: any) {
-      if (!silent) setError(err.message || "حدث خطأ")
+      if (!silent) setError(err.message || tr("حدث خطأ"))
       return []
     } finally {
       if (!silent) setLoading(false)
@@ -191,9 +192,9 @@ export default function Cars() {
     if (!(form.id > 0 ? canUpdate : canCreate)) return false
     if (!canSaveForm) {
       if (hasDuplicateName) {
-        setValidationError("اسم السيارة مكرر لا يمكن الاستمرار")
+        setValidationError(tr("اسم السيارة مكرر لا يمكن الاستمرار"))
       } else {
-        setValidationError("يرجى إدخال اسم السيارة")
+        setValidationError(tr("يرجى إدخال اسم السيارة"))
       }
       return false
     }
@@ -214,7 +215,7 @@ export default function Cars() {
         body: JSON.stringify(payload),
       })
       if (!response.ok) {
-        let errorMessage = "فشل في حفظ السيارة"
+        let errorMessage = tr("فشل في حفظ السيارة")
         try {
           const errorPayload = await response.json()
           errorMessage = errorPayload?.error || errorPayload?.message || errorMessage
@@ -234,7 +235,7 @@ export default function Cars() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
-      setValidationError(error instanceof Error ? error.message : "فشل في حفظ السيارة")
+      setValidationError(error instanceof Error ? error.message : tr("فشل في حفظ السيارة"))
     } finally {
       setIsSaving(false)
     }
@@ -245,7 +246,7 @@ export default function Cars() {
     try {
       const response = await fetch(`/api/cars/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
-        let errorMessage = "فشل في حذف السيارة"
+        let errorMessage = tr("فشل في حذف السيارة")
         try {
           const errorPayload = await response.json()
           errorMessage = errorPayload?.error || errorPayload?.message || errorMessage
@@ -269,11 +270,11 @@ export default function Cars() {
         setIsNewMode(true)
       }
       setShowDeleteConfirm(false)
-      setDeleteConfirmMessage("هل تريد حذف هذه السيارة؟")
+      setDeleteConfirmMessage(tr("هل تريد حذف هذه السيارة؟"))
       setDeleteError("")
     } catch (error) {
       console.error(error)
-      const message = error instanceof Error ? error.message : "حدث خطأ أثناء الحذف"
+      const message = error instanceof Error ? error.message : tr("حدث خطأ أثناء الحذف")
       setDeleteConfirmMessage(message)
       setDeleteError(message)
       setShowDeleteConfirm(true)
@@ -368,7 +369,7 @@ export default function Cars() {
 
   const handleDelete = useCallback(() => {
     if (!canDelete) return
-    setDeleteConfirmMessage("هل تريد حذف هذه السيارة؟")
+    setDeleteConfirmMessage(tr("هل تريد حذف هذه السيارة؟"))
     setDeleteError("")
     setShowDeleteConfirm(true)
   }, [canDelete])
@@ -381,7 +382,7 @@ export default function Cars() {
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">جاري تحميل السيارات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل السيارات...")}</p>
         </div>
       </div>
     )
@@ -391,27 +392,27 @@ export default function Cars() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-destructive">خطأ: {error}</p>
-          <Button onClick={() => void fetchCars()} variant="outline">إعادة المحاولة</Button>
+          <p className="mb-4 text-destructive">{tr("خطأ: ")}{error}</p>
+          <Button onClick={() => void fetchCars()} variant="outline">{tr("إعادة المحاولة")}</Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full space-y-6 p-6" dir="rtl">
+    <div className="w-full space-y-6 p-6" dir={appDir()}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-xl font-semibold">
             <CarIcon className="h-5 w-5 text-primary" />
-            السيارات
+            {tr("السيارات")}
           </div>
-          <div className="text-sm text-muted-foreground">إدارة سيارات الشركة وبيانات تراخيصها</div>
+          <div className="text-sm text-muted-foreground">{tr("إدارة سيارات الشركة وبيانات تراخيصها")}</div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="بحث برقم أو اسم السيارة أو رقم اللوحة"
+              placeholder={tr("بحث برقم أو اسم السيارة أو رقم اللوحة")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="min-w-[260px]"
@@ -419,11 +420,11 @@ export default function Cars() {
             />
             <Button variant="outline" size="sm" disabled={loading || !canView}>
               <Search className="h-4 w-4" />
-              بحث
+              {tr("بحث")}
             </Button>
           </div>
           <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading || !canCreate}>
-            <Plus className="ml-2 h-4 w-4" /> إضافة سيارة جديدة
+            <Plus className="ml-2 h-4 w-4" />{tr(" إضافة سيارة جديدة")}
           </Button>
         </div>
       </div>
@@ -434,12 +435,12 @@ export default function Cars() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-4 text-right font-semibold">رقم السيارة</th>
-                  <th className="p-4 text-right font-semibold">اسم السيارة</th>
-                  <th className="p-4 text-right font-semibold">رقم اللوحة</th>
-                  <th className="p-4 text-right font-semibold">الموديل</th>
-                  <th className="p-4 text-right font-semibold">تاريخ انتهاء الرخصة</th>
-                  <th className="p-4 text-right font-semibold">الحالة</th>
+                  <th className="p-4 text-start font-semibold">{tr("رقم السيارة")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("اسم السيارة")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("رقم اللوحة")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("الموديل")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("تاريخ انتهاء الرخصة")}</th>
+                  <th className="p-4 text-start font-semibold">{tr("الحالة")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,16 +453,16 @@ export default function Cars() {
                     <td className="p-4">{car.licence_expiry || "-"}</td>
                     <td className="p-4">
                       {car.status === "نشط" ? (
-                        <Badge className="bg-green-100 text-green-800">نشط</Badge>
+                        <Badge className="bg-green-100 text-green-800">{tr("نشط")}</Badge>
                       ) : (
-                        <Badge className="bg-red-100 text-red-800">غير نشط</Badge>
+                        <Badge className="bg-red-100 text-red-800">{tr("غير نشط")}</Badge>
                       )}
                     </td>
                   </tr>
                 ))}
                 {filteredCars.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-muted-foreground">لا توجد سيارات مسجلة</td>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">{tr("لا توجد سيارات مسجلة")}</td>
                   </tr>
                 )}
               </tbody>
@@ -500,7 +501,7 @@ export default function Cars() {
 
       <ConfirmDialogYesNo
         visible={showUnsavedConfirm}
-        message="تم تعديل السجل هل تريد الحفظ؟"
+        message={tr("تم تعديل السجل هل تريد الحفظ؟")}
         onConfirm={handleUnsavedConfirm}
         onCancel={handleDiscardUnsaved}
         onBack={handleCancelUnsaved}

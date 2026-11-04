@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
@@ -224,8 +225,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   // مندوب=3، مشترك=4. كان الكود سابقاً يفترض في عدة أماكن أن "ليس مورداً" تعني "عميل" حصراً،
   // فيُخطئ في شاشتي المندوبين والمشتركين (يحفظ/يبحث/يولّد رقماً بنوع "عميل" بدلاً من نوعها الفعلي).
   const entityTypeCode = isSupplier ? 2 : isSubscriber ? 4 : isSalesman ? 3 : 1
-  const entityTypeLabel = isSupplier ? "المورد" : isSubscriber ? "المشترك" : isSalesman ? "المندوب" : "العميل"
-  const parentAccountLabel = isSupplier ? "للموردين" : isSubscriber ? "للمشتركين" : isSalesman ? "للمندوبين" : "للعملاء"
+  const entityTypeLabel = isSupplier ? tr("المورد") : isSubscriber ? tr("المشترك") : isSalesman ? tr("المندوب") : tr("العميل")
+  const parentAccountLabel = isSupplier ? tr("للموردين") : isSubscriber ? tr("للمشتركين") : isSalesman ? tr("للمندوبين") : tr("للعملاء")
   // نصوص الشاشة حسب نوع الجهة (عميل/مورد/مشترك/مندوب) — نفس المكوّن يخدم الأنواع الأربعة.
   const entityPlural = isSupplier ? "الموردين" : isSubscriber ? "المشتركين" : isSalesman ? "المندوبين" : "العملاء"
   const entityPluralIndef = isSupplier ? "مورّدين" : isSubscriber ? "مشتركين" : isSalesman ? "مندوبين" : "عملاء"
@@ -410,7 +411,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         { header: "id", name: "id", width: 150, visible: false },
 
         {
-          header: "نوع السند",
+          header: tr("نوع السند"),
           name: "type_name",
           width: "*",
           minWidth: 150,
@@ -456,7 +457,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
         { header: "type_id", name: "type_id", width: 150, visible: false },
         {
-          header: "دفتر السندات",
+          header: tr("دفتر السندات"),
           name: "book_name",
           width: 250,
           visible: true,
@@ -565,19 +566,19 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const createPortalLink = useCallback(async () => {
     const accountId = Number(selectedCustomerForPortal?.account_id)
     if (!accountId) {
-      setError("لا يوجد حساب محاسبي مرتبط بهذا العميل")
+      setError(tr("لا يوجد حساب محاسبي مرتبط بهذا العميل"))
       return
     }
     setCreatingPortalLink(true)
     try {
       const response = await fetch("/api/customer-portal/links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ account_id: accountId }) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data?.error || "تعذر إنشاء رابط البوابة")
+      if (!response.ok) throw new Error(data?.error || tr("تعذر إنشاء رابط البوابة"))
       const url = `${window.location.origin}${data.path}`
       setPortalLink(url)
       try { await navigator.clipboard.writeText(url) } catch { /* clipboard blocked */ }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "تعذر إنشاء رابط البوابة")
+      setError(error instanceof Error ? error.message : tr("تعذر إنشاء رابط البوابة"))
     } finally {
       setCreatingPortalLink(false)
     }
@@ -602,15 +603,15 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         const data = await response.json()
         console.log("[v0] Notification settings saved successfully:", data)
         setNotificationSettings(data.settings)
-        showAlert("تم حفظ إعدادات الإشعارات بنجاح")
+        showAlert(tr("تم حفظ إعدادات الإشعارات بنجاح"))
       } else {
         const errorData = await response.json()
         console.error("[v0] Error saving notification settings:", errorData)
-        setError(errorData.error || "فشل في حفظ إعدادات الإشعارات")
+        setError(errorData.error || tr("فشل في حفظ إعدادات الإشعارات"))
       }
     } catch (error) {
       console.error("[v0] Error saving notification settings:", error)
-      setError("حدث خطأ في حفظ إعدادات الإشعارات")
+      setError(tr("حدث خطأ في حفظ إعدادات الإشعارات"))
     } finally {
       setSavingNotificationSettings(false)
     }
@@ -793,7 +794,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       const res = await fetch(url.toString());
       const customer = await res.json();
       if (!res.ok) {
-        setPopupMessage({ severity: "error", detail: customer?.error || `تعذر تحميل سجل ${entityTypeLabel}` })
+        setPopupMessage({ severity: "error", detail: customer?.error || tr("تعذر تحميل سجل {0}", entityTypeLabel) })
         return
       }
       console.log("navigationType ", navigationType)
@@ -824,7 +825,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
     } catch (err) {
       console.error("Error loading customer:", err);
-      setPopupMessage({ severity: "error", detail: `تعذر تحميل سجل ${entityTypeLabel}` })
+      setPopupMessage({ severity: "error", detail: tr("تعذر تحميل سجل {0}", entityTypeLabel) })
     }
   };
 
@@ -832,7 +833,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     if (!canView) return
     const target = customers[targetIndex]
     if (!target) {
-      setPopupMessage({ severity: "info", detail: targetIndex <= 0 ? "بداية السجلات" : "نهاية السجلات" })
+      setPopupMessage({ severity: "info", detail: targetIndex <= 0 ? tr("بداية السجلات") : tr("نهاية السجلات") })
       return
     }
     void loadData("ById", Number(target.id), isSupplier, true)
@@ -905,15 +906,15 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
     if (!currencyId || currencyId <= 0) {
       errors.currency_id = "يجب تحديد العملة"
-      setPopupMessage({ severity: "error", detail: "يجب تحديد العملة" })
+      setPopupMessage({ severity: "error", detail: tr("يجب تحديد العملة") })
     }
 
     // الحساب الرئيسي (تابع ل) إلزامي لكل عميل/مورد/مشترك/مندوب — يُعبَّأ تلقائياً لسجل جديد من
     // "الحسابات الافتراضية"، فإن لم يكن معرَّفاً هناك يُوجَّه المستخدم لتعريفه أولاً.
     if (!Number(formData.father_id || 0)) {
       const message = defaultParentAccountRef.current
-        ? "يجب اختيار الحساب الرئيسي (تابع ل) في تبويب المعلومات المالية والضريبية"
-        : `يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب ${parentAccountLabel}`
+        ? tr("يجب اختيار الحساب الرئيسي (تابع ل) في تبويب المعلومات المالية والضريبية")
+        : tr("يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب {0}", parentAccountLabel)
       errors.father_id = message
       setPopupMessage({ severity: "error", detail: message })
     }
@@ -932,7 +933,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     (formData.voucherType ?? []).forEach((v, index) => {
       if (typeSet.has(v.type_id)) {
 
-        const message = "لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل"
+        const message = tr("لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل")
         setPopupMessage({ severity: "error", detail: message })
         errors.vocherType = message
       } else {
@@ -980,11 +981,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               setCurrentCustomerId((currentId) => currentId || Number(filteredRecords[0].id));
           }
         } else {
-          setError(`فشل في تحميل بيانات ${entityPlural}`);
+          setError(tr("فشل في تحميل بيانات {0}", entityPlural));
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(`حدث خطأ في تحميل ${entityPlural}`);
+        setError(tr("حدث خطأ في تحميل {0}", entityPlural));
       } finally {
         if (!silent) setIsLoading(false);
       }
@@ -1076,24 +1077,24 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             return data.customerNumber ?? "";
           } else {
             const text = await response.text();
-            setError("خطأ في الخادم - تم إرجاع صفحة HTML بدلاً من JSON");
+            setError(tr("خطأ في الخادم - تم إرجاع صفحة HTML بدلاً من JSON"));
           }
         } else {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
             const errorData = await response.json();
-            setError(errorData.message || "فشل في توليد الرقم");
+            setError(errorData.message || tr("فشل في توليد الرقم"));
           } else {
             const text = await response.text();
-            setError("خطأ في الخادم - لا يمكن توليد الرقم");
+            setError(tr("خطأ في الخادم - لا يمكن توليد الرقم"));
           }
         }
       } catch (error) {
         console.error("Error generating number:", error);
         if (error instanceof SyntaxError && error.message.includes("JSON")) {
-          setError("خطأ في تحليل استجابة الخادم - يرجى المحاولة مرة أخرى");
+          setError(tr("خطأ في تحليل استجابة الخادم - يرجى المحاولة مرة أخرى"));
         } else {
-          setError("خطأ في الاتصال بالخادم");
+          setError(tr("خطأ في الاتصال بالخادم"));
         }
       } finally {
         setGeneratingNumber(false);
@@ -1148,7 +1149,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       if (data.found) {
         if (Number(data.customer.type) !== entityTypeCode) {
           updateField("customer_code", originalCode)
-          setPopupMessage({ severity: "error", detail: `الرقم المدخل ليس لـ${entityTypeLabel}` })
+          setPopupMessage({ severity: "error", detail: tr("الرقم المدخل ليس لـ{0}", entityTypeLabel) })
           return
         }
         const foundId = Number(data.customer.id)
@@ -1164,7 +1165,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     } catch (error) {
       console.error("Error searching customer by code:", error);
       // Optionally show error message
-      setError(`حدث خطأ في البحث عن ${entityTypeLabel}`);
+      setError(tr("حدث خطأ في البحث عن {0}", entityTypeLabel));
     }
   }
 
@@ -1173,7 +1174,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     accountClassifications = customerAccountClassifications,
   ) => {
     if (!(currentCustomerId > 0 ? canUpdate : canCreate)) {
-      setPopupMessage({ severity: "error", detail: `لا يوجد لديك صلاحية ${currentCustomerId > 0 ? "تعديل" : "إضافة"} ${entityTypeLabel}` })
+      setPopupMessage({ severity: "error", detail: tr("لا يوجد لديك صلاحية {0} {1}", currentCustomerId > 0 ? "تعديل" : "إضافة", entityTypeLabel) })
       return false
     }
     if (!validateForm()) return false;
@@ -1293,13 +1294,13 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       const savedCustomer = await response.json();
 
       if (savedCustomer?.success === false) {
-        const message = savedCustomer?.message || `حدث خطأ أثناء حفظ بيانات ${entityTypeLabel}`;
+        const message = savedCustomer?.message || tr("حدث خطأ أثناء حفظ بيانات {0}", entityTypeLabel);
         throw new Error(message);
       }
 
       console.log("[v0] Customer saved successfully:", savedCustomer);
 
-      setPopupMessage({ severity: "success", detail: "تم حفظ البيانات بنجاح" })
+      setPopupMessage({ severity: "success", detail: tr("تم حفظ البيانات بنجاح") })
 
       setEditingCustomer(false);
       editingCustomerRef.current = false;
@@ -1314,7 +1315,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         severity: "error",
         detail: typeof errorDataOrError === "object" && errorDataOrError !== null && "message" in errorDataOrError
           ? (errorDataOrError as Error).message
-          : `حدث خطأ أثناء حفظ بيانات ${entityTypeLabel}`,
+          : tr("حدث خطأ أثناء حفظ بيانات {0}", entityTypeLabel),
       })
 
       return false;
@@ -1337,7 +1338,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const handleDeleteClick = (checkPermission = true) => {
     if (currentCustomerId <= 0) return;
     if (!canDelete) {
-      setPopupMessage({ severity: "error", detail: `لا يوجد لديك صلاحية حذف ${entityTypeLabel}` })
+      setPopupMessage({ severity: "error", detail: tr("لا يوجد لديك صلاحية حذف {0}", entityTypeLabel) })
       return;
     }
 
@@ -1355,7 +1356,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     if (!canDelete) return
     const customerId = Number(formDataRef.current.id || 0)
     if (!customerId) {
-      setPopupMessage({ severity: "warn", detail: "لا يوجد سجل لحذفه" })
+      setPopupMessage({ severity: "warn", detail: tr("لا يوجد سجل لحذفه") })
       return;
     }
 
@@ -1369,10 +1370,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "فشل في حذف السجل");
+        throw new Error(result.error || tr("فشل في حذف السجل"));
       }
 
-      setPopupMessage({ severity: "success", detail: "تم حذف السجل بنجاح" })
+      setPopupMessage({ severity: "success", detail: tr("تم حذف السجل بنجاح") })
 
       // تحديث القائمة أولاً (عدد السجلات/التنقل) ثم تفريغ النموذج — fetchCustomers يُعيِّن أول سجل
       // كسجل حالي إن كان المعرّف 0، لذا يجب أن يسبق reset_fields التي تُعيده إلى 0.
@@ -1382,7 +1383,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
     } catch (err) {
       console.error("Error deleting customer:", err);
-      setPopupMessage({ severity: "error", detail: err instanceof Error ? err.message : "فشلت العملية" })
+      setPopupMessage({ severity: "error", detail: err instanceof Error ? err.message : tr("فشلت العملية") })
     } finally {
       setDeleting(false)
     }
@@ -1629,7 +1630,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   if (isloading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">جاري التحميل...</div>
+        <div className="text-lg">{tr("جاري التحميل...")}</div>
       </div>
     )
   }
@@ -1648,23 +1649,23 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
-          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى هذه الصفحة</p>
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("لا يوجد صلاحية")}</h2>
+          <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى هذه الصفحة")}</p>
         </div>
       </div>
     )
   }
   return (
 
-    <div className="voucher-list-page w-full space-y-5 p-3 sm:p-5" dir="rtl">
+    <div className="voucher-list-page w-full space-y-5 p-3 sm:p-5" dir={appDir()}>
       {/* Success Message */}
       <ConfirmDialogYesNo
         useAppDialog
         visible={showConfirm}
         onConfirm={confirmDelete}
         onCancel={() => { setShowConfirm(false); popupHasClosed() }}
-        title="تأكيد الحذف"
-        message="هل تريد حذف هذا السجل؟"
+        title={tr("تأكيد الحذف")}
+        message={tr("هل تريد حذف هذا السجل؟")}
       />
 
       <ConfirmDialogYesNo
@@ -1685,8 +1686,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           setShowUnsaved(false); popupHasClosed();
           if (action) await action()
         }}
-        title="حفظ التعديلات"
-        message="تم تعديل السجل هل تريد الحفظ؟"
+        title={tr("حفظ التعديلات")}
+        message={tr("تم تعديل السجل هل تريد الحفظ؟")}
         onBack={() => { pendingActionRef.current = null; setShowUnsaved(false); popupHasClosed(); }}
         showBack={true}
       />
@@ -1697,10 +1698,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       {/* Header: نفس تصميم صفحات الحركات (VoucherListHero) */}
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={UsersIcon}
-        title={`إدارة ${entityPlural}`}
-        addLabel={`${entitySingleIndef} جديد`}
+        title={tr("إدارة {0}", entityPlural)}
+        addLabel={tr("{0} جديد", entitySingleIndef)}
         onNew={() => handleNewCustomer(false)}
         addDisabled={!canCreate}
         actions={
@@ -1711,16 +1712,16 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Upload className="h-4 w-4" />
-            استيراد من Excel
+            {tr("استيراد من Excel")}
           </button>
         }
       />
 
       {/* Statistics Cards */}
       <VoucherStats stats={[
-        { label: `إجمالي ${entityPlural}`, value: statistics.total },
-        { label: `${entityPlural} النشطين`, value: statistics.active },
-        { label: `${entityPlural} غير النشطين`, value: statistics.inactive },
+        { label: tr("إجمالي {0}", entityPlural), value: statistics.total },
+        { label: tr("{0} النشطين", entityPlural), value: statistics.active },
+        { label: tr("{0} غير النشطين", entityPlural), value: statistics.inactive },
         { label: `${entityPluralIndef} VIP`, value: statistics.vip },
       ]} />
 
@@ -1729,47 +1730,47 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث المتقدم
+            {tr("البحث المتقدم")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="search-name"> {`اسم ${entityTypeLabel}`}</Label>
+              <Label htmlFor="search-name"> {tr("اسم {0}", entityTypeLabel)}</Label>
               <Input
                 id="search-name"
                 value={searchFilters.name}
                 onChange={(e) => setSearchFilters((prev) => ({ ...prev, name: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث بالاسم..."
+                placeholder={tr("ابحث بالاسم...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-city">المدينة</Label>
+              <Label htmlFor="search-city">{tr("المدينة")}</Label>
               <Select
                 value={searchFilters.city}
                 onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, city: value }))}
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر المدينة" />
+                  <SelectValue placeholder={tr("اختر المدينة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">جميع المدن</SelectItem>
-                  <SelectItem value="الرياض">الرياض</SelectItem>
-                  <SelectItem value="جدة">جدة</SelectItem>
-                  <SelectItem value="الدمام">الدمام</SelectItem>
-                  <SelectItem value="مكة المكرمة">مكة المكرمة</SelectItem>
-                  <SelectItem value="المدينة المنورة">المدينة المنورة</SelectItem>
-                  <SelectItem value="الطائف">الطائف</SelectItem>
-                  <SelectItem value="تبوك">تبوك</SelectItem>
-                  <SelectItem value="بريدة">بريدة</SelectItem>
-                  <SelectItem value="خميس مشيط">خميس مشيط</SelectItem>
-                  <SelectItem value="حائل">حائل</SelectItem>
+                  <SelectItem value="__all__">{tr("جميع المدن")}</SelectItem>
+                  <SelectItem value="الرياض">{tr("الرياض")}</SelectItem>
+                  <SelectItem value="جدة">{tr("جدة")}</SelectItem>
+                  <SelectItem value="الدمام">{tr("الدمام")}</SelectItem>
+                  <SelectItem value="مكة المكرمة">{tr("مكة المكرمة")}</SelectItem>
+                  <SelectItem value="المدينة المنورة">{tr("المدينة المنورة")}</SelectItem>
+                  <SelectItem value="الطائف">{tr("الطائف")}</SelectItem>
+                  <SelectItem value="تبوك">{tr("تبوك")}</SelectItem>
+                  <SelectItem value="بريدة">{tr("بريدة")}</SelectItem>
+                  <SelectItem value="خميس مشيط">{tr("خميس مشيط")}</SelectItem>
+                  <SelectItem value="حائل">{tr("حائل")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="search-status">الحالة</Label>
+              <Label htmlFor="search-status">{tr("الحالة")}</Label>
               <Select
                 value={searchFilters.status}
                 onValueChange={(value) =>
@@ -1777,17 +1778,17 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                 }
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر الحالة" />
+                  <SelectValue placeholder={tr("اختر الحالة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">جميع الحالات</SelectItem>
-                  <SelectItem value="نشط">نشط</SelectItem>
-                  <SelectItem value="غير نشط">غير نشط</SelectItem>
+                  <SelectItem value="__all__">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                  <SelectItem value="غير نشط">{tr("غير نشط")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="search-salesman">المندوب</Label>
+              <Label htmlFor="search-salesman">{tr("المندوب")}</Label>
               <Select
                 value={searchFilters.salesman}
                 onValueChange={(value) =>
@@ -1795,10 +1796,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                 }
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر المندوب" />
+                  <SelectValue placeholder={tr("اختر المندوب")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">جميع المندوبين</SelectItem>
+                  <SelectItem value="__all__">{tr("جميع المندوبين")}</SelectItem>
                   {salesmen.map((salesman) => (
                     <SelectItem key={salesman.id} value={salesman.name}>
                       {salesman.name}
@@ -1815,7 +1816,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       <Card>
         <CardHeader>
           <CardTitle>
-            {`قائمة ${entityPlural} (${filteredCustomers.length})`}
+            {tr("قائمة {0} ({1})", entityPlural, filteredCustomers.length)}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1823,17 +1824,17 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-right w-12"></th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">
-                    {`رقم ${entityTypeLabel}`}
+                  <th className="border border-gray-300 px-4 py-2 text-start w-12"></th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">
+                    {tr("رقم {0}", entityTypeLabel)}
                   </th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">
-                    {`اسم ${entityTypeLabel}`}
+                  <th className="border border-gray-300 px-4 py-2 text-start">
+                    {tr("اسم {0}", entityTypeLabel)}
                   </th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">الجوال</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">المدينة</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">الحالة</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">الإجراءات</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("الجوال")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("المدينة")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-start">{tr("الحالة")}</th>
+                  <th className="border border-gray-300 px-4 py-2 text-center">{tr("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1851,7 +1852,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                     </td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
                       <div className="flex justify-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEditCustomer(customer)} title="تعديل">
+                        <Button size="sm" variant="outline" onClick={() => handleEditCustomer(customer)} title={tr("تعديل")}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -1860,10 +1861,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                           className="gap-1.5 text-teal-700"
                           disabled={!(customer as any).account_id}
                           onClick={() => openReceivablesStatement(Number((customer as any).account_id))}
-                          title="بيان حساب الذمة"
+                          title={tr("بيان حساب الذمة")}
                         >
                           <FileText className="h-4 w-4" />
-                          <span className="hidden text-xs xl:inline">بيان حساب الذمة</span>
+                          <span className="hidden text-xs xl:inline">{tr("بيان حساب الذمة")}</span>
                         </Button>
                       </div>
                     </td>
@@ -1873,7 +1874,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             </table>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                عرض {pageStart} إلى {pageEnd} من {filteredCustomers.length}
+                {tr("عرض ")}{pageStart}{tr(" إلى ")}{pageEnd}{tr(" من ")}{filteredCustomers.length}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -1882,7 +1883,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 >
-                  السابق
+                  {tr("السابق")}
                 </Button>
                 <Button
                   size="sm"
@@ -1890,7 +1891,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 >
-                  التالي
+                  {tr("التالي")}
                 </Button>
                 <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
                   <SelectTrigger className="h-10 w-24">
@@ -1916,7 +1917,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           else requestCloseCustomerDialog()
         }}
       >
-        <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[86dvh] max-h-[86dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[84dvh] sm:max-h-[84dvh]" dir="rtl"
+        <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[86dvh] max-h-[86dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[84dvh] sm:max-h-[84dvh]" dir={appDir()}
           onPointerDownOutside={(event) => event.preventDefault()}
           // نوافذ التأكيد (حفظ التعديلات/الحذف) تُفتح خارج شجرة هذه النافذة، فانتقال التركيز إليها
           // كان يُعدّ "تفاعلاً خارجياً" يُغلق النافذة ويستبدل الإجراء المؤجَّل (جديد) بإجراء الإغلاق.
@@ -1974,11 +1975,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       </Dialog>
 
       <Dialog open={showPortalDialog} onOpenChange={setShowPortalDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden" dir="rtl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden" dir={appDir()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <Globe className="h-6 w-6 text-primary" />
-              إدارة بوابة العميل - {selectedCustomerForPortal?.name}
+              {tr("إدارة بوابة العميل - ")}{selectedCustomerForPortal?.name}
             </DialogTitle>
           </DialogHeader>
 
@@ -1987,15 +1988,15 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Bell className="h-5 w-5 text-primary" />
-                  إعدادات الإشعارات التلقائية
+                  {tr("إعدادات الإشعارات التلقائية")}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  إرسال إشعارات تلقائية للعميل عن حالة طلبياته عبر SMS أو واتساب
+                  {tr("إرسال إشعارات تلقائية للعميل عن حالة طلبياته عبر SMS أو واتساب")}
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
                 {loadingNotificationSettings ? (
-                  <div className="text-center py-4 text-muted-foreground">جاري التحميل...</div>
+                  <div className="text-center py-4 text-muted-foreground">{tr("جاري التحميل...")}</div>
                 ) : notificationSettings ? (
                   <>
                     {/* طريقة الإرسال ورقم الهاتف */}
@@ -2003,7 +2004,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                       <div>
                         <Label htmlFor="notification_method" className="flex items-center gap-2 mb-2">
                           <MessageSquare className="h-4 w-4" />
-                          طريقة الإرسال
+                          {tr("طريقة الإرسال")}
                         </Label>
                         <Select
                           value={notificationSettings.notification_method}
@@ -2015,9 +2016,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="sms">SMS فقط</SelectItem>
-                            <SelectItem value="whatsapp">واتساب فقط</SelectItem>
-                            <SelectItem value="both">SMS و واتساب</SelectItem>
+                            <SelectItem value="sms">{tr("SMS فقط")}</SelectItem>
+                            <SelectItem value="whatsapp">{tr("واتساب فقط")}</SelectItem>
+                            <SelectItem value="both">{tr("SMS و واتساب")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2025,7 +2026,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                       <div>
                         <Label htmlFor="preferred_phone" className="flex items-center gap-2 mb-2">
                           <Phone className="h-4 w-4" />
-                          رقم الهاتف المفضل
+                          {tr("رقم الهاتف المفضل")}
                         </Label>
                         <Input
                           id="preferred_phone"
@@ -2039,7 +2040,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                       </div>
 
                       <div className="flex items-center justify-between pt-6">
-                        <Label htmlFor="is_active">تفعيل الإشعارات</Label>
+                        <Label htmlFor="is_active">{tr("تفعيل الإشعارات")}</Label>
                         <Switch
                           id="is_active"
                           checked={notificationSettings.is_active}
@@ -2052,14 +2053,14 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
                     {/* إعدادات الإشعارات لكل حالة */}
                     <div>
-                      <h4 className="font-semibold mb-3 text-sm">اختر الإشعارات التي تريد إرسالها تلقائياً:</h4>
+                      <h4 className="font-semibold mb-3 text-sm">{tr("اختر الإشعارات التي تريد إرسالها تلقائياً:")}</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="notify_received" className="font-medium cursor-pointer">
-                              استلام الطلبية
+                              {tr("استلام الطلبية")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند استلام الطلبية من العميل</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند استلام الطلبية من العميل")}</p>
                           </div>
                           <Switch
                             id="notify_received"
@@ -2073,9 +2074,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="notify_preparing" className="font-medium cursor-pointer">
-                              تحضير الطلبية
+                              {tr("تحضير الطلبية")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند البدء في تحضير الطلبية</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند البدء في تحضير الطلبية")}</p>
                           </div>
                           <Switch
                             id="notify_preparing"
@@ -2089,9 +2090,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="notify_quality" className="font-medium cursor-pointer">
-                              التدقيق والمراجعة
+                              {tr("التدقيق والمراجعة")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند مراجعة وتدقيق الطلبية</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند مراجعة وتدقيق الطلبية")}</p>
                           </div>
                           <Switch
                             id="notify_quality"
@@ -2105,9 +2106,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="notify_ready" className="font-medium cursor-pointer">
-                              جاهز للشحن
+                              {tr("جاهز للشحن")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند جاهزية الطلبية للشحن</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند جاهزية الطلبية للشحن")}</p>
                           </div>
                           <Switch
                             id="notify_ready"
@@ -2121,9 +2122,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="notify_shipped" className="font-medium cursor-pointer">
-                              تم الشحن
+                              {tr("تم الشحن")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند شحن الطلبية</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند شحن الطلبية")}</p>
                           </div>
                           <Switch
                             id="notify_shipped"
@@ -2137,9 +2138,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="notify_delivered" className="font-medium cursor-pointer">
-                              تم التسليم
+                              {tr("تم التسليم")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند تسليم الطلبية للعميل</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند تسليم الطلبية للعميل")}</p>
                           </div>
                           <Switch
                             id="notify_delivered"
@@ -2153,9 +2154,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card border-red-200">
                           <div>
                             <Label htmlFor="notify_cancelled" className="font-medium cursor-pointer text-red-700">
-                              إلغاء الطلبية
+                              {tr("إلغاء الطلبية")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">عند إلغاء الطلبية</p>
+                            <p className="text-xs text-muted-foreground">{tr("عند إلغاء الطلبية")}</p>
                           </div>
                           <Switch
                             id="notify_cancelled"
@@ -2169,9 +2170,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
                           <div>
                             <Label htmlFor="daily_summary" className="font-medium cursor-pointer">
-                              ملخص يومي
+                              {tr("ملخص يومي")}
                             </Label>
-                            <p className="text-xs text-muted-foreground">إرسال ملخص يومي بجميع الطلبيات</p>
+                            <p className="text-xs text-muted-foreground">{tr("إرسال ملخص يومي بجميع الطلبيات")}</p>
                           </div>
                           <Switch
                             id="daily_summary"
@@ -2192,12 +2193,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                         className="gap-2"
                       >
                         <Save className="h-4 w-4" />
-                        {savingNotificationSettings ? "جاري الحفظ..." : "حفظ إعدادات الإشعارات"}
+                        {savingNotificationSettings ? tr("جاري الحفظ...") : tr("حفظ إعدادات الإشعارات")}
                       </Button>
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-4 text-muted-foreground">لا توجد إعدادات</div>
+                  <div className="text-center py-4 text-muted-foreground">{tr("لا توجد إعدادات")}</div>
                 )}
               </CardContent>
             </Card>
@@ -2206,29 +2207,28 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Globe className="h-5 w-5 text-emerald-600" />
-                  رابط بوابة العميل
+                  {tr("رابط بوابة العميل")}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  رابط خاص يفتح فيه العميل كشف حسابه ويرسل إشعار التحويل عند السداد — بدون اسم مستخدم أو كلمة مرور.
-                  إنشاء رابط جديد يُلغي الرابط السابق. الدفعات تُراجع من شاشة "بوابة العملاء".
+                  {tr("رابط خاص يفتح فيه العميل كشف حسابه ويرسل إشعار التحويل عند السداد — بدون اسم مستخدم أو كلمة مرور. إنشاء رابط جديد يُلغي الرابط السابق. الدفعات تُراجع من شاشة \"بوابة العملاء\".")}
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button onClick={() => void createPortalLink()} disabled={creatingPortalLink || !canUpdate} className="gap-2">
                   <Globe className="h-4 w-4" />
-                  {creatingPortalLink ? "جاري الإنشاء..." : "إنشاء رابط جديد"}
+                  {creatingPortalLink ? tr("جاري الإنشاء...") : tr("إنشاء رابط جديد")}
                 </Button>
                 {portalLink && (
                   <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
-                    <p className="font-semibold text-emerald-800">تم إنشاء الرابط ونسخه:</p>
+                    <p className="font-semibold text-emerald-800">{tr("تم إنشاء الرابط ونسخه:")}</p>
                     <Input readOnly dir="ltr" value={portalLink} onFocus={(event) => event.currentTarget.select()} className="font-mono text-xs" />
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(portalLink)}>نسخ</Button>
+                      <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(portalLink)}>{tr("نسخ")}</Button>
                       <Button size="sm" variant="outline" asChild>
-                        <a href={`https://wa.me/${String(selectedCustomerForPortal?.whatsapp1 || selectedCustomerForPortal?.mobile1 || "").replace(/\D/g, "")}?text=${encodeURIComponent(`مرحباً ${selectedCustomerForPortal?.name || ""}،\nهذا رابط كشف حسابك لدينا، ويمكنك من خلاله إرسال إشعار التحويل عند السداد:\n${portalLink}`)}`} target="_blank" rel="noreferrer">واتساب</a>
+                        <a href={`https://wa.me/${String(selectedCustomerForPortal?.whatsapp1 || selectedCustomerForPortal?.mobile1 || "").replace(/\D/g, "")}?text=${encodeURIComponent(`مرحباً ${selectedCustomerForPortal?.name || ""}،\nهذا رابط كشف حسابك لدينا، ويمكنك من خلاله إرسال إشعار التحويل عند السداد:\n${portalLink}`)}`} target="_blank" rel="noreferrer">{tr("واتساب")}</a>
                       </Button>
                       <Button size="sm" variant="outline" asChild>
-                        <a href={portalLink} target="_blank" rel="noreferrer">فتح</a>
+                        <a href={portalLink} target="_blank" rel="noreferrer">{tr("فتح")}</a>
                       </Button>
                     </div>
                   </div>

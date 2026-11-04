@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -49,15 +50,15 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
 
   const quickActions = [
     {
-      title: "طلبية مبيعات جديدة",
+      title: tr("طلبية مبيعات جديدة"),
       icon: ShoppingCart,
       action: () => onSectionChange("sales-orders"),
       color: "bg-blue-500",
     },
-    { title: "طلبية شراء جديدة", icon: Truck, action: () => onSectionChange("purchase-orders"), color: "bg-green-500" },
-    { title: "إضافة منتج", icon: Package, action: () => onSectionChange("products"), color: "bg-purple-500" },
+    { title: tr("طلبية شراء جديدة"), icon: Truck, action: () => onSectionChange("purchase-orders"), color: "bg-green-500" },
+    { title: tr("إضافة منتج"), icon: Package, action: () => onSectionChange("products"), color: "bg-purple-500" },
     {
-      title: "التحليلات",
+      title: tr("التحليلات"),
       icon: BarChart3,
       action: () => onSectionChange("inventory-analytics"),
       color: "bg-orange-500",
@@ -65,11 +66,11 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
   ]
 
   return (
-    <div className="space-y-4 p-4" dir="rtl">
+    <div className="space-y-4 p-4" dir={appDir()}>
       {/* Header */}
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">لوحة التحكم</h1>
-        <p className="text-muted-foreground">نظرة سريعة على نشاط النظام</p>
+        <h1 className="text-2xl font-bold text-foreground">{tr("لوحة التحكم")}</h1>
+        <p className="text-muted-foreground">{tr("نظرة سريعة على نشاط النظام")}</p>
       </div>
 
       {/* Quick Actions */}
@@ -92,15 +93,15 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
           <CardContent className="p-4 text-center">
             <Package className="h-8 w-8 text-primary mx-auto mb-2" />
             <div className="text-2xl font-bold text-primary">{stats.totalProducts}</div>
-            <p className="text-xs text-muted-foreground">إجمالي المنتجات</p>
+            <p className="text-xs text-muted-foreground">{tr("إجمالي المنتجات")}</p>
           </CardContent>
         </Card>
 
         <Card className="mobile-card">
           <CardContent className="p-4 text-center">
             <DollarSign className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <div className="text-lg font-bold text-green-500">{(stats.totalValue / 1000000).toFixed(1)}م</div>
-            <p className="text-xs text-muted-foreground">قيمة المخزون</p>
+            <div className="text-lg font-bold text-green-500">{(stats.totalValue / 1000000).toFixed(1)}{tr("م")}</div>
+            <p className="text-xs text-muted-foreground">{tr("قيمة المخزون")}</p>
           </CardContent>
         </Card>
 
@@ -108,7 +109,7 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
           <CardContent className="p-4 text-center">
             <AlertTriangle className="h-8 w-8 text-orange-500 mx-auto mb-2" />
             <div className="text-2xl font-bold text-orange-500">{stats.lowStock}</div>
-            <p className="text-xs text-muted-foreground">مخزون منخفض</p>
+            <p className="text-xs text-muted-foreground">{tr("مخزون منخفض")}</p>
           </CardContent>
         </Card>
 
@@ -116,7 +117,7 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
           <CardContent className="p-4 text-center">
             <Clock className="h-8 w-8 text-blue-500 mx-auto mb-2" />
             <div className="text-2xl font-bold text-blue-500">{stats.pendingSales + stats.pendingPurchases}</div>
-            <p className="text-xs text-muted-foreground">طلبيات معلقة</p>
+            <p className="text-xs text-muted-foreground">{tr("طلبيات معلقة")}</p>
           </CardContent>
         </Card>
       </div>
@@ -125,32 +126,32 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="overview" className="text-xs">
-            نظرة عامة
+            {tr("نظرة عامة")}
           </TabsTrigger>
           <TabsTrigger value="orders" className="text-xs">
-            الطلبيات
+            {tr("الطلبيات")}
           </TabsTrigger>
           <TabsTrigger value="alerts" className="text-xs">
-            التنبيهات
+            {tr("التنبيهات")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
           <Card className="mobile-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">الإحصائيات السريعة</CardTitle>
+              <CardTitle className="text-lg">{tr("الإحصائيات السريعة")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">طلبيات المبيعات المعلقة</span>
+                <span className="text-sm text-muted-foreground">{tr("طلبيات المبيعات المعلقة")}</span>
                 <Badge variant="secondary">{stats.pendingSales}</Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">طلبيات المشتريات المعلقة</span>
+                <span className="text-sm text-muted-foreground">{tr("طلبيات المشتريات المعلقة")}</span>
                 <Badge variant="secondary">{stats.pendingPurchases}</Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">منتجات نفد مخزونها</span>
+                <span className="text-sm text-muted-foreground">{tr("منتجات نفد مخزونها")}</span>
                 <Badge variant="destructive">{stats.outOfStock}</Badge>
               </div>
             </CardContent>
@@ -160,7 +161,7 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
         <TabsContent value="orders" className="space-y-4">
           <Card className="mobile-card">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">الطلبيات الأخيرة</CardTitle>
+              <CardTitle className="text-lg">{tr("الطلبيات الأخيرة")}</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-64">
@@ -172,11 +173,11 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
                         <div className="text-xs text-muted-foreground">
                           {order.id.startsWith("SO") ? order.customer : order.supplier}
                         </div>
-                        <div className="text-sm font-medium">{order.amount.toLocaleString("en-US")} ر.س</div>
+                        <div className="text-sm font-medium">{order.amount.toLocaleString("en-US")}{tr(" ر.س")}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={order.status === "completed" ? "default" : "secondary"}>
-                          {order.status === "completed" ? "مكتملة" : "معلقة"}
+                          {order.status === "completed" ? tr("مكتملة") : tr("معلقة")}
                         </Badge>
                         <Button size="sm" variant="outline">
                           <Eye className="h-4 w-4" />
@@ -195,7 +196,7 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                تنبيهات المخزون
+                {tr("تنبيهات المخزون")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -209,12 +210,12 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
                       <div className="flex-1">
                         <div className="font-medium text-sm">{product.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          الحالي: {product.current} | الحد الأدنى: {product.minimum}
+                          {tr("الحالي: ")}{product.current}{tr(" | الحد الأدنى: ")}{product.minimum}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-orange-600 border-orange-600">
-                          منخفض
+                          {tr("منخفض")}
                         </Badge>
                         <Button size="sm" variant="outline" onClick={() => onSectionChange("purchase-orders")}>
                           <Plus className="h-4 w-4" />
@@ -232,21 +233,21 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
       {/* Quick Navigation */}
       <Card className="mobile-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">الوصول السريع</CardTitle>
+          <CardTitle className="text-lg">{tr("الوصول السريع")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
             <Button variant="outline" onClick={() => onSectionChange("products")} className="h-12 flex flex-col gap-1">
               <Package className="h-5 w-5" />
-              <span className="text-xs">المنتجات</span>
+              <span className="text-xs">{tr("المنتجات")}</span>
             </Button>
             <Button variant="outline" onClick={() => onSectionChange("customers")} className="h-12 flex flex-col gap-1">
               <Users className="h-5 w-5" />
-              <span className="text-xs">العملاء</span>
+              <span className="text-xs">{tr("العملاء")}</span>
             </Button>
             <Button variant="outline" onClick={() => onSectionChange("suppliers")} className="h-12 flex flex-col gap-1">
               <Truck className="h-5 w-5" />
-              <span className="text-xs">الموردين</span>
+              <span className="text-xs">{tr("الموردين")}</span>
             </Button>
             <Button
               variant="outline"
@@ -254,7 +255,7 @@ export function MobileDashboard({ onSectionChange }: MobileDashboardProps) {
               className="h-12 flex flex-col gap-1"
             >
               <TrendingUp className="h-5 w-5" />
-              <span className="text-xs">التحليلات</span>
+              <span className="text-xs">{tr("التحليلات")}</span>
             </Button>
           </div>
         </CardContent>

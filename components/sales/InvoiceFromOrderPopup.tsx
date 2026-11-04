@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -68,8 +69,8 @@ export default function InvoiceFromOrderPopup({
   const orderType = isSalesInvoice ? 1 : 2
   // المشتريات من طلبية: المورد قد يكون معرّفاً كعميل أيضاً (عميل/مورد/مشترك)
   const allowedAccountTypes = isSalesInvoice ? [2, 5] : [2, 3, 5]
-  const title = isSalesInvoice ? "تحميل عناصر من طلبية مبيعات" : "تحميل عناصر من طلبية مشتريات"
-  const orderLabel = isSalesInvoice ? "طلبية مبيعات" : "طلبية مشتريات"
+  const title = isSalesInvoice ? tr("تحميل عناصر من طلبية مبيعات") : tr("تحميل عناصر من طلبية مشتريات")
+  const orderLabel = isSalesInvoice ? tr("طلبية مبيعات") : tr("طلبية مشتريات")
 
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) || null,
@@ -139,19 +140,19 @@ export default function InvoiceFromOrderPopup({
           isReadOnly: true,
           body: (cell: any) => <span className="block text-center text-sm">{cell.row.index + 1}</span>,
         },
-        { header: "رقم الطلبية", name: "order_number", width: 150, isReadOnly: true },
+        { header: tr("رقم الطلبية"), name: "order_number", width: 150, isReadOnly: true },
         {
-          header: "التاريخ",
+          header: tr("التاريخ"),
           name: "order_date",
           width: 120,
           isReadOnly: true,
           body: (cell: any) => <span>{String(cell.row.dataItem.order_date || "").slice(0, 10)}</span>,
         },
-        { header: "العملة", name: "currency_code", width: 100, isReadOnly: true },
-        { header: "سعر الصرف", name: "exchange_rate", width: 110, isReadOnly: true },
-        { header: "المبلغ", name: "amount", width: 100, isReadOnly: true },
+        { header: tr("العملة"), name: "currency_code", width: 100, isReadOnly: true },
+        { header: tr("سعر الصرف"), name: "exchange_rate", width: 110, isReadOnly: true },
+        { header: tr("المبلغ"), name: "amount", width: 100, isReadOnly: true },
         {
-          header: "الإجراء",
+          header: tr("الإجراء"),
           name: "actions",
           width: "*",
           isReadOnly: true,
@@ -174,7 +175,7 @@ export default function InvoiceFromOrderPopup({
                     }
                   }}
                   disabled={added}
-                  title={added ? "تمت الإضافة بالفعل" : "أضف عناصر هذه الطلبية"}
+                  title={added ? tr("تمت الإضافة بالفعل") : tr("أضف عناصر هذه الطلبية")}
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -185,7 +186,7 @@ export default function InvoiceFromOrderPopup({
                     e.stopPropagation()
                     handleRemoveOrderItems(row.id)
                   }}
-                  title="إزالة عناصر هذه الطلبية"
+                  title={tr("إزالة عناصر هذه الطلبية")}
                 >
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -203,7 +204,7 @@ export default function InvoiceFromOrderPopup({
       name: "SelectedItemsScheme",
       columns: [
         {
-          header: "اختيار",
+          header: tr("اختيار"),
           name: "selected",
           width: 70,
           isReadOnly: true,
@@ -216,7 +217,7 @@ export default function InvoiceFromOrderPopup({
                 type="checkbox"
                 checked={checked}
                 className="h-4 w-4 cursor-pointer accent-emerald-600"
-                aria-label={`اختيار ${row.item_name || row.product_name || "الصنف"}`}
+                aria-label={tr("اختيار {0}", row.item_name || row.product_name || "الصنف")}
                 onClick={(event) => event.stopPropagation()}
                 onChange={() => toggleSelectedOrderItem(row)}
               />
@@ -224,7 +225,7 @@ export default function InvoiceFromOrderPopup({
           },
         },
         {
-          header: "اسم الصنف",
+          header: tr("اسم الصنف"),
           name: "item_name",
           width: "*",
           isReadOnly: true,
@@ -232,12 +233,12 @@ export default function InvoiceFromOrderPopup({
             <span>{String(cell.row.dataItem.item_name || cell.row.dataItem.product_name || "")}</span>
           ),
         },
-        { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
-        { header: "البونص", name: "bonus_quantity", width: 90, isReadOnly: true },
-        { header: "الكمية المرسلة", name: "sent_quantity", width: 110, isReadOnly: true },
-        { header: "الوحدة", name: "unit", width: 90, isReadOnly: true },
+        { header: tr("الكمية"), name: "quantity", width: 90, isReadOnly: true },
+        { header: tr("البونص"), name: "bonus_quantity", width: 90, isReadOnly: true },
+        { header: tr("الكمية المرسلة"), name: "sent_quantity", width: 110, isReadOnly: true },
+        { header: tr("الوحدة"), name: "unit", width: 90, isReadOnly: true },
         {
-          header: "السعر",
+          header: tr("السعر"),
           name: "unit_price",
           width: 110,
           isReadOnly: true,
@@ -280,12 +281,12 @@ export default function InvoiceFromOrderPopup({
       const response = await fetch(`/api/sales-vouchers/order-list?${query.toString()}`)
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data?.error || "فشل في جلب الطلبات")
+        throw new Error(data?.error || tr("فشل في جلب الطلبات"))
       }
       setOrders(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error("InvoiceFromOrderPopup loadOrders error:", err)
-      setError((err as Error).message || "حدث خطأ عند جلب الطلبات")
+      setError((err as Error).message || tr("حدث خطأ عند جلب الطلبات"))
     } finally {
       setLoading(false)
     }
@@ -300,7 +301,7 @@ export default function InvoiceFromOrderPopup({
       const response = await fetch(`/api/sales-vouchers/order-items?${query.toString()}`)
       const data = await response.json()
       if (!response.ok || data?.error) {
-        throw new Error(data?.error || "فشل في جلب عناصر الطلب")
+        throw new Error(data?.error || tr("فشل في جلب عناصر الطلب"))
       }
       const items = Array.isArray(data.items)
         ? data.items.map((item: any) => ({
@@ -346,7 +347,7 @@ export default function InvoiceFromOrderPopup({
       return items
     } catch (err) {
       console.error("InvoiceFromOrderPopup loadOrderItems error:", err)
-      setItemsError((err as Error).message || "حدث خطأ عند جلب عناصر الطلب")
+      setItemsError((err as Error).message || tr("حدث خطأ عند جلب عناصر الطلب"))
       return []
     } finally {
       setItemsLoading(false)
@@ -391,13 +392,13 @@ export default function InvoiceFromOrderPopup({
           event.preventDefault()
         }}
       >
-        <div className="flex h-full min-h-0 flex-col bg-slate-50" dir="rtl">
+        <div className="flex h-full min-h-0 flex-col bg-slate-50" dir={appDir()}>
           <div className="shrink-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-3 text-white shadow-md sm:px-5 sm:py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="flex items-center gap-2 text-lg font-extrabold sm:text-xl"><span className="rounded-xl bg-white/15 p-2 ring-1 ring-white/20"><ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" /></span>{title}</p>
                 <p className="mt-1 hidden text-xs text-emerald-50 sm:block sm:text-sm">
-                  اختر {isSalesInvoice ? "العميل" : "المورد"} أولاً ثم حدد طلبية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
+                  {tr("اختر ")}{isSalesInvoice ? tr("العميل") : tr("المورد")}{tr(" أولاً ثم حدد طلبية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.")}
                 </p>
               </div>
             </div>
@@ -406,22 +407,22 @@ export default function InvoiceFromOrderPopup({
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
-                <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />{isSalesInvoice ? "العميل" : "المورد"}</Label>
+                <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />{isSalesInvoice ? tr("العميل") : tr("المورد")}</Label>
                 {selectedCustomer ? (
                   <div className="space-y-2">
                     <div className="rounded-xl bg-emerald-50/70 px-3 py-2">
                       <div className="text-sm font-semibold">{selectedCustomer.name}</div>
-                      <div className="text-sm text-slate-600">رقم الحساب: {selectedCustomer.code}</div>
+                      <div className="text-sm text-slate-600">{tr("رقم الحساب: ")}{selectedCustomer.code}</div>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => setCustomerSearchOpen(true)}>
-                      تغيير {isSalesInvoice ? "العميل" : "المورد"}
+                      {tr("تغيير ")}{isSalesInvoice ? tr("العميل") : tr("المورد")}
                     </Button>
                   </div>
                 ) : (
                   <div>
-                    <p className="mb-3 text-sm text-slate-600">لم يتم اختيار {isSalesInvoice ? "عميل" : "مورد"} بعد.</p>
+                    <p className="mb-3 text-sm text-slate-600">{tr("لم يتم اختيار ")}{isSalesInvoice ? tr("عميل") : tr("مورد")}{tr(" بعد.")}</p>
                     <Button size="sm" onClick={() => setCustomerSearchOpen(true)}>
-                      اختر {isSalesInvoice ? "العميل" : "المورد"}
+                      {tr("اختر ")}{isSalesInvoice ? tr("العميل") : tr("المورد")}
                     </Button>
                   </div>
                 )}
@@ -429,23 +430,23 @@ export default function InvoiceFromOrderPopup({
 
               <div className="rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
                 <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><PackageCheck className="h-4 w-4 text-emerald-600" />{orderLabel}</Label>
-                <p className="text-sm text-slate-600">اختر طلبية لتنزيل سطور البضاعة إلى الفاتورة.</p>
+                <p className="text-sm text-slate-600">{tr("اختر طلبية لتنزيل سطور البضاعة إلى الفاتورة.")}</p>
                 <div className="mt-2 rounded-xl bg-teal-50/70 px-3 py-2 text-sm text-slate-600">
-                  {selectedOrder ? `${orderLabel} المحددة: ${selectedOrder.order_number}` : `لم يتم اختيار ${orderLabel} بعد.`}
+                  {selectedOrder ? tr("{0} المحددة: {1}", orderLabel, selectedOrder.order_number) : tr("لم يتم اختيار {0} بعد.", orderLabel)}
                 </div>
               </div>
             </div>
 
             <div className="grid min-w-0 gap-4">
               <div className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
-                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">الطلبيات الجاهزة</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{orders.length}</span></div>
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">{tr("الطلبيات الجاهزة")}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{orders.length}</span></div>
                 <div className={standardGridShell}>
                   {loading ? (
-                    <div className="text-sm text-slate-500">جاري تحميل الطلبات...</div>
+                    <div className="text-sm text-slate-500">{tr("جاري تحميل الطلبات...")}</div>
                   ) : error ? (
                     <div className="text-sm text-red-600">{error}</div>
                   ) : orders.length === 0 ? (
-                    <div className="text-sm text-slate-500">لا توجد طلبات متاحة.</div>
+                    <div className="text-sm text-slate-500">{tr("لا توجد طلبات متاحة.")}</div>
                   ) : (
                     <DataGridView
                       dataSource={orders.map((order, index) => ({ ...order, index }))}
@@ -473,14 +474,14 @@ export default function InvoiceFromOrderPopup({
               </div>
 
               <div className="min-w-0 rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
-                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">العناصر المحددة</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{selectedOrderItems.length}</span></div>
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">{tr("العناصر المحددة")}</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{selectedOrderItems.length}</span></div>
                 <div className={standardGridShell}>
                   {itemsLoading ? (
-                    <div className="text-sm text-slate-500">جاري تحميل عناصر الطلب...</div>
+                    <div className="text-sm text-slate-500">{tr("جاري تحميل عناصر الطلب...")}</div>
                   ) : itemsError ? (
                     <div className="text-sm text-red-600">{itemsError}</div>
                   ) : orderItems.length === 0 ? (
-                    <div className="text-sm text-slate-500">لم يتم إضافة عناصر بعد.</div>
+                    <div className="text-sm text-slate-500">{tr("لم يتم إضافة عناصر بعد.")}</div>
                   ) : (
                     <DataGridView
                       dataSource={orderItems}
@@ -507,9 +508,9 @@ export default function InvoiceFromOrderPopup({
 
           <div className="mt-auto shrink-0 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
             <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => handleClose()}>إلغاء</Button>
+              <Button variant="outline" onClick={() => handleClose()}>{tr("إلغاء")}</Button>
               <Button className="bg-emerald-600 px-6 hover:bg-emerald-700" disabled={!selectedCustomer || selectedOrderItems.length === 0} onClick={handleConfirm}>
-                تأكيد العناصر
+                {tr("تأكيد العناصر")}
               </Button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState } from "react"
 import { Columns2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -86,16 +87,16 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-emerald-300" title="طريقة عرض الصفحات">
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-500 hover:bg-white hover:text-emerald-600 hover:shadow-sm dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-emerald-300" title={tr("طريقة عرض الصفحات")}>
           <Columns2 className="h-[18px] w-[18px]" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72" dir="rtl">
+      <PopoverContent align="end" className="w-72" dir={appDir()}>
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <Label htmlFor="split-screen-toggle">الشاشة المقسمة</Label>
-              <p className="text-xs text-muted-foreground">تقسيم منطقة العرض لجزأين مستقلَّين</p>
+              <Label htmlFor="split-screen-toggle">{tr("الشاشة المقسمة")}</Label>
+              <p className="text-xs text-muted-foreground">{tr("تقسيم منطقة العرض لجزأين مستقلَّين")}</p>
             </div>
             <Switch
               id="split-screen-toggle"
@@ -109,8 +110,8 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
           </div>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <Label htmlFor="tabs-toggle">فتح الصفحات كتبويبات</Label>
-              <p className="text-xs text-muted-foreground">إبقاء الصفحات المفتوحة كتبويبات بدل استبدالها</p>
+              <Label htmlFor="tabs-toggle">{tr("فتح الصفحات كتبويبات")}</Label>
+              <p className="text-xs text-muted-foreground">{tr("إبقاء الصفحات المفتوحة كتبويبات بدل استبدالها")}</p>
             </div>
             <Switch
               id="tabs-toggle"
@@ -124,8 +125,8 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
           </div>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <Label htmlFor="fullscreen-screens-toggle">فتح الشاشات بصورة كاملة</Label>
-              <p className="text-xs text-muted-foreground">فتح شاشات السندات والحسابات والعملاء والأصناف والخدمات كصفحة كاملة</p>
+              <Label htmlFor="fullscreen-screens-toggle">{tr("فتح الشاشات بصورة كاملة")}</Label>
+              <p className="text-xs text-muted-foreground">{tr("فتح شاشات السندات والحسابات والعملاء والأصناف والخدمات كصفحة كاملة")}</p>
             </div>
             <Switch
               id="fullscreen-screens-toggle"

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -222,12 +223,12 @@ export default function VoucherBookPermissions() {
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "نوع السند", name: "voucher_type_name", width: 200, isReadOnly: true },
-        { header: "دفاتر السندات", name: "books_list", width: "*", minWidth: 220, isReadOnly: true },
-        { header: "دفتر السندات الافتراضي", name: "default_book_name", width: 180, isReadOnly: true },
+        { header: tr("نوع السند"), name: "voucher_type_name", width: 200, isReadOnly: true },
+        { header: tr("دفاتر السندات"), name: "books_list", width: "*", minWidth: 220, isReadOnly: true },
+        { header: tr("دفتر السندات الافتراضي"), name: "default_book_name", width: 180, isReadOnly: true },
         {
           name: "btnPick",
-          header: "تحديد الدفاتر",
+          header: tr("تحديد الدفاتر"),
           width: 110,
           buttonBody: "button",
           align: "center",
@@ -246,26 +247,26 @@ export default function VoucherBookPermissions() {
   )
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={appDir()}>
       <div className="flex flex-col gap-2">
-        <div className="text-xl font-semibold">صلاحيات المستخدمين على دفاتر السندات</div>
-        <div className="text-sm text-muted-foreground">تحديد دفاتر السندات المسموحة لكل مستخدم والدفتر الافتراضي له</div>
+        <div className="text-xl font-semibold">{tr("صلاحيات المستخدمين على دفاتر السندات")}</div>
+        <div className="text-sm text-muted-foreground">{tr("تحديد دفاتر السندات المسموحة لكل مستخدم والدفتر الافتراضي له")}</div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">المستخدم</CardTitle>
+          <CardTitle className="text-base">{tr("المستخدم")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
             <div className="grid gap-1.5 min-w-[280px]">
-              <Label>المستخدم *</Label>
+              <Label>{tr("المستخدم *")}</Label>
               <select
                 value={selectedUserId ?? ""}
                 onChange={(e) => setSelectedUserId(e.target.value ? Number(e.target.value) : null)}
                 className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               >
-                <option value="">اختر</option>
+                <option value="">{tr("اختر")}</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.full_name || u.username}
@@ -283,11 +284,11 @@ export default function VoucherBookPermissions() {
               }}
             >
               <Copy className="h-4 w-4" />
-              نسخ من مستخدم آخر
+              {tr("نسخ من مستخدم آخر")}
             </Button>
             <Button variant="outline" size="sm" disabled={!selectedUserId} onClick={() => selectedUserId && fetchPermissions(selectedUserId)}>
               <RefreshCw className="h-4 w-4" />
-              تحديث
+              {tr("تحديث")}
             </Button>
           </div>
         </CardContent>
@@ -296,7 +297,7 @@ export default function VoucherBookPermissions() {
       <div className="overflow-hidden rounded-lg border border-slate-200" style={{ minHeight: 200 }}>
         {selectedUserId ? (
           <DataGridView
-            dir="rtl"
+            dir={appDir()}
             scheme={scheme}
             dataSource={gridData}
             idProperty="ser"
@@ -308,18 +309,18 @@ export default function VoucherBookPermissions() {
             dontConvertToCards={true}
           />
         ) : (
-          <div className="flex h-40 items-center justify-center text-sm text-slate-400">اختر مستخدماً لعرض صلاحياته</div>
+          <div className="flex h-40 items-center justify-center text-sm text-slate-400">{tr("اختر مستخدماً لعرض صلاحياته")}</div>
         )}
       </div>
 
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="max-w-sm p-0 overflow-hidden" dir="rtl">
+        <DialogContent className="max-w-sm p-0 overflow-hidden" dir={appDir()}>
           <DialogHeader className="border-b px-4 py-3">
-            <DialogTitle className="text-base">بحث دفاتر السندات</DialogTitle>
+            <DialogTitle className="text-base">{tr("بحث دفاتر السندات")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 px-4 pb-4 pt-2">
             <div className="grid gap-1.5">
-              <Label>دفتر السندات الافتراضي</Label>
+              <Label>{tr("دفتر السندات الافتراضي")}</Label>
               <select
                 value={pickerDefaultBook ?? ""}
                 onChange={(e) => setDefaultBook(e.target.value === "" ? null : Number(e.target.value))}
@@ -336,7 +337,7 @@ export default function VoucherBookPermissions() {
             <Input
               value={pickerSearch}
               onChange={(e) => setPickerSearch(e.target.value)}
-              placeholder="ابحث من خلال دفتر السندات"
+              placeholder={tr("ابحث من خلال دفتر السندات")}
               className="text-right"
             />
 
@@ -357,7 +358,7 @@ export default function VoucherBookPermissions() {
                 )
               })}
               {filteredPickerBooks.length === 0 && (
-                <div className="px-3 py-4 text-center text-sm text-slate-400">لا توجد نتائج</div>
+                <div className="px-3 py-4 text-center text-sm text-slate-400">{tr("لا توجد نتائج")}</div>
               )}
             </div>
 
@@ -365,14 +366,14 @@ export default function VoucherBookPermissions() {
 
             <div className="flex flex-wrap justify-center gap-2 border-t pt-4">
               <Button onClick={savePicker} className="search-button shadow-sm">
-                موافق
+                {tr("موافق")}
               </Button>
               <Button onClick={copyPickerToAll} variant="secondary" className="search-button shadow-sm">
                 <Copy className="h-4 w-4" />
-                تطبيق على الجميع
+                {tr("تطبيق على الجميع")}
               </Button>
               <Button variant="outline" onClick={() => setPickerOpen(false)} className="search-button shadow-sm">
-                إغلاق
+                {tr("إغلاق")}
               </Button>
             </div>
           </div>
@@ -380,19 +381,19 @@ export default function VoucherBookPermissions() {
       </Dialog>
 
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-md" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle>نسخ صلاحيات دفاتر السندات من مستخدم آخر</DialogTitle>
+            <DialogTitle>{tr("نسخ صلاحيات دفاتر السندات من مستخدم آخر")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              <Label>نسخ من المستخدم</Label>
+              <Label>{tr("نسخ من المستخدم")}</Label>
               <select
                 value={copyFromUserId ?? ""}
                 onChange={(e) => setCopyFromUserId(e.target.value ? Number(e.target.value) : null)}
                 className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               >
-                <option value="">اختر</option>
+                <option value="">{tr("اختر")}</option>
                 {users.filter((u) => u.id !== selectedUserId).map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.full_name || u.username}
@@ -400,13 +401,13 @@ export default function VoucherBookPermissions() {
                 ))}
               </select>
             </div>
-            <p className="text-xs text-amber-600">سيتم استبدال صلاحيات المستخدم الحالي بصلاحيات المستخدم المصدر لجميع أنواع السندات.</p>
+            <p className="text-xs text-amber-600">{tr("سيتم استبدال صلاحيات المستخدم الحالي بصلاحيات المستخدم المصدر لجميع أنواع السندات.")}</p>
             <div className="flex justify-center gap-2 border-t pt-3">
               <Button size="sm" disabled={!copyFromUserId} onClick={runCopy}>
-                نسخ
+                {tr("نسخ")}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setCopyOpen(false)}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
             </div>
           </div>

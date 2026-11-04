@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,7 +62,7 @@ export default function SystemHealthDashboard() {
       const response = await fetch("/api/system/cleanup-test-data", { method: "POST" })
       const result = await response.json()
       if (result.success) {
-        showAlert("تم مسح البيانات التجريبية بنجاح")
+        showAlert(tr("تم مسح البيانات التجريبية بنجاح"))
         await runSystemValidation()
       }
     } catch (error) {
@@ -96,24 +97,24 @@ export default function SystemHealthDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={appDir()}>
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">لوحة صحة النظام</h1>
-          <p className="text-muted-foreground">مراقبة واستقرار النظام</p>
+          <h1 className="text-3xl font-bold">{tr("لوحة صحة النظام")}</h1>
+          <p className="text-muted-foreground">{tr("مراقبة واستقرار النظام")}</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={runSystemValidation} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 ml-2 ${isLoading ? "animate-spin" : ""}`} />
-            فحص النظام
+            <RefreshCw className={`h-4 w-4 me-2 ${isLoading ? "animate-spin" : ""}`} />
+            {tr("فحص النظام")}
           </Button>
           <Button onClick={runAutoFix} variant="outline" disabled={isLoading}>
-            <Settings className="h-4 w-4 ml-2" />
-            إصلاح تلقائي
+            <Settings className="h-4 w-4 me-2" />
+            {tr("إصلاح تلقائي")}
           </Button>
           <Button onClick={cleanTestData} variant="destructive" disabled={isLoading}>
-            <Database className="h-4 w-4 ml-2" />
-            مسح البيانات التجريبية
+            <Database className="h-4 w-4 me-2" />
+            {tr("مسح البيانات التجريبية")}
           </Button>
         </div>
       </div>
@@ -122,7 +123,7 @@ export default function SystemHealthDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">صحة النظام العامة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("صحة النظام العامة")}</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -134,34 +135,34 @@ export default function SystemHealthDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">مشاكل حرجة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("مشاكل حرجة")}</CardTitle>
               <XCircle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{validationResult.summary.criticalIssues}</div>
-              <p className="text-xs text-muted-foreground">يجب إصلاحها فوراً</p>
+              <p className="text-xs text-muted-foreground">{tr("يجب إصلاحها فوراً")}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">تحذيرات</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("تحذيرات")}</CardTitle>
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">{validationResult.summary.warnings}</div>
-              <p className="text-xs text-muted-foreground">تحتاج مراجعة</p>
+              <p className="text-xs text-muted-foreground">{tr("تحتاج مراجعة")}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">توصيات</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("توصيات")}</CardTitle>
               <Info className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">{validationResult.summary.recommendations}</div>
-              <p className="text-xs text-muted-foreground">لتحسين الأداء</p>
+              <p className="text-xs text-muted-foreground">{tr("لتحسين الأداء")}</p>
             </CardContent>
           </Card>
         </div>
@@ -170,7 +171,7 @@ export default function SystemHealthDashboard() {
       {autoFixResults.length > 0 && (
         <Alert>
           <CheckCircle className="h-4 w-4" />
-          <AlertTitle>تم تنفيذ الإصلاحات التلقائية</AlertTitle>
+          <AlertTitle>{tr("تم تنفيذ الإصلاحات التلقائية")}</AlertTitle>
           <AlertDescription>
             <ul className="list-disc list-inside mt-2">
               {autoFixResults.map((fix, index) => (
@@ -184,9 +185,9 @@ export default function SystemHealthDashboard() {
       {validationResult && (
         <Tabs defaultValue="errors" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="errors">المشاكل الحرجة ({validationResult.errors.length})</TabsTrigger>
-            <TabsTrigger value="warnings">التحذيرات ({validationResult.warnings.length})</TabsTrigger>
-            <TabsTrigger value="recommendations">التوصيات ({validationResult.recommendations.length})</TabsTrigger>
+            <TabsTrigger value="errors">{tr("المشاكل الحرجة (")}{validationResult.errors.length})</TabsTrigger>
+            <TabsTrigger value="warnings">{tr("التحذيرات (")}{validationResult.warnings.length})</TabsTrigger>
+            <TabsTrigger value="recommendations">{tr("التوصيات (")}{validationResult.recommendations.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="errors" className="space-y-4">
@@ -194,16 +195,16 @@ export default function SystemHealthDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <XCircle className="h-5 w-5 text-red-500" />
-                  المشاكل الحرجة
+                  {tr("المشاكل الحرجة")}
                 </CardTitle>
-                <CardDescription>هذه المشاكل تؤثر على استقرار النظام ويجب إصلاحها فوراً</CardDescription>
+                <CardDescription>{tr("هذه المشاكل تؤثر على استقرار النظام ويجب إصلاحها فوراً")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {validationResult.errors.length === 0 ? (
                   <div className="text-center py-8 text-green-600">
                     <CheckCircle className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-lg font-semibold">لا توجد مشاكل حرجة!</p>
-                    <p className="text-sm text-muted-foreground">النظام يعمل بشكل مستقر</p>
+                    <p className="text-lg font-semibold">{tr("لا توجد مشاكل حرجة!")}</p>
+                    <p className="text-sm text-muted-foreground">{tr("النظام يعمل بشكل مستقر")}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -224,15 +225,15 @@ export default function SystemHealthDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                  التحذيرات
+                  {tr("التحذيرات")}
                 </CardTitle>
-                <CardDescription>هذه المسائل لا تؤثر على عمل النظام لكن يُنصح بمراجعتها</CardDescription>
+                <CardDescription>{tr("هذه المسائل لا تؤثر على عمل النظام لكن يُنصح بمراجعتها")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {validationResult.warnings.length === 0 ? (
                   <div className="text-center py-8 text-green-600">
                     <CheckCircle className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-lg font-semibold">لا توجد تحذيرات!</p>
+                    <p className="text-lg font-semibold">{tr("لا توجد تحذيرات!")}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -253,15 +254,15 @@ export default function SystemHealthDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Info className="h-5 w-5 text-blue-500" />
-                  التوصيات
+                  {tr("التوصيات")}
                 </CardTitle>
-                <CardDescription>اقتراحات لتحسين أداء النظام وتجربة المستخدم</CardDescription>
+                <CardDescription>{tr("اقتراحات لتحسين أداء النظام وتجربة المستخدم")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {validationResult.recommendations.length === 0 ? (
                   <div className="text-center py-8 text-green-600">
                     <CheckCircle className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-lg font-semibold">النظام محسّن بالكامل!</p>
+                    <p className="text-lg font-semibold">{tr("النظام محسّن بالكامل!")}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">

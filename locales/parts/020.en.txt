@@ -1,0 +1,300 @@
+Saved accounts
+Step
+Tax number
+The tax number must contain English letters or digits only, up to 20 characters
+Commercial register
+Saved records
+Customers, suppliers and subscribers
+Currencies
+Saved currencies
+Saved
+Salesmen
+Website
+Units
+Balance sheet asset items
+Balance sheet liability items
+Income statement items
+Postpone
+Voucher numbering
+File numbering
+Unable to add the {0}
+Unable to determine the current user
+Unable to load {0}
+Unable to load the numbering settings
+Unable to load the default cash and bank accounts
+Unable to save the numbering settings
+Unable to save the default accounts
+Unable to save the company information
+Numbering settings saved successfully
+Default accounts saved successfully
+Default cash and bank accounts saved successfully
+Company information saved
+{0} added
+Added successfully, and you can add another record
+Set the default accounts for item transactions
+Set the default accounts of the current user for each currency
+Set the system default accounts
+Set the prefixes and starting numbers of vouchers and files as in the system settings
+Set the cash, cheques and cards accounts for each currency
+Item accounts
+Default cash and bank accounts
+US Dollar
+{0} number (optional)
+The item number must be 10 uppercase English letters or digits
+Licensed dealer number
+The licensed dealer number must contain English letters or digits only, up to 30 characters
+The currency code is required and must not exceed 3 characters
+Quick
+The selling price must be between 0 and 10000000
+Exchange rate (base currency)
+The exchange rate must be between 0.001 and 100000
+Goods issue voucher
+Goods receipt voucher
+Purchase requests
+Sales requests
+Don't show
+Don't show again
+Currency
+Price categories
+No saved items
+No saved accounts of type 1
+No saved records
+No saved records in this tab
+No branches — add a branch first
+No currencies added yet
+Example of the next number:
+Consignment delivery return
+Purchase return
+Company information
+From Excel
+Record type
+Default chart of accounts type
+Are you sure? You won't be able to return to the quick start if you confirm
+Numbering prefixes must be 1 to 3 uppercase English letters
+The numbering start number must be a whole number greater than zero
+The unit must be chosen
+A balance sheet asset item or liability item must be chosen
+The branch must be specified
+At least one currency must be defined first
+A price category must be defined first
+At least one price category must be defined before adding the item
+You can add more than one record, or choose an Excel file with Arabic or English column headers.
+Add fields to preview the form
+Maximum length
+Create the check fields and order them by dragging, then link the list to the order draft.
+User answer
+Add field
+Mandatory
+Start by adding the first field
+Checklist name
+Checklist name *
+The checklist name is already in use
+Maximum
+Field {0}
+Fields (
+Saved lists
+Description and instructions
+List data
+Unable to connect to the server while saving the checklist
+Unable to save the checklist
+Short instructions for the user who will confirm the order
+Verified
+Checklist updated successfully
+List saved successfully
+characters
+Save list
+The list description will appear here.
+Field label *
+New list
+No saved lists
+Directly
+Example: sales order review
+Checklist designer
+Form preview
+Answer type
+Please enter the checklist name
+Please add at least one field and write its label
+× per unit
+F3: save
+The server returned an invalid response while saving the draft
+Order total
+Attach images or PDF
+Add customer
+Create order draft
+Choose a valid customer account from the list
+Customer name *
+Type the customer name or number to search...
+Type the customer name first
+Priority
+Required delivery date *
+The minimum order for {0} is {1}
+Minimum:
+Discount
+The customer, order and delivery dates and at least one item are required
+Branch is required
+Follow-up
+Remaining after deposit
+Summary and deposit
+File {0} is not allowed or is larger than 5MB
+Specifications
+Scan or type the barcode then Enter
+No list
+successfully
+Customer and delivery data
+The delivery date cannot be before the order date
+Check the quantity, price and discount of item {0}
+Edit order draft
+Unable to add the item by barcode
+Unable to create the customer
+Unable to connect to the server while saving the draft
+Unable to search for the barcode
+Unable to load the item specifications
+Unable to save the draft: {0}
+Define customer
+Customer created and selected
+Customer created and selected in the order
+Draft updated successfully
+Saved
+Draft {0}{1} saved
+Adding the customer...
+Loading customers...
+Loading specifications...
+Delete {0}
+Save draft
+Save specifications
+Save and define the customer
+Mobile number
+Draft number
+Urgent
+Normal
+High
+Number of items
+Delivery address
+Saving the draft failed (HTTP {0})
+Checklist
+No items yet — add an item by search or barcode
+This component has no variants or attributes
+No manufacturing components are defined for this item
+No item found with this barcode
+Deposit amount
+The deposit amount cannot exceed the order total
+The deposit amount must be zero or greater
+The draft save route isn't available on the server; restart the application server to load the new API
+Warehouse {0}
+View order draft
+Manufacturing components (
+Item specifications
+Contact phone
+All variants and attributes must be filled in
+The deposit is saved with a receipt voucher automatically when the draft is saved, and the voucher is cancelled when it is deleted.
+Create drafts and review them before converting them to actual sales orders.
+Start by creating the first order draft.
+Delivery
+Deposit
+Search by draft number or customer name...
+Unable to delete the draft
+Loading drafts...
+Ready
+Draft status
+No drafts
+Attachments
+Do you want to delete draft {0}?
+, available
+: required
+items · deposit
+Create purchase order
+Drag the order here to confirm
+Drag the draft card to the confirmation area, complete the checklist, then create the order.
+Delivery:
+Customer:
+Drafts awaiting review (
+In the main unit
+Required data
+Confirm and create the sales order
+Unable to create the workflow for some items
+Unable to connect to the server while confirming the order
+Unable to confirm the order
+Unable to check the availability of production materials
+Order created with a warning
+Sales order {0} created and the workflow started
+Order confirmed
+Creating the order...
+The quantities and all mandatory fields are checked before creating the order.
+Not fully available
+Check production materials availability
+Checklist:
+No checklist is linked to this draft.
+Review
+The field must be entered: {0}
+Last change
+Draft archive
+Cancel draft
+Create draft
+Deposit:
+Confirm and convert to a sales order
+Entry date
+Date converted to an order
+Order date:
+Track the draft from its creation through the production check and its conversion to a sales order.
+Converted to an order
+Converted to a sales order
+Apply
+Edit draft
+Production check
+Production quantities check
+Sales order drafts archive report
+Confirmation continued despite a shortage per the system settings.
+All production materials are available
+Draft, customer or order number
+Sales order number
+Changes and checks log
+Open sales order
+Checklist at confirmation
+No drafts match the filters
+Entry user
+User who converted to an order
+Unavailable materials: {0}
+% this week
+Total orders
+Manage and track all sales orders efficiently
+Create a new order
+Customer name A-Z
+Customer name Z-A
+Highest value
+Lowest value
+Smart search
+Advanced search and filtering
+Financial status
+Stage:
+Delivery:
+Approved
+Loading sales orders...
+Order status
+Workflow status
+Order number, customer name or salesman...
+Workflow
+Grid
+Unpaid
+Failed to load sales orders
+Pending
+List
+Order list
+In progress
+Under review
+No orders match the search criteria
+Paid
+Partially paid
+Completion rate
+out of
+Needs follow-up
+Global search
+Total amount
+Today:
+Order status distribution
+All priorities
+Advanced sales orders
+Today's orders
+Cards view
+List view
+A complete dashboard to manage and track all sales orders
+Key performance indicators

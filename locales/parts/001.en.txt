@@ -1,0 +1,300 @@
+Typed by the system manager or the administrator registered on
+Enter to run the selected option
+Choose how to save — or press the option number directly
+Finalize the voucher
+Finalize the voucher and print the original copy
+Post and print
+Saving the voucher...
+Save voucher
+Save and post
+Save and print
+Print a review copy without posting
+The voucher stays an editable draft
+Close (Esc)
+Total quantity
+Total amount
+Item name
+Price
+Item number
+Unable to load the permitted branches
+Printing failed
+The voucher was sent to the printer
+Printed through the browser
+An error occurred while printing
+The print service is unavailable: {0}
+Voucher status
+Total credit
+Total debit
+Enter to move between filters then to results • ↑↓ to navigate • Enter to open the voucher
+Status:
+Book
+Amount to
+Amount from
+Search {0}
+Voucher search
+Search the voucher description
+Unable to search vouchers
+Showing the first 500 results — narrow the filters
+Clear filters
+Searching...
+Account number or search
+Voucher no. / manual
+No vouchers match the filters
+Example: R0001
+— A PDF is saved with the print layout and sent to the customer.
+«Send directly» sends the file from the company number via WhatsApp Business.
+Enter the customer's WhatsApp number
+Attach the file in the WhatsApp chat opened for the customer.
+Send the voucher via WhatsApp
+Send directly
+Recipient name
+Unable to send via WhatsApp
+Unable to prepare the voucher
+The voucher was sent via WhatsApp
+PDF file downloaded
+Download PDF only
+No.
+WhatsApp number
+On mobile: «Share file» sends it directly through the WhatsApp app.
+Open WhatsApp + download PDF
+No WhatsApp/mobile number in the customer file — enter it manually.
+No voucher
+Attachment {0} no. {1}{2}
+Share file (WhatsApp)
+WhatsApp Web doesn't allow attaching a file automatically: the file is downloaded and the customer's chat is opened so you can attach it.
+Total sales value
+Total purchases value
+Approve
+Refresh from the dashboard
+Monthly sales report
+Loading dashboard...
+An error occurred while loading dashboard data
+Error loading data
+Pending sales orders
+Pending purchase orders
+Completed orders:
+order
+New sales order
+View all orders
+No pending orders
+Pending
+Completed
+out of
+Please wait...
+Add
+Add a new shortcut
+Choose the screen or report you want to add to favorites
+Choose a screen or report
+Quick shortcuts
+Please choose a screen or report
+Screen or report
+Click "Add" to add quick shortcuts to your favorite screens and reports
+Inventory analytics
+Item reports
+Order reports
+Report
+{0} added to favorites
+Added
+Deleted
+The shortcut was removed from favorites
+Screen
+Failed to add favorite
+Failed to delete favorite
+No favorite shortcuts yet
+User information not found
+, {0}
+Latest transactions
+April
+August
+Top customers this month
+October
+Busiest hour in the last 30 days: {0}:00 – {1}:00 ({2} invoices)
+Quick actions
+Total sales
+Best-selling items this month
+Negative cash flow
+Peak between
+Current branch
+Values before tax
+Sales and purchases
+Payments exceed receipts this month by {0} {1}
+Returns
+Returns are {0}% of this month's sales ({1} {2})
+count
+Needs your attention
+Sales decline
+Android app
+Download the NoonERP System app for Android devices (APK)
+December
+Peak hours (30 days)
+Peak hour
+September
+Unapproved vouchers
+Net cash flow
+Net sales
+Net sales are {0}% higher than the same period last month
+Net sales are {0}% lower than the same period last month
+Net sales this month
+Internal request
+Quick order
+New customer
+vs yesterday
+invoice ·
+invoices today · average invoice
+February
+Everything is fine
+No data to compare
+No transactions yet
+No invoices with times recorded in the last 30 days
+No indicators need your attention right now
+No item sales this month
+No customer sales this month
+Information dashboard
+March
+May
+Today's sales
+Average invoice
+Payments
+Purchases this month
+Receipts
+Month summary
+Returns ratio
+Branch scope
+November
+unit
+January
+July
+June
+- please wait ...
+(not ready)
+(subscription expired)
+Item balances at a date
+Restaurant peak times
+POS setup
+API and integration settings
+Font settings
+SMS settings
+Voucher and print settings
+Print settings
+Cheque deposit
+Daily exchange rates
+Items sold in the restaurant
+Notifications
+Definitions
+Maximum image size is 2 MB
+Services
+Orders by item
+Orders by customer/supplier
+Orders by salesman
+Undelivered orders
+Active branch
+Menu
+Users
+Restaurant by location
+Restaurant by waiter
+Item card
+Receivable account statement
+Accounting account statement
+Sign out
+Unable to update the image
+Unable to save the image
+Unable to open the company
+Change user picture
+Change password
+Item and service reports
+Transactions report
+Vouchers report
+Tables report
+Orders summary report
+Orders detailed report
+Retail custody report
+Inventory valuation at a date
+Profile picture updated
+Switching to company -
+Signing out, please wait...
+Saving image...
+Image too large
+Restaurant screen
+My companies
+Restaurant tables
+Restaurant orders detailed
+Failed to load branches
+POS cashier
+No branches
+Order tracking
+Restaurant monitor
+Orders summary
+Invalid file
+Restaurant locations
+Trial balance
+Balance sheet
+Please choose an image file
+{0} - {1} products checked
+🔔 Reorder alert&#10;&#10;📦 Product: {product_name}&#10;🔢 Code: {product_code}&#10;📊 Current stock: {current_stock}&#10;⚠️ Reorder point: {reorder_point}&#10;🏭 Supplier: {supplier_name}&#10;&#10;Please take the necessary action.
+Last 20 notifications sent
+Phone numbers
+Manage reorder notifications via WhatsApp
+Send notifications now
+Send a daily summary of products that need reordering
+WhatsApp notification settings
+Notification settings
+Use the variables:
+Notifications disabled
+Notifications enabled - alerts will be sent when the reorder point is reached
+Loading items...
+An error occurred while sending
+Phone number
+Invalid phone number. It must start with + and contain 10-15 digits
+The phone number already exists
+Notification log
+Failed
+Failed to send notifications
+Pending
+No numbers added. Add a phone number to receive notifications.
+No notifications
+No notifications have been sent yet
+Daily summary
+Message template
+Daily summary send time
+Encrypted, secure connection — your companies' data is protected
+N
+Name or email
+The company and sign-in time for each successful sign-in
+Apply filters
+The first 500 results are shown; add filters to narrow the results.
+Unable to load the sign-in log
+Loading the sign-in log...
+Sign-in by choosing a company
+Management dashboard sign-in
+Direct company sign-in
+User sign-in log
+All companies
+No records match the filters
+Management dashboard
+Sign-in type
+, and the remaining stages from
+Last 30 days
+to {0}
+Most requested items (30 days)
+Dealings with branches (90 days)
+Activity over 14 days
+Requests at each stage
+Received ÷ requested — last 30 days
+Waiting for your branch
+No activity for more than {0} days
+Unable to load the tracking dashboard
+Sent by your branch
+Sent: {0}
+A live picture of your branch's outgoing and incoming requests at every stage.
+Requested from us
+Open outgoing requests
+Late requests
+Open incoming requests
+We requested from them
+Requested by your branch and not completed
+No requests in the last 30 days
+No late requests
+No dealings with other branches in the last 90 days
+You do not have the "Goods requests dashboard" permission in branch {0}.
+Internal goods requests dashboard
+Average completion time

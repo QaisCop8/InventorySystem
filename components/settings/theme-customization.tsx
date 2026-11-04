@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { useState } from "react"
@@ -27,7 +28,7 @@ const toolbarTemplates = [
   {
     id: "modern",
     name: "عصري",
-    description: "سطح أبيض وأزرار واضحة بحواف ناعمة",
+    description: tr("سطح أبيض وأزرار واضحة بحواف ناعمة"),
     surface: "rounded-xl border-slate-200 bg-white shadow-sm",
     primary: "rounded-lg bg-slate-900",
     save: "rounded-lg bg-indigo-600",
@@ -36,7 +37,7 @@ const toolbarTemplates = [
   {
     id: "gradient",
     name: "متدرج",
-    description: "ألوان داكنة متدرجة ومظهر حيوي",
+    description: tr("ألوان داكنة متدرجة ومظهر حيوي"),
     surface: "rounded-xl border-indigo-400/30 bg-gradient-to-l from-slate-900 via-indigo-900 to-teal-800 shadow-lg",
     primary: "rounded-lg bg-white",
     save: "rounded-lg bg-gradient-to-l from-cyan-400 to-indigo-500",
@@ -45,7 +46,7 @@ const toolbarTemplates = [
   {
     id: "compact",
     name: "مدمج",
-    description: "شريط عائم بأزرار أيقونات دائرية خفيفة",
+    description: tr("شريط عائم بأزرار أيقونات دائرية خفيفة"),
     surface: "rounded-full border-slate-200 bg-white shadow-sm",
     primary: "!h-7 !w-7 rounded-full bg-slate-900",
     save: "!h-7 !w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 shadow-sm shadow-indigo-300",
@@ -54,7 +55,7 @@ const toolbarTemplates = [
   {
     id: "classic",
     name: "كلاسيكي",
-    description: "شريط Ribbon: تنقل علوي وأزرار أيقونة فوق النص",
+    description: tr("شريط Ribbon: تنقل علوي وأزرار أيقونة فوق النص"),
     surface: "rounded-xl border-slate-200 border-t-4 border-t-indigo-500 bg-white shadow-sm",
     primary: "rounded-lg bg-emerald-100 ring-1 ring-emerald-300",
     save: "rounded-lg bg-gradient-to-b from-indigo-500 to-indigo-700",
@@ -96,7 +97,7 @@ export function ThemeCustomization() {
       await saveSettings()
 
       console.log("[v0] Theme settings saved successfully!")
-      showAlert("تم حفظ الإعدادات بنجاح!")
+      showAlert(tr("تم حفظ الإعدادات بنجاح!"))
     } catch (error) {
       console.error("[v0] Error saving theme settings:", error)
       console.error("[v0] Error details:", {
@@ -104,7 +105,7 @@ export function ThemeCustomization() {
         stack: error instanceof Error ? error.stack : undefined,
         settings: settings,
       })
-      showAlert("حدث خطأ في حفظ الإعدادات")
+      showAlert(tr("حدث خطأ في حفظ الإعدادات"))
     } finally {
       setSaving(false)
     }
@@ -141,7 +142,7 @@ export function ThemeCustomization() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>جاري تحميل إعدادات التخصيص...</p>
+          <p>{tr("جاري تحميل إعدادات التخصيص...")}</p>
         </div>
       </div>
     )
@@ -151,21 +152,21 @@ export function ThemeCustomization() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">تخصيص المظهر</h2>
-          <p className="text-muted-foreground">قم بتخصيص ألوان وخطوط ومؤثرات النظام</p>
+          <h2 className="text-2xl font-bold text-foreground">{tr("تخصيص المظهر")}</h2>
+          <p className="text-muted-foreground">{tr("قم بتخصيص ألوان وخطوط ومؤثرات النظام")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={resetToDefaults}>
-            <RotateCcw className="w-4 h-4 ml-2" />
-            إعادة تعيين
+            <RotateCcw className="w-4 h-4 me-2" />
+            {tr("إعادة تعيين")}
           </Button>
           <Button variant="outline" size="sm" onClick={exportSettings}>
-            <Download className="w-4 h-4 ml-2" />
-            تصدير
+            <Download className="w-4 h-4 me-2" />
+            {tr("تصدير")}
           </Button>
           <Button variant="outline" size="sm" onClick={() => document.getElementById("import-file")?.click()}>
-            <Upload className="w-4 h-4 ml-2" />
-            استيراد
+            <Upload className="w-4 h-4 me-2" />
+            {tr("استيراد")}
           </Button>
           <input id="import-file" type="file" accept=".json" onChange={importSettings} className="hidden" />
         </div>
@@ -173,10 +174,10 @@ export function ThemeCustomization() {
 
       <div className="flex items-center gap-2">
         <Switch checked={previewMode} onCheckedChange={setPreviewMode} id="preview-mode" />
-        <Label htmlFor="preview-mode">معاينة مباشرة للتغييرات</Label>
+        <Label htmlFor="preview-mode">{tr("معاينة مباشرة للتغييرات")}</Label>
         {previewMode && (
           <Badge variant="secondary" className="bg-primary/10 text-primary">
-            وضع المعاينة نشط
+            {tr("وضع المعاينة نشط")}
           </Badge>
         )}
       </div>
@@ -185,27 +186,27 @@ export function ThemeCustomization() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="colors" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
-            الألوان
+            {tr("الألوان")}
           </TabsTrigger>
           <TabsTrigger value="typography" className="flex items-center gap-2">
             <Type className="w-4 h-4" />
-            الخطوط
+            {tr("الخطوط")}
           </TabsTrigger>
           <TabsTrigger value="effects" className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
-            المؤثرات
+            {tr("المؤثرات")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="colors" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>نظام الألوان</CardTitle>
-              <CardDescription>اختر نظام الألوان المناسب لشركتك</CardDescription>
+              <CardTitle>{tr("نظام الألوان")}</CardTitle>
+              <CardDescription>{tr("اختر نظام الألوان المناسب لشركتك")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label className="text-base font-medium">الأنظمة المحددة مسبقاً</Label>
+                <Label className="text-base font-medium">{tr("الأنظمة المحددة مسبقاً")}</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
                   {colorSchemes.map((scheme) => (
                     <Card
@@ -237,7 +238,7 @@ export function ThemeCustomization() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label htmlFor="primary-color">اللون الأساسي</Label>
+                  <Label htmlFor="primary-color">{tr("اللون الأساسي")}</Label>
                   <div className="flex items-center gap-3 mt-2">
                     <input
                       type="color"
@@ -252,7 +253,7 @@ export function ThemeCustomization() {
                 </div>
 
                 <div>
-                  <Label htmlFor="accent-color">اللون المساعد</Label>
+                  <Label htmlFor="accent-color">{tr("اللون المساعد")}</Label>
                   <div className="flex items-center gap-3 mt-2">
                     <input
                       type="color"
@@ -273,12 +274,12 @@ export function ThemeCustomization() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <PanelsTopLeft className="h-5 w-5 text-primary" />
-                <CardTitle>شكل شريط الأزرار</CardTitle>
+                <CardTitle>{tr("شكل شريط الأزرار")}</CardTitle>
               </div>
-              <CardDescription>اختر قالب شريط الأوامر. ستظهر المعاينة مباشرة في جميع شاشات النظام.</CardDescription>
+              <CardDescription>{tr("اختر قالب شريط الأوامر. ستظهر المعاينة مباشرة في جميع شاشات النظام.")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" dir="rtl">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" dir={appDir()}>
                 {toolbarTemplates.map((template) => {
                   const selected = settings.toolbar_style === template.id
                   return (
@@ -287,12 +288,12 @@ export function ThemeCustomization() {
                       type="button"
                       aria-pressed={selected}
                       onClick={() => updateSettings({ toolbar_style: template.id })}
-                      className={`group relative overflow-hidden rounded-2xl border-2 p-3 text-right transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                      className={`group relative overflow-hidden rounded-2xl border-2 p-3 text-start transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                         selected ? "border-primary bg-primary/5 shadow-md" : "border-border bg-card"
                       }`}
                     >
                       {selected && (
-                        <span className="absolute left-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                        <span className="absolute end-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
                           <Check className="h-4 w-4" />
                         </span>
                       )}
@@ -314,24 +315,24 @@ export function ThemeCustomization() {
 
           <Card>
             <CardHeader>
-              <CardTitle>معاينة الألوان</CardTitle>
+              <CardTitle>{tr("معاينة الألوان")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex gap-2">
-                  <Button style={{ backgroundColor: settings.primary_color, color: "white" }}>زر أساسي</Button>
+                  <Button style={{ backgroundColor: settings.primary_color, color: "white" }}>{tr("زر أساسي")}</Button>
                   <Button
                     variant="outline"
                     style={{ borderColor: settings.accent_color, color: settings.accent_color }}
                   >
-                    زر ثانوي
+                    {tr("زر ثانوي")}
                   </Button>
                 </div>
                 <div className="p-4 rounded-lg border" style={{ borderColor: settings.primary_color }}>
                   <h4 className="font-medium" style={{ color: settings.primary_color }}>
-                    عنوان تجريبي
+                    {tr("عنوان تجريبي")}
                   </h4>
-                  <p className="text-sm text-muted-foreground mt-1">هذا نص تجريبي لمعاينة الألوان المختارة في النظام</p>
+                  <p className="text-sm text-muted-foreground mt-1">{tr("هذا نص تجريبي لمعاينة الألوان المختارة في النظام")}</p>
                 </div>
               </div>
             </CardContent>
@@ -341,12 +342,12 @@ export function ThemeCustomization() {
         <TabsContent value="typography" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>إعدادات الخطوط</CardTitle>
-              <CardDescription>تخصيص نوع وحجم الخطوط</CardDescription>
+              <CardTitle>{tr("إعدادات الخطوط")}</CardTitle>
+              <CardDescription>{tr("تخصيص نوع وحجم الخطوط")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label htmlFor="font-family">نوع الخط</Label>
+                <Label htmlFor="font-family">{tr("نوع الخط")}</Label>
                 <Select value={settings.font_family} onValueChange={(value) => updateSettings({ font_family: value })}>
                   <SelectTrigger className="mt-2">
                     <SelectValue />
@@ -362,7 +363,7 @@ export function ThemeCustomization() {
               </div>
 
               <div>
-                <Label htmlFor="font-size">حجم الخط: {settings.font_size}px</Label>
+                <Label htmlFor="font-size">{tr("حجم الخط: ")}{settings.font_size}px</Label>
                 <Slider
                   value={[settings.font_size]}
                   onValueChange={(value) => updateSettings({ font_size: value[0] })}
@@ -377,12 +378,12 @@ export function ThemeCustomization() {
                 className="p-4 border rounded-lg space-y-3"
                 style={{ fontFamily: settings.font_family, fontSize: `${settings.font_size}px` }}
               >
-                <h3 className="text-xl font-bold">عنوان رئيسي</h3>
-                <h4 className="text-lg font-semibold">عنوان فرعي</h4>
+                <h3 className="text-xl font-bold">{tr("عنوان رئيسي")}</h3>
+                <h4 className="text-lg font-semibold">{tr("عنوان فرعي")}</h4>
                 <p className="text-base">
-                  هذا نص تجريبي لمعاينة الخط المختار. يمكنك رؤية كيف سيظهر النص في النظام بالخط والحجم المحددين.
+                  {tr("هذا نص تجريبي لمعاينة الخط المختار. يمكنك رؤية كيف سيظهر النص في النظام بالخط والحجم المحددين.")}
                 </p>
-                <p className="text-sm text-muted-foreground">نص صغير للتفاصيل والملاحظات</p>
+                <p className="text-sm text-muted-foreground">{tr("نص صغير للتفاصيل والملاحظات")}</p>
               </div>
             </CardContent>
           </Card>
@@ -391,12 +392,12 @@ export function ThemeCustomization() {
         <TabsContent value="effects" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>المؤثرات البصرية</CardTitle>
-              <CardDescription>تخصيص الظلال والانتقالات والمساحات</CardDescription>
+              <CardTitle>{tr("المؤثرات البصرية")}</CardTitle>
+              <CardDescription>{tr("تخصيص الظلال والانتقالات والمساحات")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <Label htmlFor="border-radius">استدارة الحواف: {settings.border_radius}px</Label>
+                <Label htmlFor="border-radius">{tr("استدارة الحواف: ")}{settings.border_radius}px</Label>
                 <Slider
                   value={[settings.border_radius]}
                   onValueChange={(value) => updateSettings({ border_radius: value[0] })}
@@ -410,8 +411,8 @@ export function ThemeCustomization() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="compact-mode">الوضع المضغوط</Label>
-                    <p className="text-sm text-muted-foreground">تقليل المساحات بين العناصر</p>
+                    <Label htmlFor="compact-mode">{tr("الوضع المضغوط")}</Label>
+                    <p className="text-sm text-muted-foreground">{tr("تقليل المساحات بين العناصر")}</p>
                   </div>
                   <Switch
                     id="compact-mode"
@@ -422,8 +423,8 @@ export function ThemeCustomization() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="dark-mode">الوضع الداكن</Label>
-                    <p className="text-sm text-muted-foreground">تفعيل وضع النظام الداكن</p>
+                    <Label htmlFor="dark-mode">{tr("الوضع الداكن")}</Label>
+                    <p className="text-sm text-muted-foreground">{tr("تفعيل وضع النظام الداكن")}</p>
                   </div>
                   <Switch
                     id="dark-mode"
@@ -434,8 +435,8 @@ export function ThemeCustomization() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="high-contrast">التباين العالي</Label>
-                    <p className="text-sm text-muted-foreground">زيادة التباين للوضوح</p>
+                    <Label htmlFor="high-contrast">{tr("التباين العالي")}</Label>
+                    <p className="text-sm text-muted-foreground">{tr("زيادة التباين للوضوح")}</p>
                   </div>
                   <Switch
                     id="high-contrast"
@@ -446,8 +447,8 @@ export function ThemeCustomization() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="rtl-support">دعم العربية</Label>
-                    <p className="text-sm text-muted-foreground">تفعيل الكتابة من اليمين لليسار</p>
+                    <Label htmlFor="rtl-support">{tr("دعم العربية")}</Label>
+                    <p className="text-sm text-muted-foreground">{tr("تفعيل الكتابة من اليمين لليسار")}</p>
                   </div>
                   <Switch
                     id="rtl-support"
@@ -458,7 +459,7 @@ export function ThemeCustomization() {
               </div>
 
               <div>
-                <Label htmlFor="card-style">نمط البطاقات</Label>
+                <Label htmlFor="card-style">{tr("نمط البطاقات")}</Label>
                 <Select
                   value={settings.card_style}
                   onValueChange={(value: "flat" | "elevated" | "outlined") => updateSettings({ card_style: value })}
@@ -467,15 +468,15 @@ export function ThemeCustomization() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="flat">مسطح</SelectItem>
-                    <SelectItem value="elevated">مرتفع</SelectItem>
-                    <SelectItem value="outlined">محدد</SelectItem>
+                    <SelectItem value="flat">{tr("مسطح")}</SelectItem>
+                    <SelectItem value="elevated">{tr("مرتفع")}</SelectItem>
+                    <SelectItem value="outlined">{tr("محدد")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="animation-speed">سرعة الحركات</Label>
+                <Label htmlFor="animation-speed">{tr("سرعة الحركات")}</Label>
                 <Select
                   value={settings.animation_speed}
                   onValueChange={(value: "slow" | "normal" | "fast") => updateSettings({ animation_speed: value })}
@@ -484,15 +485,15 @@ export function ThemeCustomization() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="slow">بطيء</SelectItem>
-                    <SelectItem value="normal">عادي</SelectItem>
-                    <SelectItem value="fast">سريع</SelectItem>
+                    <SelectItem value="slow">{tr("بطيء")}</SelectItem>
+                    <SelectItem value="normal">{tr("عادي")}</SelectItem>
+                    <SelectItem value="fast">{tr("سريع")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-4">
-                <Label>معاينة المؤثرات</Label>
+                <Label>{tr("معاينة المؤثرات")}</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card
                     className="transition-all hover:scale-105"
@@ -502,8 +503,8 @@ export function ThemeCustomization() {
                     }}
                   >
                     <CardContent className="p-0">
-                      <h4 className="font-medium">بطاقة تجريبية</h4>
-                      <p className="text-sm text-muted-foreground mt-1">معاينة للمؤثرات المطبقة</p>
+                      <h4 className="font-medium">{tr("بطاقة تجريبية")}</h4>
+                      <p className="text-sm text-muted-foreground mt-1">{tr("معاينة للمؤثرات المطبقة")}</p>
                     </CardContent>
                   </Card>
 
@@ -514,7 +515,7 @@ export function ThemeCustomization() {
                       padding: settings.compact_mode ? "0.5rem 1rem" : "0.75rem 1.5rem",
                     }}
                   >
-                    زر تجريبي
+                    {tr("زر تجريبي")}
                   </Button>
                 </div>
               </div>
@@ -527,16 +528,16 @@ export function ThemeCustomization() {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-medium">حفظ الإعدادات</h4>
-              <p className="text-sm text-muted-foreground">احفظ إعداداتك المخصصة لتطبيقها على النظام</p>
+              <h4 className="font-medium">{tr("حفظ الإعدادات")}</h4>
+              <p className="text-sm text-muted-foreground">{tr("احفظ إعداداتك المخصصة لتطبيقها على النظام")}</p>
             </div>
             <Button
               onClick={handleSave}
               disabled={saving}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              <Save className="w-4 h-4 ml-2" />
-              {saving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+              <Save className="w-4 h-4 me-2" />
+              {saving ? tr("جاري الحفظ...") : tr("حفظ الإعدادات")}
             </Button>
           </div>
         </CardContent>

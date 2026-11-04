@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,40 +44,40 @@ export function SmartAnalyticsDashboard() {
   const analysisTypes = [
     {
       id: "sales",
-      title: "تحليل المبيعات",
-      description: "رؤى وتوصيات حول أداء المبيعات",
+      title: tr("تحليل المبيعات"),
+      description: tr("رؤى وتوصيات حول أداء المبيعات"),
       icon: TrendingUp,
       color: "text-green-600",
     },
     {
       id: "inventory",
-      title: "تحليل المخزون",
-      description: "تقييم حالة المخزون وتوصيات التحسين",
+      title: tr("تحليل المخزون"),
+      description: tr("تقييم حالة المخزون وتوصيات التحسين"),
       icon: Package,
       color: "text-blue-600",
     },
     {
       id: "customers",
-      title: "تحليل العملاء",
-      description: "فهم سلوك العملاء وفرص النمو",
+      title: tr("تحليل العملاء"),
+      description: tr("فهم سلوك العملاء وفرص النمو"),
       icon: Users,
       color: "text-purple-600",
     },
     {
       id: "workflow",
-      title: "تحليل سير العمل",
-      description: "تقييم كفاءة العمليات والاختناقات",
+      title: tr("تحليل سير العمل"),
+      description: tr("تقييم كفاءة العمليات والاختناقات"),
       icon: GitBranch,
       color: "text-orange-600",
     },
   ]
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold">لوحة التحليلات الذكية</h2>
-          <p className="text-muted-foreground mt-1">رؤى وتوصيات مدعومة بالذكاء الاصطناعي</p>
+          <h2 className="text-3xl font-bold">{tr("لوحة التحليلات الذكية")}</h2>
+          <p className="text-muted-foreground mt-1">{tr("رؤى وتوصيات مدعومة بالذكاء الاصطناعي")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={timeframe} onValueChange={setTimeframe}>
@@ -84,10 +85,10 @@ export function SmartAnalyticsDashboard() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">آخر 7 أيام</SelectItem>
-              <SelectItem value="30">آخر 30 يوم</SelectItem>
-              <SelectItem value="60">آخر 60 يوم</SelectItem>
-              <SelectItem value="90">آخر 90 يوم</SelectItem>
+              <SelectItem value="7">{tr("آخر 7 أيام")}</SelectItem>
+              <SelectItem value="30">{tr("آخر 30 يوم")}</SelectItem>
+              <SelectItem value="60">{tr("آخر 60 يوم")}</SelectItem>
+              <SelectItem value="90">{tr("آخر 90 يوم")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -120,13 +121,13 @@ export function SmartAnalyticsDashboard() {
                   <Button onClick={() => analyzeData(type.id)} disabled={isLoading}>
                     {isLoading ? (
                       <>
-                        <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                        جاري التحليل...
+                        <Loader2 className="h-4 w-4 me-2 animate-spin" />
+                        {tr("جاري التحليل...")}
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4 ml-2" />
-                        توليد التحليل
+                        <Sparkles className="h-4 w-4 me-2" />
+                        {tr("توليد التحليل")}
                       </>
                     )}
                   </Button>
@@ -136,14 +137,14 @@ export function SmartAnalyticsDashboard() {
                 {insights ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-lg">الرؤى والتوصيات</h3>
+                      <h3 className="font-semibold text-lg">{tr("الرؤى والتوصيات")}</h3>
                       <Button variant="outline" size="sm" onClick={() => analyzeData(type.id)}>
-                        <RefreshCw className="h-4 w-4 ml-2" />
-                        تحديث
+                        <RefreshCw className="h-4 w-4 me-2" />
+                        {tr("تحديث")}
                       </Button>
                     </div>
                     <ScrollArea className="h-[500px] rounded-lg border p-4 bg-muted/30">
-                      <div className="prose prose-sm max-w-none whitespace-pre-wrap" dir="rtl">
+                      <div className="prose prose-sm max-w-none whitespace-pre-wrap" dir={appDir()}>
                         {insights}
                       </div>
                     </ScrollArea>
@@ -151,7 +152,7 @@ export function SmartAnalyticsDashboard() {
                 ) : (
                   <div className="text-center py-12">
                     <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">اضغط على "توليد التحليل" للحصول على رؤى وتوصيات ذكية</p>
+                    <p className="text-muted-foreground">{tr("اضغط على \"توليد التحليل\" للحصول على رؤى وتوصيات ذكية")}</p>
                   </div>
                 )}
               </CardContent>
@@ -163,25 +164,25 @@ export function SmartAnalyticsDashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>كيف يعمل التحليل الذكي؟</CardTitle>
+            <CardTitle>{tr("كيف يعمل التحليل الذكي؟")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>1. يقوم النظام بجمع البيانات من قاعدة البيانات</p>
-            <p>2. يتم تحليل البيانات باستخدام الذكاء الاصطناعي (Grok)</p>
-            <p>3. يتم توليد رؤى وتوصيات مخصصة</p>
-            <p>4. يمكنك تحديث التحليل في أي وقت للحصول على رؤى جديدة</p>
+            <p>{tr("1. يقوم النظام بجمع البيانات من قاعدة البيانات")}</p>
+            <p>{tr("2. يتم تحليل البيانات باستخدام الذكاء الاصطناعي (Grok)")}</p>
+            <p>{tr("3. يتم توليد رؤى وتوصيات مخصصة")}</p>
+            <p>{tr("4. يمكنك تحديث التحليل في أي وقت للحصول على رؤى جديدة")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>نصائح للاستفادة القصوى</CardTitle>
+            <CardTitle>{tr("نصائح للاستفادة القصوى")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>• اختر الفترة الزمنية المناسبة للتحليل</p>
-            <p>• قارن التحليلات بين فترات مختلفة</p>
-            <p>• طبق التوصيات المقترحة وراقب النتائج</p>
-            <p>• استخدم التحليلات لاتخاذ قرارات استراتيجية</p>
+            <p>{tr("• اختر الفترة الزمنية المناسبة للتحليل")}</p>
+            <p>{tr("• قارن التحليلات بين فترات مختلفة")}</p>
+            <p>{tr("• طبق التوصيات المقترحة وراقب النتائج")}</p>
+            <p>{tr("• استخدم التحليلات لاتخاذ قرارات استراتيجية")}</p>
           </CardContent>
         </Card>
       </div>

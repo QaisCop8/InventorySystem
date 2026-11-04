@@ -1,4 +1,5 @@
 ﻿"use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useState } from "react"
@@ -24,7 +25,7 @@ type Summary = {
 }
 
 export const ORDER_TYPE_OPTIONS = [{ id: 1, name: "طلبيات المبيعات" }, { id: 2, name: "طلبيات المشتريات" }] as ReportOption[]
-const STATUS_LABEL: Record<number, string> = { 1: "غير جاهزة", 2: "جاهزة", 3: "مرسلة جزئياً", 4: "مرسلة كلياً", 5: "ملغاة", 6: "مغلقة" }
+const STATUS_LABEL: Record<number, string> = { 1: tr("غير جاهزة"), 2: tr("جاهزة"), 3: tr("مرسلة جزئياً"), 4: tr("مرسلة كلياً"), 5: tr("ملغاة"), 6: tr("مغلقة") }
 const STATUS_TONE: Record<number, string> = { 1: "bg-amber-500", 2: "bg-emerald-500", 3: "bg-sky-500", 4: "bg-indigo-500", 5: "bg-rose-500", 6: "bg-slate-500" }
 const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
@@ -72,10 +73,10 @@ export function OrderReports() {
       const query = new URLSearchParams({ view: "summary", from_date: filters.from, to_date: filters.to, order_types: filters.orderTypes.join(","), salesman_ids: filters.salesmanIds.join(","), branch_ids: filters.branchIds.join(",") })
       const response = await fetch(`/api/reports/orders?${query}`, { cache: "no-store" })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || "فشل في تحميل بيانات التقارير")
+      if (!response.ok) throw new Error(result.error || tr("فشل في تحميل بيانات التقارير"))
       setData(result)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "فشل في تحميل بيانات التقارير")
+      setError(reason instanceof Error ? reason.message : tr("فشل في تحميل بيانات التقارير"))
     } finally { setLoading(false) }
   }, [filters])
 
@@ -89,22 +90,22 @@ export function OrderReports() {
     <ReportPage loading={loading}>
       <ReportHeader
         icon={BarChart3}
-        category="تقارير الطلبيات"
-        title="ملخص الطلبيات"
-        description="مؤشرات الطلبيات في الفترة: العدد والقيمة والمفتوح والمتأخر، الحركة الشهرية، أعلى العملاء والأصناف"
-        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!data}><Printer className="ml-2 h-4 w-4" />طباعة</Button>}
+        category={tr("تقارير الطلبيات")}
+        title={tr("ملخص الطلبيات")}
+        description={tr("مؤشرات الطلبيات في الفترة: العدد والقيمة والمفتوح والمتأخر، الحركة الشهرية، أعلى العملاء والأصناف")}
+        actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!data}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>}
       />
 
       <ReportFilters>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="space-y-2"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
-          <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
-          <ReportMultiChoice label="نوع الطلبيات" options={ORDER_TYPE_OPTIONS} selected={filters.orderTypes} onChange={(orderTypes) => setFilters({ ...filters, orderTypes })} placeholder="الكل" />
-          <ReportMultiChoice label="المندوب" options={meta.salesmen} selected={filters.salesmanIds} onChange={(salesmanIds) => setFilters({ ...filters, salesmanIds })} placeholder="كل المندوبين" />
-          <ReportMultiChoice label="الفرع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder="كل الفروع" />
+          <div className="space-y-2"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="rounded-xl" /></div>
+          <div className="space-y-2"><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="rounded-xl" /></div>
+          <ReportMultiChoice label={tr("نوع الطلبيات")} options={ORDER_TYPE_OPTIONS} selected={filters.orderTypes} onChange={(orderTypes) => setFilters({ ...filters, orderTypes })} placeholder={tr("الكل")} />
+          <ReportMultiChoice label={tr("المندوب")} options={meta.salesmen} selected={filters.salesmanIds} onChange={(salesmanIds) => setFilters({ ...filters, salesmanIds })} placeholder={tr("كل المندوبين")} />
+          <ReportMultiChoice label={tr("الفرع")} options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("كل الفروع")} />
         </div>
         <div className="mt-4 flex justify-end">
-          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />عرض النتائج</Button>
+          <Button data-report-apply onClick={() => void run()} disabled={loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600"><Search className="ml-2 h-4 w-4" />{tr("عرض النتائج")}</Button>
         </div>
       </ReportFilters>
 
@@ -113,14 +114,14 @@ export function OrderReports() {
       {data && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="عدد الطلبيات" value={String(kpis.orders || 0)} hint={`${kpis.parties || 0} عميل/مورد`} icon={ClipboardList} tone="bg-sky-100 text-sky-700" />
-            <Kpi label="القيمة الإجمالية" value={money(kpis.total_value)} hint={`متوسط الطلبية ${money(kpis.avg_value)}`} icon={DollarSign} tone="bg-emerald-100 text-emerald-700" />
-            <Kpi label="طلبيات مفتوحة" value={String(kpis.open_orders || 0)} hint={`مرسلة/مغلقة ${kpis.completed_orders || 0} · ملغاة ${kpis.cancelled_orders || 0}`} icon={CheckCircle2} tone="bg-indigo-100 text-indigo-700" />
-            <Kpi label="طلبيات متأخرة" value={String(kpis.late_orders || 0)} hint="مفتوحة وتجاوزت تاريخ التسليم" icon={AlertTriangle} tone="bg-rose-100 text-rose-700" />
+            <Kpi label={tr("عدد الطلبيات")} value={String(kpis.orders || 0)} hint={tr("{0} عميل/مورد", kpis.parties || 0)} icon={ClipboardList} tone="bg-sky-100 text-sky-700" />
+            <Kpi label={tr("القيمة الإجمالية")} value={money(kpis.total_value)} hint={tr("متوسط الطلبية {0}", money(kpis.avg_value))} icon={DollarSign} tone="bg-emerald-100 text-emerald-700" />
+            <Kpi label={tr("طلبيات مفتوحة")} value={String(kpis.open_orders || 0)} hint={tr("مرسلة/مغلقة {0} · ملغاة {1}", kpis.completed_orders || 0, kpis.cancelled_orders || 0)} icon={CheckCircle2} tone="bg-indigo-100 text-indigo-700" />
+            <Kpi label={tr("طلبيات متأخرة")} value={String(kpis.late_orders || 0)} hint={tr("مفتوحة وتجاوزت تاريخ التسليم")} icon={AlertTriangle} tone="bg-rose-100 text-rose-700" />
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-            <Panel title="الطلبيات شهرياً">
+            <Panel title={tr("الطلبيات شهرياً")}>
               {data.monthly.length ? (
                 <div className="h-64" dir="ltr">
                   <ResponsiveContainer width="100%" height="100%">
@@ -133,52 +134,52 @@ export function OrderReports() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              ) : <p className="py-10 text-center text-sm text-muted-foreground">لا توجد طلبيات في الفترة</p>}
+              ) : <p className="py-10 text-center text-sm text-muted-foreground">{tr("لا توجد طلبيات في الفترة")}</p>}
             </Panel>
-            <Panel title="حسب الحالة">
+            <Panel title={tr("حسب الحالة")}>
               <div className="space-y-3">
                 {data.byStatus.length ? data.byStatus.map((row) => (
                   <div key={row.order_status}>
                     <div className="mb-1 flex justify-between text-xs"><span className="font-semibold">{STATUS_LABEL[row.order_status] || row.order_status}</span><span className="text-slate-500">{row.orders} · <span dir="ltr">{money(row.value)}</span></span></div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${STATUS_TONE[row.order_status] || "bg-slate-400"}`} style={{ width: `${totalStatus ? (row.orders / totalStatus) * 100 : 0}%` }} /></div>
                   </div>
-                )) : <p className="text-sm text-muted-foreground">لا توجد بيانات</p>}
+                )) : <p className="text-sm text-muted-foreground">{tr("لا توجد بيانات")}</p>}
               </div>
             </Panel>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <Panel title="أعلى العملاء/الموردين قيمةً">
+            <Panel title={tr("أعلى العملاء/الموردين قيمةً")}>
               <table className="w-full text-sm">
-                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-right">الاسم</th><th className="p-1.5 text-center">الطلبيات</th><th className="p-1.5 text-left">القيمة</th></tr></thead>
-                <tbody>{data.topParties.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5"><Users className="ml-1 inline h-3.5 w-3.5 text-slate-400" />{row.party_name || "—"}</td><td className="p-1.5 text-center">{row.orders}</td><td className="p-1.5 text-left font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
+                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("الاسم")}</th><th className="p-1.5 text-center">{tr("الطلبيات")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th></tr></thead>
+                <tbody>{data.topParties.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5"><Users className="ml-1 inline h-3.5 w-3.5 text-slate-400" />{row.party_name || "—"}</td><td className="p-1.5 text-center">{row.orders}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
               </table>
             </Panel>
-            <Panel title="أكثر الأصناف طلباً">
+            <Panel title={tr("أكثر الأصناف طلباً")}>
               <table className="w-full text-sm">
-                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-right">الصنف</th><th className="p-1.5 text-left">الكمية</th><th className="p-1.5 text-left">القيمة</th></tr></thead>
-                <tbody>{data.topItems.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5">{row.product_name}<small className="mr-1 font-mono text-slate-400">{row.product_code}</small></td><td className="p-1.5 text-left font-mono" dir="ltr">{qty(row.quantity)}</td><td className="p-1.5 text-left font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
+                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("الصنف")}</th><th className="p-1.5 text-end">{tr("الكمية")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th></tr></thead>
+                <tbody>{data.topItems.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5">{row.product_name}<small className="mr-1 font-mono text-slate-400">{row.product_code}</small></td><td className="p-1.5 text-end font-mono" dir="ltr">{qty(row.quantity)}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
               </table>
             </Panel>
           </div>
 
-          <Panel title="الطلبيات المتأخرة (أقدم 20)">
+          <Panel title={tr("الطلبيات المتأخرة (أقدم 20)")}>
             {data.late.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
-                  <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-right">رقم الطلبية</th><th className="p-1.5 text-right">العميل/المورد</th><th className="p-1.5 text-right">التاريخ</th><th className="p-1.5 text-right">تاريخ التسليم</th><th className="p-1.5 text-center">الحالة</th><th className="p-1.5 text-left">القيمة</th><th className="p-1.5 text-center">التأخير</th></tr></thead>
+                  <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("رقم الطلبية")}</th><th className="p-1.5 text-start">{tr("العميل/المورد")}</th><th className="p-1.5 text-start">{tr("التاريخ")}</th><th className="p-1.5 text-start">{tr("تاريخ التسليم")}</th><th className="p-1.5 text-center">{tr("الحالة")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th><th className="p-1.5 text-center">{tr("التأخير")}</th></tr></thead>
                   <tbody>{data.late.map((row) => (
                     <tr key={row.id} className="border-t">
                       <td className="p-1.5 font-mono">{row.order_number}</td><td className="p-1.5">{row.party_name || "—"}</td>
                       <td className="p-1.5 font-mono text-xs" dir="ltr">{day(row.order_date)}</td><td className="p-1.5 font-mono text-xs" dir="ltr">{day(row.delivery_date)}</td>
                       <td className="p-1.5 text-center text-xs">{STATUS_LABEL[row.order_status] || row.order_status}</td>
-                      <td className="p-1.5 text-left font-mono" dir="ltr">{money(row.value)}</td>
-                      <td className="p-1.5 text-center"><span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700"><Timer className="h-3 w-3" />{row.days_late} يوم</span></td>
+                      <td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td>
+                      <td className="p-1.5 text-center"><span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700"><Timer className="h-3 w-3" />{row.days_late}{tr(" يوم")}</span></td>
                     </tr>
                   ))}</tbody>
                 </table>
               </div>
-            ) : <p className="py-6 text-center text-sm text-emerald-700">لا توجد طلبيات متأخرة 👍</p>}
+            ) : <p className="py-6 text-center text-sm text-emerald-700">{tr("لا توجد طلبيات متأخرة 👍")}</p>}
           </Panel>
         </>
       )}

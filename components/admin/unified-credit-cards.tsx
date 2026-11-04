@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState } from "react"
 import { ChevronDown, ChevronLeft } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -80,13 +81,13 @@ interface UnifiedCreditCardsProps {
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
 
 const WEEK_DAYS = [
-  { day_no: 1, label: "الأحد" },
-  { day_no: 2, label: "الاثنين" },
-  { day_no: 3, label: "الثلاثاء" },
-  { day_no: 4, label: "الأربعاء" },
-  { day_no: 5, label: "الخميس" },
-  { day_no: 6, label: "الجمعة" },
-  { day_no: 7, label: "السبت" },
+  { day_no: 1, label: tr("الأحد") },
+  { day_no: 2, label: tr("الاثنين") },
+  { day_no: 3, label: tr("الثلاثاء") },
+  { day_no: 4, label: tr("الأربعاء") },
+  { day_no: 5, label: tr("الخميس") },
+  { day_no: 6, label: tr("الجمعة") },
+  { day_no: 7, label: tr("السبت") },
 ]
 
 const MACHINE_TYPE_NEO_CASH = 0
@@ -239,7 +240,7 @@ export default function UnifiedCreditCards({
   }
 
   const currencyOptions = currencies.map((c) => ({
-    label: c.currency_name || c.currency_code || "غير محدد",
+    label: c.currency_name || c.currency_code || tr("غير محدد"),
     value: Number(c.currency_id ?? c.id),
   }))
 
@@ -268,7 +269,7 @@ export default function UnifiedCreditCards({
       >
         <DialogContent
           className="w-[95vw] max-w-[1200px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm) event.preventDefault()
           }}
@@ -299,7 +300,7 @@ export default function UnifiedCreditCards({
           <div className="rounded-b-3xl bg-slate-50/80 px-4 py-5 sm:px-6 dark:bg-slate-900" onKeyDown={handleFormEnterAsTab}>
             <DialogHeader className="mb-4">
               <DialogTitle className="text-xl font-semibold">
-                بطاقات الائتمان {form.id > 0 ? "" : "(إضافة)"}
+                {tr("بطاقات الائتمان ")}{form.id > 0 ? "" : tr("(إضافة)")}
               </DialogTitle>
             </DialogHeader>
 
@@ -307,10 +308,10 @@ export default function UnifiedCreditCards({
 
             {/* الاسمان في سطر واحد، ثم بقية الحقول موزعة على عرض النافذة في بطاقات (بلا أقسام مطوية) */}
             <div className="grid gap-4">
-              <FormCard title="البيانات الأساسية">
+              <FormCard title={tr("البيانات الأساسية")}>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cc-name">اسم البطاقة (ar) *</Label>
+                    <Label htmlFor="cc-name">{tr("اسم البطاقة (ar) *")}</Label>
                     <Input
                       id="cc-name"
                       ref={nameInputRef}
@@ -326,7 +327,7 @@ export default function UnifiedCreditCards({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cc-name-en">اسم البطاقة (en) *</Label>
+                    <Label htmlFor="cc-name-en">{tr("اسم البطاقة (en) *")}</Label>
                     <Input
                       id="cc-name-en"
                       dir="auto"
@@ -339,30 +340,30 @@ export default function UnifiedCreditCards({
                 </div>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="grid gap-1.5">
-                    <Label>نوع البطاقة *</Label>
+                    <Label>{tr("نوع البطاقة *")}</Label>
                     <select value={form.main_type ?? ""} onChange={(e) => onFormChange("main_type", e.target.value ? Number(e.target.value) : null)} className={SELECT_CLASS}>
-                      <option value="">اختر</option>
+                      <option value="">{tr("اختر")}</option>
                       {mainTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>العملة *</Label>
+                    <Label>{tr("العملة *")}</Label>
                     <select value={form.currency_id ?? ""} onChange={(e) => onFormChange("currency_id", e.target.value ? Number(e.target.value) : null)} className={SELECT_CLASS}>
-                      <option value="">اختر</option>
+                      <option value="">{tr("اختر")}</option>
                       {currencyOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>البنك *</Label>
+                    <Label>{tr("البنك *")}</Label>
                     <select value={form.bank_id ?? ""} onChange={(e) => onFormChange("bank_id", e.target.value ? Number(e.target.value) : null)} className={SELECT_CLASS}>
-                      <option value="">اختر</option>
+                      <option value="">{tr("اختر")}</option>
                       {banks.map((b) => <option key={b.id} value={b.id}>{b.bank_name}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label>أيام عطل البطاقة</Label>
+                    <Label>{tr("أيام عطل البطاقة")}</Label>
                     <div className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
                       {WEEK_DAYS.map((d) => (
                         <label key={d.day_no} className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">
@@ -373,42 +374,42 @@ export default function UnifiedCreditCards({
                     </div>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="cc-notes">ملاحظات</Label>
+                    <Label htmlFor="cc-notes">{tr("ملاحظات")}</Label>
                     <Input id="cc-notes" value={form.notes} onChange={(e) => onFormChange("notes", e.target.value)} maxLength={70} className={INPUT_CLASS} />
                   </div>
                 </div>
               </FormCard>
 
-              <FormCard title="الحسابات">
+              <FormCard title={tr("الحسابات")}>
                 <div className="grid gap-4 lg:grid-cols-3">
-                  <AutoCompleteAccount label="الحساب محاسبي *" valueMode="id" value={numberValue(form.financial_account_id)} onValueChange={(v) => onFormChange("financial_account_id", v ? Number(v) : null)} />
-                  <AutoCompleteAccount label="حساب الوسيط *" valueMode="id" value={numberValue(form.waseet_account_id)} onValueChange={(v) => onFormChange("waseet_account_id", v ? Number(v) : null)} />
-                  <AutoCompleteAccount label="حساب العمولة" valueMode="id" value={numberValue(form.commission_account_id)} onValueChange={(v) => onFormChange("commission_account_id", v ? Number(v) : null)} />
+                  <AutoCompleteAccount label={tr("الحساب محاسبي *")} valueMode="id" value={numberValue(form.financial_account_id)} onValueChange={(v) => onFormChange("financial_account_id", v ? Number(v) : null)} />
+                  <AutoCompleteAccount label={tr("حساب الوسيط *")} valueMode="id" value={numberValue(form.waseet_account_id)} onValueChange={(v) => onFormChange("waseet_account_id", v ? Number(v) : null)} />
+                  <AutoCompleteAccount label={tr("حساب العمولة")} valueMode="id" value={numberValue(form.commission_account_id)} onValueChange={(v) => onFormChange("commission_account_id", v ? Number(v) : null)} />
                 </div>
               </FormCard>
 
               <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                <FormCard title="العمولة">
+                <FormCard title={tr("العمولة")}>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="grid gap-1.5">
-                      <Label>نوع العمولة *</Label>
+                      <Label>{tr("نوع العمولة *")}</Label>
                       <select value={form.commission_type_id ?? ""} onChange={(e) => onFormChange("commission_type_id", e.target.value ? Number(e.target.value) : null)} className={SELECT_CLASS}>
-                        <option value="">اختر</option>
+                        <option value="">{tr("اختر")}</option>
                         {commissionTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>قيمة العمولة {form.commission_type_id === 1 ? "(%)" : ""}</Label>
+                      <Label>{tr("قيمة العمولة ")}{form.commission_type_id === 1 ? "(%)" : ""}</Label>
                       <Input type="number" value={numberValue(form.commission_value)} onChange={(e) => onFormChange("commission_value", e.target.value ? Number(e.target.value) : null)} className={INPUT_CLASS} />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label>الحد الأعلى للعمولة</Label>
+                      <Label>{tr("الحد الأعلى للعمولة")}</Label>
                       <Input type="number" value={numberValue(form.commission_max_amount)} onChange={(e) => onFormChange("commission_max_amount", e.target.value ? Number(e.target.value) : null)} className={INPUT_CLASS} />
                     </div>
                   </div>
                 </FormCard>
 
-                <FormCard title="الربط مع ماكينات البنوك">
+                <FormCard title={tr("الربط مع ماكينات البنوك")}>
                   <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                     <input
                       type="checkbox"
@@ -419,13 +420,13 @@ export default function UnifiedCreditCards({
                         if (!e.target.checked) { onFormChange("machine_type_id", null); onFormChange("pinpad_machine_id", null) }
                       }}
                     />
-                    الربط مع ماكينات البنوك
+                    {tr("الربط مع ماكينات البنوك")}
                   </label>
                   {form.link_bank_machine && (
                     <div className="grid gap-1.5">
-                      <Label>جهاز الدفع (الماكينة) *</Label>
+                      <Label>{tr("جهاز الدفع (الماكينة) *")}</Label>
                       <select value={form.pinpad_machine_id ?? ""} onChange={(e) => onFormChange("pinpad_machine_id", e.target.value === "" ? null : Number(e.target.value))} className={SELECT_CLASS}>
-                        <option value="">اختر</option>
+                        <option value="">{tr("اختر")}</option>
                         {PINPAD_MACHINES.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </select>
                     </div>
@@ -439,9 +440,9 @@ export default function UnifiedCreditCards({
 
       <ConfirmDialogYesNo
         useAppDialog
-        title="تأكيد الحذف"
+        title={tr("تأكيد الحذف")}
         visible={showDeleteConfirm}
-        message="هل تريد حذف بطاقة الائتمان هذه؟"
+        message={tr("هل تريد حذف بطاقة الائتمان هذه؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -449,9 +450,9 @@ export default function UnifiedCreditCards({
       {/* useAppDialog: تُعرض فوق نافذة البطاقة (المكوّن القديم كان يظهر خلفها فتتعطل كل الأزرار بانتظار ردٍّ لا يُرى) */}
       <ConfirmDialogYesNo
         useAppDialog
-        title="حفظ التغييرات"
+        title={tr("حفظ التغييرات")}
         visible={showUnsavedConfirm}
-        message="تم تعديل البيانات، هل تريد الحفظ؟"
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
         showBack
         onConfirm={() => {
           setShowUnsavedConfirm(false)

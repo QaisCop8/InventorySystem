@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect, useRef } from "react"
 import { Search, X, FileText, Users, Package, ShoppingCart, Building2, Settings, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,12 +29,12 @@ const searchTypeIcons = {
 }
 
 const searchTypeLabels = {
-  customer: "عميل",
-  supplier: "مورد",
-  product: "منتج",
-  sales_order: "طلبية مبيعات",
-  purchase_order: "طلبية شراء",
-  setting: "إعداد",
+  customer: tr("عميل"),
+  supplier: tr("مورد"),
+  product: tr("منتج"),
+  sales_order: tr("طلبية مبيعات"),
+  purchase_order: tr("طلبية شراء"),
+  setting: tr("إعداد"),
 }
 
 export function GlobalSearch() {
@@ -147,8 +148,8 @@ export function GlobalSearch() {
         onClick={handleSearchButtonClick}
       >
         <Search className="mr-2 h-4 w-4" />
-        <span>البحث في النظام...</span>
-        <kbd className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium opacity-100 hidden sm:inline-flex">
+        <span>{tr("البحث في النظام...")}</span>
+        <kbd className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 select-none items-center gap-1 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium opacity-100 hidden sm:inline-flex">
           <span className="text-xs">Ctrl</span>K
         </kbd>
       </Button>
@@ -159,28 +160,28 @@ export function GlobalSearch() {
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Search className="h-5 w-5" />
-              البحث الشامل في النظام
+              {tr("البحث الشامل في النظام")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="px-6 py-4">
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 ref={inputRef}
-                placeholder="ابحث في العملاء، المنتجات، الطلبيات، الإعدادات..."
+                placeholder={tr("ابحث في العملاء، المنتجات، الطلبيات، الإعدادات...")}
                 value={query}
                 onChange={(e) => {
                   console.log("[v0] Search query changed:", e.target.value)
                   setQuery(e.target.value)
                 }}
-                className="pr-10 pl-4"
+                className="ps-10 pe-4"
               />
               {query && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                  className="absolute end-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
                   onClick={() => setQuery("")}
                 >
                   <X className="h-3 w-3" />
@@ -194,7 +195,7 @@ export function GlobalSearch() {
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                  <span className="mr-2 text-sm text-muted-foreground">جاري البحث...</span>
+                  <span className="mr-2 text-sm text-muted-foreground">{tr("جاري البحث...")}</span>
                 </div>
               ) : results.length > 0 ? (
                 <div className="space-y-2">
@@ -237,19 +238,19 @@ export function GlobalSearch() {
               ) : query && !isLoading ? (
                 <div className="text-center py-8">
                   <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground">لا توجد نتائج للبحث "{query}"</p>
-                  <p className="text-xs text-muted-foreground mt-1">جرب البحث بكلمات مختلفة أو تأكد من الإملاء</p>
+                  <p className="text-sm text-muted-foreground">{tr("لا توجد نتائج للبحث \"")}{query}"</p>
+                  <p className="text-xs text-muted-foreground mt-1">{tr("جرب البحث بكلمات مختلفة أو تأكد من الإملاء")}</p>
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground">ابدأ بكتابة كلمة البحث</p>
+                  <p className="text-sm text-muted-foreground">{tr("ابدأ بكتابة كلمة البحث")}</p>
                   <div className="flex flex-wrap justify-center gap-2 mt-4">
-                    <Badge variant="outline">العملاء</Badge>
-                    <Badge variant="outline">المنتجات</Badge>
-                    <Badge variant="outline">الطلبيات</Badge>
-                    <Badge variant="outline">الموردين</Badge>
-                    <Badge variant="outline">الإعدادات</Badge>
+                    <Badge variant="outline">{tr("العملاء")}</Badge>
+                    <Badge variant="outline">{tr("المنتجات")}</Badge>
+                    <Badge variant="outline">{tr("الطلبيات")}</Badge>
+                    <Badge variant="outline">{tr("الموردين")}</Badge>
+                    <Badge variant="outline">{tr("الإعدادات")}</Badge>
                   </div>
                 </div>
               )}

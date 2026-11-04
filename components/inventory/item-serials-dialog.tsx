@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, Hash, ListPlus, Loader2, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -133,15 +134,15 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
       existing.add(key); fresh.push(serial)
     }
     setSerials((current) => [...current, ...fresh])
-    setNotice(duplicates ? `تم تجاهل ${duplicates} رقم مكرر` : fresh.length > 1 ? `تمت إضافة ${fresh.length} رقماً` : "")
+    setNotice(duplicates ? tr("تم تجاهل {0} رقم مكرر", duplicates) : fresh.length > 1 ? tr("تمت إضافة {0} رقماً", fresh.length) : "")
   }
 
   const addFromInput = () => { add(splitSerials(input)); setInput(""); inputRef.current?.focus() }
 
   const addRange = () => {
     const from = Number(range.from), to = Number(range.to)
-    if (!Number.isInteger(from) || !Number.isInteger(to) || to < from) { setNotice("أدخل بداية ونهاية صحيحتين (النهاية ≥ البداية)"); return }
-    if (to - from + 1 > 5000) { setNotice("الحد الأقصى 5000 رقم في المرة الواحدة"); return }
+    if (!Number.isInteger(from) || !Number.isInteger(to) || to < from) { setNotice(tr("أدخل بداية ونهاية صحيحتين (النهاية ≥ البداية)")); return }
+    if (to - from + 1 > 5000) { setNotice(tr("الحد الأقصى 5000 رقم في المرة الواحدة")); return }
     const pad = Number(range.pad) || Math.max(range.from.length, range.to.length)
     add(Array.from({ length: to - from + 1 }, (_, index) => `${range.prefix}${String(from + index).padStart(pad, "0")}`))
   }
@@ -164,20 +165,20 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
   return (
     <WorkspaceDialogProvider container={null} confined={false}>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="z-[3001] flex max-h-[90vh] w-[min(980px,calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()}>
+        <DialogContent className="z-[3001] flex max-h-[90vh] w-[min(980px,calc(100vw-1rem))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0" dir={appDir()} onPointerDownOutside={(event) => event.preventDefault()}>
           <div className="shrink-0 bg-gradient-to-l from-indigo-700 to-sky-600 px-5 py-4 text-white">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Hash className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1 text-right">
-                <DialogTitle className="truncate text-base font-bold">الأرقام التسلسلية — {productName}</DialogTitle>
+              <div className="min-w-0 flex-1 text-start">
+                <DialogTitle className="truncate text-base font-bold">{tr("الأرقام التسلسلية — ")}{productName}</DialogTitle>
                 <DialogDescription className="text-xs text-sky-50">
-                  {direction === "in" ? "سند دخول: أدخل أرقام القطع المستلمة" : direction === "transfer" ? "ارسالية داخلية: اختر الأرقام المنقولة" : "سند خروج: اختر الأرقام الموجودة في المستودع"}
-                  {storeName ? ` — المستودع: ${storeName}` : ""}
+                  {direction === "in" ? tr("سند دخول: أدخل أرقام القطع المستلمة") : direction === "transfer" ? tr("ارسالية داخلية: اختر الأرقام المنقولة") : tr("سند خروج: اختر الأرقام الموجودة في المستودع")}
+                  {storeName ? tr(" — المستودع: {0}", storeName) : ""}
                 </DialogDescription>
               </div>
               <div className={`ml-12 rounded-xl px-3 py-1.5 text-center ${countOk ? "bg-emerald-500/90" : "bg-amber-500/90"}`}>
                 <div className="text-lg font-black leading-none">{count} / {required}</div>
-                <div className="text-[10px]">المُدخل / المطلوب</div>
+                <div className="text-[10px]">{tr("المُدخل / المطلوب")}</div>
               </div>
             </div>
           </div>
@@ -197,19 +198,19 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
                         const text = event.clipboardData.getData("text")
                         if (/[\r\n,;\t]/.test(text)) { event.preventDefault(); add(splitSerials(text)) }
                       }}
-                      placeholder="امسح أو اكتب الرقم ثم Enter — يمكن لصق عدة أرقام"
+                      placeholder={tr("امسح أو اكتب الرقم ثم Enter — يمكن لصق عدة أرقام")}
                       className="h-10"
                     />
-                    <Button type="button" onClick={addFromInput} disabled={!input.trim()} className="h-10 bg-indigo-600 hover:bg-indigo-700"><ListPlus className="ml-1 h-4 w-4" />إضافة</Button>
+                    <Button type="button" onClick={addFromInput} disabled={!input.trim()} className="h-10 bg-indigo-600 hover:bg-indigo-700"><ListPlus className="ml-1 h-4 w-4" />{tr("إضافة")}</Button>
                   </div>
                   {direction === "in" && (
                     <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed bg-slate-50 p-2 text-xs">
-                      <span className="font-semibold text-slate-600">توليد متسلسل:</span>
-                      <Input value={range.prefix} onChange={(event) => setRange({ ...range, prefix: event.target.value })} placeholder="بادئة" className="h-8 w-20" />
-                      <Input value={range.from} onChange={(event) => setRange({ ...range, from: event.target.value.replace(/\D/g, "") })} placeholder="من" className="h-8 w-20" />
-                      <Input value={range.to} onChange={(event) => setRange({ ...range, to: event.target.value.replace(/\D/g, "") })} placeholder="إلى" className="h-8 w-20" />
-                      <Input value={range.pad} onChange={(event) => setRange({ ...range, pad: event.target.value.replace(/\D/g, "") })} placeholder="خانات" className="h-8 w-16" />
-                      <Button type="button" size="sm" variant="outline" onClick={addRange} className="h-8">توليد</Button>
+                      <span className="font-semibold text-slate-600">{tr("توليد متسلسل:")}</span>
+                      <Input value={range.prefix} onChange={(event) => setRange({ ...range, prefix: event.target.value })} placeholder={tr("بادئة")} className="h-8 w-20" />
+                      <Input value={range.from} onChange={(event) => setRange({ ...range, from: event.target.value.replace(/\D/g, "") })} placeholder={tr("من")} className="h-8 w-20" />
+                      <Input value={range.to} onChange={(event) => setRange({ ...range, to: event.target.value.replace(/\D/g, "") })} placeholder={tr("إلى")} className="h-8 w-20" />
+                      <Input value={range.pad} onChange={(event) => setRange({ ...range, pad: event.target.value.replace(/\D/g, "") })} placeholder={tr("خانات")} className="h-8 w-16" />
+                      <Button type="button" size="sm" variant="outline" onClick={addRange} className="h-8">{tr("توليد")}</Button>
                     </div>
                   )}
                   {notice && <div className="text-xs text-slate-500">{notice}</div>}
@@ -217,16 +218,16 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
               )}
 
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700">الأرقام المُدخلة ({count})</span>
+                <span className="font-bold text-slate-700">{tr("الأرقام المُدخلة (")}{count})</span>
                 <span className="flex items-center gap-2">
-                  {checking && <span className="flex items-center gap-1 text-slate-500"><Loader2 className="h-3 w-3 animate-spin" />جارٍ الفحص</span>}
-                  {errorCount > 0 && <span className="font-semibold text-rose-600">{errorCount} بها مشكلة</span>}
-                  {!readOnly && count > 0 && <button type="button" onClick={() => setSerials([])} className="text-rose-600 hover:underline">حذف الكل</button>}
+                  {checking && <span className="flex items-center gap-1 text-slate-500"><Loader2 className="h-3 w-3 animate-spin" />{tr("جارٍ الفحص")}</span>}
+                  {errorCount > 0 && <span className="font-semibold text-rose-600">{errorCount}{tr(" بها مشكلة")}</span>}
+                  {!readOnly && count > 0 && <button type="button" onClick={() => setSerials([])} className="text-rose-600 hover:underline">{tr("حذف الكل")}</button>}
                 </span>
               </div>
               <div className="min-h-[180px] flex-1 overflow-auto rounded-xl border">
                 {count === 0 ? (
-                  <div className="flex h-full min-h-[180px] items-center justify-center p-4 text-center text-sm text-slate-400">لا توجد أرقام بعد</div>
+                  <div className="flex h-full min-h-[180px] items-center justify-center p-4 text-center text-sm text-slate-400">{tr("لا توجد أرقام بعد")}</div>
                 ) : (
                   <table className="w-full text-sm">
                     <tbody>
@@ -239,7 +240,7 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
                               <div className="flex items-center gap-1.5 font-mono font-semibold">{issue ? <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-600" /> : <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}{serial}</div>
                               {issue && <div className="mt-0.5 text-[11px] leading-snug text-rose-700">{issue}</div>}
                             </td>
-                            <td className="w-10 px-1 text-center">{!readOnly && <button type="button" title="حذف" onClick={() => setSerials((current) => current.filter((item) => item !== serial))} className="rounded p-1 text-slate-400 hover:bg-rose-100 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>}</td>
+                            <td className="w-10 px-1 text-center">{!readOnly && <button type="button" title={tr("حذف")} onClick={() => setSerials((current) => current.filter((item) => item !== serial))} className="rounded p-1 text-slate-400 hover:bg-rose-100 hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>}</td>
                           </tr>
                         )
                       })}
@@ -253,18 +254,18 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
             {isOut && (
               <div className="flex min-h-0 flex-col gap-3 overflow-hidden border-t bg-slate-50/60 p-4 md:border-r md:border-t-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700">المتاح في {storeName || "المستودع"} ({available.length})</span>
-                  {!readOnly && count < required && available.length > 0 && <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={fillFromAvailable}>اختيار تلقائي ({Math.min(required - count, available.filter((item) => !selected.has(item.serial.toLowerCase())).length)})</Button>}
+                  <span className="text-xs font-bold text-slate-700">{tr("المتاح في ")}{storeName || tr("المستودع")} ({available.length})</span>
+                  {!readOnly && count < required && available.length > 0 && <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={fillFromAvailable}>{tr("اختيار تلقائي (")}{Math.min(required - count, available.filter((item) => !selected.has(item.serial.toLowerCase())).length)})</Button>}
                 </div>
                 <div className="relative">
-                  <Search className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                  <Input value={availableSearch} onChange={(event) => setAvailableSearch(event.target.value)} placeholder="بحث في الأرقام المتاحة" className="h-9 pr-8" />
+                  <Search className="pointer-events-none absolute start-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input value={availableSearch} onChange={(event) => setAvailableSearch(event.target.value)} placeholder={tr("بحث في الأرقام المتاحة")} className="h-9 ps-8" />
                 </div>
                 <div className="min-h-[180px] flex-1 overflow-auto rounded-xl border bg-white">
                   {loadingAvailable ? (
                     <div className="flex h-full min-h-[180px] items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
                   ) : available.length === 0 ? (
-                    <div className="flex h-full min-h-[180px] items-center justify-center p-4 text-center text-sm text-slate-400">لا توجد أرقام متاحة لهذا الصنف في هذا المستودع</div>
+                    <div className="flex h-full min-h-[180px] items-center justify-center p-4 text-center text-sm text-slate-400">{tr("لا توجد أرقام متاحة لهذا الصنف في هذا المستودع")}</div>
                   ) : (
                     <ul className="divide-y text-sm">
                       {available.map((item) => {
@@ -288,11 +289,11 @@ export function ItemSerialsDialog({ open, onOpenChange, vchType, voucherId, prod
 
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t bg-slate-50 px-4 py-3">
             <div className={`text-xs font-semibold ${countOk ? "text-emerald-700" : "text-amber-700"}`}>
-              {countOk ? "عدد الأرقام مطابق للكمية + البونص" : `عدد الأرقام يجب أن يساوي الكمية + البونص (${required}) — لن يُحفظ السند قبل ذلك`}
+              {countOk ? tr("عدد الأرقام مطابق للكمية + البونص") : tr("عدد الأرقام يجب أن يساوي الكمية + البونص ({0}) — لن يُحفظ السند قبل ذلك", required)}
             </div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />{readOnly ? "إغلاق" : "إلغاء"}</Button>
-              {!readOnly && <Button type="button" onClick={() => { onSave(serials); onOpenChange(false) }} className="bg-indigo-600 hover:bg-indigo-700">حفظ الأرقام</Button>}
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}><X className="ml-1 h-4 w-4" />{readOnly ? tr("إغلاق") : tr("إلغاء")}</Button>
+              {!readOnly && <Button type="button" onClick={() => { onSave(serials); onOpenChange(false) }} className="bg-indigo-600 hover:bg-indigo-700">{tr("حفظ الأرقام")}</Button>}
             </div>
           </div>
         </DialogContent>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useMemo, useRef } from "react"
 import { KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
@@ -74,7 +75,7 @@ export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, s
       quantity: line.quantity === "" ? null : Number(line.quantity), price: line.price === "" ? null : Number(line.price),
       total: Math.round(Number(line.quantity || 0) * Number(line.price || 0) * 1000) / 1000,
       expiry_date: line.expiry_date || "", batch_no: line.batch_no || "", transferred: line.transferred || 0,
-      source_label: !produced && line.source ? (line.edited ? "مكوّن (معدّل)" : "مكوّن تصنيع") : "",
+      source_label: !produced && line.source ? (line.edited ? tr("مكوّن (معدّل)") : tr("مكوّن تصنيع")) : "",
     }))
     if (!locked) rows.push({ ser: rows.length + 1, key: "", product_code: "", product_name: "", unit_name: "", quantity: null, price: null, total: 0, expiry_date: "", batch_no: "", transferred: 0, source_label: "" })
     const grid = resolveFlexControl(gridRef.current)
@@ -92,22 +93,22 @@ export function ProductionGrid({ gridKey, lines, locked, produced, showExpiry, s
     showFooter: false,
     columns: [
       { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number" },
-      { header: "رقم الصنف", name: "product_code", width: 130, maxLength: 10, isReadOnly: locked },
+      { header: tr("رقم الصنف"), name: "product_code", width: 130, maxLength: 10, isReadOnly: locked },
       {
         header: " ", name: "btnSearchProduct", width: 50, buttonBody: "button", align: "center", iconType: "search", isReadOnly: true, visible: !locked,
         onClick: (_e: any, ctx: any) => { if (!locked) setTimeout(() => handlersRef.current.onSearch(ctx.row.index), 0) },
       },
-      { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
-      ...(!produced ? [{ header: "المصدر", name: "source_label", width: 110, isReadOnly: true }] : []),
-      { header: "الوحدة", name: "unit_name", width: 90, isReadOnly: true },
-      { header: "الكمية", name: "quantity", width: 100, dataType: wjcCore.DataType.Number, isReadOnly: locked },
-      { header: "سعر الشراء", name: "price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: locked },
-      { header: "القيمة", name: "total", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: true },
-      ...(produced && showExpiry ? [{ header: "الصلاحية (yyyy-mm-dd)", name: "expiry_date", width: 140, maxLength: 10, isReadOnly: locked }] : []),
-      ...(produced && showBatch ? [{ header: "الرقم التشغيلي", name: "batch_no", width: 120, maxLength: 30, isReadOnly: locked }] : []),
-      ...(produced && locked ? [{ header: "المنقول", name: "transferred", width: 90, dataType: wjcCore.DataType.Number, isReadOnly: true }] : []),
+      { header: tr("اسم الصنف"), name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
+      ...(!produced ? [{ header: tr("المصدر"), name: "source_label", width: 110, isReadOnly: true }] : []),
+      { header: tr("الوحدة"), name: "unit_name", width: 90, isReadOnly: true },
+      { header: tr("الكمية"), name: "quantity", width: 100, dataType: wjcCore.DataType.Number, isReadOnly: locked },
+      { header: tr("سعر الشراء"), name: "price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: locked },
+      { header: tr("القيمة"), name: "total", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: true },
+      ...(produced && showExpiry ? [{ header: tr("الصلاحية (yyyy-mm-dd)"), name: "expiry_date", width: 140, maxLength: 10, isReadOnly: locked }] : []),
+      ...(produced && showBatch ? [{ header: tr("الرقم التشغيلي"), name: "batch_no", width: 120, maxLength: 30, isReadOnly: locked }] : []),
+      ...(produced && locked ? [{ header: tr("المنقول"), name: "transferred", width: 90, dataType: wjcCore.DataType.Number, isReadOnly: true }] : []),
       {
-        header: " ", name: "btnDelete", width: 50, buttonBody: "button", align: "center", iconType: "delete", isReadOnly: true, visible: !locked, title: "حذف السطر (F7)",
+        header: " ", name: "btnDelete", width: 50, buttonBody: "button", align: "center", iconType: "delete", isReadOnly: true, visible: !locked, title: tr("حذف السطر (F7)"),
         onClick: (_e: any, ctx: any) => { if (!locked && ctx.row.index < linesRef.current.length) handlersRef.current.onRemove(ctx.row.index) },
       },
     ],

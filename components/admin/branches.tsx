@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { notifyDefinitionsChanged, onDefinitionsChanged } from "@/lib/definitions-changed"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
@@ -190,7 +191,7 @@ export default function Branches() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ الفرع")
+        throw new Error(error.error || tr("فشل في حفظ الفرع"))
       }
       await fetchBranches()
       notifyDefinitionsChanged("bank-branches")
@@ -200,7 +201,7 @@ export default function Branches() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
-      setSaveError(error instanceof Error ? error.message : "فشل في حفظ الفرع")
+      setSaveError(error instanceof Error ? error.message : tr("فشل في حفظ الفرع"))
     } finally {
       setIsSaving(false)
     }
@@ -216,7 +217,7 @@ export default function Branches() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف الفرع")
+        throw new Error(error.error || tr("فشل في حذف الفرع"))
       }
       await fetchBranches()
       notifyDefinitionsChanged("bank-branches")
@@ -326,28 +327,28 @@ export default function Branches() {
 
 
   return (
-    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir={appDir()}>
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={Building2Icon}
-        title="فروع البنوك"
-        subtitle="فروع البنوك التي تُربط بها حسابات البنوك والشيكات — فروع الشركة تُعرَّف من الإعدادات ← التعريفات"
-        addLabel="إضافة فرع"
+        title={tr("فروع البنوك")}
+        subtitle={tr("فروع البنوك التي تُربط بها حسابات البنوك والشيكات — فروع الشركة تُعرَّف من الإعدادات ← التعريفات")}
+        addLabel={tr("إضافة فرع")}
         onNew={handleNew}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي الفروع</>, value: <>{totalBranches}</> }, { label: <>الفروع الفعالة</>, value: <>{activeBranches}</> }, { label: <>الفروع المعطلة</>, value: <>{inactiveBranches}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي الفروع")}</>, value: <>{totalBranches}</> }, { label: <>{tr("الفروع الفعالة")}</>, value: <>{activeBranches}</> }, { label: <>{tr("الفروع المعطلة")}</>, value: <>{inactiveBranches}</> }]} />
 
       <Card>
         <CardHeader>
-          <CardTitle>فروع البنوك</CardTitle>
+          <CardTitle>{tr("فروع البنوك")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xl font-semibold">فروع البنوك</div>
-                <p className="text-sm text-muted-foreground">كل فرع مرتبط ببنك</p>
+                <div className="text-xl font-semibold">{tr("فروع البنوك")}</div>
+                <p className="text-sm text-muted-foreground">{tr("كل فرع مرتبط ببنك")}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <select
@@ -355,7 +356,7 @@ export default function Branches() {
                   onChange={(e) => setSelectedBankId(e.target.value === "all" ? "all" : Number(e.target.value))}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 >
-                  <option value="all">الكل</option>
+                  <option value="all">{tr("الكل")}</option>
                   {banks.map((bank) => (
                     <option key={bank.id} value={bank.id}>
                       {bank.bank_name}
@@ -371,12 +372,12 @@ export default function Branches() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">رقم الفرع</TableHead>
-                    <TableHead className="text-right">اسم الفرع</TableHead>
-                    <TableHead className="text-right">رمز الفرع</TableHead>
-                    <TableHead className="text-right">البنك</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">إجراءات</TableHead>
+                    <TableHead className="text-right">{tr("رقم الفرع")}</TableHead>
+                    <TableHead className="text-right">{tr("اسم الفرع")}</TableHead>
+                    <TableHead className="text-right">{tr("رمز الفرع")}</TableHead>
+                    <TableHead className="text-right">{tr("البنك")}</TableHead>
+                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-right">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -390,7 +391,7 @@ export default function Branches() {
                       <TableCell className="text-right">{branch.branch_name}</TableCell>
                       <TableCell className="text-right">{branch.branch_symbol || "-"}</TableCell>
                       <TableCell className="text-right">{banks.find((bank) => bank.id === branch.bank_id)?.bank_name || "-"}</TableCell>
-                      <TableCell className="text-right">{branch.status === 1 ? "نشط" : "متوقف"}</TableCell>
+                      <TableCell className="text-right">{branch.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"

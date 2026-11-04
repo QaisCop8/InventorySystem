@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import React, { useEffect, useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,9 +19,9 @@ import { KeyAction } from "@grapecity/wijmo.grid"
 type WarehouseField = "default_item_warehouse_id" | "finished_goods_warehouse_id" | "raw_materials_warehouse_id"
 
 const WAREHOUSE_FIELDS: { field: WarehouseField; nameField: string; label: string }[] = [
-  { field: "default_item_warehouse_id", nameField: "default_item_warehouse_name", label: "المستودع الافتراضي للصنف في السندات" },
-  { field: "finished_goods_warehouse_id", nameField: "finished_goods_warehouse_name", label: "مستودع المواد الجاهزة في سند الانتاج" },
-  { field: "raw_materials_warehouse_id", nameField: "raw_materials_warehouse_name", label: "مستودع المواد الخام في سند الانتاج" },
+  { field: "default_item_warehouse_id", nameField: "default_item_warehouse_name", label: tr("المستودع الافتراضي للصنف في السندات") },
+  { field: "finished_goods_warehouse_id", nameField: "finished_goods_warehouse_name", label: tr("مستودع المواد الجاهزة في سند الانتاج") },
+  { field: "raw_materials_warehouse_id", nameField: "raw_materials_warehouse_name", label: tr("مستودع المواد الخام في سند الانتاج") },
 ]
 
 const emptyWarehouseDefaults: Record<string, any> = {
@@ -113,7 +114,7 @@ export default function VirtualAccounts() {
     loadUsers()
     loadCurrencies()
     loadWarehouses()
-    fetch('/api/branches').then(response => response.json()).then(data => setBranches(Array.isArray(data) ? data : [])).catch(() => showErrorMessage('تعذر تحميل الفروع'))
+    fetch('/api/branches').then(response => response.json()).then(data => setBranches(Array.isArray(data) ? data : [])).catch(() => showErrorMessage(tr("تعذر تحميل الفروع")))
   }, [])
 
   const loadDefaults = async (userId: string | number) => {
@@ -152,7 +153,7 @@ export default function VirtualAccounts() {
 
   const openWarehouseSearch = (field: WarehouseField) => {
     if (!selectedUser) {
-      showErrorMessage('اختر مستخدما اولا')
+      showErrorMessage(tr("اختر مستخدما اولا"))
       return
     }
     setWarehouseSearchField(field)
@@ -230,7 +231,7 @@ export default function VirtualAccounts() {
 
   const openAccountSearch = (rowIndex: number, field: (typeof accountColumns)[number]['field']) => {
     if (!selectedUser) {
-      showErrorMessage('اختر مستخدما اولا')
+      showErrorMessage(tr("اختر مستخدما اولا"))
       return
     }
     setSelectedRowIndex(rowIndex)
@@ -295,22 +296,22 @@ export default function VirtualAccounts() {
     allowGrouping: false,
     filter: false,
     columns: [
-      { header: 'العملة', name: 'currency_name', width: '*', minWidth: 180, isReadOnly: true },
-      { header: 'حساب الصندوق', name: 'cash_account_display', width: '*', minWidth: 240, isReadOnly: true },
+      { header: tr("العملة"), name: 'currency_name', width: '*', minWidth: 180, isReadOnly: true },
+      { header: tr("حساب الصندوق"), name: 'cash_account_display', width: '*', minWidth: 240, isReadOnly: true },
       {
         name: 'btnCashSearch',
         header: ' ',
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'بحث',
+        title: tr("بحث"),
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
-            showErrorMessage('اختر مستخدما اولا')
+            showErrorMessage(tr("اختر مستخدما اولا"))
             return
           }
           openAccountSearch(ctx.row.index, 'cash_account')
@@ -322,7 +323,7 @@ export default function VirtualAccounts() {
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'مسح',
+        title: tr("مسح"),
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
@@ -331,21 +332,21 @@ export default function VirtualAccounts() {
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, cash_account_id: null, cash_account_display: '' } : r)))
         },
       },
-      { header: 'حساب الشيكات الواردة', name: 'incoming_checks_account_display', width: '*', minWidth: 240, isReadOnly: true },
+      { header: tr("حساب الشيكات الواردة"), name: 'incoming_checks_account_display', width: '*', minWidth: 240, isReadOnly: true },
       {
         name: 'btnIncomingSearch',
         header: ' ',
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'بحث',
+        title: tr("بحث"),
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
-            showErrorMessage('اختر مستخدما اولا')
+            showErrorMessage(tr("اختر مستخدما اولا"))
             return
           }
           openAccountSearch(ctx.row.index, 'incoming_checks_account')
@@ -357,7 +358,7 @@ export default function VirtualAccounts() {
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'مسح',
+        title: tr("مسح"),
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
@@ -366,21 +367,21 @@ export default function VirtualAccounts() {
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, incoming_checks_account_id: null, incoming_checks_account_display: '' } : r)))
         },
       },
-      { header: 'حساب الشيكات الراجعة', name: 'returned_checks_account_display', width: '*', minWidth: 240, isReadOnly: true },
+      { header: tr("حساب الشيكات الراجعة"), name: 'returned_checks_account_display', width: '*', minWidth: 240, isReadOnly: true },
       {
         name: 'btnReturnedSearch',
         header: ' ',
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'بحث',
+        title: tr("بحث"),
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
-            showErrorMessage('اختر مستخدما اولا')
+            showErrorMessage(tr("اختر مستخدما اولا"))
             return
           }
           openAccountSearch(ctx.row.index, 'returned_checks_account')
@@ -392,7 +393,7 @@ export default function VirtualAccounts() {
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'مسح',
+        title: tr("مسح"),
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
@@ -401,21 +402,21 @@ export default function VirtualAccounts() {
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, returned_checks_account_id: null, returned_checks_account_display: '' } : r)))
         },
       },
-      { header: 'حساب البطاقات', name: 'card_account_display', width: '*', minWidth: 240, isReadOnly: true },
+      { header: tr("حساب البطاقات"), name: 'card_account_display', width: '*', minWidth: 240, isReadOnly: true },
       {
         name: 'btnCardSearch',
         header: ' ',
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'بحث',
+        title: tr("بحث"),
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
-            showErrorMessage('اختر مستخدما اولا')
+            showErrorMessage(tr("اختر مستخدما اولا"))
             return
           }
           openAccountSearch(ctx.row.index, 'card_account')
@@ -427,7 +428,7 @@ export default function VirtualAccounts() {
         width: 44,
         buttonBody: 'button',
         align: 'center',
-        title: 'مسح',
+        title: tr("مسح"),
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
@@ -467,8 +468,8 @@ export default function VirtualAccounts() {
   }
 
   const handleSaveAll = async () => {
-    if (!selectedBranchIds.length) { showErrorMessage('يجب تحديد الفرع'); return }
-    if (!selectedUsers.length || saving || loading) { showErrorMessage('اختر مستخدما اولا'); return }
+    if (!selectedBranchIds.length) { showErrorMessage(tr("يجب تحديد الفرع")); return }
+    if (!selectedUsers.length || saving || loading) { showErrorMessage(tr("اختر مستخدما اولا")); return }
     const accountRows = rows.map((r) => ({
       currency_id: r.currency_id,
       cash_account_id: r.cash_account_id,
@@ -513,30 +514,30 @@ export default function VirtualAccounts() {
         showSuccessMessage(combos > 1 ? `تم الحفظ على ${selectedUsers.length} مستخدم × ${selectedBranchIds.length} فرع` : 'تم الحفظ وإعادة تحميل الإعدادات بنجاح')
       }
     } catch (error) {
-      showErrorMessage(error instanceof Error ? error.message : 'تعذر حفظ الإعدادات')
+      showErrorMessage(error instanceof Error ? error.message : tr("تعذر حفظ الإعدادات"))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div dir="rtl" className="virtual-accounts-page flex min-h-screen w-full flex-col gap-4 bg-slate-50/50 p-3 sm:p-4 dark:bg-slate-950">
+    <div dir={appDir()} className="virtual-accounts-page flex min-h-screen w-full flex-col gap-4 bg-slate-50/50 p-3 sm:p-4 dark:bg-slate-950">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
-        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -end-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Wallet className="h-6 w-6" /></span>
             <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">الحسابات والمستودعات الافتراضية</h1>
-              <p className="text-xs text-emerald-50/90 sm:text-sm">حسابات الصناديق والبنوك لكل عملة، والمستودعات الافتراضية — لمستخدم أو عدة مستخدمين وفروع دفعة واحدة</p>
+              <h1 className="text-xl font-extrabold sm:text-2xl">{tr("الحسابات والمستودعات الافتراضية")}</h1>
+              <p className="text-xs text-emerald-50/90 sm:text-sm">{tr("حسابات الصناديق والبنوك لكل عملة، والمستودعات الافتراضية — لمستخدم أو عدة مستخدمين وفروع دفعة واحدة")}</p>
             </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="h-10 gap-2 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white" disabled={!selectedUser || loading || saving} onClick={() => { if (selectedUser) void loadDefaults(selectedUser.user_id) }}>
-              <RefreshCw className="h-4 w-4" />تحديث
+              <RefreshCw className="h-4 w-4" />{tr("تحديث")}
             </Button>
             <Button className="h-10 gap-2 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" onClick={handleSaveAll} disabled={!selectedUser || !selectedBranchIds.length || loading || saving || !rows.length}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}حفظ
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{tr("حفظ")}
             </Button>
           </div>
         </div>
@@ -546,37 +547,36 @@ export default function VirtualAccounts() {
         <div className="mb-3 flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700"><UsersRound className="h-4 w-4" /></span>
           <div>
-            <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">لمن تُطبَّق الإعدادات؟</h2>
-            <p className="text-xs text-slate-500">اختر مستخدماً أو أكثر وفرعاً أو أكثر</p>
+            <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">{tr("لمن تُطبَّق الإعدادات؟")}</h2>
+            <p className="text-xs text-slate-500">{tr("اختر مستخدماً أو أكثر وفرعاً أو أكثر")}</p>
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <ReportMultiChoice
-            label="المستخدمون *"
+            label={tr("المستخدمون *")}
             options={users.map((user) => ({ id: userKey(user), name: user.display_name }))}
             selected={selectedUserIds}
             onChange={(ids) => !saving && setSelectedUserIds(ids)}
-            placeholder="اختر مستخدماً أو أكثر"
+            placeholder={tr("اختر مستخدماً أو أكثر")}
           />
           <ReportMultiChoice
-            label="الفروع *"
+            label={tr("الفروع *")}
             options={branches.map((branch) => ({ id: Number(branch.id), name: branch.branch_name, code: branch.branch_code }))}
             selected={selectedBranchIds}
             onChange={(ids) => !saving && setSelectedBranchIds(ids)}
-            placeholder="اختر فرعاً أو أكثر"
+            placeholder={tr("اختر فرعاً أو أكثر")}
           />
         </div>
         {selectedUser && selectedBranchIds.length > 0 && (selectedUserIds.length > 1 || selectedBranchIds.length > 1) && (
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              يتم عرض إعدادات <b>{selectedUser.display_name}</b> في <b>{branches.find((branch) => branch.id === branchId)?.branch_name}</b>.
-              عند الحفظ تُطبَّق الحسابات على <b>{selectedUserIds.length} مستخدم × {selectedBranchIds.length} فرع</b>، والمستودعات والإعدادات الأخرى على كل المستخدمين المحددين.
+              {tr("يتم عرض إعدادات ")}<b>{selectedUser.display_name}</b>{tr(" في ")}<b>{branches.find((branch) => branch.id === branchId)?.branch_name}</b>{tr(". عند الحفظ تُطبَّق الحسابات على ")}<b>{selectedUserIds.length}{tr(" مستخدم × ")}{selectedBranchIds.length}{tr(" فرع")}</b>{tr("، والمستودعات والإعدادات الأخرى على كل المستخدمين المحددين.")}
             </span>
           </div>
         )}
         {(!selectedUser || !selectedBranchIds.length) && (
-          <p className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-center text-xs text-slate-500">اختر المستخدم والفرع لعرض الإعدادات وتعديلها</p>
+          <p className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-center text-xs text-slate-500">{tr("اختر المستخدم والفرع لعرض الإعدادات وتعديلها")}</p>
         )}
       </section>
 
@@ -584,10 +584,10 @@ export default function VirtualAccounts() {
         <CardHeader className="border-b border-slate-200 bg-gradient-to-l from-teal-50 to-sky-50 px-6 py-5 dark:from-slate-900 dark:to-slate-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-lg text-slate-900 dark:text-slate-100">حسابات الصناديق والبنوك الافتراضية</CardTitle>
-              <p className="mt-1 text-xs text-slate-500">Enter أو Tab للتنقل، Shift للرجوع، F2 للبحث، وDelete للمسح</p>
+              <CardTitle className="text-lg text-slate-900 dark:text-slate-100">{tr("حسابات الصناديق والبنوك الافتراضية")}</CardTitle>
+              <p className="mt-1 text-xs text-slate-500">{tr("Enter أو Tab للتنقل، Shift للرجوع، F2 للبحث، وDelete للمسح")}</p>
             </div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs text-teal-700 ring-1 ring-teal-200">{rows.length} عملات</div>
+            <div className="rounded-full bg-white px-3 py-1 text-xs text-teal-700 ring-1 ring-teal-200">{rows.length}{tr(" عملات")}</div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col bg-slate-50/70 p-0">
@@ -624,7 +624,7 @@ export default function VirtualAccounts() {
               <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-                  جاري التحميل...
+                  {tr("جاري التحميل...")}
                 </div>
               </div>
             )}
@@ -633,13 +633,13 @@ export default function VirtualAccounts() {
       </Card>
 
       <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
-        <SectionHeading icon={Warehouse} title="المستودعات الافتراضية" description="تُطبَّق على المستخدم (لكل الفروع)" />
+        <SectionHeading icon={Warehouse} title={tr("المستودعات الافتراضية")} description={tr("تُطبَّق على المستخدم (لكل الفروع)")} />
         {warehousesSectionOpen && (
           <CardContent className="grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
             {WAREHOUSE_FIELDS.map((config) => (
               <div key={config.field} className="space-y-1.5">
-                <label className="block text-right text-sm font-medium text-slate-700">{config.label}</label>
-                <div className="flex items-center gap-2" dir="rtl">
+                <label className="block text-start text-sm font-medium text-slate-700">{config.label}</label>
+                <div className="flex items-center gap-2" dir={appDir()}>
                   <Input
                     readOnly
                     value={
@@ -653,7 +653,7 @@ export default function VirtualAccounts() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    title="بحث"
+                    title={tr("بحث")}
                     onClick={() => openWarehouseSearch(config.field)}
                   >
                     <Search className="h-4 w-4" />
@@ -662,7 +662,7 @@ export default function VirtualAccounts() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    title="مسح"
+                    title={tr("مسح")}
                     onClick={() => clearWarehouseField(config.field)}
                   >
                     <Eraser className="h-4 w-4" />
@@ -675,13 +675,13 @@ export default function VirtualAccounts() {
       </Card>
 
       <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
-        <SectionHeading icon={SlidersHorizontal} title="اعدادات اخرى" description="تفضيلات إدخال السندات للمستخدم" />
+        <SectionHeading icon={SlidersHorizontal} title={tr("اعدادات اخرى")} description={tr("تفضيلات إدخال السندات للمستخدم")} />
         {otherSettingsSectionOpen && (
-          <CardContent className="p-4 sm:p-6" dir="rtl">
+          <CardContent className="p-4 sm:p-6" dir={appDir()}>
             <label htmlFor="price-entry-includes-tax" className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 transition hover:border-emerald-300 hover:bg-emerald-50/40">
             <span>
-              <span className="block text-sm font-semibold text-slate-800">السعر عند الادخال يشمل الضريبة</span>
-              <span className="block text-xs text-slate-500">السعر المُدخَل يدوياً بسندات المبيعات يُعامَل كشامل للضريبة ويُحوَّل لغير شامل</span>
+              <span className="block text-sm font-semibold text-slate-800">{tr("السعر عند الادخال يشمل الضريبة")}</span>
+              <span className="block text-xs text-slate-500">{tr("السعر المُدخَل يدوياً بسندات المبيعات يُعامَل كشامل للضريبة ويُحوَّل لغير شامل")}</span>
             </span>
             <Switch
               id="price-entry-includes-tax"

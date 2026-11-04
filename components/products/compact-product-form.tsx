@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 
 import { useState, useEffect, useRef, useMemo } from "react"
@@ -78,11 +79,11 @@ function AttributeNameInput({ value, catalog, onChange, onCreate }: { value: str
   const matches = catalog.filter((item) => item.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const exactMatch = catalog.some((item) => item.name.toLocaleLowerCase() === query.trim().toLocaleLowerCase())
   return <div ref={rootRef} className="relative">
-    <Input value={query} placeholder="ابحث أو اكتب متغيراً" onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} />
+    <Input value={query} placeholder={tr("ابحث أو اكتب متغيراً")} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} />
     {open && <div className="absolute z-30 mt-1 max-h-44 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg">
-      {matches.map((item) => <button type="button" key={item.name} className="block w-full rounded px-3 py-2 text-right text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => { setQuery(item.name); setOpen(false); onChange(item.name) }}>{item.name}</button>)}
-      {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-right text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { setOpen(false); onCreate(query.trim()) }}>
-        + إنشاء المتغير “{query.trim()}”
+      {matches.map((item) => <button type="button" key={item.name} className="block w-full rounded px-3 py-2 text-start text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => { setQuery(item.name); setOpen(false); onChange(item.name) }}>{item.name}</button>)}
+      {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-start text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { setOpen(false); onCreate(query.trim()) }}>
+        {tr("+ إنشاء المتغير “")}{query.trim()}”
       </button>}
     </div>}
   </div>
@@ -116,15 +117,15 @@ function AttributeValueInput({ values, valueImages = {}, suggestions, disabled =
     <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1">
       {values.map((value) => <span key={value} className="inline-flex items-center gap-2 rounded-xl bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
         <ImageUploadField value={valueImages[value]} onChange={(image) => onImageChange(value, image)} size={36} rounded="2xl" />
-        <span>{value}</span><button type="button" title="إزالة القيمة" onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
+        <span>{value}</span><button type="button" title={tr("إزالة القيمة")} onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
       </span>)}
-      <input disabled={disabled} className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder={disabled ? "اختر متغيراً أولاً" : "ابحث أو اكتب قيمة"} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} onKeyDown={(event) => {
+      <input disabled={disabled} className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder={disabled ? tr("اختر متغيراً أولاً") : tr("ابحث أو اكتب قيمة")} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} onKeyDown={(event) => {
         if ((event.key === " " || event.key === "Enter") && query.trim()) { event.preventDefault(); addValue(exactMatch || query) }
       }} />
     </div>
     {open && !disabled && <div className="absolute z-30 mt-1 max-h-44 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg">
-      {filtered.map((value) => <button type="button" key={value} className="block w-full rounded px-3 py-2 text-right text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(value)}>{value}</button>)}
-      {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-right text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { addValue(query); onCreate(query.trim()) }}>+ إنشاء القيمة “{query.trim()}”</button>}
+      {filtered.map((value) => <button type="button" key={value} className="block w-full rounded px-3 py-2 text-start text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(value)}>{value}</button>)}
+      {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-start text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { addValue(query); onCreate(query.trim()) }}>{tr("+ إنشاء القيمة “")}{query.trim()}”</button>}
     </div>}
   </div>
 }
@@ -273,14 +274,14 @@ type ProductAccountField =
   | "lsti3mal_account_id"
 
 const PRODUCT_ACCOUNT_FIELDS: Array<{ field: ProductAccountField; label: string }> = [
-  { field: "selling_account_id", label: "حساب المبيعات" },
-  { field: "purchase_account_id", label: "حساب المشتريات" },
-  { field: "selling_returns_account_id", label: "حساب مرتجعات المبيعات" },
-  { field: "purchase_returns_account_id", label: "حساب مرتجعات المشتريات" },
-  { field: "stock_end_account_id", label: "حساب تقييم بضاعة آخر المدة" },
-  { field: "stock_start_account_id", label: "حساب تقييم بضاعة أول المدة" },
-  { field: "production_account_id", label: "حساب الإنتاج" },
-  { field: "lsti3mal_account_id", label: "حساب المصروف في سند الاستعمال" },
+  { field: "selling_account_id", label: tr("حساب المبيعات") },
+  { field: "purchase_account_id", label: tr("حساب المشتريات") },
+  { field: "selling_returns_account_id", label: tr("حساب مرتجعات المبيعات") },
+  { field: "purchase_returns_account_id", label: tr("حساب مرتجعات المشتريات") },
+  { field: "stock_end_account_id", label: tr("حساب تقييم بضاعة آخر المدة") },
+  { field: "stock_start_account_id", label: tr("حساب تقييم بضاعة أول المدة") },
+  { field: "production_account_id", label: tr("حساب الإنتاج") },
+  { field: "lsti3mal_account_id", label: tr("حساب المصروف في سند الاستعمال") },
 ]
 
 export const initialFormData: ProductFormData = {
@@ -443,12 +444,12 @@ export function CompactProductForm({
     "لا يمكن تغيير تاريخ الصلاحية / الرقم التشغيلي / الرقم المتسلسل لصنف له حركة مخزون فعلية"
 
   const PRODUCT_TYPE_OPTIONS = [
-    { label: "بضاعة تجارية", value: 1 },
-    { label: "مواد خام", value: 2 },
-    { label: "لوازم إنتاج", value: 3 },
-    { label: "تحت التصنيع", value: 4 },
-    { label: "بضاعة مصنعة", value: 5 },
-    { label: "مواد للاستهلاك", value: 6 },
+    { label: tr("بضاعة تجارية"), value: 1 },
+    { label: tr("مواد خام"), value: 2 },
+    { label: tr("لوازم إنتاج"), value: 3 },
+    { label: tr("تحت التصنيع"), value: 4 },
+    { label: tr("بضاعة مصنعة"), value: 5 },
+    { label: tr("مواد للاستهلاك"), value: 6 },
   ]
   const definitionsRef = useRef({
     categories: [] as Array<{ id: number; group_name: string }>,
@@ -536,23 +537,23 @@ export function CompactProductForm({
         body: JSON.stringify({ name: cleanName, value: cleanValue || undefined }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data?.error || "تعذر إنشاء المتغير")
+      if (!response.ok) throw new Error(data?.error || tr("تعذر إنشاء المتغير"))
       setAttributeCatalog((current) => {
         const existing = current.find((item) => item.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase())
         if (existing) return current.map((item) => item === existing && cleanValue && !item.values.includes(cleanValue) ? { ...item, values: [...item.values, cleanValue] } : item)
         return [...current, { name: cleanName, values: cleanValue ? [cleanValue] : [] }]
       })
-      toast.current?.show({ severity: "success", summary: "نجاح", detail: "تم إنشاء المتغير أو القيمة", life: 1800 })
+      toast.current?.show({ severity: "success", summary: tr("نجاح"), detail: tr("تم إنشاء المتغير أو القيمة"), life: 1800 })
     } catch (error) {
-      toast.current?.show({ severity: "error", summary: "خطأ", detail: error instanceof Error ? error.message : "تعذر الإنشاء", life: 2500 })
+      toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: error instanceof Error ? error.message : tr("تعذر الإنشاء"), life: 2500 })
     }
   }
   const validateProduct = () => {
     if (formData.product_code === "") {
       toast.current?.show({
         severity: 'error',
-        summary: 'خطأ',
-        detail: isService ? 'يجب ادخال رقم الخدمة' : 'يجب ادخال رقم الصنف',
+        summary: tr("خطأ"),
+        detail: isService ? tr("يجب ادخال رقم الخدمة") : tr("يجب ادخال رقم الصنف"),
         life: 1500
       });
       product_code.current?.focus();
@@ -561,8 +562,8 @@ export function CompactProductForm({
     if (formData.product_name === "") {
       toast.current?.show({
         severity: 'error',
-        summary: 'خطأ',
-        detail: isService ? 'يجب ادخال اسم الخدمة' : 'يجب ادخال اسم الصنف',
+        summary: tr("خطأ"),
+        detail: isService ? tr("يجب ادخال اسم الخدمة") : tr("يجب ادخال اسم الصنف"),
         life: 1500
       });
       product_name.current?.focus();
@@ -571,8 +572,8 @@ export function CompactProductForm({
     if (!formData.units || formData.units.length === 0) {
       toast.current?.show({
         severity: "error",
-        summary: "خطأ",
-        detail: "يجب ادخال وحدة واحدة على الاقل",
+        summary: tr("خطأ"),
+        detail: tr("يجب ادخال وحدة واحدة على الاقل"),
         life: 1500,
       });
       product_name.current?.focus();
@@ -592,8 +593,8 @@ export function CompactProductForm({
     if (!formData.prices || formData.prices.length === 0) {
       toast.current?.show({
         severity: "error",
-        summary: "خطأ",
-        detail: "يجب ادخال سعر بيع واحد على الاقل",
+        summary: tr("خطأ"),
+        detail: tr("يجب ادخال سعر بيع واحد على الاقل"),
         life: 1500,
       });
       return false;
@@ -608,7 +609,7 @@ export function CompactProductForm({
     ) {
       toast.current?.show({
         severity: "error",
-        summary: "خطأ",
+        summary: tr("خطأ"),
         detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
         life: 3000,
       });
@@ -618,7 +619,7 @@ export function CompactProductForm({
     const unitIds = new Set<number>();
     const scaleError = validateScaleProductBarcodes(formData.pos_sold_using_scale, [formData.barcode, ...(formData.units ?? []).flatMap(unit => unit.barcode_list ?? [])]);
     if (scaleError) {
-      toast.current?.show({ severity: "error", summary: "باركود الميزان", detail: scaleError, life: 4000 });
+      toast.current?.show({ severity: "error", summary: tr("باركود الميزان"), detail: scaleError, life: 4000 });
       return false;
     }
     const barcodeOwners = new Map<string, string>();
@@ -626,8 +627,8 @@ export function CompactProductForm({
       if (unitIds.has(unit.unit_id)) {
         toast.current?.show({
           severity: "error",
-          summary: "خطأ",
-          detail: `الوحدة ${unit.unit_name} مكررة`,
+          summary: tr("خطأ"),
+          detail: tr("الوحدة {0} مكررة", unit.unit_name),
           life: 1500,
         });
         return false;
@@ -641,8 +642,8 @@ export function CompactProductForm({
         if (previousUnit) {
           toast.current?.show({
             severity: "error",
-            summary: "باركود مكرر",
-            detail: `الباركود ${barcode} مكرر في وحدتي ${previousUnit} و${unit.unit_name || "بدون اسم"}`,
+            summary: tr("باركود مكرر"),
+            detail: tr("الباركود {0} مكرر في وحدتي {1} و{2}", barcode, previousUnit, unit.unit_name || "بدون اسم"),
             life: 4000,
           });
           setActiveTab("units");
@@ -657,8 +658,8 @@ export function CompactProductForm({
       if (storeIds.has(store.store_id)) {
         toast.current?.show({
           severity: "error",
-          summary: "خطأ",
-          detail: `المستودع ${store.store_name} مكرر`,
+          summary: tr("خطأ"),
+          detail: tr("المستودع {0} مكرر", store.store_name),
           life: 1500,
         });
         return false;
@@ -671,8 +672,8 @@ export function CompactProductForm({
         if (!unitIds.has(Number(price.unit_id))) {
           toast.current?.show({
             severity: "error",
-            summary: "خطأ",
-            detail: `وحدة سعر البيع ${price.unit_name || ""} غير مضافة إلى وحدات الصنف. اختر وحدة من وحدات الصنف.`,
+            summary: tr("خطأ"),
+            detail: tr("وحدة سعر البيع {0} غير مضافة إلى وحدات الصنف. اختر وحدة من وحدات الصنف.", price.unit_name || ""),
             life: 3000,
           });
           return false;
@@ -681,8 +682,8 @@ export function CompactProductForm({
         if (priceKeys.has(key)) {
           toast.current?.show({
             severity: "error",
-            summary: "خطأ",
-            detail: `الوحدة ${price.unit_name} مع الفئة ${price.price_name} مكررة`,
+            summary: tr("خطأ"),
+            detail: tr("الوحدة {0} مع الفئة {1} مكررة", price.unit_name, price.price_name),
             life: 1500,
           });
           return false;
@@ -698,8 +699,8 @@ export function CompactProductForm({
         if (warehouseIds.has(store.store_id)) {
           toast.current?.show({
             severity: "error",
-            summary: "خطأ",
-            detail: `المستودع ${store.store_name} مكرر`,
+            summary: tr("خطأ"),
+            detail: tr("المستودع {0} مكرر", store.store_name),
             life: 1500,
           });
           return false;
@@ -713,13 +714,13 @@ export function CompactProductForm({
       const name = attribute.name.trim()
       if (!name || attribute.values.length === 0) {
         setActiveTab("attributes")
-        toast.current?.show({ severity: "error", summary: "خطأ", detail: "يجب كتابة اسم الخاصية وإضافة قيمة واحدة على الأقل", life: 3000 })
+        toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: tr("يجب كتابة اسم الخاصية وإضافة قيمة واحدة على الأقل"), life: 3000 })
         return false
       }
       const key = name.toLocaleLowerCase()
       if (attributeNames.has(key)) {
         setActiveTab("attributes")
-        toast.current?.show({ severity: "error", summary: "خطأ", detail: `الخاصية ${name} مكررة`, life: 3000 })
+        toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: tr("الخاصية {0} مكررة", name), life: 3000 })
         return false
       }
       attributeNames.add(key)
@@ -734,7 +735,7 @@ export function CompactProductForm({
         toast.current?.show({
           severity: 'error',
           summary: '',
-          detail: formData.id === 0 ? 'لا يوجد لديك صلاحية اضافة صنف ' : 'لا يوجد لديك صلاحية تعديل صنف',
+          detail: formData.id === 0 ? tr("لا يوجد لديك صلاحية اضافة صنف ") : tr("لا يوجد لديك صلاحية تعديل صنف"),
           life: 3000
         });
         return
@@ -752,19 +753,19 @@ export function CompactProductForm({
         for (const component of manufacturingComponents) {
           if (Number(component.component_id) === Number(formData.id)) {
             setActiveTab("manufacturing-components")
-            toast.current?.show({ severity: "error", summary: "خطأ", detail: "لا يمكن إضافة الصنف نفسه كمكون تصنيع", life: 3000 })
+            toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: tr("لا يمكن إضافة الصنف نفسه كمكون تصنيع"), life: 3000 })
             setIsSubmitting(false)
             return
           }
           if (componentIds.has(Number(component.component_id))) {
             setActiveTab("manufacturing-components")
-            toast.current?.show({ severity: "error", summary: "خطأ", detail: "مكون التصنيع مكرر", life: 3000 })
+            toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: tr("مكون التصنيع مكرر"), life: 3000 })
             setIsSubmitting(false)
             return
           }
           if (!Number.isFinite(Number(component.quantity)) || Number(component.quantity) <= 0) {
             setActiveTab("manufacturing-components")
-            toast.current?.show({ severity: "error", summary: "خطأ", detail: "يجب أن تكون كمية كل مكون أكبر من صفر", life: 3000 })
+            toast.current?.show({ severity: "error", summary: tr("خطأ"), detail: tr("يجب أن تكون كمية كل مكون أكبر من صفر"), life: 3000 })
             setIsSubmitting(false)
             return
           }
@@ -804,7 +805,7 @@ export function CompactProductForm({
 
       const responseData = await response.json()
       if (!response.ok) {
-        throw new Error(responseData.error || responseData.message || "فشل في حفظ المنتج")
+        throw new Error(responseData.error || responseData.message || tr("فشل في حفظ المنتج"))
       }
       const savedProductId = Number(responseData.id || responseData.productId || responseData.product?.id || formData.id)
       // الأصناف التابعة ومكونات التصنيع مستقلتان — تُحفظان معاً بدل واحدة بعد الأخرى
@@ -813,8 +814,8 @@ export function CompactProductForm({
       setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
       toast.current?.show({
         severity: 'success',
-        summary: 'نجاح',
-        detail: 'تمت العملية بنجاح ✅',
+        summary: tr("نجاح"),
+        detail: tr("تمت العملية بنجاح ✅"),
         life: 3000
       });
       onSuccess?.(savedProductId > 0 ? savedProductId : undefined)
@@ -828,8 +829,8 @@ export function CompactProductForm({
       console.error("[ProductDialog] Error saving product:", err)
       toast.current?.show({
         severity: 'error',
-        summary: 'خطأ',
-        detail: err instanceof Error ? err.message : 'فشلت العملية',
+        summary: tr("خطأ"),
+        detail: err instanceof Error ? err.message : tr("فشلت العملية"),
         life: 5000
       });
       return false
@@ -856,8 +857,8 @@ export function CompactProductForm({
     if (!formData.id) {
       toast.current?.show({
         severity: 'warn',
-        summary: 'تنبيه',
-        detail: 'لا يوجد صنف لحذفه',
+        summary: tr("تنبيه"),
+        detail: tr("لا يوجد صنف لحذفه"),
         life: 3000
       });
       return;
@@ -867,7 +868,7 @@ export function CompactProductForm({
       toast.current?.show({
         severity: 'error',
         summary: '',
-        detail: 'لا يوجد لديك صلاحية حذف صنف',
+        detail: tr("لا يوجد لديك صلاحية حذف صنف"),
         life: 3000
       });
       return
@@ -882,8 +883,8 @@ export function CompactProductForm({
     if (!formData.id) {
       toast.current?.show({
         severity: 'warn',
-        summary: 'تنبيه',
-        detail: 'لا يوجد صنف لحذفه',
+        summary: tr("تنبيه"),
+        detail: tr("لا يوجد صنف لحذفه"),
         life: 3000
       });
       return;
@@ -898,13 +899,13 @@ export function CompactProductForm({
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "فشل في حذف الصنف");
+        throw new Error(result.error || tr("فشل في حذف الصنف"));
       }
 
       toast.current?.show({
         severity: 'success',
-        summary: 'نجاح',
-        detail: 'تم حذف الصنف بنجاح ✅',
+        summary: tr("نجاح"),
+        detail: tr("تم حذف الصنف بنجاح ✅"),
         life: 3000
       });
       notifyProductsChanged()
@@ -915,7 +916,7 @@ export function CompactProductForm({
       console.error("Error deleting product:", err);
       // سبب الرفض من الخادم (مثل "لا يمكن حذف الصنف لارتباطه بحركات") في مكوّن الرسائل أعلى النموذج
       messagesRef.current?.clear?.()
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: err instanceof Error && err.message ? err.message : "تعذر حذف الصنف", life: 6000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: err instanceof Error && err.message ? err.message : tr("تعذر حذف الصنف"), life: 6000 }])
     } finally {
       setLoading(false)
     }
@@ -939,8 +940,8 @@ export function CompactProductForm({
       console.warn("Unable to generate a new product code:", error)
       toast.current?.show({
         severity: "warn",
-        summary: "تنبيه",
-        detail: "تعذر توليد رقم الصنف. تحقق من الاتصال ثم حاول مرة أخرى.",
+        summary: tr("تنبيه"),
+        detail: tr("تعذر توليد رقم الصنف. تحقق من الاتصال ثم حاول مرة أخرى."),
         life: 4000,
       })
       return ""
@@ -1063,7 +1064,7 @@ export function CompactProductForm({
         toast.current?.show({
           severity: 'error',
           summary: '',
-          detail: 'لا يوجد لديك استعلام صنف',
+          detail: tr("لا يوجد لديك استعلام صنف"),
           life: 3000
         });
         return;
@@ -1092,7 +1093,7 @@ export function CompactProductForm({
           toast.current?.show({
             severity: 'error',
             summary: '',
-            detail: errorBody?.error === "No product found" ? 'لم يتم العثور على الصنف' : (errorBody?.error || 'تعذّر تحميل الصنف'),
+            detail: errorBody?.error === "No product found" ? tr("لم يتم العثور على الصنف") : (errorBody?.error || tr("تعذّر تحميل الصنف")),
             life: 3000
           });
           setLoading(false)
@@ -1100,7 +1101,7 @@ export function CompactProductForm({
         }
         const product = await res.json();
         if (!product?.id) {
-          toast.current?.show({ severity: 'error', summary: '', detail: 'لم يتم العثور على الصنف', life: 3000 });
+          toast.current?.show({ severity: 'error', summary: '', detail: tr("لم يتم العثور على الصنف"), life: 3000 });
           setLoading(false)
           return;
         }
@@ -1113,8 +1114,8 @@ export function CompactProductForm({
           severity: 'error',
           summary: '',
           detail: navigationType === "previous" || navigationType === "first"
-            ? 'بداية السجلات'
-            : 'نهاية السجلات',
+            ? tr("بداية السجلات")
+            : tr("نهاية السجلات"),
           life: 3000
         });
         setLoading(false)
@@ -1127,8 +1128,8 @@ export function CompactProductForm({
           severity: 'error',
           summary: '',
           detail: navigationType === "previous" || navigationType === "first"
-            ? 'بداية السجلات'
-            : 'نهاية السجلات',
+            ? tr("بداية السجلات")
+            : tr("نهاية السجلات"),
           life: 3000
         });
         setLoading(false)
@@ -1138,7 +1139,7 @@ export function CompactProductForm({
       await applyLoadedProduct(product)
     } catch (err) {
       console.error(err);
-      toast.current?.show({ severity: 'error', summary: '', detail: 'تعذر تحميل بيانات الصنف', life: 3000 })
+      toast.current?.show({ severity: 'error', summary: '', detail: tr("تعذر تحميل بيانات الصنف"), life: 3000 })
     } finally {
       navigationBusyRef.current = false
       if (requestId === navigationRequestRef.current) setLoading(false)
@@ -1454,8 +1455,8 @@ export function CompactProductForm({
         console.warn("Unable to initialize compact product form:", error)
         toast.current?.show({
           severity: "error",
-          summary: "خطأ في الاتصال",
-          detail: "تعذر تحميل بيانات الصنف. تحقق من الاتصال ثم حاول مرة أخرى.",
+          summary: tr("خطأ في الاتصال"),
+          detail: tr("تعذر تحميل بيانات الصنف. تحقق من الاتصال ثم حاول مرة أخرى."),
           life: 5000,
         })
       } finally {
@@ -1571,19 +1572,19 @@ export function CompactProductForm({
         body: JSON.stringify({ field: copyAccountField, account_id: accountId, after_product_id: Number(formData.id) }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data?.error || "تعذر نسخ الحساب إلى الأصناف")
+      if (!response.ok) throw new Error(data?.error || tr("تعذر نسخ الحساب إلى الأصناف"))
       toast.current?.show({
         severity: "success",
-        summary: "تم النسخ",
-        detail: `تم تحديث الحساب في ${Number(data.updated_count || 0)} صنف`,
+        summary: tr("تم النسخ"),
+        detail: tr("تم تحديث الحساب في {0} صنف", Number(data.updated_count || 0)),
         life: 3500,
       })
       setCopyAccountField(null)
     } catch (error) {
       toast.current?.show({
         severity: "error",
-        summary: "خطأ",
-        detail: error instanceof Error ? error.message : "تعذر نسخ الحساب إلى الأصناف",
+        summary: tr("خطأ"),
+        detail: error instanceof Error ? error.message : tr("تعذر نسخ الحساب إلى الأصناف"),
         life: 3500,
       })
     } finally {
@@ -1771,8 +1772,8 @@ export function CompactProductForm({
     if (!isValid && !isPrimaryUnit) {
       toast.current?.show({
         severity: "error",
-        summary: "خطأ",
-        detail: "العلاقة بالوحدة الرئيسية يجب أن تكون رقماً بين 0.000001 و100000",
+        summary: tr("خطأ"),
+        detail: tr("العلاقة بالوحدة الرئيسية يجب أن تكون رقماً بين 0.000001 و100000"),
         life: 3000,
       });
     }
@@ -1796,9 +1797,9 @@ export function CompactProductForm({
           header: "##", name: "ser", width: 50
         },
         { header: "id", name: "id", width: 150, visible: false },
-        { header: "رقم الوحدة", name: "unit_id", width: 150, visible: false },
+        { header: tr("رقم الوحدة"), name: "unit_id", width: 150, visible: false },
         {
-          header: "اسم الوحدة",
+          header: tr("اسم الوحدة"),
           name: "unit_name",
           width: "*",
           minWidth: 180,
@@ -1810,7 +1811,7 @@ export function CompactProductForm({
           width: 56,
           buttonBody: "button" as const,
           align: "center" as const,
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           isReadOnly: true,
           // ser (رقم تسلسلي مُخزَّن على الصف نفسه وقت البناء) لا ctx.row.index — هذه الشبكة
@@ -1822,17 +1823,17 @@ export function CompactProductForm({
           visible: true,
           visibleInColumnChooser: true,
         },
-        { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 150, dataType: "Number", visible: true },
+        { header: tr("العلاقة بالرئيسية"), name: "to_main_qnty", width: 150, dataType: "Number", visible: true },
         { header: UNIT_ROLE_LABELS.stock_count, name: UNIT_ROLE_COLUMNS.stock_count, width: 110, dataType: 3, align: "center" as const },
         { header: UNIT_ROLE_LABELS.purchase, name: UNIT_ROLE_COLUMNS.purchase, width: 110, dataType: 3, align: "center" as const },
         { header: UNIT_ROLE_LABELS.report, name: UNIT_ROLE_COLUMNS.report, width: 120, dataType: 3, align: "center" as const },
         {
-          header: "الباركود",
+          header: tr("الباركود"),
           name: "barcode",
           buttonBody: "button" as const,
           width: 100,
           iconType: "barcode",
-          title: "باركود",
+          title: tr("باركود"),
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
             setUnitCurrentRow(Math.max(0, Number(ctx.row.dataItem?.ser || 1) - 1));
@@ -1855,7 +1856,7 @@ export function CompactProductForm({
           width: 80,
           buttonBody: "button" as const,
           iconType: "delete",
-          title: "حذف",
+          title: tr("حذف"),
           onClick: (e: any, ctx: any) => handleDeleteUnit(Number(ctx.row.dataItem?.ser || 0) - 1)
         }
       ],
@@ -1869,9 +1870,9 @@ export function CompactProductForm({
       responsiveColumnIndex: 2,
       columns: [
         { header: "##", name: "ser", width: 50 },
-        { header: "رقم الفئة", name: "price_category_id", width: 150, visible: false },
+        { header: tr("رقم الفئة"), name: "price_category_id", width: 150, visible: false },
         {
-          header: "فئة السعر",
+          header: tr("فئة السعر"),
           name: "price_name",
           width: "*",
           minWidth: 180,
@@ -1883,7 +1884,7 @@ export function CompactProductForm({
           width: 56,
           buttonBody: "button" as const,
           align: "center" as const,
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
@@ -1894,9 +1895,9 @@ export function CompactProductForm({
           visible: true,
           visibleInColumnChooser: true,
         },
-        { header: "رقم الوحدة", name: "unit_id", width: 150, visible: false },
+        { header: tr("رقم الوحدة"), name: "unit_id", width: 150, visible: false },
         {
-          header: "اسم الوحدة",
+          header: tr("اسم الوحدة"),
           name: "unit_name",
           width: "*",
           minWidth: 150,
@@ -1908,7 +1909,7 @@ export function CompactProductForm({
           width: 56,
           buttonBody: "button" as const,
           align: "center" as const,
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
@@ -1919,10 +1920,10 @@ export function CompactProductForm({
           visible: true,
           visibleInColumnChooser: true,
         },
-        { header: "السعر شامل الضريبة", name: "price", width: 150 },
-        { header: "رقم العملة", name: "currency_id", width: 150, visible: false },
+        { header: tr("السعر شامل الضريبة"), name: "price", width: 150 },
+        { header: tr("رقم العملة"), name: "currency_id", width: 150, visible: false },
         {
-          header: "عملة البيع",
+          header: tr("عملة البيع"),
           name: "currency_name",
           width: 150,
           isReadOnly: true,
@@ -1933,7 +1934,7 @@ export function CompactProductForm({
           width: 56,
           buttonBody: "button" as const,
           align: "center" as const,
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
@@ -1950,7 +1951,7 @@ export function CompactProductForm({
           width: 80,
           buttonBody: "button" as const,
           iconType: "delete",
-          title: "حذف",
+          title: tr("حذف"),
           onClick: (e: any, ctx: any) => handleDeletePrice(Number(ctx.row.dataItem?.ser || 0) - 1)
         }
       ],
@@ -1961,10 +1962,10 @@ export function CompactProductForm({
     name: "warehouseInventory",
     responsiveColumnIndex: 0,
     columns: [
-      { header: "رقم الستودع", name: "store_id", width: 150, visible: false },
+      { header: tr("رقم الستودع"), name: "store_id", width: 150, visible: false },
       {
         name: "store_name",
-        header: "المستودع",
+        header: tr("المستودع"),
         width: "*",
         minWidth: 180,
         isReadOnly: true,
@@ -1975,7 +1976,7 @@ export function CompactProductForm({
         width: 56,
         buttonBody: "button" as const,
         align: "center" as const,
-        title: "بحث",
+        title: tr("بحث"),
         iconType: "search",
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
@@ -1985,17 +1986,17 @@ export function CompactProductForm({
         visible: true,
         visibleInColumnChooser: true,
       },
-      { name: "shelf", header: "الرف", width: 120 },
-      { name: "reorder_quantity", header: "كمية اعادة الطلب", width: 120 },
-      { name: "min_quantity", header: "حد أدنى", width: 120 },
-      { name: "max_quantity", header: "حد أقصى", width: 120 },
+      { name: "shelf", header: tr("الرف"), width: 120 },
+      { name: "reorder_quantity", header: tr("كمية اعادة الطلب"), width: 120 },
+      { name: "min_quantity", header: tr("حد أدنى"), width: 120 },
+      { name: "max_quantity", header: tr("حد أقصى"), width: 120 },
       {
         name: "actions",
         header: " ",
         buttonBody: "button" as const,
         iconType: "delete",
         className: "btn-delete",
-        title: "حذف",
+        title: tr("حذف"),
         width: 100,
         onClick: (e: any, ctx: any) => handleDeleteStore(Number(ctx.row.dataItem?.ser || 0) - 1)
       }
@@ -2007,23 +2008,23 @@ export function CompactProductForm({
     responsiveColumnIndex: 2,
     columns: [
       { header: "##", name: "ser", width: 55 },
-      { header: "رقم الصنف", name: "related_code", width: 180, isReadOnly: true },
-      { header: "اسم الصنف", name: "related_name", width: "*", minWidth: 220, isReadOnly: true },
-      { header: "اضافة السعر عند الاختيار", name: "add_price", width: 170, dataType: 3, align: "center" },
-      { header: "عدم الطباعة في فواتير المطبخ والمطعم", name: "no_kitchen_print", width: 240, dataType: 3, align: "center" },
+      { header: tr("رقم الصنف"), name: "related_code", width: 180, isReadOnly: true },
+      { header: tr("اسم الصنف"), name: "related_name", width: "*", minWidth: 220, isReadOnly: true },
+      { header: tr("اضافة السعر عند الاختيار"), name: "add_price", width: 170, dataType: 3, align: "center" },
+      { header: tr("عدم الطباعة في فواتير المطبخ والمطعم"), name: "no_kitchen_print", width: 240, dataType: 3, align: "center" },
       // ترويسة فارغة (مسافة) — النص الفارغ يجعل الشبكة تعرض اسم الحقل "delete"
-      { header: " ", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteRelatedProduct(Number(ctx.row.dataItem?.ser || 0) - 1) },
+      { header: " ", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: tr("حذف"), onClick: (_e: any, ctx: any) => deleteRelatedProduct(Number(ctx.row.dataItem?.ser || 0) - 1) },
     ],
   }), [])
 
   const addRelatedProduct = (product: any) => {
     const relatedId = Number(product?.id)
     if (!relatedId || relatedId === Number(formData.id)) {
-      toast.current?.show({ severity: "error", summary: "", detail: "لا يمكن إضافة الصنف نفسه ضمن الأصناف التابعة", life: 3000 })
+      toast.current?.show({ severity: "error", summary: "", detail: tr("لا يمكن إضافة الصنف نفسه ضمن الأصناف التابعة"), life: 3000 })
       return
     }
     if (relatedProducts.some((row) => Number(row.related_id) === relatedId)) {
-      toast.current?.show({ severity: "error", summary: "", detail: "الصنف التابع مضاف مسبقاً", life: 3000 })
+      toast.current?.show({ severity: "error", summary: "", detail: tr("الصنف التابع مضاف مسبقاً"), life: 3000 })
       return
     }
     setRelatedProductSearchOpen(false)
@@ -2052,7 +2053,7 @@ export function CompactProductForm({
 
   const saveRelatedProducts = async (productId: number) => {
     const response = await fetch(`/api/inventory/products/${productId}/related-items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ related_items: relatedProducts.map((row) => ({ related_id: row.related_id, add_price: row.add_price !== false, no_kitchen_print: row.no_kitchen_print === true })) }) })
-    if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ الأصناف التابعة") }
+    if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || tr("فشل حفظ الأصناف التابعة")) }
   }
   const calculateManufacturingComponentQuantity = (row: ManufacturingComponentItem) => {
     if (Number(row.measurment_id || 1) === 1) return Number(row.quantity || 0)
@@ -2084,14 +2085,14 @@ export function CompactProductForm({
     name: "ProductManufacturingComponentsScheme",
     columns: [
       { header: "##", name: "ser", width: 55 },
-      { header: "رقم الصنف", name: "component_code", width: 180, isReadOnly: true },
-      { header: "اسم الصنف", name: "component_name", width: "*", minWidth: 220, isReadOnly: true },
-      { header: "الطول", name: "length", width: 110, dataType: "Number", visible: hasMeasuredComponents },
-      { header: "العرض", name: "width", width: 110, dataType: "Number", visible: hasMeasuredComponents },
-      { header: "الارتفاع", name: "height", width: 110, dataType: "Number", visible: hasVolumeComponents },
-      { header: "العدد", name: "count", width: 110, dataType: "Number", visible: hasMeasuredComponents },
-      { header: "الكمية المطلوبة", name: "quantity", width: 150, isReadOnly: false },
-      { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
+      { header: tr("رقم الصنف"), name: "component_code", width: 180, isReadOnly: true },
+      { header: tr("اسم الصنف"), name: "component_name", width: "*", minWidth: 220, isReadOnly: true },
+      { header: tr("الطول"), name: "length", width: 110, dataType: "Number", visible: hasMeasuredComponents },
+      { header: tr("العرض"), name: "width", width: 110, dataType: "Number", visible: hasMeasuredComponents },
+      { header: tr("الارتفاع"), name: "height", width: 110, dataType: "Number", visible: hasVolumeComponents },
+      { header: tr("العدد"), name: "count", width: 110, dataType: "Number", visible: hasMeasuredComponents },
+      { header: tr("الكمية المطلوبة"), name: "quantity", width: 150, isReadOnly: false },
+      { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: tr("حذف"), onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
     ],
   }), [hasMeasuredComponents, hasVolumeComponents])
   const manufacturingComponentBeginningEdit = (grid: wjGrid.FlexGrid, event: wjGrid.CellRangeEventArgs) => {
@@ -2112,11 +2113,11 @@ export function CompactProductForm({
   const addManufacturingComponent = (product: any) => {
     const componentId = Number(product?.id)
     if (!componentId || componentId === Number(formData.id)) {
-      toast.current?.show({ severity: "error", summary: "", detail: "لا يمكن إضافة الصنف نفسه كمكون تصنيع", life: 3000 })
+      toast.current?.show({ severity: "error", summary: "", detail: tr("لا يمكن إضافة الصنف نفسه كمكون تصنيع"), life: 3000 })
       return
     }
     if (manufacturingComponents.some((row) => Number(row.component_id) === componentId)) {
-      toast.current?.show({ severity: "error", summary: "", detail: "مكون التصنيع مكرر", life: 3000 })
+      toast.current?.show({ severity: "error", summary: "", detail: tr("مكون التصنيع مكرر"), life: 3000 })
       return
     }
     // Manufacturing components reference the base product itself, not a temporary
@@ -2129,7 +2130,7 @@ export function CompactProductForm({
   const deleteManufacturingComponent = (index: number) => setManufacturingComponents((current) => current.filter((_row, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, ser: rowIndex + 1 })))
   const saveManufacturingComponents = async (productId: number) => {
     const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), length: row.length, width: row.width, height: row.height, count: row.count })) }) })
-    if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ مكونات التصنيع") }
+    if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || tr("فشل حفظ مكونات التصنيع")) }
   }
   const searchProductByCode = async (code: string) => {
     if (!canView) return
@@ -2151,8 +2152,8 @@ export function CompactProductForm({
           if (isService && !isProductServiceType) {
             toast.current?.show({
               severity: 'error',
-              summary: 'خطأ',
-              detail: 'الرقم المدخل رقم صنف لا يمكن عرض تفاصيله',
+              summary: tr("خطأ"),
+              detail: tr("الرقم المدخل رقم صنف لا يمكن عرض تفاصيله"),
               life: 2500,
             })
             restoreCode()
@@ -2161,8 +2162,8 @@ export function CompactProductForm({
           if (!isService && isProductServiceType) {
             toast.current?.show({
               severity: 'error',
-              summary: 'خطأ',
-              detail: 'الرقم المدخل رقم خدمة لا يمكن عرض التفاصيل',
+              summary: tr("خطأ"),
+              detail: tr("الرقم المدخل رقم خدمة لا يمكن عرض التفاصيل"),
               life: 2500,
             })
             restoreCode()
@@ -2220,8 +2221,8 @@ export function CompactProductForm({
       } else if (response.status === 403) {
         toast.current?.show({
           severity: 'error',
-          summary: 'خطأ',
-          detail: 'الصنف محذوف لا يمكن عرض بياناته',
+          summary: tr("خطأ"),
+          detail: tr("الصنف محذوف لا يمكن عرض بياناته"),
           life: 1500
         });
         reset_fields()
@@ -2242,7 +2243,7 @@ export function CompactProductForm({
     const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 10)
 
     if (cleanValue !== value) {
-      setProductCodeError("يُسمح بالأرقام والحروف الإنجليزية فقط (حد أقصى 10 خانات)")
+      setProductCodeError(tr("يُسمح بالأرقام والحروف الإنجليزية فقط (حد أقصى 10 خانات)"))
     } else {
       setProductCodeError("")
     }
@@ -2261,7 +2262,7 @@ export function CompactProductForm({
       const assignment = (assignedRows || []).find((row: any) => Number(row?.cost_center_type_id) === Number(type.id))
       const selectedId = assignment?.default_cost_center_id != null ? Number(assignment.default_cost_center_id) : null
       const requiredValue = Number(assignment?.required_in_transactions ?? 1)
-      const requiredLabel = costCenterStatusOptions.find((option) => option.value === requiredValue)?.label || "اختياري"
+      const requiredLabel = costCenterStatusOptions.find((option) => option.value === requiredValue)?.label || tr("اختياري")
       return {
         id: assignment?.id ?? 0,
         product_id: assignment?.product_id ?? 0,
@@ -2292,7 +2293,7 @@ export function CompactProductForm({
       const assignment = (assignedRows || []).find((row: any) => Number(row?.brand_type_id) === Number(type.id))
       const selectedId = assignment?.brand_id != null ? Number(assignment.brand_id) : null
       const requiredValue = Number(assignment?.required_in_transactions ?? 1)
-      const requiredLabel = costCenterStatusOptions.find((option) => option.value === requiredValue)?.label || "اختياري"
+      const requiredLabel = costCenterStatusOptions.find((option) => option.value === requiredValue)?.label || tr("اختياري")
       return {
         id: assignment?.id ?? 0,
         product_id: assignment?.product_id ?? 0,
@@ -2484,8 +2485,8 @@ export function CompactProductForm({
       if (failedRequests > 0) {
         toast.current?.show({
           severity: "warn",
-          summary: "اتصال غير مستقر",
-          detail: "تعذر تحميل بعض تعريفات الأصناف. يمكنك متابعة العمل أو إعادة المحاولة.",
+          summary: tr("اتصال غير مستقر"),
+          detail: tr("تعذر تحميل بعض تعريفات الأصناف. يمكنك متابعة العمل أو إعادة المحاولة."),
           life: 4000,
         })
       }
@@ -2507,9 +2508,9 @@ export function CompactProductForm({
   }
 
   const costCenterStatusOptions = [
-    { label: "اختياري", value: 1 },
-    { label: "إجباري", value: 2 },
-    { label: "ممنوع", value: 3 },
+    { label: tr("اختياري"), value: 1 },
+    { label: tr("إجباري"), value: 2 },
+    { label: tr("ممنوع"), value: 3 },
   ]
 
   // ترتيب ثابت بلا إعادة فرز حسب القيمة المُختارة حالياً — النسخة السابقة كانت تُعيد بناء المصفوفة
@@ -2517,7 +2518,7 @@ export function CompactProductForm({
   // الداخلية (فتح/تحديد) ويمنع فعلياً تغيير الخيار عند الضغط على عنصر آخر.
   const defaultStoreOptions = useMemo(
     () => [
-      { label: "بلا تحديد", value: null as number | null },
+      { label: tr("بلا تحديد"), value: null as number | null },
       ...(definitions.warehouses || []).map((warehouse: any) => ({
         label: warehouse.warehouse_name,
         value: Number(warehouse.id),
@@ -2529,9 +2530,9 @@ export function CompactProductForm({
   const costCenterScheme = useMemo(() => ({
     name: "ProductCostCenterScheme",
     columns: [
-      { header: "نوع مركز التكلفة", name: "cost_center_type_name", width: '*', minWidth: 100, isReadOnly: true },
+      { header: tr("نوع مركز التكلفة"), name: "cost_center_type_name", width: '*', minWidth: 100, isReadOnly: true },
       {
-        header: "الحالة",
+        header: tr("الحالة"),
         name: "required_label",
         width: 140,
         minWidth: 120,
@@ -2543,7 +2544,7 @@ export function CompactProductForm({
         width: 56,
         buttonBody: "button" as const,
         align: "center" as const,
-        title: "تغيير الحالة",
+        title: tr("تغيير الحالة"),
         iconType: "edit",
         className: "btn-status",
         isReadOnly: true,
@@ -2555,7 +2556,7 @@ export function CompactProductForm({
         visibleInColumnChooser: true,
       },
       {
-        header: "مركز التكلفة",
+        header: tr("مركز التكلفة"),
         name: "cost_center_name",
         width: 260,
         minWidth: 220,
@@ -2567,7 +2568,7 @@ export function CompactProductForm({
         width: 56,
         buttonBody: "button" as const,
         align: "center" as const,
-        title: "بحث",
+        title: tr("بحث"),
         iconType: "search",
         className: "btn-search",
         isReadOnly: true,
@@ -2587,7 +2588,7 @@ export function CompactProductForm({
         width: 56,
         buttonBody: "button" as const,
         align: "center" as const,
-        title: "حذف",
+        title: tr("حذف"),
         iconType: "delete",
         className: "btn-delete",
         isReadOnly: true,
@@ -2606,9 +2607,9 @@ export function CompactProductForm({
   const brandScheme = useMemo(() => ({
     name: "ProductBrandScheme",
     columns: [
-      { header: "نوع العلامة التجارية", name: "brand_type_name", width: '*', minWidth: 100, isReadOnly: true },
+      { header: tr("نوع العلامة التجارية"), name: "brand_type_name", width: '*', minWidth: 100, isReadOnly: true },
       {
-        header: "العلامة التجارية",
+        header: tr("العلامة التجارية"),
         name: "brand_name",
         width: 260,
         minWidth: 220,
@@ -2620,7 +2621,7 @@ export function CompactProductForm({
         width: 56,
         buttonBody: "button" as const,
         align: "center" as const,
-        title: "بحث",
+        title: tr("بحث"),
         iconType: "search",
         className: "btn-search",
         isReadOnly: true,
@@ -2640,7 +2641,7 @@ export function CompactProductForm({
         width: 56,
         buttonBody: "button" as const,
         align: "center" as const,
-        title: "حذف",
+        title: tr("حذف"),
         iconType: "delete",
         className: "btn-delete",
         isReadOnly: true,
@@ -2656,17 +2657,17 @@ export function CompactProductForm({
   }), [formData.product_brands])
 
   return (
-    <div className={`h-full ${isService ? "min-h-0 text-sm compact-service-form-root" : "min-h-[70vh] text-lg"} min-w-0 flex flex-col overflow-hidden compact-product-form-root`} dir="rtl">
+    <div className={`h-full ${isService ? "min-h-0 text-sm compact-service-form-root" : "min-h-[70vh] text-lg"} min-w-0 flex flex-col overflow-hidden compact-product-form-root`} dir={appDir()}>
       {/* Keep the toolbar flush with the dialog, matching the sales-delivery form. */}
-      <div className="relative flex flex-shrink-0 items-center" dir="rtl">
+      <div className="relative flex flex-shrink-0 items-center" dir={appDir()}>
         <button
           type="button"
           onClick={() => requestAfterUnsavedCheck(() => onHideDialog(true))}
-          aria-label="إغلاق"
-          className="absolute left-[14px] top-[10px] z-50 inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-300/60 bg-rose-50 text-rose-600 shadow-lg transition-colors hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2"
+          aria-label={tr("إغلاق")}
+          className="absolute end-[14px] top-[10px] z-50 inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-300/60 bg-rose-50 text-rose-600 shadow-lg transition-colors hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2"
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">إغلاق</span>
+          <span className="sr-only">{tr("إغلاق")}</span>
         </button>
         <UniversalToolbar
           fileFamily={isService ? "services" : "items"}
@@ -2693,21 +2694,21 @@ export function CompactProductForm({
           فوق نافذة صنف "modal" لا تسمح بالنقر/التركيز خارجها، فيتجمّد النظام حتى تحديث الصفحة */}
       <ConfirmDialogYesNo
         useAppDialog
-        title="حذف الصنف"
+        title={tr("حذف الصنف")}
         visible={showConfirm}
         onConfirm={confirmDelete}
         onCancel={() => { setShowConfirm(false); popupHasClosed() }}
-        message="هل تريد حذف هذا الصنف؟"
+        message={tr("هل تريد حذف هذا الصنف؟")}
       />
 
       <ConfirmDialogYesNo
         useAppDialog
         visible={copyAccountField !== null}
-        title="تأكيد نسخ الحساب"
+        title={tr("تأكيد نسخ الحساب")}
         message={copyAccountField && Number(formData[copyAccountField]) > 0
-          ? `سيتم نسخ ${PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب"} المحدد إلى جميع الأصناف التالية لهذا الصنف (غير المحذوفة). هل تريد المتابعة؟`
-          : `${PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب"} فارغ: سيتم تفريغه في جميع الأصناف التالية لهذا الصنف (غير المحذوفة). هل تريد المتابعة؟`}
-        confirmLabel="نسخ إلى جميع الأصناف"
+          ? tr("سيتم نسخ {0} المحدد إلى جميع الأصناف التالية لهذا الصنف (غير المحذوفة). هل تريد المتابعة؟", PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب")
+          : tr("{0} فارغ: سيتم تفريغه في جميع الأصناف التالية لهذا الصنف (غير المحذوفة). هل تريد المتابعة؟", PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب")}
+        confirmLabel={tr("نسخ إلى جميع الأصناف")}
         busy={copyAccountBusy}
         onConfirm={() => void copySelectedAccountToAllItems()}
         onCancel={() => setCopyAccountField(null)}
@@ -2715,7 +2716,7 @@ export function CompactProductForm({
 
       <ConfirmDialogYesNo
         useAppDialog
-        title="تغييرات غير محفوظة"
+        title={tr("تغييرات غير محفوظة")}
         onDismiss={() => { setShowUnsaved(false); setNextFunction(null); popupHasClosed(); }}
         visible={showUnsaved}
         onConfirm={async () => {
@@ -2734,7 +2735,7 @@ export function CompactProductForm({
 
           }
         }}
-        message="تم تعديل السجل هل تريد الحفظ؟"
+        message={tr("تم تعديل السجل هل تريد الحفظ؟")}
         onBack={() => { setShowUnsaved(false); setNextFunction(null); popupHasClosed(); }}
         showBack={true}
       />
@@ -2748,14 +2749,14 @@ export function CompactProductForm({
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
                 <Package className="h-7 w-7 text-primary" />
-                {isService ? (editingProduct ? "تعديل خدمة" : "خدمة جديدة") : (editingProduct ? "تعديل صنف" : "صنف جديد")}
+                {isService ? (editingProduct ? tr("تعديل خدمة") : tr("خدمة جديدة")) : (editingProduct ? tr("تعديل صنف") : tr("صنف جديد"))}
               </h1>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-6"}>
             <div className={isService ? "mb-1" : "mb-4"}>
-              <h2 className={isService ? "text-sm font-semibold text-foreground" : "text-lg font-semibold text-foreground sm:text-xl"}>المعلومات الأساسية والتعريف</h2>
+              <h2 className={isService ? "text-sm font-semibold text-foreground" : "text-lg font-semibold text-foreground sm:text-xl"}>{tr("المعلومات الأساسية والتعريف")}</h2>
             </div>
             <Card>
               <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-4 p-4 sm:p-6"}>
@@ -2786,8 +2787,8 @@ export function CompactProductForm({
                           priceCategoryId={1}
                           productTypes={isService ? [2] : [1]}
                           onRequestSearch={(openSearch) => { if (canView) requestAfterUnsavedCheck(openSearch) }}
-                          codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
-                          searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
+                          codeLabel={isService ? tr("رقم الخدمة *") : tr("رقم الصنف *")}
+                          searchTitle={isService ? tr("بحث الخدمات") : tr("بحث الأصناف")}
                         />
                       </div>
                     </div>
@@ -2795,7 +2796,7 @@ export function CompactProductForm({
                     <div className={`grid grid-cols-1 md:grid-cols-2 ${isService ? "gap-2" : "gap-4"}`}>
                       <div>
                         <Label htmlFor="product_name" className="text-sm font-medium">
-                          {isService ? "اسم الخدمة *" : "اسم الصنف *"}
+                          {isService ? tr("اسم الخدمة *") : tr("اسم الصنف *")}
                         </Label>
                         <Input
                           ref={product_name}
@@ -2808,21 +2809,21 @@ export function CompactProductForm({
                             if (arabicName && !String(formData.product_name_en || "").trim()) updateFormData("product_name_en", arabicName)
                           }}
                           className="text-right"
-                          placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
+                          placeholder={isService ? tr("اسم الخدمة باللغة العربية") : tr("اسم الصنف باللغة العربية")}
                           required
                         />
                       </div>
 
                       <div>
                         <Label htmlFor="product_name_en" className="text-sm font-medium">
-                          {isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
+                          {isService ? tr("اسم الخدمة بالإنجليزية") : tr("اسم الصنف بالإنجليزية")}
                         </Label>
                         <Input
                           id="product_name_en"
                           value={formData.product_name_en}
                           onChange={(e) => updateFormData("product_name_en", e.target.value)}
                           className="text-left"
-                          placeholder={isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
+                          placeholder={isService ? tr("اسم الخدمة بالإنجليزية") : tr("اسم الصنف بالإنجليزية")}
                         />
                       </div>
                     </div>
@@ -2831,7 +2832,7 @@ export function CompactProductForm({
                   <ImageUploadField
                     value={formData.product_image}
                     onChange={(value) => updateFormData("product_image", value)}
-                    label={isService ? "صورة الخدمة" : "صورة الصنف"}
+                    label={isService ? tr("صورة الخدمة") : tr("صورة الصنف")}
                     size={isService ? 88 : 160}
                   />
                 </div>
@@ -2842,14 +2843,14 @@ export function CompactProductForm({
                     <>
                       <div>
                         <Label htmlFor="category" className="text-sm font-medium">
-                          التصنيف
+                          {tr("التصنيف")}
                         </Label>
                         <div className={sharedDropdownStyles.dropDownWrapper}>
                           <PrimeDropdown
                             inputId="category_id"
                             value={formData.category_id ? Number(formData.category_id) : null}
                             options={[
-                              { label: "بلا", value: null },
+                              { label: tr("بلا"), value: null },
                               ...(definitions.product_category || []).map((category) => ({
                                 label: category.name,
                                 value: Number(category.id),
@@ -2857,7 +2858,7 @@ export function CompactProductForm({
                             ]}
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="اختر التصنيف"
+                            placeholder={tr("اختر التصنيف")}
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
                             appendTo={() => document.body}
@@ -2868,14 +2869,14 @@ export function CompactProductForm({
 
                       <div>
                         <Label htmlFor="category" className="text-sm font-medium">
-                          مجموعة الصنف
+                          {tr("مجموعة الصنف")}
                         </Label>
                         <div className={sharedDropdownStyles.dropDownWrapper}>
                           <PrimeDropdown
                             inputId="main_stock_id"
                             value={formData.main_stock_id ? Number(formData.main_stock_id) : null}
                             options={[
-                              { label: "بلا", value: null },
+                              { label: tr("بلا"), value: null },
                               ...(definitions.categories || []).map((category) => ({
                                 label: category.group_name,
                                 value: Number(category.id),
@@ -2883,7 +2884,7 @@ export function CompactProductForm({
                             ]}
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="اختر المجموعة"
+                            placeholder={tr("اختر المجموعة")}
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
                             appendTo={() => document.body}
@@ -2894,7 +2895,7 @@ export function CompactProductForm({
 
                       <div>
                         <Label htmlFor="product_type" className="text-sm font-medium">
-                          نوع الصنف
+                          {tr("نوع الصنف")}
                         </Label>
                         <div className={sharedDropdownStyles.dropDownWrapper}>
                           <PrimeDropdown
@@ -2903,7 +2904,7 @@ export function CompactProductForm({
                             options={PRODUCT_TYPE_OPTIONS}
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="اختر نوع الصنف"
+                            placeholder={tr("اختر نوع الصنف")}
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
                             appendTo={() => document.body}
@@ -2913,19 +2914,19 @@ export function CompactProductForm({
                       </div>
                       <div>
                         <Label htmlFor="tax_classification" className="text-sm font-medium">
-                          التصنيف الضريبي
+                          {tr("التصنيف الضريبي")}
                         </Label>
                         <div className={sharedDropdownStyles.dropDownWrapper}>
                           <PrimeDropdown
                             inputId="tax_classification"
                             value={formData.tax_classification_id || null}
                             options={[
-                              { label: "بلا", value: null },
+                              { label: tr("بلا"), value: null },
                               ...(definitions.tax_classifications || []).map((t: any) => ({ label: t.name, value: Number(t.id) })),
                             ]}
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="اختر التصنيف الضريبي"
+                            placeholder={tr("اختر التصنيف الضريبي")}
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
                             appendTo={() => document.body}
@@ -2939,7 +2940,7 @@ export function CompactProductForm({
 
                   {isService && (
                     <div className="sm:col-span-2">
-                      <Label className="text-sm font-medium">نوع الخدمة</Label>
+                      <Label className="text-sm font-medium">{tr("نوع الخدمة")}</Label>
                       <div className="mt-1 flex flex-wrap items-center gap-3">
                         <label className="flex items-center gap-2 text-sm">
                           <input
@@ -2949,7 +2950,7 @@ export function CompactProductForm({
                             checked={formData.service_type === 1}
                             onChange={() => updateFormData("service_type", 1)}
                           />
-                          خدمة مقدمة
+                          {tr("خدمة مقدمة")}
                         </label>
                         <label className="flex items-center gap-2 text-sm">
                           <input
@@ -2959,7 +2960,7 @@ export function CompactProductForm({
                             checked={formData.service_type === 0}
                             onChange={() => updateFormData("service_type", 0)}
                           />
-                          خدمة متلقاة
+                          {tr("خدمة متلقاة")}
                         </label>
                       </div>
                     </div>
@@ -2969,24 +2970,24 @@ export function CompactProductForm({
               </CardContent>
             </Card>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir="rtl" className="min-w-0">
-              <TabsList className={`flex h-auto w-full min-w-0 flex-nowrap justify-start overflow-x-auto rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 shadow-md backdrop-blur-sm ${isService ? "gap-1 p-1" : "gap-2 p-2"}`} style={{ direction: "rtl" }}>
-                <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
-                <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
-                <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? 'الحسابات المحاسبية' : 'الحسابات'}</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} className="min-w-0">
+              <TabsList className={`flex h-auto w-full min-w-0 flex-nowrap justify-start overflow-x-auto rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 shadow-md backdrop-blur-sm ${isService ? "gap-1 p-1" : "gap-2 p-2"}`} style={{ direction: appDir() }}>
+                <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("الوحدات")}</TabsTrigger>
+                <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("اسعار البيع")}</TabsTrigger>
+                <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? tr("الحسابات المحاسبية") : tr("الحسابات")}</TabsTrigger>
                 {isService ? null : (
                   <>
-                    <TabsTrigger value="attributes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المتغيرات والخصائص</TabsTrigger>
-                    <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
-                    <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
-                    <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
-                    <TabsTrigger value="additional" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">معلومات إضافية</TabsTrigger>
-                    <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
-                    <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
-                    <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
-                    <TabsTrigger value="attachments" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المرفقات</TabsTrigger>
-                    <TabsTrigger value="related" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الأصناف التابعة</TabsTrigger>
-                    <TabsTrigger value="manufacturing-components" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مكونات التصنيع</TabsTrigger>
+                    <TabsTrigger value="attributes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("المتغيرات والخصائص")}</TabsTrigger>
+                    <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("العلامة التجارية")}</TabsTrigger>
+                    <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("القياسات")}</TabsTrigger>
+                    <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("سعر الشراء والضريبة")}</TabsTrigger>
+                    <TabsTrigger value="additional" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("معلومات إضافية")}</TabsTrigger>
+                    <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("تفاصيل المستودعات")}</TabsTrigger>
+                    <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("مراكز التكلفة")}</TabsTrigger>
+                    <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("ملاحظات")}</TabsTrigger>
+                    <TabsTrigger value="attachments" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("المرفقات")}</TabsTrigger>
+                    <TabsTrigger value="related" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("الأصناف التابعة")}</TabsTrigger>
+                    <TabsTrigger value="manufacturing-components" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("مكونات التصنيع")}</TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -2996,7 +2997,7 @@ export function CompactProductForm({
                   <CardHeader className="pb-2 flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <Package className="h-5 w-5 text-primary" />
-                      الوحدات
+                      {tr("الوحدات")}
                     </CardTitle>
                     {!isService && (
                       <button type="button"
@@ -3004,7 +3005,7 @@ export function CompactProductForm({
                         onClick={() => handleAddUnit()}
                       >
                         <Plus className="h-4 w-4" />
-                        إضافة
+                        {tr("إضافة")}
                       </button>
                     )}
                   </CardHeader>
@@ -3049,14 +3050,14 @@ export function CompactProductForm({
                   <CardHeader className="pb-2 flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <Package className="h-5 w-5 text-primary" />
-                      اسعار البيع
+                      {tr("اسعار البيع")}
                     </CardTitle>
                     <button type="button"
                       className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
                       onClick={() => handleAddPriceRow()}
                     >
                       <Plus className="h-4 w-4" />
-                      إضافة
+                      {tr("إضافة")}
                     </button>
                   </CardHeader>
                   <CardContent>
@@ -3084,7 +3085,7 @@ export function CompactProductForm({
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <Currency className="h-5 w-5 text-primary" />
-                      الحسابات
+                      {tr("الحسابات")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -3112,8 +3113,8 @@ export function CompactProductForm({
                               size="icon"
                               variant="outline"
                               className="mb-0.5 h-10 w-10 shrink-0"
-                              title="نسخ هذا الحساب إلى جميع الأصناف التالية"
-                              aria-label={`نسخ ${label} إلى جميع الأصناف التالية`}
+                              title={tr("نسخ هذا الحساب إلى جميع الأصناف التالية")}
+                              aria-label={tr("نسخ {0} إلى جميع الأصناف التالية", label)}
                               disabled={!canUpdate || !(Number(formData.id) > 0) || copyAccountBusy}
                               onClick={() => setCopyAccountField(field)}
                             >
@@ -3131,20 +3132,20 @@ export function CompactProductForm({
                 <>
                   <TabsContent value="attributes">
                     <Card>
-                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />المتغيرات والخصائص</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="ml-2 h-4 w-4" />إضافة متغير</Button></div></CardHeader>
+                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />{tr("المتغيرات والخصائص")}</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="ml-2 h-4 w-4" />{tr("إضافة متغير")}</Button></div></CardHeader>
                       <CardContent className="space-y-3">
-                        {!(formData.attributes || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, attributes: [{ name: "", values: [] }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-violet-400 hover:text-violet-700">+ إضافة أول متغير للصنف</button>}
+                        {!(formData.attributes || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, attributes: [{ name: "", values: [] }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-violet-400 hover:text-violet-700">{tr("+ إضافة أول متغير للصنف")}</button>}
                         {(formData.attributes || []).map((attribute, index) => {
                           const normalizedName = attribute.name.trim().toLocaleLowerCase()
                           const catalogEntry = attributeCatalog.find((item) => item.name.toLocaleLowerCase() === normalizedName)
                           const updateAttribute = (patch: Partial<ProductAttributeLine>) => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
                           return <div key={index} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 md:grid-cols-[minmax(180px,.7fr)_minmax(260px,1.3fr)_44px]">
-                            <div className="min-w-0"><Label>المتغير *</Label><div className="mt-1"><AttributeNameInput value={attribute.name} catalog={attributeCatalog} onChange={(name) => updateAttribute({ name })} onCreate={(name) => { updateAttribute({ name }); void createAttributeCatalogItem(name) }} /></div></div>
-                            <div className="min-w-0"><Label>الخصائص *</Label><div className="mt-1"><AttributeValueInput disabled={!catalogEntry} values={attribute.values} valueImages={attribute.value_images} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values, value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))) })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} onCreate={(value) => void createAttributeCatalogItem(attribute.name, value)} /></div></div>
+                            <div className="min-w-0"><Label>{tr("المتغير *")}</Label><div className="mt-1"><AttributeNameInput value={attribute.name} catalog={attributeCatalog} onChange={(name) => updateAttribute({ name })} onCreate={(name) => { updateAttribute({ name }); void createAttributeCatalogItem(name) }} /></div></div>
+                            <div className="min-w-0"><Label>{tr("الخصائص *")}</Label><div className="mt-1"><AttributeValueInput disabled={!catalogEntry} values={attribute.values} valueImages={attribute.value_images} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values, value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))) })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} onCreate={(value) => void createAttributeCatalogItem(attribute.name, value)} /></div></div>
                             <Button type="button" size="icon" variant="ghost" className="self-end text-red-600" onClick={() => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
                           </div>
                         })}
-                        <p className="text-xs text-muted-foreground">يبقى هذا صنفاً واحداً؛ تُختار خصائص المتغير المطلوبة عند إضافته إلى أي حركة.</p>
+                        <p className="text-xs text-muted-foreground">{tr("يبقى هذا صنفاً واحداً؛ تُختار خصائص المتغير المطلوبة عند إضافته إلى أي حركة.")}</p>
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -3153,7 +3154,7 @@ export function CompactProductForm({
                       <CardHeader className="pb-4">
                         <CardTitle className="flex items-center gap-2 text-lg">
                           <Settings className="h-5 w-5 text-primary" />
-                          العلامة التجارية
+                          {tr("العلامة التجارية")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-6">
@@ -3178,14 +3179,14 @@ export function CompactProductForm({
                       <CardHeader className="pb-4">
                         <CardTitle className="flex items-center gap-2 text-lg">
                           <Package className="h-5 w-5 text-primary" />
-                          القياسات
+                          {tr("القياسات")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
                           <div>
                             <Label htmlFor="measurment_id" className="text-sm font-medium">
-                              نوع القياس
+                              {tr("نوع القياس")}
                             </Label>
                             <div className={sharedDropdownStyles.dropDownWrapper}>
                               <PrimeDropdown
@@ -3194,7 +3195,7 @@ export function CompactProductForm({
                                 options={definitions.measurment_types}
                                 optionLabel="name"
                                 optionValue="id"
-                                placeholder="اختر نوع القياس"
+                                placeholder={tr("اختر نوع القياس")}
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
                                 appendTo={() => document.body}
@@ -3206,7 +3207,7 @@ export function CompactProductForm({
                                   ) {
                                     toast.current?.show({
                                       severity: "error",
-                                      summary: "خطأ",
+                                      summary: tr("خطأ"),
                                       detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
                                       life: 3000,
                                     })
@@ -3219,7 +3220,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="length" className="text-sm font-medium">
-                              الطول
+                              {tr("الطول")}
                             </Label>
                             <Input
                               id="length"
@@ -3232,7 +3233,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="width" className="text-sm font-medium">
-                              العرض
+                              {tr("العرض")}
                             </Label>
                             <Input
                               id="width"
@@ -3245,7 +3246,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="height" className="text-sm font-medium">
-                              الارتفاع
+                              {tr("الارتفاع")}
                             </Label>
                             <Input
                               id="height"
@@ -3257,7 +3258,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="density" className="text-sm font-medium">
-                              الكثافة
+                              {tr("الكثافة")}
                             </Label>
                             <Input
                               id="density"
@@ -3269,14 +3270,14 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="color" className="text-sm font-medium">
-                              اللون
+                              {tr("اللون")}
                             </Label>
                             <Input
                               id="color"
                               value={formData.color}
                               onChange={(e) => updateFormData("color", e.target.value)}
                               className="text-right"
-                              placeholder="لون الصنف"
+                              placeholder={tr("لون الصنف")}
                             />
                           </div>
                         </div>
@@ -3289,14 +3290,14 @@ export function CompactProductForm({
                       <CardHeader className="pb-4">
                         <CardTitle className="flex items-center gap-2 text-lg">
                           <DollarSign className="h-5 w-5 text-primary" />
-                          سعر الشراء والضريبة
+                          {tr("سعر الشراء والضريبة")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
                           <div>
                             <Label htmlFor="last_purchase_price" className="text-sm font-medium">
-                              آخر سعر شراء
+                              {tr("آخر سعر شراء")}
                             </Label>
                             <Input
                               id="last_purchase_price"
@@ -3310,11 +3311,11 @@ export function CompactProductForm({
                           </div>
                           {/* تُحدَّث تلقائياً من فاتورة/إرسالية المشتريات (lib/last-purchase.ts) */}
                           <div>
-                            <Label htmlFor="last_purchase_date" className="text-sm font-medium">تاريخ آخر شراء</Label>
+                            <Label htmlFor="last_purchase_date" className="text-sm font-medium">{tr("تاريخ آخر شراء")}</Label>
                             <Input id="last_purchase_date" value={String((formData as any).last_purchase_date || "").slice(0, 10)} className="text-right" disabled readOnly />
                           </div>
                           <div>
-                            <Label htmlFor="last_purchase_currency" className="text-sm font-medium">عملة آخر شراء</Label>
+                            <Label htmlFor="last_purchase_currency" className="text-sm font-medium">{tr("عملة آخر شراء")}</Label>
                             <Input
                               id="last_purchase_currency"
                               value={(() => {
@@ -3330,7 +3331,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="minimum_order_quantity" className="text-sm font-medium">
-                              أقل كمية للطلب
+                              {tr("أقل كمية للطلب")}
                             </Label>
                             <Input
                               id="minimum_order_quantity"
@@ -3344,7 +3345,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="currency_id" className="text-sm font-medium">
-                              عملة الشراء
+                              {tr("عملة الشراء")}
                             </Label>
                             <div className={sharedDropdownStyles.dropDownWrapper}>
                               <PrimeDropdown
@@ -3356,7 +3357,7 @@ export function CompactProductForm({
                                 }))}
                                 optionLabel="label"
                                 optionValue="value"
-                                placeholder="اختر العملة"
+                                placeholder={tr("اختر العملة")}
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
                                 appendTo={() => document.body}
@@ -3366,7 +3367,7 @@ export function CompactProductForm({
                           </div>
                           <div>
                             <Label htmlFor="tax_rate" className="text-sm font-medium">
-                              نسبة الضريبة (%)
+                              {tr("نسبة الضريبة (%)")}
                             </Label>
                             <Input
                               id="tax_rate"
@@ -3388,60 +3389,60 @@ export function CompactProductForm({
                       <CardHeader className="pb-4">
                         <CardTitle className="flex items-center gap-2 text-lg">
                           <Warehouse className="h-5 w-5 text-primary" />
-                          معلومات إضافية
+                          {tr("معلومات إضافية")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <div>
                             <Label className="text-sm font-medium">
-                              الرقم الأصلي
+                              {tr("الرقم الأصلي")}
                             </Label>
                             <Button
                               type="button"
                               variant="outline"
-                              className="w-full justify-between text-right"
+                              className="w-full justify-between text-start"
                               onClick={() => setOriginalNumbersDialogOpen(true)}
                             >
                               <span>
                                 {formData.original_numbers.length > 0
-                                  ? `${formData.original_numbers.length} رقم`
-                                  : "اضافة"}
+                                  ? tr("{0} رقم", formData.original_numbers.length)
+                                  : tr("اضافة")}
                               </span>
                             </Button>
                           </div>
                           <div>
                             <Label className="text-sm font-medium">
-                              رقم المصنع
+                              {tr("رقم المصنع")}
                             </Label>
                             <Button
                               type="button"
                               variant="outline"
-                              className="w-full justify-between text-right"
+                              className="w-full justify-between text-start"
                               onClick={() => setFactoryNumbersDialogOpen(true)}
                             >
                               <span>
                                 {formData.factory_numbers.length > 0
-                                  ? `${formData.factory_numbers.length} رقم`
-                                  : "اضافة"}
+                                  ? tr("{0} رقم", formData.factory_numbers.length)
+                                  : tr("اضافة")}
                               </span>
                             </Button>
                           </div>
                           <div>
                             <Label htmlFor="measurment_unit" className="text-sm font-medium">
-                              وحدة عد كميات الصنف <span className="text-red-500">*</span>
+                              {tr("وحدة عد كميات الصنف ")}<span className="text-red-500">*</span>
                             </Label>
                             <div className={sharedDropdownStyles.dropDownWrapper}>
                               <PrimeDropdown
                                 inputId="measurment_unit"
                                 value={formData?.measurment_unit != null ? Number(formData.measurment_unit) : 1}
                                 options={[
-                                  { label: "عشري", value: 1 },
-                                  { label: "عدد صحيح", value: 2 },
+                                  { label: tr("عشري"), value: 1 },
+                                  { label: tr("عدد صحيح"), value: 2 },
                                 ]}
                                 optionLabel="label"
                                 optionValue="value"
-                                placeholder="عشري"
+                                placeholder={tr("عشري")}
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
                                 appendTo={() => document.body}
@@ -3453,17 +3454,17 @@ export function CompactProductForm({
                         <Separator className="my-4" />
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           {!isService && <div className="space-y-2 sm:col-span-3">
-                            <div className="flex items-center gap-2"><Checkbox id="pos_sold_using_scale" checked={Boolean(formData.pos_sold_using_scale)} onCheckedChange={checked => updateFormData("pos_sold_using_scale", checked === true)} /><Label htmlFor="pos_sold_using_scale">يباع بالميزان الالكتروني</Label></div>
-                            {formData.pos_sold_using_scale && <p className="text-xs text-muted-foreground">باركود الصنف 7 أرقام مثل 2000001. الأرقام الستة التالية في باركود الميزان تمثل الكمية مقسومة على 1000.</p>}
+                            <div className="flex items-center gap-2"><Checkbox id="pos_sold_using_scale" checked={Boolean(formData.pos_sold_using_scale)} onCheckedChange={checked => updateFormData("pos_sold_using_scale", checked === true)} /><Label htmlFor="pos_sold_using_scale">{tr("يباع بالميزان الالكتروني")}</Label></div>
+                            {formData.pos_sold_using_scale && <p className="text-xs text-muted-foreground">{tr("باركود الصنف 7 أرقام مثل 2000001. الأرقام الستة التالية في باركود الميزان تمثل الكمية مقسومة على 1000.")}</p>}
                           </div>}
                           {!isService && <div className="space-y-2 sm:col-span-3">
-                            <Label htmlFor="default_printer">الطابعة الافتراضية</Label>
-                            <Input id="default_printer" dir="ltr" maxLength={150} className="max-w-md" value={formData.default_printer || ""} onChange={(e) => updateFormData("default_printer", e.target.value)} placeholder="اسم الطابعة في Windows" />
-                            <p className="text-xs text-muted-foreground">مع تفعيل "طباعة على المخزون الرئيسي" في الكاشير والمطعم: تُطبع ورقة الصنف على هذه الطابعة، وإن تُركت فارغة فعلى طابعة مجموعة الصنف.</p>
+                            <Label htmlFor="default_printer">{tr("الطابعة الافتراضية")}</Label>
+                            <Input id="default_printer" dir="ltr" maxLength={150} className="max-w-md" value={formData.default_printer || ""} onChange={(e) => updateFormData("default_printer", e.target.value)} placeholder={tr("اسم الطابعة في Windows")} />
+                            <p className="text-xs text-muted-foreground">{tr("مع تفعيل \"طباعة على المخزون الرئيسي\" في الكاشير والمطعم: تُطبع ورقة الصنف على هذه الطابعة، وإن تُركت فارغة فعلى طابعة مجموعة الصنف.")}</p>
                           </div>}
                           {!isService && <div className="space-y-2 sm:col-span-3">
-                            <div className="flex items-center gap-2"><Checkbox id="is_tobacco" checked={Boolean(formData.is_tobacco)} onCheckedChange={checked => updateFormData("is_tobacco", checked === true)} /><Label htmlFor="is_tobacco">دخان</Label></div>
-                            {formData.is_tobacco && <p className="text-xs text-muted-foreground">يدخل في "عهدة الدخان" بالكاشير: يستلم الكاشير كميته عند فتح العهدة ويسلّم المتبقي عند تسليمها.</p>}
+                            <div className="flex items-center gap-2"><Checkbox id="is_tobacco" checked={Boolean(formData.is_tobacco)} onCheckedChange={checked => updateFormData("is_tobacco", checked === true)} /><Label htmlFor="is_tobacco">{tr("دخان")}</Label></div>
+                            {formData.is_tobacco && <p className="text-xs text-muted-foreground">{tr("يدخل في \"عهدة الدخان\" بالكاشير: يستلم الكاشير كميته عند فتح العهدة ويسلّم المتبقي عند تسليمها.")}</p>}
                           </div>}
                           <div className="flex items-center gap-2">
                             <Checkbox
@@ -3474,7 +3475,7 @@ export function CompactProductForm({
                                 if (isUsedInVouchers) {
                                   toast.current?.show({
                                     severity: "error",
-                                    summary: "خطأ",
+                                    summary: tr("خطأ"),
                                     detail: VOUCHER_USAGE_TRACKING_LOCK_MSG,
                                     life: 3000,
                                   })
@@ -3484,7 +3485,7 @@ export function CompactProductForm({
                                 if (isChecked && Number(formData.measurment_id || 1) !== 1) {
                                   toast.current?.show({
                                     severity: "error",
-                                    summary: "خطأ",
+                                    summary: tr("خطأ"),
                                     detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
                                     life: 3000,
                                   })
@@ -3497,7 +3498,7 @@ export function CompactProductForm({
                               htmlFor="expiry_tracking"
                               className={`text-sm font-medium ${isUsedInVouchers ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
                             >
-                              له تاريخ صلاحية
+                              {tr("له تاريخ صلاحية")}
                             </Label>
                           </div>
                           <div className="flex items-center gap-2">
@@ -3509,7 +3510,7 @@ export function CompactProductForm({
                                 if (isUsedInVouchers) {
                                   toast.current?.show({
                                     severity: "error",
-                                    summary: "خطأ",
+                                    summary: tr("خطأ"),
                                     detail: VOUCHER_USAGE_TRACKING_LOCK_MSG,
                                     life: 3000,
                                   })
@@ -3519,7 +3520,7 @@ export function CompactProductForm({
                                 if (isChecked && Number(formData.measurment_id || 1) !== 1) {
                                   toast.current?.show({
                                     severity: "error",
-                                    summary: "خطأ",
+                                    summary: tr("خطأ"),
                                     detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
                                     life: 3000,
                                   })
@@ -3532,7 +3533,7 @@ export function CompactProductForm({
                               htmlFor="serial_tracking"
                               className={`text-sm font-medium ${isUsedInVouchers ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
                             >
-                              له رقم متسلسل
+                              {tr("له رقم متسلسل")}
                             </Label>
                           </div>
                           <div className="flex items-center gap-2">
@@ -3544,7 +3545,7 @@ export function CompactProductForm({
                                 if (isUsedInVouchers) {
                                   toast.current?.show({
                                     severity: "error",
-                                    summary: "خطأ",
+                                    summary: tr("خطأ"),
                                     detail: VOUCHER_USAGE_TRACKING_LOCK_MSG,
                                     life: 3000,
                                   })
@@ -3554,7 +3555,7 @@ export function CompactProductForm({
                                 if (isChecked && Number(formData.measurment_id || 1) !== 1) {
                                   toast.current?.show({
                                     severity: "error",
-                                    summary: "خطأ",
+                                    summary: tr("خطأ"),
                                     detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
                                     life: 3000,
                                   })
@@ -3574,7 +3575,7 @@ export function CompactProductForm({
                               htmlFor="batch_tracking"
                               className={`text-sm font-medium ${isUsedInVouchers ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
                             >
-                              له رقم تشغيلي
+                              {tr("له رقم تشغيلي")}
                             </Label>
                           </div>
                         </div>
@@ -3587,21 +3588,21 @@ export function CompactProductForm({
                       <CardHeader className="pb-2 flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2 text-lg">
                           <Warehouse className="h-5 w-5 text-primary" />
-                          تفاصيل المستودعات
+                          {tr("تفاصيل المستودعات")}
                         </CardTitle>
                         <button type="button"
                           className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
                           onClick={() => handleAddStoreRow()}
                         >
                           <Plus className="h-4 w-4" />
-                          إضافة
+                          {tr("إضافة")}
                         </button>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                           <div>
                             <Label htmlFor="default_store" className="text-sm font-medium">
-                              المستودع الافتراضي في الحركات
+                              {tr("المستودع الافتراضي في الحركات")}
                             </Label>
                             <div className={sharedDropdownStyles.dropDownWrapper}>
                               <PrimeDropdown
@@ -3612,7 +3613,7 @@ export function CompactProductForm({
                                 options={defaultStoreOptions}
                                 optionLabel="label"
                                 optionValue="value"
-                                placeholder="اختر المستودع"
+                                placeholder={tr("اختر المستودع")}
                                 filter={true}
                                 filterInputAutoFocus={true}
                                 onChange={(e) => updateFormData("default_store", e.value ?? 0)}
@@ -3641,7 +3642,7 @@ export function CompactProductForm({
                       <CardHeader className="pb-4">
                         <CardTitle className="flex items-center gap-2 text-lg">
                           <Settings className="h-5 w-5 text-primary" />
-                          مراكز التكلفة
+                          {tr("مراكز التكلفة")}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -3665,12 +3666,12 @@ export function CompactProductForm({
                   <TabsContent value="notes">
                     <Card>
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-lg">ملاحظات وتفاصيل إضافية</CardTitle>
+                        <CardTitle className="text-lg">{tr("ملاحظات وتفاصيل إضافية")}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div>
                           <Label htmlFor="notes" className="text-sm font-medium">
-                            ملاحظات
+                            {tr("ملاحظات")}
                           </Label>
                           <Textarea
                             id="notes"
@@ -3678,10 +3679,10 @@ export function CompactProductForm({
                             onChange={(e) => updateFormData("notes", e.target.value)}
                             className="text-right"
                             rows={3}
-                            placeholder="أي ملاحظات أو تفاصيل إضافية حول الصنف"
+                            placeholder={tr("أي ملاحظات أو تفاصيل إضافية حول الصنف")}
                           />
                           <Label htmlFor="transaction_notes" className="mt-4 block text-sm font-medium">
-                            ملاحظات تظهر في الحركات
+                            {tr("ملاحظات تظهر في الحركات")}
                           </Label>
                           <Textarea
                             id="transaction_notes"
@@ -3690,9 +3691,9 @@ export function CompactProductForm({
                             onChange={(e) => updateFormData("transaction_notes", e.target.value.slice(0, 100))}
                             className="text-right"
                             rows={3}
-                            placeholder="ملاحظة تظهر عند اختيار الصنف في الحركات"
+                            placeholder={tr("ملاحظة تظهر عند اختيار الصنف في الحركات")}
                           />
-                          <div className="mt-1 text-left text-xs text-muted-foreground">
+                          <div className="mt-1 text-end text-xs text-muted-foreground">
                             {(formData.transaction_notes ?? "").length}/100
                           </div>
                         </div>
@@ -3703,7 +3704,7 @@ export function CompactProductForm({
                   <TabsContent value="attachments">
                     <Card>
                       <CardHeader className="pb-4">
-                        <CardTitle className="text-lg">المرفقات</CardTitle>
+                        <CardTitle className="text-lg">{tr("المرفقات")}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <AttachmentManager modelName="product" recordId={formData.id > 0 ? formData.id : null} />
@@ -3712,14 +3713,14 @@ export function CompactProductForm({
                   </TabsContent>
                   {!isService && <TabsContent value="related">
                     <Card>
-                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">الأصناف التابعة</CardTitle><Button type="button" onClick={() => setRelatedProductSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div></CardHeader>
-                      <CardContent><div className="mb-4 max-w-xl"><Label>إضافة الأصناف التابعة</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>عدم المعالجة</option><option value={2}>إضافة الأصناف التابعة فقط</option><option value={3}>إضافة الصنف والاصناف التابعة</option><option value={4}>اختيار يدوي من الاصناف التابعة</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة أصناف تابعة.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} cellEditEnded={onRelatedCellEditEnded} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">F7: حذف الصف المحدد</p></CardContent>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("الأصناف التابعة")}</CardTitle><Button type="button" onClick={() => setRelatedProductSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />{tr("إضافة صنف")}</Button></div></CardHeader>
+                      <CardContent><div className="mb-4 max-w-xl"><Label>{tr("إضافة الأصناف التابعة")}</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>{tr("عدم المعالجة")}</option><option value={2}>{tr("إضافة الأصناف التابعة فقط")}</option><option value={3}>{tr("إضافة الصنف والاصناف التابعة")}</option><option value={4}>{tr("اختيار يدوي من الاصناف التابعة")}</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة أصناف تابعة.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} cellEditEnded={onRelatedCellEditEnded} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("F7: حذف الصف المحدد")}</p></CardContent>
                     </Card>
                   </TabsContent>}
                   {!isService && <TabsContent value="manufacturing-components">
                     <Card>
-                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">مكونات التصنيع</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />إضافة مكون</Button></div></CardHeader>
-                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة مكونات التصنيع.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.</p></CardContent>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("مكونات التصنيع")}</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />{tr("إضافة مكون")}</Button></div></CardHeader>
+                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة مكونات التصنيع.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.")}</p></CardContent>
                     </Card>
                   </TabsContent>}
                 </>
@@ -3735,7 +3736,7 @@ export function CompactProductForm({
       <ProductNumbers
         open={originalNumbersDialogOpen}
         onOpenChange={setOriginalNumbersDialogOpen}
-        title="الرقم الأصلي"
+        title={tr("الرقم الأصلي")}
         numbers={formData.original_numbers}
         onUpdateNumbers={(newNumbers) => updateFormData("original_numbers", newNumbers)}
         numberType={1}
@@ -3753,14 +3754,14 @@ export function CompactProductForm({
         productTypes={[1]}
       />
       <Dialog open={Boolean(relatedOptionsDraft)} onOpenChange={(open) => { if (!open) setRelatedOptionsDraft(null) }}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader><DialogTitle>خيارات الصنف التابع</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-md" dir={appDir()}>
+          <DialogHeader><DialogTitle>{tr("خيارات الصنف التابع")}</DialogTitle></DialogHeader>
           {relatedOptionsDraft && <div className="space-y-4">
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm"><span className="font-mono">{relatedOptionsDraft.related_code}</span> — {relatedOptionsDraft.related_name}</div>
-            <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={relatedOptionsDraft.add_price !== false} onCheckedChange={(checked) => setRelatedOptionsDraft((draft) => draft && { ...draft, add_price: checked === true })} />اضافة السعر عند الاختيار</label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={relatedOptionsDraft.no_kitchen_print === true} onCheckedChange={(checked) => setRelatedOptionsDraft((draft) => draft && { ...draft, no_kitchen_print: checked === true })} />عدم الطباعة في فواتير المطبخ والمطعم</label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={relatedOptionsDraft.add_price !== false} onCheckedChange={(checked) => setRelatedOptionsDraft((draft) => draft && { ...draft, add_price: checked === true })} />{tr("اضافة السعر عند الاختيار")}</label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={relatedOptionsDraft.no_kitchen_print === true} onCheckedChange={(checked) => setRelatedOptionsDraft((draft) => draft && { ...draft, no_kitchen_print: checked === true })} />{tr("عدم الطباعة في فواتير المطبخ والمطعم")}</label>
           </div>}
-          <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => setRelatedOptionsDraft(null)}>إلغاء</Button><Button type="button" onClick={confirmRelatedOptions}>موافق</Button></DialogFooter>
+          <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => setRelatedOptionsDraft(null)}>{tr("إلغاء")}</Button><Button type="button" onClick={confirmRelatedOptions}>{tr("موافق")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       <ProductSearchPopup
@@ -3772,12 +3773,12 @@ export function CompactProductForm({
         searchText=""
         productTypes={[1]}
         selectBaseProduct
-        title="اختيار مكون تصنيع"
+        title={tr("اختيار مكون تصنيع")}
       />
       <ProductNumbers
         open={factoryNumbersDialogOpen}
         onOpenChange={setFactoryNumbersDialogOpen}
-        title="رقم المصنع"
+        title={tr("رقم المصنع")}
         numbers={formData.factory_numbers}
         onUpdateNumbers={(newNumbers) => updateFormData("factory_numbers", newNumbers)}
         numberType={2}
@@ -3811,7 +3812,7 @@ export function CompactProductForm({
       <SimpleListPicker
         open={unitPickerOpen}
         onOpenChange={setUnitPickerOpen}
-        title="اختر الوحدة"
+        title={tr("اختر الوحدة")}
         items={(definitions.units || []).map((u: any): SimpleListPickerItem => ({ id: u.id, label: u.unit_name }))}
         onSelect={(item) => {
           if (unitPickerRow == null) return
@@ -3822,7 +3823,7 @@ export function CompactProductForm({
       <SimpleListPicker
         open={pricesPickerOpen}
         onOpenChange={setPricesPickerOpen}
-        title={pricesPickerField === "category" ? "اختر فئة السعر" : pricesPickerField === "unit" ? "اختر الوحدة" : "اختر العملة"}
+        title={pricesPickerField === "category" ? tr("اختر فئة السعر") : pricesPickerField === "unit" ? tr("اختر الوحدة") : tr("اختر العملة")}
         items={
           pricesPickerField === "category"
             ? (definitions.price_category || []).map((c: any): SimpleListPickerItem => ({ id: c.id, label: c.name }))
@@ -3845,7 +3846,7 @@ export function CompactProductForm({
       <SimpleListPicker
         open={storePickerOpen}
         onOpenChange={setStorePickerOpen}
-        title="اختر المستودع"
+        title={tr("اختر المستودع")}
         items={(definitions.warehouses || []).map((w: any): SimpleListPickerItem => ({ id: w.id, label: w.warehouse_name }))}
         onSelect={(item) => {
           if (storePickerRow == null) return
@@ -3856,7 +3857,7 @@ export function CompactProductForm({
       <SimpleListPicker
         open={statusPickerOpen}
         onOpenChange={setStatusPickerOpen}
-        title="حالة مركز التكلفة"
+        title={tr("حالة مركز التكلفة")}
         items={costCenterStatusOptions.map((option): SimpleListPickerItem => ({ id: option.value, label: option.label }))}
         onSelect={(item) => {
           if (statusPickerRow == null) return

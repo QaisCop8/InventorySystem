@@ -1,0 +1,300 @@
+Base currency and tax rate settings
+Financial period and fiscal year settings
+Invoice settings
+Financial and accounting system settings (preparation for the future financial system)
+Invoice and financial document numbering settings
+Cost center settings for financial analysis (advanced feature)
+Create an invoice number automatically when creating a new invoice
+Base currency
+Currency and tax
+Invoice number prefix
+Enable working with multiple currencies (future feature)
+Enable cost centers
+Enable the cost center system for advanced financial analysis
+Financial settings saved successfully
+Generate the invoice number automatically
+Multi-currency support
+US Dollar (USD)
+Saudi Riyal (SAR)
+Fiscal year start month
+Failed to load the financial settings
+Failed to save the financial settings
+Euro (EUR)
+{0} - not saved
+Amiri (Arabic)
+Arabic Transparent (Arabic)
+Cairo (Arabic)
+Inter (English)
+Simplified Arabic (Arabic)
+Tajawal (Arabic)
+Traditional Arabic (Arabic)
+Dark gradient colors and a lively look
+Data table settings
+Choose the style of the unified toolbar in the system screens
+Choose the right font for the system
+Line height
+Row height (px)
+Table header height (px)
+Letter spacing
+Control the font size and the spacing between letters and lines
+Customize the table header, rows and selected row in all system screens
+Unable to save the font settings
+The user's font settings were saved
+Font size in pixels
+Font size and spacing
+System font
+Thin
+Extra thin
+A white surface and clear buttons with soft edges
+Bold
+Extra bold
+Black
+See how text will look with the current settings
+Ribbon bar: top navigation and icon buttons above the text
+A floating bar with light round icon buttons
+Font family
+Main title
+Toolbar templates
+Selected row background color
+Table header background color
+Font preview
+Selected row preview
+Table header preview
+Thin text
+Bold text
+Normal text
+Table header font type
+This is sample text to preview the selected font. You can see how text will look in the system with the current settings. Arabic text needs suitable fonts to ensure clarity and easy reading.
+10 copies - recommended
+15 copies
+25 (not secure)
+30 copies
+5 copies
+587 (TLS) - recommended
+Enter the WhatsApp API token
+Manage the basic system settings
+Send invoices and reports by email
+Send the backup report by email
+Send order and invoice alerts
+Email settings
+Backup settings
+WhatsApp settings
+Create a backup now
+Sender email
+Test settings
+Choose the frequency
+Choose the number
+Choose the port
+Sender name
+Jordan
+Regional settings
+General settings
+UAE
+Communications
+Bahrain
+Algeria
+Country
+Selected country:
+Saudi Arabia
+Sudan
+Iraq
+Default currency
+Currency:
+Kuwait
+Default label
+Current label
+Morocco
+Yemen
+Unlimited
+Customize labels
+Customize system labels
+Change folder
+Changing the labels affects all parts of the system. Make sure to choose labels that are clear and understood by the team.
+Enable sending emails
+Enable sending messages via WhatsApp
+Enable automatic backup
+Backup frequency
+Tunisia
+Save email settings
+Save backup settings
+Save WhatsApp settings
+Save regional settings
+Save labels
+Save company information
+Protect data with regular backups
+SMTP server
+WhatsApp number for sending
+International dialling code
+Dialling code:
+Syria
+Compress backups
+Number of copies kept
+Dear {اسم_العميل}, please find attached your invoice no. {رقم_الفاتورة}. Best regards from the team.
+Oman
+Company address
+Failed to load the settings
+Palestine
+Qatar
+Customize the system labels to suit your business needs
+Every 12 hours
+Every 6 hours - recommended
+Email password
+Lebanon
+Libya
+Example: +970599123456
+Example: smtp.gmail.com
+Backup folder
+Hello {اسم_العميل}, your order no. {رقم_الطلبية} was created successfully. Total amount: {المبلغ}
+Egypt
+Settings preview
+Important note
+Invoice email template
+Order message template
+Backup time
+Add job role
+Add a new job role
+Job role name *
+Job roles (
+Edit job role
+Job role added
+Job role updated
+Job role deleted
+Delete job role
+Save job role
+Failed to load job roles
+Failed to delete the job role
+Failed to save the job role
+No job roles yet
+Example: sales supervisor
+Are you sure you want to delete this job role?
+Please enter the job role name
+. You can add now.
+(yearly)
+Enter a contact phone number
+Send a card to the sales team — we'll contact you to complete the subscription and it's added as soon as it's approved
+Send a card to sales
+Send a request for approval
+Pay online to add it immediately, or send a request to system administration
+Additional required
+Licensed
+licensed by
+Phone *
+is already awaiting approval.
+Unable to send the request
+The card was sent to the sales team. We'll contact you soon, and you can add as soon as it's approved.
+The request was sent. You'll be able to add as soon as system administration approves it.
+Paid and increased the number of
+Increase the number of
+Request reason (optional)
+Price
+Increase request
+Increase request +
+Number of
+Example: opening a new {0}
+The request is sent to system administration for approval or rejection
+There is a request awaiting approval — online payment adds the number immediately without waiting for it.
+There is an increase request
+, and the system's own shortcuts (save F3, print Ctrl+P, copy and paste...).
+) can be assigned, and the browser's action for them is cancelled inside the system. Except what Chrome itself performs, which no website can stop:
+), or an unused F key (like
+{0} — try another shortcut
+Esc cancels the assignment, Backspace deletes the shortcut. If the shortcut is used by another page it moves to the new page.
+or
+Search by page name, section or shortcut...
+shortcuts)
+Page shortcuts
+Browser shortcuts (like
+Link any page to a keyboard shortcut to open it directly from anywhere in the system. Shortcuts are personal to you.
+Press «Assign» then press the shortcut you want. It must start with
+Press the shortcut... (Esc to cancel)
+Pages (
+Assigned only
+No shortcut
+Unable to save the shortcuts
+Assign
+Delete shortcut
+Delete all your shortcuts?
+No matching pages
+with a letter or digit (like
+1. Choose the user
+2. Choose the branch where the permissions apply
+Choose the source branch
+Choose the source user
+Choose the source user and branch. The target's current permissions will be replaced with a copy of the source's effective permissions.
+Choose a user
+Restore inherited
+Source branch
+Source user
+The target whose permissions will be replaced
+Search for a user...
+Unable to load users or branches
+Unable to load the user's permissions
+Unable to open permissions
+Unable to read the source permissions
+Unable to copy the permissions to the target
+Permissions saved
+Permissions copied successfully
+The inherited permissions were restored
+Note: this isn't the user's main branch (
+Copying...
+Loading the permissions screen...
+Save permissions
+Customize each user's access within a specific branch, with their role's permissions as the base.
+The permissions appear after choosing the user
+Not linked to a branch
+Load failed
+Copying the permissions failed
+No branches are defined. Add a branch from the branches screen first.
+Copy permissions to the current user
+Copy permissions
+Copy and save
+Edit/delete
+(by voucher type)
+Sent to the default printer
+Page numbers
+Table columns
+Landscape
+Custom settings
+Voucher print settings
+Page orientation
+Leave empty to use the default printer in the print service or in Windows
+Use the general settings
+Printer name
+Original, copy
+Footer
+Header and footer
+Header, footer and paper for all reports
+Design
+Font
+Tax number of the voucher's customer/supplier (from the customer card)
+Length (mm)
+Width (mm)
+Customer, warehouse, currency…
+Address, phone, tax number
+Entries and notes
+Main color
+Amount in words
+Always the browser
+Totals
+Consignee, phone, region, address, P.O. Box, car, driver — in the header of sales invoices and deliveries
+Template
+Margins (mm)
+Paper and printer
+Voucher number barcode
+Search for a voucher type…
+Simple
+Company data
+Voucher header data
+Make sure the print service is running
+Print date
+Line numbering
+Applied to every voucher without custom settings
+Unable to load the print settings
+Reset failed
+Print service failed: {0}
+Automatic: the print service then the browser
+{0} settings saved
+General settings saved
+Reset done
+There are unsaved changes, do you want to save them?
+Paper size

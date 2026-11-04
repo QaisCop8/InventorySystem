@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/lib/i18n"
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import DataGrid from "@/components/common/DataGrid";
@@ -104,9 +105,9 @@ export function WarehouseInventoryTable({ productId, onDataChange, readOnly = fa
   };
 
   const getStatusBadge = (status: string, quantity: number, minLevel: number) => {
-    if (quantity === 0) return <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded">نفد المخزون</span>;
-    if (quantity <= minLevel) return <span className="bg-orange-100 text-orange-800 px-2 py-0.5 rounded">تحت الحد الأدنى</span>;
-    return <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">متوفر</span>;
+    if (quantity === 0) return <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded">{tr("نفد المخزون")}</span>;
+    if (quantity <= minLevel) return <span className="bg-orange-100 text-orange-800 px-2 py-0.5 rounded">{tr("تحت الحد الأدنى")}</span>;
+    return <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">{tr("متوفر")}</span>;
   };
   const cellEditEnded = (s: any, e: any) => {
     const editedItem = s.rows[e.row].dataItem; // the row that changed
@@ -122,7 +123,7 @@ export function WarehouseInventoryTable({ productId, onDataChange, readOnly = fa
     columns: [
       {
         name: "warehouse_id",
-        header: "المستودع",
+        header: tr("المستودع"),
         width: '*',
         editor: (cell: any) => (
           <select
@@ -130,21 +131,21 @@ export function WarehouseInventoryTable({ productId, onDataChange, readOnly = fa
             onChange={(e) => updateRow(cell.row.index, "warehouse_id", e.target.value)}
             className="w-full"
           >
-            <option value={0}>اختر المستودع</option>
+            <option value={0}>{tr("اختر المستودع")}</option>
             {warehouses.map((w) => (
               <option key={w.id} value={w.id}>{w.name}</option>
             ))}
           </select>
         )
       },
-      { name: "floor", header: "الطابق", width: 120 },
-      { name: "area", header: "المنطقة", width: 120 },
-      { name: "shelf", header: "الرف", width: 120 },
-      { name: "quantity", header: "الكمية", width: 120, isReadOnly: true },
-      { name: "reserved_quantity", header: "محجوز", width: 120, isReadOnly: true },
-      { name: "available_quantity", header: "متاح", width: 120, isReadOnly: true },
-      { name: "min_stock_level", header: "حد أدنى", width: 120 },
-      { name: "max_stock_level", header: "حد أقصى", width: 120 },
+      { name: "floor", header: tr("الطابق"), width: 120 },
+      { name: "area", header: tr("المنطقة"), width: 120 },
+      { name: "shelf", header: tr("الرف"), width: 120 },
+      { name: "quantity", header: tr("الكمية"), width: 120, isReadOnly: true },
+      { name: "reserved_quantity", header: tr("محجوز"), width: 120, isReadOnly: true },
+      { name: "available_quantity", header: tr("متاح"), width: 120, isReadOnly: true },
+      { name: "min_stock_level", header: tr("حد أدنى"), width: 120 },
+      { name: "max_stock_level", header: tr("حد أقصى"), width: 120 },
       {
         name: "actions",
         header: " ",
@@ -161,9 +162,9 @@ export function WarehouseInventoryTable({ productId, onDataChange, readOnly = fa
       {/* Header row */}
       <div className="col-12 flex justify-between align-items-center mb-3">
         {/* Right: title */}
-        <h3 className="m-0 flex items-center gap-2 text-right">
+        <h3 className="m-0 flex items-center gap-2 text-start">
           <Warehouse className="w-5 h-5" />
-          <span>تفاصيل المخزون في المستودعات</span>
+          <span>{tr("تفاصيل المخزون في المستودعات")}</span>
         </h3>
 
         {/* Left: button */}
@@ -172,7 +173,7 @@ export function WarehouseInventoryTable({ productId, onDataChange, readOnly = fa
           onClick={addNewRow}
         >
           <Plus className="h-4 w-4" />
-          إضافة
+          {tr("إضافة")}
         </button>
       </div>
 

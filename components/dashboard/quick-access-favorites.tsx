@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -55,16 +56,16 @@ const iconMap: Record<string, any> = {
 }
 
 const availableScreens = [
-  { name: "sales-orders", title: "طلبيات المبيعات", icon: "ShoppingCart", color: "bg-blue-500", type: "screen" },
-  { name: "purchase-orders", title: "طلبيات المشتريات", icon: "Truck", color: "bg-green-500", type: "screen" },
-  { name: "products", title: "الأصناف", icon: "Package", color: "bg-purple-500", type: "screen" },
-  { name: "customers", title: "العملاء", icon: "Users", color: "bg-cyan-500", type: "screen" },
-  { name: "suppliers", title: "الموردين", icon: "Truck", color: "bg-teal-500", type: "screen" },
-  { name: "order-reports", title: "تقارير الطلبيات", icon: "BarChart3", color: "bg-orange-500", type: "report" },
-  { name: "product-reports", title: "تقارير الأصناف", icon: "FileText", color: "bg-pink-500", type: "report" },
+  { name: "sales-orders", title: tr("طلبيات المبيعات"), icon: "ShoppingCart", color: "bg-blue-500", type: "screen" },
+  { name: "purchase-orders", title: tr("طلبيات المشتريات"), icon: "Truck", color: "bg-green-500", type: "screen" },
+  { name: "products", title: tr("الأصناف"), icon: "Package", color: "bg-purple-500", type: "screen" },
+  { name: "customers", title: tr("العملاء"), icon: "Users", color: "bg-cyan-500", type: "screen" },
+  { name: "suppliers", title: tr("الموردين"), icon: "Truck", color: "bg-teal-500", type: "screen" },
+  { name: "order-reports", title: tr("تقارير الطلبيات"), icon: "BarChart3", color: "bg-orange-500", type: "report" },
+  { name: "product-reports", title: tr("تقارير الأصناف"), icon: "FileText", color: "bg-pink-500", type: "report" },
   {
     name: "inventory-analytics",
-    title: "تحليلات المخزون",
+    title: tr("تحليلات المخزون"),
     icon: "TrendingUp",
     color: "bg-indigo-500",
     type: "screen",
@@ -121,8 +122,8 @@ export function QuickAccessFavorites() {
   const handleAddFavorite = async () => {
     if (!selectedScreen) {
       toast({
-        title: "خطأ",
-        description: "الرجاء اختيار شاشة أو تقرير",
+        title: tr("خطأ"),
+        description: tr("الرجاء اختيار شاشة أو تقرير"),
         variant: "destructive",
       })
       return
@@ -131,8 +132,8 @@ export function QuickAccessFavorites() {
     if (!user?.id) {
       console.log("[v0] No user ID available")
       toast({
-        title: "خطأ",
-        description: "لم يتم العثور على معلومات المستخدم",
+        title: tr("خطأ"),
+        description: tr("لم يتم العثور على معلومات المستخدم"),
         variant: "destructive",
       })
       return
@@ -166,8 +167,8 @@ export function QuickAccessFavorites() {
         const result = await response.json()
         console.log("[v0] Add favorite result:", result)
         toast({
-          title: "تم الإضافة",
-          description: `تم إضافة ${screen.title} إلى المفضلة`,
+          title: tr("تم الإضافة"),
+          description: tr("تم إضافة {0} إلى المفضلة", screen.title),
         })
         fetchFavorites()
         setIsAddDialogOpen(false)
@@ -176,16 +177,16 @@ export function QuickAccessFavorites() {
         const error = await response.json()
         console.error("[v0] Failed to add favorite:", error)
         toast({
-          title: "خطأ",
-          description: error.error || "فشل في إضافة المفضلة",
+          title: tr("خطأ"),
+          description: error.error || tr("فشل في إضافة المفضلة"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("[v0] Error adding favorite:", error)
       toast({
-        title: "خطأ",
-        description: "فشل في إضافة المفضلة",
+        title: tr("خطأ"),
+        description: tr("فشل في إضافة المفضلة"),
         variant: "destructive",
       })
     }
@@ -207,24 +208,24 @@ export function QuickAccessFavorites() {
 
       if (response.ok) {
         toast({
-          title: "تم الحذف",
-          description: "تم حذف الاختصار من المفضلة",
+          title: tr("تم الحذف"),
+          description: tr("تم حذف الاختصار من المفضلة"),
         })
         fetchFavorites()
       } else {
         const error = await response.json()
         console.error("[v0] Failed to remove favorite:", error)
         toast({
-          title: "خطأ",
-          description: error.error || "فشل في حذف المفضلة",
+          title: tr("خطأ"),
+          description: error.error || tr("فشل في حذف المفضلة"),
           variant: "destructive",
         })
       }
     } catch (error) {
       console.error("[v0] Error removing favorite:", error)
       toast({
-        title: "خطأ",
-        description: "فشل في حذف المفضلة",
+        title: tr("خطأ"),
+        description: tr("فشل في حذف المفضلة"),
         variant: "destructive",
       })
     }
@@ -232,14 +233,14 @@ export function QuickAccessFavorites() {
 
   const handleOpenFavorite = (favorite: Favorite) => {
     const sectionTitles: Record<string, string> = {
-      "sales-orders": "طلبيات المبيعات",
-      "purchase-orders": "طلبيات المشتريات",
-      products: "الأصناف",
-      customers: "العملاء",
-      suppliers: "الموردين",
-      "order-reports": "تقارير الطلبيات",
-      "product-reports": "تقارير الأصناف",
-      "inventory-analytics": "تحليلات المخزون",
+      "sales-orders": tr("طلبيات المبيعات"),
+      "purchase-orders": tr("طلبيات المشتريات"),
+      products: tr("الأصناف"),
+      customers: tr("العملاء"),
+      suppliers: tr("الموردين"),
+      "order-reports": tr("تقارير الطلبيات"),
+      "product-reports": tr("تقارير الأصناف"),
+      "inventory-analytics": tr("تحليلات المخزون"),
     }
 
     openWindow({
@@ -255,11 +256,11 @@ export function QuickAccessFavorites() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Star className="h-5 w-5 text-yellow-500" />
-            الاختصارات السريعة
+            {tr("الاختصارات السريعة")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-muted-foreground py-8">جاري التحميل...</div>
+          <div className="text-center text-muted-foreground py-8">{tr("جاري التحميل...")}</div>
         </CardContent>
       </Card>
     )
@@ -270,27 +271,27 @@ export function QuickAccessFavorites() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Star className="h-5 w-5 text-yellow-500" />
-          الاختصارات السريعة
+          {tr("الاختصارات السريعة")}
         </CardTitle>
         <CardAction>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline">
                 <Plus className="h-4 w-4" />
-                <span className="mr-2">إضافة</span>
+                <span className="mr-2">{tr("إضافة")}</span>
               </Button>
             </DialogTrigger>
-            <DialogContent dir="rtl">
+            <DialogContent dir={appDir()}>
               <DialogHeader>
-                <DialogTitle>إضافة اختصار جديد</DialogTitle>
-                <DialogDescription>اختر الشاشة أو التقرير الذي تريد إضافته إلى المفضلة</DialogDescription>
+                <DialogTitle>{tr("إضافة اختصار جديد")}</DialogTitle>
+                <DialogDescription>{tr("اختر الشاشة أو التقرير الذي تريد إضافته إلى المفضلة")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="screen-select">الشاشة أو التقرير</Label>
+                  <Label htmlFor="screen-select">{tr("الشاشة أو التقرير")}</Label>
                   <Select value={selectedScreen} onValueChange={setSelectedScreen}>
                     <SelectTrigger id="screen-select">
-                      <SelectValue placeholder="اختر شاشة أو تقرير" />
+                      <SelectValue placeholder={tr("اختر شاشة أو تقرير")} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableScreens
@@ -299,7 +300,7 @@ export function QuickAccessFavorites() {
                           <SelectItem key={screen.name} value={screen.name}>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className={`${screen.color} text-white border-0`}>
-                                {screen.type === "screen" ? "شاشة" : "تقرير"}
+                                {screen.type === "screen" ? tr("شاشة") : tr("تقرير")}
                               </Badge>
                               <span>{screen.title}</span>
                             </div>
@@ -310,9 +311,9 @@ export function QuickAccessFavorites() {
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    إلغاء
+                    {tr("إلغاء")}
                   </Button>
-                  <Button onClick={handleAddFavorite}>إضافة</Button>
+                  <Button onClick={handleAddFavorite}>{tr("إضافة")}</Button>
                 </div>
               </div>
             </DialogContent>
@@ -323,8 +324,8 @@ export function QuickAccessFavorites() {
         {favorites.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <Star className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-            <p className="mb-2">لا توجد اختصارات مفضلة بعد</p>
-            <p className="text-sm">انقر على "إضافة" لإضافة اختصارات سريعة للشاشات والتقارير المفضلة لديك</p>
+            <p className="mb-2">{tr("لا توجد اختصارات مفضلة بعد")}</p>
+            <p className="text-sm">{tr("انقر على \"إضافة\" لإضافة اختصارات سريعة للشاشات والتقارير المفضلة لديك")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -345,14 +346,14 @@ export function QuickAccessFavorites() {
                       <Icon className="h-8 w-8" />
                       <span className="text-sm font-medium">{favorite.favorite_title}</span>
                       <Badge variant="secondary" className="text-xs bg-white/20 text-white border-0">
-                        {favorite.favorite_type === "screen" ? "شاشة" : "تقرير"}
+                        {favorite.favorite_type === "screen" ? tr("شاشة") : tr("تقرير")}
                       </Badge>
                     </div>
                   </div>
                   <Button
                     size="sm"
                     variant="destructive"
-                    className="absolute -top-2 -left-2 h-6 w-6 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-2 -end-2 h-6 w-6 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleRemoveFavorite(favorite.id)

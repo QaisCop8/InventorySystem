@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -61,9 +62,9 @@ export function AdvancedThemeCustomization() {
     try {
       setSaving(true)
       await saveSettings()
-      toast.success("تم حفظ إعدادات المظهر بنجاح!")
+      toast.success(tr("تم حفظ إعدادات المظهر بنجاح!"))
     } catch (error) {
-      toast.error("حدث خطأ في حفظ الإعدادات")
+      toast.error(tr("حدث خطأ في حفظ الإعدادات"))
     } finally {
       setSaving(false)
     }
@@ -89,7 +90,7 @@ export function AdvancedThemeCustomization() {
     link.href = url
     link.download = `theme-settings-${new Date().toISOString().split("T")[0]}.json`
     link.click()
-    toast.success("تم تصدير الإعدادات بنجاح!")
+    toast.success(tr("تم تصدير الإعدادات بنجاح!"))
   }
 
   const importSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,9 +101,9 @@ export function AdvancedThemeCustomization() {
         try {
           const imported = JSON.parse(e.target?.result as string)
           updateSettings(imported)
-          toast.success("تم استيراد الإعدادات بنجاح!")
+          toast.success(tr("تم استيراد الإعدادات بنجاح!"))
         } catch (error) {
-          toast.error("خطأ في استيراد الإعدادات")
+          toast.error(tr("خطأ في استيراد الإعدادات"))
         }
       }
       reader.readAsText(file)
@@ -114,7 +115,7 @@ export function AdvancedThemeCustomization() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>جاري تحميل إعدادات المظهر...</p>
+          <p>{tr("جاري تحميل إعدادات المظهر...")}</p>
         </div>
       </div>
     )
@@ -125,21 +126,21 @@ export function AdvancedThemeCustomization() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">تخصيص المظهر المتقدم</h2>
-          <p className="text-muted-foreground mt-1">تحكم كامل في مظهر النظام - الألوان، الخطوط، التخطيط، والمؤثرات</p>
+          <h2 className="text-3xl font-bold text-foreground">{tr("تخصيص المظهر المتقدم")}</h2>
+          <p className="text-muted-foreground mt-1">{tr("تحكم كامل في مظهر النظام - الألوان، الخطوط، التخطيط، والمؤثرات")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={resetToDefaults}>
-            <RotateCcw className="w-4 h-4 ml-2" />
-            إعادة تعيين
+            <RotateCcw className="w-4 h-4 me-2" />
+            {tr("إعادة تعيين")}
           </Button>
           <Button variant="outline" size="sm" onClick={exportSettings}>
-            <Download className="w-4 h-4 ml-2" />
-            تصدير
+            <Download className="w-4 h-4 me-2" />
+            {tr("تصدير")}
           </Button>
           <Button variant="outline" size="sm" onClick={() => document.getElementById("import-file")?.click()}>
-            <Upload className="w-4 h-4 ml-2" />
-            استيراد
+            <Upload className="w-4 h-4 me-2" />
+            {tr("استيراد")}
           </Button>
           <input id="import-file" type="file" accept=".json" onChange={importSettings} className="hidden" />
         </div>
@@ -153,16 +154,16 @@ export function AdvancedThemeCustomization() {
               <Eye className="w-5 h-5 text-primary" />
               <div>
                 <Label htmlFor="preview-mode" className="text-base font-medium">
-                  معاينة مباشرة للتغييرات
+                  {tr("معاينة مباشرة للتغييرات")}
                 </Label>
-                <p className="text-sm text-muted-foreground">مشاهدة التغييرات فوراً قبل الحفظ</p>
+                <p className="text-sm text-muted-foreground">{tr("مشاهدة التغييرات فوراً قبل الحفظ")}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               {previewMode && (
                 <Badge variant="secondary" className="bg-primary/10 text-primary">
-                  <Zap className="w-3 h-3 ml-1" />
-                  وضع المعاينة نشط
+                  <Zap className="w-3 h-3 me-1" />
+                  {tr("وضع المعاينة نشط")}
                 </Badge>
               )}
               <Switch checked={previewMode} onCheckedChange={setPreviewMode} id="preview-mode" />
@@ -176,23 +177,23 @@ export function AdvancedThemeCustomization() {
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="colors" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
-            الألوان
+            {tr("الألوان")}
           </TabsTrigger>
           <TabsTrigger value="typography" className="flex items-center gap-2">
             <Type className="w-4 h-4" />
-            الخطوط
+            {tr("الخطوط")}
           </TabsTrigger>
           <TabsTrigger value="layout" className="flex items-center gap-2">
             <Layout className="w-4 h-4" />
-            التخطيط
+            {tr("التخطيط")}
           </TabsTrigger>
           <TabsTrigger value="effects" className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
-            المؤثرات
+            {tr("المؤثرات")}
           </TabsTrigger>
           <TabsTrigger value="accessibility" className="flex items-center gap-2">
             <Contrast className="w-4 h-4" />
-            إمكانية الوصول
+            {tr("إمكانية الوصول")}
           </TabsTrigger>
         </TabsList>
 
@@ -202,9 +203,9 @@ export function AdvancedThemeCustomization() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Palette className="w-5 h-5" />
-                أنظمة الألوان المحددة مسبقاً
+                {tr("أنظمة الألوان المحددة مسبقاً")}
               </CardTitle>
-              <CardDescription>اختر نظام ألوان جاهز أو قم بتخصيص الألوان يدوياً</CardDescription>
+              <CardDescription>{tr("اختر نظام ألوان جاهز أو قم بتخصيص الألوان يدوياً")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -242,7 +243,7 @@ export function AdvancedThemeCustomization() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <Label htmlFor="primary-color" className="text-base font-medium">
-                    اللون الأساسي
+                    {tr("اللون الأساسي")}
                   </Label>
                   <div className="flex items-center gap-3 mt-2">
                     <input
@@ -263,7 +264,7 @@ export function AdvancedThemeCustomization() {
 
                 <div>
                   <Label htmlFor="secondary-color" className="text-base font-medium">
-                    اللون الثانوي
+                    {tr("اللون الثانوي")}
                   </Label>
                   <div className="flex items-center gap-3 mt-2">
                     <input
@@ -284,7 +285,7 @@ export function AdvancedThemeCustomization() {
 
                 <div>
                   <Label htmlFor="accent-color" className="text-base font-medium">
-                    اللون المساعد
+                    {tr("اللون المساعد")}
                   </Label>
                   <div className="flex items-center gap-3 mt-2">
                     <input
@@ -309,36 +310,36 @@ export function AdvancedThemeCustomization() {
           {/* Color Preview */}
           <Card>
             <CardHeader>
-              <CardTitle>معاينة الألوان</CardTitle>
+              <CardTitle>{tr("معاينة الألوان")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-3">
-                  <Button style={{ backgroundColor: settings.primary_color, color: "white" }}>زر أساسي</Button>
+                  <Button style={{ backgroundColor: settings.primary_color, color: "white" }}>{tr("زر أساسي")}</Button>
                   <Button
                     variant="outline"
                     style={{ borderColor: settings.accent_color, color: settings.accent_color }}
                   >
-                    زر ثانوي
+                    {tr("زر ثانوي")}
                   </Button>
                   <Button variant="secondary" style={{ backgroundColor: settings.secondary_color, color: "white" }}>
-                    زر مساعد
+                    {tr("زر مساعد")}
                   </Button>
                 </div>
                 <div className="p-6 rounded-lg border-2" style={{ borderColor: settings.primary_color }}>
                   <h4 className="font-bold text-lg mb-2" style={{ color: settings.primary_color }}>
-                    عنوان تجريبي
+                    {tr("عنوان تجريبي")}
                   </h4>
                   <p className="text-muted-foreground mb-3">
-                    هذا نص تجريبي لمعاينة الألوان المختارة في النظام. يمكنك رؤية كيف ستظهر الألوان في التطبيق الفعلي.
+                    {tr("هذا نص تجريبي لمعاينة الألوان المختارة في النظام. يمكنك رؤية كيف ستظهر الألوان في التطبيق الفعلي.")}
                   </p>
                   <div className="flex gap-2">
-                    <Badge style={{ backgroundColor: settings.accent_color, color: "white" }}>تسمية ملونة</Badge>
+                    <Badge style={{ backgroundColor: settings.accent_color, color: "white" }}>{tr("تسمية ملونة")}</Badge>
                     <Badge
                       variant="outline"
                       style={{ borderColor: settings.secondary_color, color: settings.secondary_color }}
                     >
-                      تسمية محددة
+                      {tr("تسمية محددة")}
                     </Badge>
                   </div>
                 </div>
@@ -353,15 +354,15 @@ export function AdvancedThemeCustomization() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Type className="w-5 h-5" />
-                إعدادات الخطوط
+                {tr("إعدادات الخطوط")}
               </CardTitle>
-              <CardDescription>تخصيص نوع وحجم ووزن الخطوط</CardDescription>
+              <CardDescription>{tr("تخصيص نوع وحجم ووزن الخطوط")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="font-family" className="text-base font-medium">
-                    نوع الخط
+                    {tr("نوع الخط")}
                   </Label>
                   <Select
                     value={settings.font_family}
@@ -382,7 +383,7 @@ export function AdvancedThemeCustomization() {
 
                 <div>
                   <Label htmlFor="font-weight" className="text-base font-medium">
-                    وزن الخط
+                    {tr("وزن الخط")}
                   </Label>
                   <Select
                     value={settings.font_weight.toString()}
@@ -392,11 +393,11 @@ export function AdvancedThemeCustomization() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="300">خفيف (300)</SelectItem>
-                      <SelectItem value="400">عادي (400)</SelectItem>
-                      <SelectItem value="500">متوسط (500)</SelectItem>
-                      <SelectItem value="600">سميك (600)</SelectItem>
-                      <SelectItem value="700">عريض (700)</SelectItem>
+                      <SelectItem value="300">{tr("خفيف (300)")}</SelectItem>
+                      <SelectItem value="400">{tr("عادي (400)")}</SelectItem>
+                      <SelectItem value="500">{tr("متوسط (500)")}</SelectItem>
+                      <SelectItem value="600">{tr("سميك (600)")}</SelectItem>
+                      <SelectItem value="700">{tr("عريض (700)")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -405,7 +406,7 @@ export function AdvancedThemeCustomization() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="font-size" className="text-base font-medium">
-                    حجم الخط: {settings.font_size}px
+                    {tr("حجم الخط: ")}{settings.font_size}px
                   </Label>
                   <Slider
                     value={[settings.font_size]}
@@ -419,7 +420,7 @@ export function AdvancedThemeCustomization() {
 
                 <div>
                   <Label htmlFor="line-height" className="text-base font-medium">
-                    ارتفاع السطر: {settings.line_height}
+                    {tr("ارتفاع السطر: ")}{settings.line_height}
                   </Label>
                   <Slider
                     value={[settings.line_height]}
@@ -434,7 +435,7 @@ export function AdvancedThemeCustomization() {
 
               <div>
                 <Label htmlFor="letter-spacing" className="text-base font-medium">
-                  تباعد الأحرف: {settings.letter_spacing}em
+                  {tr("تباعد الأحرف: ")}{settings.letter_spacing}em
                 </Label>
                 <Slider
                   value={[settings.letter_spacing]}
@@ -451,7 +452,7 @@ export function AdvancedThemeCustomization() {
           {/* Typography Preview */}
           <Card>
             <CardHeader>
-              <CardTitle>معاينة الخطوط</CardTitle>
+              <CardTitle>{tr("معاينة الخطوط")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div
@@ -464,14 +465,13 @@ export function AdvancedThemeCustomization() {
                   letterSpacing: `${settings.letter_spacing}em`,
                 }}
               >
-                <h1 className="text-3xl font-bold">عنوان رئيسي كبير</h1>
-                <h2 className="text-2xl font-semibold">عنوان رئيسي متوسط</h2>
-                <h3 className="text-xl font-medium">عنوان فرعي</h3>
+                <h1 className="text-3xl font-bold">{tr("عنوان رئيسي كبير")}</h1>
+                <h2 className="text-2xl font-semibold">{tr("عنوان رئيسي متوسط")}</h2>
+                <h3 className="text-xl font-medium">{tr("عنوان فرعي")}</h3>
                 <p className="text-base">
-                  هذا نص تجريبي لمعاينة الخط المختار. يمكنك رؤية كيف سيظهر النص في النظام بالخط والحجم والوزن المحددين.
-                  النص العربي يحتاج إلى خطوط مناسبة لضمان الوضوح والقراءة السهلة.
+                  {tr("هذا نص تجريبي لمعاينة الخط المختار. يمكنك رؤية كيف سيظهر النص في النظام بالخط والحجم والوزن المحددين. النص العربي يحتاج إلى خطوط مناسبة لضمان الوضوح والقراءة السهلة.")}
                 </p>
-                <p className="text-sm text-muted-foreground">نص صغير للتفاصيل والملاحظات والمعلومات الإضافية</p>
+                <p className="text-sm text-muted-foreground">{tr("نص صغير للتفاصيل والملاحظات والمعلومات الإضافية")}</p>
               </div>
             </CardContent>
           </Card>
@@ -483,15 +483,15 @@ export function AdvancedThemeCustomization() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Layout className="w-5 h-5" />
-                إعدادات التخطيط
+                {tr("إعدادات التخطيط")}
               </CardTitle>
-              <CardDescription>تخصيص أبعاد ومساحات عناصر الواجهة</CardDescription>
+              <CardDescription>{tr("تخصيص أبعاد ومساحات عناصر الواجهة")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="border-radius" className="text-base font-medium">
-                    استدارة الحواف: {settings.border_radius}px
+                    {tr("استدارة الحواف: ")}{settings.border_radius}px
                   </Label>
                   <Slider
                     value={[settings.border_radius]}
@@ -505,7 +505,7 @@ export function AdvancedThemeCustomization() {
 
                 <div>
                   <Label htmlFor="sidebar-width" className="text-base font-medium">
-                    عرض الشريط الجانبي: {settings.sidebar_width}px
+                    {tr("عرض الشريط الجانبي: ")}{settings.sidebar_width}px
                   </Label>
                   <Slider
                     value={[settings.sidebar_width]}
@@ -520,7 +520,7 @@ export function AdvancedThemeCustomization() {
 
               <div>
                 <Label htmlFor="header-height" className="text-base font-medium">
-                  ارتفاع الرأس: {settings.header_height}px
+                  {tr("ارتفاع الرأس: ")}{settings.header_height}px
                 </Label>
                 <Slider
                   value={[settings.header_height]}
@@ -534,7 +534,7 @@ export function AdvancedThemeCustomization() {
 
               <div>
                 <Label htmlFor="card-style" className="text-base font-medium">
-                  نمط البطاقات
+                  {tr("نمط البطاقات")}
                 </Label>
                 <Select
                   value={settings.card_style}
@@ -544,16 +544,16 @@ export function AdvancedThemeCustomization() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="flat">مسطح</SelectItem>
-                    <SelectItem value="elevated">مرتفع (بظلال)</SelectItem>
-                    <SelectItem value="outlined">محدد</SelectItem>
+                    <SelectItem value="flat">{tr("مسطح")}</SelectItem>
+                    <SelectItem value="elevated">{tr("مرتفع (بظلال)")}</SelectItem>
+                    <SelectItem value="outlined">{tr("محدد")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
                 <Label htmlFor="button-style" className="text-base font-medium">
-                  نمط الأزرار
+                  {tr("نمط الأزرار")}
                 </Label>
                 <Select
                   value={settings.button_style}
@@ -563,9 +563,9 @@ export function AdvancedThemeCustomization() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rounded">مستدير</SelectItem>
-                    <SelectItem value="square">مربع</SelectItem>
-                    <SelectItem value="pill">بيضاوي</SelectItem>
+                    <SelectItem value="rounded">{tr("مستدير")}</SelectItem>
+                    <SelectItem value="square">{tr("مربع")}</SelectItem>
+                    <SelectItem value="pill">{tr("بيضاوي")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -579,14 +579,14 @@ export function AdvancedThemeCustomization() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5" />
-                المؤثرات البصرية
+                {tr("المؤثرات البصرية")}
               </CardTitle>
-              <CardDescription>تخصيص الحركات والانتقالات والمؤثرات</CardDescription>
+              <CardDescription>{tr("تخصيص الحركات والانتقالات والمؤثرات")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
                 <Label htmlFor="animation-speed" className="text-base font-medium">
-                  سرعة الحركات
+                  {tr("سرعة الحركات")}
                 </Label>
                 <Select
                   value={settings.animation_speed}
@@ -596,9 +596,9 @@ export function AdvancedThemeCustomization() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="slow">بطيء (0.5s)</SelectItem>
-                    <SelectItem value="normal">عادي (0.3s)</SelectItem>
-                    <SelectItem value="fast">سريع (0.15s)</SelectItem>
+                    <SelectItem value="slow">{tr("بطيء (0.5s)")}</SelectItem>
+                    <SelectItem value="normal">{tr("عادي (0.3s)")}</SelectItem>
+                    <SelectItem value="fast">{tr("سريع (0.15s)")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -607,9 +607,9 @@ export function AdvancedThemeCustomization() {
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label htmlFor="compact-mode" className="text-base font-medium">
-                      الوضع المضغوط
+                      {tr("الوضع المضغوط")}
                     </Label>
-                    <p className="text-sm text-muted-foreground">تقليل المساحات بين العناصر</p>
+                    <p className="text-sm text-muted-foreground">{tr("تقليل المساحات بين العناصر")}</p>
                   </div>
                   <Switch
                     id="compact-mode"
@@ -621,9 +621,9 @@ export function AdvancedThemeCustomization() {
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label htmlFor="dark-mode" className="text-base font-medium">
-                      الوضع الداكن
+                      {tr("الوضع الداكن")}
                     </Label>
-                    <p className="text-sm text-muted-foreground">تفعيل وضع النظام الداكن</p>
+                    <p className="text-sm text-muted-foreground">{tr("تفعيل وضع النظام الداكن")}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Sun className="w-4 h-4" />
@@ -646,18 +646,18 @@ export function AdvancedThemeCustomization() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Contrast className="w-5 h-5" />
-                إمكانية الوصول
+                {tr("إمكانية الوصول")}
               </CardTitle>
-              <CardDescription>إعدادات لتحسين إمكانية الوصول للمستخدمين</CardDescription>
+              <CardDescription>{tr("إعدادات لتحسين إمكانية الوصول للمستخدمين")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label htmlFor="high-contrast" className="text-base font-medium">
-                      التباين العالي
+                      {tr("التباين العالي")}
                     </Label>
-                    <p className="text-sm text-muted-foreground">زيادة التباين لسهولة القراءة</p>
+                    <p className="text-sm text-muted-foreground">{tr("زيادة التباين لسهولة القراءة")}</p>
                   </div>
                   <Switch
                     id="high-contrast"
@@ -669,9 +669,9 @@ export function AdvancedThemeCustomization() {
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label htmlFor="rtl-support" className="text-base font-medium">
-                      دعم RTL
+                      {tr("دعم RTL")}
                     </Label>
-                    <p className="text-sm text-muted-foreground">دعم الكتابة من اليمين لليسار</p>
+                    <p className="text-sm text-muted-foreground">{tr("دعم الكتابة من اليمين لليسار")}</p>
                   </div>
                   <Switch
                     id="rtl-support"
@@ -690,8 +690,8 @@ export function AdvancedThemeCustomization() {
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-semibold text-lg">حفظ إعدادات المظهر</h4>
-              <p className="text-sm text-muted-foreground">احفظ جميع التخصيصات لتطبيقها على النظام بالكامل</p>
+              <h4 className="font-semibold text-lg">{tr("حفظ إعدادات المظهر")}</h4>
+              <p className="text-sm text-muted-foreground">{tr("احفظ جميع التخصيصات لتطبيقها على النظام بالكامل")}</p>
             </div>
             <Button
               onClick={handleSave}
@@ -701,13 +701,13 @@ export function AdvancedThemeCustomization() {
             >
               {saving ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
-                  جاري الحفظ...
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white me-2"></div>
+                  {tr("جاري الحفظ...")}
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 ml-2" />
-                  حفظ الإعدادات
+                  <Save className="w-4 h-4 me-2" />
+                  {tr("حفظ الإعدادات")}
                 </>
               )}
             </Button>

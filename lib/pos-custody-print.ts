@@ -21,7 +21,7 @@ export type CustodyPrintInput = {
   tobacco?: TobaccoLine[]
 }
 
-const PAYMENT_LABELS: Record<string, string> = { cash: "نقدي", cheque: "شيكات", card: "بطاقات", account: "ذمم", gift_card: "بطاقات هدايا" }
+const PAYMENT_LABELS: Record<string, string> = { cash: "نقدي", cheque: "شيكات", card: "بطاقات", account: "ذمم", gift_card: "بطاقات هدايا", aid_voucher: "قسائم مساعدة" }
 const money = (value: unknown) => Number(value || 0).toLocaleString("en-US", amountFractionOptions())
 const qty = (value: unknown) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const pad = (value: number) => String(value).padStart(2, "0")

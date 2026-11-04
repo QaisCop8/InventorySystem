@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { ReportMultiChoice, type ReportOption } from "./account-statement-report"
 
@@ -10,7 +11,7 @@ export function useInventoryFilters(endpoint: string) {
     const controller = new AbortController()
     fetch(`${endpoint}?meta=1`, { signal: controller.signal }).then(async response => {
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل الفلاتر")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل الفلاتر"))
       setMeta({ ...data, products: (data.products || []).map((p: any) => ({id: Number(p.id), code: p.product_code, name: p.product_name})) })
     }).catch(error => { if (!controller.signal.aborted) setFilterError(error.message) }).finally(() => { if (!controller.signal.aborted) setLoadingFilters(false) })
     return () => controller.abort()
@@ -32,9 +33,9 @@ export function useInventoryFilters(endpoint: string) {
     branch_ids: branchIds.length >= meta.branches.length ? "" : branchIds.join(","),
   }).toString()
   const controls = <>
-    <ReportMultiChoice label="الصنف" options={meta.products} selected={productIds} onChange={setProductIds} placeholder="جميع الأصناف"/>
-    <ReportMultiChoice label="المستودع" options={meta.warehouses} selected={warehouseIds} onChange={setWarehouseIds} placeholder="جميع المستودعات"/>
-    <ReportMultiChoice label="الفرع" options={meta.branches} selected={branchIds} onChange={setBranchIds} placeholder="جميع الفروع"/>
+    <ReportMultiChoice label={tr("الصنف")} options={meta.products} selected={productIds} onChange={setProductIds} placeholder={tr("جميع الأصناف")}/>
+    <ReportMultiChoice label={tr("المستودع")} options={meta.warehouses} selected={warehouseIds} onChange={setWarehouseIds} placeholder={tr("جميع المستودعات")}/>
+    <ReportMultiChoice label={tr("الفرع")} options={meta.branches} selected={branchIds} onChange={setBranchIds} placeholder={tr("جميع الفروع")}/>
   </>
   return { controls, filterQuery, loadingFilters, filterError }
 }

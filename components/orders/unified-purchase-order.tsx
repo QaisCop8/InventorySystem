@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -49,30 +50,30 @@ const InlineSupplierSearch = ({ onSelect, onClose, suppliers }: any) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white p-4 rounded-lg shadow-lg max-w-md w-full">
-        <h3 className="text-lg font-semibold mb-4">بحث الموردين</h3>
+        <h3 className="text-lg font-semibold mb-4">{tr("بحث الموردين")}</h3>
         <input
           type="text"
-          placeholder="ابحث عن مورد..."
-          className="mb-4 p-2 border rounded w-full text-right"
+          placeholder={tr("ابحث عن مورد...")}
+          className="mb-4 p-2 border rounded w-full text-start"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          dir="rtl"
+          dir={appDir()}
         />
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {filteredSuppliers.map((supplier: any) => (
             <button
               key={supplier.id}
               onClick={() => onSelect(supplier)}
-              className="block w-full text-right p-2 hover:bg-gray-100 rounded"
+              className="block w-full text-start p-2 hover:bg-gray-100 rounded"
             >
               {supplier.supplier_name} ({supplier.supplier_code})
             </button>
           ))}
-          {filteredSuppliers.length === 0 && <div className="text-center text-gray-500 py-4">لا توجد نتائج</div>}
+          {filteredSuppliers.length === 0 && <div className="text-center text-gray-500 py-4">{tr("لا توجد نتائج")}</div>}
         </div>
         <div className="flex justify-end mt-4">
           <Button variant="outline" onClick={onClose}>
-            إغلاق
+            {tr("إغلاق")}
           </Button>
         </div>
       </div>
@@ -92,33 +93,33 @@ const InlineProductSearch = ({ onSelect, onClose, products }: any) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white p-4 rounded-lg shadow-lg max-w-md w-full">
-        <h3 className="text-lg font-semibold mb-4">بحث المنتجات</h3>
+        <h3 className="text-lg font-semibold mb-4">{tr("بحث المنتجات")}</h3>
         <input
           type="text"
-          placeholder="ابحث عن منتج..."
-          className="mb-4 p-2 border rounded w-full text-right"
+          placeholder={tr("ابحث عن منتج...")}
+          className="mb-4 p-2 border rounded w-full text-start"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          dir="rtl"
+          dir={appDir()}
         />
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {filteredProducts.map((product: any) => (
             <button
               key={product.id}
               onClick={() => onSelect(product)}
-              className="block w-full text-right p-2 hover:bg-gray-100 rounded"
+              className="block w-full text-start p-2 hover:bg-gray-100 rounded"
             >
               <div className="font-medium">{product.product_name}</div>
               <div className="text-sm text-gray-500">
-                {product.product_code} - {product.main_unit} - {product.last_purchase_price} ر.س
+                {product.product_code} - {product.main_unit} - {product.last_purchase_price}{tr(" ر.س")}
               </div>
             </button>
           ))}
-          {filteredProducts.length === 0 && <div className="text-center text-gray-500 py-4">لا توجد نتائج</div>}
+          {filteredProducts.length === 0 && <div className="text-center text-gray-500 py-4">{tr("لا توجد نتائج")}</div>}
         </div>
         <div className="flex justify-end mt-4">
           <Button variant="outline" onClick={onClose}>
-            إغلاق
+            {tr("إغلاق")}
           </Button>
         </div>
       </div>
@@ -664,11 +665,11 @@ function UnifiedPurchaseOrder({
 
     // Validation
     if (!state.formData.supplier_name.trim()) {
-      throw new Error("اسم المورد مطلوب")
+      throw new Error(tr("اسم المورد مطلوب"))
     }
 
     if (state.orderItems.length === 0 || state.orderItems.every((item) => !item.product_name)) {
-      throw new Error("يجب إضافة صنف واحد على الأقل")
+      throw new Error(tr("يجب إضافة صنف واحد على الأقل"))
     }
 
     // Validate required fields based on settings
@@ -676,37 +677,37 @@ function UnifiedPurchaseOrder({
     for (const fieldSetting of requiredFields) {
       const fieldName = fieldSetting.field_name
       if (fieldName === "order_number" && state.formData.order_number.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "order_date" && state.formData.order_date === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "expected_delivery_date" && state.formData.expected_delivery_date === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "priority" && state.formData.priority === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "manual_document" && state.formData.manual_document.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "salesman" && state.formData.salesman.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "workflow_status" && state.formData.workflow_status === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "supplier_number" && state.formData.supplier_number.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "supplier_name" && state.formData.supplier_name.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "supplier_phone" && state.formData.supplier_phone.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
       if (fieldName === "delivery_address" && state.formData.delivery_address.trim() === "") {
-        throw new Error(`${getFieldDisplayName(fieldName) || fieldName} مطلوب`)
+        throw new Error(tr("{0} مطلوب", getFieldDisplayName(fieldName) || fieldName))
       }
     }
 
@@ -778,7 +779,7 @@ function UnifiedPurchaseOrder({
         errorData = { error: `HTTP ${response.status}: ${responseText}` }
       }
 
-      throw new Error(errorData.error || "فشل في حفظ طلبية الشراء")
+      throw new Error(errorData.error || tr("فشل في حفظ طلبية الشراء"))
     }
 
     const result = await response.json()
@@ -799,11 +800,11 @@ function UnifiedPurchaseOrder({
 
   async function handleDeleteOrder(orderToDelete: PurchaseOrder): Promise<void> {
     if (!orderToDelete || !orderToDelete.id) {
-      throw new Error("لا توجد طلبية محددة للحذف")
+      throw new Error(tr("لا توجد طلبية محددة للحذف"))
     }
 
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذه الطلبية؟"))) {
-      throw new Error("تم إلغاء العملية")
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذه الطلبية؟")))) {
+      throw new Error(tr("تم إلغاء العملية"))
     }
 
     const response = await fetch(`/api/purchase-orders?id=${orderToDelete.id}`, {
@@ -811,7 +812,7 @@ function UnifiedPurchaseOrder({
     })
 
     if (!response.ok) {
-      throw new Error("فشل في حذف طلبية الشراء")
+      throw new Error(tr("فشل في حذف طلبية الشراء"))
     }
 
     if (onOrderSaved) {
@@ -882,7 +883,7 @@ function UnifiedPurchaseOrder({
       const query = new URLSearchParams({ currentId: String(state.formData.id || 0), order_type: "2" })
       const response = await fetch("/api/orders/navigation/" + direction + "?" + query, { cache: "no-store" })
       const record = await response.json()
-      if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين الطلبيات")
+      if (!response.ok) throw new Error(record?.error || tr("تعذر التنقل بين الطلبيات"))
       if (!record?.id) return
       const formData = { ...initialFormData, ...record, supplier_id: record.supplier_id ?? record.customer_id, supplier_name: record.supplier_name ?? record.customer_name }
       const orderItems = (record.items || []).map((item: any) => ({ ...initialOrderItem, ...item }))
@@ -890,7 +891,7 @@ function UnifiedPurchaseOrder({
       updateRecord({ ...formData, items: orderItems })
       setState(prev => ({ ...prev, formData, orderItems, currentRecordId: record.id }))
     } catch (reason) {
-      showAlert(reason instanceof Error ? reason.message : "تعذر التنقل بين الطلبيات")
+      showAlert(reason instanceof Error ? reason.message : tr("تعذر التنقل بين الطلبيات"))
     } finally {
       navigationPending.current = false
       setNavigationLoading(false)
@@ -936,7 +937,7 @@ function UnifiedPurchaseOrder({
       }
 
       await saveRecord(currentOrderForNavigation, isNewRecord)
-      showAlert("تم حفظ الطلبية بنجاح")
+      showAlert(tr("تم حفظ الطلبية بنجاح"))
 
       if (isNewRecord) {
         if (onOpenChange) {
@@ -947,7 +948,7 @@ function UnifiedPurchaseOrder({
       }
     } catch (err: any) {
       console.error("Error saving purchase order:", err)
-      showAlert(err.message || "حدث خطأ أثناء حفظ البيانات")
+      showAlert(err.message || tr("حدث خطأ أثناء حفظ البيانات"))
     } finally {
       setState((prev) => ({ ...prev, isSaving: false }))
     }
@@ -957,7 +958,7 @@ function UnifiedPurchaseOrder({
     setState((prev) => ({ ...prev, isDeleting: true }))
     try {
       await deleteRecord()
-      showAlert("تم حذف الطلبية بنجاح")
+      showAlert(tr("تم حذف الطلبية بنجاح"))
 
       if (onOpenChange) {
         onOpenChange(false)
@@ -966,7 +967,7 @@ function UnifiedPurchaseOrder({
       }
     } catch (err: any) {
       console.error("Error deleting purchase order:", err)
-      showAlert(err.message || "حدث خطأ أثناء حذف البيانات")
+      showAlert(err.message || tr("حدث خطأ أثناء حذف البيانات"))
     } finally {
       setState((prev) => ({ ...prev, isDeleting: false }))
     }
@@ -985,13 +986,13 @@ function UnifiedPurchaseOrder({
   }
 
   const reportColumns = [
-    { key: "order_number", label: "رقم الطلبية", width: "120px" },
-    { key: "order_date", label: "التاريخ", width: "100px" },
-    { key: "supplier_name", label: "اسم المورد", width: "200px" },
-    { key: "workflow_status", label: "الحالة", width: "100px" },
-    { key: "total_amount", label: "المبلغ", width: "100px" },
-    { key: "salesman", label: "المندوب", width: "120px" },
-    { key: "expected_delivery_date", label: "تاريخ التسليم المتوقع", width: "140px" },
+    { key: "order_number", label: tr("رقم الطلبية"), width: "120px" },
+    { key: "order_date", label: tr("التاريخ"), width: "100px" },
+    { key: "supplier_name", label: tr("اسم المورد"), width: "200px" },
+    { key: "workflow_status", label: tr("الحالة"), width: "100px" },
+    { key: "total_amount", label: tr("المبلغ"), width: "100px" },
+    { key: "salesman", label: tr("المندوب"), width: "120px" },
+    { key: "expected_delivery_date", label: tr("تاريخ التسليم المتوقع"), width: "140px" },
   ]
 
   return (
@@ -1043,25 +1044,25 @@ function UnifiedPurchaseOrder({
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
-                    <span className="text-sm font-medium">ملخص الطلبية</span>
+                    <span className="text-sm font-medium">{tr("ملخص الطلبية")}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-6 text-sm">
                     <div className="flex flex-col items-end">
-                      <span className="text-xs text-muted-foreground">المجموع الفرعي</span>
-                      <span className="font-semibold">{totals.subtotal.toFixed(2)} ر.س</span>
+                      <span className="text-xs text-muted-foreground">{tr("المجموع الفرعي")}</span>
+                      <span className="font-semibold">{totals.subtotal.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-xs text-muted-foreground">الخصم</span>
-                      <span className="font-semibold text-red-600">-{totals.discount.toFixed(2)} ر.س</span>
+                      <span className="text-xs text-muted-foreground">{tr("الخصم")}</span>
+                      <span className="font-semibold text-red-600">-{totals.discount.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-xs text-muted-foreground">الضريبة</span>
-                      <span className="font-semibold">{totals.tax.toFixed(2)} ر.س</span>
+                      <span className="text-xs text-muted-foreground">{tr("الضريبة")}</span>
+                      <span className="font-semibold">{totals.tax.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <Separator orientation="vertical" className="h-10 hidden md:block" />
                     <div className="flex flex-col items-end">
-                      <span className="text-xs text-muted-foreground">الإجمالي</span>
-                      <span className="text-lg font-bold text-primary">{totals.total.toFixed(2)} ر.س</span>
+                      <span className="text-xs text-muted-foreground">{tr("الإجمالي")}</span>
+                      <span className="text-lg font-bold text-primary">{totals.total.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                   </div>
                 </div>
@@ -1073,7 +1074,7 @@ function UnifiedPurchaseOrder({
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
-                  معلومات الطلبية الأساسية
+                  {tr("معلومات الطلبية الأساسية")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -1083,7 +1084,7 @@ function UnifiedPurchaseOrder({
                       <Label className="text-sm font-medium">
                         {getFieldDisplayName("sequence")}
                         {settings.find((s) => s.field_name === "sequence")?.is_required && (
-                          <span className="text-red-500 mr-1">*</span>
+                          <span className="text-red-500 ms-1">*</span>
                         )}
                       </Label>
                       <div className="relative">
@@ -1095,15 +1096,15 @@ function UnifiedPurchaseOrder({
                               formData: { ...prev.formData, order_number: e.target.value },
                             }))
                           }
-                          className="text-right font-medium pr-12 h-11"
-                          dir="rtl"
-                          placeholder={state.formData.order_number === "" ? "أدخل الرقم يدوياً" : ""}
+                          className="text-start font-medium ps-12 h-11"
+                          dir={appDir()}
+                          placeholder={state.formData.order_number === "" ? tr("أدخل الرقم يدوياً") : ""}
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="absolute right-1 top-1/2 transform -translate-y-1/2 h-9 w-9 p-0"
+                          className="absolute start-1 top-1/2 transform -translate-y-1/2 h-9 w-9 p-0"
                           onClick={handleOrderNumberSearch}
                         >
                           <Search className="h-4 w-4" />
@@ -1114,9 +1115,9 @@ function UnifiedPurchaseOrder({
                   {isFieldVisible("order_date") && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        {getFieldDisplayName("order_date") || "تاريخ الطلبية"}
+                        {getFieldDisplayName("order_date") || tr("تاريخ الطلبية")}
                         {settings.find((s) => s.field_name === "order_date")?.is_required && (
-                          <span className="text-red-500 mr-1">*</span>
+                          <span className="text-red-500 ms-1">*</span>
                         )}
                       </Label>
                       <Input
@@ -1129,16 +1130,16 @@ function UnifiedPurchaseOrder({
                           }))
                         }
                         className="text-right h-11"
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                   )}
                   {isFieldVisible("expected_delivery_date") && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        {getFieldDisplayName("expected_delivery_date") || "تاريخ التسليم المتوقع"}
+                        {getFieldDisplayName("expected_delivery_date") || tr("تاريخ التسليم المتوقع")}
                         {settings.find((s) => s.field_name === "expected_delivery_date")?.is_required && (
-                          <span className="text-red-500 mr-1">*</span>
+                          <span className="text-red-500 ms-1">*</span>
                         )}
                       </Label>
                       <Input
@@ -1151,16 +1152,16 @@ function UnifiedPurchaseOrder({
                           }))
                         }
                         className="text-right h-11"
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                   )}
                   {isFieldVisible("workflow_status") && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        {getFieldDisplayName("workflow_status") || "حالة الطلبية"}
+                        {getFieldDisplayName("workflow_status") || tr("حالة الطلبية")}
                         {settings.find((s) => s.field_name === "workflow_status")?.is_required && (
-                          <span className="text-red-500 mr-1">*</span>
+                          <span className="text-red-500 ms-1">*</span>
                         )}
                       </Label>
                       <Select
@@ -1176,18 +1177,18 @@ function UnifiedPurchaseOrder({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">قيد التنفيذ</SelectItem>
-                          <SelectItem value="confirmed">مؤكدة</SelectItem>
-                          <SelectItem value="shipped">تم الشحن</SelectItem>
-                          <SelectItem value="delivered">تم التسليم</SelectItem>
-                          <SelectItem value="cancelled">ملغاة</SelectItem>
+                          <SelectItem value="pending">{tr("قيد التنفيذ")}</SelectItem>
+                          <SelectItem value="confirmed">{tr("مؤكدة")}</SelectItem>
+                          <SelectItem value="shipped">{tr("تم الشحن")}</SelectItem>
+                          <SelectItem value="delivered">{tr("تم التسليم")}</SelectItem>
+                          <SelectItem value="cancelled">{tr("ملغاة")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   )}
                   {isFieldVisible("salesman") && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">المندوب</Label>
+                      <Label className="text-sm font-medium">{tr("المندوب")}</Label>
                       <Input
                         value={state.formData.salesman}
                         onChange={(e) =>
@@ -1197,7 +1198,7 @@ function UnifiedPurchaseOrder({
                           }))
                         }
                         className="text-right h-11"
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                   )}
@@ -1206,16 +1207,16 @@ function UnifiedPurchaseOrder({
                 <Accordion type="single" collapsible className="w-full">
                   <AccordionItem value="additional-info" className="border rounded-lg px-4">
                     <AccordionTrigger className="text-sm font-medium hover:no-underline">
-                      معلومات إضافية
+                      {tr("معلومات إضافية")}
                     </AccordionTrigger>
                     <AccordionContent className="pt-4 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {isFieldVisible("manual_document") && (
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">
-                              {getFieldDisplayName("manual_document") || "رقم المستند اليدوي"}
+                              {getFieldDisplayName("manual_document") || tr("رقم المستند اليدوي")}
                               {settings.find((s) => s.field_name === "manual_document")?.is_required && (
-                                <span className="text-red-500 mr-1">*</span>
+                                <span className="text-red-500 ms-1">*</span>
                               )}
                             </Label>
                             <Input
@@ -1227,16 +1228,16 @@ function UnifiedPurchaseOrder({
                                 }))
                               }
                               className="text-right h-11"
-                              dir="rtl"
+                              dir={appDir()}
                             />
                           </div>
                         )}
                         {isFieldVisible("priority") && (
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">
-                              {getFieldDisplayName("priority") || "الأولوية"}
+                              {getFieldDisplayName("priority") || tr("الأولوية")}
                               {settings.find((s) => s.field_name === "priority")?.is_required && (
-                                <span className="text-red-500 mr-1">*</span>
+                                <span className="text-red-500 ms-1">*</span>
                               )}
                             </Label>
                             <Select
@@ -1252,9 +1253,9 @@ function UnifiedPurchaseOrder({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="عادي">عادي</SelectItem>
-                                <SelectItem value="عاجل">عاجل</SelectItem>
-                                <SelectItem value="مستعجل جداً">مستعجل جداً</SelectItem>
+                                <SelectItem value="عادي">{tr("عادي")}</SelectItem>
+                                <SelectItem value="عاجل">{tr("عاجل")}</SelectItem>
+                                <SelectItem value="مستعجل جداً">{tr("مستعجل جداً")}</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1272,7 +1273,7 @@ function UnifiedPurchaseOrder({
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Truck className="h-5 w-5 text-primary" />
-                    معلومات المورد
+                    {tr("معلومات المورد")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1280,9 +1281,9 @@ function UnifiedPurchaseOrder({
                     {isFieldVisible("supplier_number") && (
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">
-                          {getFieldDisplayName("supplier_number") || "رقم المورد"}
+                          {getFieldDisplayName("supplier_number") || tr("رقم المورد")}
                           {settings.find((s) => s.field_name === "supplier_number")?.is_required && (
-                            <span className="text-red-500 mr-1">*</span>
+                            <span className="text-red-500 ms-1">*</span>
                           )}
                         </Label>
                         <div className="relative">
@@ -1294,15 +1295,15 @@ function UnifiedPurchaseOrder({
                                 formData: { ...prev.formData, supplier_number: e.target.value },
                               }))
                             }
-                            className="text-right pr-12 h-11"
+                            className="text-start ps-12 h-11"
                             placeholder="S0000001"
-                            dir="rtl"
+                            dir={appDir()}
                           />
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-9 w-9 p-0"
+                            className="absolute start-1 top-1/2 transform -translate-y-1/2 h-9 w-9 p-0"
                             onClick={() => setState((prev) => ({ ...prev, showSupplierSearch: true }))}
                           >
                             <Search className="h-4 w-4" />
@@ -1313,9 +1314,9 @@ function UnifiedPurchaseOrder({
                     {isFieldVisible("supplier_name") && (
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">
-                          {getFieldDisplayName("supplier_name") || "اسم المورد"}
+                          {getFieldDisplayName("supplier_name") || tr("اسم المورد")}
                           {settings.find((s) => s.field_name === "supplier_name")?.is_required && (
-                            <span className="text-red-500 mr-1">*</span>
+                            <span className="text-red-500 ms-1">*</span>
                           )}
                         </Label>
                         <Input
@@ -1327,16 +1328,16 @@ function UnifiedPurchaseOrder({
                             }))
                           }
                           className="text-right h-11"
-                          dir="rtl"
+                          dir={appDir()}
                         />
                       </div>
                     )}
                     {isFieldVisible("supplier_phone") && (
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">
-                          {getFieldDisplayName("supplier_phone") || "هاتف المورد"}
+                          {getFieldDisplayName("supplier_phone") || tr("هاتف المورد")}
                           {settings.find((s) => s.field_name === "supplier_phone")?.is_required && (
-                            <span className="text-red-500 mr-1">*</span>
+                            <span className="text-red-500 ms-1">*</span>
                           )}
                         </Label>
                         <Input
@@ -1348,7 +1349,7 @@ function UnifiedPurchaseOrder({
                             }))
                           }
                           className="text-right h-11"
-                          dir="rtl"
+                          dir={appDir()}
                         />
                       </div>
                     )}
@@ -1357,9 +1358,9 @@ function UnifiedPurchaseOrder({
                   {isFieldVisible("delivery_address") && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        {getFieldDisplayName("delivery_address") || "عنوان التسليم"}
+                        {getFieldDisplayName("delivery_address") || tr("عنوان التسليم")}
                         {settings.find((s) => s.field_name === "delivery_address")?.is_required && (
-                          <span className="text-red-500 mr-1">*</span>
+                          <span className="text-red-500 ms-1">*</span>
                         )}
                       </Label>
                       <Textarea
@@ -1372,7 +1373,7 @@ function UnifiedPurchaseOrder({
                         }
                         className="text-right min-h-[100px] resize-none"
                         rows={3}
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                   )}
@@ -1386,11 +1387,11 @@ function UnifiedPurchaseOrder({
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Package className="h-5 w-5 text-primary" />
-                    أصناف الطلبية
+                    {tr("أصناف الطلبية")}
                   </CardTitle>
                   <Button onClick={addOrderItem} size="sm" className="h-10 w-full sm:w-auto">
-                    <Plus className="h-4 w-4 ml-2" />
-                    إضافة صنف
+                    <Plus className="h-4 w-4 me-2" />
+                    {tr("إضافة صنف")}
                   </Button>
                 </div>
               </CardHeader>
@@ -1400,14 +1401,14 @@ function UnifiedPurchaseOrder({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-right w-16">م</TableHead>
+                          <TableHead className="text-right w-16">{tr("م")}</TableHead>
                           {isFieldVisible("barcode") && (
                             <TableHead className="text-right min-w-[120px]">{getFieldDisplayName("barcode")}</TableHead>
                           )}
                           {isFieldVisible("product") && (
                             <>
-                              <TableHead className="text-right min-w-[120px]">كود المنتج</TableHead>
-                              <TableHead className="text-right min-w-[200px]">اسم المنتج</TableHead>
+                              <TableHead className="text-right min-w-[120px]">{tr("كود المنتج")}</TableHead>
+                              <TableHead className="text-right min-w-[200px]">{tr("اسم المنتج")}</TableHead>
                             </>
                           )}
                           {isFieldVisible("unit") && (
@@ -1452,7 +1453,7 @@ function UnifiedPurchaseOrder({
                           {isFieldVisible("notes") && (
                             <TableHead className="text-right min-w-[150px]">{getFieldDisplayName("notes")}</TableHead>
                           )}
-                          <TableHead className="text-right w-20 sticky left-0 bg-background">إجراءات</TableHead>
+                          <TableHead className="text-start w-20 sticky end-0 bg-background">{tr("إجراءات")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1465,8 +1466,8 @@ function UnifiedPurchaseOrder({
                                   value={item.barcode}
                                   onChange={(e) => updateOrderItem(item.id, "barcode", e.target.value)}
                                   className="text-right h-10"
-                                  placeholder="باركود"
-                                  dir="rtl"
+                                  placeholder={tr("باركود")}
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1477,15 +1478,15 @@ function UnifiedPurchaseOrder({
                                     <Input
                                       value={item.product_code}
                                       onChange={(e) => updateOrderItem(item.id, "product_code", e.target.value)}
-                                      className="text-right pr-10 h-10"
-                                      placeholder="كود"
-                                      dir="rtl"
+                                      className="text-start ps-10 h-10"
+                                      placeholder={tr("كود")}
+                                      dir={appDir()}
                                     />
                                     <Button
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                                      className="absolute start-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
                                       onClick={() =>
                                         setState((prev) => ({
                                           ...prev,
@@ -1503,8 +1504,8 @@ function UnifiedPurchaseOrder({
                                     value={item.product_name}
                                     onChange={(e) => updateOrderItem(item.id, "product_name", e.target.value)}
                                     className="text-right h-10"
-                                    placeholder="اسم المنتج"
-                                    dir="rtl"
+                                    placeholder={tr("اسم المنتج")}
+                                    dir={appDir()}
                                   />
                                 </TableCell>
                               </>
@@ -1515,8 +1516,8 @@ function UnifiedPurchaseOrder({
                                   value={item.unit}
                                   onChange={(e) => updateOrderItem(item.id, "unit", e.target.value)}
                                   className="text-right h-10"
-                                  placeholder="وحدة"
-                                  dir="rtl"
+                                  placeholder={tr("وحدة")}
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1529,7 +1530,7 @@ function UnifiedPurchaseOrder({
                                     updateOrderItem(item.id, "quantity", Number.parseFloat(e.target.value) || 0)
                                   }
                                   className="text-right h-10"
-                                  dir="rtl"
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1543,7 +1544,7 @@ function UnifiedPurchaseOrder({
                                     updateOrderItem(item.id, "unit_price", Number.parseFloat(e.target.value) || 0)
                                   }
                                   className="text-right h-10"
-                                  dir="rtl"
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1561,7 +1562,7 @@ function UnifiedPurchaseOrder({
                                     )
                                   }
                                   className="text-right h-10"
-                                  dir="rtl"
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1575,14 +1576,14 @@ function UnifiedPurchaseOrder({
                                     updateOrderItem(item.id, "tax_percentage", Number.parseFloat(e.target.value) || 0)
                                   }
                                   className="text-right h-10"
-                                  dir="rtl"
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
                             {isFieldVisible("total") && (
                               <TableCell>
-                                <div className="text-right font-semibold text-base" dir="rtl">
-                                  {calculateItemTotal(item).toFixed(2)} ر.س
+                                <div className="text-right font-semibold text-base" dir={appDir()}>
+                                  {calculateItemTotal(item).toFixed(2)}{tr(" ر.س")}
                                 </div>
                               </TableCell>
                             )}
@@ -1596,8 +1597,8 @@ function UnifiedPurchaseOrder({
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="المستودع الرئيسي">الرئيسي</SelectItem>
-                                    <SelectItem value="مستودع فرعي 1">الفرعي</SelectItem>
+                                    <SelectItem value="المستودع الرئيسي">{tr("الرئيسي")}</SelectItem>
+                                    <SelectItem value="مستودع فرعي 1">{tr("الفرعي")}</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </TableCell>
@@ -1609,7 +1610,7 @@ function UnifiedPurchaseOrder({
                                   value={item.expiry_date}
                                   onChange={(e) => updateOrderItem(item.id, "expiry_date", e.target.value)}
                                   className="text-right h-10"
-                                  dir="rtl"
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1619,8 +1620,8 @@ function UnifiedPurchaseOrder({
                                   value={item.batch_number}
                                   onChange={(e) => updateOrderItem(item.id, "batch_number", e.target.value)}
                                   className="text-right h-10"
-                                  placeholder="رقم الدفعة"
-                                  dir="rtl"
+                                  placeholder={tr("رقم الدفعة")}
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
@@ -1630,12 +1631,12 @@ function UnifiedPurchaseOrder({
                                   value={item.notes}
                                   onChange={(e) => updateOrderItem(item.id, "notes", e.target.value)}
                                   className="text-right h-10"
-                                  placeholder="ملاحظات"
-                                  dir="rtl"
+                                  placeholder={tr("ملاحظات")}
+                                  dir={appDir()}
                                 />
                               </TableCell>
                             )}
-                            <TableCell className="sticky left-0 bg-background">
+                            <TableCell className="sticky end-0 bg-background">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1660,13 +1661,13 @@ function UnifiedPurchaseOrder({
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Percent className="h-5 w-5 text-primary" />
-                    الخصومات والضرائب
+                    {tr("الخصومات والضرائب")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">نوع الخصم</Label>
+                      <Label className="text-sm font-medium">{tr("نوع الخصم")}</Label>
                       <Select
                         value={state.formData.discount_type}
                         onValueChange={(value) =>
@@ -1680,13 +1681,13 @@ function UnifiedPurchaseOrder({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="percentage">نسبة مئوية</SelectItem>
-                          <SelectItem value="amount">مبلغ ثابت</SelectItem>
+                          <SelectItem value="percentage">{tr("نسبة مئوية")}</SelectItem>
+                          <SelectItem value="amount">{tr("مبلغ ثابت")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">قيمة الخصم</Label>
+                      <Label className="text-sm font-medium">{tr("قيمة الخصم")}</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1698,13 +1699,13 @@ function UnifiedPurchaseOrder({
                           }))
                         }
                         className="text-right h-11"
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">نسبة الضريبة (%)</Label>
+                    <Label className="text-sm font-medium">{tr("نسبة الضريبة (%)")}</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -1716,13 +1717,13 @@ function UnifiedPurchaseOrder({
                         }))
                       }
                       className="text-right h-11"
-                      dir="rtl"
+                      dir={appDir()}
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">تكلفة الشحن</Label>
+                      <Label className="text-sm font-medium">{tr("تكلفة الشحن")}</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1734,11 +1735,11 @@ function UnifiedPurchaseOrder({
                           }))
                         }
                         className="text-right h-11"
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">رسوم أخرى</Label>
+                      <Label className="text-sm font-medium">{tr("رسوم أخرى")}</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1750,7 +1751,7 @@ function UnifiedPurchaseOrder({
                           }))
                         }
                         className="text-right h-11"
-                        dir="rtl"
+                        dir={appDir()}
                       />
                     </div>
                   </div>
@@ -1761,35 +1762,35 @@ function UnifiedPurchaseOrder({
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Calculator className="h-5 w-5 text-primary" />
-                    ملخص المبالغ
+                    {tr("ملخص المبالغ")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-base py-2">
-                      <span className="text-muted-foreground">المجموع الفرعي:</span>
-                      <span className="font-semibold text-lg">{totals.subtotal.toFixed(2)} ر.س</span>
+                      <span className="text-muted-foreground">{tr("المجموع الفرعي:")}</span>
+                      <span className="font-semibold text-lg">{totals.subtotal.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
-                      <span className="text-muted-foreground">الخصم:</span>
-                      <span className="font-semibold text-lg text-red-600">-{totals.discount.toFixed(2)} ر.س</span>
+                      <span className="text-muted-foreground">{tr("الخصم:")}</span>
+                      <span className="font-semibold text-lg text-red-600">-{totals.discount.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
-                      <span className="text-muted-foreground">الضريبة:</span>
-                      <span className="font-semibold text-lg">{totals.tax.toFixed(2)} ر.س</span>
+                      <span className="text-muted-foreground">{tr("الضريبة:")}</span>
+                      <span className="font-semibold text-lg">{totals.tax.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
-                      <span className="text-muted-foreground">الشحن:</span>
-                      <span className="font-semibold text-lg">{state.formData.shipping_cost.toFixed(2)} ر.س</span>
+                      <span className="text-muted-foreground">{tr("الشحن:")}</span>
+                      <span className="font-semibold text-lg">{state.formData.shipping_cost.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
-                      <span className="text-muted-foreground">رسوم أخرى:</span>
-                      <span className="font-semibold text-lg">{state.formData.other_charges.toFixed(2)} ر.س</span>
+                      <span className="text-muted-foreground">{tr("رسوم أخرى:")}</span>
+                      <span className="font-semibold text-lg">{state.formData.other_charges.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                     <Separator className="my-4" />
                     <div className="flex justify-between items-center bg-primary/10 p-4 rounded-lg border border-primary/20">
-                      <span className="text-lg font-bold">المجموع الكلي:</span>
-                      <span className="text-2xl font-bold text-primary">{totals.total.toFixed(2)} ر.س</span>
+                      <span className="text-lg font-bold">{tr("المجموع الكلي:")}</span>
+                      <span className="text-2xl font-bold text-primary">{totals.total.toFixed(2)}{tr(" ر.س")}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -1803,13 +1804,13 @@ function UnifiedPurchaseOrder({
                   <AccordionTrigger className="px-6 py-4 hover:no-underline">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <MessageSquare className="h-5 w-5 text-primary" />
-                      الملاحظات
+                      {tr("الملاحظات")}
                     </CardTitle>
                   </AccordionTrigger>
                   <AccordionContent>
                     <CardContent className="space-y-6 pt-0">
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات عامة</Label>
+                        <Label className="text-sm font-medium">{tr("ملاحظات عامة")}</Label>
                         <Textarea
                           value={state.formData.notes}
                           onChange={(e) =>
@@ -1820,12 +1821,12 @@ function UnifiedPurchaseOrder({
                           }
                           className="text-right min-h-[100px] resize-none"
                           rows={4}
-                          placeholder="ملاحظات للمورد"
-                          dir="rtl"
+                          placeholder={tr("ملاحظات للمورد")}
+                          dir={appDir()}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات داخلية</Label>
+                        <Label className="text-sm font-medium">{tr("ملاحظات داخلية")}</Label>
                         <Textarea
                           value={state.formData.internal_notes}
                           onChange={(e) =>
@@ -1836,12 +1837,12 @@ function UnifiedPurchaseOrder({
                           }
                           className="text-right min-h-[100px] resize-none"
                           rows={4}
-                          placeholder="ملاحظات للاستخدام الداخلي فقط"
-                          dir="rtl"
+                          placeholder={tr("ملاحظات للاستخدام الداخلي فقط")}
+                          dir={appDir()}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات التسليم</Label>
+                        <Label className="text-sm font-medium">{tr("ملاحظات التسليم")}</Label>
                         <Textarea
                           value={state.formData.delivery_notes}
                           onChange={(e) =>
@@ -1852,8 +1853,8 @@ function UnifiedPurchaseOrder({
                           }
                           className="text-right min-h-[100px] resize-none"
                           rows={4}
-                          placeholder="ملاحظات خاصة بالتسليم"
-                          dir="rtl"
+                          placeholder={tr("ملاحظات خاصة بالتسليم")}
+                          dir={appDir()}
                         />
                       </div>
                     </CardContent>
@@ -1867,8 +1868,7 @@ function UnifiedPurchaseOrder({
         {/* شريط الاختصارات */}
         <div className="bg-muted/50 px-6 py-3 border-t">
           <div className="text-xs text-muted-foreground text-center">
-            <span className="font-medium">الاختصارات:</span> F2 - بحث الموردين | F3 - بحث المنتجات | Ctrl+S - حفظ |
-            Escape - إغلاق
+            <span className="font-medium">{tr("الاختصارات:")}</span>{tr(" F2 - بحث الموردين | F3 - بحث المنتجات | Ctrl+S - حفظ | Escape - إغلاق")}
           </div>
         </div>
 
@@ -1897,7 +1897,7 @@ function UnifiedPurchaseOrder({
         />
 
         <ReportGenerator
-          title="تقرير طلبات الشراء"
+          title={tr("تقرير طلبات الشراء")}
           data={allOrders}
           columns={reportColumns}
           isOpen={showReport}
@@ -1907,7 +1907,7 @@ function UnifiedPurchaseOrder({
       </Dialog>
       <ConfirmDialogYesNo
         visible={showUnsavedConfirm}
-        message="تم تعديل البيانات، هل تريد المتابعة دون حفظ التغييرات؟"
+        message={tr("تم تعديل البيانات، هل تريد المتابعة دون حفظ التغييرات؟")}
         showBack
         onConfirm={() => {
           setShowUnsavedConfirm(false)

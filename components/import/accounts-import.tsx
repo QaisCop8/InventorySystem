@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,9 +14,9 @@ export function normalizeAccountCode(value: unknown) {
 }
 
 export const ACCOUNT_TEMPLATE_TYPES = [
-  { value: "commercial", label: "مؤسسة تجارية" },
-  { value: "commercial_continuous_inventory", label: "مؤسسة تجارية - جرد مستمر" },
-  { value: "services", label: "خدمات" },
+  { value: "commercial", label: tr("مؤسسة تجارية") },
+  { value: "commercial_continuous_inventory", label: tr("مؤسسة تجارية - جرد مستمر") },
+  { value: "services", label: tr("خدمات") },
 ]
 
 type Currency = { id: number; name: string; code: string }
@@ -25,9 +26,9 @@ type Ctx = { existing: Array<{ code: string; name: string }> }
 
 const SHEKEL_ALIASES = ["nis", "ils", "شيقل", "شيكل", "شيكل اسرائيلي", "شيقل اسرائيلي"]
 const FINANCIAL_LISTS = [
-  { value: 1, label: "الميزانية العمومية", aliases: ["الميزانية", "ميزانية عمومية", "balance", "balance sheet"] },
-  { value: 2, label: "قائمة الدخل", aliases: ["الدخل", "income", "income statement"] },
-  { value: 3, label: "تقييم بضاعة", aliases: ["تقييم", "merchandise", "inventory valuation"] },
+  { value: 1, label: tr("الميزانية العمومية"), aliases: ["الميزانية", "ميزانية عمومية", "balance", "balance sheet"] },
+  { value: 2, label: tr("قائمة الدخل"), aliases: ["الدخل", "income", "income statement"] },
+  { value: 3, label: tr("تقييم بضاعة"), aliases: ["تقييم", "merchandise", "inventory valuation"] },
 ]
 
 const asList = (data: any) => (Array.isArray(data) ? data : [])
@@ -92,13 +93,13 @@ function AccountTemplatePicker({ loadRows, busy, currencyId, initialType, autoLo
     try {
       const response = await fetch(`/api/accounts-export-source?type=${encodeURIComponent(selected)}`)
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "فشل تحميل الهيكل")
+      if (!response.ok) throw new Error(data.error || tr("فشل تحميل الهيكل"))
       const source = asList(data.rows)
-      if (!source.length) throw new Error("الهيكل المختار فارغ")
+      if (!source.length) throw new Error(tr("الهيكل المختار فارغ"))
       const parentCodeById = new Map<string, string>(source.map((row: any) => [String(row.id ?? ""), text(row.code)]))
       loadRows(source.map((row: any) => exportRowToFields(row, parentCodeById, currencyId)))
     } catch (cause: any) {
-      setError(cause?.message || "فشل تحميل الهيكل")
+      setError(cause?.message || tr("فشل تحميل الهيكل"))
     } finally { setLoading(false) }
   }
 
@@ -111,13 +112,13 @@ function AccountTemplatePicker({ loadRows, busy, currencyId, initialType, autoLo
 
   return (
     <div className="rounded-lg border bg-muted/30 p-3">
-      <div className="mb-2 text-sm font-medium">أو ابدأ من هيكل حسابات جاهز</div>
+      <div className="mb-2 text-sm font-medium">{tr("أو ابدأ من هيكل حسابات جاهز")}</div>
       <div className="flex flex-wrap items-center gap-2">
         <select value={type} onChange={(event) => setType(event.target.value)} className="h-9 min-w-[220px] rounded-md border bg-background px-2 text-sm">
           {ACCOUNT_TEMPLATE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
         </select>
         <Button type="button" variant="secondary" size="sm" disabled={busy || loading} onClick={() => void load()}>
-          {loading && <Loader2 className="ml-1 h-4 w-4 animate-spin" />} تحميل الهيكل للمراجعة
+          {loading && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr(" تحميل الهيكل للمراجعة")}
         </Button>
       </div>
       {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
@@ -151,41 +152,41 @@ export function AccountsImportDialog({ open, onOpenChange, onImported, templateT
   const config = useMemo<ImportConfig<Ctx> | null>(() => {
     if (!lookups) return null
     const baseCurrency = lookups.currencies.find((currency) => currency.id === 1 || normalizeHeader(currency.code) === "nis") || lookups.currencies[0]
-    const lookupHint = "يُنشأ البند تلقائياً إن لم يكن موجوداً"
+    const lookupHint = tr("يُنشأ البند تلقائياً إن لم يكن موجوداً")
     return {
-      title: "استيراد الحسابات من Excel",
-      description: "رقم الحساب يُضبط تلقائياً إلى 10 خانات. يُحفظ الحساب الأب قبل أبنائه تلقائياً.",
+      title: tr("استيراد الحسابات من Excel"),
+      description: tr("رقم الحساب يُضبط تلقائياً إلى 10 خانات. يُحفظ الحساب الأب قبل أبنائه تلقائياً."),
       templateFileName: "نموذج-الحسابات",
       fields: [
-        { key: "code", label: "رقم الحساب", required: true, aliases: ["account_code", "code"], example: "1100000000" },
-        { key: "name", label: "اسم الحساب", required: true, aliases: ["account_name", "name"], maxLength: 200, example: "الأصول المتداولة" },
-        { key: "name_lang2", label: "اسم الحساب انجليزي", aliases: ["name_lang2", "اسم الحساب بالانجليزي", "english name"], maxLength: 200 },
-        { key: "father", label: "الحساب الأب", aliases: ["حساب الاب", "father_code", "father_account_code", "father", "parent_account", "father_id"], description: "رقم حساب موجود أو موجود بالملف" },
+        { key: "code", label: tr("رقم الحساب"), required: true, aliases: ["account_code", "code"], example: "1100000000" },
+        { key: "name", label: tr("اسم الحساب"), required: true, aliases: ["account_name", "name"], maxLength: 200, example: "الأصول المتداولة" },
+        { key: "name_lang2", label: tr("اسم الحساب انجليزي"), aliases: ["name_lang2", "اسم الحساب بالانجليزي", "english name"], maxLength: 200 },
+        { key: "father", label: tr("الحساب الأب"), aliases: ["حساب الاب", "father_code", "father_account_code", "father", "parent_account", "father_id"], description: tr("رقم حساب موجود أو موجود بالملف") },
         {
-          key: "currency", label: "العملة", required: true, aliases: ["currency", "currency_name", "currency_code", "currency_id"],
+          key: "currency", label: tr("العملة"), required: true, aliases: ["currency", "currency_name", "currency_code", "currency_id"],
           options: lookups.currencies.map((currency) => ({ value: currency.id, label: currency.name || currency.code, aliases: [currency.code, ...(currency.id === baseCurrency?.id ? SHEKEL_ALIASES : [])] })),
           example: baseCurrency?.name,
         },
-        { key: "financial_list", label: "القائمة المالية", required: true, aliases: ["financial_list", "finanical_list_id", "اسم القائمة المالية"], options: FINANCIAL_LISTS, example: "الميزانية العمومية" },
-        { key: "assets", label: "أصول الميزانية", aliases: ["balance_sheet_assets", "finanical_list_assests_id"], description: lookupHint },
-        { key: "liabilities", label: "خصوم الميزانية", aliases: ["balance_sheet_liabilities", "finanical_list_liabilities_id"], description: lookupHint },
-        { key: "balance_sheet_item", label: "أصول وخصوم الميزانية", aliases: ["balance_sheet_item"], description: "يُستخدم للأصول والخصوم معاً إن تُركا فارغين" },
-        { key: "income", label: "بند قائمة الدخل", aliases: ["income_statement_item", "finanical_list_income_id"], description: lookupHint },
-        { key: "allow_trans_with_diff_curr", label: "السماح بفرق العملة", type: "boolean" },
-        { key: "iscalc_curr_diff_rates", label: "احتساب فروقات العملة", type: "boolean" },
-        { key: "transaction_type", label: "نوع الحركة", type: "integer", min: 0 },
-        { key: "transaction_type_action", label: "إجراء نوع الحركة", type: "integer", min: 0 },
-        { key: "max_transaction_amount", label: "أقصى مبلغ حركة", type: "number", min: 0 },
-        { key: "max_transaction_amount_action", label: "إجراء أقصى مبلغ حركة", type: "integer", min: 0 },
-        { key: "max_balance_amount", label: "أقصى رصيد", type: "number", min: 0 },
-        { key: "max_balance_action", label: "إجراء أقصى رصيد", type: "integer", min: 0 },
-        { key: "budget_exceeding_perc", label: "نسبة تجاوز الموازنة", type: "number", min: 0 },
-        { key: "budget_exceeding_action", label: "إجراء تجاوز الموازنة", type: "integer", min: 0 },
-        { key: "unified_report_account_no", label: "رقم الحساب الموحد" },
-        { key: "unified_report_group_code", label: "رمز مجموعة التقرير الموحد" },
-        { key: "show_notes_in_transactions_soa", label: "إظهار الملاحظات في كشف الحساب", type: "boolean" },
-        { key: "notes", label: "ملاحظات", aliases: ["notes"] },
-        { key: "status", label: "الحالة", aliases: ["status"], example: "نشط" },
+        { key: "financial_list", label: tr("القائمة المالية"), required: true, aliases: ["financial_list", "finanical_list_id", "اسم القائمة المالية"], options: FINANCIAL_LISTS, example: "الميزانية العمومية" },
+        { key: "assets", label: tr("أصول الميزانية"), aliases: ["balance_sheet_assets", "finanical_list_assests_id"], description: lookupHint },
+        { key: "liabilities", label: tr("خصوم الميزانية"), aliases: ["balance_sheet_liabilities", "finanical_list_liabilities_id"], description: lookupHint },
+        { key: "balance_sheet_item", label: tr("أصول وخصوم الميزانية"), aliases: ["balance_sheet_item"], description: tr("يُستخدم للأصول والخصوم معاً إن تُركا فارغين") },
+        { key: "income", label: tr("بند قائمة الدخل"), aliases: ["income_statement_item", "finanical_list_income_id"], description: lookupHint },
+        { key: "allow_trans_with_diff_curr", label: tr("السماح بفرق العملة"), type: "boolean" },
+        { key: "iscalc_curr_diff_rates", label: tr("احتساب فروقات العملة"), type: "boolean" },
+        { key: "transaction_type", label: tr("نوع الحركة"), type: "integer", min: 0 },
+        { key: "transaction_type_action", label: tr("إجراء نوع الحركة"), type: "integer", min: 0 },
+        { key: "max_transaction_amount", label: tr("أقصى مبلغ حركة"), type: "number", min: 0 },
+        { key: "max_transaction_amount_action", label: tr("إجراء أقصى مبلغ حركة"), type: "integer", min: 0 },
+        { key: "max_balance_amount", label: tr("أقصى رصيد"), type: "number", min: 0 },
+        { key: "max_balance_action", label: tr("إجراء أقصى رصيد"), type: "integer", min: 0 },
+        { key: "budget_exceeding_perc", label: tr("نسبة تجاوز الموازنة"), type: "number", min: 0 },
+        { key: "budget_exceeding_action", label: tr("إجراء تجاوز الموازنة"), type: "integer", min: 0 },
+        { key: "unified_report_account_no", label: tr("رقم الحساب الموحد") },
+        { key: "unified_report_group_code", label: tr("رمز مجموعة التقرير الموحد") },
+        { key: "show_notes_in_transactions_soa", label: tr("إظهار الملاحظات في كشف الحساب"), type: "boolean" },
+        { key: "notes", label: tr("ملاحظات"), aliases: ["notes"] },
+        { key: "status", label: tr("الحالة"), aliases: ["status"], example: "نشط" },
       ],
       prepare: async () => {
         const data = await fetch("/api/accounts?type=1").then((response) => (response.ok ? response.json() : [])).catch(() => [])
@@ -200,21 +201,21 @@ export function AccountsImportDialog({ open, onOpenChange, onImported, templateT
         for (const row of rows) {
           const code = normalizeAccountCode(row.data.code)
           if (!code) continue
-          if (fileCodes.has(code)) add(row.id, { field: "code", message: `رقم الحساب ${code} مكرر مع السطر ${fileCodes.get(code)}` })
+          if (fileCodes.has(code)) add(row.id, { field: "code", message: tr("رقم الحساب {0} مكرر مع السطر {1}", code, fileCodes.get(code)) })
           else fileCodes.set(code, row.rowNumber)
         }
         for (const row of rows) {
           const data = row.data
           const code = normalizeAccountCode(data.code)
-          if (text(data.code) && !code) add(row.id, { field: "code", message: "رقم الحساب يجب أن يحتوي أحرفاً أو أرقاماً إنجليزية" })
-          if (code && existingCodes.has(code)) add(row.id, { field: "code", message: `رقم الحساب ${code} موجود مسبقاً` })
-          if (text(data.name) && existingNames.has(normalizeHeader(data.name))) add(row.id, { field: "name", message: `اسم الحساب "${text(data.name)}" موجود مسبقاً` })
+          if (text(data.code) && !code) add(row.id, { field: "code", message: tr("رقم الحساب يجب أن يحتوي أحرفاً أو أرقاماً إنجليزية") })
+          if (code && existingCodes.has(code)) add(row.id, { field: "code", message: tr("رقم الحساب {0} موجود مسبقاً", code) })
+          if (text(data.name) && existingNames.has(normalizeHeader(data.name))) add(row.id, { field: "name", message: tr("اسم الحساب \"{0}\" موجود مسبقاً", text(data.name)) })
           const father = normalizeAccountCode(data.father)
-          if (father && father === code) add(row.id, { field: "father", message: "لا يمكن أن يكون الحساب تابعاً لنفسه" })
-          else if (father && !fileCodes.has(father) && !existingCodes.has(father)) add(row.id, { field: "father", message: `الحساب الأب ${father} غير موجود` })
+          if (father && father === code) add(row.id, { field: "father", message: tr("لا يمكن أن يكون الحساب تابعاً لنفسه") })
+          else if (father && !fileCodes.has(father) && !existingCodes.has(father)) add(row.id, { field: "father", message: tr("الحساب الأب {0} غير موجود", father) })
           const list = Number(data.financial_list)
-          if (list === 1 && !lookupText(data.assets) && !lookupText(data.liabilities) && !lookupText(data.balance_sheet_item)) add(row.id, { field: "assets", message: "يجب تحديد أصول الميزانية أو خصومها" })
-          if ((list === 2 || list === 3) && !lookupText(data.income)) add(row.id, { field: "income", message: "بند قائمة الدخل مطلوب" })
+          if (list === 1 && !lookupText(data.assets) && !lookupText(data.liabilities) && !lookupText(data.balance_sheet_item)) add(row.id, { field: "assets", message: tr("يجب تحديد أصول الميزانية أو خصومها") })
+          if ((list === 2 || list === 3) && !lookupText(data.income)) add(row.id, { field: "income", message: tr("بند قائمة الدخل مطلوب") })
         }
         return result
       },
@@ -239,7 +240,7 @@ export function AccountsImportDialog({ open, onOpenChange, onImported, templateT
             const fresh = await fetch(endpoint).then((res) => (res.ok ? res.json() : [])).catch(() => [])
             const match = asList(fresh).find((item: any) => normalizeHeader(item.name) === normalizeHeader(value))
             if (match) { const item = { id: Number(match.id), name: text(match.name) }; cache.set(normalizeHeader(value), item); return item }
-            throw new Error(created.error || `فشل حفظ البند: ${value}`)
+            throw new Error(created.error || tr("فشل حفظ البند: {0}", value))
           }
           const item = { id: Number(created.id), name: text(created.name) || value }
           cache.set(normalizeHeader(value), item); cache.set(String(item.id), item)
@@ -251,8 +252,8 @@ export function AccountsImportDialog({ open, onOpenChange, onImported, templateT
           const data = row.data
           const code = normalizeAccountCode(data.code)
           const father = normalizeAccountCode(data.father)
-          if (father && !available.has(father)) { failedCodes.add(code); report(row.id, { ok: false, message: `الحساب الأب ${father} لم يُستورد (به أخطاء) — صحّحه أولاً` }); continue }
-          if (father && failedCodes.has(father)) { failedCodes.add(code); report(row.id, { ok: false, message: `لم يُحفظ الحساب الأب ${father}` }); continue }
+          if (father && !available.has(father)) { failedCodes.add(code); report(row.id, { ok: false, message: tr("الحساب الأب {0} لم يُستورد (به أخطاء) — صحّحه أولاً", father) }); continue }
+          if (father && failedCodes.has(father)) { failedCodes.add(code); report(row.id, { ok: false, message: tr("لم يُحفظ الحساب الأب {0}", father) }); continue }
           try {
             const asset = await resolveLookup(lookupText(data.assets) || data.balance_sheet_item, caches.assets, "/api/balance-sheet-assets-items")
             const liability = await resolveLookup(lookupText(data.liabilities) || data.balance_sheet_item, caches.liabilities, "/api/balance-sheet-liabilities-items")
@@ -286,12 +287,12 @@ export function AccountsImportDialog({ open, onOpenChange, onImported, templateT
             if (!response.ok) {
               const error = await response.json().catch(() => ({}))
               failedCodes.add(code)
-              report(row.id, { ok: false, message: error.error || error.message || "فشل حفظ الحساب" })
+              report(row.id, { ok: false, message: error.error || error.message || tr("فشل حفظ الحساب") })
             } else report(row.id, { ok: true })
           } catch (error: any) {
             if (signal.aborted) return
             failedCodes.add(code)
-            report(row.id, { ok: false, message: error?.message || "خطأ غير متوقع" })
+            report(row.id, { ok: false, message: error?.message || tr("خطأ غير متوقع") })
           }
         }
       },

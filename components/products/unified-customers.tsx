@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import Messages from "../common/Messages"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -250,7 +251,7 @@ export default function UnifiedCustomers({
 }: UnifiedCustomersProps) {
   // نوع الجهة ونصوصها — نفس النموذج يخدم العملاء/الموردين/المشتركين/المندوبين.
   const entityTypeCode = isSupplier ? 2 : isSubscriber ? 4 : isSalesman ? 3 : 1
-  const entityLabel = isSupplier ? "المورد" : isSubscriber ? "المشترك" : isSalesman ? "المندوب" : "العميل"
+  const entityLabel = isSupplier ? tr("المورد") : isSubscriber ? tr("المشترك") : isSalesman ? tr("المندوب") : tr("العميل")
   const entityIndef = isSupplier ? "مورد" : isSubscriber ? "مشترك" : isSalesman ? "مندوب" : "عميل"
   const workspaceTabActive = useWorkspaceTabActive()
   const [activeTab, setActiveTab] = useState("address-location")
@@ -634,7 +635,7 @@ export default function UnifiedCustomers({
   }, [stopTransactionRows])
 
   const visibleStopTransactionRows = useMemo(() => {
-    const hiddenNames = ["طلبية مبيعات", "طلبية مشتريات", "إرسالية مبيعات", "إرسالية مشتريات"]
+    const hiddenNames = [tr("طلبية مبيعات"), tr("طلبية مشتريات"), tr("إرسالية مبيعات"), tr("إرسالية مشتريات")]
 
     return stopTransactionRows.filter((row) => {
       const voucherTypeName = String(row?.voucher_type_name || "")
@@ -686,7 +687,7 @@ export default function UnifiedCustomers({
       name: "StopTransactionScheme",
       columns: [
         {
-          header: "إيقاف الحركات",
+          header: tr("إيقاف الحركات"),
           name: "is_stopped",
           width: 120,
           align: "center",
@@ -714,9 +715,9 @@ export default function UnifiedCustomers({
             </div>
           ),
         },
-        { header: "نوع الحركة", name: "voucher_type_name", width: "*", minWidth: 260, isReadOnly: true },
+        { header: tr("نوع الحركة"), name: "voucher_type_name", width: "*", minWidth: 260, isReadOnly: true },
         {
-          header: "تاريخ إيقاف الحركة",
+          header: tr("تاريخ إيقاف الحركة"),
           name: "stop_date",
           width: 140,
           align: "center",
@@ -736,7 +737,7 @@ export default function UnifiedCustomers({
                   ),
                 )
               }}
-              className="h-9 text-right"
+              className="h-9 text-start"
             />
           ),
         },
@@ -749,17 +750,17 @@ export default function UnifiedCustomers({
     () => ({
       name: "ClassificationTypeScheme",
       columns: [
-        { header: "معرف نوع التصنيف", name: "id", width: 120, isReadOnly: true, visible: false },
-        { header: "نوع التصنيف", name: "name", width: 200, isReadOnly: true, visible: true },
-        { header: "معرف التصنيف", name: "classification_id", width: 120, isReadOnly: true, visible: false },
-        { header: "التصنيف", name: "classification_name", width: "*", minWidth: 200, isReadOnly: true, visible: true },
+        { header: tr("معرف نوع التصنيف"), name: "id", width: 120, isReadOnly: true, visible: false },
+        { header: tr("نوع التصنيف"), name: "name", width: 200, isReadOnly: true, visible: true },
+        { header: tr("معرف التصنيف"), name: "classification_id", width: 120, isReadOnly: true, visible: false },
+        { header: tr("التصنيف"), name: "classification_name", width: "*", minWidth: 200, isReadOnly: true, visible: true },
         {
           name: "btnSearchClassification",
           header: " ",
           width: 65,
           buttonBody: "button",
           align: "center",
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           className: "btn-search",
           isReadOnly: true,
@@ -780,7 +781,7 @@ export default function UnifiedCustomers({
           width: 65,
           buttonBody: "button",
           align: "center",
-          title: "حذف",
+          title: tr("حذف"),
           iconType: "delete",
           className: "btn-delete",
           isReadOnly: true,
@@ -811,7 +812,7 @@ export default function UnifiedCustomers({
   const handleSaveClassificationType = useCallback(async () => {
     const name = newClassificationTypeName.trim()
     if (!name) {
-      setClassificationTypeError("اسم نوع التصنيف مطلوب")
+      setClassificationTypeError(tr("اسم نوع التصنيف مطلوب"))
       return
     }
 
@@ -831,12 +832,12 @@ export default function UnifiedCustomers({
         classification_name: "",
       }
       setClassificationRows((prev) => [...prev, nextRow])
-      setClassificationTypeMessage("تمت إضافة نوع التصنيف بنجاح")
+      setClassificationTypeMessage(tr("تمت إضافة نوع التصنيف بنجاح"))
       setShowClassificationTypeForm(false)
       setNewClassificationTypeName("")
     } catch (error) {
       console.error(error)
-      setClassificationTypeError("فشل في حفظ نوع التصنيف")
+      setClassificationTypeError(tr("فشل في حفظ نوع التصنيف"))
     }
   }, [newClassificationTypeName])
 
@@ -847,19 +848,19 @@ export default function UnifiedCustomers({
   const [savingCostCenterType, setSavingCostCenterType] = useState(false)
   const handleSaveCostCenterType = useCallback(async () => {
     const name = newCostCenterTypeName.trim()
-    if (!name) { setNewCostCenterTypeError("اسم النوع مطلوب"); return }
+    if (!name) { setNewCostCenterTypeError(tr("اسم النوع مطلوب")); return }
     setSavingCostCenterType(true)
     setNewCostCenterTypeError("")
     try {
       const response = await fetch("/api/cost-center-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, status: 1 }) })
       const saved = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(saved?.error || "فشل في حفظ نوع مركز التكلفة")
+      if (!response.ok) throw new Error(saved?.error || tr("فشل في حفظ نوع مركز التكلفة"))
       setCostCenterTypes((prev) => [...prev, { ...saved, id: Number(saved.id), name: saved.name ?? name, state_status: "اختياري", required_in_transactions: 1, cost_center_name: "", default_cost_center_id: null }])
-      setCostCenterTypeMessage("تمت إضافة نوع مركز التكلفة بنجاح")
+      setCostCenterTypeMessage(tr("تمت إضافة نوع مركز التكلفة بنجاح"))
       setShowCostCenterTypeForm(false)
       setNewCostCenterTypeName("")
     } catch (error: any) {
-      setNewCostCenterTypeError(error?.message || "فشل في حفظ نوع مركز التكلفة")
+      setNewCostCenterTypeError(error?.message || tr("فشل في حفظ نوع مركز التكلفة"))
     } finally {
       setSavingCostCenterType(false)
     }
@@ -910,17 +911,17 @@ export default function UnifiedCustomers({
 
   const handleSaveClassification = useCallback(async () => {
     if (!newClassificationTypeId) {
-      setClassificationError("يجب اختيار نوع التصنيف")
+      setClassificationError(tr("يجب اختيار نوع التصنيف"))
       return
     }
     if (!newClassificationName.trim()) {
-      setClassificationError("اسم التصنيف مطلوب")
+      setClassificationError(tr("اسم التصنيف مطلوب"))
       return
     }
 
     const selectedType = classificationTypes.find((item: any) => String(item.id) === String(newClassificationTypeId))
     if (!selectedType) {
-      setClassificationError("نوع التصنيف غير صحيح")
+      setClassificationError(tr("نوع التصنيف غير صحيح"))
       return
     }
 
@@ -973,7 +974,7 @@ export default function UnifiedCustomers({
       setClassificationError("")
     } catch (error) {
       console.error(error)
-      setClassificationError("فشل في حفظ التصنيف")
+      setClassificationError(tr("فشل في حفظ التصنيف"))
     }
   }, [classificationTypes, newClassificationName, newClassificationTypeId])
 
@@ -1031,7 +1032,7 @@ export default function UnifiedCustomers({
           : item,
       )
       setCostCenterTypes(nextTypes)
-      setCostCenterTypeMessage("تم حذف مركز التكلفة بنجاح")
+      setCostCenterTypeMessage(tr("تم حذف مركز التكلفة بنجاح"))
     }
     setShowDeleteConfirm(false)
     setDeleteConfirmIndex(-1)
@@ -1061,15 +1062,15 @@ export default function UnifiedCustomers({
           : item,
       ),
     )
-    setCostCenterTypeMessage(`تم ربط مركز التكلفة ${center.name}`)
+    setCostCenterTypeMessage(tr("تم ربط مركز التكلفة {0}", center.name))
   }, [selectedCostCenterTypeIndex])
 
   const costCenterTypeScheme = useMemo(
     () => ({
       name: "CostCenterTypeScheme",
       columns: [
-        { header: "اسم نوع مركز الكلفة", name: "name", width: "*", minWidth: 250, isReadOnly: true },
-        { header: "الحالة", name: "state_status", width: 150, isReadOnly: true },
+        { header: tr("اسم نوع مركز الكلفة"), name: "name", width: "*", minWidth: 250, isReadOnly: true },
+        { header: tr("الحالة"), name: "state_status", width: 150, isReadOnly: true },
         { header: "Required in Transactions", name: "required_in_transactions", width: 0, isReadOnly: true, visible: true },
         {
           name: "btnStatusChange",
@@ -1077,7 +1078,7 @@ export default function UnifiedCustomers({
           width: 80,
           buttonBody: "button",
           align: "center",
-          title: "تغيير الحالة",
+          title: tr("تغيير الحالة"),
           iconType: "edit",
           className: "btn-status",
           isReadOnly: true,
@@ -1088,14 +1089,14 @@ export default function UnifiedCustomers({
           visible: true,
           visibleInColumnChooser: true,
         },
-        { header: "مركز التكلفة", name: "cost_center_name", width: 200, isReadOnly: true },
+        { header: tr("مركز التكلفة"), name: "cost_center_name", width: 200, isReadOnly: true },
         {
           name: "btnSearch",
           header: " ",
           width: 65,
           buttonBody: "button",
           align: "center",
-          title: "بحث",
+          title: tr("بحث"),
           iconType: "search",
           className: "btn-search",
           isReadOnly: true,
@@ -1112,7 +1113,7 @@ export default function UnifiedCustomers({
           width: 65,
           buttonBody: "button",
           align: "center",
-          title: "حذف",
+          title: tr("حذف"),
           iconType: "delete",
           className: "btn-delete",
           isReadOnly: true,
@@ -1142,7 +1143,7 @@ export default function UnifiedCustomers({
       {/* شريط الأدوات ثابت أعلى النافذة دوماً (لا يتحرَّك مع تمرير المحتوى) — بنفس أسلوب
           components/customer/unified-accounts-refactored.tsx (flex-shrink-0 لرأس + flex-1
           overflow-y-auto لجسم قابل للتمرير)، بدل sticky/هوامش سالبة أقل ثباتاً. */}
-      <div className="flex-shrink-0" dir="rtl">
+      <div className="flex-shrink-0" dir={appDir()}>
         <div className="w-full">
           {/* كل الأزرار مربوطة بمعالجات المستدعي، ومعطَّلة أثناء التحميل/الحفظ/الحذف (isLoading/isSaving)
               حتى لا يُنفَّذ إجراءان متداخلان على نفس السجل. أزرار الأدوات تظهر فقط إن مُرِّر معالجها. */}
@@ -1181,22 +1182,22 @@ export default function UnifiedCustomers({
       {isSalesman && (
         <Card className="border-emerald-200 shadow-sm">
           <CardHeader className="border-b border-emerald-100 bg-emerald-50/60 pb-3 pt-3">
-            <CardTitle className="text-base">بيانات المندوب</CardTitle>
+            <CardTitle className="text-base">{tr("بيانات المندوب")}</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
-            <div className="space-y-1"><Label>رقم المندوب *</Label><Input value={formData.customer_code} readOnly className="bg-slate-100" /></div>
-            <div className="space-y-1"><Label>اسم المندوب *</Label><Input ref={customerNameRef} value={formData.name} onChange={(e) => updateField("name", e.target.value)} /></div>
-            <div className="space-y-1"><Label>الاسم بالإنجليزي</Label><Input dir="ltr" value={formData.name_en} onChange={(e) => updateField("name_en", e.target.value)} /></div>
-            <div className="space-y-1"><Label>الوظيفة</Label><Input value={formData.job_title} onChange={(e) => updateField("job_title", e.target.value)} /></div>
-            <div className="space-y-1"><Label>التصنيف</Label><Input value={formData.classification} onChange={(e) => updateField("classification", e.target.value)} /></div>
-            <div className="space-y-1"><Label>المنطقة</Label><Input value={formData.region} onChange={(e) => updateField("region", e.target.value)} /></div>
-            <div className="space-y-1"><Label>الجوال</Label><Input value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} /></div>
-            <div className="space-y-1"><Label>البريد الإلكتروني</Label><Input type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} /></div>
-            <div className="space-y-1"><Label>حساب الأب (الحساب الرئيسي)</Label><AutoCompleteAccount label="" leafOnly={false} value={fatherAccountCode} placeholder="اختر حساب المندوبين" showCostCenterButton={false} requiredTypeValues={[4]} onValueChange={(value) => { setFatherAccountCode(value); if (!value) updateField("father_id", "") }} onAccountSelect={(account) => { setFatherAccountCode(account?.code || ""); updateField("father_id", account ? String(account.id) : "") }} /></div>
-            <div className="space-y-1"><Label>عمولة المبيعات %</Label><Input type="number" min="0" max="100" step="0.001" value={formData.sales_commission} onChange={(e) => updateField("sales_commission", e.target.value)} /></div>
-            <div className="space-y-1"><Label>عمولة التحصيل %</Label><Input type="number" min="0" max="100" step="0.001" value={formData.collection_commission} onChange={(e) => updateField("collection_commission", e.target.value)} /></div>
-            <div className="space-y-1 md:col-span-2"><Label>العنوان</Label><Input value={formData.address} onChange={(e) => updateField("address", e.target.value)} /></div>
-            <div className="space-y-1 md:col-span-3"><Label>ملاحظات</Label><Textarea rows={2} value={formData.general_notes} onChange={(e) => updateField("general_notes", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("رقم المندوب *")}</Label><Input value={formData.customer_code} readOnly className="bg-slate-100" /></div>
+            <div className="space-y-1"><Label>{tr("اسم المندوب *")}</Label><Input ref={customerNameRef} value={formData.name} onChange={(e) => updateField("name", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("الاسم بالإنجليزي")}</Label><Input dir="ltr" value={formData.name_en} onChange={(e) => updateField("name_en", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("الوظيفة")}</Label><Input value={formData.job_title} onChange={(e) => updateField("job_title", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("التصنيف")}</Label><Input value={formData.classification} onChange={(e) => updateField("classification", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("المنطقة")}</Label><Input value={formData.region} onChange={(e) => updateField("region", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("الجوال")}</Label><Input value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("البريد الإلكتروني")}</Label><Input type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("حساب الأب (الحساب الرئيسي)")}</Label><AutoCompleteAccount label="" leafOnly={false} value={fatherAccountCode} placeholder={tr("اختر حساب المندوبين")} showCostCenterButton={false} requiredTypeValues={[4]} onValueChange={(value) => { setFatherAccountCode(value); if (!value) updateField("father_id", "") }} onAccountSelect={(account) => { setFatherAccountCode(account?.code || ""); updateField("father_id", account ? String(account.id) : "") }} /></div>
+            <div className="space-y-1"><Label>{tr("عمولة المبيعات %")}</Label><Input type="number" min="0" max="100" step="0.001" value={formData.sales_commission} onChange={(e) => updateField("sales_commission", e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tr("عمولة التحصيل %")}</Label><Input type="number" min="0" max="100" step="0.001" value={formData.collection_commission} onChange={(e) => updateField("collection_commission", e.target.value)} /></div>
+            <div className="space-y-1 md:col-span-2"><Label>{tr("العنوان")}</Label><Input value={formData.address} onChange={(e) => updateField("address", e.target.value)} /></div>
+            <div className="space-y-1 md:col-span-3"><Label>{tr("ملاحظات")}</Label><Textarea rows={2} value={formData.general_notes} onChange={(e) => updateField("general_notes", e.target.value)} /></div>
           </CardContent>
         </Card>
       )}
@@ -1206,8 +1207,8 @@ export default function UnifiedCustomers({
           <CardTitle>
             <span className="customer-hero-icon"><UserRound className="h-[18px] w-[18px]" /></span>
             <span className="flex flex-col gap-0.5">
-              <span>المعلومات الأساسية والتعريف</span>
-              <span className="text-xs font-semibold text-[color:var(--cf-muted)]">{`بيانات ${entityLabel} الأساسية — الحقول المعلَّمة * إلزامية`}</span>
+              <span>{tr("المعلومات الأساسية والتعريف")}</span>
+              <span className="text-xs font-semibold text-[color:var(--cf-muted)]">{tr("بيانات {0} الأساسية — الحقول المعلَّمة * إلزامية", entityLabel)}</span>
             </span>
           </CardTitle>
         </CardHeader>
@@ -1217,7 +1218,7 @@ export default function UnifiedCustomers({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div>
                   <Label htmlFor="customer_code" className="text-sm font-medium">
-                    {`رقم ${entityLabel} *`}
+                    {tr("رقم {0} *", entityLabel)}
                   </Label>
                   <div className="flex gap-2">
                     <Input
@@ -1228,14 +1229,14 @@ export default function UnifiedCustomers({
                         await onCustomerCodeBlur?.(e.target.value)
                       }}
                       className="text-right"
-                      placeholder={`رقم ${entityLabel}`}
+                      placeholder={tr("رقم {0}", entityLabel)}
                       maxLength={8}
                     />
                     <Button
                       type="button"
                       variant="outline"
-                      title={`بحث عن ${entityIndef}`}
-                      aria-label={`بحث عن ${entityIndef}`}
+                      title={tr("بحث عن {0}", entityIndef)}
+                      aria-label={tr("بحث عن {0}", entityIndef)}
                       onClick={() => setShowCustomerSearch(true)}
                       className="h-9 w-10 shrink-0 rounded-lg border-indigo-200 bg-indigo-50 p-0 text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-800"
                     >
@@ -1248,7 +1249,7 @@ export default function UnifiedCustomers({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label htmlFor="customer_name" className="text-xs font-medium text-slate-600">
-                    {`اسم ${entityLabel} *`}
+                    {tr("اسم {0} *", entityLabel)}
                   </Label>
                   <Input
                     id="customer_name"
@@ -1259,7 +1260,7 @@ export default function UnifiedCustomers({
                       updateField("name", e.target.value.slice(0, 100))
                     }}
                     onBlur={copyNameToEnglishIfEdited}
-                    className={`h-9 border-slate-200 bg-slate-50/60 text-right shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200 ${validationErrors.name ? "border-red-500" : ""}`}
+                    className={`h-9 border-slate-200 bg-slate-50/60 text-start shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200 ${validationErrors.name ? "border-red-500" : ""}`}
                     placeholder=""
                     maxLength={100}
                     required
@@ -1269,14 +1270,14 @@ export default function UnifiedCustomers({
 
                 <div className="space-y-1">
                   <Label htmlFor="customer_name_en" className="text-xs font-medium text-slate-600">
-                    {`اسم ${entityLabel} بالانجليزي`}
+                    {tr("اسم {0} بالانجليزي", entityLabel)}
                   </Label>
                   <Input
                     id="customer_name_en"
                     value={formData.name_en}
                     onChange={(e) => updateField("name_en", e.target.value.slice(0, 100))}
                     onBlur={copyNameToEnglishIfEdited}
-                    className="h-9 border-slate-200 bg-slate-50/60 text-left shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200"
+                    className="h-9 border-slate-200 bg-slate-50/60 text-end shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200"
                     placeholder=""
                     maxLength={100}
                     dir="ltr"
@@ -1288,21 +1289,21 @@ export default function UnifiedCustomers({
             <ImageUploadField
               value={formData.image_url}
               onChange={(value) => updateField("image_url", value)}
-              label={`صورة ${entityLabel}`}
+              label={tr("صورة {0}", entityLabel)}
               size={160}
             />
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div>
-              <Label htmlFor="pricecategory" className="text-sm font-medium">فئة السعر</Label>
+              <Label htmlFor="pricecategory" className="text-sm font-medium">{tr("فئة السعر")}</Label>
               <PrimeDropdown
                 inputId="pricecategory"
                 value={formData.pricecategory || null}
                 options={pricecategory.map((item) => ({ label: item.name, value: item.id }))}
                 optionLabel="label"
                 optionValue="value"
-                placeholder="اختر فئة السعر"
+                placeholder={tr("اختر فئة السعر")}
                 filter={true}
                 className="invoice-currency-dropdown w-full"
                 {...popupDropdownProps}
@@ -1311,14 +1312,14 @@ export default function UnifiedCustomers({
               />
             </div>
             <div>
-              <Label htmlFor="salesman" className="text-sm font-medium">المندوب</Label>
+              <Label htmlFor="salesman" className="text-sm font-medium">{tr("المندوب")}</Label>
               <PrimeDropdown
                 inputId="salesman"
                 value={formData.salesman || null}
                 options={salesmen.map((item) => ({ label: item.name, value: item.name }))}
                 optionLabel="label"
                 optionValue="value"
-                placeholder="اختر المندوب"
+                placeholder={tr("اختر المندوب")}
                 filter={true}
                 className="invoice-currency-dropdown w-full"
                 {...popupDropdownProps}
@@ -1327,14 +1328,14 @@ export default function UnifiedCustomers({
               />
             </div>
             <div>
-                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف {entityLabel}</Label>
+                  <Label htmlFor="classification" className="text-sm font-medium">{tr("تصنيف ")}{entityLabel}</Label>
                   <PrimeDropdown
                     inputId="classification"
                     value={formData.classification || null}
                     options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder={`اختر تصنيف ${entityLabel}`}
+                    placeholder={tr("اختر تصنيف {0}", entityLabel)}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
@@ -1348,32 +1349,32 @@ export default function UnifiedCustomers({
         </CardContent>
       </Card>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4" dir="rtl">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4" dir={appDir()}>
         <TabsList className="customer-tabs">
-          <TabsTrigger value="address-location" className="customer-tab">العنوان والموقع</TabsTrigger>
-          <TabsTrigger value="financial-tax" className="customer-tab">المعلومات المالية والضريبية</TabsTrigger>
-          <TabsTrigger value="default-voucher-books" className="customer-tab">دفاتر السندات الافتراضية</TabsTrigger>
-          <TabsTrigger value="cost-centers" className="customer-tab">مراكز التكلفة</TabsTrigger>
-          <TabsTrigger value="stop-transactions" className="customer-tab">إيقاف الحركات</TabsTrigger>
-          <TabsTrigger value="attachments" className="customer-tab">المرفقات</TabsTrigger>
+          <TabsTrigger value="address-location" className="customer-tab">{tr("العنوان والموقع")}</TabsTrigger>
+          <TabsTrigger value="financial-tax" className="customer-tab">{tr("المعلومات المالية والضريبية")}</TabsTrigger>
+          <TabsTrigger value="default-voucher-books" className="customer-tab">{tr("دفاتر السندات الافتراضية")}</TabsTrigger>
+          <TabsTrigger value="cost-centers" className="customer-tab">{tr("مراكز التكلفة")}</TabsTrigger>
+          <TabsTrigger value="stop-transactions" className="customer-tab">{tr("إيقاف الحركات")}</TabsTrigger>
+          <TabsTrigger value="attachments" className="customer-tab">{tr("المرفقات")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="address-location" className="space-y-4" dir="rtl">
+        <TabsContent value="address-location" className="space-y-4" dir={appDir()}>
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">العنوان والموقع</CardTitle>
+              <CardTitle className="text-lg">{tr("العنوان والموقع")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="city" className="text-sm font-medium">المدينة</Label>
+                  <Label htmlFor="city" className="text-sm font-medium">{tr("المدينة")}</Label>
                   <PrimeDropdown
                     inputId="city"
                     value={formData.city || null}
                     options={cities.map((city: any) => ({ label: city.name || city.city_name || city.name_ar || city.name_en || "", value: city.name || city.city_name || city.name_ar || city.name_en || "" }))}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر المدينة"
+                    placeholder={tr("اختر المدينة")}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
@@ -1386,23 +1387,23 @@ export default function UnifiedCustomers({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="mobile1" className="text-sm font-medium">الجوال الأول</Label>
+                  <Label htmlFor="mobile1" className="text-sm font-medium">{tr("الجوال الأول")}</Label>
                   <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className="text-right" />
                 </div>
                 <div>
-                  <Label htmlFor="mobile2" className="text-sm font-medium">الجوال الثاني</Label>
+                  <Label htmlFor="mobile2" className="text-sm font-medium">{tr("الجوال الثاني")}</Label>
                   <Input id="mobile2" value={formData.mobile2} onChange={(e) => updateField("mobile2", e.target.value)} className="text-right" />
                 </div>
                 <div>
-                  <Label htmlFor="whatsapp1" className="text-sm font-medium">واتساب الأول</Label>
+                  <Label htmlFor="whatsapp1" className="text-sm font-medium">{tr("واتساب الأول")}</Label>
                   <Input id="whatsapp1" value={formData.whatsapp1} onChange={(e) => updateField("whatsapp1", e.target.value)} className="text-right" />
                 </div>
                 <div>
-                  <Label htmlFor="whatsapp2" className="text-sm font-medium">واتساب الثاني</Label>
+                  <Label htmlFor="whatsapp2" className="text-sm font-medium">{tr("واتساب الثاني")}</Label>
                   <Input id="whatsapp2" value={formData.whatsapp2} onChange={(e) => updateField("whatsapp2", e.target.value)} className="text-right" />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="email" className="text-sm font-medium">البريد الإلكتروني</Label>
+                  <Label htmlFor="email" className="text-sm font-medium">{tr("البريد الإلكتروني")}</Label>
                   <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className="text-right" />
                 </div>
               </div>
@@ -1410,19 +1411,19 @@ export default function UnifiedCustomers({
           </Card>
         </TabsContent>
 
-        <TabsContent value="financial-tax" className="space-y-4" dir="rtl">
+        <TabsContent value="financial-tax" className="space-y-4" dir={appDir()}>
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg">المعلومات المالية والضريبية</CardTitle>
+              <CardTitle className="text-lg">{tr("المعلومات المالية والضريبية")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <AutoCompleteAccount
-                    label="الحساب الرئيسي (تابع ل)"
+                    label={tr("الحساب الرئيسي (تابع ل)")}
                     leafOnly={false}
                     value={fatherAccountCode}
-                    placeholder="اختر الحساب الرئيسي"
+                    placeholder={tr("اختر الحساب الرئيسي")}
                     showCostCenterButton={false}
                     onValueChange={(nextCode) => {
                       setFatherAccountCode(nextCode)
@@ -1439,17 +1440,17 @@ export default function UnifiedCustomers({
                   />
                 </div>
                 <div>
-                  <Label className="mb-2 block text-sm font-medium">العملة</Label>
+                  <Label className="mb-2 block text-sm font-medium">{tr("العملة")}</Label>
                   <PrimeDropdown
                     inputId="currency_id"
                     value={formData.currency_id ? Number(formData.currency_id) : null}
                     options={currencies.map((currency: any) => ({
-                      label: currency.currency_name || currency.name || currency.currency_code || "غير محدد",
+                      label: currency.currency_name || currency.name || currency.currency_code || tr("غير محدد"),
                       value: Number(currency.currency_id ?? currency.id ?? 0),
                     }))}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر العملة"
+                    placeholder={tr("اختر العملة")}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
@@ -1458,18 +1459,18 @@ export default function UnifiedCustomers({
                   />
                 </div>
                 <div>
-                  <Label className="mb-2 block text-sm font-medium">السماح بعمل حركة على الحساب بغير عملته</Label>
+                  <Label className="mb-2 block text-sm font-medium">{tr("السماح بعمل حركة على الحساب بغير عملته")}</Label>
                   <PrimeDropdown
                     inputId="allow_trans_with_diff_curr"
                     value={allowTransWithDiffCurr}
                     options={[
-                      { label: "مسموح بدون تنبيه", value: "0" },
-                      { label: "مسموح مع تنبيه", value: "1" },
-                      { label: "ممنوع", value: "2" },
+                      { label: tr("مسموح بدون تنبيه"), value: "0" },
+                      { label: tr("مسموح مع تنبيه"), value: "1" },
+                      { label: tr("ممنوع"), value: "2" },
                     ]}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر الخيار"
+                    placeholder={tr("اختر الخيار")}
                     filter={false}
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
@@ -1481,33 +1482,33 @@ export default function UnifiedCustomers({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tax_number" className="text-sm font-medium">الرقم الضريبي</Label>
+                  <Label htmlFor="tax_number" className="text-sm font-medium">{tr("الرقم الضريبي")}</Label>
                   <Input id="tax_number" value={formData.tax_number} onChange={(e) => updateField("tax_number", e.target.value)} className="text-right" />
                 </div>
                 <div>
-                  <Label htmlFor="commercial_registration" className="text-sm font-medium">السجل التجاري</Label>
+                  <Label htmlFor="commercial_registration" className="text-sm font-medium">{tr("السجل التجاري")}</Label>
                   <Input id="commercial_registration" value={formData.commercial_registration} onChange={(e) => updateField("commercial_registration", e.target.value)} className="text-right" />
                 </div>
                 <div>
-                  <Label htmlFor="credit_limit" className="text-sm font-medium">حد الائتمان</Label>
+                  <Label htmlFor="credit_limit" className="text-sm font-medium">{tr("حد الائتمان")}</Label>
                   <Input id="credit_limit" type="number" value={formData.credit_limit} onChange={(e) => updateField("credit_limit", e.target.value)} className="text-right" />
                 </div>
                 <div>
-                  <Label htmlFor="payment_terms" className="text-sm font-medium">شروط الدفع</Label>
+                  <Label htmlFor="payment_terms" className="text-sm font-medium">{tr("شروط الدفع")}</Label>
                   <PrimeDropdown
                     inputId="payment_terms"
                     value={formData.payment_terms || "نقدي"}
                     options={[
-                      { label: "نقدي", value: "نقدي" },
-                      { label: "آجل 7 أيام", value: "آجل 7 أيام" },
-                      { label: "آجل 15 يوم", value: "آجل 15 يوم" },
-                      { label: "آجل 30 يوم", value: "آجل 30 يوم" },
-                      { label: "آجل 60 يوم", value: "آجل 60 يوم" },
-                      { label: "آجل 90 يوم", value: "آجل 90 يوم" },
+                      { label: tr("نقدي"), value: "نقدي" },
+                      { label: tr("آجل 7 أيام"), value: "آجل 7 أيام" },
+                      { label: tr("آجل 15 يوم"), value: "آجل 15 يوم" },
+                      { label: tr("آجل 30 يوم"), value: "آجل 30 يوم" },
+                      { label: tr("آجل 60 يوم"), value: "آجل 60 يوم" },
+                      { label: tr("آجل 90 يوم"), value: "آجل 90 يوم" },
                     ]}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر شروط الدفع"
+                    placeholder={tr("اختر شروط الدفع")}
                     filter={false}
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
@@ -1515,7 +1516,7 @@ export default function UnifiedCustomers({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="discount_percentage" className="text-sm font-medium">نسبة الخصم %</Label>
+                  <Label htmlFor="discount_percentage" className="text-sm font-medium">{tr("نسبة الخصم %")}</Label>
                   <Input id="discount_percentage" type="number" step="0.01" min="0" max="100" value={formData.discount_percentage} onChange={(e) => updateField("discount_percentage", e.target.value)} className="text-right" />
                 </div>
               </div>
@@ -1529,18 +1530,18 @@ export default function UnifiedCustomers({
                       updateField("iscalc_curr_diff_rates" as keyof UnifiedCustomerFormData, nextValue as any)
                     }}
                   />
-                  <span className="text-base font-medium">الحساب يخضع لفرق العملة</span>
+                  <span className="text-base font-medium">{tr("الحساب يخضع لفرق العملة")}</span>
                 </label>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="default-voucher-books" className="space-y-4" dir="rtl">
+        <TabsContent value="default-voucher-books" className="space-y-4" dir={appDir()}>
                       <Card>
                         <CardHeader className="pb-4">
                           <div className="flex items-center justify-between gap-4">
-                            <CardTitle className="text-lg">دفاتر السندات الافتراضية</CardTitle>
+                            <CardTitle className="text-lg">{tr("دفاتر السندات الافتراضية")}</CardTitle>
                             <Button
                               type="button"
                               variant="default"
@@ -1549,7 +1550,7 @@ export default function UnifiedCustomers({
                               className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                               <Plus className="w-4 h-4" />
-                              اضافة سطر جديد
+                              {tr("اضافة سطر جديد")}
                             </Button>
                           </div>
                         </CardHeader>
@@ -1559,13 +1560,13 @@ export default function UnifiedCustomers({
                               voucherTypeRows.map((row, index) => (
                                 <div key={row.ser ?? index} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                                   <div>
-                                    <Label className="mb-2 block text-sm font-medium">نوع السند</Label>
+                                    <Label className="mb-2 block text-sm font-medium">{tr("نوع السند")}</Label>
                                     <PrimeDropdown
                                       value={row.type_id ? Number(row.type_id) : null}
                                       options={voucherTypes.map((item: any) => ({ label: item.name || "", value: Number(item.id) }))}
                                       optionLabel="label"
                                       optionValue="value"
-                                      placeholder="اختر نوع السند"
+                                      placeholder={tr("اختر نوع السند")}
                                       filter={true}
                                       className="invoice-currency-dropdown w-full"
                                       {...popupDropdownProps}
@@ -1580,13 +1581,13 @@ export default function UnifiedCustomers({
                                     />
                                   </div>
                                   <div>
-                                    <Label className="mb-2 block text-sm font-medium">دفتر السند</Label>
+                                    <Label className="mb-2 block text-sm font-medium">{tr("دفتر السند")}</Label>
                                     <PrimeDropdown
                                       value={row.book_id ? Number(row.book_id) : null}
                                       options={voucherBooks.map((item: any) => ({ label: item.name || "", value: Number(item.id) }))}
                                       optionLabel="label"
                                       optionValue="value"
-                                      placeholder="اختر دفتر السند"
+                                      placeholder={tr("اختر دفتر السند")}
                                       filter={true}
                                       className="invoice-currency-dropdown w-full"
                                       {...popupDropdownProps}
@@ -1607,14 +1608,14 @@ export default function UnifiedCustomers({
                                       onClick={() => handleDeleteVoucherTypeRow(index)}
                                       className="w-full md:w-auto"
                                     >
-                                      حذف
+                                      {tr("حذف")}
                                     </Button>
                                   </div>
                                 </div>
                               ))
                             ) : (
                               <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                                لا توجد دفاتر سندات افتراضية. أضف سطراً جديداً للبدء.
+                                {tr("لا توجد دفاتر سندات افتراضية. أضف سطراً جديداً للبدء.")}
                               </div>
                             )}
                           </div>
@@ -1623,11 +1624,11 @@ export default function UnifiedCustomers({
                     </TabsContent>
 
 
-        <TabsContent value="cost-centers" className="space-y-4" dir="rtl">
+        <TabsContent value="cost-centers" className="space-y-4" dir={appDir()}>
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
               <div className="flex-1">
-                <h4 className="font-semibold text-base">مراكز التكلفة</h4>
+                <h4 className="font-semibold text-base">{tr("مراكز التكلفة")}</h4>
               </div>
               <Button
                 type="button"
@@ -1637,7 +1638,7 @@ export default function UnifiedCustomers({
                 className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 <Plus className="w-4 h-4" />
-                اضافة نوع مركز تكلفة جديد
+                {tr("اضافة نوع مركز تكلفة جديد")}
               </Button>
             </div>
 
@@ -1653,7 +1654,7 @@ export default function UnifiedCustomers({
               </Alert>
             )}
 
-            <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+            <div className="rounded-md border border-slate-300 overflow-hidden" dir={appDir()}>
               {costCenterTypes.length > 0 ? (
                 <div className="h-[500px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
                   <DataGridView
@@ -1664,7 +1665,7 @@ export default function UnifiedCustomers({
                 </div>
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-slate-50">
-                  <p className="text-slate-500 text-sm">لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد</p>
+                  <p className="text-slate-500 text-sm">{tr("لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد")}</p>
                 </div>
               )}
             </div>
@@ -1673,7 +1674,7 @@ export default function UnifiedCustomers({
 
 
 
-        <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
+        <TabsContent value="stop-transactions" className="space-y-4" dir={appDir()}>
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
               <Checkbox
@@ -1690,18 +1691,18 @@ export default function UnifiedCustomers({
                   )
                 }}
               />
-              <Label className="cursor-pointer text-sm font-medium">إيقاف كافة الحركات على الحساب</Label>
+              <Label className="cursor-pointer text-sm font-medium">{tr("إيقاف كافة الحركات على الحساب")}</Label>
             </div>
 
-            <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir="rtl">
+            <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir={appDir()}>
               {visibleStopTransactionRows.length > 0 ? (
                 <div className="max-h-[360px] overflow-y-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead className="sticky top-0 z-10 bg-slate-100">
                       <tr>
-                        <th className="w-28 border-b border-slate-200 px-3 py-2 text-center">إيقاف</th>
-                        <th className="border-b border-slate-200 px-3 py-2 text-right">نوع الحركة</th>
-                        <th className="w-40 border-b border-slate-200 px-3 py-2 text-center">تاريخ الإيقاف</th>
+                        <th className="w-28 border-b border-slate-200 px-3 py-2 text-center">{tr("إيقاف")}</th>
+                        <th className="border-b border-slate-200 px-3 py-2 text-start">{tr("نوع الحركة")}</th>
+                        <th className="w-40 border-b border-slate-200 px-3 py-2 text-center">{tr("تاريخ الإيقاف")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1718,7 +1719,7 @@ export default function UnifiedCustomers({
                               }}
                             />
                           </td>
-                          <td className="px-3 py-2 text-right">{row.voucher_type_name}</td>
+                          <td className="px-3 py-2 text-start">{row.voucher_type_name}</td>
                           <td className="px-3 py-2 text-center"><Input type="date" value={row.stop_date || ""} disabled={!row.is_stopped} onChange={(event) => setStopTransactionRows((prev) => prev.map((item) => item.voucher_types_id === row.voucher_types_id ? { ...item, stop_date: event.target.value } : item))} className="h-8" /></td>
                         </tr>
                       ))}
@@ -1727,14 +1728,14 @@ export default function UnifiedCustomers({
                 </div>
               ) : (
                 <div className="h-[360px] flex items-center justify-center bg-slate-50">
-                  <p className="text-slate-500 text-sm">لا توجد أنواع حركات</p>
+                  <p className="text-slate-500 text-sm">{tr("لا توجد أنواع حركات")}</p>
                 </div>
               )}
             </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="attachments" className="space-y-4" dir="rtl">
+        <TabsContent value="attachments" className="space-y-4" dir={appDir()}>
           <AttachmentManager modelName="customer" recordId={formData.id > 0 ? formData.id : null} />
         </TabsContent>
       </Tabs>
@@ -1758,7 +1759,7 @@ export default function UnifiedCustomers({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
-        message="هل تريد حذف مركز التكلفة؟"
+        message={tr("هل تريد حذف مركز التكلفة؟")}
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteConfirm(false)
@@ -1769,7 +1770,7 @@ export default function UnifiedCustomers({
 
       <ConfirmDialogYesNo
         visible={showDeleteClassificationConfirm}
-        message="هل تريد حذف التصنيف؟"
+        message={tr("هل تريد حذف التصنيف؟")}
         onConfirm={handleConfirmDeleteClassification}
         onCancel={() => {
           setShowDeleteClassificationConfirm(false)
@@ -1779,10 +1780,10 @@ export default function UnifiedCustomers({
       />
 
       <Dialog open={showCostCenterTypeForm} onOpenChange={(value) => { if (!savingCostCenterType) setShowCostCenterTypeForm(value) }}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-md" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle>إضافة نوع مركز تكلفة جديد</DialogTitle>
-            <DialogDescription>أدخل اسم نوع مركز التكلفة الجديد</DialogDescription>
+            <DialogTitle>{tr("إضافة نوع مركز تكلفة جديد")}</DialogTitle>
+            <DialogDescription>{tr("أدخل اسم نوع مركز التكلفة الجديد")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {newCostCenterTypeError && (
@@ -1792,30 +1793,30 @@ export default function UnifiedCustomers({
               </Alert>
             )}
             <div>
-              <Label htmlFor="costCenterTypeName" className="mb-2 block text-sm font-medium">اسم النوع *</Label>
+              <Label htmlFor="costCenterTypeName" className="mb-2 block text-sm font-medium">{tr("اسم النوع *")}</Label>
               <Input
                 id="costCenterTypeName"
                 value={newCostCenterTypeName}
                 onChange={(e) => setNewCostCenterTypeName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSaveCostCenterType() } }}
-                placeholder="أدخل اسم النوع"
+                placeholder={tr("أدخل اسم النوع")}
                 className="text-right"
                 autoFocus
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" disabled={savingCostCenterType} onClick={() => setShowCostCenterTypeForm(false)}>إلغاء</Button>
-            <Button disabled={savingCostCenterType} onClick={() => void handleSaveCostCenterType()}>حفظ</Button>
+            <Button variant="outline" disabled={savingCostCenterType} onClick={() => setShowCostCenterTypeForm(false)}>{tr("إلغاء")}</Button>
+            <Button disabled={savingCostCenterType} onClick={() => void handleSaveCostCenterType()}>{tr("حفظ")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-md" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle>إضافة نوع تصنيف جديد</DialogTitle>
-            <DialogDescription>أدخل اسم نوع التصنيف الجديد</DialogDescription>
+            <DialogTitle>{tr("إضافة نوع تصنيف جديد")}</DialogTitle>
+            <DialogDescription>{tr("أدخل اسم نوع التصنيف الجديد")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {classificationTypeError && (
@@ -1826,13 +1827,13 @@ export default function UnifiedCustomers({
             )}
             <div>
               <Label htmlFor="classificationTypeName" className="mb-2 block text-sm font-medium">
-                اسم النوع *
+                {tr("اسم النوع *")}
               </Label>
               <Input
                 id="classificationTypeName"
                 value={newClassificationTypeName}
                 onChange={(e) => setNewClassificationTypeName(e.target.value)}
-                placeholder="أدخل اسم النوع"
+                placeholder={tr("أدخل اسم النوع")}
                 className="text-right"
                 autoFocus
               />
@@ -1847,18 +1848,18 @@ export default function UnifiedCustomers({
                 setClassificationTypeError("")
               }}
             >
-              إلغاء
+              {tr("إلغاء")}
             </Button>
-            <Button onClick={handleSaveClassificationType}>حفظ</Button>
+            <Button onClick={handleSaveClassificationType}>{tr("حفظ")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showClassificationForm} onOpenChange={setShowClassificationForm}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-md" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle>إضافة تصنيف جديد</DialogTitle>
-            <DialogDescription>حدد نوع التصنيف واسم التصنيف</DialogDescription>
+            <DialogTitle>{tr("إضافة تصنيف جديد")}</DialogTitle>
+            <DialogDescription>{tr("حدد نوع التصنيف واسم التصنيف")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {classificationError && (
@@ -1869,7 +1870,7 @@ export default function UnifiedCustomers({
             )}
             <div>
               <Label htmlFor="classificationTypeSelect" className="mb-2 block text-sm font-medium">
-                نوع التصنيف *
+                {tr("نوع التصنيف *")}
               </Label>
               <PrimeDropdown
                 inputId="classificationTypeSelect"
@@ -1877,7 +1878,7 @@ export default function UnifiedCustomers({
                 options={classificationTypes.map((type: any) => ({ label: type.name, value: String(type.id) }))}
                 optionLabel="label"
                 optionValue="value"
-                placeholder="اختر نوع التصنيف"
+                placeholder={tr("اختر نوع التصنيف")}
                 filter={true}
                 className="invoice-currency-dropdown w-full"
                 {...popupDropdownProps}
@@ -1887,13 +1888,13 @@ export default function UnifiedCustomers({
             </div>
             <div>
               <Label htmlFor="classificationNameInput" className="mb-2 block text-sm font-medium">
-                اسم التصنيف *
+                {tr("اسم التصنيف *")}
               </Label>
               <Input
                 id="classificationNameInput"
                 value={newClassificationName}
                 onChange={(e) => setNewClassificationName(e.target.value)}
-                placeholder="أدخل اسم التصنيف"
+                placeholder={tr("أدخل اسم التصنيف")}
                 className="text-right"
               />
             </div>
@@ -1908,9 +1909,9 @@ export default function UnifiedCustomers({
                 setClassificationError("")
               }}
             >
-              إلغاء
+              {tr("إلغاء")}
             </Button>
-            <Button onClick={handleSaveClassification}>حفظ</Button>
+            <Button onClick={handleSaveClassification}>{tr("حفظ")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

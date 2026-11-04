@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,21 +37,21 @@ interface Customer {
 }
 
 const customerSummary = [
-  { title: "إجمالي العملاء", value: "342", icon: Users, color: "text-primary" },
-  { title: "العملاء نشطون", value: "298", icon: Users, color: "text-success" },
-  { title: "العملاء جدد هذا الشهر", value: "23", icon: Users, color: "text-accent" },
-  { title: "إجمالي المبيعات", value: "1,245,800 شيكل", icon: Users, color: "text-chart-2" },
+  { title: tr("إجمالي العملاء"), value: "342", icon: Users, color: "text-primary" },
+  { title: tr("العملاء نشطون"), value: "298", icon: Users, color: "text-success" },
+  { title: tr("العملاء جدد هذا الشهر"), value: "23", icon: Users, color: "text-accent" },
+  { title: tr("إجمالي المبيعات"), value: "1,245,800 شيكل", icon: Users, color: "text-chart-2" },
 ]
 
 const reportColumns = [
-  { key: "customer_code", label: "رقم العميل", width: "120px" },
-  { key: "name", label: "اسم العميل", width: "200px" },
-  { key: "mobile1", label: "الموبايل", width: "120px" },
-  { key: "city", label: "المدينة", width: "100px" },
-  { key: "business_nature", label: "النشاط", width: "150px" },
-  { key: "status", label: "الحالة", width: "80px" },
-  { key: "salesman", label: "المندوب", width: "120px" },
-  { key: "registration_date", label: "تاريخ التسجيل", width: "120px" },
+  { key: "customer_code", label: tr("رقم العميل"), width: "120px" },
+  { key: "name", label: tr("اسم العميل"), width: "200px" },
+  { key: "mobile1", label: tr("الموبايل"), width: "120px" },
+  { key: "city", label: tr("المدينة"), width: "100px" },
+  { key: "business_nature", label: tr("النشاط"), width: "150px" },
+  { key: "status", label: tr("الحالة"), width: "80px" },
+  { key: "salesman", label: tr("المندوب"), width: "120px" },
+  { key: "registration_date", label: tr("تاريخ التسجيل"), width: "120px" },
 ]
 
 function CustomersWithToolbar() {
@@ -124,16 +125,16 @@ function CustomersWithToolbar() {
           setCustomers(data.customers)
         } else {
           setCustomers([])
-          setError("تنسيق البيانات غير صحيح")
+          setError(tr("تنسيق البيانات غير صحيح"))
         }
       } else {
         setCustomers([])
-        setError("فشل في تحميل بيانات العملاء")
+        setError(tr("فشل في تحميل بيانات العملاء"))
       }
     } catch (error) {
       console.error("Error fetching customers:", error)
       setCustomers([])
-      setError("خطأ في الاتصال بقاعدة البيانات")
+      setError(tr("خطأ في الاتصال بقاعدة البيانات"))
     } finally {
       setLoading(false)
     }
@@ -141,11 +142,11 @@ function CustomersWithToolbar() {
 
   async function handleSaveCustomer(customer: Customer, isNewRecord: boolean): Promise<void> {
     if (!customer.name.trim()) {
-      throw new Error("اسم العميل مطلوب")
+      throw new Error(tr("اسم العميل مطلوب"))
     }
 
     if (!customer.customer_code.trim()) {
-      throw new Error("رقم العميل مطلوب")
+      throw new Error(tr("رقم العميل مطلوب"))
     }
 
     const method = isNewRecord ? "POST" : "PUT"
@@ -161,15 +162,15 @@ function CustomersWithToolbar() {
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "فشل في حفظ بيانات العميل")
+      throw new Error(errorData.message || tr("فشل في حفظ بيانات العميل"))
     }
 
     await fetchCustomers()
   }
 
   async function handleDeleteCustomer(customer: Customer): Promise<void> {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا العميل؟"))) {
-      throw new Error("تم إلغاء العملية")
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذا العميل؟")))) {
+      throw new Error(tr("تم إلغاء العملية"))
     }
 
     const response = await fetch(`/api/customers/${customer.id}`, {
@@ -177,7 +178,7 @@ function CustomersWithToolbar() {
     })
 
     if (!response.ok) {
-      throw new Error("فشل في حذف العميل")
+      throw new Error(tr("فشل في حذف العميل"))
     }
 
     await fetchCustomers()
@@ -192,11 +193,11 @@ function CustomersWithToolbar() {
         const data = await response.json()
         updateRecord({ customer_code: data.customerNumber })
       } else {
-        setError("فشل في توليد رقم جديد")
+        setError(tr("فشل في توليد رقم جديد"))
       }
     } catch (error) {
       console.error("Error generating customer number:", error)
-      setError("خطأ في توليد رقم العميل")
+      setError(tr("خطأ في توليد رقم العميل"))
     } finally {
       setGeneratingNumber(false)
     }
@@ -219,7 +220,7 @@ function CustomersWithToolbar() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">جاري تحميل بيانات العملاء...</div>
+        <div className="text-lg">{tr("جاري تحميل بيانات العملاء...")}</div>
       </div>
     )
   }
@@ -229,7 +230,7 @@ function CustomersWithToolbar() {
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="text-lg text-red-600">{error}</div>
         <Button onClick={fetchCustomers} variant="outline">
-          إعادة المحاولة
+          {tr("إعادة المحاولة")}
         </Button>
       </div>
     )
@@ -279,7 +280,7 @@ function CustomersWithToolbar() {
       <Card className="erp-card">
         <CardHeader className="py-1 px-3">
           <CardTitle className="text-sm">
-            {isNew ? "عميل جديد" : `تعديل العميل: ${currentRecord.customer_code}`}
+            {isNew ? tr("عميل جديد") : tr("تعديل العميل: {0}", currentRecord.customer_code)}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-2">
@@ -290,12 +291,12 @@ function CustomersWithToolbar() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
               <div>
                 <Label htmlFor="customerId" className="text-xs">
-                  رقم العميل *
+                  {tr("رقم العميل *")}
                 </Label>
                 <div className="flex gap-1.5">
                   <Input
                     id="customerId"
-                    placeholder="أدخل رقم العميل أو اضغط جديد"
+                    placeholder={tr("أدخل رقم العميل أو اضغط جديد")}
                     value={currentRecord.customer_code}
                     onChange={(e) => updateRecord({ customer_code: e.target.value })}
                     className="h-7 text-xs"
@@ -307,17 +308,17 @@ function CustomersWithToolbar() {
                     disabled={generatingNumber}
                     className="whitespace-nowrap bg-transparent h-7 text-xs px-2"
                   >
-                    {generatingNumber ? "جاري..." : "جديد"}
+                    {generatingNumber ? tr("جاري...") : tr("جديد")}
                   </Button>
                 </div>
               </div>
               <div>
                 <Label htmlFor="customerName" className="text-xs">
-                  اسم العميل *
+                  {tr("اسم العميل *")}
                 </Label>
                 <Input
                   id="customerName"
-                  placeholder="أدخل اسم العميل"
+                  placeholder={tr("أدخل اسم العميل")}
                   required
                   value={currentRecord.name}
                   onChange={(e) => updateRecord({ name: e.target.value })}
@@ -326,7 +327,7 @@ function CustomersWithToolbar() {
               </div>
               <div>
                 <Label htmlFor="mobile1" className="text-xs">
-                  رقم الموبايل 1
+                  {tr("رقم الموبايل 1")}
                 </Label>
                 <Input
                   id="mobile1"
@@ -340,34 +341,34 @@ function CustomersWithToolbar() {
 
               <div>
                 <Label htmlFor="city" className="text-xs">
-                  المدينة
+                  {tr("المدينة")}
                 </Label>
                 <Select value={currentRecord.city} onValueChange={(value) => updateRecord({ city: value })}>
                   <SelectTrigger className="h-7 text-xs">
-                    <SelectValue placeholder="اختر المدينة" />
+                    <SelectValue placeholder={tr("اختر المدينة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="نابلس">نابلس</SelectItem>
-                    <SelectItem value="رام الله">رام الله</SelectItem>
-                    <SelectItem value="القدس">القدس</SelectItem>
-                    <SelectItem value="الخليل">الخليل</SelectItem>
-                    <SelectItem value="جنين">جنين</SelectItem>
-                    <SelectItem value="طولكرم">طولكرم</SelectItem>
+                    <SelectItem value="نابلس">{tr("نابلس")}</SelectItem>
+                    <SelectItem value="رام الله">{tr("رام الله")}</SelectItem>
+                    <SelectItem value="القدس">{tr("القدس")}</SelectItem>
+                    <SelectItem value="الخليل">{tr("الخليل")}</SelectItem>
+                    <SelectItem value="جنين">{tr("جنين")}</SelectItem>
+                    <SelectItem value="طولكرم">{tr("طولكرم")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
                 <Label htmlFor="status" className="text-xs">
-                  الحالة
+                  {tr("الحالة")}
                 </Label>
                 <Select value={currentRecord.status} onValueChange={(value) => updateRecord({ status: value })}>
                   <SelectTrigger className="h-7 text-xs">
-                    <SelectValue placeholder="اختر الحالة" />
+                    <SelectValue placeholder={tr("اختر الحالة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="نشط">نشط</SelectItem>
-                    <SelectItem value="غير نشط">غير نشط</SelectItem>
+                    <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                    <SelectItem value="غير نشط">{tr("غير نشط")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -376,11 +377,11 @@ function CustomersWithToolbar() {
             <div className="space-y-1.5">
               <div>
                 <Label htmlFor="transactionNotes" className="text-xs">
-                  ملاحظات تظهر في الحركات
+                  {tr("ملاحظات تظهر في الحركات")}
                 </Label>
                 <Textarea
                   id="transactionNotes"
-                  placeholder="ملاحظات خاصة بالحركات والفواتير"
+                  placeholder={tr("ملاحظات خاصة بالحركات والفواتير")}
                   value={currentRecord.transaction_notes}
                   onChange={(e) => updateRecord({ transaction_notes: e.target.value })}
                   className="text-xs min-h-[40px]"
@@ -389,11 +390,11 @@ function CustomersWithToolbar() {
               </div>
               <div>
                 <Label htmlFor="generalNotes" className="text-xs">
-                  ملاحظات عامة
+                  {tr("ملاحظات عامة")}
                 </Label>
                 <Textarea
                   id="generalNotes"
-                  placeholder="ملاحظات عامة عن العميل"
+                  placeholder={tr("ملاحظات عامة عن العميل")}
                   value={currentRecord.general_notes}
                   onChange={(e) => updateRecord({ general_notes: e.target.value })}
                   className="text-xs min-h-[40px]"
@@ -407,7 +408,7 @@ function CustomersWithToolbar() {
 
       {/* Report Generator */}
       <ReportGenerator
-        title="تقرير العملاء"
+        title={tr("تقرير العملاء")}
         data={customers}
         columns={reportColumns}
         isOpen={showReport}

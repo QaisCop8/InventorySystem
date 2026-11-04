@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { AlertCircle, Check, CheckCheck, Clock3, MessageSquareText, SendHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -37,7 +38,7 @@ export function ChatThread({ meId, messages, lastReadId, onSend }: { meId: strin
         {!messages.length ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm dark:bg-slate-800"><MessageSquareText className="h-6 w-6" /></span>
-            <p className="text-sm text-muted-foreground">لا توجد رسائل بعد — ابدأ المحادثة</p>
+            <p className="text-sm text-muted-foreground">{tr("لا توجد رسائل بعد — ابدأ المحادثة")}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-1">
@@ -60,8 +61,8 @@ export function ChatThread({ meId, messages, lastReadId, onSend }: { meId: strin
                       className={cn(
                         "max-w-[80%] px-3 py-1.5 text-sm shadow-sm",
                         mine
-                          ? "rounded-2xl rounded-tr-md bg-emerald-600 text-white"
-                          : "rounded-2xl rounded-tl-md bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100",
+                          ? "rounded-2xl rounded-ss-md bg-emerald-600 text-white"
+                          : "rounded-2xl rounded-se-md bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100",
                         m.local === "failed" && "bg-rose-50 text-rose-900 ring-1 ring-rose-200",
                       )}
                     >
@@ -72,7 +73,7 @@ export function ChatThread({ meId, messages, lastReadId, onSend }: { meId: strin
                       </div>
                       {m.local === "failed" && (
                         <button type="button" onClick={() => onSend(m.body, m.id)} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:underline">
-                          <AlertCircle className="h-3 w-3" /> لم تُرسل — إعادة المحاولة
+                          <AlertCircle className="h-3 w-3" />{tr(" لم تُرسل — إعادة المحاولة")}
                         </button>
                       )}
                     </div>
@@ -96,14 +97,14 @@ export function ChatThread({ meId, messages, lastReadId, onSend }: { meId: strin
               submit()
             }
           }}
-          placeholder="اكتب رسالة..."
+          placeholder={tr("اكتب رسالة...")}
           className="max-h-28 min-h-[40px] flex-1 resize-none rounded-2xl bg-slate-100 px-4 py-2.5 text-sm outline-none ring-emerald-500/40 placeholder:text-slate-400 focus:ring-2 dark:bg-slate-800"
         />
         <button
           type="button"
           onClick={submit}
           disabled={!text.trim()}
-          aria-label="إرسال"
+          aria-label={tr("إرسال")}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md transition hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none dark:disabled:bg-slate-700"
         >
           <SendHorizontal className="h-4 w-4 -scale-x-100" />

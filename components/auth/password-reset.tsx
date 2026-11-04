@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
@@ -20,7 +21,7 @@ interface PasswordResetProps {
 const callResetApi = async (body: Record<string, unknown>) => {
   const response = await fetch("/api/auth/password-reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
   const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(data.error || "حدث خطأ في النظام")
+  if (!response.ok) throw new Error(data.error || tr("حدث خطأ في النظام"))
   return data
 }
 
@@ -84,7 +85,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
       setResendIn(RESEND_SECONDS)
       requestAnimationFrame(() => codeRef.current?.focus())
     } catch (err: any) {
-      setError(err.message || "حدث خطأ في إرسال رمز التحقق")
+      setError(err.message || tr("حدث خطأ في إرسال رمز التحقق"))
     } finally {
       setIsLoading(false)
     }
@@ -99,7 +100,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
     e.preventDefault()
     setError("")
     if (!/^\d{6}$/.test(verificationCode.trim())) {
-      setError("رمز التحقق مكوّن من 6 أرقام")
+      setError(tr("رمز التحقق مكوّن من 6 أرقام"))
       return
     }
     setIsLoading(true)
@@ -109,7 +110,7 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
       setResetError("")
       setResetOpen(true)
     } catch (err: any) {
-      setError(err.message || "حدث خطأ في التحقق من الرمز")
+      setError(err.message || tr("حدث خطأ في التحقق من الرمز"))
     } finally {
       setIsLoading(false)
     }
@@ -118,15 +119,15 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setResetError("")
-    if (newPassword.length < 6) { setResetError("كلمة المرور يجب أن تكون 6 أحرف على الأقل"); return }
-    if (newPassword !== confirmPassword) { setResetError("كلمة المرور وتأكيدها غير متطابقتين"); return }
+    if (newPassword.length < 6) { setResetError(tr("كلمة المرور يجب أن تكون 6 أحرف على الأقل")); return }
+    if (newPassword !== confirmPassword) { setResetError(tr("كلمة المرور وتأكيدها غير متطابقتين")); return }
     setResetLoading(true)
     try {
       await callResetApi({ step: "reset", email, code: verificationCode.trim(), newPassword })
       setResetDone(true)
       window.setTimeout(() => onBack(), 2500)
     } catch (err: any) {
-      setResetError(err.message || "حدث خطأ في تغيير كلمة المرور")
+      setResetError(err.message || tr("حدث خطأ في تغيير كلمة المرور"))
     } finally {
       setResetLoading(false)
     }
@@ -137,22 +138,22 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
   const strengthTone = ["", "bg-red-500", "bg-amber-500", "bg-emerald-500"][strength]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-emerald-100 flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-emerald-100 flex items-center justify-center p-4" dir={appDir()}>
       <div className="w-full max-w-md">
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 pb-6">
             <div className="flex items-center gap-2 mb-2">
-              <Button variant="ghost" size="sm" onClick={onBack} className="p-2 hover:bg-gray-100" aria-label="رجوع لتسجيل الدخول">
+              <Button variant="ghost" size="sm" onClick={onBack} className="p-2 hover:bg-gray-100" aria-label={tr("رجوع لتسجيل الدخول")}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <CardTitle className="text-xl">استعادة كلمة المرور</CardTitle>
+              <CardTitle className="text-xl">{tr("استعادة كلمة المرور")}</CardTitle>
             </div>
             <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-              <span className={step === "request" ? "text-emerald-700" : ""}>1. البريد الإلكتروني</span>
+              <span className={step === "request" ? "text-emerald-700" : ""}>{tr("1. البريد الإلكتروني")}</span>
               <span>←</span>
-              <span className={step === "verify" && !resetOpen ? "text-emerald-700" : ""}>2. رمز التحقق</span>
+              <span className={step === "verify" && !resetOpen ? "text-emerald-700" : ""}>{tr("2. رمز التحقق")}</span>
               <span>←</span>
-              <span className={resetOpen ? "text-emerald-700" : ""}>3. كلمة المرور الجديدة</span>
+              <span className={resetOpen ? "text-emerald-700" : ""}>{tr("3. كلمة المرور الجديدة")}</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -160,16 +161,16 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
               <form onSubmit={handleRequestReset} className="space-y-4">
                 <Notice tone="error" text={error} />
                 <div className="space-y-2">
-                  <Label htmlFor="email">البريد الإلكتروني</Label>
+                  <Label htmlFor="email">{tr("البريد الإلكتروني")}</Label>
                   <div className="relative">
-                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
-                    <Input id="email" type="email" dir="ltr" autoComplete="email" placeholder="name@example.com" className="pr-12 h-12 text-left"
+                    <Mail className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <Input id="email" type="email" dir="ltr" autoComplete="email" placeholder="name@example.com" className="ps-12 h-12 text-end"
                       value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
                   </div>
-                  <p className="text-sm text-muted-foreground">سيصلك رمز تحقق من 6 أرقام على هذا البريد (صالح 15 دقيقة)</p>
+                  <p className="text-sm text-muted-foreground">{tr("سيصلك رمز تحقق من 6 أرقام على هذا البريد (صالح 15 دقيقة)")}</p>
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 h-12" disabled={isLoading}>
-                  {isLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جاري الإرسال...</> : "إرسال رمز التحقق"}
+                  {isLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري الإرسال...")}</> : tr("إرسال رمز التحقق")}
                 </Button>
               </form>
             ) : (
@@ -177,20 +178,20 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
                 <Notice tone="success" text={success} />
                 <Notice tone="error" text={error} />
                 <div className="space-y-2">
-                  <Label htmlFor="code">رمز التحقق</Label>
+                  <Label htmlFor="code">{tr("رمز التحقق")}</Label>
                   <Input ref={codeRef} id="code" inputMode="numeric" autoComplete="one-time-code" dir="ltr" placeholder="••••••"
                     className="h-14 text-center text-2xl font-bold tracking-[0.6em]" value={verificationCode}
                     onChange={(e) => { setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setError("") }} maxLength={6} required />
-                  <p className="text-sm text-muted-foreground">أُرسل الرمز إلى: <b dir="ltr">{email}</b></p>
+                  <p className="text-sm text-muted-foreground">{tr("أُرسل الرمز إلى: ")}<b dir="ltr">{email}</b></p>
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 h-12" disabled={isLoading || verificationCode.length !== 6}>
-                  {isLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جاري التحقق...</> : "تحقق من الرمز"}
+                  {isLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري التحقق...")}</> : tr("تحقق من الرمز")}
                 </Button>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" className="flex-1 bg-transparent" disabled={isLoading || resendIn > 0} onClick={() => void sendCode()}>
-                    {resendIn > 0 ? `إعادة الإرسال بعد ${resendIn} ث` : "إعادة إرسال الرمز"}
+                    {resendIn > 0 ? tr("إعادة الإرسال بعد {0} ث", resendIn) : tr("إعادة إرسال الرمز")}
                   </Button>
-                  <Button type="button" variant="ghost" className="flex-1" onClick={() => { setStep("request"); setError(""); setSuccess("") }}>تغيير البريد</Button>
+                  <Button type="button" variant="ghost" className="flex-1" onClick={() => { setStep("request"); setError(""); setSuccess("") }}>{tr("تغيير البريد")}</Button>
                 </div>
               </form>
             )}
@@ -200,27 +201,27 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
 
       {/* الخطوة 3: نافذة منبثقة بعد التحقق من الرمز */}
       <Dialog open={resetOpen} onOpenChange={(open) => { if (!resetLoading && !resetDone) setResetOpen(open) }}>
-        <DialogContent dir="rtl" className="w-[calc(100vw-2rem)] max-w-md" onPointerDownOutside={(event) => event.preventDefault()}>
+        <DialogContent dir={appDir()} className="w-[calc(100vw-2rem)] max-w-md" onPointerDownOutside={(event) => event.preventDefault()}>
           <DialogHeader className="text-right">
-            <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" />تعيين كلمة مرور جديدة</DialogTitle>
-            <DialogDescription>للحساب <b dir="ltr">{email}</b></DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-600" />{tr("تعيين كلمة مرور جديدة")}</DialogTitle>
+            <DialogDescription>{tr("للحساب ")}<b dir="ltr">{email}</b></DialogDescription>
           </DialogHeader>
           {resetDone ? (
             <div className="space-y-3 py-4 text-center">
               <CheckCircle className="mx-auto h-12 w-12 text-emerald-600" />
-              <p className="font-bold text-emerald-700">تم تغيير كلمة المرور بنجاح</p>
-              <p className="text-sm text-muted-foreground">جاري تحويلك لتسجيل الدخول...</p>
+              <p className="font-bold text-emerald-700">{tr("تم تغيير كلمة المرور بنجاح")}</p>
+              <p className="text-sm text-muted-foreground">{tr("جاري تحويلك لتسجيل الدخول...")}</p>
             </div>
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <Notice tone="error" text={resetError} />
               <div className="space-y-2">
-                <Label htmlFor="newPassword">كلمة المرور الجديدة</Label>
+                <Label htmlFor="newPassword">{tr("كلمة المرور الجديدة")}</Label>
                 <div className="relative">
-                  <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <Input id="newPassword" type={showNew ? "text" : "password"} autoComplete="new-password" placeholder="6 أحرف على الأقل" className="h-12 pl-11 pr-12"
+                  <Key className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input id="newPassword" type={showNew ? "text" : "password"} autoComplete="new-password" placeholder={tr("6 أحرف على الأقل")} className="h-12 pe-11 ps-12"
                     value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setResetError("") }} minLength={6} required autoFocus />
-                  <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" onClick={() => setShowNew((value) => !value)} aria-label={showNew ? "إخفاء" : "إظهار"}>
+                  <button type="button" className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-500" onClick={() => setShowNew((value) => !value)} aria-label={showNew ? tr("إخفاء") : tr("إظهار")}>
                     {showNew ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
@@ -232,22 +233,22 @@ export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: P
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
+                <Label htmlFor="confirmPassword">{tr("تأكيد كلمة المرور")}</Label>
                 <div className="relative">
-                  <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <Input id="confirmPassword" type={showConfirm ? "text" : "password"} autoComplete="new-password" placeholder="أعد إدخال كلمة المرور" className="h-12 pl-11 pr-12"
+                  <Key className="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input id="confirmPassword" type={showConfirm ? "text" : "password"} autoComplete="new-password" placeholder={tr("أعد إدخال كلمة المرور")} className="h-12 pe-11 ps-12"
                     value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setResetError("") }} minLength={6} required />
-                  <button type="button" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" onClick={() => setShowConfirm((value) => !value)} aria-label={showConfirm ? "إخفاء" : "إظهار"}>
+                  <button type="button" className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-500" onClick={() => setShowConfirm((value) => !value)} aria-label={showConfirm ? tr("إخفاء") : tr("إظهار")}>
                     {showConfirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                {confirmPassword && confirmPassword !== newPassword && <p className="text-xs text-red-600">غير مطابقة لكلمة المرور الجديدة</p>}
+                {confirmPassword && confirmPassword !== newPassword && <p className="text-xs text-red-600">{tr("غير مطابقة لكلمة المرور الجديدة")}</p>}
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="h-12 flex-1 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700" disabled={resetLoading}>
-                  {resetLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جاري الحفظ...</> : "حفظ كلمة المرور"}
+                  {resetLoading ? <><Loader2 className="ml-2 h-4 w-4 animate-spin" />{tr("جاري الحفظ...")}</> : tr("حفظ كلمة المرور")}
                 </Button>
-                <Button type="button" variant="outline" className="h-12" disabled={resetLoading} onClick={() => setResetOpen(false)}>إلغاء</Button>
+                <Button type="button" variant="outline" className="h-12" disabled={resetLoading} onClick={() => setResetOpen(false)}>{tr("إلغاء")}</Button>
               </div>
             </form>
           )}

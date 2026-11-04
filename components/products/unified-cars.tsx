@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -178,7 +179,7 @@ export default function UnifiedCars({
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
           className="w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0"
-          dir="rtl"
+          dir={appDir()}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
@@ -201,7 +202,7 @@ export default function UnifiedCars({
 
           <div className="rounded-b-3xl bg-background px-6 py-6">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل بيانات سيارة" : "إضافة سيارة جديدة"}</DialogTitle>
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? tr("تعديل بيانات سيارة") : tr("إضافة سيارة جديدة")}</DialogTitle>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -213,7 +214,7 @@ export default function UnifiedCars({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="car-code">رقم السيارة</Label>
+                  <Label htmlFor="car-code">{tr("رقم السيارة")}</Label>
                   <Input
                     id="car-code"
                     value={form.car_code}
@@ -231,7 +232,7 @@ export default function UnifiedCars({
                   />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
-                  <Label htmlFor="car-name">اسم السيارة *</Label>
+                  <Label htmlFor="car-name">{tr("اسم السيارة *")}</Label>
                   <Input
                     id="car-name"
                     ref={nameInputRef}
@@ -246,7 +247,7 @@ export default function UnifiedCars({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="car-plate">رقم اللوحة</Label>
+                  <Label htmlFor="car-plate">{tr("رقم اللوحة")}</Label>
                   <Input
                     id="car-plate"
                     value={form.plate_number}
@@ -255,7 +256,7 @@ export default function UnifiedCars({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="car-model">الموديل</Label>
+                  <Label htmlFor="car-model">{tr("الموديل")}</Label>
                   <Input
                     id="car-model"
                     value={form.model}
@@ -264,7 +265,7 @@ export default function UnifiedCars({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="car-licence-expiry">تاريخ انتهاء الرخصة</Label>
+                  <Label htmlFor="car-licence-expiry">{tr("تاريخ انتهاء الرخصة")}</Label>
                   <Input
                     id="car-licence-expiry"
                     type="date"
@@ -277,13 +278,13 @@ export default function UnifiedCars({
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="car-status">الحالة</Label>
+                  <Label htmlFor="car-status">{tr("الحالة")}</Label>
                   <PrimeDropdown
                     inputId="car-status"
                     value={form.status || "نشط"}
                     options={[
-                      { label: "نشط", value: "نشط" },
-                      { label: "غير نشط", value: "غير نشط" },
+                      { label: tr("نشط"), value: "نشط" },
+                      { label: tr("غير نشط"), value: "غير نشط" },
                     ]}
                     optionLabel="label"
                     optionValue="value"
@@ -304,7 +305,7 @@ export default function UnifiedCars({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
-        message={deleteConfirmMessage || "هل تريد حذف هذه السيارة؟"}
+        message={deleteConfirmMessage || tr("هل تريد حذف هذه السيارة؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />

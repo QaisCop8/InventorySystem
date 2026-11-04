@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import { PasswordReset } from "./password-reset"
 import { Switch } from "@/components/ui/switch"
@@ -85,7 +86,7 @@ function DashboardScene() {
   const bars = [38, 56, 44, 72, 52, 86, 64]
   return <div className="ml-scene" aria-hidden="true">
     <div className="ml-board">
-      <div className="ml-panel ml-p-main">
+      <div className="me-panel me-p-main">
         <div className="flex items-center justify-between" dir="ltr">
           <div className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-rose-400/80" /><i className="h-2.5 w-2.5 rounded-full bg-amber-300/80" /><i className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" /></div>
           <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Dashboard</span>
@@ -101,19 +102,19 @@ function DashboardScene() {
           {bars.map((height, index) => <span key={index} className="ml-bar w-full rounded-t-md bg-gradient-to-t from-emerald-500/40 to-cyan-300/80" style={{ height: `${height}%`, animationDelay: `${index * 90}ms` }} />)}
         </div>
       </div>
-      <div className="ml-panel ml-p-stat">
-        <div className="flex items-center gap-2 text-[11px] text-slate-600"><TrendingUp className="h-3.5 w-3.5 text-emerald-700" />المبيعات هذا الشهر</div>
+      <div className="me-panel me-p-stat">
+        <div className="flex items-center gap-2 text-[11px] text-slate-600"><TrendingUp className="h-3.5 w-3.5 text-emerald-700" />{tr("المبيعات هذا الشهر")}</div>
         <div className="mt-1 text-2xl font-black" dir="ltr">+24.8%</div>
         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100"><div className="h-full w-3/4 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" /></div>
       </div>
-      <div className="ml-panel ml-p-list">
+      <div className="me-panel me-p-list">
         {["شركة الأفق", "مؤسسة النور", "مجموعة الرواد"].map((name, index) => <div key={name} className="flex items-center gap-2 py-1 text-[12px]">
           <span className="grid h-6 w-6 place-items-center rounded-lg bg-stone-100"><Building2 className="h-3.5 w-3.5 text-emerald-700" /></span>
           <span className="flex-1 truncate text-slate-700">{name}</span>
           <span className={`h-2 w-2 rounded-full ${index === 2 ? "bg-amber-300" : "bg-emerald-400"} shadow-[0_0_8px_currentColor]`} />
         </div>)}
       </div>
-      <div className="ml-panel ml-p-badge flex items-center gap-2 text-[12px] font-semibold"><CheckCircle2 className="h-4 w-4 text-emerald-700" />النسخ الاحتياطي مكتمل</div>
+      <div className="me-panel me-p-badge flex items-center gap-2 text-[12px] font-semibold"><CheckCircle2 className="h-4 w-4 text-emerald-700" />{tr("النسخ الاحتياطي مكتمل")}</div>
     </div>
   </div>
 }
@@ -155,40 +156,40 @@ export function ManagementLogin({ onLogin, footer }: Props) {
     try {
       await onLogin(credentials)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "حدث خطأ في تسجيل الدخول")
+      setError(caught instanceof Error ? caught.message : tr("حدث خطأ في تسجيل الدخول"))
     } finally {
       setLoading(false)
     }
   }
 
-  return <main ref={rootRef} dir="rtl" onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} className="ml-root grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
+  return <main ref={rootRef} dir={appDir()} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} className="ml-root grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
     <style dangerouslySetInnerHTML={{ __html: css }} />
     <div className="ml-aurora" aria-hidden="true" />
     <div className="ml-dots" aria-hidden="true" />
-    <div className="ml-blob -right-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
-    <div className="ml-blob -left-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
+    <div className="me-blob -start-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
+    <div className="me-blob -end-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
 
     <aside className="relative hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
       <div className="ml-rise"><Wordmark /></div>
 
       <div className="ml-rise max-w-xl [animation-delay:.1s]">
         <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
-          <Sparkles className="h-3.5 w-3.5" />بوابة إدارة النظام
+          <Sparkles className="h-3.5 w-3.5" />{tr("بوابة إدارة النظام")}
         </p>
         <h1 className="text-4xl font-black leading-[1.3] xl:text-[3.25rem]">
-          أدِر شركاتك<br />
-          <span className="bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">بذكاء وأمان</span>
+          {tr("أدِر شركاتك")}<br />
+          <span className="bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">{tr("بذكاء وأمان")}</span>
         </h1>
-        <p className="mt-5 max-w-md text-[15px] leading-8 text-slate-600">مساحة واحدة لإدارة الشركات وقواعد بياناتها واشتراكاتها، والدخول إلى أي منها بضغطة واحدة.</p>
+        <p className="mt-5 max-w-md text-[15px] leading-8 text-slate-600">{tr("مساحة واحدة لإدارة الشركات وقواعد بياناتها واشتراكاتها، والدخول إلى أي منها بضغطة واحدة.")}</p>
       </div>
 
       <DashboardScene />
 
       <div className="ml-rise grid grid-cols-3 gap-3 [animation-delay:.25s]">
         {[
-          { icon: Building2, title: "عدة شركات", text: "بيانات معزولة لكل شركة" },
-          { icon: Database, title: "اشتراكات وتراخيص", text: "متابعة حالة كل شركة" },
-          { icon: ShieldCheck, title: "أمان وصلاحيات", text: "جلسات وصلاحيات دقيقة" },
+          { icon: Building2, title: tr("عدة شركات"), text: tr("بيانات معزولة لكل شركة") },
+          { icon: Database, title: tr("اشتراكات وتراخيص"), text: tr("متابعة حالة كل شركة") },
+          { icon: ShieldCheck, title: tr("أمان وصلاحيات"), text: tr("جلسات وصلاحيات دقيقة") },
         ].map(item => <div key={item.title} className="rounded-2xl border border-[#ece3d3] bg-white/80 p-3.5 backdrop-blur-xl transition duration-300 hover:-translate-y-1.5 hover:border-emerald-300/30 hover:bg-white">
           <span className="mb-2 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/25 to-cyan-400/10 text-emerald-700 ring-1 ring-emerald-200/60"><item.icon className="h-[18px] w-[18px]" /></span>
           <b className="block text-[13px]">{item.title}</b>
@@ -199,12 +200,12 @@ export function ManagementLogin({ onLogin, footer }: Props) {
 
     <section className="relative flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-8">
       <div className="mb-8 lg:hidden"><Wordmark /></div>
-      <div className="ml-wrap ml-rise [animation-delay:.15s]">
+      <div className="me-wrap me-rise [animation-delay:.15s]">
         <div className="ml-card">
           <div className="ml-card-in p-7 sm:p-9">
             <div className="mb-7">
               <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200"><BarChart3 className="h-3.5 w-3.5" />Noon ERP</span>
-              <p className="text-sm text-stone-500">سجّل الدخول للمتابعة إلى بوابة الإدارة</p>
+              <p className="text-sm text-stone-500">{tr("سجّل الدخول للمتابعة إلى بوابة الإدارة")}</p>
             </div>
 
             <form onSubmit={submit} className="space-y-5" noValidate={false}>
@@ -213,25 +214,25 @@ export function ManagementLogin({ onLogin, footer }: Props) {
               </div>}
 
               <div className="space-y-2">
-                <label htmlFor="mgmt-username" className="text-sm font-bold text-slate-700">البريد الإلكتروني أو اسم المستخدم</label>
+                <label htmlFor="mgmt-username" className="text-sm font-bold text-slate-700">{tr("البريد الإلكتروني أو اسم المستخدم")}</label>
                 <div className="relative" dir="ltr">
-                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
-                  <input id="mgmt-username" dir="ltr" style={credentialStyle} className="ml-field pr-4" autoComplete="username" autoFocus required spellCheck={false} autoCapitalize="none"
+                  <Mail className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                  <input id="mgmt-username" dir="ltr" style={credentialStyle} className="me-field ps-4" autoComplete="username" autoFocus required spellCheck={false} autoCapitalize="none"
                     placeholder="name@company.com" value={credentials.username} onChange={event => setCredentials(current => ({ ...current, username: event.target.value }))} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="mgmt-password" className="text-sm font-bold text-slate-700">كلمة المرور</label>
-                  <button type="button" onClick={() => setShowReset(true)} className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800 hover:underline">نسيت كلمة المرور؟</button>
+                  <label htmlFor="mgmt-password" className="text-sm font-bold text-slate-700">{tr("كلمة المرور")}</label>
+                  <button type="button" onClick={() => setShowReset(true)} className="text-xs font-bold text-emerald-700 transition hover:text-emerald-800 hover:underline">{tr("نسيت كلمة المرور؟")}</button>
                 </div>
                 <div className="relative" dir="ltr">
-                  <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
-                  <input id="mgmt-password" dir="ltr" style={credentialStyle} type={showPassword ? "text" : "password"} className="ml-field pr-12" autoComplete="current-password" required
+                  <LockKeyhole className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                  <input id="mgmt-password" dir="ltr" style={credentialStyle} type={showPassword ? "text" : "password"} className="me-field ps-12" autoComplete="current-password" required
                     placeholder="••••••••" value={credentials.password} onChange={event => setCredentials(current => ({ ...current, password: event.target.value }))} />
-                  <button type="button" onClick={() => setShowPassword(current => !current)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                    className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-slate-900">
+                  <button type="button" onClick={() => setShowPassword(current => !current)} aria-label={showPassword ? tr("إخفاء كلمة المرور") : tr("إظهار كلمة المرور")}
+                    className="absolute start-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-slate-900">
                     {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
                   </button>
                 </div>
@@ -239,19 +240,19 @@ export function ManagementLogin({ onLogin, footer }: Props) {
 
               <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">
                 <Switch checked={credentials.rememberMe} onCheckedChange={rememberMe => setCredentials(current => ({ ...current, rememberMe }))} />
-                تذكرني على هذا الجهاز
+                {tr("تذكرني على هذا الجهاز")}
               </label>
 
               <button type="submit" disabled={loading} className="ml-btn group flex h-12 w-full items-center justify-center gap-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
-                {loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />جاري التحقق…</> : <>دخول<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
+                {loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />{tr("جاري التحقق…")}</> : <>{tr("دخول")}<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
               </button>
             </form>
 
-            {footer && <div className="mt-6 border-t border-[#ece3d3] pt-5 text-center text-sm text-stone-500">ليس لديك حساب؟ {footer}</div>}
+            {footer && <div className="mt-6 border-t border-[#ece3d3] pt-5 text-center text-sm text-stone-500">{tr("ليس لديك حساب؟ ")}{footer}</div>}
           </div>
         </div>
       </div>
-      <p className="mt-6 flex items-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
+      <p className="mt-6 flex items-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
       <PoweredBy className="mt-2" />
     </section>
   </main>

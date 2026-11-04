@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -76,7 +77,7 @@ export default function CodeNameSearchDialog<T>({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        dir="rtl"
+        dir={appDir()}
         className="flex h-[min(620px,calc(100dvh-2rem))] w-[min(720px,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border-0 bg-slate-50 p-0 shadow-2xl ring-1 ring-slate-900/10"
         // التركيز على الاسم مباشرة عند الفتح (بدل مؤقّت يسابق إدارة Radix للتركيز)
         onOpenAutoFocus={(event) => {
@@ -88,16 +89,16 @@ export default function CodeNameSearchDialog<T>({
         <SearchDialogHeader
           icon={icon}
           title={title}
-          subtitle="Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار"
+          subtitle={tr("Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار")}
           count={rows.length}
           onClose={() => onOpenChange(false)}
         />
         <div ref={filterContainerRef} className="grid shrink-0 grid-cols-1 gap-3 border-b bg-white px-4 py-3 sm:grid-cols-[1.4fr_1fr]">
           <SearchFilterField label={nameLabel}>
-            <Input ref={nameInputRef} value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} placeholder={`ابحث ب${nameLabel}`} className={searchInputClassName} />
+            <Input ref={nameInputRef} value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} placeholder={tr("ابحث ب{0}", nameLabel)} className={searchInputClassName} />
           </SearchFilterField>
           <SearchFilterField label={codeLabel}>
-            <Input value={codeFilter} onChange={(event) => setCodeFilter(event.target.value)} placeholder={`ابحث ب${codeLabel}`} className={searchInputClassName} />
+            <Input value={codeFilter} onChange={(event) => setCodeFilter(event.target.value)} placeholder={tr("ابحث ب{0}", codeLabel)} className={searchInputClassName} />
           </SearchFilterField>
           {notice && <div className="text-xs text-amber-600 sm:col-span-2">{notice}</div>}
         </div>
@@ -116,8 +117,8 @@ export default function CodeNameSearchDialog<T>({
           />
         </div>
         <div className="flex shrink-0 justify-end gap-2 border-t bg-white px-4 py-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 rounded-lg">إغلاق</Button>
-          <Button onClick={() => active && pick(active)} disabled={!active} className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700">اختيار</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 rounded-lg">{tr("إغلاق")}</Button>
+          <Button onClick={() => active && pick(active)} disabled={!active} className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700">{tr("اختيار")}</Button>
         </div>
       </DialogContent>
     </Dialog>

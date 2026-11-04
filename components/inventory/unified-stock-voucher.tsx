@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -199,10 +200,10 @@ interface UnifiedStockVoucherProps {
 }
 
 const TYPE_LABELS: Record<StockVoucherType, { title: string }> = {
-  8: { title: "سند ادخال بضاعة" },
-  9: { title: "سند اخراج بضاعة" },
-  10: { title: "ارسالية داخلية" },
-  11: { title: "سند استعمال" },
+  8: { title: tr("سند ادخال بضاعة") },
+  9: { title: tr("سند اخراج بضاعة") },
+  10: { title: tr("ارسالية داخلية") },
+  11: { title: tr("سند استعمال") },
 }
 
 // نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
@@ -334,13 +335,13 @@ export const validateItemMeasurement = (row: VoucherItemRow): string | null => {
   const measurmentId = Number(row.measurment_id || 1)
   if (measurmentId === 1) return null
   const label = row.product_name || row.product_code || ""
-  if (measurementRequiresLength(measurmentId) && !(Number(row.length) > 0)) return `يجب ادخال الطول للصنف - ${label}`
-  if (measurementRequiresWidth(measurmentId) && !(Number(row.width) > 0)) return `يجب ادخال العرض للصنف - ${label}`
-  if (measurementRequiresHeight(measurmentId) && !(Number(row.height) > 0)) return `يجب ادخال الارتفاع للصنف - ${label}`
-  if (measurementRequiresCount(measurmentId) && !(Number(row.count) > 0)) return `يجب ادخال العدد للصنف - ${label}`
+  if (measurementRequiresLength(measurmentId) && !(Number(row.length) > 0)) return tr("يجب ادخال الطول للصنف - {0}", label)
+  if (measurementRequiresWidth(measurmentId) && !(Number(row.width) > 0)) return tr("يجب ادخال العرض للصنف - {0}", label)
+  if (measurementRequiresHeight(measurmentId) && !(Number(row.height) > 0)) return tr("يجب ادخال الارتفاع للصنف - {0}", label)
+  if (measurementRequiresCount(measurmentId) && !(Number(row.count) > 0)) return tr("يجب ادخال العدد للصنف - {0}", label)
   const expectedQuantity = recalcQuantityFromMeasurement(row)
   if (expectedQuantity != null && Math.abs(Number(expectedQuantity) - Number(row.quantity || 0)) > 1e-6) {
-    return `الكمية للصنف - ${label} - غير مطابقة لمعادلة نوع القياس (الطول×العرض×الارتفاع×العدد حسب النوع)`
+    return tr("الكمية للصنف - {0} - غير مطابقة لمعادلة نوع القياس (الطول×العرض×الارتفاع×العدد حسب النوع)", label)
   }
   return null
 }
@@ -665,7 +666,7 @@ export default function UnifiedStockVoucher({
       const response = await fetch(`/api/stock-vouchers/resolve-code?${query.toString()}`)
       const data = await response.json()
       if (!response.ok) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || tr("تعذر تحديد رقم السند"), life: 3000 }])
         return
       }
       if (data.code && data.code !== form.vch_code) {
@@ -795,7 +796,7 @@ export default function UnifiedStockVoucher({
         event.preventDefault()
         const currentForm = formRef.current
         if (!(currentForm.id > 0)) {
-          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "يجب حفظ السند أولاً قبل نسخه", life: 2500 }])
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: tr("يجب حفظ السند أولاً قبل نسخه"), life: 2500 }])
           return
         }
         const payload: VoucherClipboardPayload = {
@@ -842,7 +843,7 @@ export default function UnifiedStockVoucher({
         }
         writeVoucherClipboard(payload)
         messagesRef.current?.show?.([
-          { severity: "success", summary: "", detail: `تم نسخ السند ${currentForm.vch_code} (${payload.items.length} صنف)`, life: 2500 },
+          { severity: "success", summary: "", detail: tr("تم نسخ السند {0} ({1} صنف)", currentForm.vch_code, payload.items.length), life: 2500 },
         ])
         return
       }
@@ -852,7 +853,7 @@ export default function UnifiedStockVoucher({
         if (isLocked) return
         const clipboard = readVoucherClipboard()
         if (!clipboard || clipboard.items.length === 0) {
-          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "لا يوجد سند منسوخ للصقه", life: 2500 }])
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: tr("لا يوجد سند منسوخ للصقه"), life: 2500 }])
           return
         }
         onFormChange("currency_id", clipboard.header.currency_id)
@@ -896,7 +897,7 @@ export default function UnifiedStockVoucher({
         itemsRef.current = nextItems
         onItemsChange(nextItems)
         messagesRef.current?.show?.([
-          { severity: "success", summary: "", detail: `تم لصق ${pastedRows.length} صنف من السند ${clipboard.sourceVchCode}`, life: 2500 },
+          { severity: "success", summary: "", detail: tr("تم لصق {0} صنف من السند {1}", pastedRows.length, clipboard.sourceVchCode), life: 2500 },
         ])
         return
       }
@@ -1045,7 +1046,7 @@ export default function UnifiedStockVoucher({
     const row = itemsRef.current[rowIndex]
     if (!row?.product_id) return
     if (!row.has_serial) {
-      if (fromButton) messagesRef.current?.show?.([{ severity: "info", summary: "", detail: "هذا الصنف ليس له رقم تسلسلي", life: 2500 }])
+      if (fromButton) messagesRef.current?.show?.([{ severity: "info", summary: "", detail: tr("هذا الصنف ليس له رقم تسلسلي"), life: 2500 }])
       return
     }
     popupHasCalled()
@@ -1263,7 +1264,7 @@ export default function UnifiedStockVoucher({
         ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
       })
       if (product.transaction_notes?.trim()) {
-        messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
+        messagesRef.current?.show?.([{ severity: "info", summary: tr("ملاحظات الصنف"), detail: product.transaction_notes, life: 5000 }])
       }
       if (autoAdvanceOnSuccess) {
         // نفس منطق handleProductSelect بعد اختيار صنف من النافذة المنبثقة: العمود التالي لِـ"رقم
@@ -1274,7 +1275,7 @@ export default function UnifiedStockVoucher({
       }
     } catch {
       if (!isMountedRef.current) return
-      const message = sourceField === "barcode" ? "رقم الباركود المدخل غير موجود" : "رقم الصنف المدخل غير موجود"
+      const message = sourceField === "barcode" ? tr("رقم الباركود المدخل غير موجود") : tr("رقم الصنف المدخل غير موجود")
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: message, life: 3000 }])
       if (previousRow?.product_id) {
         if (sourceField === "barcode") {
@@ -1364,7 +1365,7 @@ export default function UnifiedStockVoucher({
       ) {
         const consumptionWarehouseId = resolveConsumptionWarehouseId(currentRow)
         if (!consumptionWarehouseId) {
-          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد المستودع اولا", life: 3000 }])
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب تحديد المستودع اولا"), life: 3000 }])
           patchItemRow(row, { quantity: null, total_price: recalcAmount(null, currentRow?.unit_price ?? null) })
           return
         }
@@ -1394,7 +1395,7 @@ export default function UnifiedStockVoucher({
       }
       const parsed = value instanceof Date ? value : parseFlexibleDate(String(value))
       if (!parsed || Number.isNaN(parsed.getTime())) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "تاريخ الانتهاء غير صحيح", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("تاريخ الانتهاء غير صحيح"), life: 3000 }])
         patchItemRow(row, { expiry_date: itemsRef.current[row]?.expiry_date || "" })
         return
       }
@@ -1410,8 +1411,8 @@ export default function UnifiedStockVoucher({
       // الافتراضي عند اختيار الصنف، دون أن يكتب المستخدم عليها شيئاً).
       if (enteredDay.getTime() < today.getTime() && nextExpiryDate !== itemsRef.current[row]?.expiry_date) {
         toast({
-          title: "تنبيه",
-          description: "تاريخ انتهاء الصلاحية للصنف أقل من تاريخ اليوم",
+          title: tr("تنبيه"),
+          description: tr("تاريخ انتهاء الصلاحية للصنف أقل من تاريخ اليوم"),
           variant: "destructive",
         })
       }
@@ -1718,7 +1719,7 @@ export default function UnifiedStockVoucher({
     const row = itemsRef.current[index]
     const accountId = field === "expense" ? row?.expense_account_id : row?.purchase_account_id
     if (!accountId) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد الحساب أولاً", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب تحديد الحساب أولاً"), life: 3000 }])
       return
     }
     const account = accountsListRef.current.find((a) => a.id === accountId) || null
@@ -1795,7 +1796,7 @@ export default function UnifiedStockVoucher({
     for (let index = 0; index < selectedProducts.length; index += 1) {
       const product = selectedProducts[index]
       if (product.transaction_notes?.trim()) {
-        messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
+        messagesRef.current?.show?.([{ severity: "info", summary: tr("ملاحظات الصنف"), detail: product.transaction_notes, life: 5000 }])
       }
       const targetRow = index === 0 ? row : nextRows.length
       const currentRow = index === 0 ? nextRows[targetRow] : { ...emptyItemRow }
@@ -1907,7 +1908,7 @@ export default function UnifiedStockVoucher({
           // تلقائياً عند اختيار الصنف عبر رقمه/نافذة البحث (products.barcode/first_barcode).
           visible: Util.getVoucherSettingScreenData(voucherType, "barcode"),
         },
-        { header: "رقم الصنف", name: "product_code", width: 120, visible: Util.getVoucherSettingScreenData(voucherType, "code") },
+        { header: tr("رقم الصنف"), name: "product_code", width: 120, visible: Util.getVoucherSettingScreenData(voucherType, "code") },
         {
           header: " ",
           name: "btnSearchProduct",
@@ -1930,14 +1931,14 @@ export default function UnifiedStockVoucher({
           visibleInColumnChooser: true,
         },
         
-        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
+        { header: tr("اسم الصنف"), name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
         {
-          header: "المتغيرات والخصائص",
+          header: tr("المتغيرات والخصائص"),
           name: "btnAttributes",
           width: 75,
           buttonBody: "button",
           align: "center",
-          title: "عرض وتعديل المتغيرات والخصائص",
+          title: tr("عرض وتعديل المتغيرات والخصائص"),
           iconType: "edit",
           isReadOnly: true,
           visible: true,
@@ -1949,7 +1950,7 @@ export default function UnifiedStockVoucher({
         // والإرسالية الداخلية التي تختار مستودعاً واحداً من رأس السند (المستودع/من والى مستودع)
         // يُشتقّ منه warehouse_id لكل سطر تلقائياً عند الحفظ (انظر saveVoucher في stock-vouchers.tsx).
         {
-          header: "المستودع",
+          header: tr("المستودع"),
           name: "warehouse_name",
           width: 140,
           // للقراءة فقط مثل اسم الصنف — يُملأ تلقائياً عند اختيار الصنف (resolveDefaultWarehouse) أو
@@ -1979,7 +1980,7 @@ export default function UnifiedStockVoucher({
           visibleInColumnChooser: true,
         },
         {
-          header: "الوحدة",
+          header: tr("الوحدة"),
           name: "unit",
           width: 90,
           // للقراءة فقط مثل المستودع/اسم الصنف — تُملأ تلقائياً عند اختيار الصنف أو عبر زر البحث
@@ -2007,7 +2008,7 @@ export default function UnifiedStockVoucher({
           visibleInColumnChooser: true,
         },
         {
-          header: "الكمية",
+          header: tr("الكمية"),
           name: "quantity",
           width: 100,
           dataType: wjcCore.DataType.Number,
@@ -2016,10 +2017,10 @@ export default function UnifiedStockVoucher({
           // أدناه (isReadOnly هنا خاصية عمود ثابتة لا تفرّق بين الأسطر، فلا تكفي وحدها إذ قد تختلف
           // أنواع القياس بين أسطر نفس السند).
         },
-        { header: "السعر", name: "unit_price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
-        { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: false },
+        { header: tr("السعر"), name: "unit_price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        { header: tr("المبلغ"), name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: false },
         {
-          header: "الرقم التشغيلي",
+          header: tr("الرقم التشغيلي"),
           name: "batch_number",
           width: 110,
           // نشط للكتابة المباشرة في سند ادخال بضاعة فقط (دفعة جديدة تُكتب يدوياً) — بقية أنواع
@@ -2029,7 +2030,7 @@ export default function UnifiedStockVoucher({
           visible: Util.getVoucherSettingScreenData(voucherType, "batch"),
         },
         {
-          header: "تاريخ الانتهاء",
+          header: tr("تاريخ الانتهاء"),
           name: "expiry_date",
           width: 130,
           // عمداً بلا dataType:"Date"/format هنا — Wijmo يُحوِّل أي نص مكتوب في خلية كهذه عبر
@@ -2065,21 +2066,21 @@ export default function UnifiedStockVoucher({
           visibleInColumnChooser: true,
         },
         // الأرقام التسلسلية (أصناف serial_tracking فقط) — الملخص "المُدخل/المطلوب" وزر فتح النافذة
-        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true, visible: hasSerialItems },
+        { header: tr("الأرقام التسلسلية"), name: "serials_text", width: 170, isReadOnly: true, visible: hasSerialItems },
         {
           header: " ",
           name: "btnSerials",
           width: 50,
           buttonBody: "button",
           align: "center",
-          title: "الأرقام التسلسلية",
+          title: tr("الأرقام التسلسلية"),
           iconType: "barcode",
           isReadOnly: true,
           visible: hasSerialItems,
           visibleInColumnChooser: true,
           onClick: (e: any, ctx: any) => openSerialsDialog(ctx.row.index, true),
         },
-        { header: "ملاحظة", name: "note", width: 140 },
+        { header: tr("ملاحظة"), name: "note", width: 140 },
         {
           header: " ",
           name: "btnDelete",
@@ -2109,17 +2110,17 @@ export default function UnifiedStockVoucher({
       showFooter: false,
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number" },
-        { header: "رقم الصنف", name: "product_code", width: 110, isReadOnly: true },
-        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: true },
-        { header: "رقم حساب المشتريات", name: "purchase_account_code", width: 130, isReadOnly: true },
-        { header: "حساب المشتريات", name: "purchase_account_name", width: 160, isReadOnly: true },
+        { header: tr("رقم الصنف"), name: "product_code", width: 110, isReadOnly: true },
+        { header: tr("اسم الصنف"), name: "product_name", width: "*", minWidth: 160, isReadOnly: true },
+        { header: tr("رقم حساب المشتريات"), name: "purchase_account_code", width: 130, isReadOnly: true },
+        { header: tr("حساب المشتريات"), name: "purchase_account_name", width: 160, isReadOnly: true },
         {
           name: "btnSearchPurchase",
           header: " ",
           width: 55,
           buttonBody: "button",
           align: "center",
-          title: "بحث عن حساب",
+          title: tr("بحث عن حساب"),
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
@@ -2135,25 +2136,25 @@ export default function UnifiedStockVoucher({
         },
         {
           name: "btnCostCenterPurchase",
-          header: "مراكز التكلفة",
+          header: tr("مراكز التكلفة"),
           width: 100,
           buttonBody: "button",
           align: "center",
-          title: "مراكز التكلفة",
+          title: tr("مراكز التكلفة"),
           iconType: "money",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => openItemCostCenter(ctx.row.index, "purchase"),
           visible: true,
         },
-        { header: "رقم حساب المصروف", name: "expense_account_code", width: 130, isReadOnly: true },
-        { header: "حساب المصروف", name: "expense_account_name", width: 160, isReadOnly: true },
+        { header: tr("رقم حساب المصروف"), name: "expense_account_code", width: 130, isReadOnly: true },
+        { header: tr("حساب المصروف"), name: "expense_account_name", width: 160, isReadOnly: true },
         {
           name: "btnSearchExpense",
           header: " ",
           width: 55,
           buttonBody: "button",
           align: "center",
-          title: "بحث عن حساب",
+          title: tr("بحث عن حساب"),
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
@@ -2169,11 +2170,11 @@ export default function UnifiedStockVoucher({
         },
         {
           name: "btnCostCenterExpense",
-          header: "مراكز التكلفة",
+          header: tr("مراكز التكلفة"),
           width: 100,
           buttonBody: "button",
           align: "center",
-          title: "مراكز التكلفة",
+          title: tr("مراكز التكلفة"),
           iconType: "money",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => openItemCostCenter(ctx.row.index, "expense"),
@@ -2337,14 +2338,14 @@ export default function UnifiedStockVoucher({
   const priceCategoryBlock = (
     <div className="flex flex-wrap items-end gap-2">
       <div className="grid flex-1 gap-1.5 invoice-currency-dropdown-wrap">
-        <Label>فئة السعر</Label>
+        <Label>{tr("فئة السعر")}</Label>
         <PrimeDropdown
           value={priceCategoryId}
           options={combinedPriceCategories}
           optionLabel="name"
           optionValue="id"
           optionDisabled="disabled"
-          placeholder="اختر فئة السعر"
+          placeholder={tr("اختر فئة السعر")}
           filter
           disabled={isLocked}
           className="invoice-currency-dropdown w-full"
@@ -2362,7 +2363,7 @@ export default function UnifiedStockVoucher({
         className="flex items-center gap-2"
       >
         <RefreshCw className="h-4 w-4" />
-        إعادة إحتساب الأسعار
+        {tr("إعادة إحتساب الأسعار")}
       </Button>
     </div>
   )
@@ -2374,7 +2375,7 @@ export default function UnifiedStockVoucher({
       <DialogContent
         inline={fullscreenEnabled && dialogOpen}
         className="stock-voucher-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1500px] flex-col overflow-hidden p-0 sm:h-[92vh] sm:w-[96vw]"
-        dir="rtl"
+        dir={appDir()}
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => {
@@ -2423,7 +2424,7 @@ export default function UnifiedStockVoucher({
               {form.id > 0 ? (
                 <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
               ) : (
-                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
+                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{tr("مسودة")}</span>
               )}
               {statusBadge && (
                 <span
@@ -2446,20 +2447,20 @@ export default function UnifiedStockVoucher({
             <div className="stock-voucher-details-fields min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-2xl sm:p-5">
               <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                 <FileText className="h-3.5 w-3.5" />
-                تفاصيل السند
+                {tr("تفاصيل السند")}
               </div>
               <div className="grid gap-3">
                 {/* دفتر السندات ← رقم السند ← تاريخ السند ← العملة ← سعر الصرف: بصف واحد بالسطر
                     الأول من البطاقة (كانا سابقاً بصفَّين منفصلين: 3 حقول ثم 2) بناءً على طلب صريح. */}
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>دفتر السندات *</Label>
+                    <Label>{tr("دفتر السندات *")}</Label>
                     <PrimeDropdown
                       value={form.vch_book_id}
                       options={voucherBooks}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
@@ -2470,7 +2471,7 @@ export default function UnifiedStockVoucher({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="vch-code">رقم السند *</Label>
+                    <Label htmlFor="vch-code">{tr("رقم السند *")}</Label>
                     <div className="flex min-w-0 items-center gap-1.5">
                       <Input
                         ref={vchCodeInputRef}
@@ -2484,7 +2485,7 @@ export default function UnifiedStockVoucher({
                     </div>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="vch-date">تاريخ السند *</Label>
+                    <Label htmlFor="vch-date">{tr("تاريخ السند *")}</Label>
                     <DateTimeControl
                       id="vch-date"
                       ref={dateInputRef}
@@ -2499,13 +2500,13 @@ export default function UnifiedStockVoucher({
                     onFormChange("branch_id", id)
                   }} disabled={isLocked} />
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>العملة *</Label>
+                    <Label>{tr("العملة *")}</Label>
                     <PrimeDropdown
                       value={form.currency_id}
                       options={currencyOptions}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر العملة"
+                      placeholder={tr("اختر العملة")}
                       filter
                       disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
@@ -2516,7 +2517,7 @@ export default function UnifiedStockVoucher({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="vch-rate">سعر الصرف *</Label>
+                    <Label htmlFor="vch-rate">{tr("سعر الصرف *")}</Label>
                     <Input
                       id="vch-rate"
                       type="number"
@@ -2532,7 +2533,7 @@ export default function UnifiedStockVoucher({
                     الداخلية والمستودع خاص بسند الاستعمال، تُعرَض إضافةً للعميل لا بدلاً عنه. */}
                 <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                    label="العميل"
+                    label={tr("العميل")}
                     value={form.account_id != null ? String(form.account_id) : ""}
                     valueMode="id"
                     onValueChange={() => {}}
@@ -2545,13 +2546,13 @@ export default function UnifiedStockVoucher({
                   {isInternalDelivery && (
                     <>
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                        <Label>من مستودع *</Label>
+                        <Label>{tr("من مستودع *")}</Label>
                         <PrimeDropdown
                           value={form.from_store_id}
                           options={warehouses}
                           optionLabel="warehouse_name"
                           optionValue="id"
-                          placeholder="اختر"
+                          placeholder={tr("اختر")}
                           filter
                           disabled={isLocked}
                           className="invoice-currency-dropdown w-full"
@@ -2562,13 +2563,13 @@ export default function UnifiedStockVoucher({
                         />
                       </div>
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                        <Label>الى مستودع *</Label>
+                        <Label>{tr("الى مستودع *")}</Label>
                         <PrimeDropdown
                           value={form.to_store_id}
                           options={warehouses}
                           optionLabel="warehouse_name"
                           optionValue="id"
-                          placeholder="اختر"
+                          placeholder={tr("اختر")}
                           filter
                           disabled={isLocked}
                           className="invoice-currency-dropdown w-full"
@@ -2586,13 +2587,13 @@ export default function UnifiedStockVoucher({
                       قد تدخل/تُصرف من مستودعات مختلفة لكل سطر. هذا الشرط يبقى دفاعياً فقط. */}
                   {!isInternalDelivery && !showRowWarehouseColumn && (
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                      <Label>المستودع *</Label>
+                      <Label>{tr("المستودع *")}</Label>
                       <PrimeDropdown
                         value={form.to_store_id}
                         options={warehouses}
                         optionLabel="warehouse_name"
                         optionValue="id"
-                        placeholder="اختر"
+                        placeholder={tr("اختر")}
                         filter
                         disabled={isLocked}
                         className="invoice-currency-dropdown w-full"
@@ -2607,7 +2608,7 @@ export default function UnifiedStockVoucher({
 
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="vch-manual-code">سند يدوي</Label>
+                    <Label htmlFor="vch-manual-code">{tr("سند يدوي")}</Label>
                     <Input
                       id="vch-manual-code"
                       value={form.manual_voucher}
@@ -2617,7 +2618,7 @@ export default function UnifiedStockVoucher({
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
+                    <Label htmlFor="vch-manual-date">{tr("تاريخ السند اليدوي")}</Label>
                     <DateTimeControl
                       id="vch-manual-date"
                       value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
@@ -2636,11 +2637,11 @@ export default function UnifiedStockVoucher({
             {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
                 أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
                 الاتجاه عبر بوابة Radix Dialog/Tabs. */}
-            <TabsList dir="rtl" className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-              <TabsTrigger value="items" className={voucherTabTriggerClass}>الاصناف</TabsTrigger>
-              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>تفاصيل كميات الصنف</TabsTrigger>
-              {isUseVoucher && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>تفاصيل حسابات الاصناف</TabsTrigger>}
-              <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
+            <TabsList dir={appDir()} className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
+              <TabsTrigger value="items" className={voucherTabTriggerClass}>{tr("الاصناف")}</TabsTrigger>
+              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>{tr("تفاصيل كميات الصنف")}</TabsTrigger>
+              {isUseVoucher && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>{tr("تفاصيل حسابات الاصناف")}</TabsTrigger>}
+              <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
             </TabsList>
 
             <fieldset className="contents">
@@ -2679,10 +2680,10 @@ export default function UnifiedStockVoucher({
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-slate-50">
-                        <th className="border border-slate-200 px-3 py-2 text-right">رقم الصنف</th>
-                        <th className="border border-slate-200 px-3 py-2 text-right">اسم الصنف</th>
-                        <th className="border border-slate-200 px-3 py-2 text-right">الكمية المطلوبة</th>
-                        <th className="border border-slate-200 px-3 py-2 text-right">الرصيد الحالي</th>
+                        <th className="border border-slate-200 px-3 py-2 text-start">{tr("رقم الصنف")}</th>
+                        <th className="border border-slate-200 px-3 py-2 text-start">{tr("اسم الصنف")}</th>
+                        <th className="border border-slate-200 px-3 py-2 text-start">{tr("الكمية المطلوبة")}</th>
+                        <th className="border border-slate-200 px-3 py-2 text-start">{tr("الرصيد الحالي")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2721,7 +2722,7 @@ export default function UnifiedStockVoucher({
                 <div className="grid gap-1.5">
                   <Label className="flex items-center gap-2">
                     <MessageSquare className="h-3.5 w-3.5" />
-                    ملاحظة
+                    {tr("ملاحظة")}
                   </Label>
                   <Textarea value={form.note} onChange={(e) => onFormChange("note", e.target.value)} rows={6} disabled={isLocked} />
                 </div>
@@ -2733,15 +2734,15 @@ export default function UnifiedStockVoucher({
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
               <Calculator className="h-3.5 w-3.5" />
-              ملخص المبالغ
+              {tr("ملخص المبالغ")}
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span className="text-muted-foreground">مجموع الكميات</span>
+                <span className="text-muted-foreground">{tr("مجموع الكميات")}</span>
                 <span className="text-lg font-bold">{Util.formatNumber(chequesTotal, Util.getSystemSetting(17))}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span className="text-muted-foreground">المجموع</span>
+                <span className="text-muted-foreground">{tr("المجموع")}</span>
                 <span className="text-lg font-bold">{Util.formatNumber(amountTotal, Util.getSystemSetting(17))}</span>
               </div>
             </div>
@@ -2791,7 +2792,7 @@ export default function UnifiedStockVoucher({
           open={expiryDatePickerOpen}
           onOpenChange={setExpiryDatePickerOpen}
           value={expiryDateRow !== null ? itemsRef.current[expiryDateRow]?.expiry_date : null}
-          title="تاريخ صلاحية الصنف"
+          title={tr("تاريخ صلاحية الصنف")}
           onSelect={(isoDate) => {
             if (expiryDateRow === null) return
             const row = expiryDateRow
@@ -2800,8 +2801,8 @@ export default function UnifiedStockVoucher({
             // تنبيه Toast فقط — انظر نفس الشرح بالتعليق أعلى فرع expiry_date في handleCellEditEnded.
             if (new Date(isoDate).getTime() < today.getTime() && isoDate !== itemsRef.current[row]?.expiry_date) {
               toast({
-                title: "تنبيه",
-                description: "تاريخ انتهاء الصلاحية للصنف أقل من تاريخ اليوم",
+                title: tr("تنبيه"),
+                description: tr("تاريخ انتهاء الصلاحية للصنف أقل من تاريخ اليوم"),
                 variant: "destructive",
               })
             }
@@ -2975,8 +2976,8 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showDeleteConfirm}
-          title={form.status === 2 ? `تأكيد إلغاء ${labels.title}` : `تأكيد حذف ${labels.title}`}
-          message={form.status === 2 ? "السند معتمد هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${labels.title}؟`}
+          title={form.status === 2 ? tr("تأكيد إلغاء {0}", labels.title) : tr("تأكيد حذف {0}", labels.title)}
+          message={form.status === 2 ? tr("السند معتمد هل تريد الغاؤه منطقياً؟") : tr("هل تريد حذف هذا {0}؟", labels.title)}
           onConfirm={() => {
             setShowDeleteConfirm(false)
             onDelete?.()
@@ -2989,14 +2990,14 @@ export default function UnifiedStockVoucher({
           onOpenChange={setVoucherSearchOpen}
           vchType={Number(voucherType)}
           title={labels.title}
-          accountLabel={"الحساب"}
+          accountLabel={tr("الحساب")}
           onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
         />
         <ConfirmDialogYesNo
           visible={showUnsavedConfirm}
-          title={`حفظ تعديلات ${labels.title}`}
+          title={tr("حفظ تعديلات {0}", labels.title)}
           useAppDialog
-          message="تم تعديل البيانات، هل تريد الحفظ؟"
+          message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
           showBack
           busy={isSaving || isLoading}
           onConfirm={async () => {
@@ -3017,8 +3018,8 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showCurrencyRecalcConfirm}
-          title="تأكيد تغيير العملة"
-          message="تغيير العملة يغير سعر الصرف، هل تريد تغيير الأسعار بناءا على ذلك؟"
+          title={tr("تأكيد تغيير العملة")}
+          message={tr("تغيير العملة يغير سعر الصرف، هل تريد تغيير الأسعار بناءا على ذلك؟")}
           onConfirm={async () => {
             setShowCurrencyRecalcConfirm(false)
             const oldRate = Number(form.rate) || 1
@@ -3037,8 +3038,8 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showPriceRecalcConfirm}
-          title="تأكيد إعادة احتساب الأسعار"
-          message="سيتم إعادة احتساب أسعار جميع الأصناف حسب فئة السعر المختارة، هل تريد المتابعة؟"
+          title={tr("تأكيد إعادة احتساب الأسعار")}
+          message={tr("سيتم إعادة احتساب أسعار جميع الأصناف حسب فئة السعر المختارة، هل تريد المتابعة؟")}
           onConfirm={() => {
             setShowPriceRecalcConfirm(false)
             void recalcPricesFromCategory()

@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import "@/components/accounting/cheque-theme.css"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -251,7 +252,7 @@ export default function UnifiedChequesBooks({
       onFormChange("bank_account_id", null)
       onFormChange("bank_account_name", "")
       onFormChange("currency_id", null)
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بنكي بهذا الرقم: ${code}`, life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("لا يوجد حساب بنكي بهذا الرقم: {0}", code), life: 3000 }])
     }
   }
 
@@ -317,14 +318,14 @@ export default function UnifiedChequesBooks({
   const handleGenerateCheques = () => {
     if (!fromChequeNo.trim() || !toChequeNo.trim() || !chequeCount.trim()) {
       messagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: "يجب تحديد من رقم شيك او الى رقم شيك او عدد الشيكات", sticky: false, life: 4000 },
+        { severity: "error", summary: "", detail: tr("يجب تحديد من رقم شيك او الى رقم شيك او عدد الشيكات"), sticky: false, life: 4000 },
       ])
       return
     }
 
     if (fromChequeNo.trim().length !== toChequeNo.trim().length) {
       messagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: "من رقم شيك يجب ان يكون بنفس طول وعدد خانات الى رقم شيك", sticky: false, life: 4000 },
+        { severity: "error", summary: "", detail: tr("من رقم شيك يجب ان يكون بنفس طول وعدد خانات الى رقم شيك"), sticky: false, life: 4000 },
       ])
       return
     }
@@ -354,14 +355,14 @@ export default function UnifiedChequesBooks({
     const fromNum = Number(fromChequeNo)
     const toNum = Number(toChequeNo)
     if (!Number.isSafeInteger(fromNum) || !Number.isSafeInteger(toNum) || toNum < fromNum) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "نطاق أرقام الشيكات غير صحيح", sticky: false, life: 4000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("نطاق أرقام الشيكات غير صحيح"), sticky: false, life: 4000 }])
       return
     }
 
     const count = toNum - fromNum + 1
     if (count > MAX_AUTO_GENERATE) {
       messagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: `عدد الشيكات كبير جداً (الحد الأقصى ${MAX_AUTO_GENERATE} دفعة واحدة)`, sticky: false, life: 4000 },
+        { severity: "error", summary: "", detail: tr("عدد الشيكات كبير جداً (الحد الأقصى {0} دفعة واحدة)", MAX_AUTO_GENERATE), sticky: false, life: 4000 },
       ])
       return
     }
@@ -392,7 +393,7 @@ export default function UnifiedChequesBooks({
     if (!row) return
     if (row.status === CHEQUE_BOOK_STATUS.UNAVAILABLE) {
       messagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: "لا يمكن حذف شيك مستخدم فعلياً", sticky: false, life: 4000 },
+        { severity: "error", summary: "", detail: tr("لا يمكن حذف شيك مستخدم فعلياً"), sticky: false, life: 4000 },
       ])
       return
     }
@@ -414,16 +415,16 @@ export default function UnifiedChequesBooks({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الشيك", name: "cheque_code", width: 140, isReadOnly: true },
-        { header: "حالة الشيك", name: "status_name", width: 120, isReadOnly: true },
-        { header: "ملاحظات", name: "notes", width: "*", minWidth: 200 },
-        { header: "المستخدم", name: "operation_user_name", width: 160, isReadOnly: true },
+        { header: tr("رقم الشيك"), name: "cheque_code", width: 140, isReadOnly: true },
+        { header: tr("حالة الشيك"), name: "status_name", width: 120, isReadOnly: true },
+        { header: tr("ملاحظات"), name: "notes", width: "*", minWidth: 200 },
+        { header: tr("المستخدم"), name: "operation_user_name", width: 160, isReadOnly: true },
         {
           // بدون عنوان عمود، ونص الزر نفسه يُقرأ من قيمة الخلية المربوطة (damage_toggle_label)
           // بدل نص ثابت، لأنه يتغيّر حسب حالة كل سطر (تالف ⇄ ارجاع الى متوفر).
           name: "damage_toggle_label",
           header: " ",
-          title: "اتلاف الشيك او اعادة حالة الشيك الى متوفر",
+          title: tr("اتلاف الشيك او اعادة حالة الشيك الى متوفر"),
           width: 130,
           buttonBody: "button",
           align: "center",
@@ -434,7 +435,7 @@ export default function UnifiedChequesBooks({
         {
           name: "delete_row",
           header: " ",
-          title: "حذف الشيك",
+          title: tr("حذف الشيك"),
           width: 90,
           buttonBody: "button",
           iconType: "delete",
@@ -456,9 +457,9 @@ export default function UnifiedChequesBooks({
         ser: i + 1,
         damage_toggle_label:
           row.status === CHEQUE_BOOK_STATUS.AVAILABLE
-            ? "تالف"
+            ? tr("تالف")
             : row.status === CHEQUE_BOOK_STATUS.DAMAGED
-              ? "ارجاع الى متوفر"
+              ? tr("ارجاع الى متوفر")
               : "",
       })),
     [cheques],
@@ -481,7 +482,7 @@ export default function UnifiedChequesBooks({
       >
         <DialogContent
           className="voucher-form flex w-[92vw] max-w-[920px] flex-col overflow-hidden p-0 max-h-[85vh]"
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || bankSearchOpen) event.preventDefault()
           }}
@@ -514,7 +515,7 @@ export default function UnifiedChequesBooks({
 
             <DialogHeader className="mb-2">
               <DialogTitle className="text-lg font-semibold">
-                دفاتر الشيكات {form.id > 0 ? "" : "(إضافة)"}
+                {tr("دفاتر الشيكات ")}{form.id > 0 ? "" : tr("(إضافة)")}
               </DialogTitle>
             </DialogHeader>
 
@@ -523,7 +524,7 @@ export default function UnifiedChequesBooks({
             <div className="grid gap-2 border-b pb-3">
               <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="cb-code">رقم الدفتر *</Label>
+                  <Label htmlFor="cb-code">{tr("رقم الدفتر *")}</Label>
                   <Input
                     id="cb-code"
                     ref={codeInputRef}
@@ -535,14 +536,14 @@ export default function UnifiedChequesBooks({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>العملة</Label>
+                  <Label>{tr("العملة")}</Label>
                   <Input value={form.currency_name || currencyName(form.currency_id) || form.currency_code || ""} readOnly disabled />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
-                  <Label>رقم الحساب البنكي *</Label>
+                  <Label>{tr("رقم الحساب البنكي *")}</Label>
                   <div className="flex gap-2">
                     <Input
                       value={form.bank_account_code}
@@ -567,14 +568,14 @@ export default function UnifiedChequesBooks({
                   </div>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>اسم الحساب البنكي</Label>
+                  <Label>{tr("اسم الحساب البنكي")}</Label>
                   <Input value={form.bank_account_name} readOnly disabled />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="cb-date">تاريخ الاصدار</Label>
+                  <Label htmlFor="cb-date">{tr("تاريخ الاصدار")}</Label>
                   <Input
                     id="cb-date"
                     type="date"
@@ -583,7 +584,7 @@ export default function UnifiedChequesBooks({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="cb-notes">ملاحظات</Label>
+                  <Label htmlFor="cb-notes">{tr("ملاحظات")}</Label>
                   <Input
                     id="cb-notes"
                     value={form.notes}
@@ -595,10 +596,10 @@ export default function UnifiedChequesBooks({
             </div>
 
             <div className="flex flex-col space-y-2 pt-3">
-              <h4 className="text-sm font-bold text-slate-500">الشيكات</h4>
+              <h4 className="text-sm font-bold text-slate-500">{tr("الشيكات")}</h4>
               <div className="grid grid-cols-3 gap-2 items-end">
                 <div className="grid gap-1.5">
-                  <Label>من رقم شيك *</Label>
+                  <Label>{tr("من رقم شيك *")}</Label>
                   <Input
                     value={fromChequeNo}
                     maxLength={20}
@@ -608,7 +609,7 @@ export default function UnifiedChequesBooks({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>الى رقم شيك *</Label>
+                  <Label>{tr("الى رقم شيك *")}</Label>
                   <Input
                     value={toChequeNo}
                     maxLength={20}
@@ -618,19 +619,19 @@ export default function UnifiedChequesBooks({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>عدد الشيكات</Label>
+                  <Label>{tr("عدد الشيكات")}</Label>
                   <Input value={chequeCount} disabled readOnly />
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={handleGenerateCheques} className="h-9">
                   <Plus className="ml-1 h-4 w-4" />
-                  اصدار الشيكات اليا
+                  {tr("اصدار الشيكات اليا")}
                 </Button>
                 {form.id === 0 && (
                   <Button type="button" variant="outline" onClick={handleClearCheques} className="h-9">
                     <Trash2 className="ml-1 h-4 w-4" />
-                    تفريغ قائمة الشيكات
+                    {tr("تفريغ قائمة الشيكات")}
                   </Button>
                 )}
               </div>
@@ -648,7 +649,7 @@ export default function UnifiedChequesBooks({
                   dontConvertToCards={true}
                 />
               </div>
-              <div className="text-sm font-semibold text-slate-600">إجمالي الشيكات: {cheques.length.toLocaleString("en-US")}</div>
+              <div className="text-sm font-semibold text-slate-600">{tr("إجمالي الشيكات: ")}{cheques.length.toLocaleString("en-US")}</div>
             </div>
           </div>
         </DialogContent>
@@ -664,8 +665,8 @@ export default function UnifiedChequesBooks({
       <ConfirmDialogYesNo
         useAppDialog
         visible={showDeleteConfirm}
-        title="تأكيد الحذف"
-        message="هل تريد حذف دفتر الشيكات هذا؟"
+        title={tr("تأكيد الحذف")}
+        message={tr("هل تريد حذف دفتر الشيكات هذا؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -673,8 +674,8 @@ export default function UnifiedChequesBooks({
       <ConfirmDialogYesNo
         useAppDialog
         visible={showUnsavedConfirm}
-        title="حفظ التعديلات"
-        message="تم تعديل البيانات، هل تريد الحفظ؟"
+        title={tr("حفظ التعديلات")}
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
         showBack
         onConfirm={() => {
           setShowUnsavedConfirm(false)

@@ -1,0 +1,300 @@
+A new year's subscription with the same current license.
+Convert to a full version
+Pay online
+Starts from the end of the current subscription, so you don't lose the remaining days.
+Unable to verify the payment
+Unable to start the payment
+Extend subscription
+Number of branches
+Number of users
+Number of points of sale
+The payment was not completed
+New subscription period: from
+Test mode: card
+Item image
+No image
+Create an internal goods request draft.
+Create and track internal goods requests.
+Mandatory
+Add internal request
+Internal goods request settings
+Start by adding an internal goods request.
+Choose item
+Automatic goods receipt
+Items:
+Date:
+Preparation is the last stage: approving it creates the internal delivery with the prepared quantities and closes the request, without the ready check, dispatch or receipt.
+Branch the goods are requested from
+Warehouse the goods are requested from
+Search by request number...
+Request date
+Unable to delete the request
+Unable to save the settings
+Unable to save the request draft
+Request draft deleted
+Internal goods request settings saved
+Request draft {0} saved
+Saving...
+Choose the optional stages each request goes through. Permissions are granted for each stage at branch level from the permissions screen.
+Save request draft
+Request no.:
+View only — you don't have the "Internal goods request settings" permission in this branch, so you can't edit the stages.
+Not used
+Goods branch:
+Requesting branch
+Save failed
+Processing
+Not used — "Automatic goods receipt" is enabled at the preparation stage, so the request is closed on preparation.
+No drafts shown
+No permission in this branch
+Cannot be the same warehouse
+You do not have the internal goods request permission
+You have permission in this branch
+Requesting warehouse
+View
+View goods request
+Are you sure you want to delete the request draft?
+· Total quantities:
+To request date
+Branch the goods are requested from
+Requested from
+Scan or enter the barcode then Enter
+Search and add item
+No unit
+Edit internal request
+Unable to add the item's linked items
+Unable to save the request
+{0} branches selected
+{0} warehouses selected
+Request {0} saved
+Done from: the requesting branch
+Choose the warehouses, then add items by search or barcode
+The barcode entered is incorrect
+Number of items:
+Show the request data and its items
+All warehouses
+No requests match the filters
+You do not have the "Create internal goods request" permission in branch {0}.
+No items added yet
+Requester
+From request date
+Are you sure you want to delete the request?
+Each item's quantity must be greater than zero
+The branch the goods are requested from must be chosen
+The warehouse the goods are requested from must be chosen
+The requesting warehouse must be chosen
+At least one item must be added
+, prepared
+, received
+: required
+Last activity
+Send request
+To request date
+Create request
+Receive request
+Current items and quantities
+Dispatch
+Receipt
+Preparation
+Current stage
+Prepare request
+Check received goods
+Ready check
+Check request
+Check prepared quantity
+Check received
+Edit request
+Unable to load the report
+Internal requests archive report
+Delete request
+Request number
+Request number or requester name
+A full administrative log of all stages, changes, quantities and users.
+Stages and changes log
+item {0}
+View the request and the full archive
+Prepared
+Received
+Requested
+Requester:
+From request date
+Execution time
+Arrival time
+"Automatic goods receipt" is enabled: approving the preparation creates the internal delivery with the prepared quantities and closes the request — no stages after preparation.
+{0} must be between 0 and 100000
+Enter to move to the next item — Enter on the last item to approve.
+Choose the branch first.
+Receive all prepared quantities
+Newest first
+Oldest first
+Prepared quantity
+Received quantity
+Search by request number, requester, branch or item...
+Prepare all requested quantities
+Prepare and receive automatically
+Unable to approve the stage
+Unable to save the changes
+Request changes saved
+Done from: {0}
+Requests appear here as soon as they reach this stage.
+request
+Open request
+No requests at this stage
+No results match the search.
+You do not have the "{0}" permission in branch {1}. Choose another branch or ask to be granted the permission on this branch.
+Review only — there are no editable quantities at this stage.
+Matches the requested quantities
+This stage is disabled in the internal goods request settings; only requests that reached it before it was disabled appear here.
+items
+Enter the quantities actually prepared for each item in the requests coming to your branch.
+Enter the quantities actually received — the internal delivery voucher is created automatically.
+Send requests
+Close request
+To (requested from)
+Create goods requests from other branches and track them.
+Receive requests
+Active branch:
+The final review of the received goods and closing the request.
+Awaiting dispatch
+Awaiting receipt
+Awaiting preparation
+Awaiting check
+Awaiting ready check
+Awaiting received check
+Confirm the dispatch of the prepared goods to the requesting branch.
+Prepare requests
+Check ready requests
+Check goods request
+Review the request items and quantities before sending it to the branch the goods are requested from.
+Match the prepared quantities before dispatch and correct them if needed.
+From (requester)
+{0} days ago
+{0} hours ago
+Less than an hour ago
+A day ago
+Two days ago
+| Order: {0}
+Content
+Search by phone number, product or order number...
+All types
+All messages sent through the system
+Message log
+No messages
+No messages match the search criteria
+Product: {0}
+Last used:
+Create a reusable message template
+Manage reusable message templates
+Create template
+Start by creating a new message template
+Use
+Use {variable_name} for variables
+Use curly braces for variables, for example:
+Template name
+Edit template
+Template deleted successfully
+Template saved successfully
+Save template
+General
+Failed to delete the template
+Failed to save the template
+Template code
+No templates
+Example: INVENTORY_REORDER
+Example: inventory reorder alert
+Message content
+System
+Message templates
+New template
+Are you sure you want to delete this template?
+% success rate
+Last 3 months
+Total messages sent
+week
+Failed messages
+Daily messages
+last
+Need review
+within
+Number of messages sent daily
+No data for the selected period
+Delivery rate
+of total messages
+Weekly
+Manage scheduled messages for automatic sending
+Send now
+Start by scheduling a new message for automatic sending
+Schedule message
+Schedule a new message
+No scheduled messages
+Once
+Recipients type:
+Are you sure you want to cancel this scheduled message?
+Choose at least one order
+Customer name
+Error
+Order date
+Post orders
+Some orders were posted successfully and some failed. Check the error column.
+All orders were posted successfully
+Delivery status
+An error occurred while posting
+Order number
+Customer number
+Invert selection
+Posting failed
+Posting all orders failed. Check the error column.
+No permission
+You do not have permission to access this page
+Order type
+New order
+Invoices
+Appearance
+Upgrade to Pro
+Search for a screen...
+Apps
+Customize my menu
+Apps menu
+My menu
+↑↓ to navigate · Enter to open · Esc to close
+Search for a screen or report...
+Search the system
+No screens match «
+result
+(A = voucher book)
+Enter the {0} name
+Enter the company's basic data
+Enter the account number and name
+Enter the item number and name
+Add items or import them from Excel
+Add customers or import them from Excel
+Add currencies and basic exchange rates
+Create the chart of accounts or import it from Excel
+Consignment delivery
+Internal delivery
+Quick add account
+Quick add item
+Set up your company in simple, clear steps
+Search by account number or name, then choose it for each field
+Choose the branch *
+Choose the department's branch — add a branch first from the branches tab
+Choose the unit
+Choose the income statement item
+Choose the record type to show the saved records and add a new one
+Import from Excel
+Import the default chart of accounts
+The {0} name already exists
+Company name (English)
+Company name (Arabic)
+The item name already exists
+The item name must not exceed 100 characters
+The currency name is required and must not exceed 30 characters
+Saved items
+Credit note
+Debit note
+The barcode already exists
+The barcode must not exceed 30 characters
+Quick start
+Numbering for vouchers and files
+Numbering starts from
+Basic definitions and financial statement items

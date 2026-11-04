@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 import { ReportFilters } from "@/components/reports/report-filters"
 
@@ -55,12 +56,12 @@ const dateTime = (value?: string | null) => {
 
 const serialState = (row: SerialRow) =>
   row.last_voucher_id == null
-    ? { label: "بلا حركة", className: "bg-slate-100 text-slate-600" }
+    ? { label: tr("بلا حركة"), className: "bg-slate-100 text-slate-600" }
     : row.in_stock
-      ? { label: "في المخزون", className: "bg-emerald-100 text-emerald-800" }
-      : { label: "خارج المخزون", className: "bg-amber-100 text-amber-800" }
+      ? { label: tr("في المخزون"), className: "bg-emerald-100 text-emerald-800" }
+      : { label: tr("خارج المخزون"), className: "bg-amber-100 text-amber-800" }
 
-const statusName = (status: number) => (status === 3 ? "ملغى" : status === 2 ? "معتمد" : "فعال")
+const statusName = (status: number) => (status === 3 ? tr("ملغى") : status === 2 ? tr("معتمد") : tr("فعال"))
 
 const openVoucher = (voucherId?: number | null, vchType?: number | null) => {
   if (!voucherId || !vchType) return
@@ -85,10 +86,10 @@ export function SerialMovementsReport() {
       const query = new URLSearchParams({ search, status })
       const response = await fetch(`/api/reports/serial-movements?${query}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setRows(Array.isArray(data) ? data : [])
     } catch (reason: any) {
-      setError(reason.message || "تعذر تحميل التقرير")
+      setError(reason.message || tr("تعذر تحميل التقرير"))
     } finally {
       setLoading(false)
     }
@@ -106,10 +107,10 @@ export function SerialMovementsReport() {
     try {
       const response = await fetch(`/api/reports/serial-movements?serial_id=${row.id}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل حركات الرقم")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل حركات الرقم"))
       setMovements(Array.isArray(data) ? data : [])
     } catch (reason: any) {
-      setMovementsError(reason.message || "تعذر تحميل حركات الرقم")
+      setMovementsError(reason.message || tr("تعذر تحميل حركات الرقم"))
     } finally {
       setMovementsLoading(false)
     }
@@ -128,12 +129,12 @@ export function SerialMovementsReport() {
   return (
     <ReportPage loading={loading || movementsLoading}>
       <ReportHeader
-        title={<>تقرير حركات السيريال</>}
-        description={<>الأرقام التسلسلية للأصناف وحالتها الحالية، مع كل السندات التي حرّكت كل رقم.</>}
+        title={<>{tr("تقرير حركات السيريال")}</>}
+        description={<>{tr("الأرقام التسلسلية للأصناف وحالتها الحالية، مع كل السندات التي حرّكت كل رقم.")}</>}
         actions={
           <Button onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            تحديث التقرير
+            {tr("تحديث التقرير")}
           </Button>
         }
       />
@@ -160,30 +161,30 @@ export function SerialMovementsReport() {
       <ReportFilters>
         <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_200px_auto] md:items-end">
           <div>
-            <Label>بحث</Label>
+            <Label>{tr("بحث")}</Label>
             <div className="relative mt-1">
-              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 data-report-apply-on-enter
                 className="pr-9"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && void load()}
-                placeholder="الرقم التسلسلي أو رقم/اسم الصنف"
+                placeholder={tr("الرقم التسلسلي أو رقم/اسم الصنف")}
               />
             </div>
           </div>
           <div>
-            <Label>الحالة</Label>
+            <Label>{tr("الحالة")}</Label>
             <select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="all">الكل</option>
-              <option value="in_stock">في المخزون</option>
-              <option value="out">خارج المخزون</option>
-              <option value="none">بلا حركة فعّالة</option>
+              <option value="all">{tr("الكل")}</option>
+              <option value="in_stock">{tr("في المخزون")}</option>
+              <option value="out">{tr("خارج المخزون")}</option>
+              <option value="none">{tr("بلا حركة فعّالة")}</option>
             </select>
           </div>
           <Button data-report-apply onClick={() => void load()}>
-            تطبيق
+            {tr("تطبيق")}
           </Button>
         </CardContent>
       </ReportFilters>
@@ -195,15 +196,15 @@ export function SerialMovementsReport() {
           <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-emerald-100 text-emerald-950">
               <tr>
-                <th className="p-4 text-right">رقم الصنف</th>
-                <th className="p-4 text-right">اسم الصنف</th>
-                <th className="p-4 text-right">الرقم التسلسلي</th>
-                <th className="p-4 text-right">الحالة</th>
-                <th className="p-4 text-right">المستودع</th>
-                <th className="p-4 text-right">آخر حركة</th>
-                <th className="p-4 text-right">تاريخ آخر حركة</th>
-                <th className="p-4 text-center">عدد الحركات</th>
-                <th className="p-4 text-center">الحركات</th>
+                <th className="p-4 text-start">{tr("رقم الصنف")}</th>
+                <th className="p-4 text-start">{tr("اسم الصنف")}</th>
+                <th className="p-4 text-start">{tr("الرقم التسلسلي")}</th>
+                <th className="p-4 text-start">{tr("الحالة")}</th>
+                <th className="p-4 text-start">{tr("المستودع")}</th>
+                <th className="p-4 text-start">{tr("آخر حركة")}</th>
+                <th className="p-4 text-start">{tr("تاريخ آخر حركة")}</th>
+                <th className="p-4 text-center">{tr("عدد الحركات")}</th>
+                <th className="p-4 text-center">{tr("الحركات")}</th>
               </tr>
             </thead>
             <tbody>
@@ -253,7 +254,7 @@ export function SerialMovementsReport() {
                         }}
                       >
                         <History className="h-3.5 w-3.5" />
-                        الحركات
+                        {tr("الحركات")}
                       </Button>
                     </td>
                   </tr>
@@ -262,15 +263,15 @@ export function SerialMovementsReport() {
             </tbody>
           </table>
         </div>
-        {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">لا توجد أرقام تسلسلية مطابقة للفلاتر</div>}
-        {rows.length >= 2000 && <div className="border-t bg-amber-50 py-2 text-center text-xs text-amber-800">يُعرض أول 2000 رقم فقط — ضيّق البحث</div>}
+        {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">{tr("لا توجد أرقام تسلسلية مطابقة للفلاتر")}</div>}
+        {rows.length >= 2000 && <div className="border-t bg-amber-50 py-2 text-center text-xs text-amber-800">{tr("يُعرض أول 2000 رقم فقط — ضيّق البحث")}</div>}
       </div>
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent dir="rtl" className="max-h-[90vh] max-w-5xl overflow-y-auto">
+        <DialogContent dir={appDir()} className="max-h-[90vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex flex-wrap items-center gap-2">
-              حركات الرقم التسلسلي
+              {tr("حركات الرقم التسلسلي")}
               <span className="rounded-lg bg-emerald-50 px-2 py-0.5 font-mono text-emerald-700" dir="ltr">
                 {selected?.serial}
               </span>
@@ -280,13 +281,13 @@ export function SerialMovementsReport() {
             <div className="space-y-4">
               <div className="grid gap-3 rounded-2xl bg-emerald-50 p-4 text-sm sm:grid-cols-3">
                 <div>
-                  الصنف: <b>{selected.product_code} — {selected.product_name}</b>
+                  {tr("الصنف: ")}<b>{selected.product_code} — {selected.product_name}</b>
                 </div>
                 <div>
-                  الحالة: <b>{serialState(selected).label}</b>
+                  {tr("الحالة: ")}<b>{serialState(selected).label}</b>
                 </div>
                 <div>
-                  المستودع الحالي: <b>{selected.last_voucher_id != null && selected.in_stock ? selected.store_name || "-" : "-"}</b>
+                  {tr("المستودع الحالي: ")}<b>{selected.last_voucher_id != null && selected.in_stock ? selected.store_name || "-" : "-"}</b>
                 </div>
               </div>
 
@@ -296,15 +297,15 @@ export function SerialMovementsReport() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-slate-600">
                     <tr>
-                      <th className="p-3 text-right">#</th>
-                      <th className="p-3 text-right">نوع السند</th>
-                      <th className="p-3 text-right">رقم السند</th>
-                      <th className="p-3 text-right">التاريخ</th>
-                      <th className="p-3 text-right">الحركة</th>
-                      <th className="p-3 text-right">المستودع</th>
-                      <th className="p-3 text-right">الحساب / العميل</th>
-                      <th className="p-3 text-right">المستخدم</th>
-                      <th className="p-3 text-right">حالة السند</th>
+                      <th className="p-3 text-start">#</th>
+                      <th className="p-3 text-start">{tr("نوع السند")}</th>
+                      <th className="p-3 text-start">{tr("رقم السند")}</th>
+                      <th className="p-3 text-start">{tr("التاريخ")}</th>
+                      <th className="p-3 text-start">{tr("الحركة")}</th>
+                      <th className="p-3 text-start">{tr("المستودع")}</th>
+                      <th className="p-3 text-start">{tr("الحساب / العميل")}</th>
+                      <th className="p-3 text-start">{tr("المستخدم")}</th>
+                      <th className="p-3 text-start">{tr("حالة السند")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -315,7 +316,7 @@ export function SerialMovementsReport() {
                           key={movement.id}
                           className={`cursor-pointer border-t hover:bg-emerald-50/40 ${cancelled ? "text-slate-400 line-through decoration-slate-300" : ""}`}
                           onDoubleClick={() => openVoucher(movement.voucher_id, movement.vch_type)}
-                          title="نقر مزدوج لفتح السند"
+                          title={tr("نقر مزدوج لفتح السند")}
                         >
                           <td className="p-3 text-slate-400">{index + 1}</td>
                           <td className="p-3">{movement.vch_type_name || movement.vch_type}</td>
@@ -334,12 +335,12 @@ export function SerialMovementsReport() {
                             {movement.in_stock ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
                                 <ArrowDownToLine className="h-3 w-3" />
-                                دخول
+                                {tr("دخول")}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
                                 <ArrowUpFromLine className="h-3 w-3" />
-                                خروج
+                                {tr("خروج")}
                               </span>
                             )}
                           </td>
@@ -359,14 +360,14 @@ export function SerialMovementsReport() {
                     })}
                   </tbody>
                 </table>
-                {movementsLoading && <div className="py-10 text-center text-sm text-muted-foreground">جاري تحميل الحركات...</div>}
+                {movementsLoading && <div className="py-10 text-center text-sm text-muted-foreground">{tr("جاري تحميل الحركات...")}</div>}
                 {!movementsLoading && !movementsError && movements.length === 0 && (
-                  <div className="py-10 text-center text-sm text-muted-foreground">لا توجد حركات على هذا الرقم</div>
+                  <div className="py-10 text-center text-sm text-muted-foreground">{tr("لا توجد حركات على هذا الرقم")}</div>
                 )}
               </div>
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <ExternalLink className="h-3.5 w-3.5" />
-                انقر رقم السند أو انقر مزدوجاً على الحركة لفتح السند. السندات الملغاة مشطوبة ولا تُحتسب في الحالة الحالية.
+                {tr("انقر رقم السند أو انقر مزدوجاً على الحركة لفتح السند. السندات الملغاة مشطوبة ولا تُحتسب في الحالة الحالية.")}
               </p>
             </div>
           )}

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -72,13 +73,13 @@ const TRIAL_EXPIRY_DAYS = 10
 const formatArabicDate = (date: Date) => date.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
 
 const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof ShieldCheck; classes: string }> = {
-  approved: { label: "جاهزة", icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
-  pending: { label: "في انتظار الموافقة", icon: Clock, classes: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" },
-  rejected: { label: "مرفوضة", icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
-  stopped: { label: "موقوفة", icon: Ban, classes: "bg-stone-50 text-slate-600 ring-1 ring-inset ring-[#ece3d3]" },
-  awaiting_payment: { label: "بانتظار الدفع", icon: CreditCard, classes: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200" },
-  provisioning: { label: "جاري اعتماد الشركة", icon: Loader2, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
-  provisioning_failed: { label: "فشل اعتماد الشركة", icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
+  approved: { label: tr("جاهزة"), icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
+  pending: { label: tr("في انتظار الموافقة"), icon: Clock, classes: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" },
+  rejected: { label: tr("مرفوضة"), icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
+  stopped: { label: tr("موقوفة"), icon: Ban, classes: "bg-stone-50 text-slate-600 ring-1 ring-inset ring-[#ece3d3]" },
+  awaiting_payment: { label: tr("بانتظار الدفع"), icon: CreditCard, classes: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200" },
+  provisioning: { label: tr("جاري اعتماد الشركة"), icon: Loader2, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
+  provisioning_failed: { label: tr("فشل اعتماد الشركة"), icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
 }
 
 // نفس هوية شاشة الدخول (components/auth/management-login.tsx): شفق متحرك، نقاط، زجاج، حدّ متدرّج متحرك.
@@ -177,7 +178,7 @@ export default function ManagementCompaniesPage() {
       const data = await res.json()
       setCompanies(Array.isArray(data) ? data : [])
     } catch {
-      setError("تعذّر تحميل الشركات")
+      setError(tr("تعذّر تحميل الشركات"))
     } finally {
       setLoading(false)
     }
@@ -202,10 +203,10 @@ export default function ManagementCompaniesPage() {
     try {
       const res = await fetch(`/api/management/companies/${companyId}/retry-provisioning`, { method: "POST" })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || "تعذّرت إعادة المحاولة")
+      if (!res.ok) throw new Error(data.error || tr("تعذّرت إعادة المحاولة"))
       await loadCompanies()
     } catch (e) {
-      toast({ title: "خطأ", description: e instanceof Error ? e.message : "تعذّرت إعادة المحاولة", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: e instanceof Error ? e.message : tr("تعذّرت إعادة المحاولة"), variant: "destructive" })
     } finally {
       setRetryingId(null)
     }
@@ -240,7 +241,7 @@ export default function ManagementCompaniesPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast({ title: "خطأ", description: data.error || "حدث خطأ أثناء إنشاء الشركة", variant: "destructive" })
+        toast({ title: tr("خطأ"), description: data.error || tr("حدث خطأ أثناء إنشاء الشركة"), variant: "destructive" })
         return
       }
       setShowAddDialog(false)
@@ -250,7 +251,7 @@ export default function ManagementCompaniesPage() {
       await loadCompanies()
       if (data.payment_required && data.company?.id) await startPayment(Number(data.company.id))
     } catch {
-      toast({ title: "خطأ", description: "تعذّر الاتصال بالخادم", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("تعذّر الاتصال بالخادم"), variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -271,19 +272,19 @@ export default function ManagementCompaniesPage() {
       if (!res.ok) {
         // detail يحمل رسالة الخطأ الفعلية من provisionCompanyDatabase (إنشاء قاعدة كاملة — عدة نقاط فشل
         // محتملة)، تُرفَق بالتوست عند توفّرها بدل رسالة "حدث خطأ" العامة وحدها.
-        const message = data.detail ? `${data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية"} (${data.detail})` : data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية"
-        toast({ title: "خطأ", description: message, variant: "destructive" })
+        const message = data.detail ? tr("{0} ({1})", data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية", data.detail) : data.error || tr("حدث خطأ أثناء إنشاء الشركة التجريبية")
+        toast({ title: tr("خطأ"), description: message, variant: "destructive" })
         return
       }
       setShowTrialDialog(false)
       setTrialCompanyName("")
       const expiryLabel = data.expiryDate ? formatArabicDate(new Date(data.expiryDate)) : formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))
-      const successMessage = `تم إنشاء الشركة التجريبية واعتمادها تلقائياً — ستنتهي صلاحيتها بتاريخ ${expiryLabel}`
+      const successMessage = tr("تم إنشاء الشركة التجريبية واعتمادها تلقائياً — ستنتهي صلاحيتها بتاريخ {0}", expiryLabel)
       setNotice(successMessage)
-      toast({ title: "تم الإنشاء", description: successMessage })
+      toast({ title: tr("تم الإنشاء"), description: successMessage })
       await loadCompanies()
     } catch {
-      toast({ title: "خطأ", description: "تعذّر الاتصال بالخادم", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("تعذّر الاتصال بالخادم"), variant: "destructive" })
     } finally {
       setTrialSaving(false)
     }
@@ -295,13 +296,13 @@ export default function ManagementCompaniesPage() {
     try {
       const result = await activateCompany(company.id)
       if (!result.success) {
-        setError(result.error || "تعذّر فتح الشركة")
+        setError(result.error || tr("تعذّر فتح الشركة"))
         setSelecting(null)
         return
       }
       window.location.href = `/?company=${company.id}`
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
       setSelecting(null)
     }
   }
@@ -327,12 +328,12 @@ export default function ManagementCompaniesPage() {
   }
 
   return (
-    <div dir="rtl" className="cp-root min-h-screen">
+    <div dir={appDir()} className="cp-root min-h-screen">
       <style dangerouslySetInnerHTML={{ __html: css }} />
       <div className="cp-aurora" aria-hidden="true" />
       <div className="cp-dots" aria-hidden="true" />
-      <div className="cp-blob -right-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
-      <div className="cp-blob -left-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
+      <div className="cp-blob -start-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
+      <div className="cp-blob -end-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
 
       <header className="sticky top-0 z-20 border-b border-[#ece3d3] bg-[#f8f4ec]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
@@ -340,14 +341,14 @@ export default function ManagementCompaniesPage() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             {isPlatformAdmin && (
               <a href="/management/admin" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-900">
-                <LayoutDashboard className="h-4 w-4" /> لوحة الإدارة
+                <LayoutDashboard className="h-4 w-4" />{tr(" لوحة الإدارة")}
               </a>
             )}
             <button type="button" onClick={() => setChangePasswordOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-900">
-              <KeyRound className="h-4 w-4" /> تغيير كلمة المرور
+              <KeyRound className="h-4 w-4" />{tr(" تغيير كلمة المرور")}
             </button>
             <button type="button" onClick={handleLogout} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-rose-50 hover:text-rose-800">
-              <LogOut className="h-4 w-4" /> تسجيل الخروج
+              <LogOut className="h-4 w-4" />{tr(" تسجيل الخروج")}
             </button>
           </div>
         </div>
@@ -359,18 +360,18 @@ export default function ManagementCompaniesPage() {
         <section className="cp-rise mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5" />بوابة الشركات
+              <Sparkles className="h-3.5 w-3.5" />{tr("بوابة الشركات")}
             </p>
             <h1 className="text-4xl font-black leading-tight sm:text-5xl">
-              شركاتي <span className="bg-gradient-to-l from-emerald-300 via-cyan-300 to-violet-300 bg-clip-text text-transparent">بضغطة واحدة</span>
+              {tr("شركاتي ")}<span className="bg-gradient-to-l from-emerald-300 via-cyan-300 to-violet-300 bg-clip-text text-transparent">{tr("بضغطة واحدة")}</span>
             </h1>
-            <p className="mt-3 max-w-xl text-[15px] leading-7 text-slate-600">اختر شركة للمتابعة إلى نظامها، أو أضف شركة جديدة أو تجريبية.</p>
+            <p className="mt-3 max-w-xl text-[15px] leading-7 text-slate-600">{tr("اختر شركة للمتابعة إلى نظامها، أو أضف شركة جديدة أو تجريبية.")}</p>
           </div>
           <div className="grid grid-cols-3 gap-3 sm:min-w-[420px]">
             {[
-              { icon: Building2, label: "كل الشركات", value: companies.length, tone: "text-cyan-700" },
-              { icon: CheckCircle2, label: "جاهزة للدخول", value: readyCount, tone: "text-emerald-700" },
-              { icon: Hourglass, label: "بانتظار الموافقة", value: pendingCount, tone: "text-amber-700" },
+              { icon: Building2, label: tr("كل الشركات"), value: companies.length, tone: "text-cyan-700" },
+              { icon: CheckCircle2, label: tr("جاهزة للدخول"), value: readyCount, tone: "text-emerald-700" },
+              { icon: Hourglass, label: tr("بانتظار الموافقة"), value: pendingCount, tone: "text-amber-700" },
             ].map((stat) => (
               <div key={stat.label} className="cp-glass rounded-2xl p-3.5">
                 <stat.icon className={`h-[18px] w-[18px] ${stat.tone}`} />
@@ -419,7 +420,7 @@ export default function ManagementCompaniesPage() {
                     }
                   }}
                   className={
-                    "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-right outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
+                    "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-start outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
                     (canOpenCompany ? "cursor-pointer" : ["awaiting_payment", "provisioning", "provisioning_failed", "approved"].includes(company.status) ? "cursor-default" : "cursor-not-allowed opacity-60")
                   }
                 >
@@ -438,13 +439,13 @@ export default function ManagementCompaniesPage() {
                     {company.is_trial && (
                       <span className="inline-flex w-fit items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700 ring-1 ring-violet-200">
                         <Gift className="h-3 w-3" />
-                        نسخة تجريبية
+                        {tr("نسخة تجريبية")}
                       </span>
                     )}
                     {isExpired && (
                       <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
                         <Clock className="h-3 w-3" />
-                        الاشتراك منتهي
+                        {tr("الاشتراك منتهي")}
                       </span>
                     )}
                   </div>
@@ -452,12 +453,12 @@ export default function ManagementCompaniesPage() {
                   <div className="space-y-1.5 border-t border-[#ece3d3] pt-3 text-xs">
                     <div className="flex items-center gap-1.5 text-stone-500">
                       <Calendar className="h-3.5 w-3.5" />
-                      أُنشئت {createdDate.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
+                      {tr("أُنشئت ")}{createdDate.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
                     </div>
                     {company.expiry_date && (
                       <div className={"flex items-center gap-1.5 " + (isExpired ? "font-bold text-rose-700" : "text-stone-500")}>
                         <Clock className="h-3.5 w-3.5" />
-                        ينتهي الاشتراك {new Date(company.expiry_date).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
+                        {tr("ينتهي الاشتراك ")}{new Date(company.expiry_date).toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
                       </div>
                     )}
                   </div>
@@ -465,13 +466,13 @@ export default function ManagementCompaniesPage() {
                   {company.status === "provisioning" && !company.provisioning_stale && (
                     <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
                       <div className="cp-progress" />
-                      <p className="text-xs leading-5 text-emerald-700">تم استلام الدفع — يتم الآن تجهيز قاعدة بيانات الشركة واعتمادها تلقائياً، لحظات وتصبح جاهزة.</p>
+                      <p className="text-xs leading-5 text-emerald-700">{tr("تم استلام الدفع — يتم الآن تجهيز قاعدة بيانات الشركة واعتمادها تلقائياً، لحظات وتصبح جاهزة.")}</p>
                     </div>
                   )}
                   {(company.status === "provisioning_failed" || (company.status === "provisioning" && company.provisioning_stale)) && (
                     <div className="space-y-2">
                       <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-700">
-                        {company.status === "provisioning_failed" ? "تعذّر اعتماد الشركة" : "تأخر اعتماد الشركة"} — الدفع محفوظ ولن يُطلب منك الدفع مرة أخرى.
+                        {company.status === "provisioning_failed" ? tr("تعذّر اعتماد الشركة") : tr("تأخر اعتماد الشركة")}{tr(" — الدفع محفوظ ولن يُطلب منك الدفع مرة أخرى.")}
                         {company.provisioning_error ? <span className="mt-1 block text-rose-700/80" dir="auto">{company.provisioning_error}</span> : null}
                       </p>
                       <button
@@ -480,7 +481,7 @@ export default function ManagementCompaniesPage() {
                         onClick={(event) => { event.stopPropagation(); void retryProvisioning(company.id) }}
                         className="cp-btn inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white"
                       >
-                        {retryingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}اعادة المحاولة
+                        {retryingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{tr("اعادة المحاولة")}
                       </button>
                     </div>
                   )}
@@ -491,10 +492,10 @@ export default function ManagementCompaniesPage() {
                         onClick={(event) => { event.stopPropagation(); setSubscription({ company, purpose: company.is_trial ? "upgrade" : "renewal" }) }}
                         className={`cp-btn ${company.is_trial ? "is-trial" : ""} inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white`}
                       >
-                        {company.is_trial ? <><Sparkles className="h-4 w-4" />التحويل إلى نسخة حقيقية</> : <><CalendarClock className="h-4 w-4" />تمديد الاشتراك</>}
+                        {company.is_trial ? <><Sparkles className="h-4 w-4" />{tr("التحويل إلى نسخة حقيقية")}</> : <><CalendarClock className="h-4 w-4" />{tr("تمديد الاشتراك")}</>}
                       </button>
                     ) : (
-                      <p className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-slate-600">{company.is_trial ? "للتحويل إلى نسخة حقيقية" : "لتمديد الاشتراك"} تواصل مع إدارة النظام.</p>
+                      <p className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-slate-600">{company.is_trial ? tr("للتحويل إلى نسخة حقيقية") : tr("لتمديد الاشتراك")}{tr(" تواصل مع إدارة النظام.")}</p>
                     )
                   )}
                   {company.status === "awaiting_payment" && (
@@ -504,12 +505,12 @@ export default function ManagementCompaniesPage() {
                       onClick={(event) => { event.stopPropagation(); void startPayment(company.id) }}
                       className="cp-btn inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white"
                     >
-                      {payingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : ONLINE_COMPANY_PAYMENT_VISIBLE ? <CreditCard className="h-4 w-4" /> : <Send className="h-4 w-4" />}{ONLINE_COMPANY_PAYMENT_VISIBLE ? "إكمال الدفع" : "إرسال للمبيعات"}
+                      {payingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : ONLINE_COMPANY_PAYMENT_VISIBLE ? <CreditCard className="h-4 w-4" /> : <Send className="h-4 w-4" />}{ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("إكمال الدفع") : tr("إرسال للمبيعات")}
                     </button>
                   )}
                   {canOpenCompany && (
                     <span className="inline-flex items-center gap-1.5 self-start text-sm font-black text-emerald-700 transition group-hover:text-emerald-800">
-                      دخول الشركة <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                      {tr("دخول الشركة ")}<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                     </span>
                   )}
                 </div>
@@ -521,28 +522,28 @@ export default function ManagementCompaniesPage() {
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/80 ring-1 ring-[#ece3d3] transition group-hover:bg-emerald-50 group-hover:ring-emerald-200">
               <Plus className="h-7 w-7" />
             </span>
-            <span className="text-base font-black">اضافة شركة جديدة</span>
-            <span className="text-xs text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? "ادفع إلكترونياً وتُفعَّل فوراً" : "أرسل طلبك للمبيعات وتُفعَّل بعد الاعتماد") : "تُفعَّل بعد موافقة إدارة النظام"}</span>
+            <span className="text-base font-black">{tr("اضافة شركة جديدة")}</span>
+            <span className="text-xs text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع إلكترونياً وتُفعَّل فوراً") : tr("أرسل طلبك للمبيعات وتُفعَّل بعد الاعتماد")) : tr("تُفعَّل بعد موافقة إدارة النظام")}</span>
           </button>
 
           <button type="button" onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-700">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-50 ring-1 ring-violet-200 transition group-hover:bg-violet-500/25">
               <Gift className="h-7 w-7" />
             </span>
-            <span className="text-base font-black">شركة تجريبية</span>
+            <span className="text-base font-black">{tr("شركة تجريبية")}</span>
             {/* معلومة الانتهاء على الزر نفسه بلا حاجة لفتح الحوار؛ التاريخ الفعلي (اليوم + المدة) يُحسب داخل الحوار. */}
-            <span className="text-xs text-violet-700/80">مجانية لمدة {TRIAL_EXPIRY_DAYS} أيام — اعتماد فوري بلا انتظار</span>
+            <span className="text-xs text-violet-700/80">{tr("مجانية لمدة ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام — اعتماد فوري بلا انتظار")}</span>
           </button>
         </div>
 
         {companies.length === 0 && (
           <p className="mt-10 text-center text-sm text-stone-500">
             <Sparkles className="mx-auto mb-2 h-5 w-5 text-emerald-700" />
-            لا توجد شركات بعد — أضف أول شركة لك للبدء باستخدام النظام
+            {tr("لا توجد شركات بعد — أضف أول شركة لك للبدء باستخدام النظام")}
           </p>
         )}
 
-        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
+        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
         <div className="mt-2 flex justify-center"><PoweredBy /></div>
       </main>
 
@@ -559,37 +560,37 @@ export default function ManagementCompaniesPage() {
           testMode={paymentTestMode}
           onClose={() => setSubscription(null)}
           onDone={(expiryDate) => {
-            const label = subscription.purpose === "upgrade" ? "تم تحويل الشركة إلى نسخة حقيقية" : "تم تمديد الاشتراك"
+            const label = subscription.purpose === "upgrade" ? tr("تم تحويل الشركة إلى نسخة حقيقية") : tr("تم تمديد الاشتراك")
             setSubscription(null)
-            const message = expiryDate ? `${label} — ينتهي الاشتراك في ${formatArabicDate(new Date(expiryDate))}` : label
+            const message = expiryDate ? tr("{0} — ينتهي الاشتراك في {1}", label, formatArabicDate(new Date(expiryDate))) : label
             setNotice(message)
-            toast({ title: "تم الدفع", description: message })
+            toast({ title: tr("تم الدفع"), description: message })
             void loadCompanies()
           }}
         />
       )}
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent dir="rtl" className="cp-dialog max-w-md">
+        <DialogContent dir={appDir()} className="cp-dialog max-w-md">
           <style dangerouslySetInnerHTML={{ __html: css }} />
           <DialogHeader className="text-right">
-            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-emerald-700" />اضافة شركة جديدة</DialogTitle>
-            <DialogDescription className="text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? "ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً." : "أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.") : "تُرسل للموافقة من إدارة النظام قبل تفعيلها."}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Building2 className="h-5 w-5 text-emerald-700" />{tr("اضافة شركة جديدة")}</DialogTitle>
+            <DialogDescription className="text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع الاشتراك إلكترونياً وتُفعَّل الشركة فوراً.") : tr("أرسل طلبك لفريق المبيعات وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")) : tr("تُرسل للموافقة من إدارة النظام قبل تفعيلها.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label htmlFor="new-company-name" className="text-sm font-bold text-slate-700">اسم الشركة</label>
-            <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-right" autoFocus />
+            <label htmlFor="new-company-name" className="text-sm font-bold text-slate-700">{tr("اسم الشركة")}</label>
+            <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-start" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: "عدد المستخدمين", value: newCompanyUsers, set: setNewCompanyUsers, min: 1 },
-              { label: "عدد الفروع", value: newCompanyBranches, set: setNewCompanyBranches, min: 1 },
-              { label: "عدد نقاط البيع", value: newCompanyPosPoints, set: setNewCompanyPosPoints, min: 0 },
-              { label: "مواقع المطاعم", value: newCompanyRestaurants, set: setNewCompanyRestaurants, min: 0 },
+              { label: tr("عدد المستخدمين"), value: newCompanyUsers, set: setNewCompanyUsers, min: 1 },
+              { label: tr("عدد الفروع"), value: newCompanyBranches, set: setNewCompanyBranches, min: 1 },
+              { label: tr("عدد نقاط البيع"), value: newCompanyPosPoints, set: setNewCompanyPosPoints, min: 0 },
+              { label: tr("مواقع المطاعم"), value: newCompanyRestaurants, set: setNewCompanyRestaurants, min: 0 },
             ].map((field) => (
               <div key={field.label} className="space-y-2">
                 <label className="text-xs font-bold text-slate-600">{field.label}</label>
-                <input type="number" min={field.min} value={field.value} onChange={(e) => field.set(e.target.value)} className="cp-field text-right tabular-nums" />
+                <input type="number" min={field.min} value={field.value} onChange={(e) => field.set(e.target.value)} className="cp-field text-start tabular-nums" />
               </div>
             ))}
           </div>
@@ -597,21 +598,21 @@ export default function ManagementCompaniesPage() {
             const quote = priceFor(pricing, { users: Number(newCompanyUsers) || 1, branches: Number(newCompanyBranches) || 1, posPoints: Number(newCompanyPosPoints) || 0, restaurantLocations: Number(newCompanyRestaurants) || 0 })
             return (
               <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-black text-emerald-700"><CreditCard className="h-4 w-4" />تكلفة الاشتراك السنوي</p>
+                <p className="flex items-center gap-2 text-sm font-black text-emerald-700"><CreditCard className="h-4 w-4" />{tr("تكلفة الاشتراك السنوي")}</p>
                 {quote.lines.filter((line) => line.amount > 0).map((line) => (
                   <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
                 ))}
-                <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>الإجمالي</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
-                <p className="text-[11px] leading-5 text-stone-500">{ONLINE_COMPANY_PAYMENT_VISIBLE ? "الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع." : "بعد الإنشاء أرسل بطاقة لفريق المبيعات، وتُفعَّل الشركة لسنة كاملة فور اعتمادها."}</p>
-                {ONLINE_COMPANY_PAYMENT_VISIBLE && paymentTestMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir="rtl">وضع تجريبي: استخدم البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — تاريخ <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+                <div className="flex justify-between border-t border-[#ece3d3] pt-2 text-base font-black"><span>{tr("الإجمالي")}</span><span className="tabular-nums text-emerald-700" dir="ltr">{quote.total.toFixed(2)} {quote.currency}</span></div>
+                <p className="text-[11px] leading-5 text-stone-500">{ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("الدفع ببطاقة عبر بوابة لحظة الآمنة، وتُنشأ الشركة فوراً بعد نجاح الدفع.") : tr("بعد الإنشاء أرسل بطاقة لفريق المبيعات، وتُفعَّل الشركة لسنة كاملة فور اعتمادها.")}</p>
+                {ONLINE_COMPANY_PAYMENT_VISIBLE && paymentTestMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700" dir={appDir()}>{tr("وضع تجريبي: استخدم البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span>{tr(" — تاريخ ")}<span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
               </div>
             )
           })() : (
-            <p className="text-xs leading-6 text-stone-500">العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.</p>
+            <p className="text-xs leading-6 text-stone-500">{tr("العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.")}</p>
           )}
           <DialogFooter className="gap-2 sm:gap-2">
             <button type="button" onClick={() => setShowAddDialog(false)} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">
-              إلغاء
+              {tr("إلغاء")}
             </button>
             <button
               type="button"
@@ -619,36 +620,36 @@ export default function ManagementCompaniesPage() {
               disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0) || !(Number(newCompanyRestaurants || 0) >= 0)}
               className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
             >
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? "جاري التحويل للدفع..." : "جاري الإنشاء..."}</> : paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? <><CreditCard className="h-4 w-4" />الدفع وإنشاء الشركة</> : paymentEnabled ? <><Send className="h-4 w-4" />إنشاء وإرسال للمبيعات</> : "إنشاء"}
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("جاري التحويل للدفع...") : tr("جاري الإنشاء...")}</> : paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? <><CreditCard className="h-4 w-4" />{tr("الدفع وإنشاء الشركة")}</> : paymentEnabled ? <><Send className="h-4 w-4" />{tr("إنشاء وإرسال للمبيعات")}</> : tr("إنشاء")}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showTrialDialog} onOpenChange={setShowTrialDialog}>
-        <DialogContent dir="rtl" className="cp-dialog max-w-md">
+        <DialogContent dir={appDir()} className="cp-dialog max-w-md">
           <style dangerouslySetInnerHTML={{ __html: css }} />
           <DialogHeader className="text-right">
-            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Gift className="h-5 w-5 text-violet-700" />شركة تجريبية</DialogTitle>
-            <DialogDescription className="text-stone-500">تجربة كاملة للنظام بلا انتظار موافقة.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Gift className="h-5 w-5 text-violet-700" />{tr("شركة تجريبية")}</DialogTitle>
+            <DialogDescription className="text-stone-500">{tr("تجربة كاملة للنظام بلا انتظار موافقة.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label htmlFor="trial-company-name" className="text-sm font-bold text-slate-700">اسم الشركة</label>
-            <input id="trial-company-name" value={trialCompanyName} onChange={(e) => setTrialCompanyName(e.target.value)} className="cp-field text-right" autoFocus />
+            <label htmlFor="trial-company-name" className="text-sm font-bold text-slate-700">{tr("اسم الشركة")}</label>
+            <input id="trial-company-name" value={trialCompanyName} onChange={(e) => setTrialCompanyName(e.target.value)} className="cp-field text-start" autoFocus />
           </div>
           <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm leading-6 text-violet-700">
             <Clock className="mt-1 h-4 w-4 shrink-0 text-violet-700" />
             <span>
-              ستُعتمَد الشركة فوراً بلا انتظار موافقة، وتنتهي صلاحيتها تلقائياً بعد {TRIAL_EXPIRY_DAYS} أيام من الآن — بتاريخ{" "}
+              {tr("ستُعتمَد الشركة فوراً بلا انتظار موافقة، وتنتهي صلاحيتها تلقائياً بعد ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام من الآن — بتاريخ")}{" "}
               <strong>{formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))}</strong>.
             </span>
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <button type="button" onClick={() => setShowTrialDialog(false)} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">
-              إلغاء
+              {tr("إلغاء")}
             </button>
             <button type="button" onClick={handleAddTrialCompany} disabled={trialSaving || !trialCompanyName.trim()} className="cp-btn is-trial inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white">
-              {trialSaving ? <><Loader2 className="h-4 w-4 animate-spin" />جاري الإنشاء...</> : "إنشاء"}
+              {trialSaving ? <><Loader2 className="h-4 w-4 animate-spin" />{tr("جاري الإنشاء...")}</> : tr("إنشاء")}
             </button>
           </DialogFooter>
         </DialogContent>

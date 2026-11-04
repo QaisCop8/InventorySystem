@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { WorkspaceTab } from "@/contexts/workspace-context"
@@ -17,7 +18,7 @@ interface TabStripProps {
 // "فتح صفحة" معه أيضاً بالضبط باللحظة التي يحتاجها المستخدم لفتح أول صفحة بذلك الجزء.
 export function TabStrip({ tabs, activeTabId, onActivate, onClose }: TabStripProps) {
   return (
-    <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto" dir="rtl">
+    <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto" dir={appDir()}>
       {tabs.map((tab) => (
         <div
           key={tab.id}

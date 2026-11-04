@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Cigarette, Loader2, PackageCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -24,12 +25,12 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
     setLoading(true); setError("")
     fetch(`/api/pos/tobacco?point_id=${pointId}`, { cache: "no-store" }).then(async (response) => {
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل عهدة الدخان")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل عهدة الدخان"))
       if (!active) return
       const rows: Line[] = data.lines || []
       setLines(rows); setReceived(Boolean(data.received))
       setValues(Object.fromEntries(rows.map((row) => [row.product_id, String(mode === "open" ? row.opening_qty || "" : row.counted_qty ?? row.expected_qty)])))
-    }).catch((reason) => active && setError(reason instanceof Error ? reason.message : "تعذر تحميل عهدة الدخان"))
+    }).catch((reason) => active && setError(reason instanceof Error ? reason.message : tr("تعذر تحميل عهدة الدخان")))
       .finally(() => active && setLoading(false))
     return () => { active = false }
   }, [pointId, mode])
@@ -45,10 +46,10 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
         body: JSON.stringify({ action: mode, point_id: pointId, lines: lines.map((line) => mode === "open" ? { product_id: line.product_id, qty: number(line.product_id) } : { product_id: line.product_id, counted: number(line.product_id) }) }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذر حفظ عهدة الدخان")
+      if (!response.ok) throw new Error(data.error || tr("تعذر حفظ عهدة الدخان"))
       onDone(Array.isArray(data.lines) ? data.lines : [])
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر حفظ عهدة الدخان")
+      setError(reason instanceof Error ? reason.message : tr("تعذر حفظ عهدة الدخان"))
     } finally { setSaving(false) }
   }
 
@@ -58,10 +59,10 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
     try {
       const response = await fetch("/api/pos/tobacco", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "skip", point_id: pointId }) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || "تعذر إلغاء عهدة الدخان")
+      if (!response.ok) throw new Error(data.error || tr("تعذر إلغاء عهدة الدخان"))
       onCancel?.()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر إلغاء عهدة الدخان")
+      setError(reason instanceof Error ? reason.message : tr("تعذر إلغاء عهدة الدخان"))
     } finally { setSaving(false) }
   }
 
@@ -71,29 +72,29 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
   }, { opening: 0, sold: 0, expected: 0, counted: 0, diff: 0 })
 
   return (
-    <div className="fixed inset-0 z-[3002] grid place-items-center bg-slate-950/45 p-3" dir="rtl">
-      <div role="dialog" aria-modal="true" aria-label={mode === "open" ? "استلام عهدة دخان" : "تسليم عهدة الدخان"} className="flex max-h-[90dvh] w-[min(760px,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
+    <div className="fixed inset-0 z-[3002] grid place-items-center bg-slate-950/45 p-3" dir={appDir()}>
+      <div role="dialog" aria-modal="true" aria-label={mode === "open" ? tr("استلام عهدة دخان") : tr("تسليم عهدة الدخان")} className="flex max-h-[90dvh] w-[min(760px,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
         <div className={`flex items-center gap-3 px-5 py-3 text-white ${mode === "open" ? "bg-gradient-to-l from-amber-600 to-orange-600" : "bg-gradient-to-l from-rose-600 to-orange-600"}`}>
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/15"><Cigarette className="h-5 w-5" /></span>
           <div>
-            <h2 className="text-base font-bold">{mode === "open" ? "استلام عهدة دخان" : "تسليم عهدة الدخان"}</h2>
+            <h2 className="text-base font-bold">{mode === "open" ? tr("استلام عهدة دخان") : tr("تسليم عهدة الدخان")}</h2>
             <p className="text-xs text-white/85">{mode === "open"
-              ? (received ? "الكميات مقترحة مما سلّمه الكاشير السابق — عدّلها حسب الموجود فعلاً" : "أدخل الكمية الافتتاحية لكل صنف دخان (بالوحدة الرئيسية)")
-              : "المتوقع = الافتتاحي − المباع. أدخل الكمية الفعلية المسلَّمة لكل صنف — يُسلَّم الدخان قبل النقد"}</p>
+              ? (received ? tr("الكميات مقترحة مما سلّمه الكاشير السابق — عدّلها حسب الموجود فعلاً") : tr("أدخل الكمية الافتتاحية لكل صنف دخان (بالوحدة الرئيسية)"))
+              : tr("المتوقع = الافتتاحي − المباع. أدخل الكمية الفعلية المسلَّمة لكل صنف — يُسلَّم الدخان قبل النقد")}</p>
           </div>
         </div>
 
         <div className="min-h-[180px] flex-1 overflow-auto p-4">
           {loading ? <div className="grid h-40 place-items-center text-sm text-slate-500"><Loader2 className="h-6 w-6 animate-spin" /></div>
-            : lines.length === 0 ? <div className="grid h-40 place-items-center rounded-xl border-2 border-dashed text-center text-sm text-slate-500">لا توجد أصناف دخان معرّفة — فعّل خيار "دخان" في بطاقة الصنف</div>
+            : lines.length === 0 ? <div className="grid h-40 place-items-center rounded-xl border-2 border-dashed text-center text-sm text-slate-500">{tr("لا توجد أصناف دخان معرّفة — فعّل خيار \"دخان\" في بطاقة الصنف")}</div>
             : (
               <table className="w-full min-w-[560px] text-sm">
                 <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500 dark:bg-slate-800">
                   <tr>
-                    <th className="p-2 text-right">الصنف</th>
-                    {mode === "handover" && <><th className="p-2 text-center">الافتتاحي</th><th className="p-2 text-center">المباع</th><th className="p-2 text-center">المتوقع</th></>}
-                    <th className="p-2 text-center">{mode === "open" ? "الكمية الافتتاحية" : "المسلَّم فعلاً"}</th>
-                    {mode === "handover" && <th className="p-2 text-center">الفرق</th>}
+                    <th className="p-2 text-start">{tr("الصنف")}</th>
+                    {mode === "handover" && <><th className="p-2 text-center">{tr("الافتتاحي")}</th><th className="p-2 text-center">{tr("المباع")}</th><th className="p-2 text-center">{tr("المتوقع")}</th></>}
+                    <th className="p-2 text-center">{mode === "open" ? tr("الكمية الافتتاحية") : tr("المسلَّم فعلاً")}</th>
+                    {mode === "handover" && <th className="p-2 text-center">{tr("الفرق")}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -124,7 +125,7 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
                 </tbody>
                 {mode === "handover" && (
                   <tfoot className="border-t-2 bg-slate-50 font-bold dark:bg-slate-800">
-                    <tr><td className="p-2">الإجمالي</td><td className="p-2 text-center font-mono">{fmt(totals.opening)}</td><td className="p-2 text-center font-mono">{fmt(totals.sold)}</td><td className="p-2 text-center font-mono">{fmt(totals.expected)}</td><td className="p-2 text-center font-mono">{fmt(totals.counted)}</td><td className={`p-2 text-center font-mono ${Math.abs(totals.diff) < 0.0001 ? "text-emerald-600" : "text-rose-600"}`}>{fmt(totals.diff)}</td></tr>
+                    <tr><td className="p-2">{tr("الإجمالي")}</td><td className="p-2 text-center font-mono">{fmt(totals.opening)}</td><td className="p-2 text-center font-mono">{fmt(totals.sold)}</td><td className="p-2 text-center font-mono">{fmt(totals.expected)}</td><td className="p-2 text-center font-mono">{fmt(totals.counted)}</td><td className={`p-2 text-center font-mono ${Math.abs(totals.diff) < 0.0001 ? "text-emerald-600" : "text-rose-600"}`}>{fmt(totals.diff)}</td></tr>
                   </tfoot>
                 )}
               </table>
@@ -133,12 +134,12 @@ export function PosTobaccoDialog({ mode, pointId, onDone, onCancel }: { mode: "o
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t bg-slate-50 px-5 py-3 dark:bg-slate-800">
-          <span className="text-xs text-slate-500">{mode === "open" ? "يجب استلام عهدة الدخان قبل البيع" : "بعد التسليم يكمل تسليم النقد"}</span>
+          <span className="text-xs text-slate-500">{mode === "open" ? tr("يجب استلام عهدة الدخان قبل البيع") : tr("بعد التسليم يكمل تسليم النقد")}</span>
           <div className="flex gap-2">
-            {mode === "handover" && onCancel && <Button variant="outline" onClick={onCancel} disabled={saving}>إلغاء</Button>}
-            {mode === "open" && <Button variant="outline" onClick={() => void skip()} disabled={saving} title="لا توجد عهدة دخان مع هذه الوردية">إلغاء</Button>}
+            {mode === "handover" && onCancel && <Button variant="outline" onClick={onCancel} disabled={saving}>{tr("إلغاء")}</Button>}
+            {mode === "open" && <Button variant="outline" onClick={() => void skip()} disabled={saving} title={tr("لا توجد عهدة دخان مع هذه الوردية")}>{tr("إلغاء")}</Button>}
             <Button onClick={() => void save()} disabled={saving || loading || invalid} className="bg-amber-600 hover:bg-amber-700">
-              {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <PackageCheck className="ml-2 h-4 w-4" />}{mode === "open" ? "استلام" : "تسليم الدخان"}
+              {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <PackageCheck className="ml-2 h-4 w-4" />}{mode === "open" ? tr("استلام") : tr("تسليم الدخان")}
             </Button>
           </div>
         </div>

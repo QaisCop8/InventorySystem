@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useState, type KeyboardEvent } from "react"
 import { Eye, Loader2, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -25,7 +26,7 @@ export function VoucherSearchButton({ onClick, loading = false, className }: { o
   return (
     <Button type="button" onClick={onClick} disabled={loading} className={cn("h-10 gap-2 px-6", className)}>
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-      بحث
+      {tr("بحث")}
     </Button>
   )
 }
@@ -47,7 +48,7 @@ const STATUS_BADGES: Record<number, string> = {
 }
 
 /** حالة السند من voucher_header_tbl.status: 2 معتمد (مرحّل)، 3 ملغى، وغير ذلك غير معتمد. */
-export const voucherStatusLabel = (status: unknown) => (status == null || status === "" ? "" : Number(status) === 2 ? "معتمد" : Number(status) === 3 ? "ملغى" : "غير معتمد")
+export const voucherStatusLabel = (status: unknown) => (status == null || status === "" ? "" : Number(status) === 2 ? tr("معتمد") : Number(status) === 3 ? tr("ملغى") : tr("غير معتمد"))
 const STATUS_COLUMNS = new Set(["display_status", "status_name", "voucher_status"])
 
 export function VoucherListTable<T extends Record<string, any>>({
@@ -69,7 +70,7 @@ export function VoucherListTable<T extends Record<string, any>>({
   statusColumn?: boolean
 }) {
   const columns = statusColumn && !baseColumns.some((column) => STATUS_COLUMNS.has(column.name))
-    ? [...baseColumns, { header: "حالة السند", name: "voucher_status", width: 120 }]
+    ? [...baseColumns, { header: tr("حالة السند"), name: "voucher_status", width: 120 }]
     : baseColumns
   const cellValue = (row: T, column: VoucherListColumn) => {
     const value = column.name === "voucher_status" ? voucherStatusLabel(row.status) : row[column.name]
@@ -84,12 +85,12 @@ export function VoucherListTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white" dir="rtl" aria-busy={loading}>
+    <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white" dir={appDir()} aria-busy={loading}>
       {loading && (
         <div role="status" aria-live="polite" className="absolute inset-0 z-[2] flex items-start justify-center bg-white/70 pt-16 backdrop-blur-[1px] dark:bg-slate-900/70">
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
             <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-            جاري تحميل البيانات...
+            {tr("جاري تحميل البيانات...")}
           </div>
         </div>
       )}
@@ -97,17 +98,17 @@ export function VoucherListTable<T extends Record<string, any>>({
         <table className="w-full min-w-[640px] text-sm">
           <thead className="sticky top-0 z-[1]">
             <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
-              <th className="w-12 p-3 text-right text-xs font-bold">#</th>
+              <th className="w-12 p-3 text-start text-xs font-bold">#</th>
               {columns.map((column) => (
                 <th
                   key={column.name}
-                  className="whitespace-nowrap p-3 text-right text-xs font-bold"
+                  className="whitespace-nowrap p-3 text-start text-xs font-bold"
                   style={typeof column.width === "number" ? { width: column.width } : column.minWidth ? { minWidth: column.minWidth } : undefined}
                 >
                   {column.header}
                 </th>
               ))}
-              <th className="w-20 p-3 text-center text-xs font-bold">الإجراءات</th>
+              <th className="w-20 p-3 text-center text-xs font-bold">{tr("الإجراءات")}</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +116,7 @@ export function VoucherListTable<T extends Record<string, any>>({
               <tr
                 key={row.id ?? index}
                 tabIndex={0}
-                title="انقر نقراً مزدوجاً لفتح السند"
+                title={tr("انقر نقراً مزدوجاً لفتح السند")}
                 onDoubleClick={() => onOpen(row)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -140,7 +141,7 @@ export function VoucherListTable<T extends Record<string, any>>({
                     onClick={(event) => { event.stopPropagation(); onOpen(row) }}
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    عرض
+                    {tr("عرض")}
                   </Button>
                 </td>
               </tr>

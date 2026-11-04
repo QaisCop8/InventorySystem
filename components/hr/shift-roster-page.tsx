@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -21,8 +22,8 @@ type Shift = { id: number; code: string; name: string; start_time: string; end_t
 type Cell = { employee_id: number; roster_date: string; shift_id: number | null; is_day_off: boolean }
 
 const KINDS: Record<string, { label: string; icon: any }> = {
-  day: { label: "صباحية", icon: Sun }, evening: { label: "مسائية", icon: Sunset }, night: { label: "ليلية", icon: Moon },
-  on_call: { label: "مناوبة / استدعاء", icon: Clock }, split: { label: "مجزأة", icon: Repeat },
+  day: { label: tr("صباحية"), icon: Sun }, evening: { label: tr("مسائية"), icon: Sunset }, night: { label: tr("ليلية"), icon: Moon },
+  on_call: { label: tr("مناوبة / استدعاء"), icon: Clock }, split: { label: tr("مجزأة"), icon: Repeat },
 }
 const iso = (date: Date) => date.toISOString().slice(0, 10)
 const addDays = (value: string, days: number) => { const d = new Date(`${value}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + days); return iso(d) }
@@ -62,7 +63,7 @@ function RosterBoard() {
 
   const saveCells = async (cells: any[]) => {
     const response = await fetch("/api/hr/shift-roster", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cells }) })
-    if (!response.ok) { setMessage((await response.json()).error || "تعذر الحفظ"); return }
+    if (!response.ok) { setMessage((await response.json()).error || tr("تعذر الحفظ")); return }
     setData((current) => {
       const map = new Map(current.cells.map((c) => [`${c.employee_id}|${c.roster_date}`, c]))
       for (const cell of cells) {
@@ -84,13 +85,13 @@ function RosterBoard() {
   const CellChoices = ({ onPick }: { onPick: (choice: string) => void }) => (
     <div className="grid gap-1">
       {data.shifts.map((s) => (
-        <button key={s.id} type="button" onClick={() => onPick(String(s.id))} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-right text-sm hover:bg-slate-100">
+        <button key={s.id} type="button" onClick={() => onPick(String(s.id))} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm hover:bg-slate-100">
           <span className="inline-flex min-w-9 justify-center rounded px-1 text-xs font-bold text-white" style={{ background: s.color }}>{s.code}</span>
           <span className="flex-1">{s.name}</span><span className="font-mono text-xs text-slate-500" dir="ltr">{s.start_time.slice(0, 5)}-{s.end_time.slice(0, 5)}</span>
         </button>
       ))}
-      <button type="button" onClick={() => onPick("OFF")} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100"><span className="inline-flex min-w-9 justify-center rounded bg-slate-200 px-1 text-xs font-bold text-slate-600">OFF</span>راحة</button>
-      <button type="button" onClick={() => onPick("CLEAR")} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-rose-700 hover:bg-rose-50"><Eraser className="h-4 w-4" />مسح (يرجع للجدول الأسبوعي)</button>
+      <button type="button" onClick={() => onPick("OFF")} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100"><span className="inline-flex min-w-9 justify-center rounded bg-slate-200 px-1 text-xs font-bold text-slate-600">OFF</span>{tr("راحة")}</button>
+      <button type="button" onClick={() => onPick("CLEAR")} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-rose-700 hover:bg-rose-50"><Eraser className="h-4 w-4" />{tr("مسح (يرجع للجدول الأسبوعي)")}</button>
     </div>
   )
 
@@ -98,16 +99,16 @@ function RosterBoard() {
     <div className="space-y-3">
       <div className={`${card} flex flex-wrap items-end gap-3`}>
         <div className="flex items-end gap-1">
-          <Button variant="outline" size="icon" onClick={() => setFrom(addDays(from, -span))} title="الفترة السابقة"><ChevronRight className="h-4 w-4" /></Button>
-          <div><Label>من</Label><Input type="date" dir="ltr" className={`${inputClass} w-40`} value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} /></div>
-          <Button variant="outline" size="icon" onClick={() => setFrom(addDays(from, span))} title="الفترة التالية"><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={() => setFrom(addDays(from, -span))} title={tr("الفترة السابقة")}><ChevronRight className="h-4 w-4" /></Button>
+          <div><Label>{tr("من")}</Label><Input type="date" dir="ltr" className={`${inputClass} w-40`} value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} /></div>
+          <Button variant="outline" size="icon" onClick={() => setFrom(addDays(from, span))} title={tr("الفترة التالية")}><ChevronLeft className="h-4 w-4" /></Button>
         </div>
-        <div><Label>المدة</Label><select className={`${selectClass} w-32`} value={span} onChange={(e) => setSpan(Number(e.target.value))}>{[7, 14, 28, 31].map((n) => <option key={n} value={n}>{n} يوم</option>)}</select></div>
-        <div><Label>القسم</Label><select className={`${selectClass} w-48`} value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}><option value="">كل الأقسام</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.department_name || d.name}</option>)}</select></div>
-        <Button variant="outline" onClick={() => setPatternOpen(true)}><Repeat className="ml-2 h-4 w-4" />تدوير نمط</Button>
+        <div><Label>{tr("المدة")}</Label><select className={`${selectClass} w-32`} value={span} onChange={(e) => setSpan(Number(e.target.value))}>{[7, 14, 28, 31].map((n) => <option key={n} value={n}>{n}{tr(" يوم")}</option>)}</select></div>
+        <div><Label>{tr("القسم")}</Label><select className={`${selectClass} w-48`} value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}><option value="">{tr("كل الأقسام")}</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.department_name || d.name}</option>)}</select></div>
+        <Button variant="outline" onClick={() => setPatternOpen(true)}><Repeat className="ml-2 h-4 w-4" />{tr("تدوير نمط")}</Button>
         {loading && <Loader2 className="h-5 w-5 animate-spin text-teal-600" />}
         <div className="mr-auto flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-semibold text-slate-500">فرشاة سريعة:</span>
+          <span className="text-xs font-semibold text-slate-500">{tr("فرشاة سريعة:")}</span>
           {data.shifts.map((s) => (
             <button key={s.id} type="button" onClick={() => setBrush(brush === String(s.id) ? "" : String(s.id))} title={s.name} className={`rounded-md px-2 py-1 text-xs font-bold text-white ring-offset-1 ${brush === String(s.id) ? "ring-2 ring-slate-900" : ""}`} style={{ background: s.color }}>{s.code}</button>
           ))}
@@ -115,32 +116,32 @@ function RosterBoard() {
           <button type="button" onClick={() => setBrush(brush === "CLEAR" ? "" : "CLEAR")} className={`rounded-md bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700 ring-offset-1 ${brush === "CLEAR" ? "ring-2 ring-slate-900" : ""}`}><Eraser className="inline h-3.5 w-3.5" /></button>
         </div>
       </div>
-      {brush && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800">وضع الفرشاة مفعّل: انقر على أي خلية لتعيين {brush === "OFF" ? "راحة" : brush === "CLEAR" ? "المسح" : shiftById.get(Number(brush))?.name}. انقر الزر مرة أخرى للإلغاء.</p>}
+      {brush && <p className="rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800">{tr("وضع الفرشاة مفعّل: انقر على أي خلية لتعيين ")}{brush === "OFF" ? tr("راحة") : brush === "CLEAR" ? tr("المسح") : shiftById.get(Number(brush))?.name}{tr(". انقر الزر مرة أخرى للإلغاء.")}</p>}
       {message && <p className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{message}</p>}
-      {!data.shifts.length && !loading && <p className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-800">لا توجد ورديات معرّفة — أضفها من تبويب "قوالب الورديات" (مثال: M صباحي 07:00-15:00، E مسائي 15:00-23:00، N ليلي 23:00-07:00).</p>}
+      {!data.shifts.length && !loading && <p className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-800">{tr("لا توجد ورديات معرّفة — أضفها من تبويب \"قوالب الورديات\" (مثال: M صباحي 07:00-15:00، E مسائي 15:00-23:00، N ليلي 23:00-07:00).")}</p>}
 
       <div className={`${card} overflow-auto p-0`}>
         <table className="w-full border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-20">
             <tr className="bg-slate-800 text-white">
-              <th className="sticky right-0 z-30 min-w-[220px] bg-slate-800 px-3 py-2 text-right text-xs">الموظف</th>
+              <th className="sticky start-0 z-30 min-w-[220px] bg-slate-800 px-3 py-2 text-start text-xs">{tr("الموظف")}</th>
               {dates.map((date) => {
                 const d = new Date(`${date}T00:00:00Z`)
                 const weekend = [5, 6].includes(d.getUTCDay())
                 return <th key={date} className={`min-w-[52px] px-1 py-1.5 text-center text-[11px] font-bold ${weekend ? "bg-slate-700" : ""}`}><div>{d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</div><div className="font-mono">{date.slice(8)}/{date.slice(5, 7)}</div></th>
               })}
-              <th className="min-w-[64px] px-2 text-center text-xs">الساعات</th>
+              <th className="min-w-[64px] px-2 text-center text-xs">{tr("الساعات")}</th>
             </tr>
           </thead>
           <tbody>
             {data.employees.map((employee) => (
               <tr key={employee.id} className="group">
-                <td className="sticky right-0 z-10 border-b bg-white px-3 py-1.5 group-hover:bg-teal-50">
+                <td className="sticky start-0 z-10 border-b bg-white px-3 py-1.5 group-hover:bg-teal-50">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0"><div className="truncate font-semibold">{employee.full_name}</div><div className="text-[11px] text-slate-500"><span className="font-mono">{employee.employee_code}</span> · {employee.department_name || "—"}</div></div>
                     <Popover>
-                      <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 px-1.5 text-xs text-slate-500" title="تعبئة الصف كاملاً">تعبئة</Button></PopoverTrigger>
-                      <PopoverContent dir="rtl" className="w-72 p-2"><CellChoices onPick={(choice) => fillRow(Number(employee.id), choice)} /></PopoverContent>
+                      <PopoverTrigger asChild><Button variant="ghost" size="sm" className="h-7 px-1.5 text-xs text-slate-500" title={tr("تعبئة الصف كاملاً")}>{tr("تعبئة")}</Button></PopoverTrigger>
+                      <PopoverContent dir={appDir()} className="w-72 p-2"><CellChoices onPick={(choice) => fillRow(Number(employee.id), choice)} /></PopoverContent>
                     </Popover>
                   </div>
                 </td>
@@ -156,7 +157,7 @@ function RosterBoard() {
                     <td key={date} className="border-b p-0.5">
                       <Popover>
                         <PopoverTrigger asChild><button type="button" className="w-full">{content}</button></PopoverTrigger>
-                        <PopoverContent dir="rtl" className="w-72 p-2"><p className="mb-1 px-2 text-xs text-slate-500">{employee.full_name} · {date}</p><CellChoices onPick={(choice) => void saveCells([choiceToCell(Number(employee.id), date, choice)])} /></PopoverContent>
+                        <PopoverContent dir={appDir()} className="w-72 p-2"><p className="mb-1 px-2 text-xs text-slate-500">{employee.full_name} · {date}</p><CellChoices onPick={(choice) => void saveCells([choiceToCell(Number(employee.id), date, choice)])} /></PopoverContent>
                       </Popover>
                     </td>
                   )
@@ -166,16 +167,16 @@ function RosterBoard() {
             ))}
             {data.employees.length > 0 && data.shifts.map((shift) => (
               <tr key={`cov-${shift.id}`} className="bg-slate-50">
-                <td className="sticky right-0 z-10 border-b bg-slate-50 px-3 py-1 text-xs font-bold"><span className="ml-1 inline-block h-2.5 w-2.5 rounded-full" style={{ background: shift.color }} />تغطية {shift.name}</td>
+                <td className="sticky start-0 z-10 border-b bg-slate-50 px-3 py-1 text-xs font-bold"><span className="ml-1 inline-block h-2.5 w-2.5 rounded-full" style={{ background: shift.color }} />{tr("تغطية ")}{shift.name}</td>
                 {dates.map((date) => { const n = coverage(date, Number(shift.id)); return <td key={date} className={`border-b text-center font-mono text-xs font-bold ${n ? "text-slate-700" : "text-rose-400"}`}>{n}</td> })}
                 <td className="border-b" />
               </tr>
             ))}
-            {!data.employees.length && <tr><td colSpan={dates.length + 2} className="py-12 text-center text-slate-500">لا يوجد موظفون نشطون</td></tr>}
+            {!data.employees.length && <tr><td colSpan={dates.length + 2} className="py-12 text-center text-slate-500">{tr("لا يوجد موظفون نشطون")}</td></tr>}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-500">أولوية تحديد وردية الموظف عند معالجة الدوام: جدول المناوبات اليومي ← قواعد الجدول (الموظف ثم القسم) ← الجدول الأسبوعي. الخلية الفارغة تعني الرجوع للجدول الأسبوعي.</p>
+      <p className="text-xs text-slate-500">{tr("أولوية تحديد وردية الموظف عند معالجة الدوام: جدول المناوبات اليومي ← قواعد الجدول (الموظف ثم القسم) ← الجدول الأسبوعي. الخلية الفارغة تعني الرجوع للجدول الأسبوعي.")}</p>
       <PatternDialog open={patternOpen} onOpenChange={setPatternOpen} employees={data.employees} shifts={data.shifts} defaultFrom={from} defaultTo={to} onDone={() => void load()} />
     </div>
   )
@@ -201,32 +202,32 @@ function PatternDialog({ open, onOpenChange, employees, shifts, defaultFrom, def
     try {
       const response = await fetch("/api/hr/shift-roster", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "pattern", employee_ids: form.employeeIds, from: form.from, to: form.to, pattern: tokens, offset_per_employee: Number(form.offset) || 0 }) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر التطبيق")
+      if (!response.ok) throw new Error(data.error || tr("تعذر التطبيق"))
       onDone(); onOpenChange(false)
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر التطبيق") } finally { setSaving(false) }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر التطبيق")) } finally { setSaving(false) }
   }
   const colorOf = (code: string) => shifts.find((s) => s.code.toUpperCase() === code)?.color
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-xl">
+      <DialogContent dir={appDir()} className="max-w-xl">
         <DialogHeader className="text-right">
-          <DialogTitle>تدوير نمط ورديات</DialogTitle>
-          <DialogDescription>اكتب رموز الورديات بالترتيب مفصولة بفواصل، و OFF لأيام الراحة. يتكرر النمط على الفترة، والإزاحة توزّع الموظفين على مراحل مختلفة لضمان التغطية.</DialogDescription>
+          <DialogTitle>{tr("تدوير نمط ورديات")}</DialogTitle>
+          <DialogDescription>{tr("اكتب رموز الورديات بالترتيب مفصولة بفواصل، و OFF لأيام الراحة. يتكرر النمط على الفترة، والإزاحة توزّع الموظفين على مراحل مختلفة لضمان التغطية.")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
-          <ReportMultiChoice label="الموظفون *" options={employees.map((e) => ({ id: Number(e.id), code: e.employee_code, name: e.full_name }))} selected={form.employeeIds} onChange={(employeeIds) => setForm({ ...form, employeeIds })} placeholder="اختر الموظفين" />
+          <ReportMultiChoice label={tr("الموظفون *")} options={employees.map((e) => ({ id: Number(e.id), code: e.employee_code, name: e.full_name }))} selected={form.employeeIds} onChange={(employeeIds) => setForm({ ...form, employeeIds })} placeholder={tr("اختر الموظفين")} />
           <div className="grid grid-cols-3 gap-3">
-            <div><Label>من</Label><Input type="date" dir="ltr" className={inputClass} value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} /></div>
-            <div><Label>إلى</Label><Input type="date" dir="ltr" className={inputClass} value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} /></div>
-            <div><Label>إزاحة لكل موظف (يوم)</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.offset} onChange={(e) => setForm({ ...form, offset: e.target.value })} /></div>
+            <div><Label>{tr("من")}</Label><Input type="date" dir="ltr" className={inputClass} value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} /></div>
+            <div><Label>{tr("إلى")}</Label><Input type="date" dir="ltr" className={inputClass} value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} /></div>
+            <div><Label>{tr("إزاحة لكل موظف (يوم)")}</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.offset} onChange={(e) => setForm({ ...form, offset: e.target.value })} /></div>
           </div>
-          <div><Label>النمط *</Label><Input dir="ltr" className={`${inputClass} font-mono`} value={form.pattern} onChange={(e) => setForm({ ...form, pattern: e.target.value })} placeholder="M,M,N,N,OFF,OFF" /></div>
+          <div><Label>{tr("النمط *")}</Label><Input dir="ltr" className={`${inputClass} font-mono`} value={form.pattern} onChange={(e) => setForm({ ...form, pattern: e.target.value })} placeholder="M,M,N,N,OFF,OFF" /></div>
           {presets.length > 0 && <div className="flex flex-wrap gap-1.5">{presets.map(([label, value]) => <button key={label} type="button" onClick={() => setForm({ ...form, pattern: value })} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold hover:bg-teal-100">{label}</button>)}</div>}
-          {tokens.length > 0 && <div className="flex flex-wrap gap-1">{tokens.map((t, i) => <span key={i} className="rounded px-2 py-0.5 font-mono text-xs font-bold" style={{ background: t === "OFF" ? "#e2e8f0" : colorOf(t) || "#fecaca", color: t === "OFF" ? "#475569" : "#fff" }}>{t}</span>)}<span className="text-xs text-slate-500">دورة {tokens.length} يوم</span></div>}
-          <p className="text-xs text-slate-500">الرموز المتاحة: {shifts.map((s) => `${s.code} (${s.name})`).join("، ") || "—"}</p>
+          {tokens.length > 0 && <div className="flex flex-wrap gap-1">{tokens.map((t, i) => <span key={i} className="rounded px-2 py-0.5 font-mono text-xs font-bold" style={{ background: t === "OFF" ? "#e2e8f0" : colorOf(t) || "#fecaca", color: t === "OFF" ? "#475569" : "#fff" }}>{t}</span>)}<span className="text-xs text-slate-500">{tr("دورة ")}{tokens.length}{tr(" يوم")}</span></div>}
+          <p className="text-xs text-slate-500">{tr("الرموز المتاحة: ")}{shifts.map((s) => `${s.code} (${s.name})`).join("، ") || "—"}</p>
         </div>
         {error && <p className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</p>}
-        <DialogFooter><Button onClick={() => void run()} disabled={saving || !tokens.length || !form.employeeIds.length}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Repeat className="ml-2 h-4 w-4" />}تطبيق النمط</Button></DialogFooter>
+        <DialogFooter><Button onClick={() => void run()} disabled={saving || !tokens.length || !form.employeeIds.length}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Repeat className="ml-2 h-4 w-4" />}{tr("تطبيق النمط")}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -248,12 +249,12 @@ function ShiftTemplates() {
     try {
       const response = await fetch("/api/hr/shift-templates", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر الحفظ")
+      if (!response.ok) throw new Error(data.error || tr("تعذر الحفظ"))
       setOpen(false); await load()
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر الحفظ") } finally { setSaving(false) }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : tr("تعذر الحفظ")) } finally { setSaving(false) }
   }
   const remove = async (row: Shift) => {
-    if (!(await confirmYesNo(`حذف الوردية ${row.name}؟`))) return
+    if (!(await confirmYesNo(tr("حذف الوردية {0}؟", row.name)))) return
     const response = await fetch(`/api/hr/shift-templates?id=${row.id}`, { method: "DELETE" })
     const data = await response.json()
     if (data.message) showAlert(data.message)
@@ -262,17 +263,17 @@ function ShiftTemplates() {
   const overnight = form.end_time <= form.start_time
   return (
     <div className="space-y-3">
-      <div className="flex justify-end"><Button onClick={() => { setForm(emptyShift); setError(""); setOpen(true) }}><Plus className="ml-2 h-4 w-4" />وردية جديدة</Button></div>
+      <div className="flex justify-end"><Button onClick={() => { setForm(emptyShift); setError(""); setOpen(true) }}><Plus className="ml-2 h-4 w-4" />{tr("وردية جديدة")}</Button></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {rows.map((row) => {
           const Kind = KINDS[row.shift_kind]?.icon || Sun
           return (
             <div key={row.id} className={`${card} relative overflow-hidden ${row.is_active ? "" : "opacity-60"}`}>
-              <span className="absolute inset-y-0 right-0 w-1.5" style={{ background: row.color }} />
+              <span className="absolute inset-y-0 start-0 w-1.5" style={{ background: row.color }} />
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-black text-white" style={{ background: row.color }}>{row.code}</span>
-                  <div><p className="font-bold">{row.name}</p><p className="flex items-center gap-1 text-xs text-slate-500"><Kind className="h-3.5 w-3.5" />{KINDS[row.shift_kind]?.label || row.shift_kind}{!row.is_active && " · موقوفة"}</p></div>
+                  <div><p className="font-bold">{row.name}</p><p className="flex items-center gap-1 text-xs text-slate-500"><Kind className="h-3.5 w-3.5" />{KINDS[row.shift_kind]?.label || row.shift_kind}{!row.is_active && tr(" · موقوفة")}</p></div>
                 </div>
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => { setForm({ ...row, start_time: row.start_time.slice(0, 5), end_time: row.end_time.slice(0, 5) }); setError(""); setOpen(true) }}><Pencil className="h-4 w-4" /></Button>
@@ -280,33 +281,33 @@ function ShiftTemplates() {
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">الوقت</p><p className="font-mono font-bold" dir="ltr">{row.start_time.slice(0, 5)}-{row.end_time.slice(0, 5)}{row.is_overnight ? " +1" : ""}</p></div>
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">الساعات</p><p className="font-mono font-bold">{shiftHours(row).toFixed(1)}</p></div>
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">سماح</p><p className="font-mono font-bold">{row.grace_minutes}د</p></div>
-                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">إضافي بعد</p><p className="font-mono font-bold">{row.overtime_after_minutes}د</p></div>
+                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">{tr("الوقت")}</p><p className="font-mono font-bold" dir="ltr">{row.start_time.slice(0, 5)}-{row.end_time.slice(0, 5)}{row.is_overnight ? " +1" : ""}</p></div>
+                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">{tr("الساعات")}</p><p className="font-mono font-bold">{shiftHours(row).toFixed(1)}</p></div>
+                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">{tr("سماح")}</p><p className="font-mono font-bold">{row.grace_minutes}{tr("د")}</p></div>
+                <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-500">{tr("إضافي بعد")}</p><p className="font-mono font-bold">{row.overtime_after_minutes}{tr("د")}</p></div>
               </div>
             </div>
           )
         })}
-        {!rows.length && <div className={`${card} col-span-full py-12 text-center text-slate-500`}>لا توجد ورديات — أضف ورديات مثل صباحي (M) ومسائي (E) وليلي (N) ومناوبة 24 ساعة (D)</div>}
+        {!rows.length && <div className={`${card} col-span-full py-12 text-center text-slate-500`}>{tr("لا توجد ورديات — أضف ورديات مثل صباحي (M) ومسائي (E) وليلي (N) ومناوبة 24 ساعة (D)")}</div>}
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="max-w-xl">
-          <DialogHeader className="text-right"><DialogTitle>{form.id ? "تعديل وردية" : "وردية جديدة"}</DialogTitle></DialogHeader>
+        <DialogContent dir={appDir()} className="max-w-xl">
+          <DialogHeader className="text-right"><DialogTitle>{form.id ? tr("تعديل وردية") : tr("وردية جديدة")}</DialogTitle></DialogHeader>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div><Label>الرمز *</Label><Input dir="ltr" maxLength={10} className={`${inputClass} font-mono uppercase`} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="M" /></div>
-            <div className="sm:col-span-2"><Label>الاسم *</Label><Input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="وردية صباحية" /></div>
-            <div><Label>النوع</Label><select className={selectClass} value={form.shift_kind} onChange={(e) => setForm({ ...form, shift_kind: e.target.value })}>{Object.entries(KINDS).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></div>
-            <div><Label>البداية</Label><Input type="time" dir="ltr" className={inputClass} value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></div>
-            <div><Label>النهاية {overnight && <span className="text-xs text-indigo-600">(اليوم التالي)</span>}</Label><Input type="time" dir="ltr" className={inputClass} value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} /></div>
-            <div><Label>الاستراحة (دقيقة)</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.break_minutes} onChange={(e) => setForm({ ...form, break_minutes: e.target.value })} /></div>
-            <div><Label>فترة السماح للتأخير</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.grace_minutes} onChange={(e) => setForm({ ...form, grace_minutes: e.target.value })} /></div>
-            <div><Label>يُحتسب إضافي بعد (دقيقة)</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.overtime_after_minutes} onChange={(e) => setForm({ ...form, overtime_after_minutes: e.target.value })} /></div>
-            <div className="sm:col-span-3"><Label>اللون</Label><div className="mt-1 flex flex-wrap gap-2">{COLORS.map((color) => <button key={color} type="button" onClick={() => setForm({ ...form, color })} className={`h-8 w-8 rounded-full ring-offset-2 ${form.color === color ? "ring-2 ring-slate-900" : ""}`} style={{ background: color }} />)}<Input type="color" className="h-8 w-14 p-0.5" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} /></div></div>
-            <label className="flex items-center gap-2 text-sm sm:col-span-3"><Checkbox checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v === true })} />وردية نشطة</label>
+            <div><Label>{tr("الرمز *")}</Label><Input dir="ltr" maxLength={10} className={`${inputClass} font-mono uppercase`} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="M" /></div>
+            <div className="sm:col-span-2"><Label>{tr("الاسم *")}</Label><Input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={tr("وردية صباحية")} /></div>
+            <div><Label>{tr("النوع")}</Label><select className={selectClass} value={form.shift_kind} onChange={(e) => setForm({ ...form, shift_kind: e.target.value })}>{Object.entries(KINDS).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}</select></div>
+            <div><Label>{tr("البداية")}</Label><Input type="time" dir="ltr" className={inputClass} value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} /></div>
+            <div><Label>{tr("النهاية ")}{overnight && <span className="text-xs text-indigo-600">{tr("(اليوم التالي)")}</span>}</Label><Input type="time" dir="ltr" className={inputClass} value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} /></div>
+            <div><Label>{tr("الاستراحة (دقيقة)")}</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.break_minutes} onChange={(e) => setForm({ ...form, break_minutes: e.target.value })} /></div>
+            <div><Label>{tr("فترة السماح للتأخير")}</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.grace_minutes} onChange={(e) => setForm({ ...form, grace_minutes: e.target.value })} /></div>
+            <div><Label>{tr("يُحتسب إضافي بعد (دقيقة)")}</Label><Input type="number" min="0" dir="ltr" className={inputClass} value={form.overtime_after_minutes} onChange={(e) => setForm({ ...form, overtime_after_minutes: e.target.value })} /></div>
+            <div className="sm:col-span-3"><Label>{tr("اللون")}</Label><div className="mt-1 flex flex-wrap gap-2">{COLORS.map((color) => <button key={color} type="button" onClick={() => setForm({ ...form, color })} className={`h-8 w-8 rounded-full ring-offset-2 ${form.color === color ? "ring-2 ring-slate-900" : ""}`} style={{ background: color }} />)}<Input type="color" className="h-8 w-14 p-0.5" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} /></div></div>
+            <label className="flex items-center gap-2 text-sm sm:col-span-3"><Checkbox checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v === true })} />{tr("وردية نشطة")}</label>
           </div>
           {error && <p className="rounded-xl bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</p>}
-          <DialogFooter><Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}حفظ</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => void save()} disabled={saving}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}{tr("حفظ")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -315,12 +316,12 @@ function ShiftTemplates() {
 
 export function ShiftRosterPage() {
   return (
-    <HrPage title="الورديات وجدول المناوبات" subtitle="تخطيط مناوبات الموظفين يوماً بيوم كما في المستشفيات: ورديات صباحية/مسائية/ليلية ومناوبات 24 ساعة، أنماط تدوير، ومتابعة التغطية لكل وردية">
-      <Tabs defaultValue="roster" dir="rtl">
+    <HrPage title={tr("الورديات وجدول المناوبات")} subtitle={tr("تخطيط مناوبات الموظفين يوماً بيوم كما في المستشفيات: ورديات صباحية/مسائية/ليلية ومناوبات 24 ساعة، أنماط تدوير، ومتابعة التغطية لكل وردية")}>
+      <Tabs defaultValue="roster" dir={appDir()}>
         <TabsList>
-          <TabsTrigger value="roster"><CalendarRange className="ml-1 h-4 w-4" />جدول المناوبات</TabsTrigger>
-          <TabsTrigger value="templates"><Clock className="ml-1 h-4 w-4" />قوالب الورديات</TabsTrigger>
-          <TabsTrigger value="weekly"><Repeat className="ml-1 h-4 w-4" />الجداول الأسبوعية</TabsTrigger>
+          <TabsTrigger value="roster"><CalendarRange className="ml-1 h-4 w-4" />{tr("جدول المناوبات")}</TabsTrigger>
+          <TabsTrigger value="templates"><Clock className="ml-1 h-4 w-4" />{tr("قوالب الورديات")}</TabsTrigger>
+          <TabsTrigger value="weekly"><Repeat className="ml-1 h-4 w-4" />{tr("الجداول الأسبوعية")}</TabsTrigger>
         </TabsList>
         <TabsContent value="roster"><RosterBoard /></TabsContent>
         <TabsContent value="templates"><ShiftTemplates /></TabsContent>

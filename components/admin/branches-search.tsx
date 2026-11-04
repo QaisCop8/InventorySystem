@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useCallback, useMemo } from "react"
 import { Building2 } from "lucide-react"
 import CodeNameSearchDialog from "@/components/admin/code-name-search-dialog"
@@ -32,14 +33,14 @@ export default function BranchesSearch({ open, onOpenChange, branches, bankId, o
     <CodeNameSearchDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="بحث الفروع"
+      title={tr("بحث الفروع")}
       icon={<Building2 className="h-4 w-4" />}
-      codeLabel="رقم الفرع"
-      nameLabel="اسم الفرع"
+      codeLabel={tr("رقم الفرع")}
+      nameLabel={tr("اسم الفرع")}
       records={records}
       toRecord={toRecord}
       onSelect={onSelect}
-      notice={!bankId ? "لم يتم اختيار بنك بعد — سيتم عرض جميع الفروع." : undefined}
+      notice={!bankId ? tr("لم يتم اختيار بنك بعد — سيتم عرض جميع الفروع.") : undefined}
     />
   )
 }

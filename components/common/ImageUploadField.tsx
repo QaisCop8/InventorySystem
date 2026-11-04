@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useRef, useState } from "react"
 import { Eye, ImageIcon, Upload, X } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -28,13 +29,13 @@ export function ImageUploadField({ value, onChange, label, size = 96, disabled, 
     setError("")
 
     if (!file.type.startsWith("image/")) {
-      setError("يرجى اختيار ملف صورة صالح")
+      setError(tr("يرجى اختيار ملف صورة صالح"))
       if (inputRef.current) inputRef.current.value = ""
       return
     }
 
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      setError("حجم الصورة كبير جداً — الحد الأقصى 2 ميجابايت")
+      setError(tr("حجم الصورة كبير جداً — الحد الأقصى 2 ميجابايت"))
       if (inputRef.current) inputRef.current.value = ""
       return
     }
@@ -44,7 +45,7 @@ export function ImageUploadField({ value, onChange, label, size = 96, disabled, 
       onChange(String(reader.result))
     }
     reader.onerror = () => {
-      setError("تعذّرت قراءة الصورة")
+      setError(tr("تعذّرت قراءة الصورة"))
     }
     reader.readAsDataURL(file)
     if (inputRef.current) inputRef.current.value = ""
@@ -74,8 +75,8 @@ export function ImageUploadField({ value, onChange, label, size = 96, disabled, 
         {value && (
           <button
             type="button"
-            title="عرض الصورة"
-            className="absolute -bottom-1 -right-1 rounded-full bg-primary p-1 text-primary-foreground shadow hover:opacity-90"
+            title={tr("عرض الصورة")}
+            className="absolute -bottom-1 -start-1 rounded-full bg-primary p-1 text-primary-foreground shadow hover:opacity-90"
             onClick={(event) => {
               event.stopPropagation()
               setPreviewOpen(true)
@@ -88,8 +89,8 @@ export function ImageUploadField({ value, onChange, label, size = 96, disabled, 
         {value && !disabled && (
           <button
             type="button"
-            title="إزالة الصورة"
-            className="absolute -top-1 -left-1 rounded-full bg-rose-500 p-1 text-white shadow hover:bg-rose-600"
+            title={tr("إزالة الصورة")}
+            className="absolute -top-1 -end-1 rounded-full bg-rose-500 p-1 text-white shadow hover:bg-rose-600"
             onClick={(event) => {
               event.stopPropagation()
               onChange(null)
@@ -105,8 +106,8 @@ export function ImageUploadField({ value, onChange, label, size = 96, disabled, 
 
       {value && (
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-2xl" dir="rtl">
-            <DialogTitle>{label || "معاينة الصورة"}</DialogTitle>
+          <DialogContent className="max-w-2xl" dir={appDir()}>
+            <DialogTitle>{label || tr("معاينة الصورة")}</DialogTitle>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={value} alt="" className="mx-auto max-h-[75vh] w-auto rounded-lg object-contain" />
           </DialogContent>

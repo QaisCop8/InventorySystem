@@ -1,5 +1,6 @@
 "use client"
 
+import { appDir } from "@/lib/i18n"
 import { Profiler, useEffect, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { useWorkspace, type PaneId, type WorkspaceTab } from "@/contexts/workspace-context"
@@ -37,7 +38,7 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
       onMouseDownCapture={() => setFocusedPane(paneId)}
     >
       {showPaneToolbar && (
-        <div className="flex items-center gap-1 bg-muted/30 border-b border-border px-2 py-1" dir="rtl">
+        <div className="flex items-center gap-1 bg-muted/30 border-b border-border px-2 py-1" dir={appDir()}>
           <TabStrip
             tabs={showTabStrip ? pane.tabs : []}
             activeTabId={pane.activeTabId}

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -92,7 +93,7 @@ export function BarcodeScanner() {
       const cameras = devices.filter((device) => device.kind === "videoinput")
 
       if (cameras.length === 0) {
-        throw new Error("لم يتم العثور على كاميرا متاحة")
+        throw new Error(tr("لم يتم العثور على كاميرا متاحة"))
       }
 
       setState((prev) => ({
@@ -107,7 +108,7 @@ export function BarcodeScanner() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "فشل في تهيئة الكاميرا",
+        error: error instanceof Error ? error.message : tr("فشل في تهيئة الكاميرا"),
       }))
     } finally {
       setState((prev) => ({ ...prev, loading: false }))
@@ -142,7 +143,7 @@ export function BarcodeScanner() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "فشل في تشغيل الكاميرا",
+        error: error instanceof Error ? error.message : tr("فشل في تشغيل الكاميرا"),
       }))
     }
   }, [state.settings.cameraDevice])
@@ -248,7 +249,7 @@ export function BarcodeScanner() {
       const response = await fetch(`/api/inventory/products/search?barcode=${encodeURIComponent(barcode)}`)
 
       if (!response.ok) {
-        throw new Error("فشل في البحث عن المنتج")
+        throw new Error(tr("فشل في البحث عن المنتج"))
       }
 
       const products = await response.json()
@@ -257,7 +258,7 @@ export function BarcodeScanner() {
         setState((prev) => ({
           ...prev,
           foundProduct: products[0],
-          successMessage: `تم العثور على المنتج: ${products[0].product_name}`,
+          successMessage: tr("تم العثور على المنتج: {0}", products[0].product_name),
         }))
 
         setTimeout(() => {
@@ -267,13 +268,13 @@ export function BarcodeScanner() {
         setState((prev) => ({
           ...prev,
           foundProduct: null,
-          error: `لم يتم العثور على منتج بالباركود: ${barcode}`,
+          error: tr("لم يتم العثور على منتج بالباركود: {0}", barcode),
         }))
       }
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "حدث خطأ أثناء البحث",
+        error: error instanceof Error ? error.message : tr("حدث خطأ أثناء البحث"),
       }))
     } finally {
       setState((prev) => ({ ...prev, loading: false }))
@@ -335,7 +336,7 @@ export function BarcodeScanner() {
   }, [initializeCamera, stopCamera])
 
   return (
-    <div className="space-y-6 p-6 bg-background min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-background min-h-screen" dir={appDir()}>
       {/* Success Message */}
       {state.successMessage && (
         <Alert className="border-green-200 bg-green-50">
@@ -373,26 +374,26 @@ export function BarcodeScanner() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Scan className="h-8 w-8 text-primary" />
-            ماسح الباركود
+            {tr("ماسح الباركود")}
           </h1>
-          <p className="text-muted-foreground mt-1">مسح الباركود والبحث عن المنتجات</p>
+          <p className="text-muted-foreground mt-1">{tr("مسح الباركود والبحث عن المنتجات")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setState((prev) => ({ ...prev, showSettings: true }))}>
-            <Settings className="h-4 w-4 ml-2" />
-            الإعدادات
+            <Settings className="h-4 w-4 me-2" />
+            {tr("الإعدادات")}
           </Button>
           {state.isInitialized && (
             <Button onClick={state.isScanning ? stopCamera : startCamera} className="bg-primary hover:bg-primary/90">
               {state.isScanning ? (
                 <>
-                  <Pause className="h-4 w-4 ml-2" />
-                  إيقاف المسح
+                  <Pause className="h-4 w-4 me-2" />
+                  {tr("إيقاف المسح")}
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4 ml-2" />
-                  بدء المسح
+                  <Play className="h-4 w-4 me-2" />
+                  {tr("بدء المسح")}
                 </>
               )}
             </Button>
@@ -406,9 +407,9 @@ export function BarcodeScanner() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              كاميرا المسح
+              {tr("كاميرا المسح")}
             </CardTitle>
-            <CardDescription>استخدم الكاميرا لمسح الباركود تلقائياً</CardDescription>
+            <CardDescription>{tr("استخدم الكاميرا لمسح الباركود تلقائياً")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -427,8 +428,8 @@ export function BarcodeScanner() {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center text-white">
                       <Camera className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium">الكاميرا متوقفة</p>
-                      <p className="text-sm opacity-75">اضغط "بدء المسح" لتشغيل الكاميرا</p>
+                      <p className="text-lg font-medium">{tr("الكاميرا متوقفة")}</p>
+                      <p className="text-sm opacity-75">{tr("اضغط \"بدء المسح\" لتشغيل الكاميرا")}</p>
                     </div>
                   </div>
                 )}
@@ -437,12 +438,12 @@ export function BarcodeScanner() {
                 {state.isScanning && (
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 border-2 border-primary/30 rounded-lg">
-                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-32 border-2 border-primary rounded-lg">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
-                        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-primary animate-pulse"></div>
+                      <div className="absolute top-1/2 end-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-32 border-2 border-primary rounded-lg">
+                        <div className="absolute top-0 end-0 w-8 h-8 border-t-4 border-e-4 border-primary rounded-se-lg"></div>
+                        <div className="absolute top-0 start-0 w-8 h-8 border-t-4 border-s-4 border-primary rounded-ss-lg"></div>
+                        <div className="absolute bottom-0 end-0 w-8 h-8 border-b-4 border-e-4 border-primary rounded-ee-lg"></div>
+                        <div className="absolute bottom-0 start-0 w-8 h-8 border-b-4 border-s-4 border-primary rounded-es-lg"></div>
+                        <div className="absolute top-1/2 end-0 start-0 h-0.5 bg-primary animate-pulse"></div>
                       </div>
                     </div>
                   </div>
@@ -479,12 +480,12 @@ export function BarcodeScanner() {
 
               {/* Manual Input */}
               <div className="space-y-2">
-                <Label>إدخال الباركود يدوياً</Label>
+                <Label>{tr("إدخال الباركود يدوياً")}</Label>
                 <div className="flex gap-2">
                   <Input
                     value={state.manualInput}
                     onChange={(e) => setState((prev) => ({ ...prev, manualInput: e.target.value }))}
-                    placeholder="أدخل رقم الباركود"
+                    placeholder={tr("أدخل رقم الباركود")}
                     onKeyPress={(e) => e.key === "Enter" && handleManualSearch()}
                   />
                   <Button onClick={handleManualSearch} disabled={state.loading || !state.manualInput.trim()}>
@@ -504,21 +505,21 @@ export function BarcodeScanner() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  آخر مسح
+                  {tr("آخر مسح")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">الباركود:</span>
+                    <span className="text-sm text-muted-foreground">{tr("الباركود:")}</span>
                     <span className="font-mono font-medium">{state.lastScan.code}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">النوع:</span>
+                    <span className="text-sm text-muted-foreground">{tr("النوع:")}</span>
                     <Badge variant="outline">{state.lastScan.format}</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">الوقت:</span>
+                    <span className="text-sm text-muted-foreground">{tr("الوقت:")}</span>
                     <span className="text-sm">{state.lastScan.timestamp.toLocaleTimeString("en-GB")}</span>
                   </div>
                   <Button
@@ -528,8 +529,8 @@ export function BarcodeScanner() {
                     disabled={state.loading}
                     className="w-full"
                   >
-                    <Search className="h-4 w-4 ml-2" />
-                    البحث عن المنتج
+                    <Search className="h-4 w-4 me-2" />
+                    {tr("البحث عن المنتج")}
                   </Button>
                 </div>
               </CardContent>
@@ -542,26 +543,26 @@ export function BarcodeScanner() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-800">
                   <Package className="h-5 w-5" />
-                  المنتج المطابق
+                  {tr("المنتج المطابق")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div>
                     <h3 className="font-semibold text-green-900">{state.foundProduct.product_name}</h3>
-                    <p className="text-sm text-green-700">كود المنتج: {state.foundProduct.product_code}</p>
+                    <p className="text-sm text-green-700">{tr("كود المنتج: ")}{state.foundProduct.product_code}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-green-600">المخزون الحالي:</span>
-                      <span className="font-medium text-green-900 mr-2">
+                      <span className="text-green-600">{tr("المخزون الحالي:")}</span>
+                      <span className="font-medium text-green-900 ms-2">
                         {state.foundProduct.current_stock} {state.foundProduct.main_unit}
                       </span>
                     </div>
                     <div>
-                      <span className="text-green-600">آخر سعر شراء:</span>
-                      <span className="font-medium text-green-900 mr-2">
-                        {state.foundProduct.last_purchase_price.toLocaleString("en-US")} ر.س
+                      <span className="text-green-600">{tr("آخر سعر شراء:")}</span>
+                      <span className="font-medium text-green-900 ms-2">
+                        {state.foundProduct.last_purchase_price.toLocaleString("en-US")}{tr(" ر.س")}
                       </span>
                     </div>
                   </div>
@@ -583,9 +584,9 @@ export function BarcodeScanner() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <RotateCcw className="h-5 w-5" />
-                  سجل المسح
+                  {tr("سجل المسح")}
                 </CardTitle>
-                <CardDescription>آخر {state.scanHistory.length} عمليات مسح</CardDescription>
+                <CardDescription>{tr("آخر ")}{state.scanHistory.length}{tr(" عمليات مسح")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -609,17 +610,17 @@ export function BarcodeScanner() {
 
       {/* Settings Dialog */}
       <Dialog open={state.showSettings} onOpenChange={(open) => setState((prev) => ({ ...prev, showSettings: open }))}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              إعدادات ماسح الباركود
+              {tr("إعدادات ماسح الباركود")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>الكاميرا</Label>
+                <Label>{tr("الكاميرا")}</Label>
                 <Select
                   value={state.settings.cameraDevice}
                   onValueChange={(value) =>
@@ -630,19 +631,19 @@ export function BarcodeScanner() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر الكاميرا" />
+                    <SelectValue placeholder={tr("اختر الكاميرا")} />
                   </SelectTrigger>
                   <SelectContent>
                     {state.availableCameras.map((camera) => (
                       <SelectItem key={camera.deviceId} value={camera.deviceId}>
-                        {camera.label || `كاميرا ${camera.deviceId.slice(0, 8)}`}
+                        {camera.label || tr("كاميرا {0}", camera.deviceId.slice(0, 8))}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>تأخير المسح (مللي ثانية)</Label>
+                <Label>{tr("تأخير المسح (مللي ثانية)")}</Label>
                 <Input
                   type="number"
                   min="100"
@@ -661,7 +662,7 @@ export function BarcodeScanner() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <Label>البحث التلقائي عن المنتجات</Label>
+                <Label>{tr("البحث التلقائي عن المنتجات")}</Label>
                 <Switch
                   checked={state.settings.autoSearch}
                   onCheckedChange={(checked) =>
@@ -673,7 +674,7 @@ export function BarcodeScanner() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label>تفعيل الصوت</Label>
+                <Label>{tr("تفعيل الصوت")}</Label>
                 <Switch
                   checked={state.settings.soundEnabled}
                   onCheckedChange={(checked) =>
@@ -688,7 +689,7 @@ export function BarcodeScanner() {
 
             <div className="flex gap-4 justify-end pt-4 border-t">
               <Button variant="outline" onClick={() => setState((prev) => ({ ...prev, showSettings: false }))}>
-                إغلاق
+                {tr("إغلاق")}
               </Button>
             </div>
           </div>

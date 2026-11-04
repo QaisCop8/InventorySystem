@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -55,7 +56,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
       setQtyDrafts(Object.fromEntries(rows.map((r) => [r.id, r.qty != null ? String(r.qty) : ""])))
       if (isLoadingStep) onAllLoadingCheckedChange?.(rows.length > 0 && rows.every((r) => !!r.loading_checked_at))
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب أصناف الطلبية", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب أصناف الطلبية"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -75,25 +76,25 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
         body: JSON.stringify({ userId, action, value }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
+      if (!res.ok) throw new Error(data?.error || tr("فشل تنفيذ العملية"))
       await fetchItems()
     } catch (error: any) {
-      toast({ title: "تعذّر التنفيذ", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+      toast({ title: tr("تعذّر التنفيذ"), description: error?.message || tr("خطأ غير متوقع"), variant: "destructive" })
     } finally {
       setBusyId(null)
     }
   }
 
   const handleDelete = async (itemId: number) => {
-    if (!(await confirmYesNo("هل تريد حذف هذا الصنف من الطلبية؟"))) return
+    if (!(await confirmYesNo(tr("هل تريد حذف هذا الصنف من الطلبية؟")))) return
     setBusyId(itemId)
     try {
       const res = await fetch(`/api/task-orders/order-items/${itemId}?userId=${encodeURIComponent(userId)}`, { method: "DELETE" })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "فشل الحذف")
+      if (!res.ok) throw new Error(data?.error || tr("فشل الحذف"))
       await fetchItems()
     } catch (error: any) {
-      toast({ title: "تعذّر الحذف", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+      toast({ title: tr("تعذّر الحذف"), description: error?.message || tr("خطأ غير متوقع"), variant: "destructive" })
     } finally {
       setBusyId(null)
     }
@@ -105,11 +106,11 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
   return (
     <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-slate-700">أصناف الطلبية</div>
+        <div className="text-sm font-semibold text-slate-700">{tr("أصناف الطلبية")}</div>
         {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
       </div>
 
-      {items.length === 0 && !loading && <div className="py-4 text-center text-xs text-slate-400">لا توجد أصناف</div>}
+      {items.length === 0 && !loading && <div className="py-4 text-center text-xs text-slate-400">{tr("لا توجد أصناف")}</div>}
 
       <div className="flex flex-col gap-2">
         {items.map((item) => (
@@ -135,7 +136,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <div className="text-xs text-slate-500">الكمية المطلوبة</div>
+                  <div className="text-xs text-slate-500">{tr("الكمية المطلوبة")}</div>
                   {canEditQty ? (
                     <Input
                       type="number"
@@ -154,7 +155,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-xs text-slate-500">الكمية المجهزة</div>
+                  <div className="text-xs text-slate-500">{tr("الكمية المجهزة")}</div>
                   {canEditPrepared ? (
                     <Input
                       type="number"
@@ -180,7 +181,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
                       disabled={busyId === item.id || !canCheckLoading}
                       onCheckedChange={(checked) => patchItem(item.id, "loading_checked", !!checked)}
                     />
-                    تم الفحص والموافقة
+                    {tr("تم الفحص والموافقة")}
                   </label>
                   <Button
                     size="sm"
@@ -189,7 +190,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = fals
                     disabled={!item.loading_checked_at}
                     onClick={() => printItemBarcode(item)}
                   >
-                    <Printer className="h-3.5 w-3.5" /> طباعة الباركود
+                    <Printer className="h-3.5 w-3.5" />{tr(" طباعة الباركود")}
                   </Button>
                 </div>
               )}

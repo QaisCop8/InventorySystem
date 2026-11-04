@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
@@ -118,14 +119,14 @@ export function ModernSalesOrders() {
       setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/orders/sales")
       if (!response.ok) {
-        throw new Error("فشل في تحميل طلبات المبيعات")
+        throw new Error(tr("فشل في تحميل طلبات المبيعات"))
       }
       const data = await response.json()
       setState((prev) => ({ ...prev, salesOrders: Array.isArray(data) ? data : [] }))
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+        error: err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"),
         salesOrders: [],
       }))
     } finally {
@@ -135,10 +136,10 @@ export function ModernSalesOrders() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { label: "قيد التنفيذ", className: "bg-amber-100 text-amber-800 border-amber-200" },
-      completed: { label: "مكتملة", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-      cancelled: { label: "ملغاة", className: "bg-red-100 text-red-800 border-red-200" },
-      processing: { label: "قيد المعالجة", className: "bg-blue-100 text-blue-800 border-blue-200" },
+      pending: { label: tr("قيد التنفيذ"), className: "bg-amber-100 text-amber-800 border-amber-200" },
+      completed: { label: tr("مكتملة"), className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+      cancelled: { label: tr("ملغاة"), className: "bg-red-100 text-red-800 border-red-200" },
+      processing: { label: tr("قيد المعالجة"), className: "bg-blue-100 text-blue-800 border-blue-200" },
     }
     const config = statusConfig[status as keyof typeof statusConfig] || {
       label: status,
@@ -149,12 +150,12 @@ export function ModernSalesOrders() {
 
   const getPriorityBadge = (priority: string) => {
     const priorityConfig = {
-      high: { label: "عالية", className: "bg-red-50 text-red-700 border-red-200" },
-      medium: { label: "متوسطة", className: "bg-yellow-50 text-yellow-700 border-yellow-200" },
-      low: { label: "منخفضة", className: "bg-green-50 text-green-700 border-green-200" },
+      high: { label: tr("عالية"), className: "bg-red-50 text-red-700 border-red-200" },
+      medium: { label: tr("متوسطة"), className: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+      low: { label: tr("منخفضة"), className: "bg-green-50 text-green-700 border-green-200" },
     }
     const config = priorityConfig[priority as keyof typeof priorityConfig] || {
-      label: "عادية",
+      label: tr("عادية"),
       className: "bg-gray-50 text-gray-700",
     }
     return (
@@ -181,24 +182,24 @@ export function ModernSalesOrders() {
 
   if (state.loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل طلبات المبيعات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل طلبات المبيعات...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir={appDir()}>
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            طلبات المبيعات المتطورة
+            {tr("طلبات المبيعات المتطورة")}
           </h1>
-          <p className="text-muted-foreground text-lg">لوحة تحكم شاملة لإدارة وتتبع جميع طلبات المبيعات</p>
+          <p className="text-muted-foreground text-lg">{tr("لوحة تحكم شاملة لإدارة وتتبع جميع طلبات المبيعات")}</p>
         </div>
         <div className="flex gap-3">
           <Button
@@ -207,7 +208,7 @@ export function ModernSalesOrders() {
             size="lg"
           >
             <Plus className="ml-2 h-5 w-5" />
-            طلبية جديدة
+            {tr("طلبية جديدة")}
           </Button>
         </div>
       </div>
@@ -218,11 +219,11 @@ export function ModernSalesOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <p className="text-blue-100 text-sm font-medium">إجمالي الطلبات</p>
+                <p className="text-blue-100 text-sm font-medium">{tr("إجمالي الطلبات")}</p>
                 <p className="text-3xl font-bold">{analytics.totalOrders}</p>
                 <div className="flex items-center text-blue-100 text-xs">
-                  <ArrowUpRight className="h-3 w-3 ml-1" />
-                  اليوم: {analytics.todayOrders}
+                  <ArrowUpRight className="h-3 w-3 me-1" />
+                  {tr("اليوم: ")}{analytics.todayOrders}
                 </div>
               </div>
               <div className="bg-white/20 p-3 rounded-full">
@@ -236,10 +237,10 @@ export function ModernSalesOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <p className="text-amber-100 text-sm font-medium">قيد التنفيذ</p>
+                <p className="text-amber-100 text-sm font-medium">{tr("قيد التنفيذ")}</p>
                 <p className="text-3xl font-bold">{analytics.pendingOrders}</p>
                 <div className="flex items-center text-amber-100 text-xs">
-                  <Clock className="h-3 w-3 ml-1" />
+                  <Clock className="h-3 w-3 me-1" />
                   {analytics.totalOrders > 0 ? Math.round((analytics.pendingOrders / analytics.totalOrders) * 100) : 0}%
                 </div>
               </div>
@@ -254,11 +255,11 @@ export function ModernSalesOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <p className="text-emerald-100 text-sm font-medium">مكتملة</p>
+                <p className="text-emerald-100 text-sm font-medium">{tr("مكتملة")}</p>
                 <p className="text-3xl font-bold">{analytics.completedOrders}</p>
                 <div className="flex items-center text-emerald-100 text-xs">
-                  <Target className="h-3 w-3 ml-1" />
-                  معدل الإنجاز: {Math.round(analytics.completionRate)}%
+                  <Target className="h-3 w-3 me-1" />
+                  {tr("معدل الإنجاز: ")}{Math.round(analytics.completionRate)}%
                 </div>
               </div>
               <div className="bg-white/20 p-3 rounded-full">
@@ -272,11 +273,11 @@ export function ModernSalesOrders() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <p className="text-purple-100 text-sm font-medium">إجمالي القيمة</p>
+                <p className="text-purple-100 text-sm font-medium">{tr("إجمالي القيمة")}</p>
                 <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString("en-US")}</p>
                 <div className="flex items-center text-purple-100 text-xs">
-                  <DollarSign className="h-3 w-3 ml-1" />
-                  متوسط: {Math.round(analytics.avgOrderValue).toLocaleString("en-US")}
+                  <DollarSign className="h-3 w-3 me-1" />
+                  {tr("متوسط: ")}{Math.round(analytics.avgOrderValue).toLocaleString("en-US")}
                 </div>
               </div>
               <div className="bg-white/20 p-3 rounded-full">
@@ -292,17 +293,17 @@ export function ModernSalesOrders() {
         <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50">
           <CardTitle className="flex items-center gap-2 text-slate-700">
             <Filter className="h-5 w-5" />
-            البحث والتصفية المتقدمة
+            {tr("البحث والتصفية المتقدمة")}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
             <div className="col-span-2">
-              <Label className="text-sm font-medium text-slate-700">البحث الشامل</Label>
+              <Label className="text-sm font-medium text-slate-700">{tr("البحث الشامل")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="رقم الطلبية، اسم العميل، أو المندوب..."
+                  placeholder={tr("رقم الطلبية، اسم العميل، أو المندوب...")}
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -316,7 +317,7 @@ export function ModernSalesOrders() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-slate-700">حالة الطلبية</Label>
+              <Label className="text-sm font-medium text-slate-700">{tr("حالة الطلبية")}</Label>
               <Select
                 value={state.filters.status}
                 onValueChange={(value) =>
@@ -330,17 +331,17 @@ export function ModernSalesOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="pending">قيد التنفيذ</SelectItem>
-                  <SelectItem value="processing">قيد المعالجة</SelectItem>
-                  <SelectItem value="completed">مكتملة</SelectItem>
-                  <SelectItem value="cancelled">ملغاة</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="pending">{tr("قيد التنفيذ")}</SelectItem>
+                  <SelectItem value="processing">{tr("قيد المعالجة")}</SelectItem>
+                  <SelectItem value="completed">{tr("مكتملة")}</SelectItem>
+                  <SelectItem value="cancelled">{tr("ملغاة")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-slate-700">الأولوية</Label>
+              <Label className="text-sm font-medium text-slate-700">{tr("الأولوية")}</Label>
               <Select
                 value={state.filters.priority}
                 onValueChange={(value) =>
@@ -354,16 +355,16 @@ export function ModernSalesOrders() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الأولويات</SelectItem>
-                  <SelectItem value="high">عالية</SelectItem>
-                  <SelectItem value="medium">متوسطة</SelectItem>
-                  <SelectItem value="low">منخفضة</SelectItem>
+                  <SelectItem value="all">{tr("جميع الأولويات")}</SelectItem>
+                  <SelectItem value="high">{tr("عالية")}</SelectItem>
+                  <SelectItem value="medium">{tr("متوسطة")}</SelectItem>
+                  <SelectItem value="low">{tr("منخفضة")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-slate-700">إلى تاريخ</Label>
+              <Label className="text-sm font-medium text-slate-700">{tr("إلى تاريخ")}</Label>
               <Input
                 type="date"
                 value={state.filters.dateTo}
@@ -378,7 +379,7 @@ export function ModernSalesOrders() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-slate-700">من تاريخ</Label>
+              <Label className="text-sm font-medium text-slate-700">{tr("من تاريخ")}</Label>
               <Input
                 type="date"
                 value={state.filters.dateFrom}
@@ -398,7 +399,7 @@ export function ModernSalesOrders() {
                 onClick={resetFilters}
                 className="w-full border-slate-200 hover:bg-slate-50 bg-transparent"
               >
-                إعادة تعيين
+                {tr("إعادة تعيين")}
               </Button>
             </div>
           </div>
@@ -414,20 +415,20 @@ export function ModernSalesOrders() {
           <TabsList className="bg-white shadow-sm border">
             <TabsTrigger value="cards" className="flex items-center gap-2">
               <Grid3X3 className="h-4 w-4" />
-              عرض البطاقات
+              {tr("عرض البطاقات")}
             </TabsTrigger>
             <TabsTrigger value="list" className="flex items-center gap-2">
               <List className="h-4 w-4" />
-              عرض القائمة
+              {tr("عرض القائمة")}
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
-              التحليلات
+              {tr("التحليلات")}
             </TabsTrigger>
           </TabsList>
 
           <div className="text-sm text-muted-foreground bg-white px-3 py-2 rounded-lg border shadow-sm">
-            عرض {filteredOrders.length} من أصل {state.salesOrders.length} طلبية
+            {tr("عرض ")}{filteredOrders.length}{tr(" من أصل ")}{state.salesOrders.length}{tr(" طلبية")}
           </div>
         </div>
 
@@ -436,14 +437,14 @@ export function ModernSalesOrders() {
             <Card className="border-dashed border-2 border-slate-200">
               <CardContent className="text-center py-12">
                 <ShoppingCart className="mx-auto h-16 w-16 text-slate-400 mb-4" />
-                <h3 className="text-xl font-semibold text-slate-700 mb-2">لا توجد طلبات</h3>
-                <p className="text-slate-500 mb-6">لم يتم العثور على أي طلبات تطابق معايير البحث</p>
+                <h3 className="text-xl font-semibold text-slate-700 mb-2">{tr("لا توجد طلبات")}</h3>
+                <p className="text-slate-500 mb-6">{tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}</p>
                 <Button
                   onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true }))}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 >
                   <Plus className="ml-2 h-4 w-4" />
-                  إنشاء طلبية جديدة
+                  {tr("إنشاء طلبية جديدة")}
                 </Button>
               </CardContent>
             </Card>
@@ -477,9 +478,9 @@ export function ModernSalesOrders() {
 
                     <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-600">المبلغ الإجمالي</span>
+                        <span className="text-sm font-medium text-slate-600">{tr("المبلغ الإجمالي")}</span>
                         <span className="text-lg font-bold text-slate-800">
-                          {order.total_amount?.toLocaleString("en-US")} ريال
+                          {order.total_amount?.toLocaleString("en-US")}{tr(" ريال")}
                         </span>
                       </div>
                     </div>
@@ -511,22 +512,22 @@ export function ModernSalesOrders() {
               {filteredOrders.length === 0 ? (
                 <div className="text-center py-12">
                   <ShoppingCart className="mx-auto h-16 w-16 text-slate-400 mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-700 mb-2">لا توجد طلبات</h3>
-                  <p className="text-slate-500 mb-6">لم يتم العثور على أي طلبات تطابق معايير البحث</p>
+                  <h3 className="text-xl font-semibold text-slate-700 mb-2">{tr("لا توجد طلبات")}</h3>
+                  <p className="text-slate-500 mb-6">{tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gradient-to-r from-slate-50 to-blue-50">
                       <tr>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">رقم الطلبية</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">التاريخ</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">اسم العميل</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">الحالة</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">الأولوية</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">المبلغ الإجمالي</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">المندوب</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">الإجراءات</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("رقم الطلبية")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("التاريخ")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("اسم العميل")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("الحالة")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("الأولوية")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("المبلغ الإجمالي")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("المندوب")}</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">{tr("الإجراءات")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -548,7 +549,7 @@ export function ModernSalesOrders() {
                               <span className="text-slate-400">-</span>
                             )}
                           </td>
-                          <td className="p-4 font-bold text-slate-800">{order.total_amount?.toLocaleString("en-US")} ريال</td>
+                          <td className="p-4 font-bold text-slate-800">{order.total_amount?.toLocaleString("en-US")}{tr(" ريال")}</td>
                           <td className="p-4 text-slate-600">{order.salesman}</td>
                           <td className="p-4">
                             <div className="flex gap-2">
@@ -584,13 +585,13 @@ export function ModernSalesOrders() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-slate-700">
                   <BarChart3 className="h-5 w-5" />
-                  توزيع حالات الطلبات
+                  {tr("توزيع حالات الطلبات")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                    <span className="font-medium text-amber-800">قيد التنفيذ</span>
+                    <span className="font-medium text-amber-800">{tr("قيد التنفيذ")}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-amber-900">{analytics.pendingOrders}</span>
                       <div className="w-16 bg-amber-200 rounded-full h-2">
@@ -604,7 +605,7 @@ export function ModernSalesOrders() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
-                    <span className="font-medium text-emerald-800">مكتملة</span>
+                    <span className="font-medium text-emerald-800">{tr("مكتملة")}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-emerald-900">{analytics.completedOrders}</span>
                       <div className="w-16 bg-emerald-200 rounded-full h-2">
@@ -618,7 +619,7 @@ export function ModernSalesOrders() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                    <span className="font-medium text-red-800">ملغاة</span>
+                    <span className="font-medium text-red-800">{tr("ملغاة")}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-red-900">{analytics.cancelledOrders}</span>
                       <div className="w-16 bg-red-200 rounded-full h-2">
@@ -639,20 +640,20 @@ export function ModernSalesOrders() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-slate-700">
                   <Activity className="h-5 w-5" />
-                  مؤشرات الأداء الرئيسية
+                  {tr("مؤشرات الأداء الرئيسية")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-blue-700 font-medium">معدل الإنجاز</span>
+                      <span className="text-blue-700 font-medium">{tr("معدل الإنجاز")}</span>
                       <span className="text-2xl font-bold text-blue-900">{Math.round(analytics.completionRate)}%</span>
                     </div>
                   </div>
                   <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-purple-700 font-medium">متوسط قيمة الطلبية</span>
+                      <span className="text-purple-700 font-medium">{tr("متوسط قيمة الطلبية")}</span>
                       <span className="text-2xl font-bold text-purple-900">
                         {Math.round(analytics.avgOrderValue).toLocaleString("en-US")}
                       </span>
@@ -660,7 +661,7 @@ export function ModernSalesOrders() {
                   </div>
                   <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-green-700 font-medium">طلبات اليوم</span>
+                      <span className="text-green-700 font-medium">{tr("طلبات اليوم")}</span>
                       <span className="text-2xl font-bold text-green-900">{analytics.todayOrders}</span>
                     </div>
                   </div>

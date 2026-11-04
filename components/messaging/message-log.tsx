@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -66,22 +67,22 @@ export function MessageLog() {
       case "delivered":
         return (
           <Badge className="bg-green-100 text-green-800">
-            <CheckCircle className="h-3 w-3 ml-1" />
-            تم الإرسال
+            <CheckCircle className="h-3 w-3 me-1" />
+            {tr("تم الإرسال")}
           </Badge>
         )
       case "failed":
         return (
           <Badge className="bg-red-100 text-red-800">
-            <XCircle className="h-3 w-3 ml-1" />
-            فشل
+            <XCircle className="h-3 w-3 me-1" />
+            {tr("فشل")}
           </Badge>
         )
       case "pending":
         return (
           <Badge className="bg-yellow-100 text-yellow-800">
-            <Clock className="h-3 w-3 ml-1" />
-            قيد الانتظار
+            <Clock className="h-3 w-3 me-1" />
+            {tr("قيد الانتظار")}
           </Badge>
         )
       default:
@@ -98,20 +99,20 @@ export function MessageLog() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>سجل الرسائل</CardTitle>
-          <CardDescription>جميع الرسائل المرسلة عبر النظام</CardDescription>
+          <CardTitle>{tr("سجل الرسائل")}</CardTitle>
+          <CardDescription>{tr("جميع الرسائل المرسلة عبر النظام")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="بحث برقم الهاتف، المنتج، أو رقم الطلبية..."
+                  placeholder={tr("بحث برقم الهاتف، المنتج، أو رقم الطلبية...")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && fetchLogs()}
@@ -121,28 +122,28 @@ export function MessageLog() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="الحالة" />
+                <SelectValue placeholder={tr("الحالة")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع الحالات</SelectItem>
-                <SelectItem value="sent">تم الإرسال</SelectItem>
-                <SelectItem value="failed">فشل</SelectItem>
-                <SelectItem value="pending">قيد الانتظار</SelectItem>
+                <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                <SelectItem value="sent">{tr("تم الإرسال")}</SelectItem>
+                <SelectItem value="failed">{tr("فشل")}</SelectItem>
+                <SelectItem value="pending">{tr("قيد الانتظار")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="النوع" />
+                <SelectValue placeholder={tr("النوع")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">جميع الأنواع</SelectItem>
+                <SelectItem value="all">{tr("جميع الأنواع")}</SelectItem>
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="sms">SMS</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={fetchLogs} className="gap-2 bg-transparent">
               <RefreshCw className="h-4 w-4" />
-              تحديث
+              {tr("تحديث")}
             </Button>
           </div>
         </CardContent>
@@ -158,8 +159,8 @@ export function MessageLog() {
           ) : logs.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">لا توجد رسائل</h3>
-              <p className="text-muted-foreground">لم يتم العثور على رسائل تطابق معايير البحث</p>
+              <h3 className="text-lg font-semibold mb-2">{tr("لا توجد رسائل")}</h3>
+              <p className="text-muted-foreground">{tr("لم يتم العثور على رسائل تطابق معايير البحث")}</p>
             </div>
           ) : (
             <>
@@ -167,11 +168,11 @@ export function MessageLog() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-right">رقم الهاتف</TableHead>
-                      <TableHead className="text-right">النوع</TableHead>
-                      <TableHead className="text-right">المحتوى</TableHead>
-                      <TableHead className="text-right">الحالة</TableHead>
-                      <TableHead className="text-right">التاريخ</TableHead>
+                      <TableHead className="text-right">{tr("رقم الهاتف")}</TableHead>
+                      <TableHead className="text-right">{tr("النوع")}</TableHead>
+                      <TableHead className="text-right">{tr("المحتوى")}</TableHead>
+                      <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                      <TableHead className="text-right">{tr("التاريخ")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -184,8 +185,8 @@ export function MessageLog() {
                             <p className="text-sm line-clamp-2">{log.message_content}</p>
                             {(log.product_name || log.order_number) && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                {log.product_name && `منتج: ${log.product_name}`}
-                                {log.order_number && ` | طلبية: ${log.order_number}`}
+                                {log.product_name && tr("منتج: {0}", log.product_name)}
+                                {log.order_number && tr(" | طلبية: {0}", log.order_number)}
                               </p>
                             )}
                           </div>
@@ -213,11 +214,11 @@ export function MessageLog() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    صفحة {page} من {totalPages}
+                    {tr("صفحة ")}{page}{tr(" من ")}{totalPages}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page === 1}>
-                      السابق
+                      {tr("السابق")}
                     </Button>
                     <Button
                       variant="outline"
@@ -225,7 +226,7 @@ export function MessageLog() {
                       onClick={() => setPage(page + 1)}
                       disabled={page === totalPages}
                     >
-                      التالي
+                      {tr("التالي")}
                     </Button>
                   </div>
                 </div>

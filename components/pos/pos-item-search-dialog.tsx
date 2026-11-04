@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowRight, PackageOpen, Search } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -150,7 +151,7 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
-      <DialogContent dir="rtl" className="flex max-h-[85dvh] w-[96vw] max-w-3xl flex-col gap-0 overflow-hidden p-0" onKeyDown={onKeyDown}
+      <DialogContent dir={appDir()} className="flex max-h-[85dvh] w-[96vw] max-w-3xl flex-col gap-0 overflow-hidden p-0" onKeyDown={onKeyDown}
         // Esc بخطوة اختيار الوحدة يرجع لقائمة الأصناف بدل إغلاق النافذة
         onEscapeKeyDown={(event) => {
           if (!unitProduct) return
@@ -159,23 +160,23 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
           requestAnimationFrame(() => inputRef.current?.focus())
         }}
       >
-        <DialogHeader className="border-b bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-3 text-right text-white">
+        <DialogHeader className="border-b bg-gradient-to-l from-emerald-600 to-teal-600 px-5 py-3 text-start text-white">
           <DialogTitle className="flex items-center gap-2 text-base font-extrabold">
             <Search className="h-4 w-4" />
-            {unitProduct ? `اختر وحدة: ${unitProduct.name}` : "بحث الأصناف"}
+            {unitProduct ? tr("اختر وحدة: {0}", unitProduct.name) : tr("بحث الأصناف")}
           </DialogTitle>
           <DialogDescription className="text-xs text-emerald-50/90">
-            {unitProduct ? "↑↓ للتنقل · Enter أو نقر مزدوج لإضافة الصنف بهذه الوحدة · Esc للرجوع" : "اكتب الاسم أو الرقم أو الباركود · ↑↓ للتنقل · Enter أو نقر مزدوج للاختيار"}
+            {unitProduct ? tr("↑↓ للتنقل · Enter أو نقر مزدوج لإضافة الصنف بهذه الوحدة · Esc للرجوع") : tr("اكتب الاسم أو الرقم أو الباركود · ↑↓ للتنقل · Enter أو نقر مزدوج للاختيار")}
           </DialogDescription>
         </DialogHeader>
 
         {!unitProduct && (
           <div className="border-b px-4 py-3">
             <div className="relative">
-              <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم الصنف أو رقمه أو الباركود…" className="h-11 pr-9 text-base" />
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tr("ابحث باسم الصنف أو رقمه أو الباركود…")} className="h-11 ps-9 text-base" />
             </div>
-            <p className="mt-1.5 text-xs text-slate-500">{results.length} صنف{results.length === 200 ? " (أول 200 نتيجة)" : ""}</p>
+            <p className="mt-1.5 text-xs text-slate-500">{results.length}{tr(" صنف")}{results.length === 200 ? tr(" (أول 200 نتيجة)") : ""}</p>
           </div>
         )}
 
@@ -188,7 +189,7 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                 className="mb-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100"
               >
                 <ArrowRight className="h-3.5 w-3.5" />
-                رجوع للأصناف
+                {tr("رجوع للأصناف")}
               </button>
               {units.map((unit, index) => (
                 <button
@@ -201,16 +202,16 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                   onClick={() => (touchRef.current ? onSelect(unitProduct, unit) : setActiveUnit(index))}
                   onDoubleClick={() => onSelect(unitProduct, unit)}
                   className={cn(
-                    "flex w-full touch-manipulation items-center justify-between gap-3 rounded-xl border px-4 py-3 text-right transition-colors",
+                    "flex w-full touch-manipulation items-center justify-between gap-3 rounded-xl border px-4 py-3 text-start transition-colors",
                     index === activeUnit ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50",
                   )}
                 >
                   <span>
-                    <b className="block text-sm">{unit.unitName || "وحدة"}</b>
+                    <b className="block text-sm">{unit.unitName || tr("وحدة")}</b>
                     {unit.barcode && <small className="font-mono text-xs text-slate-500" dir="ltr">{unit.barcode}</small>}
                   </span>
                   <strong className={cn("text-sm tabular-nums", unit.price > 0 ? "text-emerald-700" : "text-rose-600")} dir="ltr">
-                    {unit.price > 0 ? price(unit.price) : "بلا سعر"}
+                    {unit.price > 0 ? price(unit.price) : tr("بلا سعر")}
                   </strong>
                 </button>
               ))}
@@ -230,7 +231,7 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                   onClick={() => (touchRef.current ? chooseProduct(product) : setActive(index))}
                   onDoubleClick={() => chooseProduct(product)}
                   className={cn(
-                    "grid w-full touch-manipulation grid-cols-[1fr_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition-colors",
+                    "grid w-full touch-manipulation grid-cols-[1fr_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-start transition-colors",
                     index === active ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50",
                   )}
                 >
@@ -238,9 +239,9 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                     <b className="block truncate text-sm">{product.name}</b>
                     <small className="flex flex-wrap gap-x-2 text-xs text-slate-500">
                       <span dir="ltr">{product.code}</span>
-                      <span>· {product.unitName || "وحدة"}</span>
-                      {unitCount > 1 && <span className="font-bold text-teal-700">· {unitCount} وحدات</span>}
-                      <span className={product.available <= 0 ? "text-rose-600" : ""}>· المتوفر {product.available}</span>
+                      <span>· {product.unitName || tr("وحدة")}</span>
+                      {unitCount > 1 && <span className="font-bold text-teal-700">· {unitCount}{tr(" وحدات")}</span>}
+                      <span className={product.available <= 0 ? "text-rose-600" : ""}>{tr("· المتوفر ")}{product.available}</span>
                     </small>
                   </span>
                   <strong className="text-sm tabular-nums text-emerald-700" dir="ltr">{price(product.price)}</strong>
@@ -250,7 +251,7 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
           ) : (
             <div className="flex flex-col items-center gap-2 py-12 text-sm text-slate-500">
               <PackageOpen className="h-8 w-8 text-slate-300" />
-              لا توجد أصناف مطابقة
+              {tr("لا توجد أصناف مطابقة")}
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -50,7 +51,7 @@ function voucherEndpoint(vchType: number) {
 
 async function fetchVoucherDetails(voucher: Voucher) {
   const endpoint = voucherEndpoint(voucher.vch_type)
-  if (!endpoint) throw new Error("نوع السند غير مدعوم للترحيل من هذه الشاشة")
+  if (!endpoint) throw new Error(tr("نوع السند غير مدعوم للترحيل من هذه الشاشة"))
   return responseData(await fetch(`/api/${endpoint}/${voucher.id}`, { cache: "no-store" }))
 }
 
@@ -66,7 +67,7 @@ async function postVoucher(voucher: Voucher, details?: any) {
   }
 
   const endpoint = voucherEndpoint(voucher.vch_type)
-  if (!endpoint) throw new Error("نوع السند غير مدعوم للترحيل من هذه الشاشة")
+  if (!endpoint) throw new Error(tr("نوع السند غير مدعوم للترحيل من هذه الشاشة"))
 
   if (voucher.vch_type === 21) {
     const response = await fetch(`/api/${endpoint}/${voucher.id}`, {
@@ -102,7 +103,7 @@ export default function VoucherPostingTools() {
 
   const load = useCallback(async () => {
     if (!fromDate || !toDate || fromDate > toDate) {
-      setError("حدد فترة تاريخ صحيحة")
+      setError(tr("حدد فترة تاريخ صحيحة"))
       return
     }
     setLoading(true)
@@ -117,7 +118,7 @@ export default function VoucherPostingTools() {
       setSelected(new Set())
       setProgress("")
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل السندات")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل السندات"))
       setVouchers([])
     } finally {
       setLoading(false)
@@ -166,7 +167,7 @@ export default function VoucherPostingTools() {
       try {
         return { key: voucherKey(voucher), details: await fetchVoucherDetails(voucher), error: undefined }
       } catch (reason) {
-        return { key: voucherKey(voucher), details: undefined, error: reason instanceof Error ? reason.message : "تعذر تحميل بيانات السند" }
+        return { key: voucherKey(voucher), details: undefined, error: reason instanceof Error ? reason.message : tr("تعذر تحميل بيانات السند") }
       }
     }))
     let nextBatch = loadBatch(0)
@@ -186,7 +187,7 @@ export default function VoucherPostingTools() {
           await postVoucher(voucher, detail?.details)
           completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: true })
         } catch (reason) {
-          completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: false, error: reason instanceof Error ? reason.message : "تعذر الترحيل" })
+          completed.push({ id: voucher.id, vch_type: voucher.vch_type, vch_code: voucher.vch_code, ok: false, error: reason instanceof Error ? reason.message : tr("تعذر الترحيل") })
         }
         setResults([...completed])
       }
@@ -199,23 +200,23 @@ export default function VoucherPostingTools() {
   }
 
   return (
-    <main dir="rtl" className="space-y-4 p-3 sm:p-5">
+    <main dir={appDir()} className="space-y-4 p-3 sm:p-5">
       <header className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">ترحيل السندات</h1>
-          <p className="mt-1 text-sm text-slate-500">اختر الفترة ونوع السند، ثم حدد السندات المراد ترحيلها.</p>
+          <h1 className="text-xl font-bold text-slate-900">{tr("ترحيل السندات")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{tr("اختر الفترة ونوع السند، ثم حدد السندات المراد ترحيلها.")}</p>
         </div>
         <Button variant="outline" onClick={() => void load()} disabled={loading || posting}>
-          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <RefreshCw className="ml-2 h-4 w-4" />}تحديث
+          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <RefreshCw className="ml-2 h-4 w-4" />}{tr("تحديث")}
         </Button>
       </header>
 
       <section className="grid gap-3 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_auto] lg:items-end">
-        <div className="space-y-1.5"><Label htmlFor="posting-from">من تاريخ</Label><Input id="posting-from" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div>
-        <div className="space-y-1.5"><Label htmlFor="posting-to">إلى تاريخ</Label><Input id="posting-to" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div>
-        <ReportMultiChoice label="نوع السند" options={types} selected={voucherTypeIds} onChange={setVoucherTypeIds} placeholder="كل الأنواع المسموح بها" />
+        <div className="space-y-1.5"><Label htmlFor="posting-from">{tr("من تاريخ")}</Label><Input id="posting-from" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div>
+        <div className="space-y-1.5"><Label htmlFor="posting-to">{tr("إلى تاريخ")}</Label><Input id="posting-to" type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div>
+        <ReportMultiChoice label={tr("نوع السند")} options={types} selected={voucherTypeIds} onChange={setVoucherTypeIds} placeholder={tr("كل الأنواع المسموح بها")} />
         <Button onClick={() => void load()} disabled={loading || posting}>
-          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}بحث
+          {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}{tr("بحث")}
         </Button>
       </section>
 
@@ -226,32 +227,32 @@ export default function VoucherPostingTools() {
         <div className="flex flex-col gap-3 border-b p-3 sm:flex-row sm:items-center sm:justify-between">
           <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={allSelected} onChange={toggleAll} disabled={!vouchers.length || posting} className="h-4 w-4 accent-emerald-600" />
-            {allSelected ? "إلغاء تحديد الكل" : "تحديد الكل"}<span className="text-slate-500">({vouchers.length} سند)</span>
+            {allSelected ? tr("إلغاء تحديد الكل") : tr("تحديد الكل")}<span className="text-slate-500">({vouchers.length}{tr(" سند)")}</span>
           </label>
           <Button onClick={() => void postSelected()} disabled={!selectedCount || posting || loading} className="gap-2">
-            {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}ترحيل المحدد ({selectedCount})
+            {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{tr("ترحيل المحدد (")}{selectedCount})
           </Button>
         </div>
 
         {vouchers.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500">لا توجد سندات غير مرحلة ضمن الفترة المحددة ولديك صلاحية ترحيلها.</div>
+          <div className="p-10 text-center text-sm text-slate-500">{tr("لا توجد سندات غير مرحلة ضمن الفترة المحددة ولديك صلاحية ترحيلها.")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-slate-50 text-xs text-slate-600">
-                <tr><th className="w-12 p-3"><span className="sr-only">تحديد</span></th><th className="p-3 text-right">نوع السند</th><th className="p-3 text-right">رقم السند</th><th className="p-3 text-right">التاريخ</th><th className="p-3 text-right">الفرع</th><th className="p-3 text-left">المبلغ</th><th className="p-3 text-right">الحالة</th></tr>
+                <tr><th className="w-12 p-3"><span className="sr-only">{tr("تحديد")}</span></th><th className="p-3 text-start">{tr("نوع السند")}</th><th className="p-3 text-start">{tr("رقم السند")}</th><th className="p-3 text-start">{tr("التاريخ")}</th><th className="p-3 text-start">{tr("الفرع")}</th><th className="p-3 text-end">{tr("المبلغ")}</th><th className="p-3 text-start">{tr("الحالة")}</th></tr>
               </thead>
               <tbody>
                 {vouchers.map((voucher) => {
                   const result = resultByKey.get(voucherKey(voucher))
                   return <tr key={voucherKey(voucher)} className="border-t hover:bg-slate-50">
-                    <td className="p-3"><input type="checkbox" checked={selected.has(voucherKey(voucher))} onChange={() => toggleOne(voucher)} disabled={posting} aria-label={`تحديد ${voucher.vch_code}`} className="h-4 w-4 accent-emerald-600" /></td>
-                    <td className="p-3">{typeName.get(voucher.vch_type) || `سند ${voucher.vch_type}`}</td>
+                    <td className="p-3"><input type="checkbox" checked={selected.has(voucherKey(voucher))} onChange={() => toggleOne(voucher)} disabled={posting} aria-label={tr("تحديد {0}", voucher.vch_code)} className="h-4 w-4 accent-emerald-600" /></td>
+                    <td className="p-3">{typeName.get(voucher.vch_type) || tr("سند {0}", voucher.vch_type)}</td>
                     <td className="p-3 font-mono" dir="ltr">{voucher.vch_code}</td>
                     <td className="p-3 font-mono" dir="ltr">{voucher.vch_date}</td>
                     <td className="p-3">{voucher.branch_name || "—"}</td>
-                    <td className="p-3 text-left font-mono" dir="ltr">{Number(voucher.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className={`p-3 ${result ? result.ok ? "text-emerald-700" : "text-rose-700" : "text-slate-400"}`} title={result?.error}>{result ? result.ok ? <CheckCircle2 className="h-4 w-4" /> : result.error : "غير مرحل"}</td>
+                    <td className="p-3 text-end font-mono" dir="ltr">{Number(voucher.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`p-3 ${result ? result.ok ? "text-emerald-700" : "text-rose-700" : "text-slate-400"}`} title={result?.error}>{result ? result.ok ? <CheckCircle2 className="h-4 w-4" /> : result.error : tr("غير مرحل")}</td>
                   </tr>
                 })}
               </tbody>
@@ -261,16 +262,16 @@ export default function VoucherPostingTools() {
       </section>
 
       {results.length > 0 && <div className="rounded-lg border bg-white p-3 text-sm">
-        <b>نتيجة الترحيل:</b> {results.filter((result) => result.ok).length} ناجح، {results.filter((result) => !result.ok).length} لم يترحل.
+        <b>{tr("نتيجة الترحيل:")}</b> {results.filter((result) => result.ok).length}{tr(" ناجح، ")}{results.filter((result) => !result.ok).length}{tr(" لم يترحل.")}
         {results.some((result) => !result.ok) && <ul className="mt-2 list-inside list-disc space-y-1 text-rose-700">{results.filter((result) => !result.ok).map((result) => <li key={`${result.vch_type}:${result.id}`}>{result.vch_code}: {result.error}</li>)}</ul>}
       </div>}
       <ConfirmDialogYesNo
         visible={confirmPosting}
         useAppDialog
-        title="تأكيد ترحيل السندات"
-        message={`سيتم ترحيل ${selectedCount} سند. هل تريد المتابعة؟`}
-        confirmLabel="نعم، ترحيل"
-        cancelLabel="إلغاء"
+        title={tr("تأكيد ترحيل السندات")}
+        message={tr("سيتم ترحيل {0} سند. هل تريد المتابعة؟", selectedCount)}
+        confirmLabel={tr("نعم، ترحيل")}
+        cancelLabel={tr("إلغاء")}
         onConfirm={() => void confirmSelectedPosting()}
         onCancel={() => setConfirmPosting(false)}
       />

@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountNumberFormat } from "@/lib/decimals"
 
 import { Fragment, useEffect, useMemo, useState } from "react"
@@ -20,9 +21,9 @@ import { Download, FileBarChart, Loader2, Printer, RefreshCcw, Search, Truck } f
 
 type Kind = "deliveries" | "internal" | "consignment-invoices"
 const TITLES: Record<Kind, string> = {
-  deliveries: "تقرير الارساليات",
-  internal: "تقرير الارساليات الداخلية",
-  "consignment-invoices": "الفواتير الصادرة من إرسالية برسم البيع",
+  deliveries: tr("تقرير الارساليات"),
+  internal: tr("تقرير الارساليات الداخلية"),
+  "consignment-invoices": tr("الفواتير الصادرة من إرسالية برسم البيع"),
 }
 type Meta = { currencies: ReportOption[]; branches: ReportOption[]; warehouses: ReportOption[]; products: ReportOption[]; accounts: ReportOption[]; voucher_types: ReportOption[]; consignments: { id: number; vch_code: string; vch_date: string; customer_name: string; salesman_name: string | null }[] }
 const emptyMeta: Meta = { currencies: [], branches: [], warehouses: [], products: [], accounts: [], voucher_types: [], consignments: [] }
@@ -35,9 +36,9 @@ const qty = (value: number) => Number(value || 0).toLocaleString("en-US", { maxi
 const th = "whitespace-nowrap px-3 py-3 text-right text-xs"
 const num = "px-3 py-2.5 tabular-nums"
 const INVOICE_STATES: Record<string, { label: string; tone: string }> = {
-  full: { label: "مفوترة", tone: "bg-emerald-100 text-emerald-700 ring-emerald-200" },
-  partial: { label: "مفوترة جزئياً", tone: "bg-amber-100 text-amber-800 ring-amber-200" },
-  none: { label: "غير مفوترة", tone: "bg-slate-100 text-slate-600 ring-slate-200" },
+  full: { label: tr("مفوترة"), tone: "bg-emerald-100 text-emerald-700 ring-emerald-200" },
+  partial: { label: tr("مفوترة جزئياً"), tone: "bg-amber-100 text-amber-800 ring-amber-200" },
+  none: { label: tr("غير مفوترة"), tone: "bg-slate-100 text-slate-600 ring-slate-200" },
 }
 
 export function DeliveriesReport({ kind }: { kind: Kind }) {
@@ -60,17 +61,17 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
     fetch(`/api/reports/deliveries?kind=${kind}&meta=1`, { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json()
-        if (!response.ok) throw new Error(data.error || "تعذر تحميل خيارات التقرير")
+        if (!response.ok) throw new Error(data.error || tr("تعذر تحميل خيارات التقرير"))
         const next: Meta = { ...emptyMeta, ...(data.meta || {}) }
         setMeta(next)
         setFilters((current) => ({ ...current, currencyId: Number(next.currencies[0]?.id || 0) }))
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "تعذر تحميل خيارات التقرير"))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : tr("تعذر تحميل خيارات التقرير")))
       .finally(() => setLoading(false))
   }, [kind])
 
   const run = async () => {
-    if (kind === "consignment-invoices" && !filters.consignmentId) { setError("الرجاء اختيار رقم الارسالية"); return }
+    if (kind === "consignment-invoices" && !filters.consignmentId) { setError(tr("الرجاء اختيار رقم الارسالية")); return }
     setRunning(true)
     setError("")
     try {
@@ -92,11 +93,11 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
       }
       const response = await fetch(`/api/reports/deliveries?${params}`, { cache: "no-store" })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "تعذر تحميل التقرير")
+      if (!response.ok) throw new Error(data.error || tr("تعذر تحميل التقرير"))
       setResult(data)
     } catch (reason) {
       setResult(null)
-      setError(reason instanceof Error ? reason.message : "تعذر تحميل التقرير")
+      setError(reason instanceof Error ? reason.message : tr("تعذر تحميل التقرير"))
     } finally {
       setRunning(false)
     }
@@ -145,7 +146,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
     return [["قيمة الإرسالية", fmt(result.consignment?.amount)], ["الفواتير", fmt(invoicesTotal)], ["المرتجعات", fmt(Math.abs(returnsTotal))]]
   })()
 
-  const empty = <div className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{result ? "لا توجد سندات مطابقة" : kind === "consignment-invoices" ? "اختر الإرسالية ثم اضغط عرض النتائج" : "اختر الفلاتر ثم اضغط عرض النتائج"}</div>
+  const empty = <div className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{result ? tr("لا توجد سندات مطابقة") : kind === "consignment-invoices" ? tr("اختر الإرسالية ثم اضغط عرض النتائج") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}</div>
   const head = (labels: string[]) => <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white"><tr>{labels.map((label, i) => <th key={`${label}-${i}`} className={th}>{label}</th>)}</tr></thead>
 
   const renderDeliveries = () => (
@@ -153,7 +154,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
       {head(["التاريخ", "النوع", "رقم السند", "العميل", "المستودع", "المندوب", "السيارة", "السائق", "الكمية", "المفوتر", "المتبقي", "المبلغ", "حالة الفوترة", "الفواتير / المرتجعات", "ملاحظات"])}
       <tbody>
         {rows.map((row) => (
-          <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title="انقر نقراً مزدوجاً لفتح السند">
+          <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
             <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
             <td className="px-3 py-2.5 text-xs">{row.type_name}</td>
             <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
@@ -172,7 +173,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
           </tr>
         ))}
       </tbody>
-      {rows.length > 0 && <tfoot className="sticky bottom-0 bg-slate-100 font-black"><tr><td className="px-3 py-3" colSpan={8}>الإجمالي</td><td className={num} dir="ltr">{qty(sum("quantity"))}</td><td className={num} dir="ltr">{qty(sum("invoiced_quantity"))}</td><td className={num} dir="ltr">{qty(sum("remaining_quantity"))}</td><td className={num} dir="ltr">{fmt(sum("amount"))}</td><td colSpan={3} /></tr></tfoot>}
+      {rows.length > 0 && <tfoot className="sticky bottom-0 bg-slate-100 font-black"><tr><td className="px-3 py-3" colSpan={8}>{tr("الإجمالي")}</td><td className={num} dir="ltr">{qty(sum("quantity"))}</td><td className={num} dir="ltr">{qty(sum("invoiced_quantity"))}</td><td className={num} dir="ltr">{qty(sum("remaining_quantity"))}</td><td className={num} dir="ltr">{fmt(sum("amount"))}</td><td colSpan={3} /></tr></tfoot>}
     </table>
   )
 
@@ -181,7 +182,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
       {head(["التاريخ", "رقم السند", "من مستودع", "الى مستودع", "عدد الأسطر", "الكمية", "المبلغ", "السيارة", "السائق", "السند اليدوي", "ملاحظة السند"])}
       <tbody>
         {rows.map((row) => (
-          <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title="انقر نقراً مزدوجاً لفتح السند">
+          <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
             <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
             <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
             <td className="px-3 py-2.5 font-semibold">{row.from_store || "—"}</td>
@@ -196,7 +197,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
           </tr>
         ))}
       </tbody>
-      {rows.length > 0 && <tfoot className="sticky bottom-0 bg-slate-100 font-black"><tr><td className="px-3 py-3" colSpan={4}>الإجمالي</td><td className={num} dir="ltr">{sum("lines")}</td><td className={num} dir="ltr">{qty(sum("quantity"))}</td><td className={num} dir="ltr">{fmt(sum("amount"))}</td><td colSpan={4} /></tr></tfoot>}
+      {rows.length > 0 && <tfoot className="sticky bottom-0 bg-slate-100 font-black"><tr><td className="px-3 py-3" colSpan={4}>{tr("الإجمالي")}</td><td className={num} dir="ltr">{sum("lines")}</td><td className={num} dir="ltr">{qty(sum("quantity"))}</td><td className={num} dir="ltr">{fmt(sum("amount"))}</td><td colSpan={4} /></tr></tfoot>}
     </table>
   )
 
@@ -204,10 +205,10 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
     <div className="space-y-4">
       {result?.consignment && (
         <div className="grid gap-2 border-b bg-slate-50/70 p-4 text-sm sm:grid-cols-4">
-          <p><span className="text-slate-500">الإرسالية:</span> <b className="font-mono text-teal-700">{result.consignment.vch_code}</b></p>
-          <p><span className="text-slate-500">التاريخ:</span> <b dir="ltr">{result.consignment.vch_date}</b></p>
-          <p><span className="text-slate-500">العميل:</span> <b>{result.consignment.customer_name || "—"}</b></p>
-          <p><span className="text-slate-500">المندوب:</span> <b>{result.consignment.salesman_name || "—"}</b></p>
+          <p><span className="text-slate-500">{tr("الإرسالية:")}</span> <b className="font-mono text-teal-700">{result.consignment.vch_code}</b></p>
+          <p><span className="text-slate-500">{tr("التاريخ:")}</span> <b dir="ltr">{result.consignment.vch_date}</b></p>
+          <p><span className="text-slate-500">{tr("العميل:")}</span> <b>{result.consignment.customer_name || "—"}</b></p>
+          <p><span className="text-slate-500">{tr("المندوب:")}</span> <b>{result.consignment.salesman_name || "—"}</b></p>
         </div>
       )}
       <table className="w-full min-w-[1000px] text-sm">
@@ -215,7 +216,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
         <tbody>
           {rows.map((row) => (
             <Fragment key={row.id}>
-              <tr className={`cursor-pointer border-b hover:bg-teal-50/60 ${Number(row.vch_type) === 15 ? "text-rose-700" : ""} ${row.details?.length ? "bg-slate-50 font-semibold" : ""}`} onDoubleClick={() => openVoucher(row)} title="انقر نقراً مزدوجاً لفتح السند">
+              <tr className={`cursor-pointer border-b hover:bg-teal-50/60 ${Number(row.vch_type) === 15 ? "text-rose-700" : ""} ${row.details?.length ? "bg-slate-50 font-semibold" : ""}`} onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
                 <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
                 <td className="px-3 py-2.5 text-xs">{row.type_name}</td>
                 <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
@@ -230,21 +231,21 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
                 <tr key={`${row.id}-${index}`} className="border-b text-xs text-slate-600">
                   <td colSpan={3} />
                   <td className="px-3 py-2 font-mono">{line.product_code}</td>
-                  <td className="px-3 py-2">{line.item_name} <span className="text-slate-400">({line.unit_name || "وحدة"})</span></td>
+                  <td className="px-3 py-2">{line.item_name} <span className="text-slate-400">({line.unit_name || tr("وحدة")})</span></td>
                   <td className="px-3 py-2" dir="ltr">{qty(line.quantity)}{line.bonus ? ` + ${qty(line.bonus)}` : ""} × {fmt(line.price)}</td>
                   <td className={num} dir="ltr">{fmt(line.line_amount)}</td>
-                  <td className="px-3 py-2">{line.discount ? `خصم ${line.discount}%` : ""}</td>
+                  <td className="px-3 py-2">{line.discount ? tr("خصم {0}%", line.discount) : ""}</td>
                   <td />
                 </tr>
               ))}
             </Fragment>
           ))}
-          {!rows.length && <tr><td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">لا يوجد فواتير لهذه الارسالية</td></tr>}
+          {!rows.length && <tr><td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">{tr("لا يوجد فواتير لهذه الارسالية")}</td></tr>}
         </tbody>
       </table>
       {Array.isArray(result?.items) && result.items.length > 0 && (
         <div className="p-4">
-          <h3 className="mb-2 text-sm font-black text-teal-800">أصناف الإرسالية والمتبقي منها</h3>
+          <h3 className="mb-2 text-sm font-black text-teal-800">{tr("أصناف الإرسالية والمتبقي منها")}</h3>
           <table className="w-full min-w-[700px] text-sm">
             {head(["رقم الصنف", "اسم الصنف", "الوحدة", "الكمية", "المفوتر", "المرتجع", "المتبقي"])}
             <tbody>
@@ -272,12 +273,12 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
     <ReportPage loading={loading || running}>
       <ReportHeader
         icon={Truck}
-        category="تقارير الارساليات"
+        category={tr("تقارير الارساليات")}
         title={<>{title}</>}
-        description={<>{kind === "deliveries" ? "إرساليات المبيعات والمشتريات وبرسم البيع وحالة فوترتها" : kind === "internal" ? "الإرساليات الداخلية بين المستودعات" : "الفواتير والمرتجعات الصادرة من إرسالية برسم البيع والمتبقي منها"}</>}
+        description={<>{kind === "deliveries" ? tr("إرساليات المبيعات والمشتريات وبرسم البيع وحالة فوترتها") : kind === "internal" ? tr("الإرساليات الداخلية بين المستودعات") : tr("الفواتير والمرتجعات الصادرة من إرسالية برسم البيع والمتبقي منها")}</>}
         actions={<>
-          <Button variant="secondary" onClick={exportCsv} disabled={!hasData}><Download className="ml-2 h-4 w-4" />تصدير</Button>
-          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
+          <Button variant="secondary" onClick={exportCsv} disabled={!hasData}><Download className="ml-2 h-4 w-4" />{tr("تصدير")}</Button>
+          <Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!hasData}><Printer className="ml-2 h-4 w-4" />{tr("طباعة")}</Button>
         </>}
       />
 
@@ -285,9 +286,9 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
           {kind === "consignment-invoices" ? (
             <div className="space-y-2 sm:col-span-2">
-              <Label>رقم الارسالية *</Label>
+              <Label>{tr("رقم الارسالية *")}</Label>
               <Select value={filters.consignmentId} onValueChange={(consignmentId) => set({ consignmentId })}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder={meta.consignments.length ? "اختر الإرسالية" : "لا توجد إرساليات برسم البيع"} /></SelectTrigger>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder={meta.consignments.length ? tr("اختر الإرسالية") : tr("لا توجد إرساليات برسم البيع")} /></SelectTrigger>
                 <SelectContent>
                   {meta.consignments.map((row) => <SelectItem key={row.id} value={String(row.id)}>{row.vch_code} · {row.vch_date} · {row.customer_name || row.salesman_name || ""}</SelectItem>)}
                 </SelectContent>
@@ -295,45 +296,45 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
             </div>
           ) : (
             <>
-              <div className="space-y-2"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.fromDate} onChange={(event) => set({ fromDate: event.target.value })} className="rounded-xl" /></div>
-              <div className="space-y-2"><Label>الى تاريخ</Label><Input type="date" dir="ltr" value={filters.toDate} onChange={(event) => set({ toDate: event.target.value })} className="rounded-xl" /></div>
+              <div className="space-y-2"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={filters.fromDate} onChange={(event) => set({ fromDate: event.target.value })} className="rounded-xl" /></div>
+              <div className="space-y-2"><Label>{tr("الى تاريخ")}</Label><Input type="date" dir="ltr" value={filters.toDate} onChange={(event) => set({ toDate: event.target.value })} className="rounded-xl" /></div>
             </>
           )}
-          {kind === "deliveries" && <ReportMultiChoice label="نوع الارسالية" options={meta.voucher_types} selected={filters.voucherTypes} onChange={(voucherTypes) => set({ voucherTypes })} placeholder="جميع الأنواع" />}
-          {kind === "deliveries" && <ReportMultiChoice label="العملاء" options={meta.accounts} selected={filters.accountIds} onChange={(accountIds) => set({ accountIds })} placeholder="جميع العملاء" />}
-          {kind === "internal" && <ReportMultiChoice label="من مستودع" options={meta.warehouses} selected={filters.fromStoreIds} onChange={(fromStoreIds) => set({ fromStoreIds })} placeholder="جميع المستودعات" />}
-          {kind === "internal" && <ReportMultiChoice label="الى مستودع" options={meta.warehouses} selected={filters.toStoreIds} onChange={(toStoreIds) => set({ toStoreIds })} placeholder="جميع المستودعات" />}
-          {kind !== "consignment-invoices" && <ReportMultiChoice label="الصنف" options={meta.products} selected={filters.itemIds} onChange={(itemIds) => set({ itemIds })} placeholder="جميع الأصناف" />}
+          {kind === "deliveries" && <ReportMultiChoice label={tr("نوع الارسالية")} options={meta.voucher_types} selected={filters.voucherTypes} onChange={(voucherTypes) => set({ voucherTypes })} placeholder={tr("جميع الأنواع")} />}
+          {kind === "deliveries" && <ReportMultiChoice label={tr("العملاء")} options={meta.accounts} selected={filters.accountIds} onChange={(accountIds) => set({ accountIds })} placeholder={tr("جميع العملاء")} />}
+          {kind === "internal" && <ReportMultiChoice label={tr("من مستودع")} options={meta.warehouses} selected={filters.fromStoreIds} onChange={(fromStoreIds) => set({ fromStoreIds })} placeholder={tr("جميع المستودعات")} />}
+          {kind === "internal" && <ReportMultiChoice label={tr("الى مستودع")} options={meta.warehouses} selected={filters.toStoreIds} onChange={(toStoreIds) => set({ toStoreIds })} placeholder={tr("جميع المستودعات")} />}
+          {kind !== "consignment-invoices" && <ReportMultiChoice label={tr("الصنف")} options={meta.products} selected={filters.itemIds} onChange={(itemIds) => set({ itemIds })} placeholder={tr("جميع الأصناف")} />}
           <ReportCurrencyFilter currencies={meta.currencies} value={filters.currencyId} onChange={(currencyId) => set({ currencyId })} />
-          {kind !== "consignment-invoices" && <ReportMultiChoice label="الفروع" options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => set({ branchIds })} placeholder="جميع الفروع المتاحة" />}
+          {kind !== "consignment-invoices" && <ReportMultiChoice label={tr("الفروع")} options={meta.branches} selected={filters.branchIds} onChange={(branchIds) => set({ branchIds })} placeholder={tr("جميع الفروع المتاحة")} />}
           {kind !== "consignment-invoices" && (
             <div className="space-y-2">
-              <Label>حالة السندات</Label>
+              <Label>{tr("حالة السندات")}</Label>
               <Select value={filters.status} onValueChange={(status) => set({ status })}>
                 <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">المحفوظ والمرحل</SelectItem><SelectItem value="posted">المعتمد فقط</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="all">{tr("المحفوظ والمرحل")}</SelectItem><SelectItem value="posted">{tr("المعتمد فقط")}</SelectItem></SelectContent>
               </Select>
             </div>
           )}
           {kind === "deliveries" && (
             <div className="space-y-2">
-              <Label>حالة الارسالية</Label>
+              <Label>{tr("حالة الارسالية")}</Label>
               <Select value={filters.invoiceStatus} onValueChange={(invoiceStatus) => set({ invoiceStatus })}>
                 <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">الكل</SelectItem><SelectItem value="none">غير مفوترة</SelectItem><SelectItem value="partial">مفوترة جزئياً</SelectItem><SelectItem value="invoiced">مفوترة بالكامل</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="all">{tr("الكل")}</SelectItem><SelectItem value="none">{tr("غير مفوترة")}</SelectItem><SelectItem value="partial">{tr("مفوترة جزئياً")}</SelectItem><SelectItem value="invoiced">{tr("مفوترة بالكامل")}</SelectItem></SelectContent>
               </Select>
             </div>
           )}
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
-            {kind === "consignment-invoices" && <label className="flex cursor-pointer items-center gap-2" title="تفعيله يعمل على عرض تفاصيل كل فاتورة اسفلها"><Checkbox checked={filters.includeDetails} onCheckedChange={(value) => set({ includeDetails: value === true })} />إظهار تفاصيل الفاتورة</label>}
-            {kind !== "consignment-invoices" && filters.itemIds.length > 1 && <p className="text-xs text-slate-500">عند تحديد أكثر من صنف تُعرض الإرساليات التي تحتوي جميع الأصناف المحددة</p>}
+            {kind === "consignment-invoices" && <label className="flex cursor-pointer items-center gap-2" title={tr("تفعيله يعمل على عرض تفاصيل كل فاتورة اسفلها")}><Checkbox checked={filters.includeDetails} onCheckedChange={(value) => set({ includeDetails: value === true })} />{tr("إظهار تفاصيل الفاتورة")}</label>}
+            {kind !== "consignment-invoices" && filters.itemIds.length > 1 && <p className="text-xs text-slate-500">{tr("عند تحديد أكثر من صنف تُعرض الإرساليات التي تحتوي جميع الأصناف المحددة")}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />مسح الفلاتر</Button>
+            <Button variant="outline" onClick={reset}><RefreshCcw className="ml-2 h-4 w-4" />{tr("مسح الفلاتر")}</Button>
             <Button data-report-apply onClick={() => void run()} disabled={running || loading} className="min-w-36 rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
-              {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض النتائج
+              {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}{tr("عرض النتائج")}
             </Button>
           </div>
         </div>
@@ -346,9 +347,9 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
           <div>
             <h2 className="font-bold">{title}</h2>
-            <p className="text-xs text-muted-foreground">{kind === "consignment-invoices" ? `${rows.length} فاتورة/مرتجع` : `من ${filters.fromDate} إلى ${filters.toDate} · ${rows.length.toLocaleString("en-US")} سند`}</p>
+            <p className="text-xs text-muted-foreground">{kind === "consignment-invoices" ? tr("{0} فاتورة/مرتجع", rows.length) : tr("من {0} إلى {1} · {2} سند", filters.fromDate, filters.toDate, rows.length.toLocaleString("en-US"))}</p>
           </div>
-          {result && <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث في النتائج..." className="w-full rounded-xl sm:w-80" />}
+          {result && <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث في النتائج...")} className="w-full rounded-xl sm:w-80" />}
         </div>
         <div className="report-table-scroll">
           {!result ? empty

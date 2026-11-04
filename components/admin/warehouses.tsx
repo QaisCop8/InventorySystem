@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -102,7 +103,7 @@ export default function Warehouses() {
 
   const saveWarehouse = async () => {
     if (!form.warehouse_name.trim()) {
-      setErrorMessage("اسم المستودع مطلوب")
+      setErrorMessage(tr("اسم المستودع مطلوب"))
       return
     }
     setIsSaving(true)
@@ -117,14 +118,14 @@ export default function Warehouses() {
       })
       if (!response.ok) {
         const error = await response.json()
-        setErrorMessage(error.error || "فشل في حفظ المستودع")
+        setErrorMessage(error.error || tr("فشل في حفظ المستودع"))
         return
       }
       await fetchWarehouses()
       setDialogOpen(false)
     } catch (error) {
       console.error(error)
-      setErrorMessage("فشل في حفظ المستودع")
+      setErrorMessage(tr("فشل في حفظ المستودع"))
     } finally {
       setIsSaving(false)
     }
@@ -136,7 +137,7 @@ export default function Warehouses() {
       const response = await fetch(`/api/warehouses/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        setErrorMessage(error.error || "فشل في حذف المستودع")
+        setErrorMessage(error.error || tr("فشل في حذف المستودع"))
         return
       }
       await fetchWarehouses()
@@ -148,11 +149,11 @@ export default function Warehouses() {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={appDir()}>
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="bg-slate-50">
           <CardHeader>
-            <CardTitle className="text-base">إجمالي المستودعات</CardTitle>
+            <CardTitle className="text-base">{tr("إجمالي المستودعات")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{warehouses.length}</div>
@@ -160,7 +161,7 @@ export default function Warehouses() {
         </Card>
         <Card className="bg-green-50">
           <CardHeader>
-            <CardTitle className="text-base">المستودعات الفعالة</CardTitle>
+            <CardTitle className="text-base">{tr("المستودعات الفعالة")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{activeWarehouses}</div>
@@ -168,7 +169,7 @@ export default function Warehouses() {
         </Card>
         <Card className="bg-red-50">
           <CardHeader>
-            <CardTitle className="text-base">المستودعات المعطلة</CardTitle>
+            <CardTitle className="text-base">{tr("المستودعات المعطلة")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{inactiveWarehouses}</div>
@@ -179,10 +180,10 @@ export default function Warehouses() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>المستودعات</CardTitle>
+            <CardTitle>{tr("المستودعات")}</CardTitle>
             <Button onClick={openNewDialog} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              إضافة مستودع
+              {tr("إضافة مستودع")}
             </Button>
           </div>
         </CardHeader>
@@ -191,11 +192,11 @@ export default function Warehouses() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">رمز المستودع</TableHead>
-                  <TableHead className="text-right">اسم المستودع</TableHead>
-                  <TableHead className="text-right">الموقع</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">إجراءات</TableHead>
+                  <TableHead className="text-right">{tr("رمز المستودع")}</TableHead>
+                  <TableHead className="text-right">{tr("اسم المستودع")}</TableHead>
+                  <TableHead className="text-right">{tr("الموقع")}</TableHead>
+                  <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                  <TableHead className="text-right">{tr("إجراءات")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,7 +205,7 @@ export default function Warehouses() {
                     <TableCell className="text-right">{warehouse.warehouse_code}</TableCell>
                     <TableCell className="text-right">{warehouse.warehouse_name}</TableCell>
                     <TableCell className="text-right">{warehouse.location || "-"}</TableCell>
-                    <TableCell className="text-right">{warehouse.status === 1 ? "نشط" : "متوقف"}</TableCell>
+                    <TableCell className="text-right">{warehouse.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="outline"
@@ -222,7 +223,7 @@ export default function Warehouses() {
                 {warehouses.length === 0 && !loading && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      لا توجد مستودعات
+                      {tr("لا توجد مستودعات")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -233,31 +234,31 @@ export default function Warehouses() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent dir="rtl" className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent dir={appDir()} className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{form.id > 0 ? "تعديل مستودع" : "إضافة مستودع"}</DialogTitle>
+            <DialogTitle>{form.id > 0 ? tr("تعديل مستودع") : tr("إضافة مستودع")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="warehouse_code">رمز المستودع</Label>
+                <Label htmlFor="warehouse_code">{tr("رمز المستودع")}</Label>
                 <Input
                   id="warehouse_code"
                   value={form.warehouse_code}
                   readOnly
-                  placeholder="يتم توليده تلقائياً"
-                  className="bg-muted text-right"
+                  placeholder={tr("يتم توليده تلقائياً")}
+                  className="bg-muted text-start"
                 />
               </div>
               <div>
-                <Label htmlFor="warehouse_status">الحالة</Label>
+                <Label htmlFor="warehouse_status">{tr("الحالة")}</Label>
                 <PrimeDropdown
                   inputId="warehouse_status"
                   value={form.status}
                   options={[
-                    { label: "نشط", value: 1 },
-                    { label: "متوقف", value: 2 },
+                    { label: tr("نشط"), value: 1 },
+                    { label: tr("متوقف"), value: 2 },
                   ]}
                   optionLabel="label"
                   optionValue="value"
@@ -268,7 +269,7 @@ export default function Warehouses() {
               </div>
             </div>
             <div>
-              <Label htmlFor="warehouse_name">اسم المستودع</Label>
+              <Label htmlFor="warehouse_name">{tr("اسم المستودع")}</Label>
               <Input
                 id="warehouse_name"
                 value={form.warehouse_name}
@@ -277,7 +278,7 @@ export default function Warehouses() {
               />
             </div>
             <div>
-              <Label htmlFor="warehouse_name_en">الاسم بالإنجليزية</Label>
+              <Label htmlFor="warehouse_name_en">{tr("الاسم بالإنجليزية")}</Label>
               <Input
                 id="warehouse_name_en"
                 value={form.warehouse_name_en}
@@ -285,7 +286,7 @@ export default function Warehouses() {
               />
             </div>
             <div>
-              <Label htmlFor="warehouse_location">الموقع</Label>
+              <Label htmlFor="warehouse_location">{tr("الموقع")}</Label>
               <Input
                 id="warehouse_location"
                 value={form.location}
@@ -294,19 +295,19 @@ export default function Warehouses() {
               />
             </div>
             <div>
-              <Label htmlFor="warehouse_default_printer">الطابعة الافتراضية</Label>
+              <Label htmlFor="warehouse_default_printer">{tr("الطابعة الافتراضية")}</Label>
               <Input
                 id="warehouse_default_printer"
                 dir="ltr"
                 value={form.default_printer}
                 onChange={(e) => setForm((f) => ({ ...f, default_printer: e.target.value }))}
                 className="text-right"
-                placeholder="اسم الطابعة كما يظهر في ويندوز"
+                placeholder={tr("اسم الطابعة كما يظهر في ويندوز")}
               />
-              <p className="mt-1 text-xs text-muted-foreground">تُطبع عليها أصناف هذا المستودع عند "طباعة حسب المستودع" في الطلبية — فارغة: الطابعة الافتراضية في إعدادات الطباعة</p>
+              <p className="mt-1 text-xs text-muted-foreground">{tr("تُطبع عليها أصناف هذا المستودع عند \"طباعة حسب المستودع\" في الطلبية — فارغة: الطابعة الافتراضية في إعدادات الطباعة")}</p>
             </div>
             <div>
-              <Label htmlFor="warehouse_description">الوصف</Label>
+              <Label htmlFor="warehouse_description">{tr("الوصف")}</Label>
               <Input
                 id="warehouse_description"
                 value={form.description}
@@ -315,25 +316,25 @@ export default function Warehouses() {
               />
             </div>
             <div className="space-y-2">
-              <Label>مراكز التكلفة الافتراضية</Label>
-              <p className="text-xs text-muted-foreground">تُطبَّق على أصناف السندات من هذا المستودع إن لم يكن للصنف مراكز تكلفة خاصة به (الصنف ← المستودع ← حساب الصنف).</p>
+              <Label>{tr("مراكز التكلفة الافتراضية")}</Label>
+              <p className="text-xs text-muted-foreground">{tr("تُطبَّق على أصناف السندات من هذا المستودع إن لم يكن للصنف مراكز تكلفة خاصة به (الصنف ← المستودع ← حساب الصنف).")}</p>
               <CostCenterDefaultsEditor value={form.cost_centers} onChange={(cost_centers) => setForm((f) => ({ ...f, cost_centers }))} />
             </div>
           </div>
           <DialogFooter className="flex items-center justify-between sm:justify-between">
             {form.id > 0 ? (
               <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
-                حذف
+                {tr("حذف")}
               </Button>
             ) : (
               <div />
             )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button onClick={saveWarehouse} disabled={isSaving}>
-                {isSaving ? "جاري الحفظ..." : "حفظ"}
+                {isSaving ? tr("جاري الحفظ...") : tr("حفظ")}
               </Button>
             </div>
           </DialogFooter>
@@ -342,7 +343,7 @@ export default function Warehouses() {
 
       <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}
-        message="هل أنت متأكد من حذف هذا المستودع؟"
+        message={tr("هل أنت متأكد من حذف هذا المستودع؟")}
         onConfirm={deleteWarehouse}
         onCancel={() => setShowDeleteConfirm(false)}
       />

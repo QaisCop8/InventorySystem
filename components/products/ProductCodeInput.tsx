@@ -1,3 +1,4 @@
+import { tr } from "@/lib/i18n"
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +98,7 @@ const ProductCodeInput = ({
     return (
         <div className="col-span-12 md:col-span-2 relative">
             <Label htmlFor="product_code" className="text-sm font-medium">
-                {codeLabel ?? "رقم الصنف *"}
+                {codeLabel ?? tr("رقم الصنف *")}
             </Label>
 
             <div className="flex gap-2">

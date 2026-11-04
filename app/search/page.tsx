@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Package, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,10 +12,10 @@ export default function SearchPage() {
   const [activeSearch, setActiveSearch] = useState<"products" | "customers" | null>(null)
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={appDir()}>
       <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold text-foreground">البحث المتقدم</h1>
-        <p className="text-muted-foreground">ابحث عن الأصناف والعملاء والموردين بسهولة وذكاء</p>
+        <h1 className="text-3xl font-bold text-foreground">{tr("البحث المتقدم")}</h1>
+        <p className="text-muted-foreground">{tr("ابحث عن الأصناف والعملاء والموردين بسهولة وذكاء")}</p>
       </div>
 
       {!activeSearch && (
@@ -27,13 +28,13 @@ export default function SearchPage() {
               <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                 <Package className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle>البحث عن الأصناف</CardTitle>
+              <CardTitle>{tr("البحث عن الأصناف")}</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-muted-foreground mb-4">
-                ابحث عن الأصناف بالاسم، الرقم، الباركود، أو الملاحظة مع فلاتر متقدمة للمجموعات والمستودعات
+                {tr("ابحث عن الأصناف بالاسم، الرقم، الباركود، أو الملاحظة مع فلاتر متقدمة للمجموعات والمستودعات")}
               </p>
-              <Button className="w-full">ابدأ البحث عن الأصناف</Button>
+              <Button className="w-full">{tr("ابدأ البحث عن الأصناف")}</Button>
             </CardContent>
           </Card>
 
@@ -45,14 +46,14 @@ export default function SearchPage() {
               <div className="mx-auto w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-4">
                 <Users className="h-8 w-8 text-secondary" />
               </div>
-              <CardTitle>البحث عن العملاء والموردين</CardTitle>
+              <CardTitle>{tr("البحث عن العملاء والموردين")}</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-muted-foreground mb-4">
-                ابحث عن العملاء والموردين بالاسم، الرقم، المدينة مع فلاتر للتصنيف والمندوب والحالة
+                {tr("ابحث عن العملاء والموردين بالاسم، الرقم، المدينة مع فلاتر للتصنيف والمندوب والحالة")}
               </p>
               <Button variant="secondary" className="w-full">
-                ابدأ البحث عن العملاء والموردين
+                {tr("ابدأ البحث عن العملاء والموردين")}
               </Button>
             </CardContent>
           </Card>
@@ -62,7 +63,7 @@ export default function SearchPage() {
       {activeSearch === "products" && (
         <div className="space-y-4">
           <Button variant="outline" onClick={() => setActiveSearch(null)} className="mb-4">
-            ← العودة للقائمة الرئيسية
+            {tr("← العودة للقائمة الرئيسية")}
           </Button>
           <ProductSearch />
         </div>
@@ -71,7 +72,7 @@ export default function SearchPage() {
       {activeSearch === "customers" && (
         <div className="space-y-4">
           <Button variant="outline" onClick={() => setActiveSearch(null)} className="mb-4">
-            ← العودة للقائمة الرئيسية
+            {tr("← العودة للقائمة الرئيسية")}
           </Button>
           <CustomerSupplierSearch />
         </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -73,10 +74,10 @@ const priorityColors = {
 }
 
 const priorityLabels = {
-  urgent: "عاجل",
-  high: "عالي",
-  normal: "عادي",
-  low: "منخفض",
+  urgent: tr("عاجل"),
+  high: tr("عالي"),
+  normal: tr("عادي"),
+  low: tr("منخفض"),
 }
 
 export function WorkflowDashboard() {
@@ -206,7 +207,7 @@ export function WorkflowDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">إجمالي الطلبيات</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("إجمالي الطلبيات")}</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -216,7 +217,7 @@ export function WorkflowDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">قيد المعالجة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("قيد المعالجة")}</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -226,7 +227,7 @@ export function WorkflowDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">مكتملة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("مكتملة")}</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -236,7 +237,7 @@ export function WorkflowDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">متأخرة</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("متأخرة")}</CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -248,8 +249,8 @@ export function WorkflowDashboard() {
 
       <Tabs defaultValue="orders" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="orders">الطلبيات</TabsTrigger>
-          <TabsTrigger value="analytics">التحليلات</TabsTrigger>
+          <TabsTrigger value="orders">{tr("الطلبيات")}</TabsTrigger>
+          <TabsTrigger value="analytics">{tr("التحليلات")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-4">
@@ -258,62 +259,62 @@ export function WorkflowDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Filter className="h-5 w-5" />
-                فلاتر البحث
+                {tr("فلاتر البحث")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">القسم</label>
+                  <label className="text-sm font-medium">{tr("القسم")}</label>
                   <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">جميع الأقسام</SelectItem>
-                      <SelectItem value="sales">المبيعات</SelectItem>
-                      <SelectItem value="purchasing">المشتريات</SelectItem>
-                      <SelectItem value="warehouse">المستودع</SelectItem>
-                      <SelectItem value="finance">المالية</SelectItem>
-                      <SelectItem value="management">الإدارة</SelectItem>
+                      <SelectItem value="all">{tr("جميع الأقسام")}</SelectItem>
+                      <SelectItem value="sales">{tr("المبيعات")}</SelectItem>
+                      <SelectItem value="purchasing">{tr("المشتريات")}</SelectItem>
+                      <SelectItem value="warehouse">{tr("المستودع")}</SelectItem>
+                      <SelectItem value="finance">{tr("المالية")}</SelectItem>
+                      <SelectItem value="management">{tr("الإدارة")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">نوع الطلبية</label>
+                  <label className="text-sm font-medium">{tr("نوع الطلبية")}</label>
                   <Select value={selectedOrderType} onValueChange={setSelectedOrderType}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">جميع الأنواع</SelectItem>
-                      <SelectItem value="sales">مبيعات</SelectItem>
-                      <SelectItem value="purchase">مشتريات</SelectItem>
+                      <SelectItem value="all">{tr("جميع الأنواع")}</SelectItem>
+                      <SelectItem value="sales">{tr("مبيعات")}</SelectItem>
+                      <SelectItem value="purchase">{tr("مشتريات")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">الحالة</label>
+                  <label className="text-sm font-medium">{tr("الحالة")}</label>
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">جميع الحالات</SelectItem>
-                      <SelectItem value="normal">عادية</SelectItem>
-                      <SelectItem value="overdue">متأخرة</SelectItem>
+                      <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                      <SelectItem value="normal">{tr("عادية")}</SelectItem>
+                      <SelectItem value="overdue">{tr("متأخرة")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">البحث</label>
+                  <label className="text-sm font-medium">{tr("البحث")}</label>
                   <div className="relative">
-                    <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute start-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="اسم العميل أو المورد..."
+                      placeholder={tr("اسم العميل أو المورد...")}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pr-10"
@@ -329,8 +330,8 @@ export function WorkflowDashboard() {
                     }}
                     className="w-full"
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    تحديث
+                    <RefreshCw className="h-4 w-4 ms-2" />
+                    {tr("تحديث")}
                   </Button>
                 </div>
               </div>
@@ -340,7 +341,7 @@ export function WorkflowDashboard() {
           {/* قائمة الطلبيات */}
           <Card>
             <CardHeader>
-              <CardTitle>الطلبيات ({totalOrders})</CardTitle>
+              <CardTitle>{tr("الطلبيات (")}{totalOrders})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -353,15 +354,15 @@ export function WorkflowDashboard() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Badge variant={order.order_type === "sales" ? "default" : "secondary"}>
-                            {order.order_type === "sales" ? "مبيعات" : "مشتريات"} #{order.order_id}
+                            {order.order_type === "sales" ? tr("مبيعات") : tr("مشتريات")} #{order.order_id}
                           </Badge>
                           <Badge className={cn("text-white", priorityColors[order.priority_level])}>
                             {priorityLabels[order.priority_level]}
                           </Badge>
                           {order.is_overdue && (
                             <Badge variant="destructive">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              متأخر
+                              <AlertTriangle className="h-3 w-3 ms-1" />
+                              {tr("متأخر")}
                             </Badge>
                           )}
                         </div>
@@ -369,9 +370,9 @@ export function WorkflowDashboard() {
                         <div className="text-lg font-semibold">{order.partner_name}</div>
 
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>المبلغ: {order.total_amount.toLocaleString("en-US")} ريال</span>
-                          <span>التاريخ: {new Date(order.order_date).toLocaleDateString("en-GB")}</span>
-                          <span>في المرحلة: {Math.round(order.hours_in_stage)} ساعة</span>
+                          <span>{tr("المبلغ: ")}{order.total_amount.toLocaleString("en-US")}{tr(" ريال")}</span>
+                          <span>{tr("التاريخ: ")}{new Date(order.order_date).toLocaleDateString("en-GB")}</span>
+                          <span>{tr("في المرحلة: ")}{Math.round(order.hours_in_stage)}{tr(" ساعة")}</span>
                         </div>
                       </div>
 
@@ -391,8 +392,8 @@ export function WorkflowDashboard() {
                             onClick={() => handleAdvanceOrder(order.order_id, order.order_type)}
                             className="h-8"
                           >
-                            <ArrowRight className="h-3 w-3 mr-1" />
-                            تقديم
+                            <ArrowRight className="h-3 w-3 ms-1" />
+                            {tr("تقديم")}
                           </Button>
 
                           {order.stage_type === "approval" && (
@@ -402,8 +403,8 @@ export function WorkflowDashboard() {
                               onClick={() => handleRejectOrder(order.order_id, order.order_type, "رفض من لوحة التحكم")}
                               className="h-8"
                             >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              رفض
+                              <XCircle className="h-3 w-3 ms-1" />
+                              {tr("رفض")}
                             </Button>
                           )}
                         </div>
@@ -417,7 +418,7 @@ export function WorkflowDashboard() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6">
                   <div className="text-sm text-muted-foreground">
-                    {`عرض ${(currentPage - 1) * ordersPerPage + 1} إلى ${Math.min(currentPage * ordersPerPage, totalOrders)} من ${totalOrders}`}
+                    {tr("عرض {0} إلى {1} من {2}", (currentPage - 1) * ordersPerPage + 1, Math.min(currentPage * ordersPerPage, totalOrders), totalOrders)}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -428,11 +429,11 @@ export function WorkflowDashboard() {
                       disabled={currentPage === 1}
                     >
                       <ArrowLeft className="h-4 w-4" />
-                      السابق
+                      {tr("السابق")}
                     </Button>
 
                     <span className="text-sm">
-                      صفحة {currentPage} من {totalPages}
+                      {tr("صفحة ")}{currentPage}{tr(" من ")}{totalPages}
                     </span>
 
                     <Button
@@ -441,7 +442,7 @@ export function WorkflowDashboard() {
                       onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
                     >
-                      التالي
+                      {tr("التالي")}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -459,7 +460,7 @@ export function WorkflowDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    إحصائيات الأقسام
+                    {tr("إحصائيات الأقسام")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -468,21 +469,21 @@ export function WorkflowDashboard() {
                       <div key={dept.department} className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="font-medium">{dept.department}</span>
-                          <span className="text-sm text-muted-foreground">{dept.pending + dept.completed} طلبية</span>
+                          <span className="text-sm text-muted-foreground">{dept.pending + dept.completed}{tr(" طلبية")}</span>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <div className="text-center">
                             <div className="text-yellow-600 font-medium">{dept.pending}</div>
-                            <div className="text-muted-foreground">قيد المعالجة</div>
+                            <div className="text-muted-foreground">{tr("قيد المعالجة")}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-green-600 font-medium">{dept.completed}</div>
-                            <div className="text-muted-foreground">مكتملة</div>
+                            <div className="text-muted-foreground">{tr("مكتملة")}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-red-600 font-medium">{dept.overdue}</div>
-                            <div className="text-muted-foreground">متأخرة</div>
+                            <div className="text-muted-foreground">{tr("متأخرة")}</div>
                           </div>
                         </div>
 
@@ -498,7 +499,7 @@ export function WorkflowDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    إحصائيات المراحل
+                    {tr("إحصائيات المراحل")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -508,12 +509,12 @@ export function WorkflowDashboard() {
                         <div>
                           <div className="font-medium">{stage.stage_name}</div>
                           <div className="text-sm text-muted-foreground">
-                            متوسط الوقت: {Math.round(stage.avg_time)} ساعة
+                            {tr("متوسط الوقت: ")}{Math.round(stage.avg_time)}{tr(" ساعة")}
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-lg font-bold">{stage.count}</div>
-                          <div className="text-sm text-muted-foreground">طلبية</div>
+                          <div className="text-sm text-muted-foreground">{tr("طلبية")}</div>
                         </div>
                       </div>
                     ))}
@@ -524,17 +525,17 @@ export function WorkflowDashboard() {
               {/* معلومات إضافية */}
               <Card>
                 <CardHeader>
-                  <CardTitle>معلومات عامة</CardTitle>
+                  <CardTitle>{tr("معلومات عامة")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">متوسط وقت المعالجة</div>
-                      <div className="text-2xl font-bold">{Math.round(statistics.averageProcessingTime)} ساعة</div>
+                      <div className="text-sm text-muted-foreground">{tr("متوسط وقت المعالجة")}</div>
+                      <div className="text-2xl font-bold">{Math.round(statistics.averageProcessingTime)}{tr(" ساعة")}</div>
                     </div>
 
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">معدل الإنجاز</div>
+                      <div className="text-sm text-muted-foreground">{tr("معدل الإنجاز")}</div>
                       <div className="text-2xl font-bold">
                         {Math.round((statistics.completedOrders / statistics.totalOrders) * 100)}%
                       </div>

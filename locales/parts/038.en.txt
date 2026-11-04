@@ -1,0 +1,152 @@
+Unable to connect to the SMS provider
+Unable to connect to the SMS provider: {0}
+Invalid mobile number
+The customer has no mobile number
+The SMS send link isn't defined in the SMS settings
+The message balance link isn't defined
+The message text is empty
+Unable to open a count session — try again
+Invalid {0}
+A task was returned to your department and needs changes
+The step type name is required
+The item was completed
+The transitions form a closed loop — to send work back to an earlier stage use rejection instead of a reverse transition
+Step "{0}" isn't linked to any transition
+The order is cancelled
+The quantity must be greater than zero — to cancel the item use delete
+The target user isn't a member of the target department
+Task not found
+A transition points to a step that doesn't exist
+Work started on a task
+This task was just claimed by another user
+This task was claimed by another user
+This order was already approved
+A task was transferred to you
+A task was transferred to your department
+The workflow has no start step
+The workflow must have a start step (a step no transition leads to)
+You do not have permission to finish another user's task
+You do not have permission to stop another user's task
+You do not have permission to edit this order's items at the current stage
+There are no items on this order
+There is no order linked to this item
+There are no open tasks for this step on this order
+A transition can't go from a step to itself
+This task can't be finished in its current status
+It can't be approved before all the order's items are completed
+It can't be rejected after work on the task has started
+This task can't be started in its current status
+This task can't be transferred in its current status
+The last item in the order can't be deleted — use force close to cancel the whole order
+Step "{0}" can't be deleted because tasks are recorded on it — create a new workflow instead
+The workflow can't be deleted because there are open tasks on it
+This task can't be rejected in its current status
+No transition from this stage matches the item data — review the transition conditions in the workflow
+No workflow matches this item — create a general or specific workflow first
+There is no work in progress on this task
+Step keys must be unique
+A new task in your department
+A task reached your department
+This is the first stage in the workflow — there is no previous stage to return to
+This task isn't one of your department's tasks
+This task is assigned to another user
+There must be exactly one start step — steps without an incoming transition: {0}
+The user must be chosen for step "{0}" when assigning to a specific user
+A file must be attached before finishing the task
+Step - {0} must be added to the workflow chart because it is mandatory
+The task must be started before finishing it
+All items must be checked and approved before finishing this stage
+A workflow for one of these items already exists on the same branch or for all branches
+A workflow already exists for this branch
+A workflow for this group already exists on the same branch or for all branches
+Unable to connect to the server. Make sure the system is running then try again.
+Show {0}
+You do not have permission for this operation
+🔔 *Reorder alert*
+You do not have the {0} permission — contact your system administrator
+{0} invalid date
+{0} must be less than or equal to {1}
+{0} must be greater than or equal to {1}
+{0} must be after {1}
+{0} must be a whole number
+{0} must be before {1}
+Invalid phone number format
+The attributes of item "{0}" must be chosen: {1}
+Zero
+Only {0}{1}{2}
+Unable to prepare the print page
+Card details
+Cheque details
+Unable to load the report print settings
+Page {0} of {1}
+Lot number {0} already exists.
+Manual voucher {0} already exists.
+{0}! 👋 Welcome to the order management system. How can I help you today? 📋 *Main menu:* 1️⃣ View my orders 2️⃣ Check an order's status 3️⃣ View available products 4️⃣ Place a new order 5️⃣ Help 6️⃣ Contact us *Please send the option number or type your request directly.*
+❓ *How can I help you?* You can use the following commands: 📋 *"menu"* or *1* - main menu 📦 *"my orders"* or *2* - view your orders 🔍 *"order: number"* - check a specific order 🛍️ *"products"* or *3* - view available products ➕ *"new order"* or *4* - place a new order 📞 *"contact"* or *6* - contact information *You can also type your question directly and we'll try to help!* To return to the main menu, send "menu" or the number
+📞 *Contact information* 🏢 *Address:* {0} 📱 *Phone:* {1} 💬 *WhatsApp:* {2} 📧 *Email:* {3} 🆘 *Technical support:* {4} ⏰ *Working hours:* Saturday - Thursday: 8:00 AM - 5:00 PM Friday: closed We're happy to serve you! 🌟
+📞 *Contact information* Please contact us at: 📱 Phone: +966501234567 📧 Email: info@company.com We're at your service!
+Sorry, an error occurred while checking the order.
+Sorry, an error occurred while fetching the products.
+Sorry, an error occurred while fetching your orders. Please try again.
+Sorry, an error occurred while processing your request. Please try again or contact the support team.
+Sorry, no products are available right now. Please try later.
+Sorry, I didn't understand your request. 🤔 You can: • send *"menu"* or *1* to show the main menu • send *"help"* or *5* to show the available commands • write your question differently or contact us directly by sending *"contact"* or *6*. We're here to help you! 😊
+Sorry, we couldn't find order number: {0} Please check the order number or view all your orders by sending "my orders" or the number 2.
+Sorry, we couldn't find your account.
+Sorry, we couldn't find your account. Please check the phone number or contact the support team.
+Hello {0}, you have no orders right now. Would you like to place a new order? Send "new order" or the number 4.
+Hello {0}! 🎉 To place a new order, please follow these steps: 1️⃣ *Choose the products:* - see the available products by sending "products" or the number 3 2️⃣ *Send your order:* please send your order details in this format: *product name - quantity* Example: item A - 10 pieces item B - 5 cartons 3️⃣ *Confirmation:* our team will review your order and contact you to confirm the details and price. 📞 *Or contact us directly:* you can call us on the numbers listed in
+✅ Daily inventory report All products are at good stock levels.
+📊 Daily inventory report
+Unable to send the document
+Unable to upload the file to WhatsApp
+The WhatsApp Business link isn't enabled in the settings
+Invalid phone number: {0}
+{0} transfer notices uploaded from the customer portal
+{0} stock counts finished and awaiting approval
+{0} transactions (overtime/deduction) awaiting approval
+{0} incoming cheques are due and haven't been deposited or collected
+{0} incoming cheques are due soon — prepare the deposit
+{0} internal goods requests {1}
+{0} sales orders are due for delivery and haven't been fully delivered
+{0} purchase orders passed the supply date and haven't been fully received
+{0} sales order drafts not yet approved
+{0} tasks exceeded the expected working time
+{0} of your tasks exceeded the expected time
+Customer transfer notices awaiting approval
+Finished stock count awaiting reconciliation and approval
+Attendance transactions awaiting approval
+Incoming cheques due within 3 days
+Purchase orders with late receipt
+Tasks past the expected working time
+Late tasks in the departments you follow
+There are incoming cheques due
+There is a goods request that needs processing
+There are sales orders due for delivery that haven't been processed
+There is a sales order draft
+No transition rule is defined for this stage
+This transition requires approval from department {0}
+{0} unposted vouchers in the year
+{0} vouchers with an unbalanced entry
+Choose a sub-account (leaf)
+Year {0} isn't closed
+Year {0} is already closed
+The year is already locked in period locks
+Make sure the accounts (revenue and expenses) are classified under the income statement in the chart of accounts
+Undo the previous closing first if you want to close again
+This closing was already undone
+There is a later closed year — undo its closing first
+The retained earnings account is a parent account
+The retained earnings account does not exist
+The retained earnings account is an income statement account
+Retained earnings account: {0} - {1}
+Closing record not found
+The lock is opened temporarily inside the operation to insert the closing entry, then restored
+All entries are balanced
+All the year's vouchers are approved
+There are no balances to close
+There are no income statement account balances in this year
+The year can't be closed
+It must be a balance sheet account (equity)
+All vouchers must be posted or cancelled before closing the fiscal year
+It's better to close the years in order

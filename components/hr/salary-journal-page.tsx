@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -22,7 +23,7 @@ export function SalaryJournalPage() {
   const [employee, setEmployee] = useState(""), [department, setDepartment] = useState(""), [job, setJob] = useState(""), [currency, setCurrency] = useState(""), [salaryType, setSalaryType] = useState("all"), [contractType, setContractType] = useState("all")
   const [busy, setBusy] = useState(false), [confirm, setConfirm] = useState<"close" | "post" | null>(null)
   const notify = (severity: "success" | "error", detail: string) => { messages.current?.clear?.(); messages.current?.show?.([{ severity, summary: "", detail, life: 5000 }]) }
-  const load = useCallback(async () => { setBusy(true); try { const response = await fetch("/api/hr/salary-journal"); if (response.ok) setRows(await response.json()); else notify("error","تعذر تحميل الرواتب") } finally { setBusy(false) } }, [])
+  const load = useCallback(async () => { setBusy(true); try { const response = await fetch("/api/hr/salary-journal"); if (response.ok) setRows(await response.json()); else notify("error",tr("تعذر تحميل الرواتب")) } finally { setBusy(false) } }, [])
   useEffect(() => { void Promise.all([fetch("/api/hr/lookups"),fetch("/api/hr/periods")]).then(async ([lookupsResponse,periodsResponse]) => { if (lookupsResponse.ok) { const data=await lookupsResponse.json(); setLookups(data); setCurrency(current => current || String(data.currencies?.[0]?.id || "")); setDepartment(current => current || String(data.departments?.[0]?.id || "")) } if (periodsResponse.ok) setPeriods(await periodsResponse.json()) }) }, [])
   useEffect(() => {
     document.querySelectorAll("select").forEach(select => {
@@ -49,9 +50,9 @@ export function SalaryJournalPage() {
   const canPost = shown.length>0 && shown.every(row => isSalaryClosed(row.is_closed)) && !allDisplayedPosted && months.size===1 && currencies.size===1 && selectedBranchId>0
   const execute = async (action: "close" | "post") => {
     setConfirm(null)
-    if (action === "post" && !selectedBranchId) return notify("error", "يجب اختيار قسم مرتبط بفرع صحيح")
+    if (action === "post" && !selectedBranchId) return notify("error", tr("يجب اختيار قسم مرتبط بفرع صحيح"))
     const affectedIds = (action === "close" ? shown.filter(row => !isSalaryClosed(row.is_closed)) : shown.filter(row => !Number(row.journal_id))).map(row => Number(row.id)).filter(Boolean)
-    if (!affectedIds.length) return notify("error", action === "close" ? "جميع الرواتب المعروضة مغلقة" : "لا توجد رواتب لتنفيذ العملية")
+    if (!affectedIds.length) return notify("error", action === "close" ? tr("جميع الرواتب المعروضة مغلقة") : tr("لا توجد رواتب لتنفيذ العملية"))
     if (action === "post") setRows(current => current.map(row => ({ ...row, journal_error: "" })))
     setBusy(true)
     try {
@@ -62,13 +63,13 @@ export function SalaryJournalPage() {
           const errors = new Map(data.row_errors.map((item: any) => [Number(item.payroll_id), String(item.error || "")]))
           setRows(current => current.map(row => ({ ...row, journal_error: errors.get(Number(row.id)) || "" })))
         }
-        return notify("error", data.error || `تعذر تنفيذ العملية (${response.status})`)
+        return notify("error", data.error || tr("تعذر تنفيذ العملية ({0})", response.status))
       }
       if (action === "close") setRows(current => current.map(row => affectedIds.includes(Number(row.id)) ? { ...row, is_closed: true, closed_at: data.closed_at || new Date().toISOString() } : row))
-      notify("success", action === "close" ? "تم إغلاق الرواتب بنجاح" : `تم تنفيذ قيد الراتب بنجاح - رقم القيد ${data.journal_code}`)
+      notify("success", action === "close" ? tr("تم إغلاق الرواتب بنجاح") : tr("تم تنفيذ قيد الراتب بنجاح - رقم القيد {0}", data.journal_code))
       await load()
     } catch (error) {
-      notify("error", error instanceof Error ? error.message : "تعذر الاتصال بالخادم")
+      notify("error", error instanceof Error ? error.message : tr("تعذر الاتصال بالخادم"))
     } finally {
       setBusy(false)
     }
@@ -77,14 +78,14 @@ export function SalaryJournalPage() {
   const currencyFilterOptions = options(lookups.currencies||[], item => `${item.currency_code} / ${item.currency_name}`)
   const hasRowErrors = rows.some(row => String(row.journal_error || "").trim())
   const columns=useMemo<Column[]>(()=>[
-    {key:"year",label:"السنة",width:80,format:englishInteger},{key:"month",label:"الشهر",width:75,format:englishInteger},{key:"employee_code",label:"رقم الموظف",width:120},{key:"full_name",label:"اسم الموظف",width:"*"},
-    {key:"job_name",label:"المسمى الوظيفي",width:150},{key:"department_name",label:"القسم",width:130},{key:"basic_salary",label:"الراتب الأساسي",width:130,format:englishMoney},{key:"total_salary",label:"إجمالي الراتب",width:130,format:englishMoney},{key:"income_tax",label:"الضريبة",width:100,format:englishMoney},{key:"net_salary",label:"الصافي",width:120,format:englishMoney},
-    ...(hasRowErrors ? [{key:"journal_error",label:"الأخطاء",width:"*",render:(row:any)=><span className="font-semibold text-red-600">{row.journal_error}</span>} as Column] : [])
+    {key:"year",label:tr("السنة"),width:80,format:englishInteger},{key:"month",label:tr("الشهر"),width:75,format:englishInteger},{key:"employee_code",label:tr("رقم الموظف"),width:120},{key:"full_name",label:tr("اسم الموظف"),width:"*"},
+    {key:"job_name",label:tr("المسمى الوظيفي"),width:150},{key:"department_name",label:tr("القسم"),width:130},{key:"basic_salary",label:tr("الراتب الأساسي"),width:130,format:englishMoney},{key:"total_salary",label:tr("إجمالي الراتب"),width:130,format:englishMoney},{key:"income_tax",label:tr("الضريبة"),width:100,format:englishMoney},{key:"net_salary",label:tr("الصافي"),width:120,format:englishMoney},
+    ...(hasRowErrors ? [{key:"journal_error",label:tr("الأخطاء"),width:"*",render:(row:any)=><span className="font-semibold text-red-600">{row.journal_error}</span>} as Column] : [])
   ],[hasRowErrors])
-  return <HrPage title="قيد الراتب" subtitle="إغلاق الرواتب وتنفيذ القيد المحاسبي">
+  return <HrPage title={tr("قيد الراتب")} subtitle={tr("إغلاق الرواتب وتنفيذ القيد المحاسبي")}>
     <Messages innerRef={messages}/>
-    <Card><CardContent className="p-4"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><div><Label>شهر الراتب</Label><select className={selectClass} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">اختر الشهر...</option>{periods.map(item=><option key={item.id} value={item.id}>{item.month}/{item.year} - {item.status === "open" ? "مفتوح" : "مغلق"}</option>)}</select></div><div><Label>الموظف</Label><select className={selectClass} value={employee} onChange={e=>setEmployee(e.target.value)}><option value="">الكل</option>{options(rows.map(row=>({id:row.employee_id,employee_code:row.employee_code,full_name:row.full_name})).filter((item,index,array)=>array.findIndex(x=>x.id===item.id)===index),item=>`${item.employee_code} / ${item.full_name}`)}</select></div><div><Label>القسم</Label><select className={selectClass} value={department} onChange={e=>setDepartment(e.target.value)}>{options(lookups.departments||[],item=>item.department_name||item.name)}</select></div><div><Label>المسمى الوظيفي</Label><select className={selectClass} value={job} onChange={e=>setJob(e.target.value)}><option value="">الكل</option>{options(lookups.jobs||[],item=>item.name)}</select></div><div><Label>العملة</Label><select className={selectClass} value={currency} onChange={e=>setCurrency(e.target.value)}><option value="">الكل</option>{options(lookups.currencies||[],item=>`${item.currency_code} / ${item.currency_name}`)}</select></div><div><Label>نوع الراتب</Label><select className={selectClass} value={salaryType} onChange={e=>setSalaryType(e.target.value)}><option value="all">الكل</option><option value="monthly">شهري</option><option value="daily">يومي</option><option value="hourly">بالساعة</option></select></div><div><Label>نوع العقد</Label><select className={selectClass} value={contractType} onChange={e=>setContractType(e.target.value)}><option value="all">الكل</option><option value="permanent">دائم</option><option value="temporary">مؤقت</option></select></div><div className="flex items-end"><Button className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={busy} onClick={()=>void load()}><RefreshCw className={`ml-2 h-4 w-4 ${busy?"animate-spin":""}`}/>تحديث</Button></div></div></CardContent></Card>
-    <Card><CardContent className="space-y-3 p-4"><div className="grid gap-3 sm:grid-cols-2"><Button className="border-orange-300 text-orange-700" variant="outline" disabled={!canClose||busy} onClick={()=>void execute("close")}>إغلاق الراتب</Button><Button className="border-orange-300 text-orange-700" variant="outline" disabled={!canPost||busy} onClick={()=>void execute("post")}>تنفيذ قيد الراتب</Button></div><div className="relative"><Search className="absolute right-3 top-3 h-4 w-4 text-slate-400"/><Input className={`${inputClass} pr-9`} value={search} onChange={e=>setSearch(e.target.value)} placeholder="البحث العام"/></div><Grid rows={shown} columns={columns} height="52vh"/></CardContent></Card>
-    <ConfirmDialogYesNo visible={confirm==="close"} message="هل تريد إغلاق جميع الرواتب المعروضة؟" onConfirm={()=>void execute("close")} onCancel={()=>setConfirm(null)}/><ConfirmDialogYesNo visible={confirm==="post"} message="هل تريد تنفيذ قيد الرواتب المغلقة المعروضة؟" onConfirm={()=>void execute("post")} onCancel={()=>setConfirm(null)}/>
+    <Card><CardContent className="p-4"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><div><Label>{tr("شهر الراتب")}</Label><select className={selectClass} value={period} onChange={e=>setPeriod(e.target.value)}><option value="">{tr("اختر الشهر...")}</option>{periods.map(item=><option key={item.id} value={item.id}>{item.month}/{item.year} - {item.status === "open" ? tr("مفتوح") : tr("مغلق")}</option>)}</select></div><div><Label>{tr("الموظف")}</Label><select className={selectClass} value={employee} onChange={e=>setEmployee(e.target.value)}><option value="">{tr("الكل")}</option>{options(rows.map(row=>({id:row.employee_id,employee_code:row.employee_code,full_name:row.full_name})).filter((item,index,array)=>array.findIndex(x=>x.id===item.id)===index),item=>`${item.employee_code} / ${item.full_name}`)}</select></div><div><Label>{tr("القسم")}</Label><select className={selectClass} value={department} onChange={e=>setDepartment(e.target.value)}>{options(lookups.departments||[],item=>item.department_name||item.name)}</select></div><div><Label>{tr("المسمى الوظيفي")}</Label><select className={selectClass} value={job} onChange={e=>setJob(e.target.value)}><option value="">{tr("الكل")}</option>{options(lookups.jobs||[],item=>item.name)}</select></div><div><Label>{tr("العملة")}</Label><select className={selectClass} value={currency} onChange={e=>setCurrency(e.target.value)}><option value="">{tr("الكل")}</option>{options(lookups.currencies||[],item=>`${item.currency_code} / ${item.currency_name}`)}</select></div><div><Label>{tr("نوع الراتب")}</Label><select className={selectClass} value={salaryType} onChange={e=>setSalaryType(e.target.value)}><option value="all">{tr("الكل")}</option><option value="monthly">{tr("شهري")}</option><option value="daily">{tr("يومي")}</option><option value="hourly">{tr("بالساعة")}</option></select></div><div><Label>{tr("نوع العقد")}</Label><select className={selectClass} value={contractType} onChange={e=>setContractType(e.target.value)}><option value="all">{tr("الكل")}</option><option value="permanent">{tr("دائم")}</option><option value="temporary">{tr("مؤقت")}</option></select></div><div className="flex items-end"><Button className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={busy} onClick={()=>void load()}><RefreshCw className={`ml-2 h-4 w-4 ${busy?"animate-spin":""}`}/>{tr("تحديث")}</Button></div></div></CardContent></Card>
+    <Card><CardContent className="space-y-3 p-4"><div className="grid gap-3 sm:grid-cols-2"><Button className="border-orange-300 text-orange-700" variant="outline" disabled={!canClose||busy} onClick={()=>void execute("close")}>{tr("إغلاق الراتب")}</Button><Button className="border-orange-300 text-orange-700" variant="outline" disabled={!canPost||busy} onClick={()=>void execute("post")}>{tr("تنفيذ قيد الراتب")}</Button></div><div className="relative"><Search className="absolute start-3 top-3 h-4 w-4 text-slate-400"/><Input className={`${inputClass} ps-9`} value={search} onChange={e=>setSearch(e.target.value)} placeholder={tr("البحث العام")}/></div><Grid rows={shown} columns={columns} height="52vh"/></CardContent></Card>
+    <ConfirmDialogYesNo visible={confirm==="close"} message={tr("هل تريد إغلاق جميع الرواتب المعروضة؟")} onConfirm={()=>void execute("close")} onCancel={()=>setConfirm(null)}/><ConfirmDialogYesNo visible={confirm==="post"} message={tr("هل تريد تنفيذ قيد الرواتب المغلقة المعروضة؟")} onConfirm={()=>void execute("post")} onCancel={()=>setConfirm(null)}/>
   </HrPage>
 }

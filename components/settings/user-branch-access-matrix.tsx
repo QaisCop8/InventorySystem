@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -51,7 +52,7 @@ export default function UserBranchAccessMatrix() {
           fetch("/api/branches"),
           fetch("/api/settings/user/branch-access-matrix"),
         ])
-        if (!usersRes.ok || !branchesRes.ok || !matrixRes.ok) throw new Error("تعذر تحميل بيانات المصفوفة")
+        if (!usersRes.ok || !branchesRes.ok || !matrixRes.ok) throw new Error(tr("تعذر تحميل بيانات المصفوفة"))
         const [usersData, branchesData, matrixData]: [User[], Branch[], { user_id: string; branch_id: number }[]] = await Promise.all([
           usersRes.json(),
           branchesRes.json(),
@@ -63,7 +64,7 @@ export default function UserBranchAccessMatrix() {
         setChecked(next)
         setInitialChecked(new Set(next))
       } catch (error) {
-        toast({ title: "تعذر فتح المصفوفة", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+        toast({ title: tr("تعذر فتح المصفوفة"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
       } finally {
         setLoading(false)
       }
@@ -129,58 +130,58 @@ export default function UserBranchAccessMatrix() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberships }),
       })
-      if (!response.ok) throw new Error("تعذر حفظ مصفوفة الفروع")
+      if (!response.ok) throw new Error(tr("تعذر حفظ مصفوفة الفروع"))
       setInitialChecked(new Set(checked))
-      toast({ title: "تم حفظ صلاحيات الفروع" })
+      toast({ title: tr("تم حفظ صلاحيات الفروع") })
     } catch (error) {
-      toast({ title: "فشل الحفظ", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      toast({ title: tr("فشل الحفظ"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground">جاري تحميل المصفوفة...</div>
+  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground">{tr("جاري تحميل المصفوفة...")}</div>
 
   return (
-    <div className="w-full space-y-5 p-4 md:p-6" dir="rtl">
+    <div className="w-full space-y-5 p-4 md:p-6" dir={appDir()}>
       <div className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-l from-primary/10 via-background to-background p-5 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <Grid3x3 className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">صلاحيات المستخدمين على الفروع</h1>
-            <p className="mt-1 text-sm text-muted-foreground">حدد الفروع التي يعمل بها كل مستخدم. مستخدم بلا أي فرع محدَّد هنا يصل لكل الفروع دون قيد.</p>
+            <h1 className="text-xl font-bold">{tr("صلاحيات المستخدمين على الفروع")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{tr("حدد الفروع التي يعمل بها كل مستخدم. مستخدم بلا أي فرع محدَّد هنا يصل لكل الفروع دون قيد.")}</p>
           </div>
         </div>
         <Button onClick={() => void save()} disabled={!dirty || saving}>
           <Save className="ml-2 h-4 w-4" />
-          {saving ? "جاري الحفظ..." : "حفظ"}
+          {saving ? tr("جاري الحفظ...") : tr("حفظ")}
         </Button>
       </div>
 
       {branches.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.</div>
+        <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.")}</div>
       ) : (
         <Card>
           <CardContent className="space-y-4 p-4">
             <div className="relative max-w-sm">
-              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث عن مستخدم..." className="pr-9" />
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("بحث عن مستخدم...")} className="pr-9" />
             </div>
 
             <div className="overflow-x-auto rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky right-0 z-10 bg-background text-right">المستخدم</TableHead>
+                    <TableHead className="sticky start-0 z-10 bg-background text-start">{tr("المستخدم")}</TableHead>
                     {branches.map((b) => {
                       const columnChecked = filteredUsers.length > 0 && filteredUsers.every((u) => checked.has(cellKey(String(u.user_id || u.id), b.id)))
                       return (
                         <TableHead key={b.id} className="text-center whitespace-nowrap">
                           <div className="flex flex-col items-center gap-1.5 py-1">
                             <span>{b.branch_name}</span>
-                            <Checkbox checked={columnChecked} onCheckedChange={() => toggleColumn(b.id, columnChecked)} aria-label={`تحديد الكل لفرع ${b.branch_name}`} />
+                            <Checkbox checked={columnChecked} onCheckedChange={() => toggleColumn(b.id, columnChecked)} aria-label={tr("تحديد الكل لفرع {0}", b.branch_name)} />
                           </div>
                         </TableHead>
                       )
@@ -194,16 +195,16 @@ export default function UserBranchAccessMatrix() {
                     const rowHasAny = branches.some((b) => checked.has(cellKey(userId, b.id)))
                     return (
                       <TableRow key={userId}>
-                        <TableCell className="sticky right-0 z-10 bg-background">
+                        <TableCell className="sticky start-0 z-10 bg-background">
                           <div className="flex items-center gap-3">
-                            <button type="button" onClick={() => toggleRow(userId, rowChecked)} title="تحديد كل الفروع لهذا المستخدم">
+                            <button type="button" onClick={() => toggleRow(userId, rowChecked)} title={tr("تحديد كل الفروع لهذا المستخدم")}>
                               <Avatar className="h-8 w-8">
                                 <AvatarFallback>{(u.full_name || u.username || "م").charAt(0)}</AvatarFallback>
                               </Avatar>
                             </button>
                             <div className="min-w-0">
                               <div className="truncate text-sm font-semibold">{u.full_name || u.username}</div>
-                              {!rowHasAny && <Badge variant="outline" className="mt-0.5 text-[10px]">كل الفروع</Badge>}
+                              {!rowHasAny && <Badge variant="outline" className="mt-0.5 text-[10px]">{tr("كل الفروع")}</Badge>}
                             </div>
                           </div>
                         </TableCell>

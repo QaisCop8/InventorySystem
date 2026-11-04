@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -84,12 +85,12 @@ export default function Salesmen() {
   }
 
   return (
-    <Card dir="rtl">
+    <Card dir={appDir()}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            مندوبي المبيعات ({salesmen.length})
+            {tr("مندوبي المبيعات (")}{salesmen.length})
           </CardTitle>
 
           <Button
@@ -101,8 +102,8 @@ export default function Salesmen() {
               setForm({ code: "", name: "", is_active: true });
             }}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            إضافة مندوب
+            <Plus className="h-4 w-4 ms-2" />
+            {tr("إضافة مندوب")}
           </Button>
         </div>
       </CardHeader>
@@ -111,9 +112,9 @@ export default function Salesmen() {
 
         {/* Add / Edit Form */}
         {showForm && (
-          <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-            <h3 className="font-heading font-semibold mb-4 text-right">
-              {editingId ? "تعديل بيانات المندوب" : "إضافة مندوب جديد"}
+          <div className="bg-muted/30 rounded-lg p-4 border" dir={appDir()}>
+            <h3 className="font-heading font-semibold mb-4 text-start">
+              {editingId ? tr("تعديل بيانات المندوب") : tr("إضافة مندوب جديد")}
             </h3>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -121,13 +122,13 @@ export default function Salesmen() {
                 
                 {/* Code */}
                 <div className="text-right">
-                  <Label className="erp-label text-right block">
-                    كود المندوب *
+                  <Label className="erp-label text-start block">
+                    {tr("كود المندوب *")}
                   </Label>
                   <Input
                     required
                     maxLength={8}
-                    className="erp-input text-right"
+                    className="erp-input text-start"
                     placeholder="12345"
                     value={form.code}
                     onChange={(e) =>
@@ -138,14 +139,14 @@ export default function Salesmen() {
 
                 {/* Name */}
                 <div className="text-right">
-                  <Label className="erp-label text-right block">
-                    اسم المندوب *
+                  <Label className="erp-label text-start block">
+                    {tr("اسم المندوب *")}
                   </Label>
                   <Input
                     required
                     maxLength={100}
-                    className="erp-input text-right"
-                    placeholder="اسم المندوب"
+                    className="erp-input text-start"
+                    placeholder={tr("اسم المندوب")}
                     value={form.name}
                     onChange={(e) =>
                       setForm({ ...form, name: e.target.value })
@@ -156,7 +157,7 @@ export default function Salesmen() {
 
               <div className="flex justify-start gap-2 pt-2">
                 <Button type="submit" size="sm" className="erp-btn-primary">
-                  حفظ
+                  {tr("حفظ")}
                 </Button>
                 <Button
                   type="button"
@@ -168,7 +169,7 @@ export default function Salesmen() {
                     setForm({ code: "", name: "", is_active: true });
                   }}
                 >
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
               </div>
             </form>
@@ -189,7 +190,7 @@ export default function Salesmen() {
               onClick={() => setCurrentIndex(index)}
             >
               <div className="flex items-center justify-between">
-                <div className="space-y-1 text-right">
+                <div className="space-y-1 text-start">
                   <h4 className="font-heading font-semibold">{s.name}</h4>
                   <p className="text-sm text-muted-foreground">{s.code}</p>
                 </div>
@@ -200,7 +201,7 @@ export default function Salesmen() {
                   </Button>
 
                   <Badge variant={s.is_active ? "default" : "secondary"}>
-                    {s.is_active ? "نشط" : "غير نشط"}
+                    {s.is_active ? tr("نشط") : tr("غير نشط")}
                   </Badge>
                 </div>
               </div>

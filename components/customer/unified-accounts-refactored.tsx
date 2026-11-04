@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -293,7 +294,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   const clearBudgetSelectionMessage = useCallback(() => {
     if (formData.finanical_list_assests_id || formData.finanical_list_liabilities_id) {
-      if (error === "يجب تحديد أصول الميزانية وخصومها") {
+      if (error === "يجب تحديد أصول الميزانية وخصومها" || error === tr("يجب تحديد أصول الميزانية وخصومها")) {
         setError("")
       }
       messagesRef.current?.clear?.()
@@ -577,18 +578,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             <button
               type="button"
               className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}
-              aria-label={expanded ? "طي" : "توسيع"}
+              aria-label={expanded ? tr("طي") : tr("توسيع")}
               onClick={() => toggleTreeNode(Number(node.id))}
             >
               {expanded ? <Minus className="h-2.5 w-2.5" strokeWidth={2.5} /> : <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />}
             </button>
-            <button type="button" onClick={() => toggleTreeNode(Number(node.id))} className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-right text-xs" dir="rtl">
-              <span className={`min-w-0 flex-1 truncate text-right ${tone.heading} ${top ? "font-black underline decoration-current/30 underline-offset-4" : "font-bold"}`}>{node.name}</span>
+            <button type="button" onClick={() => toggleTreeNode(Number(node.id))} className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-start text-xs" dir={appDir()}>
+              <span className={`min-w-0 flex-1 truncate text-start ${tone.heading} ${top ? "font-black underline decoration-current/30 underline-offset-4" : "font-bold"}`}>{node.name}</span>
               <span className={`shrink-0 rounded px-1 text-[10px] font-semibold ${tone.badge}`}>{node.accountCount}</span>
             </button>
           </div>
           {expanded && node.children.length > 0 && (
-            <div className={`ml-[7px] border-l border-dotted pl-0.5 ${tone.line}`}>
+            <div className={`me-[7px] border-e border-dotted pe-0.5 ${tone.line}`}>
               {node.children.map((child) => renderAccountTreeNode(child, depth + 1, ownTone))}
             </div>
           )}
@@ -603,7 +604,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <button
             type="button"
             className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}
-            aria-label={expanded ? "طي الحسابات الفرعية" : "توسيع الحسابات الفرعية"}
+            aria-label={expanded ? tr("طي الحسابات الفرعية") : tr("توسيع الحسابات الفرعية")}
             onClick={() => setExpandedTreeAccountIds((previous) => {
               const next = new Set(previous)
               if (next.has(Number(node.id))) next.delete(Number(node.id))
@@ -633,16 +634,16 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               setSelectedTreeAccountId(Number(node.id))
               setFocusedTreeAccountId(Number(node.id))
             })}
-            className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-right text-xs"
+            className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-start text-xs"
             title={`${node.code} - ${node.name}`}
-            dir="rtl"
+            dir={appDir()}
           >
-            <span className={`min-w-0 flex-1 truncate text-right ${node.children.length ? `font-bold ${tone.parent}` : "font-medium"}`}>{node.name}</span>
+            <span className={`min-w-0 flex-1 truncate text-start ${node.children.length ? `font-bold ${tone.parent}` : "font-medium"}`}>{node.name}</span>
             <span className="shrink-0 font-mono text-[10px] text-slate-500" dir="ltr">{node.code}</span>
           </button>
         </div>
         {expanded && node.children.length > 0 && (
-          <div className={`ml-[7px] border-l pl-0.5 ${tone.line}`}>
+          <div className={`me-[7px] border-e pe-0.5 ${tone.line}`}>
             {node.children.map((child) => renderAccountTreeNode(child, depth + 1, ownTone))}
           </div>
         )}
@@ -683,7 +684,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }, [currentAccount, voucherTypes, buildStopTransactionRows, stopTransactionRowsMatch])
 
   const visibleStopTransactionRows = useMemo(() => {
-    const hiddenNames = ["طلبية مبيعات", "طلبية مشتريات", "إرسالية مبيعات", "إرسالية مشتريات"]
+    const hiddenNames = [tr("طلبية مبيعات"), tr("طلبية مشتريات"), tr("إرسالية مبيعات"), tr("إرسالية مشتريات")]
 
     return stopTransactionRows.filter((row) => {
       const voucherTypeName = String(row?.voucher_type_name || "")
@@ -705,12 +706,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     () => ({
       name: "CostCenterScheme",
       columns: [
-        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
-        { header: "اسم مركز الكلفة", name: "name", width: 240, isReadOnly: true },
-        { header: "نوع مركز الكلفة", name: "cost_type_name", width: 180, isReadOnly: true },
-        { header: "المركز الرئيسي", name: "parent_name", width: 180, isReadOnly: true },
-        { header: "المستوى", name: "level", width: 120, isReadOnly: true },
-        { header: "الحالة", name: "status", width: 120, isReadOnly: true },
+        { header: tr("الرقم"), name: "id", width: 80, isReadOnly: true },
+        { header: tr("اسم مركز الكلفة"), name: "name", width: 240, isReadOnly: true },
+        { header: tr("نوع مركز الكلفة"), name: "cost_type_name", width: 180, isReadOnly: true },
+        { header: tr("المركز الرئيسي"), name: "parent_name", width: 180, isReadOnly: true },
+        { header: tr("المستوى"), name: "level", width: 120, isReadOnly: true },
+        { header: tr("الحالة"), name: "status", width: 120, isReadOnly: true },
       ],
     }),
     [],
@@ -746,7 +747,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
       // Only show success message if there was a cost center to delete
       if (hasCostCenter) {
-        setCostCenterTypeMessage("تم حذف مركز التكلفة بنجاح")
+        setCostCenterTypeMessage(tr("تم حذف مركز التكلفة بنجاح"))
       }
     }
     setShowDeleteConfirm(false)
@@ -786,9 +787,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     () => ({
       name: "CostCenterTypeScheme",
       columns: [
-        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
-        { header: "اسم نوع مركز الكلفة", name: "name", width: "*", minWidth: 250, isReadOnly: true },
-        { header: "الحالة", name: "state_status", width: 150, isReadOnly: true },
+        { header: tr("الرقم"), name: "id", width: 80, isReadOnly: true },
+        { header: tr("اسم نوع مركز الكلفة"), name: "name", width: "*", minWidth: 250, isReadOnly: true },
+        { header: tr("الحالة"), name: "state_status", width: 150, isReadOnly: true },
         { header: "Required in Transactions", name: "required_in_transactions", width: 0, isReadOnly: true, visible: true },
         {
           name: 'btnStatusChange',
@@ -796,7 +797,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           width: 80,
           buttonBody: 'button',
           align: 'center',
-          title: 'تغيير الحالة',
+          title: tr("تغيير الحالة"),
           iconType: 'edit',
           className: 'btn-status',
           isReadOnly: true,
@@ -807,14 +808,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           visible: true,
           visibleInColumnChooser: true
         },
-        { header: "مركز التكلفة", name: "cost_center_name", width: 200, isReadOnly: true },
+        { header: tr("مركز التكلفة"), name: "cost_center_name", width: 200, isReadOnly: true },
         {
           name: 'btnSearch',
           header: ' ',
           width: 65,
           buttonBody: 'button',
           align: 'center',
-          title: 'بحث',
+          title: tr("بحث"),
           iconType: 'search',
           className: 'btn-search',
           isReadOnly: true,
@@ -831,7 +832,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           width: 65,
           buttonBody: 'button',
           align: 'center',
-          title: 'حذف',
+          title: tr("حذف"),
           iconType: 'delete',
           className: 'btn-delete',
           isReadOnly: true,
@@ -858,15 +859,15 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     () => ({
       name: "ClassificationTypeScheme",
       columns: [
-        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
-        { header: "اسم نوع التصنيف", name: "name", width: "*", minWidth: 250, isReadOnly: true },
+        { header: tr("الرقم"), name: "id", width: 80, isReadOnly: true },
+        { header: tr("اسم نوع التصنيف"), name: "name", width: "*", minWidth: 250, isReadOnly: true },
         {
           name: 'btnDelete',
           header: ' ',
           width: 65,
           buttonBody: 'button',
           align: 'center',
-          title: 'حذف',
+          title: tr("حذف"),
           iconType: 'delete',
           className: 'btn-delete',
           isReadOnly: true,
@@ -887,7 +888,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       name: "StopTransactionScheme",
       columns: [
         {
-          header: "إيقاف الحركات",
+          header: tr("إيقاف الحركات"),
           name: "is_stopped",
           width: 120,
           align: "center",
@@ -915,9 +916,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             </div>
           ),
         },
-        { header: "نوع الحركة", name: "voucher_type_name", width: "*", minWidth: 260, isReadOnly: true },
+        { header: tr("نوع الحركة"), name: "voucher_type_name", width: "*", minWidth: 260, isReadOnly: true },
         {
-          header: "تاريخ إيقاف الحركة",
+          header: tr("تاريخ إيقاف الحركة"),
           name: "stop_date",
           width: 140,
           align: "center",
@@ -937,7 +938,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   ),
                 )
               }}
-              className="h-9 text-right"
+              className="h-9 text-start"
             />
           ),
         },
@@ -1164,7 +1165,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const handleNew = async () => {
     let parent = selectedTreeAccount
     if (parent && Number(parent.type) !== 1) {
-      showValidationMessage("لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي")
+      showValidationMessage(tr("لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي"))
       return
     }
     let childCode = parent ? nextChildAccountCode(parent) : undefined
@@ -1492,7 +1493,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             messagesRef.current?.show({
               severity: "error",
               summary: "",
-              detail: "لا يمكن عرض حساب محذوف",
+              detail: tr("لا يمكن عرض حساب محذوف"),
               sticky: false,
               life: 5000,
             })
@@ -1506,7 +1507,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             messagesRef.current?.show({
               severity: "error",
               summary: "",
-              detail: "لا يمكن عرض الحساب يجب ان يكون من نوع حساب محاسبي فقط",
+              detail: tr("لا يمكن عرض الحساب يجب ان يكون من نوع حساب محاسبي فقط"),
               sticky: false,
               life: 5000,
             })
@@ -1554,7 +1555,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       }
     } catch (error) {
       console.error("Error searching for account:", error)
-      setError("حدث خطأ أثناء البحث عن الحساب")
+      setError(tr("حدث خطأ أثناء البحث عن الحساب"))
       return 'error'
     }
     return 'error'
@@ -1676,7 +1677,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   const handleSave = async (options?: { closeAfterSave?: boolean }): Promise<boolean> => {
     if (isNonLedgerAccount) {
-      showValidationMessage("هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف، ويتم تعديله من صفحته المخصصة")
+      showValidationMessage(tr("هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف، ويتم تعديله من صفحته المخصصة"))
       return false
     }
     setError("")
@@ -1689,33 +1690,33 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
     // Validate that both fields are filled
     if (!trimmedCode) {
-      showValidationMessage("يجب ملء رقم الحساب")
+      showValidationMessage(tr("يجب ملء رقم الحساب"))
       return false
     }
 
     if (!trimmedName) {
-      showValidationMessage("يجب ملء اسم الحساب")
+      showValidationMessage(tr("يجب ملء اسم الحساب"))
       return false
     }
 
     if (!/^[A-Z0-9]{10}$/.test(trimmedCode)) {
-      showValidationMessage("يجب أن يكون رقم الحساب 10 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      showValidationMessage(tr("يجب أن يكون رقم الحساب 10 أحرف إنجليزية أو أرقام وبحروف كبيرة"))
       return false
     }
 
     if (trimmedName.length > 100) {
-      showValidationMessage("اسم الحساب يجب ألا يتجاوز 100 حرف")
+      showValidationMessage(tr("اسم الحساب يجب ألا يتجاوز 100 حرف"))
       return false
     }
 
     const trimmedEnglishName = formData.name_lang2.trim()
     if (trimmedEnglishName.length > 150) {
-      showValidationMessage("اسم الحساب بالإنجليزية يجب ألا يتجاوز 150 حرفاً")
+      showValidationMessage(tr("اسم الحساب بالإنجليزية يجب ألا يتجاوز 150 حرفاً"))
       return false
     }
 
     if (!["1", "2", "3"].includes(financialListType)) {
-      showValidationMessage("يرجى اختيار القائمة المالية")
+      showValidationMessage(tr("يرجى اختيار القائمة المالية"))
       return false
     }
 
@@ -1725,7 +1726,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return String(account.name || "").trim().toLowerCase() === normalizedName
     })
     if (duplicateAccount) {
-      showValidationMessage(`اسم الحساب مكرر. الكود: ${duplicateAccount.code}`)
+      showValidationMessage(tr("اسم الحساب مكرر. الكود: {0}", duplicateAccount.code))
       return false
     }
 
@@ -1733,14 +1734,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const hasAssets = Boolean(formData.finanical_list_assests_id)
       const hasLiabilities = Boolean(formData.finanical_list_liabilities_id)
       if (!hasAssets && !hasLiabilities) {
-        showValidationMessage("يجب تحديد أصول الميزانية وخصومها")
+        showValidationMessage(tr("يجب تحديد أصول الميزانية وخصومها"))
         return false
       }
     }
 
     if (financialListType === "2" || financialListType === "3") {
       if (!formData.finanical_list_income_id) {
-        showValidationMessage("يجب تحديد بند قائمة الدخل")
+        showValidationMessage(tr("يجب تحديد بند قائمة الدخل"))
         return false
       }
     }
@@ -1748,7 +1749,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     // Validate currency is selected
     const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
     if (!currencyId || currencyId <= 0) {
-      showValidationMessage("يجب تحديد العملة")
+      showValidationMessage(tr("يجب تحديد العملة"))
       return false
     }
 
@@ -1760,7 +1761,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
     // Validate account code length - must be exactly 10 uppercase English alphanumeric characters
     if (!/^[A-Z0-9]{10}$/.test(finalCode)) {
-      showValidationMessage("طول رقم الحساب غير صحيح - يجب أن يكون 10 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      showValidationMessage(tr("طول رقم الحساب غير صحيح - يجب أن يكون 10 أحرف إنجليزية أو أرقام وبحروف كبيرة"))
       return false
     }
 
@@ -1784,14 +1785,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     const fatherAccount = resolveFatherAccount()
     if (fatherAccount) {
       if (Number(fatherAccount.type) !== 1) {
-        showValidationMessage("لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي")
+        showValidationMessage(tr("لا يمكن إضافة حساب فرعي؛ يجب أن يكون الحساب الأب من نوع حساب محاسبي"))
         return false
       }
       const sameFatherId = Number(fatherAccount.id) === Number(formData.id) && Number(formData.id) !== 0
       const sameFatherCode = String(fatherAccount.code ?? "").toUpperCase() === finalCode
 
       if (sameFatherId || sameFatherCode) {
-        showValidationMessage("لا يمكن ان يكون الحساب اب لنفسه")
+        showValidationMessage(tr("لا يمكن ان يكون الحساب اب لنفسه"))
         return false
       }
     }
@@ -1883,7 +1884,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
       if (!response.ok) {
         const data = await response.json()
-        setError(data.error || "فشل حفظ الحساب")
+        setError(data.error || tr("فشل حفظ الحساب"))
         return false
       }
 
@@ -1891,7 +1892,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const savedCode = savedAccount?.code || savedAccount?.account_code || finalCode
       const codeWasChanged = savedCode !== finalCode
 
-      let messageText = isNewAccount ? " تم حفظ الحساب بنجاح" : " تم تعديل الحساب بنجاح"
+      let messageText = isNewAccount ? tr(" تم حفظ الحساب بنجاح") : tr(" تم تعديل الحساب بنجاح")
       if (codeWasChanged && isNewAccount) {
         messageText += ` (رقم الحساب: ${savedCode})`
       }
@@ -1925,7 +1926,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return true
     } catch (err) {
       console.error(err)
-      setError("خطأ في حفظ الحساب")
+      setError(tr("خطأ في حفظ الحساب"))
       return false
     } finally {
       setSaving(false)
@@ -1936,7 +1937,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const handleDelete = async () => {
     if (!currentAccount) return
     if (Number(currentAccount.type) !== 1) {
-      showValidationMessage("لا يمكن حذف هذا الحساب من دليل الحسابات؛ استخدم صفحة تعريفه المخصصة")
+      showValidationMessage(tr("لا يمكن حذف هذا الحساب من دليل الحسابات؛ استخدم صفحة تعريفه المخصصة"))
       return
     }
 
@@ -1946,7 +1947,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       messagesRef.current?.show({
         severity: "error",
         summary: "",
-        detail: "لا يمكن حذف الحساب لأنه أب لحساب آخر",
+        detail: tr("لا يمكن حذف الحساب لأنه أب لحساب آخر"),
         sticky: false,
         life: 5000,
       })
@@ -1971,14 +1972,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         messagesRef.current?.show?.({ severity: "error", summary: "", detail: reason, sticky: true })
         return
       }
-      setMessage("الحساب تم حذفه بنجاح")
+      setMessage(tr("الحساب تم حذفه بنجاح"))
       await loadData()
       await reset_fields()
       setDialogOpen(true)
       setActiveTab("main")
     } catch (err) {
       console.error(err)
-      setError("خطأ في حذف الحساب")
+      setError(tr("خطأ في حذف الحساب"))
     } finally {
       setLoading(false)
     }
@@ -2186,7 +2187,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         return type
       })
       setCostCenterTypes(updatedList)
-      setCostCenterTypeMessage("تم تحديث مركز التكلفة بنجاح")
+      setCostCenterTypeMessage(tr("تم تحديث مركز التكلفة بنجاح"))
       // Reset selection state
       setSelectedCostCenterTypeIndex(-1)
       setSelectedCostCenterType(null)
@@ -2209,7 +2210,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         return type
       })
       setCostCenterTypes(updatedList)
-      setCostCenterTypeMessage("تم حذف مركز التكلفة")
+      setCostCenterTypeMessage(tr("تم حذف مركز التكلفة"))
     }
   }
 
@@ -2223,7 +2224,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   const handleSaveClassificationType = async () => {
     if (!newClassificationTypeName.trim()) {
-      setClassificationTypeError("اسم النوع مطلوب")
+      setClassificationTypeError(tr("اسم النوع مطلوب"))
       return
     }
 
@@ -2287,17 +2288,17 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   const handleSaveClassification = () => {
     if (!newClassificationTypeId) {
-      setClassificationError("يجب اختيار نوع التصنيف")
+      setClassificationError(tr("يجب اختيار نوع التصنيف"))
       return
     }
     if (!newClassificationName.trim()) {
-      setClassificationError("اسم التصنيف مطلوب")
+      setClassificationError(tr("اسم التصنيف مطلوب"))
       return
     }
 
     const selectedType = classificationTypes.find((t: any) => t.id === Number(newClassificationTypeId))
     if (!selectedType) {
-      setClassificationError("نوع التصنيف غير صحيح")
+      setClassificationError(tr("نوع التصنيف غير صحيح"))
       return
     }
 
@@ -2397,7 +2398,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   if (inWindowManager) {
     return (
-      <div className="unified-customers-compact flex h-full min-h-0 min-w-0 flex-col overflow-hidden text-lg compact-product-form-root" dir="rtl">
+      <div className="unified-customers-compact flex h-full min-h-0 min-w-0 flex-col overflow-hidden text-lg compact-product-form-root" dir={appDir()}>
       {/* Universal Toolbar - Fixed at top */}
       <div className="flex-shrink-0">
           <UniversalToolbar
@@ -2436,7 +2437,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <div className="shrink-0">
           <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 text-white shadow-lg">
             <BookOpen className="h-5 w-5" />
-            <h2 className="text-lg font-extrabold tracking-tight sm:text-xl">{formData.id === 0 ? "حساب جديد" : "تعديل حساب"}</h2>
+            <h2 className="text-lg font-extrabold tracking-tight sm:text-xl">{formData.id === 0 ? tr("حساب جديد") : tr("تعديل حساب")}</h2>
             <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-xs font-semibold ring-1 ring-white/30">{formData.code || "—"}</span>
             {formData.id !== 0 && formData.name && <span className="truncate text-sm font-semibold text-emerald-50">{formData.name}</span>}
           </div>
@@ -2446,7 +2447,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <div ref={formRootRef} className="customer-definition-form px-1 py-4 space-y-4 sm:px-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {isNonLedgerAccount && (
             <Alert className="border-amber-300 bg-amber-50 text-amber-950" role="status">
-              <AlertDescription>هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف. اعرضه وعدّله من صفحته المخصصة.</AlertDescription>
+              <AlertDescription>{tr("هذا الحساب تابع لتعريف عميل أو مورد أو مشترك أو موظف. اعرضه وعدّله من صفحته المخصصة.")}</AlertDescription>
             </Alert>
           )}
           {error && (
@@ -2461,7 +2462,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <div className="space-y-4 border-b pb-4">
             <div className="grid gap-4 md:grid-cols-2 items-end">
               <div>
-                <Label className="mb-2 block text-sm font-medium">رقم الحساب * </Label>
+                <Label className="mb-2 block text-sm font-medium">{tr("رقم الحساب * ")}</Label>
                 <div className="flex gap-2 items-center">
                   <Input
                     ref={accountCodeInputRef}
@@ -2478,25 +2479,25 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     onClick={() => handleOpenSearchModal("code")}
                     size="sm"
                     className="px-3 h-8 flex items-center gap-1.5"
-                    title="بحث عن حساب"
+                    title={tr("بحث عن حساب")}
                   >
                     <Search className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
               <div className="flex flex-col">
-                <Label className="mb-2 block text-sm font-medium">المستوى</Label>
+                <Label className="mb-2 block text-sm font-medium">{tr("المستوى")}</Label>
                 <Input
                   value={formData.level_no}
                   onChange={(e) => setFormData({ ...formData, level_no: e.target.value })}
-                  placeholder="المستوى"
+                  placeholder={tr("المستوى")}
                   className="text-right"
                 />
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <Label className="mb-2 block text-sm font-medium">اسم الحساب (AR) *</Label>
+                <Label className="mb-2 block text-sm font-medium">{tr("اسم الحساب (AR) *")}</Label>
                 <Input
                   ref={accountNameInputRef}
                   value={formData.name}
@@ -2504,12 +2505,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   // الاسم الإنجليزي فارغ ⇐ يُعبّأ بالاسم العربي عند مغادرة الحقل
                   onBlur={() => setFormData((prev) => (!prev.name_lang2.trim() && prev.name.trim() ? { ...prev, name_lang2: prev.name.trim() } : prev))}
-                  placeholder="اسم الحساب"
+                  placeholder={tr("اسم الحساب")}
                   className="text-right text-lg"
                 />
               </div>
               <div>
-                <Label className="mb-2 block text-sm font-medium">اسم الحساب (EN)</Label>
+                <Label className="mb-2 block text-sm font-medium">{tr("اسم الحساب (EN)")}</Label>
                 <Input
                   value={formData.name_lang2}
                   onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })}
@@ -2522,26 +2523,26 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           </fieldset>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList dir="rtl" className="customer-tabs">
-              <TabsTrigger value="main" className="customer-tab">الرئيسية</TabsTrigger>
-              <TabsTrigger value="cost-centers" className="customer-tab">مراكز التكلفة</TabsTrigger>
-              <TabsTrigger value="classification" className="customer-tab">تصنيفات الحساب</TabsTrigger>
-              <TabsTrigger value="stop-transactions" className="customer-tab">إيقاف الحركات</TabsTrigger>
-              <TabsTrigger value="constraints" className="customer-tab">محددات الحساب</TabsTrigger>
+            <TabsList dir={appDir()} className="customer-tabs">
+              <TabsTrigger value="main" className="customer-tab">{tr("الرئيسية")}</TabsTrigger>
+              <TabsTrigger value="cost-centers" className="customer-tab">{tr("مراكز التكلفة")}</TabsTrigger>
+              <TabsTrigger value="classification" className="customer-tab">{tr("تصنيفات الحساب")}</TabsTrigger>
+              <TabsTrigger value="stop-transactions" className="customer-tab">{tr("إيقاف الحركات")}</TabsTrigger>
+              <TabsTrigger value="constraints" className="customer-tab">{tr("محددات الحساب")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="main" className="space-y-6">
               <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               {/* Currency and Financial Settings */}
               <div className="space-y-4 border-b pb-6">
-                <h4 className="font-semibold text-base">الإعدادات المالية</h4>
+                <h4 className="font-semibold text-base">{tr("الإعدادات المالية")}</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <AutoCompleteAccount
-                      label="الحساب الرئيسي (تابع ل)"
+                      label={tr("الحساب الرئيسي (تابع ل)")}
                       leafOnly={false}
                       value={fatherAccountCode}
-                      placeholder="اختر الحساب الرئيسي"
+                      placeholder={tr("اختر الحساب الرئيسي")}
                       onValueChange={(nextCode) => {
                         setFatherAccountCode(nextCode)
                         if (!nextCode) {
@@ -2556,7 +2557,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           messagesRef.current?.show({
                             severity: "error",
                             summary: "",
-                            detail: "لا يمكن ان يكون الحساب اب لنفسه",
+                            detail: tr("لا يمكن ان يكون الحساب اب لنفسه"),
                             sticky: false,
                             life: 4000,
                           })
@@ -2573,13 +2574,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">العملة</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("العملة")}</Label>
                     <PrimeDropdown
                       inputId="currency_id"
                       value={formData.currency_id ? Number(formData.currency_id) : null}
                       options={(() => {
                         const options = currencies.map((c) => ({
-                          label: c.currency_name || c.name || c.currency_code || "غير محدد",
+                          label: c.currency_name || c.name || c.currency_code || tr("غير محدد"),
                           value: c.currency_id ?? c.id,
                         }))
                         // Sort options: selected currency first
@@ -2595,7 +2596,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       })()}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر العملة"
+                      placeholder={tr("اختر العملة")}
                       filter={true}
                       filterInputAutoFocus={true}
                       className="invoice-currency-dropdown w-full"
@@ -2609,20 +2610,20 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">القائمة المالية *</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("القائمة المالية *")}</Label>
                     <PrimeDropdown
                       inputId="financial_list_id"
                       value={financialListType}
                       disabled={Number(formData.father_id || 0) > 0}
                       options={[
-                        { label: "اختر", value: "" },
-                        { label: "الميزانية العمومية", value: "1" },
-                        { label: "قائمة الدخل", value: "2" },
-                        { label: "تقييم بضاعة", value: "3" },
+                        { label: tr("اختر"), value: "" },
+                        { label: tr("الميزانية العمومية"), value: "1" },
+                        { label: tr("قائمة الدخل"), value: "2" },
+                        { label: tr("تقييم بضاعة"), value: "3" },
                       ]}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر القائمة"
+                      placeholder={tr("اختر القائمة")}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -2635,18 +2636,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">السماح بعمل حركة على الحساب بغير عملته</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("السماح بعمل حركة على الحساب بغير عملته")}</Label>
                     <PrimeDropdown
                       inputId="allow_trans_with_diff_curr"
                       value={formData.allow_trans_with_diff_curr}
                       options={[
-                        { label: "مسموح بدون تنبيه", value: "0" },
-                        { label: "مسموح مع تنبيه", value: "1" },
-                        { label: "ممنوع", value: "2" },
+                        { label: tr("مسموح بدون تنبيه"), value: "0" },
+                        { label: tr("مسموح مع تنبيه"), value: "1" },
+                        { label: tr("ممنوع"), value: "2" },
                       ]}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر الخيار"
+                      placeholder={tr("اختر الخيار")}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -2662,13 +2663,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   {financialListType === "1" && (
                     <>
                       <div>
-                        <Label className="mb-2 block text-sm font-medium">أصول الميزانية</Label>
+                        <Label className="mb-2 block text-sm font-medium">{tr("أصول الميزانية")}</Label>
                         <PrimeDropdown
                           inputId="financial_list_assets_id"
                           value={formData.finanical_list_assests_id || null}
                           disabled={Number(formData.father_id || 0) > 0}
                           options={[
-                            { label: "عدم الاظهار", value: null },
+                            { label: tr("عدم الاظهار"), value: null },
                             ...balanceSheetAssets.map((asset) => ({
                               label: asset.name,
                               value: String(asset.id),
@@ -2676,7 +2677,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           ]}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر الأصل"
+                          placeholder={tr("اختر الأصل")}
                           filter={true}
                           filterInputAutoFocus={true}
                           className="invoice-currency-dropdown w-full"
@@ -2693,13 +2694,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         />
                       </div>
                       <div>
-                        <Label className="mb-2 block text-sm font-medium">خصوم الميزانية</Label>
+                        <Label className="mb-2 block text-sm font-medium">{tr("خصوم الميزانية")}</Label>
                         <PrimeDropdown
                           inputId="financial_list_liabilities_id"
                           value={formData.finanical_list_liabilities_id || null}
                           disabled={Number(formData.father_id || 0) > 0}
                           options={[
-                            { label: "عدم الاظهار", value: null },
+                            { label: tr("عدم الاظهار"), value: null },
                             ...balanceSheetLiabilities.map((liability) => ({
                               label: liability.name,
                               value: String(liability.id),
@@ -2707,7 +2708,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           ]}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر الخصوم"
+                          placeholder={tr("اختر الخصوم")}
                           filter={true}
                           filterInputAutoFocus={true}
                           className="invoice-currency-dropdown w-full"
@@ -2729,7 +2730,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   {/* Conditional dropdown for Income Statement */}
                   {financialListType === "2" && (
                     <div>
-                      <Label className="mb-2 block text-sm font-medium">قائمة الدخل</Label>
+                      <Label className="mb-2 block text-sm font-medium">{tr("قائمة الدخل")}</Label>
                       <PrimeDropdown
                         inputId="financial_list_income_id"
                         value={formData.finanical_list_income_id || null}
@@ -2742,7 +2743,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         }
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="اختر من قائمة الدخل"
+                        placeholder={tr("اختر من قائمة الدخل")}
                         filter={true}
                         filterInputAutoFocus={true}
                         className="invoice-currency-dropdown w-full"
@@ -2761,12 +2762,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   {financialListType === "3" && (
                     <>
                       <div>
-                        <Label className="mb-2 block text-sm font-medium">أصول الميزانية</Label>
+                        <Label className="mb-2 block text-sm font-medium">{tr("أصول الميزانية")}</Label>
                         <PrimeDropdown
                           inputId="financial_list_assets_id"
                           value={formData.finanical_list_assests_id || null}
                           options={[
-                            { label: "عدم الاظهار", value: null },
+                            { label: tr("عدم الاظهار"), value: null },
                             ...balanceSheetAssets.map((asset) => ({
                               label: asset.name,
                               value: String(asset.id),
@@ -2774,7 +2775,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           ]}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر الأصل"
+                          placeholder={tr("اختر الأصل")}
                           filter={true}
                           filterInputAutoFocus={true}
                           className="invoice-currency-dropdown w-full"
@@ -2788,7 +2789,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         />
                       </div>
                       <div>
-                        <Label className="mb-2 block text-sm font-medium">قائمة الدخل</Label>
+                        <Label className="mb-2 block text-sm font-medium">{tr("قائمة الدخل")}</Label>
                         <PrimeDropdown
                           inputId="financial_list_income_id"
                           value={formData.finanical_list_income_id || null}
@@ -2801,7 +2802,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           }
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر من قائمة الدخل"
+                          placeholder={tr("اختر من قائمة الدخل")}
                           filter={true}
                           filterInputAutoFocus={true}
                           className="invoice-currency-dropdown w-full"
@@ -2824,20 +2825,20 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       checked={formData.iscalc_curr_diff_rates}
                       onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: checked as boolean })}
                     />
-                    <span className="text-lg font-medium">الحساب يخضع لفرق العملة</span>
+                    <span className="text-lg font-medium">{tr("الحساب يخضع لفرق العملة")}</span>
                   </label>
                 </div>
               </div>
 
               </fieldset>
             </TabsContent>
-            <TabsContent value="constraints" className="space-y-4" dir="rtl">
+            <TabsContent value="constraints" className="space-y-4" dir={appDir()}>
               <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
-                <h4 className="font-semibold text-base">الحدود المالية والإجراءات</h4>
+                <h4 className="font-semibold text-base">{tr("الحدود المالية والإجراءات")}</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">الحد الأقصى للحركة</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("الحد الأقصى للحركة")}</Label>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -2849,18 +2850,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للحركة")}</Label>
                     <PrimeDropdown
                       inputId="max_transaction_amount_action"
                       value={formData.max_transaction_amount_action || "0"}
                       options={[
-                        { label: "تحذير", value: "0" },
-                        { label: "منع", value: "1" },
-                        { label: "السماح", value: "2" },
+                        { label: tr("تحذير"), value: "0" },
+                        { label: tr("منع"), value: "1" },
+                        { label: tr("السماح"), value: "2" },
                       ]}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر الإجراء"
+                      placeholder={tr("اختر الإجراء")}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -2872,7 +2873,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">الحد الأقصى للرصيد</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("الحد الأقصى للرصيد")}</Label>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -2884,18 +2885,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
+                    <Label className="mb-2 block text-sm font-medium">{tr("إجراء تجاوز الحد الأقصى للرصيد")}</Label>
                     <PrimeDropdown
                       inputId="max_balance_action"
                       value={formData.max_balance_action || "0"}
                       options={[
-                        { label: "تحذير", value: "0" },
-                        { label: "منع", value: "1" },
-                        { label: "السماح", value: "2" },
+                        { label: tr("تحذير"), value: "0" },
+                        { label: tr("منع"), value: "1" },
+                        { label: tr("السماح"), value: "2" },
                       ]}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر الإجراء"
+                      placeholder={tr("اختر الإجراء")}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -2910,7 +2911,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
               </fieldset>
             </TabsContent>
-            <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
+            <TabsContent value="stop-transactions" className="space-y-4" dir={appDir()}>
               <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
@@ -2928,30 +2929,30 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       )
                     }}
                   />
-                  <Label className="cursor-pointer text-sm font-medium">إيقاف كافة الحركات على الحساب</Label>
+                  <Label className="cursor-pointer text-sm font-medium">{tr("إيقاف كافة الحركات على الحساب")}</Label>
                 </div>
 
-                <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir="rtl">
+                <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir={appDir()}>
                   {visibleStopTransactionRows.length > 0 ? (
                     <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
                       <DataGridView scheme={stopTransactionScheme} dataSource={visibleStopTransactionRows} />
                     </div>
                   ) : (
                     <div className="h-[600px] flex items-center justify-center bg-slate-50">
-                      <p className="text-slate-500 text-sm">لا توجد أنواع حركات</p>
+                      <p className="text-slate-500 text-sm">{tr("لا توجد أنواع حركات")}</p>
                     </div>
                   )}
                 </div>
               </div>
               </fieldset>
             </TabsContent>
-            <TabsContent value="cost-centers" className="space-y-4" dir="rtl">
+            <TabsContent value="cost-centers" className="space-y-4" dir={appDir()}>
               <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 {/* Header Section */}
                 <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
                   <div className="flex-1">
-                    <h4 className="font-semibold text-base">مراكز التكلفة</h4>
+                    <h4 className="font-semibold text-base">{tr("مراكز التكلفة")}</h4>
                   </div>
                   <Button
                     variant="default"
@@ -2960,7 +2961,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     <Plus className="w-4 h-4" />
-                    اضافة نوع مركز تكلفة جديد
+                    {tr("اضافة نوع مركز تكلفة جديد")}
                   </Button>
                 </div>
 
@@ -2978,7 +2979,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 )}
 
                 {/* Data Grid */}
-                <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+                <div className="rounded-md border border-slate-300 overflow-hidden" dir={appDir()}>
                   {costCenterTypes && costCenterTypes.length > 0 ? (
                     <div className="h-[500px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
                       <DataGridView
@@ -2989,7 +2990,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     </div>
                   ) : (
                     <div className="h-[500px] flex items-center justify-center bg-slate-50">
-                      <p className="text-slate-500 text-sm">لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد</p>
+                      <p className="text-slate-500 text-sm">{tr("لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد")}</p>
                     </div>
                   )}
                 </div>
@@ -2998,7 +2999,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </fieldset>
             </TabsContent>
 
-            <TabsContent value="classification" className="space-y-4" dir="rtl">
+            <TabsContent value="classification" className="space-y-4" dir={appDir()}>
               <fieldset disabled={isNonLedgerAccount} aria-disabled={isNonLedgerAccount} className={`m-0 min-w-0 border-0 p-0 ${isNonLedgerAccount ? "pointer-events-none" : ""}`}>
               <div className="space-y-4">
                 {/* Unified Classification Section */}
@@ -3012,7 +3013,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     <Plus className="w-4 h-4" />
-                    اضافة تصنيف جديد
+                    {tr("اضافة تصنيف جديد")}
                   </Button>
 
                   <Button
@@ -3022,7 +3023,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     <Plus className="w-4 h-4" />
-                    اضافة نوع جديد
+                    {tr("اضافة نوع جديد")}
                   </Button>
                 </div>
 
@@ -3040,7 +3041,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 )}
 
                 {/* Unified Classifications Grid */}
-                <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+                <div className="rounded-md border border-slate-300 overflow-hidden" dir={appDir()}>
                   {classificationTypes && classificationTypes.length > 0 ? (
                     <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
                       <DataGridView
@@ -3048,17 +3049,17 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           name: "AccountClassificationScheme",
                           columns: [
                             { header: "##", name: "__index__", width: 50, isReadOnly: true, visible: true },
-                            { header: "معرف نوع التصنيف", name: "id", width: 120, isReadOnly: true, visible: false },
-                            { header: "نوع التصنيف", name: "name", width: 200, isReadOnly: true, visible: true },
-                            { header: "معرف التصنيف", name: "classification_id", width: 120, isReadOnly: true, visible: false },
-                            { header: "التصنيف", name: "classification_name", width: "*", minWidth: 200, isReadOnly: true, visible: true },
+                            { header: tr("معرف نوع التصنيف"), name: "id", width: 120, isReadOnly: true, visible: false },
+                            { header: tr("نوع التصنيف"), name: "name", width: 200, isReadOnly: true, visible: true },
+                            { header: tr("معرف التصنيف"), name: "classification_id", width: 120, isReadOnly: true, visible: false },
+                            { header: tr("التصنيف"), name: "classification_name", width: "*", minWidth: 200, isReadOnly: true, visible: true },
                             {
                               name: 'btnSearchClassification',
                               header: ' ',
                               width: 65,
                               buttonBody: 'button',
                               align: 'center',
-                              title: 'بحث',
+                              title: tr("بحث"),
                               iconType: 'search',
                               className: 'btn-search',
                               isReadOnly: true,
@@ -3076,7 +3077,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                               width: 65,
                               buttonBody: 'button',
                               align: 'center',
-                              title: 'حذف',
+                              title: tr("حذف"),
                               iconType: 'delete',
                               className: 'btn-delete',
                               isReadOnly: true,
@@ -3100,7 +3101,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     </div>
                   ) : (
                     <div className="h-[600px] flex items-center justify-center bg-slate-50">
-                      <p className="text-slate-500 text-sm">لا توجد أنواع تصنيفات - قم بإضافة نوع جديد</p>
+                      <p className="text-slate-500 text-sm">{tr("لا توجد أنواع تصنيفات - قم بإضافة نوع جديد")}</p>
                     </div>
                   )}
                 </div>
@@ -3116,7 +3117,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             <div className="mb-2 flex items-center gap-2 font-bold text-slate-800">
               <button type="button" onClick={() => setMobileTreeOpen((value) => !value)} className="flex items-center gap-2 lg:pointer-events-none" aria-expanded={mobileTreeOpen}>
                 <FolderTree className="h-4 w-4 text-emerald-700" />
-                <span>شجرة الحسابات</span>
+                <span>{tr("شجرة الحسابات")}</span>
                 <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform lg:hidden ${mobileTreeOpen ? "rotate-180" : ""}`} />
               </button>
               <span className="text-xs font-normal text-slate-500">{activeAccounts.length.toLocaleString("en-US")}</span>
@@ -3134,29 +3135,29 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             </div>
             <div className={`relative ${mobileTreeOpen ? "" : "hidden lg:block"}`}>
-              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={accountTreeSearch}
                 onChange={(event) => setAccountTreeSearch(event.target.value)}
-                placeholder="ابحث برقم أو اسم الحساب"
-                className="h-9 pr-9 text-sm"
+                placeholder={tr("ابحث برقم أو اسم الحساب")}
+                className="h-9 ps-9 text-sm"
               />
             </div>
             {selectedTreeAccount && (
               <div className="mt-2 flex min-w-0 items-center gap-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs text-emerald-900">
-                <span className="shrink-0">الحساب الأب:</span>
+                <span className="shrink-0">{tr("الحساب الأب:")}</span>
                 <span className="min-w-0 flex-1 truncate font-semibold">{selectedTreeAccount.code} - {selectedTreeAccount.name}</span>
-                <button type="button" onClick={() => setSelectedTreeAccountId(null)} className="shrink-0 rounded p-0.5 hover:bg-emerald-100" aria-label="مسح اختيار الحساب الأب"><X className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => setSelectedTreeAccountId(null)} className="shrink-0 rounded p-0.5 hover:bg-emerald-100" aria-label={tr("مسح اختيار الحساب الأب")}><X className="h-3.5 w-3.5" /></button>
               </div>
             )}
           </div>
           <div className={`min-h-0 flex-1 overflow-auto p-1 font-sans text-[11px] lg:block ${mobileTreeOpen ? "" : "hidden"}`} dir="ltr">
             {filteredAccountTree.length ? filteredAccountTree.map((node, index) => renderAccountTreeNode(node, 0, undefined, index)) : (
-              <p className="px-2 py-6 text-center text-xs text-slate-500">لا توجد حسابات مطابقة</p>
+              <p className="px-2 py-6 text-center text-xs text-slate-500">{tr("لا توجد حسابات مطابقة")}</p>
             )}
           </div>
           <div className={`border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500 lg:block ${mobileTreeOpen ? "" : "hidden"}`}>
-            اختر حساباً ثم اضغط «جديد» لإنشاء حساب فرعي.
+            {tr("اختر حساباً ثم اضغط «جديد» لإنشاء حساب فرعي.")}
           </div>
         </aside>
         </div>
@@ -3193,8 +3194,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <ConfirmDialogYesNo
           useAppDialog
           visible={showDeleteConfirm}
-          title="تأكيد الحذف"
-          message="هل تريد حذف مركز التكلفة؟"
+          title={tr("تأكيد الحذف")}
+          message={tr("هل تريد حذف مركز التكلفة؟")}
           onConfirm={handleConfirmDelete}
           onCancel={() => {
             setShowDeleteConfirm(false)
@@ -3206,8 +3207,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <ConfirmDialogYesNo
           useAppDialog
           visible={showDeleteClassificationConfirm}
-          title="تأكيد الحذف"
-          message="هل تريد حذف التصنيف؟"
+          title={tr("تأكيد الحذف")}
+          message={tr("هل تريد حذف التصنيف؟")}
           onConfirm={handleConfirmDeleteClassification}
           onCancel={() => {
             setShowDeleteClassificationConfirm(false)
@@ -3219,18 +3220,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <ConfirmDialogYesNo
           useAppDialog
           visible={showAccountDeleteConfirm}
-          title="تأكيد الحذف"
-          message="هل أنت متأكد من حذف السجل؟"
+          title={tr("تأكيد الحذف")}
+          message={tr("هل أنت متأكد من حذف السجل؟")}
           onConfirm={handleConfirmDeleteAccount}
           onCancel={() => setShowAccountDeleteConfirm(false)}
         />
 
         <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
-          <DialogContent className="max-w-md" dir="rtl">
+          <DialogContent className="max-w-md" dir={appDir()}>
             <DialogHeader>
-              <DialogTitle>إضافة نوع تصنيف جديد</DialogTitle>
+              <DialogTitle>{tr("إضافة نوع تصنيف جديد")}</DialogTitle>
               <DialogDescription>
-                أدخل اسم نوع التصنيف الجديد
+                {tr("أدخل اسم نوع التصنيف الجديد")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -3242,13 +3243,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               )}
               <div>
                 <Label htmlFor="classificationTypeName" className="mb-2 block text-sm font-medium">
-                  اسم النوع *
+                  {tr("اسم النوع *")}
                 </Label>
                 <Input
                   id="classificationTypeName"
                   value={newClassificationTypeName}
                   onChange={(e) => setNewClassificationTypeName(e.target.value)}
-                  placeholder="أدخل اسم النوع"
+                  placeholder={tr("أدخل اسم النوع")}
                   className="text-right"
                   autoFocus
                 />
@@ -3263,23 +3264,23 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   setClassificationTypeError("")
                 }}
               >
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button
                 onClick={handleSaveClassificationType}
               >
-                حفظ
+                {tr("حفظ")}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog open={showClassificationForm} onOpenChange={setShowClassificationForm}>
-          <DialogContent className="max-w-md" dir="rtl">
+          <DialogContent className="max-w-md" dir={appDir()}>
             <DialogHeader>
-              <DialogTitle>إضافة تصنيف جديد</DialogTitle>
+              <DialogTitle>{tr("إضافة تصنيف جديد")}</DialogTitle>
               <DialogDescription>
-                حدد نوع التصنيف واسم التصنيف
+                {tr("حدد نوع التصنيف واسم التصنيف")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -3291,7 +3292,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               )}
               <div>
                 <Label htmlFor="classificationTypeSelect" className="mb-2 block text-sm font-medium">
-                  نوع التصنيف *
+                  {tr("نوع التصنيف *")}
                 </Label>
                 <PrimeDropdown
                   inputId="classificationTypeSelect"
@@ -3302,7 +3303,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   }))}
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="اختر نوع التصنيف"
+                  placeholder={tr("اختر نوع التصنيف")}
                   filter={true}
                   filterInputAutoFocus={true}
                   className="invoice-currency-dropdown w-full"
@@ -3317,13 +3318,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
               <div>
                 <Label htmlFor="classificationNameInput" className="mb-2 block text-sm font-medium">
-                  اسم التصنيف *
+                  {tr("اسم التصنيف *")}
                 </Label>
                 <Input
                   id="classificationNameInput"
                   value={newClassificationName}
                   onChange={(e) => setNewClassificationName(e.target.value)}
-                  placeholder="أدخل اسم التصنيف"
+                  placeholder={tr("أدخل اسم التصنيف")}
                   className="text-right"
                 />
               </div>
@@ -3338,23 +3339,23 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   setClassificationError("")
                 }}
               >
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button
                 onClick={handleSaveClassification}
               >
-                حفظ
+                {tr("حفظ")}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog open={showCostCenterTypeForm} onOpenChange={setShowCostCenterTypeForm}>
-          <DialogContent className="max-w-md" dir="rtl">
+          <DialogContent className="max-w-md" dir={appDir()}>
             <DialogHeader>
-              <DialogTitle>إضافة نوع مركز كلفة جديد</DialogTitle>
+              <DialogTitle>{tr("إضافة نوع مركز كلفة جديد")}</DialogTitle>
               <DialogDescription>
-                أدخل اسم نوع مركز الكلفة الجديد
+                {tr("أدخل اسم نوع مركز الكلفة الجديد")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -3366,13 +3367,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               )}
               <div>
                 <Label htmlFor="costCenterTypeName" className="mb-2 block text-sm font-medium">
-                  اسم نوع مركز الكلفة *
+                  {tr("اسم نوع مركز الكلفة *")}
                 </Label>
                 <Input
                   id="costCenterTypeName"
                   value={newCostCenterTypeName}
                   onChange={(e) => setNewCostCenterTypeName(e.target.value)}
-                  placeholder="أدخل اسم النوع"
+                  placeholder={tr("أدخل اسم النوع")}
                   className="text-right"
                   autoFocus
                 />
@@ -3387,12 +3388,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   setCostCenterTypeError("")
                 }}
               >
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button
                 onClick={handleSaveCostCenterType}
               >
-                حفظ
+                {tr("حفظ")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -3401,8 +3402,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <ConfirmDialogYesNo
           useAppDialog
           visible={showUnsavedConfirm}
-          title="حفظ التعديلات"
-          message="تم تعديل السجل هل تريد الحفظ؟"
+          title={tr("حفظ التعديلات")}
+          message={tr("تم تعديل السجل هل تريد الحفظ؟")}
           onConfirm={async () => {
             setShowUnsavedConfirm(false)
             const action = pendingUnsavedActionRef.current

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { onDefinitionsChanged } from "@/lib/definitions-changed"
 import { useEffect, useMemo, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
@@ -157,22 +158,22 @@ export default function BankAccounts() {
   // truth for that and returns its own error at save time.
   const validateBankAccount = (data: BankAccountRecord): string | null => {
     const code = data.code.trim()
-    if (!code) return "رقم الحساب مطلوب"
-    if (!/^[A-Z0-9-]+$/.test(code)) return "رقم الحساب يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط"
+    if (!code) return tr("رقم الحساب مطلوب")
+    if (!/^[A-Z0-9-]+$/.test(code)) return tr("رقم الحساب يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط")
 
     if (!data.currency_id || !currencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
-      return "يجب اختيار العملة"
+      return tr("يجب اختيار العملة")
     }
 
     const actualCode = data.actual_bank_code.trim()
     if (actualCode && bankAccounts.some((b) => b.actual_bank_code.trim() === actualCode && b.id !== data.id)) {
-      return "رقم الحساب الفعلي مستخدم مسبقاً"
+      return tr("رقم الحساب الفعلي مستخدم مسبقاً")
     }
 
     const nameAr = data.name.trim().toLowerCase()
     const nameEn = data.name_lang2.trim().toLowerCase()
     if (!nameAr && !nameEn) {
-      return "يجب إدخال اسم الحساب بالعربي أو الإنجليزي"
+      return tr("يجب إدخال اسم الحساب بالعربي أو الإنجليزي")
     }
     if (
       bankAccounts.some(
@@ -182,10 +183,10 @@ export default function BankAccounts() {
             (nameEn && b.name_lang2.trim().toLowerCase() === nameEn)),
       )
     ) {
-      return "اسم الحساب مستخدم مسبقاً"
+      return tr("اسم الحساب مستخدم مسبقاً")
     }
 
-    if (!data.branch_id) return "يجب اختيار البنك والفرع"
+    if (!data.branch_id) return tr("يجب اختيار البنك والفرع")
 
     // انشاء آلي: الحسابات تُنشأ في الخادم مع الحفظ
     if (
@@ -196,7 +197,7 @@ export default function BankAccounts() {
       !data.payed_checks_account_id ||
       !data.returned_checks_account_id)
     ) {
-      return "يجب تعبئة جميع الحسابات المحاسبية"
+      return tr("يجب تعبئة جميع الحسابات المحاسبية")
     }
 
     return null
@@ -220,17 +221,17 @@ export default function BankAccounts() {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        setErrorMessages([responseError.error || "فشل في حفظ حساب البنك"])
+        setErrorMessages([responseError.error || tr("فشل في حفظ حساب البنك")])
         return
       }
       await fetchBankAccounts()
       setForm(initialForm)
       setIsNewMode(true)
       setDialogOpen(true)
-      setSuccessMessage({ text: "تمت العملية بنجاح", at: Date.now() })
+      setSuccessMessage({ text: tr("تمت العملية بنجاح"), at: Date.now() })
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ حساب البنك"])
+      setErrorMessages([tr("فشل في حفظ حساب البنك")])
     } finally {
       setIsSaving(false)
     }
@@ -247,7 +248,7 @@ export default function BankAccounts() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف حساب البنك")
+        throw new Error(error.error || tr("فشل في حذف حساب البنك"))
       }
       await fetchBankAccounts()
       setShowDeleteConfirm(false)
@@ -310,28 +311,28 @@ export default function BankAccounts() {
   }
 
   return (
-    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir={appDir()}>
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={WalletIcon}
-        title="حسابات البنوك"
-        subtitle="إدارة حسابات الشركة لدى البنوك والفروع"
-        addLabel="إضافة حساب بنك"
+        title={tr("حسابات البنوك")}
+        subtitle={tr("إدارة حسابات الشركة لدى البنوك والفروع")}
+        addLabel={tr("إضافة حساب بنك")}
         onNew={openNewDialog}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي حسابات البنوك</>, value: <>{totalAccounts}</> }, { label: <>الحسابات الفعالة</>, value: <>{activeAccounts}</> }, { label: <>الحسابات المعطلة</>, value: <>{inactiveAccounts}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي حسابات البنوك")}</>, value: <>{totalAccounts}</> }, { label: <>{tr("الحسابات الفعالة")}</>, value: <>{activeAccounts}</> }, { label: <>{tr("الحسابات المعطلة")}</>, value: <>{inactiveAccounts}</> }]} />
 
       <Card>
         <CardHeader>
-          <CardTitle>الحسابات البنكية</CardTitle>
+          <CardTitle>{tr("الحسابات البنكية")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xl font-semibold">الحسابات البنكية</div>
-                <p className="text-sm text-muted-foreground">إدارة حسابات الشركة لدى البنوك والفروع</p>
+                <div className="text-xl font-semibold">{tr("الحسابات البنكية")}</div>
+                <p className="text-sm text-muted-foreground">{tr("إدارة حسابات الشركة لدى البنوك والفروع")}</p>
               </div>
             </div>
 
@@ -339,11 +340,11 @@ export default function BankAccounts() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">رقم الحساب</TableHead>
-                    <TableHead className="text-right">اسم الحساب</TableHead>
-                    <TableHead className="text-right">الفرع</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">إجراءات</TableHead>
+                    <TableHead className="text-right">{tr("رقم الحساب")}</TableHead>
+                    <TableHead className="text-right">{tr("اسم الحساب")}</TableHead>
+                    <TableHead className="text-right">{tr("الفرع")}</TableHead>
+                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-right">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,7 +359,7 @@ export default function BankAccounts() {
                       <TableCell className="text-right">
                         {branches.find((b) => b.id === account.branch_id)?.branch_name || "-"}
                       </TableCell>
-                      <TableCell className="text-right">{account.status === 1 ? "نشط" : "متوقف"}</TableCell>
+                      <TableCell className="text-right">{account.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"

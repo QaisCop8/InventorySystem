@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 import { useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -86,7 +87,7 @@ function ExchangeRatesContent() {
     // Validation
     if (!newCurrencyForm.currencyName.trim() || !newCurrencyForm.currencyCode.trim()) {
       newCurrencyMessagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: "جميع الحقول مطلوبة", life: 4000 },
+        { severity: "error", summary: "", detail: tr("جميع الحقول مطلوبة"), life: 4000 },
       ])
       return
     }
@@ -96,7 +97,7 @@ function ExchangeRatesContent() {
         {
           severity: "error",
           summary: "",
-          detail: "سعر الشراء وسعر البيع وسعر الصرف يجب أن تكون بين 0.0001 و 10000",
+          detail: tr("سعر الشراء وسعر البيع وسعر الصرف يجب أن تكون بين 0.0001 و 10000"),
           life: 5000,
         },
       ])
@@ -140,7 +141,7 @@ function ExchangeRatesContent() {
       })
 
       messagesRef.current?.show?.([
-        { severity: "success", summary: "", detail: "تم إضافة العملة وسعر الصرف بنجاح", life: 4000 },
+        { severity: "success", summary: "", detail: tr("تم إضافة العملة وسعر الصرف بنجاح"), life: 4000 },
       ])
     } catch (err) {
       console.error("[v0] Error saving new currency:", err)
@@ -148,7 +149,7 @@ function ExchangeRatesContent() {
         {
           severity: "error",
           summary: "",
-          detail: "حدث خطأ أثناء حفظ البيانات: " + (err instanceof Error ? err.message : "خطأ غير معروف"),
+          detail: tr("حدث خطأ أثناء حفظ البيانات: ") + (err instanceof Error ? err.message : tr("خطأ غير معروف")),
           life: 5000,
         },
       ])
@@ -160,21 +161,21 @@ function ExchangeRatesContent() {
 
   const exchangeRatesSummary = [
     {
-      title: "العملات المتاحة",
+      title: tr("العملات المتاحة"),
       value: exchangeRates.length.toString(),
       icon: DollarSign,
       color: "text-blue-600",
       bgColor: "bg-gradient-to-br from-blue-50 to-blue-100",
     },
     {
-      title: "آخر تحديث",
+      title: tr("آخر تحديث"),
       value: "اليوم",
       icon: Calendar,
       color: "text-green-600",
       bgColor: "bg-gradient-to-br from-green-50 to-green-100",
     },
     {
-      title: "أعلى سعر صرف",
+      title: tr("أعلى سعر صرف"),
       value:
         exchangeRates.length > 0
           ? (() => {
@@ -196,7 +197,7 @@ function ExchangeRatesContent() {
       bgColor: "bg-gradient-to-br from-purple-50 to-purple-100",
     },
     {
-      title: "أقل سعر صرف",
+      title: tr("أقل سعر صرف"),
       value:
         exchangeRates.length > 0
           ? (() => {
@@ -257,7 +258,7 @@ function ExchangeRatesContent() {
       Number(editFormData.exchangeRate) <= 0
     ) {
       rateDialogMessagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: "أسعار الشراء والبيع والصرف يجب أن تكون أكبر من صفر", life: 4000 },
+        { severity: "error", summary: "", detail: tr("أسعار الشراء والبيع والصرف يجب أن تكون أكبر من صفر"), life: 4000 },
       ])
       return
     }
@@ -274,7 +275,7 @@ function ExchangeRatesContent() {
         })
         setShowRateDialog(false)
         messagesRef.current?.show?.([
-          { severity: "success", summary: "", detail: "تم تحديث سعر الصرف بنجاح", life: 4000 },
+          { severity: "success", summary: "", detail: tr("تم تحديث سعر الصرف بنجاح"), life: 4000 },
         ])
       }
       else {
@@ -289,13 +290,13 @@ function ExchangeRatesContent() {
         });
         setShowRateDialog(false)
         messagesRef.current?.show?.([
-          { severity: "success", summary: "", detail: "تم إضافة سعر صرف جديد لليوم بنجاح", life: 4000 },
+          { severity: "success", summary: "", detail: tr("تم إضافة سعر صرف جديد لليوم بنجاح"), life: 4000 },
         ])
       }
     } catch (err) {
       console.error("[v0] Error saving rate changes:", err)
       rateDialogMessagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: "حدث خطأ أثناء حفظ التغييرات", life: 5000 },
+        { severity: "error", summary: "", detail: tr("حدث خطأ أثناء حفظ التغييرات"), life: 5000 },
       ])
     } finally {
       submittingRef.current = false
@@ -357,24 +358,24 @@ function ExchangeRatesContent() {
   })
 
   if (isLoading) {
-    return <LoadingCard title="جاري تحميل أسعار الصرف..." description="يرجى الانتظار..." />
+    return <LoadingCard title={tr("جاري تحميل أسعار الصرف...")} description={tr("يرجى الانتظار...")} />
   }
 
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 space-y-4" dir="rtl">
+      <div className="flex flex-col items-center justify-center h-64 space-y-4" dir={appDir()}>
         <AlertCircle className="h-12 w-12 text-red-500" />
-        <h3 className="text-lg font-medium">خطأ في تحميل البيانات</h3>
-        <p className="text-sm text-muted-foreground">حدث خطأ أثناء تحميل أسعار الصرف</p>
+        <h3 className="text-lg font-medium">{tr("خطأ في تحميل البيانات")}</h3>
+        <p className="text-sm text-muted-foreground">{tr("حدث خطأ أثناء تحميل أسعار الصرف")}</p>
         <Button onClick={() => refresh()} variant="outline">
-          إعادة المحاولة
+          {tr("إعادة المحاولة")}
         </Button>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-4 overflow-x-hidden lg:h-[calc(100vh-7rem)] lg:overflow-y-hidden" dir="rtl">
+    <div className="flex min-h-0 flex-col gap-4 overflow-x-hidden lg:h-[calc(100vh-7rem)] lg:overflow-y-hidden" dir={appDir()}>
       <Messages innerRef={messagesRef} />
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -382,12 +383,12 @@ function ExchangeRatesContent() {
           <Card key={index} className={`${item.bgColor} border-0 shadow-sm hover:shadow-md transition-shadow`}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-gray-600 text-right">{item.title}</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600 text-start">{item.title}</CardTitle>
                 <item.icon className={`h-6 w-6 ${item.color}`} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold text-right ${item.color}`}>{item.value}</div>
+              <div className={`text-2xl font-bold text-start ${item.color}`}>{item.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -399,8 +400,8 @@ function ExchangeRatesContent() {
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex gap-2 flex-wrap">
               <Button onClick={updateAllRates} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                تحديث الأسعار
+                <TrendingUp className="h-4 w-4 ms-2" />
+                {tr("تحديث الأسعار")}
               </Button>
               <Button
                 onClick={() => {
@@ -415,27 +416,27 @@ function ExchangeRatesContent() {
                 }}
                 variant="outline"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                عملة جديدة
+                <Plus className="h-4 w-4 ms-2" />
+                {tr("عملة جديدة")}
               </Button>
               <Button variant="outline" onClick={() => exportToExcel(filteredRates)}>
-                <Download className="h-4 w-4 mr-2" />
-                تصدير
+                <Download className="h-4 w-4 ms-2" />
+                {tr("تصدير")}
               </Button>
               <Button variant="outline" onClick={() => printDiv("printArea")}>
-                <Printer className="h-4 w-4 mr-2" />
-                طباعة
+                <Printer className="h-4 w-4 ms-2" />
+                {tr("طباعة")}
               </Button>
             </div>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="البحث في العملات..."
-                  className="w-64 pr-10 text-right"
+                  placeholder={tr("البحث في العملات...")}
+                  className="w-64 ps-10 text-start"
                   value={filters.search}
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                  dir="rtl"
+                  dir={appDir()}
                 />
               </div>
             </div>
@@ -446,33 +447,33 @@ function ExchangeRatesContent() {
       {/* Exchange Rates Table */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-sm">
         <CardHeader>
-          <CardTitle className="text-right">أسعار الصرف اليومية</CardTitle>
+          <CardTitle className="text-right">{tr("أسعار الصرف اليومية")}</CardTitle>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full max-h-full overflow-x-hidden overflow-y-auto" id="printArea">
-            <table className="w-full table-fixed border-collapse text-sm [&_td]:break-words [&_th]:break-words" dir="rtl">
+            <table className="w-full table-fixed border-collapse text-sm [&_td]:break-words [&_th]:break-words" dir={appDir()}>
               <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b">
-                  <th className="text-right p-3 font-semibold text-gray-700">العملة</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">الرمز</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">سعر الشراء</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">سعر البيع</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">سعر الصرف</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">التغيير</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">آخر تحديث</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">الحالة</th>
-                  <th className="text-center p-3 font-semibold text-gray-700 justify-center">الإجراءات</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("العملة")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("الرمز")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("سعر الشراء")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("سعر البيع")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("سعر الصرف")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("التغيير")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("آخر تحديث")}</th>
+                  <th className="text-right p-3 font-semibold text-gray-700">{tr("الحالة")}</th>
+                  <th className="text-center p-3 font-semibold text-gray-700 justify-center">{tr("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRates.map((rate: ExchangeRate) => (
                   <tr key={rate.id} className="border-b hover:bg-gray-50">
-                    <td className="font-medium text-right p-3">{rate.currency_name || "غير محدد"}</td>
-                    <td className="font-mono text-right p-3">{rate.currency_code || "غير محدد"}</td>
-                    <td className="text-right p-3">{Number(rate.buy_rate || 0).toFixed(3)} شيكل</td>
-                    <td className="text-right p-3">{Number(rate.sell_rate || 0).toFixed(3)} شيكل</td>
-                    <td className="font-medium text-blue-600 text-right p-3">
-                      {Number(rate.exchange_rate || 0).toFixed(3)} شيكل
+                    <td className="font-medium text-start p-3">{rate.currency_name || tr("غير محدد")}</td>
+                    <td className="font-mono text-start p-3">{rate.currency_code || tr("غير محدد")}</td>
+                    <td className="text-right p-3">{Number(rate.buy_rate || 0).toFixed(3)}{tr(" شيكل")}</td>
+                    <td className="text-right p-3">{Number(rate.sell_rate || 0).toFixed(3)}{tr(" شيكل")}</td>
+                    <td className="font-medium text-blue-600 text-start p-3">
+                      {Number(rate.exchange_rate || 0).toFixed(3)}{tr(" شيكل")}
                     </td>
                     <td className="text-right p-3">
                       {rate.change_amount ? (
@@ -492,10 +493,10 @@ function ExchangeRatesContent() {
                         <span className="text-muted-foreground">0.00</span>
                       )}
                     </td>
-                    <td className="text-sm text-muted-foreground text-right p-3">{rate.rate_date ? new Date(rate.rate_date).toLocaleDateString("en-CA") : "غير محدد"}</td>
+                    <td className="text-sm text-muted-foreground text-start p-3">{rate.rate_date ? new Date(rate.rate_date).toLocaleDateString("en-CA") : tr("غير محدد")}</td>
                     <td className="text-right p-3">
                       <Badge variant={rate.is_active ? "secondary" : "outline"}>
-                        {rate.is_active ? "نشط" : "غير نشط"}
+                        {rate.is_active ? tr("نشط") : tr("غير نشط")}
                       </Badge>
                     </td>
                     <td className="text-right p-3">
@@ -503,12 +504,12 @@ function ExchangeRatesContent() {
                         {rate && rate.currency_id !== 1 &&
                           <div className="flex flex-wrap justify-center gap-1">
                             <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleAddRate(rate) : undefined; console.log("rate ", rate) }} className="text-xs">
-                              <Edit className="h-3 w-1 ml-1" />
-                              اضافة
+                              <Edit className="h-3 w-1 me-1" />
+                              {tr("اضافة")}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleEditRate(rate) : undefined; console.log("rate ", rate) }} className="text-xs">
-                              <Edit className="h-3 w-3 ml-1" />
-                              تعديل
+                              <Edit className="h-3 w-3 me-1" />
+                              {tr("تعديل")}
                             </Button>
                           </div>
                         }
@@ -530,9 +531,9 @@ function ExchangeRatesContent() {
           setShowRateDialog(open)
         }}
       >
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle className="text-right">تعديل سعر صرف {selectedRate?.currency_name}</DialogTitle>
+            <DialogTitle className="text-right">{tr("تعديل سعر صرف ")}{selectedRate?.currency_name}</DialogTitle>
           </DialogHeader>
           {selectedRate && (
             <div className="space-y-4">
@@ -540,7 +541,7 @@ function ExchangeRatesContent() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="buyRate" className="text-right block">
-                    سعر الشراء *
+                    {tr("سعر الشراء *")}
                   </Label>
                   <Input
                     id="buyRate"
@@ -549,12 +550,12 @@ function ExchangeRatesContent() {
                     value={editFormData.buyRate}
                     onChange={(e) => handleInputChange("buyRate", e.target.value)}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div>
                   <Label htmlFor="sellRate" className="text-right block">
-                    سعر البيع *
+                    {tr("سعر البيع *")}
                   </Label>
                   <Input
                     id="sellRate"
@@ -563,12 +564,12 @@ function ExchangeRatesContent() {
                     value={editFormData.sellRate}
                     onChange={(e) => handleInputChange("sellRate", e.target.value)}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
                 <div>
                   <Label htmlFor="exchangeRate" className="text-right block">
-                    سعر الصرف *
+                    {tr("سعر الصرف *")}
                   </Label>
                   <Input
                     id="exchangeRate"
@@ -577,21 +578,21 @@ function ExchangeRatesContent() {
                     value={editFormData.exchangeRate}
                     onChange={(e) => handleInputChange("exchangeRate", e.target.value)}
                     className="text-right"
-                    dir="rtl"
+                    dir={appDir()}
                   />
                 </div>
               </div>
               <div className="bg-muted p-4 rounded-lg">
-                <h4 className="font-medium mb-2 text-right">القيم الحالية:</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm text-right">
-                  <div>سعر الشراء: {Number(selectedRate.buy_rate || 0).toFixed(3)} شيكل</div>
-                  <div>سعر البيع: {Number(selectedRate.sell_rate || 0).toFixed(3)} شيكل</div>
-                  <div>سعر الصرف: {Number(selectedRate.exchange_rate || 0).toFixed(3)} شيكل</div>
+                <h4 className="font-medium mb-2 text-start">{tr("القيم الحالية:")}</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm text-start">
+                  <div>{tr("سعر الشراء: ")}{Number(selectedRate.buy_rate || 0).toFixed(3)}{tr(" شيكل")}</div>
+                  <div>{tr("سعر البيع: ")}{Number(selectedRate.sell_rate || 0).toFixed(3)}{tr(" شيكل")}</div>
+                  <div>{tr("سعر الصرف: ")}{Number(selectedRate.exchange_rate || 0).toFixed(3)}{tr(" شيكل")}</div>
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setShowRateDialog(false)} disabled={isSubmitting}>
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
                 <Button
                   type="button"
@@ -599,8 +600,8 @@ function ExchangeRatesContent() {
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                   disabled={isSubmitting}
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSubmitting ? "جاري الحفظ..." : "حفظ التغييرات"}
+                  <Save className="h-4 w-4 ms-2" />
+                  {isSubmitting ? tr("جاري الحفظ...") : tr("حفظ التغييرات")}
                 </Button>
               </div>
             </div>
@@ -616,22 +617,22 @@ function ExchangeRatesContent() {
           setShowNewRateDialog(open)
         }}
       >
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle className="text-right">إضافة عملة جديدة</DialogTitle>
+            <DialogTitle className="text-right">{tr("إضافة عملة جديدة")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveNewCurrency} className="space-y-4" noValidate>
             <Messages innerRef={newCurrencyMessagesRef} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="currencyCode" className="text-right block">
-                  الرمز *
+                  {tr("الرمز *")}
                 </Label>
                 <Input
                   id="currencyCode"
-                  placeholder="مثال: USD"
+                  placeholder={tr("مثال: USD")}
                   className="text-right"
-                  dir="rtl"
+                  dir={appDir()}
                   value={newCurrencyForm.currencyCode}
                   onChange={(e) => {
                     let value = e.target.value
@@ -648,13 +649,13 @@ function ExchangeRatesContent() {
 
               <div>
                 <Label htmlFor="currencyName" className="text-right block">
-                  اسم العملة *
+                  {tr("اسم العملة *")}
                 </Label>
                 <Input
                   id="currencyName"
-                  placeholder="مثال: دولار أمريكي"
+                  placeholder={tr("مثال: دولار أمريكي")}
                   className="text-right"
-                  dir="rtl"
+                  dir={appDir()}
                   value={newCurrencyForm.currencyName}
                   onChange={(e) => setNewCurrencyForm({ ...newCurrencyForm, currencyName: e.target.value })}
                   required
@@ -664,7 +665,7 @@ function ExchangeRatesContent() {
 
               <div>
                 <Label htmlFor="newBuyRate" className="text-right block">
-                  سعر الشراء *
+                  {tr("سعر الشراء *")}
                 </Label>
                 <Input
                   id="newBuyRate"
@@ -672,7 +673,7 @@ function ExchangeRatesContent() {
                   step="0.0001"
                   placeholder="0.0001"
                   className="text-right"
-                  dir="rtl"
+                  dir={appDir()}
                   value={newCurrencyForm.buyRate}
                   disabled={exchangeRates.length === 0}
                   min={MIN_EXCHANGE_RATE}
@@ -685,7 +686,7 @@ function ExchangeRatesContent() {
               </div>
               <div>
                 <Label htmlFor="newSellRate" className="text-right block">
-                  سعر البيع *
+                  {tr("سعر البيع *")}
                 </Label>
                 <Input
                   id="newSellRate"
@@ -693,7 +694,7 @@ function ExchangeRatesContent() {
                   step="0.0001"
                   placeholder="0.0001"
                   className="text-right"
-                  dir="rtl"
+                  dir={appDir()}
                   value={newCurrencyForm.sellRate}
                   disabled={exchangeRates.length === 0}
                   min={MIN_EXCHANGE_RATE}
@@ -706,7 +707,7 @@ function ExchangeRatesContent() {
               </div>
               <div>
                 <Label htmlFor="newExchangeRate" className="text-right block">
-                  سعر الصرف *
+                  {tr("سعر الصرف *")}
                 </Label>
                 <Input
                   id="newExchangeRate"
@@ -714,7 +715,7 @@ function ExchangeRatesContent() {
                   step="0.0001"
                   placeholder="0.0001"
                   className="text-right"
-                  dir="rtl"
+                  dir={appDir()}
                   value={newCurrencyForm.exchangeRate}
                   disabled={exchangeRates.length === 0}
                   min={MIN_EXCHANGE_RATE}
@@ -733,16 +734,16 @@ function ExchangeRatesContent() {
                 onClick={() => setShowNewRateDialog(false)}
                 disabled={isSubmitting}
               >
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    جاري الحفظ...
+                    {tr("جاري الحفظ...")}
                   </>
                 ) : (
-                  "إضافة العملة"
+                  tr("إضافة العملة")
                 )}
               </Button>
             </div>

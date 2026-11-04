@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import type { PrintDocument } from "@/lib/voucher-print/document"
@@ -13,11 +14,11 @@ export function useVoucherPrinter<T>(data: T | null, voucherTypeId: number, toDo
     printVoucher(toDocument(data, voucherTypeId))
       .then(result => {
         if (cancelled) return
-        if (result.method === "service") toast({ title: "تم إرسال السند إلى الطابعة" })
-        else if (result.warning) toast({ title: "تمت الطباعة عبر المتصفح", description: `خدمة الطباعة غير متاحة: ${result.warning}` })
+        if (result.method === "service") toast({ title: tr("تم إرسال السند إلى الطابعة") })
+        else if (result.warning) toast({ title: tr("تمت الطباعة عبر المتصفح"), description: tr("خدمة الطباعة غير متاحة: {0}", result.warning) })
       })
       .catch(error => {
-        if (!cancelled) toast({ title: "تعذرت الطباعة", description: error instanceof Error ? error.message : "حدث خطأ أثناء الطباعة", variant: "destructive" })
+        if (!cancelled) toast({ title: tr("تعذرت الطباعة"), description: error instanceof Error ? error.message : tr("حدث خطأ أثناء الطباعة"), variant: "destructive" })
       })
     return () => { cancelled = true }
     // toDocument is a stable module-level converter; printing must run once per new data object.

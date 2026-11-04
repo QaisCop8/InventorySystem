@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr } from "@/lib/i18n"
 import type * as React from "react"
 import {
   AudioWaveform,
@@ -53,166 +54,166 @@ const data = {
   ],
   navMain: [
     {
-      title: "لوحة التحكم",
+      title: tr("لوحة التحكم"),
       url: "/",
       icon: Home,
       isActive: true,
     },
     {
-      title: "الأصناف",
+      title: tr("الأصناف"),
       url: "#",
       icon: Package,
       items: [
         {
-          title: "مجموعات الأصناف",
+          title: tr("مجموعات الأصناف"),
           url: "/product-groups",
         },
         {
-          title: "تصنيفات الأصناف",
+          title: tr("تصنيفات الأصناف"),
           url: "/product-categories",
         },
       ],
     },
     {
-      title: "المبيعات",
+      title: tr("المبيعات"),
       url: "#",
       icon: ShoppingCart,
       items: [
         {
-          title: "طلبيات المبيعات",
+          title: tr("طلبيات المبيعات"),
           url: "/sales-orders",
         },
         {
-          title: "مسودات طلبيات المبيعات",
+          title: tr("مسودات طلبيات المبيعات"),
           url: "/order-drafts/new",
         },
         {
-          title: "تأكيد الطلبيات",
+          title: tr("تأكيد الطلبيات"),
           url: "/order-confirmation",
         },
         {
-          title: "قوائم تحقق الطلبيات",
+          title: tr("قوائم تحقق الطلبيات"),
           url: "/order-checklists",
         },
         {
-          title: "طلبيات المبيعات الحديثة",
+          title: tr("طلبيات المبيعات الحديثة"),
           url: "/orders/modern",
         },
         {
-          title: "فواتير المبيعات",
+          title: tr("فواتير المبيعات"),
           url: "/sales-invoices",
         },
         {
-          title: "إدارة العملاء",
+          title: tr("إدارة العملاء"),
           url: "/customers",
         },
       ],
     },
     {
-      title: "المشتريات",
+      title: tr("المشتريات"),
       url: "#",
       icon: Truck,
       items: [
         {
-          title: "طلبيات المشتريات",
+          title: tr("طلبيات المشتريات"),
           url: "/purchase-orders",
         },
         {
-          title: "فواتير المشتريات",
+          title: tr("فواتير المشتريات"),
           url: "/purchase-invoices",
         },
         {
-          title: "إدارة الموردين",
+          title: tr("إدارة الموردين"),
           url: "/suppliers",
         },
         {
-          title: "المشتركين",
+          title: tr("المشتركين"),
           url: "/admin/subscribers",
         },
         {
-          title: "البنوك",
+          title: tr("البنوك"),
           url: "/admin/banks",
           icon: Building,
         },
         {
-          title: "الفروع",
+          title: tr("الفروع"),
           url: "/admin/branches",
           icon: MapPin,
         },
       ],
     },
     {
-      title: "المخزون",
+      title: tr("المخزون"),
       url: "#",
       icon: Warehouse,
       items: [
         {
-          title: "حركة المخزون",
+          title: tr("حركة المخزون"),
           url: "/inventory-movements",
         },
         {
-          title: "تقارير المخزون",
+          title: tr("تقارير المخزون"),
           url: "/inventory-reports",
         },
         {
-          title: "إدارة المستودعات",
+          title: tr("إدارة المستودعات"),
           url: "/warehouses",
         },
       ],
     },
     {
-      title: "البحث",
+      title: tr("البحث"),
       url: "#",
       icon: Search,
       items: [
         {
-          title: "البحث عن الأصناف",
+          title: tr("البحث عن الأصناف"),
           url: "/search?type=products",
         },
         {
-          title: "البحث عن العملاء والموردين",
+          title: tr("البحث عن العملاء والموردين"),
           url: "/search?type=customers",
         },
       ],
     },
     {
-      title: "التقارير",
+      title: tr("التقارير"),
       url: "#",
       icon: FileText,
       items: [
         {
-          title: "تقارير المبيعات",
+          title: tr("تقارير المبيعات"),
           url: "/sales-reports",
         },
         {
-          title: "تقارير المشتريات",
+          title: tr("تقارير المشتريات"),
           url: "/purchase-reports",
         },
         {
-          title: "تقارير المخزون",
+          title: tr("تقارير المخزون"),
           url: "/inventory-reports",
         },
       ],
     },
     {
-      title: "الإعدادات",
+      title: tr("الإعدادات"),
       url: "#",
       icon: Settings,
       items: [
         {
-          title: "فحص الجودة",
+          title: tr("فحص الجودة"),
           url: "/qa-dashboard",
         },
         {
-          title: "إعدادات النظام",
+          title: tr("إعدادات النظام"),
           url: "/settings",
         },
         {
-          title: "إدارة المستخدمين",
+          title: tr("إدارة المستخدمين"),
           url: "/users",
         },
         {
-          title: "الصلاحيات",
+          title: tr("الصلاحيات"),
           url: "/permissions",
         },
       ],

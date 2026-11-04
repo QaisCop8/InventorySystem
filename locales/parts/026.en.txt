@@ -1,0 +1,300 @@
+Voucher note
+First in, first out
+Inventory valuation method
+Average cost
+) don't change the voucher content, so no copy is saved for them.
+Voucher archive
+Voucher entry
+Voucher cancellation
+Items (
+Field
+Changed fields
+The voucher as saved
+Branch:
+Accounting entry
+After
+After editing
+Manual date
+Voucher posting
+Voucher edit
+Unable to load the details
+Vouchers archive report
+Voucher deletion
+Voucher number / user
+Manual number
+Full voucher log
+Print copy
+Print original copy
+Print review copy
+Before
+Before editing
+All print types
+Everything that happened on the vouchers: entry, edit, posting, cancellation, deletion, printing (original/copy/review) and copying — with a copy of the voucher before the edit or deletion.
+No change to the voucher header data — review the items/entry below.
+Printed
+Voucher copy
+Voucher copy before deletion
+Voucher copy before the operation
+Voucher type:
+This operation (
+Open the voucher in a new tab
+— Enter in the amount field to settle
+Enter the settlement amount
+The voucher is not approved — it can be settled after it is posted.
+Vouchers linked to the invoice
+Invoices settled by this voucher
+Amounts in currency
+Overdue only
+Remaining to settle
+Settled
+Settle
+Unable to load the settlement data
+Unable to complete the settlement
+Allocate newest first
+Allocate oldest first
+Allocate this voucher to the customer's open invoices
+Link receipt vouchers, credit notes and returns to this invoice
+Customer vouchers available for settlement
+Unallocated
+Unlink
+Customer's open invoices
+No receipt vouchers, notes or returns are available for this customer
+No open invoices for this customer
+No links yet
+You do not have the "Invoice settlement" permission — view only.
+The customer must be chosen in the voucher to settle.
+Choose a delivery to show its remaining items
+Choose a consignment delivery for the return
+Approve the delivery
+Delivery {0} — salesman: {1}
+Sent
+Invoiced
+Search by delivery number or salesman name
+Select all items
+Items are invoiced from the delivery's remainder — more than one invoice can be made from the same delivery
+Selected
+Invoice from a consignment delivery
+Failed to fetch the delivery lines
+Failed to fetch deliveries
+No open consignment deliveries
+The remainder (not invoiced) of the delivery is returned to the warehouse — one return per delivery
+Search by delivery number or customer name.
+Search for a sales delivery...
+Search for a purchase delivery...
+Sales delivery search
+Purchase delivery search
+Loading data...
+An error occurred while loading
+Delivery number
+Failed to load deliveries
+Selected {0}: {1}
+Add this delivery's items
+first, then choose a posted delivery, and use the arrows to add or remove items from the list.
+Remove this delivery's items
+Choose a delivery to bring the goods lines into the invoice.
+Ready deliveries
+Selected items
+yet.
+Confirm items
+Load items from a sales delivery
+Load items from a purchase delivery
+Change
+Already added
+Loading deliveries...
+Loading delivery items...
+An error occurred fetching deliveries
+An error occurred fetching delivery items
+Account number:
+Failed to fetch deliveries
+Failed to fetch delivery items
+No deliveries available.
+No items added yet.
+Not chosen
+{0} not chosen yet.
+An approved delivery must be chosen
+Add this order's items
+first, then choose a posted order, and use the arrows to add or remove items from the list.
+Remove this order's items
+Choose an order to bring the goods lines into the invoice.
+Ready orders
+Sent quantity
+Load items from a sales order
+Load items from a purchase order
+Loading orders...
+Loading order items...
+An error occurred fetching orders
+An error occurred fetching order items
+Failed to fetch orders
+Failed to fetch order items
+No orders available.
+(none selected = all branches)
+{0} customers
+0 = no limit
+Special prices for customers, discounts for a period, and «Buy and get free» — applied automatically in the sales invoice and delivery.
+Add the first offer: a special price for a customer, a seasonal discount, or a free item.
+Add a customer...
+The selected items were added to the offer (duplicates skipped)
+Max times
+Priority
+Any unit
+Choose the item...
+Offer name *
+Buy ← get free
+Buy and get free
+Items and special prices
+Minimum = the total quantity of the item in the transaction. A line without an item applies the discount to all items.
+Original price
+Original price (read-only)
+Special price
+The price is entered the way item prices are entered (per the tax-inclusion setting) and applies only if the voucher currency matches the price currency.
+Free item
+Purchased item
+Offers and special prices
+Search by offer number or name...
+Edit offer {0}
+Unable to open the offer
+Offer saved
+Minimum quantity
+Delete the offer «{0}»?
+Save offer
+Period discount
+Offer number
+The current unit selling price (first price category) — read-only
+A fixed price for an item for specific customers or for everyone
+Special price
+New offer
+Base currency
+Price currency
+When two offers conflict on the same item the higher priority applies
+Upcoming
+All items (or choose an item)
+All customers
+All units
+Every quantity
+Every quantity of an item gives a free quantity (bonus)
+No offers
+No customer chosen
+Example: every 10 → 1 free. The same item is added as a bonus on the line; another item is added as a line with a 100% discount.
+Free
+Total item quantity in the transaction
+Ended
+A discount rate on an item or all items within a period
+Same item
+Same item (bonus)
+Unable to create a new voucher number
+Unable to create a new voucher number. Check the voucher book and branch.
+Unable to load the default cash account
+The item account number isn't set; please go to the item accounts details tab and set the account for the items
+The discount rate must not exceed 100% for each item
+The payer name must be entered when no customer is chosen
+The customer must be entered
+The supplier must be entered
+A consignment delivery must be chosen for the invoice
+A consignment delivery must be chosen for the return
+The source delivery must be chosen for the invoice
+The source order must be chosen for the invoice
+The salesman must be chosen
+The unit must be chosen for each item
+The cash account must be chosen when no customer is chosen
+The tax account must be chosen because there is a tax rate on the voucher
+Choose the driver
+Choose the car
+Choose the region
+Driver
+Car
+Consignee
+Delivery and consignee data for this voucher
+P.O. Box
+Shipping address
+Shipping phone
+Saved with the voucher on save
+This line's numbers are recorded on the source delivery
+{0} items added from the customer's templates{1}
+Sales deliveries
+Purchase deliveries
+Consignment deliveries
+Add customer
+Add supplier
+Choose delivery
+Payment deadline
+The goods are in the salesman's custody until invoiced or returned
+Current stock balance
+The printed price includes tax
+The voucher is posted; do you want to cancel it logically?
+Item-level tax is enabled: each item's rate comes from its tax classification, and this is the voucher's effective rate
+Customer / supplier
+Remaining in the delivery for this item {0}
+Salesman *
+Supplier *
+Change delivery
+Salesman details
+The voucher currency was changed; do you want to recalculate the item prices?
+Tax was already removed from this line
+Tax was already added to this line
+Saving... please wait
+Cash account *
+The invoice was saved from the attachment unapproved ({0} items) — review it then post it.
+Offers applied: {0}
+The invoice was filled from the attachment ({0} items){1}. Review it then save.
+The invoice was filled from the attachment but couldn't be saved automatically: {0} — complete the data then save.
+Shipping address: {0}
+No tax rate for this item
+A line cannot be deleted
+This delivery cannot be deleted because it is linked to an invoice
+No consignment delivery chosen yet
+Quantities total:
+The delivery return returns all of the delivery's remainder — an item cannot be deleted or its quantity edited
+Consignment delivery returns
+Purchase returns
+Delivery summary
+Return summary
+From a consignment delivery
+From a consignment delivery: {0}
+The discount rate must not exceed 100%
+Copy the account down
+Copy the cost centers down
+The invoice type is services — only services can be chosen
+Do you want to reset the tax rate to the default?
+The quantity or bonus must be entered for item {0}
+The warehouse must be specified first
+The delivery's remainder is returned to the warehouse
+· invoice
+· available
+(remaining commission balance
+(chosen automatically from approved payment vouchers of the same branch and currency)
+Enter the amount to pay
+Choose the payment voucher
+Amount to pay *
+The amount cannot exceed {0}
+The amount must be greater than zero
+Unable to load payment vouchers
+Unable to pay the commission
+Loading vouchers…
+Pay
+Pay commission
+Pay approved commission
+There is no approved payment voucher with an unallocated balance for this branch and currency — create a payment voucher for the salesman and approve it first, then come back to pay.
+and the selected voucher's balance
+Collection
+Export statement CSV
+No actions in the selected period
+No commissions recorded within the selected range
+Brackets basis
+Commission basis
+Commission sections
+Sales management
+Monthly commission trend
+Calculate period
+Rule name
+Targets and achievement
+Cumulative minimum
+Brackets (sales threshold : rate, one line per bracket)
+Commission %
+Allocate a receipt voucher to an invoice
+Collection allocations
+Edit rule
+Unable to load commission data
+Commission paid successfully
+Choose the currency to show the total
+Commission transactions
+Save allocation

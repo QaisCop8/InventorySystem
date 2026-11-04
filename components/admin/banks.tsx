@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { notifyDefinitionsChanged } from "@/lib/definitions-changed"
 import { useEffect, useMemo, useState } from "react"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
@@ -171,7 +172,7 @@ export default function Banks() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حفظ البنك")
+        throw new Error(error.error || tr("فشل في حفظ البنك"))
       }
       const updated = await fetchBanks()
       notifyDefinitionsChanged("banks")
@@ -198,7 +199,7 @@ export default function Banks() {
         : []
 
       if (linkedBranches.length > 0) {
-        setDeleteError("يوجد فروع مرتبطة مع البنك لا يمكن حذفه")
+        setDeleteError(tr("يوجد فروع مرتبطة مع البنك لا يمكن حذفه"))
         setShowDeleteConfirm(false)
         return
       }
@@ -210,7 +211,7 @@ export default function Banks() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف البنك")
+        throw new Error(error.error || tr("فشل في حذف البنك"))
       }
       const updatedBanks = await fetchBanks()
       notifyDefinitionsChanged("banks")
@@ -263,28 +264,28 @@ export default function Banks() {
   }
 
   return (
-    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir="rtl">
+    <div className="voucher-list-page space-y-5 p-3 sm:p-5" dir={appDir()}>
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={LandmarkIcon}
-        title="البنوك"
-        subtitle="إدارة بنوك الشركة ورموزها الأساسية"
-        addLabel="إضافة بنك جديد"
+        title={tr("البنوك")}
+        subtitle={tr("إدارة بنوك الشركة ورموزها الأساسية")}
+        addLabel={tr("إضافة بنك جديد")}
         onNew={handleNew}
         addDisabled={loading}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي البنوك</>, value: <>{totalBanks}</> }, { label: <>البنوك الفعالة</>, value: <>{activeBanks}</> }, { label: <>البنوك المعطلة</>, value: <>{inactiveBanks}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي البنوك")}</>, value: <>{totalBanks}</> }, { label: <>{tr("البنوك الفعالة")}</>, value: <>{activeBanks}</> }, { label: <>{tr("البنوك المعطلة")}</>, value: <>{inactiveBanks}</> }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
-          <div className="text-xl font-semibold">البنوك</div>
-          <div className="text-sm text-muted-foreground">إدارة بنوك الشركة ورموزها الأساسية</div>
+          <div className="text-xl font-semibold">{tr("البنوك")}</div>
+          <div className="text-sm text-muted-foreground">{tr("إدارة بنوك الشركة ورموزها الأساسية")}</div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="بحث برقم أو اسم البنك"
+              placeholder={tr("بحث برقم أو اسم البنك")}
               value={searchText}
               onChange={(e) => handleSearchTextChange(e.target.value)}
               className="min-w-[260px]"
@@ -292,7 +293,7 @@ export default function Banks() {
             />
             <Button variant="outline" size="sm" disabled={loading} onClick={() => handleSearchTextChange(searchText)}>
               <Search className="h-4 w-4" />
-              بحث
+              {tr("بحث")}
             </Button>
           </div>
         </div>
@@ -302,11 +303,11 @@ export default function Banks() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">رقم البنك</TableHead>
-              <TableHead className="text-right">اسم البنك</TableHead>
-              <TableHead className="text-right">اسم البنك انجليزي</TableHead>
-              <TableHead className="text-right">الحالة</TableHead>
-              <TableHead className="text-right">إجراءات</TableHead>
+              <TableHead className="text-right">{tr("رقم البنك")}</TableHead>
+              <TableHead className="text-right">{tr("اسم البنك")}</TableHead>
+              <TableHead className="text-right">{tr("اسم البنك انجليزي")}</TableHead>
+              <TableHead className="text-right">{tr("الحالة")}</TableHead>
+              <TableHead className="text-right">{tr("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -319,7 +320,7 @@ export default function Banks() {
                 <TableCell className="text-right">{bank.bank_code}</TableCell>
                 <TableCell className="text-right">{bank.bank_name}</TableCell>
                 <TableCell className="text-right">{bank.bank_name_en}</TableCell>
-                <TableCell className="text-right">{bank.status === 1 ? "نشط" : "متوقف"}</TableCell>
+                <TableCell className="text-right">{bank.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="outline"

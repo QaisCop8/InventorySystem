@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useSectionIntent } from "@/lib/section-intents"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
@@ -345,14 +346,14 @@ export function Products({ entityType = "products" }: ProductsProps) {
       const response = await fetch(`/api/inventory/products?type=${isService ? "services" : "products"}&list=1`)
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        const errorMessage = data?.error || "فشل في تحميل المنتجات"
+        const errorMessage = data?.error || tr("فشل في تحميل المنتجات")
         throw new Error(errorMessage)
       }
       setState((prev) => ({ ...prev, products: Array.isArray(data) ? data : [] }))
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+        error: err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"),
         products: [],
       }))
     } finally {
@@ -434,9 +435,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
       if (!response.ok) {
         if (response.status === 409) {
-          throw new Error(responseData.error || "رقم الصنف موجود مسبقاً")
+          throw new Error(responseData.error || tr("رقم الصنف موجود مسبقاً"))
         }
-        throw new Error(responseData.error || "فشل في حفظ المنتج")
+        throw new Error(responseData.error || tr("فشل في حفظ المنتج"))
       }
 
       await fetchProducts()
@@ -458,7 +459,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       console.error("[v0] Error saving product:", err)
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ أثناء الحفظ",
+        error: err instanceof Error ? err.message : tr("حدث خطأ أثناء الحفظ"),
       }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
@@ -471,7 +472,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
     if (!product) return
 
     const confirmed = (await confirmYesNo(
-      `هل أنت متأكد من حذف المنتج "${product.product_name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`,
+      tr("هل أنت متأكد من حذف المنتج \"{0}\"؟\n\nهذا الإجراء لا يمكن التراجع عنه.", product.product_name),
     ))
 
     if (!confirmed) return
@@ -489,7 +490,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       if (!response.ok) {
         const errorData = await response.json()
         console.error("[v0] Delete error response:", errorData)
-        throw new Error(errorData.error || "فشل في حذف المنتج")
+        throw new Error(errorData.error || tr("فشل في حذف المنتج"))
       }
 
       const responseData = await response.json()
@@ -499,7 +500,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       setState((prev) => ({
         ...prev,
         selectedProductIndex: Math.max(0, prev.selectedProductIndex - 1),
-        successMessage: "تم حذف المنتج بنجاح",
+        successMessage: tr("تم حذف المنتج بنجاح"),
       }))
 
       setTimeout(() => {
@@ -509,7 +510,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       console.error("[v0] Delete error:", err)
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ أثناء الحذف",
+        error: err instanceof Error ? err.message : tr("حدث خطأ أثناء الحذف"),
       }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
@@ -639,7 +640,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || "فشل في تغيير حالة المنتج")
+        throw new Error(data.error || tr("فشل في تغيير حالة المنتج"))
       }
 
       setState((prev) => ({
@@ -650,14 +651,14 @@ export function Products({ entityType = "products" }: ProductsProps) {
       }))
       toast.current?.show({
         severity: "success",
-        summary: "تم الحفظ",
-        detail: isCurrentlyInactive ? "تم إلغاء التجميد" : "تم التجميد",
+        summary: tr("تم الحفظ"),
+        detail: isCurrentlyInactive ? tr("تم إلغاء التجميد") : tr("تم التجميد"),
         life: 3000,
       })
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "حدث خطأ أثناء تغيير الحالة",
+        error: err instanceof Error ? err.message : tr("حدث خطأ أثناء تغيير الحالة"),
       }))
     } finally {
       setState((prev) => ({ ...prev, isSubmitting: false }))
@@ -680,15 +681,15 @@ export function Products({ entityType = "products" }: ProductsProps) {
       case "نشط":
       case 1:
       case "1":
-        return <Badge className="bg-green-100 text-green-800">نشط</Badge>
+        return <Badge className="bg-green-100 text-green-800">{tr("نشط")}</Badge>
       case "غير نشط":
       case 2:
       case "2":
-        return <Badge className="bg-gray-100 text-gray-800">غير نشط</Badge>
+        return <Badge className="bg-gray-100 text-gray-800">{tr("غير نشط")}</Badge>
       case "متوقف":
       case 3:
       case "3":
-        return <Badge className="bg-red-100 text-red-800">متوقف</Badge>
+        return <Badge className="bg-red-100 text-red-800">{tr("متوقف")}</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
@@ -696,12 +697,12 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
   const getStockBadge = (current: number, min: number) => {
     if (current === 0) {
-      return <Badge className="bg-red-100 text-red-800">نفد المخزون</Badge>
+      return <Badge className="bg-red-100 text-red-800">{tr("نفد المخزون")}</Badge>
     }
     if (current <= min) {
-      return <Badge className="bg-orange-100 text-orange-800">مخزون منخفض</Badge>
+      return <Badge className="bg-orange-100 text-orange-800">{tr("مخزون منخفض")}</Badge>
     }
-    return <Badge className="bg-green-100 text-green-800">متوفر</Badge>
+    return <Badge className="bg-green-100 text-green-800">{tr("متوفر")}</Badge>
   }
 
   const handleSubmit = () => {
@@ -716,18 +717,18 @@ export function Products({ entityType = "products" }: ProductsProps) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
-          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى الأصناف</p>
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("لا يوجد صلاحية")}</h2>
+          <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى الأصناف")}</p>
         </div>
       </div>
     )
   }
   if (state.loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الأصناف...")}</p>
         </div>
       </div>
     )
@@ -736,7 +737,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   return (
     // min-w-0 + overflow-x-hidden: لا يتسع عرض الصفحة عن الشاشة على الجوال (كان أي عنصر عريض يمدّ الصفحة فتنزاح
     // وتنقص من الحواف)؛ الجدول يتمرّر أفقياً داخل حاويته فقط.
-    <div className="voucher-list-page min-w-0 max-w-full space-y-5 overflow-x-hidden bg-background p-3 sm:p-5 min-h-screen" dir="rtl">
+    <div className="voucher-list-page min-w-0 max-w-full space-y-5 overflow-x-hidden bg-background p-3 sm:p-5 min-h-screen" dir={appDir()}>
       {state.error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -770,17 +771,17 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
 
       <VoucherListHero
-        category="الملفات"
+        category={tr("الملفات")}
         icon={PackageIcon}
-        title="إدارة الأصناف"
-        subtitle="إدارة وتتبع جميع الأصناف والمخزون"
-        addLabel="صنف جديد"
+        title={tr("إدارة الأصناف")}
+        subtitle={tr("إدارة وتتبع جميع الأصناف والمخزون")}
+        addLabel={tr("صنف جديد")}
         onNew={() => {
               if (!canCreate) {
                 toast.current?.show({
                   severity: 'error',
                   summary: '',
-                  detail: 'لا يوجد لديك صلاحية اضافة صنف ',
+                  detail: tr("لا يوجد لديك صلاحية اضافة صنف "),
                   life: 3000
                 });
                 return
@@ -793,26 +794,26 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 error: null,
               }))
             }}
-        actions={<button type="button" disabled={!canCreate} onClick={() => { if (canCreate) setState((prev) => ({ ...prev, showExcelImport: true })) }} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"><FileSpreadsheet className="h-4 w-4" />استيراد من Excel</button>}
+        actions={<button type="button" disabled={!canCreate} onClick={() => { if (canCreate) setState((prev) => ({ ...prev, showExcelImport: true })) }} className="inline-flex h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"><FileSpreadsheet className="h-4 w-4" />{tr("استيراد من Excel")}</button>}
       />
 
-      <VoucherStats stats={[{ label: <>إجمالي الأصناف</>, value: <>{statistics.totalProducts}</> }, { label: <>المنتجات النشطة</>, value: <>{statistics.activeProducts}</> }, { label: <>مخزون منخفض</>, value: <>{statistics.lowStockProducts}</> }, { label: <>نفد المخزون</>, value: <>{statistics.outOfStockProducts}</> }, { label: <>قيمة المخزون</>, value: <>{statistics.totalValue.toLocaleString("en-US")}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي الأصناف")}</>, value: <>{statistics.totalProducts}</> }, { label: <>{tr("المنتجات النشطة")}</>, value: <>{statistics.activeProducts}</> }, { label: <>{tr("مخزون منخفض")}</>, value: <>{statistics.lowStockProducts}</> }, { label: <>{tr("نفد المخزون")}</>, value: <>{statistics.outOfStockProducts}</> }, { label: <>{tr("قيمة المخزون")}</>, value: <>{statistics.totalValue.toLocaleString("en-US")}</> }]} />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            البحث والتصفية
+            {tr("البحث والتصفية")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <div>
-              <Label>البحث</Label>
+              <Label>{tr("البحث")}</Label>
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="اسم الصنف، رقم الصنف، أو الباركود"
+                  placeholder={tr("اسم الصنف، رقم الصنف، أو الباركود")}
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -826,7 +827,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
               </div>
             </div>
             <div>
-              <Label>الفئة</Label>
+              <Label>{tr("الفئة")}</Label>
               <Select
                 value={state.filters.category}
                 onValueChange={(value) =>
@@ -841,7 +842,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الفئات</SelectItem>
+                  <SelectItem value="all">{tr("جميع الفئات")}</SelectItem>
                   {state.categories.map((category) => (
                     <SelectItem key={category.id} value={category.name}>
                       {category.name}
@@ -851,7 +852,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
               </Select>
             </div>
             <div>
-              <Label>الحالة</Label>
+              <Label>{tr("الحالة")}</Label>
               <Select
                 value={state.filters.status}
                 onValueChange={(value) =>
@@ -866,15 +867,15 @@ export function Products({ entityType = "products" }: ProductsProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
-                  <SelectItem value="نشط">نشط</SelectItem>
-                  <SelectItem value="غير نشط">غير نشط</SelectItem>
-                  <SelectItem value="متوقف">متوقف</SelectItem>
+                  <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                  <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                  <SelectItem value="غير نشط">{tr("غير نشط")}</SelectItem>
+                  <SelectItem value="متوقف">{tr("متوقف")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>مستوى المخزون</Label>
+              <Label>{tr("مستوى المخزون")}</Label>
               <Select
                 value={state.filters.stockLevel}
                 onValueChange={(value) =>
@@ -889,9 +890,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المستويات</SelectItem>
-                  <SelectItem value="low">مخزون منخفض</SelectItem>
-                  <SelectItem value="out">نفد المخزون</SelectItem>
+                  <SelectItem value="all">{tr("جميع المستويات")}</SelectItem>
+                  <SelectItem value="low">{tr("مخزون منخفض")}</SelectItem>
+                  <SelectItem value="out">{tr("نفد المخزون")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -907,7 +908,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 }
                 className="w-full"
               >
-                إعادة تعيين
+                {tr("إعادة تعيين")}
               </Button>
             </div>
           </div>
@@ -916,24 +917,24 @@ export function Products({ entityType = "products" }: ProductsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>قائمة الاصناف</CardTitle>
+          <CardTitle>{tr("قائمة الاصناف")}</CardTitle>
           <CardDescription>
-            عرض {paginatedProducts.length} من أصل {filteredProducts.length} صنف
+            {tr("عرض ")}{paginatedProducts.length}{tr(" من أصل ")}{filteredProducts.length}{tr(" صنف")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {paginatedProducts.length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">لا توجد اصناف</h3>
-              <p className="text-muted-foreground mb-4">لم يتم العثور على أي اصناف تطابق معايير البحث</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{tr("لا توجد اصناف")}</h3>
+              <p className="text-muted-foreground mb-4">{tr("لم يتم العثور على أي اصناف تطابق معايير البحث")}</p>
               <Button
                 onClick={() => {
                   if (!canCreate) {
                     toast.current?.show({
                       severity: 'error',
                       summary: '',
-                      detail: 'لا يوجد لديك صلاحية اضافة صنف جديد',
+                      detail: tr("لا يوجد لديك صلاحية اضافة صنف جديد"),
                       life: 3000
                     });
                     return
@@ -949,7 +950,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 }
               >
                 <Plus className="ml-2 h-4 w-4" />
-                إضافة صنف جديد
+                {tr("إضافة صنف جديد")}
               </Button>
             </div>
           ) : (
@@ -959,17 +960,17 @@ export function Products({ entityType = "products" }: ProductsProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-right w-12"></TableHead>
-                      <TableHead className="text-right">رقم الصنف</TableHead>
-                      <TableHead className="text-right">اسم الصنف</TableHead>
-                      <TableHead className="text-right">نوع الصنف</TableHead>
-                      <TableHead className="text-right">الوحدة</TableHead>
-                      <TableHead className="text-right">المستودع الافتراضي</TableHead>
-                      <TableHead className="text-right">المخزون الحالي</TableHead>
-                      <TableHead className="text-right">نقطة إعادة الطلب</TableHead>
-                      <TableHead className="text-right">آخر سعر شراء</TableHead>
-                      <TableHead className="text-right">الحالة</TableHead>
-                      <TableHead className="text-right">حالة المخزون</TableHead>
-                      <TableHead className="text-right">الإجراءات</TableHead>
+                      <TableHead className="text-right">{tr("رقم الصنف")}</TableHead>
+                      <TableHead className="text-right">{tr("اسم الصنف")}</TableHead>
+                      <TableHead className="text-right">{tr("نوع الصنف")}</TableHead>
+                      <TableHead className="text-right">{tr("الوحدة")}</TableHead>
+                      <TableHead className="text-right">{tr("المستودع الافتراضي")}</TableHead>
+                      <TableHead className="text-right">{tr("المخزون الحالي")}</TableHead>
+                      <TableHead className="text-right">{tr("نقطة إعادة الطلب")}</TableHead>
+                      <TableHead className="text-right">{tr("آخر سعر شراء")}</TableHead>
+                      <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                      <TableHead className="text-right">{tr("حالة المخزون")}</TableHead>
+                      <TableHead className="text-right">{tr("الإجراءات")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -997,10 +998,10 @@ export function Products({ entityType = "products" }: ProductsProps) {
                           4: "تحت التصنيع",
                           5: "بضاعة مصنعة",
                           6: "مواد للاستهلاك",
-                        } as Record<number, string>)[Number(product.product_type) || 1] || "بضاعة تجارية"}</TableCell>
+                        } as Record<number, string>)[Number(product.product_type) || 1] || tr("بضاعة تجارية")}</TableCell>
                         {/* الوحدة الأولى للصنف (أول وحدة في وحدات الصنف) */}
                         <TableCell>{(product as any).first_unit || product.main_unit || "—"}</TableCell>
-                        <TableCell>{product.default_store_name || "بلا تحديد"}</TableCell>
+                        <TableCell>{product.default_store_name || tr("بلا تحديد")}</TableCell>
                         <TableCell className="font-medium">{product.current_stock}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -1013,7 +1014,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                         <TableCell>
                           {/* بعملة الشراء (عملة سند آخر شراء)؛ **** لمن لا يملك صلاحية مشاهدة أسعار الشراء */}
                           {(product as any).purchase_price_hidden
-                            ? <span className="font-mono tracking-widest text-muted-foreground" title="لا تملك صلاحية مشاهدة أسعار الشراء">****</span>
+                            ? <span className="font-mono tracking-widest text-muted-foreground" title={tr("لا تملك صلاحية مشاهدة أسعار الشراء")}>****</span>
                             : (
                               <span className="inline-flex items-center gap-1 tabular-nums" dir="ltr">
                                 {Number(product.last_purchase_price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
@@ -1030,7 +1031,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                                 toast.current?.show({
                                   severity: 'error',
                                   summary: '',
-                                  detail: 'لا يوجد لديك صلاحية تعديل صنف',
+                                  detail: tr("لا يوجد لديك صلاحية تعديل صنف"),
                                   life: 3000
                                 });
                                 return
@@ -1046,7 +1047,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                               variant="outline"
                               size="sm"
                               onClick={() => handleToggleFreeze(product)}
-                              title={product.status === "غير نشط" ? "الغاء التجميد" : "تجميد"}
+                              title={product.status === "غير نشط" ? tr("الغاء التجميد") : tr("تجميد")}
                             >
                               <Warehouse className="h-4 w-4" />
                             </Button>
@@ -1057,12 +1058,12 @@ export function Products({ entityType = "products" }: ProductsProps) {
                             <Button
                               variant="outline"
                               size="sm"
-                              title="بطاقة صنف"
+                              title={tr("بطاقة صنف")}
                               className="gap-1"
                               onClick={() => openSectionInNewTab("item-card-report", { item_card_product_id: String(product.id) })}
                             >
                               <FileBarChart className="h-4 w-4" />
-                              بطاقة صنف
+                              {tr("بطاقة صنف")}
                             </Button>
                           </div>
                         </TableCell>
@@ -1075,7 +1076,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    صفحة {state.currentPage} من {totalPages}
+                    {tr("صفحة ")}{state.currentPage}{tr(" من ")}{totalPages}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -1084,7 +1085,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                       onClick={() => setState((prev) => ({ ...prev, currentPage: prev.currentPage - 1 }))}
                       disabled={state.currentPage === 1}
                     >
-                      السابق
+                      {tr("السابق")}
                     </Button>
                     <Button
                       variant="outline"
@@ -1092,7 +1093,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                       onClick={() => setState((prev) => ({ ...prev, currentPage: prev.currentPage + 1 }))}
                       disabled={state.currentPage === totalPages}
                     >
-                      التالي
+                      {tr("التالي")}
                     </Button>
                   </div>
                 </div>
@@ -1106,9 +1107,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
         visible={state.confirmDialogVisible}
         message={state.pendingFreezeProduct
           ? (state.pendingFreezeProduct.status === "غير نشط" || state.pendingFreezeProduct.status === 2 || state.pendingFreezeProduct.status === "2"
-            ? `هل تريد إلغاء التجميد للمنتج "${state.pendingFreezeProduct.product_name}"؟`
-            : `هل تريد تجميد المنتج "${state.pendingFreezeProduct.product_name}"؟`)
-          : "هل أنت متأكد؟"}
+            ? tr("هل تريد إلغاء التجميد للمنتج \"{0}\"؟", state.pendingFreezeProduct.product_name)
+            : tr("هل تريد تجميد المنتج \"{0}\"؟", state.pendingFreezeProduct.product_name))
+          : tr("هل أنت متأكد؟")}
         onConfirm={confirmFreezeToggle}
         onCancel={cancelFreezeToggle}
         isCompact
@@ -1117,7 +1118,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       <Dialog open={state.showDialog} onOpenChange={(open) => {
         if (open) setState((prev) => ({ ...prev, showDialog: true }))
       }} >
-        <DialogContent inline={fullscreenEnabled && state.showDialog} className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-[70vw]" dir="rtl"
+        <DialogContent inline={fullscreenEnabled && state.showDialog} className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-[70vw]" dir={appDir()}
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         hideCloseButton

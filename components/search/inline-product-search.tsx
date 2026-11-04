@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -125,22 +126,22 @@ export function InlineProductSearch({
             if (searchTerm.length >= 2) setIsOpen(true)
           }}
         />
-        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       </div>
 
       {isOpen && filteredProducts.length > 0 && (
-        <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 overflow-auto shadow-lg">
+        <Card className="absolute top-full end-0 start-0 z-50 mt-1 max-h-80 overflow-auto shadow-lg">
           <CardContent className="p-0">
             {filteredProducts.map((product) => (
               <Button
                 key={product.id}
                 variant="ghost"
-                className="w-full justify-start p-4 h-auto text-right hover:bg-muted"
+                className="w-full justify-start p-4 h-auto text-start hover:bg-muted"
                 onClick={() => handleProductSelect(product)}
               >
                 <div className="flex items-start gap-3 w-full">
                   <Package className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
-                  <div className="flex-1 text-right space-y-1">
+                  <div className="flex-1 text-start space-y-1">
                     <div className="flex justify-between items-start">
                       <span className="font-semibold text-foreground">{product.product_name}</span>
                       <span className="text-sm text-primary font-mono">{product.product_code}</span>
@@ -153,11 +154,11 @@ export function InlineProductSearch({
                         </div>
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-3 w-3" />
-                          {product.selling_price.toFixed(2)} ريال
+                          {product.selling_price.toFixed(2)}{tr(" ريال")}
                         </div>
                       </div>
                       <div className="text-xs">
-                        متوفر: {product.available_quantity} {product.unit}
+                        {tr("متوفر: ")}{product.available_quantity} {product.unit}
                       </div>
                     </div>
                   </div>

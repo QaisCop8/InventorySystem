@@ -1,0 +1,311 @@
+app/api/admin/export-database/route.ts(40,41): error TS7006: Parameter 'col' implicitly has an 'any' type.
+app/api/admin/export-database/route.ts(68,46): error TS7006: Parameter 'col' implicitly has an 'any' type.
+app/api/admin/export-database/route.ts(72,23): error TS7006: Parameter 'col' implicitly has an 'any' type.
+app/api/ai-assistant/document-extract/route.ts(169,13): error TS2353: Object literal may only specify known properties, and 'instructions' does not exist in type 'CallSettings & { system?: string | SystemModelMessage | SystemModelMessage[] | undefined; } & { messages: ModelMessage[]; prompt?: undefined; } & { ...; }'.
+app/api/ai-assistant/document-extract/route.ts(180,13): error TS2353: Object literal may only specify known properties, and 'instructions' does not exist in type 'CallSettings & { system?: string | SystemModelMessage | SystemModelMessage[] | undefined; } & { messages: ModelMessage[]; prompt?: undefined; } & { ...; }'.
+app/api/ai-assistant/order-draft/route.ts(146,141): error TS2353: Object literal may only specify known properties, and 'instructions' does not exist in type 'CallSettings & { system?: string | SystemModelMessage | SystemModelMessage[] | undefined; } & { prompt: string | ModelMessage[]; messages?: undefined; } & { ...; }'.
+app/api/ai-assistant/order-draft/route.ts(152,105): error TS2353: Object literal may only specify known properties, and 'instructions' does not exist in type 'CallSettings & { system?: string | SystemModelMessage | SystemModelMessage[] | undefined; } & { prompt: string | ModelMessage[]; messages?: undefined; } & { ...; }'.
+app/api/ai-recommendations/inventory/route.ts(87,33): error TS2554: Expected 1 arguments, but got 2.
+app/api/ai-recommendations/inventory/route.ts(132,33): error TS2554: Expected 1 arguments, but got 2.
+app/api/briefing/route.ts(34,161): error TS2353: Object literal may only specify known properties, and 'instructions' does not exist in type 'CallSettings & { system?: string | SystemModelMessage | SystemModelMessage[] | undefined; } & { prompt: string | ModelMessage[]; messages?: undefined; } & { ...; }'.
+app/api/cheques-books/_lib.ts(77,42): error TS7006: Parameter 'row' implicitly has an 'any' type.
+app/api/dashboard/stats/route.ts(60,52): error TS18046: 'error' is of type 'unknown'.
+app/api/migration/post-orders/route.ts(660,61): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(685,49): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(694,56): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(696,59): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(719,15): error TS18047: 'connection' is possibly 'null'.
+app/api/migration/post-orders/route.ts(727,11): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(743,13): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(754,13): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(766,27): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(777,11): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(788,48): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(792,13): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(810,44): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(811,47): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(817,13): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(832,27): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(833,36): error TS2345: Argument of type 'Connection | null' is not assignable to parameter of type 'Connection'.
+app/api/migration/post-orders/route.ts(834,15): error TS18047: 'connection' is possibly 'null'.
+app/api/migration/post-orders/route.ts(853,15): error TS18047: 'connection' is possibly 'null'.
+app/api/orders/search/route.ts(36,31): error TS7006: Parameter 'order' implicitly has an 'any' type.
+app/api/orders/search/route.ts(68,34): error TS7006: Parameter 'order' implicitly has an 'any' type.
+app/api/reports/inventory/route.ts(45,46): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/api/reports/inventory/route.ts(45,51): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/api/reports/inventory/route.ts(46,47): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/api/reports/inventory/route.ts(46,52): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/api/reports/sales/route.ts(43,40): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/api/reports/sales/route.ts(43,45): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/api/reports/sales/route.ts(44,41): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/api/reports/sales/route.ts(44,46): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/api/reports/sales/route.ts(47,33): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/api/reports/sales/route.ts(47,38): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/api/search/route.ts(15,11): error TS7034: Variable 'results' implicitly has type 'any[]' in some locations where its type cannot be determined.
+app/api/search/route.ts(36,26): error TS7006: Parameter 'customer' implicitly has an 'any' type.
+app/api/search/route.ts(70,26): error TS7006: Parameter 'supplier' implicitly has an 'any' type.
+app/api/search/route.ts(104,25): error TS7006: Parameter 'product' implicitly has an 'any' type.
+app/api/search/route.ts(136,28): error TS7006: Parameter 'order' implicitly has an 'any' type.
+app/api/search/route.ts(168,31): error TS7006: Parameter 'order' implicitly has an 'any' type.
+app/api/search/route.ts(187,16): error TS7005: Variable 'results' implicitly has an 'any[]' type.
+app/api/workflow/stages/[id]/flexibility/route.ts(26,19): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+app/api/workflow/stages/[id]/orders/route.ts(26,19): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+app/api/workflow/stages/[id]/route.ts(26,19): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+app/api/workflow/stages/flexibility/route.ts(26,19): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+app/dashboard_layout/page.tsx(57,11): error TS2339: Property 'activeWindows' does not exist on type 'WindowManagerContextType'.
+app/dashboard_layout/page.tsx(66,9): error TS2322: Type 'ComponentType<{}>' is not assignable to type 'string'.
+app/dashboard_layout/page.tsx(76,8): error TS2739: Type '{ children: Element; }' is missing the following properties from type 'ERPLayoutProps': activeSection, onSectionChange
+app/dashboard_layout/page.tsx(80,13): error TS2322: Type '{ windows: any; onClose: (id: string) => void; onMinimize: (id: string) => void; onMaximize: (id: string) => void; onActivate: (id: any) => void; }' is not assignable to type 'IntrinsicAttributes'.
+app/dashboard_layout/page.tsx(84,26): error TS7006: Parameter 'id' implicitly has an 'any' type.
+app/dashboard_layout/page.tsx(92,15): error TS2322: Type '{ windows: any; onClose: (id: string) => void; onMinimize: (id: string) => void; onMaximize: (id: string) => void; }' is not assignable to type 'IntrinsicAttributes'.
+app/dashboard_layout/page.tsx(101,13): error TS2322: Type '{ onOpenWindow: (windowType: any) => void; }' is not assignable to type 'IntrinsicAttributes'.
+app/dashboard_layout/page.tsx(101,28): error TS7006: Parameter 'windowType' implicitly has an 'any' type.
+app/dashboard_layout/page.tsx(262,17): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'Omit<WindowState, "id">'.
+app/product-categories/page.tsx(327,19): error TS2322: Type '{ currentIndex: number; totalRecords: number; onFirst: () => void; onPrevious: () => void; onNext: () => void; onLast: () => void; isFirstRecord: boolean; isLastRecord: boolean; isSaving: false; }' is not assignable to type 'IntrinsicAttributes & UniversalToolbarProps'.
+components/barcode/barcode-scanner.tsx(297,26): error TS2339: Property 'torch' does not exist on type 'MediaTrackCapabilities'.
+components/common/TypedDropdown.tsx(100,16): error TS2540: Cannot assign to 'current' because it is a read-only property.
+components/common/TypedDropdown.tsx(285,9): error TS2769: No overload matches this call.
+components/customer/unified-accounts-new.tsx(404,25): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(413,25): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(421,100): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(436,86): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(451,70): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(468,23): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(478,90): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(499,25): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/customer/unified-accounts-new.tsx(512,25): error TS2322: Type 'false | AccountItem' is not assignable to type 'boolean | undefined'.
+components/dashboard.tsx(227,48): error TS7006: Parameter 'order' implicitly has an 'any' type.
+components/dashboard.tsx(227,55): error TS7006: Parameter 'index' implicitly has an 'any' type.
+components/dashboard.tsx(269,51): error TS7006: Parameter 'order' implicitly has an 'any' type.
+components/dashboard.tsx(269,58): error TS7006: Parameter 'index' implicitly has an 'any' type.
+components/dashboard.tsx(304,8): error TS2741: Property 'onCancel' is missing in type '{ open: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; onOrderSaved: KeyedMutator<any>; }' but required in type 'UnifiedSalesOrderProps'.
+components/hr/hr-shared.tsx(60,566): error TS2322: Type 'RefObject<HTMLInputElement | null> | undefined' is not assignable to type 'LegacyRef<HTMLInputElement> | undefined'.
+components/inventory/inventory-analytics.tsx(134,61): error TS18048: 'percent' is possibly 'undefined'.
+components/orders/enhanced-sales-orders.tsx(125,16): error TS18048: 'aValue' is possibly 'undefined'.
+components/orders/enhanced-sales-orders.tsx(125,25): error TS18048: 'bValue' is possibly 'undefined'.
+components/orders/enhanced-sales-orders.tsx(127,16): error TS18048: 'aValue' is possibly 'undefined'.
+components/orders/enhanced-sales-orders.tsx(127,25): error TS18048: 'bValue' is possibly 'undefined'.
+components/orders/enhanced-sales-orders.tsx(174,16): error TS2345: Argument of type '(prev: { salesOrders: SalesOrder[]; loading: boolean; error: null; selectedOrder: null; currentView: string; showNewOrderDialog: boolean; filters: { search: string; status: string; financial_status: string; ... 4 more ...; workflow_status: string; }; sortBy: string; sortOrder: "desc" | "asc"; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ salesOrders: SalesOrder[]; loading: boolean; error: null; selectedOrder: null; currentView: string; showNewOrderDialog: boolean; filters: { search: string; status: string; financial_status: string; ... 4 more ...; workflow_status: string; }; sortBy: string; sortOrder: "desc" | "asc"; }>'.
+components/orders/enhanced-sales-orders.tsx(743,8): error TS2741: Property 'onCancel' is missing in type '{ open: boolean; onOpenChange: (open: boolean) => void; onOrderSaved: () => Promise<void>; }' but required in type 'UnifiedSalesOrderProps'.
+components/orders/modern-sales-orders.tsx(127,16): error TS2345: Argument of type '(prev: { salesOrders: SalesOrder[]; loading: boolean; error: null; showNewOrderDialog: boolean; currentView: "cards" | "list" | "analytics"; filters: { search: string; status: string; ... 4 more ...; workflow: string; }; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ salesOrders: SalesOrder[]; loading: boolean; error: null; showNewOrderDialog: boolean; currentView: "cards" | "list" | "analytics"; filters: { search: string; status: string; ... 4 more ...; workflow: string; }; }>'.
+components/orders/modern-sales-orders.tsx(675,8): error TS2741: Property 'onCancel' is missing in type '{ open: boolean; onOpenChange: (open: boolean) => void; onOrderSaved: () => Promise<void>; }' but required in type 'UnifiedSalesOrderProps'.
+components/orders/purchase-orders.tsx(207,16): error TS18048: 'aValue' is possibly 'undefined'.
+components/orders/purchase-orders.tsx(207,25): error TS18048: 'bValue' is possibly 'undefined'.
+components/orders/purchase-orders.tsx(209,16): error TS18048: 'aValue' is possibly 'undefined'.
+components/orders/purchase-orders.tsx(209,25): error TS18048: 'bValue' is possibly 'undefined'.
+components/orders/purchase-orders.tsx(1046,9): error TS2719: Type 'PurchaseOrder[]' is not assignable to type 'PurchaseOrder[]'. Two different types with this name exist, but they are unrelated.
+components/orders/sale-invoices.tsx(108,6): error TS2345: Argument of type '{ salesOrders: never[]; loading: true; error: null; selectedOrder: null; currentView: ViewType; showNewOrderDialog: false; filters: { search: string; status: string; financial_status: string; ... 5 more ...; order_source: string; }; sortBy: string; sortOrder: "desc"; }' is not assignable to parameter of type '{ fromSearch: boolean | undefined; salesOrders: SalesOrder[]; loading: boolean; error: string | null; selectedOrder: SalesOrder | null; currentView: "list" | "grid" | "kanban"; showNewOrderDialog: boolean; filters: { ...; }; sortBy: string; sortOrder: "desc" | "asc"; } | (() => { ...; })'.
+components/orders/sale-invoices.tsx(1014,11): error TS2322: Type 'null' is not assignable to type '((data: any) => void) | undefined'.
+components/orders/unified-purchase-order.tsx(535,45): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(543,40): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(607,47): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(607,52): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(671,66): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(735,16): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(736,13): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(939,24): error TS2554: Expected 0 arguments, but got 2.
+components/orders/unified-purchase-order.tsx(1460,48): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/orders/unified-purchase-order.tsx(1460,54): error TS7006: Parameter 'index' implicitly has an 'any' type.
+components/orders/unified-sale-invoices.tsx(1079,35): error TS2339: Property 'flex' does not exist on type 'FlexGrid<any>'.
+components/orders/unified-sale-invoices.tsx(1107,35): error TS2339: Property 'flex' does not exist on type 'FlexGrid<any>'.
+components/orders/unified-sale-invoices.tsx(1162,11): error TS2322: Type 'Unit[]' is not assignable to type 'never[]'.
+components/orders/unified-sale-invoices.tsx(1165,11): error TS2322: Type 'string | number' is not assignable to type 'number | undefined'.
+components/orders/unified-sale-invoices.tsx(1166,11): error TS2322: Type 'string' is not assignable to type 'number'.
+components/orders/unified-sale-invoices.tsx(1167,11): error TS2322: Type 'string | number' is not assignable to type 'number | undefined'.
+components/orders/unified-sale-invoices.tsx(1184,33): error TS2345: Argument of type '{ ser: number; unit_id: number; unit_name: string; units: never[]; name: string; discount: number; batch: string; expiry_date: string; item_status: number; barcode: string; id: number; code: string; ... 6 more ...; store_name: string; } | Partial<...>' is not assignable to parameter of type '{ ser: number; unit_id: number; unit_name: string; units: never[]; name: string; discount: number; batch: string; expiry_date: string; item_status: number; barcode: string; id: number; code: string; price: number; ... 5 more ...; store_name: string; }'.
+components/orders/unified-sale-invoices.tsx(1202,9): error TS2322: Type 'Unit[]' is not assignable to type 'never[]'.
+components/orders/unified-sale-invoices.tsx(1203,14): error TS2339: Property 'has_batch_number' does not exist on type '{ ser: number; unit_id: number; unit_name: string; units: never[]; name: string; discount: number; batch: string; expiry_date: string; item_status: number; barcode: string; id: number; code: string; ... 6 more ...; store_name: string; } | Partial<...>'.
+components/orders/unified-sale-invoices.tsx(1206,9): error TS2322: Type 'number | ""' is not assignable to type 'number | undefined'.
+components/orders/unified-sale-invoices.tsx(1228,51): error TS2345: Argument of type '(col: { binding: string; }) => boolean' is not assignable to parameter of type '(value: Column, index: number, obj: Column[]) => unknown'.
+components/orders/unified-sale-invoices.tsx(1230,49): error TS2345: Argument of type '(col: { binding: string; }) => boolean' is not assignable to parameter of type '(value: Column, index: number, obj: Column[]) => unknown'.
+components/orders/unified-sale-invoices.tsx(1233,49): error TS2345: Argument of type '(col: { binding: string; }) => boolean' is not assignable to parameter of type '(value: Column, index: number, obj: Column[]) => unknown'.
+components/orders/unified-sale-invoices.tsx(1260,9): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sale-invoices.tsx(1261,9): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sale-invoices.tsx(1261,14): error TS2339: Property 'select' does not exist on type '{ focus: () => { (): any; new (): any; select: { (arg0: number, arg1: string): void; new (): any; }; }; }'.
+components/orders/unified-sale-invoices.tsx(1271,11): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sale-invoices.tsx(1272,11): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sale-invoices.tsx(1272,16): error TS2339: Property 'select' does not exist on type '{ focus: () => { (): any; new (): any; select: { (arg0: number, arg1: string): void; new (): any; }; }; }'.
+components/orders/unified-sale-invoices.tsx(1276,36): error TS2339: Property 'has_batch_number' does not exist on type '{ ser: number; unit_id: number; unit_name: string; units: never[]; name: string; discount: number; batch: string; expiry_date: string; item_status: number; barcode: string; id: number; code: string; ... 6 more ...; store_name: string; } | Partial<...>'.
+components/orders/unified-sale-invoices.tsx(1567,17): error TS2554: Expected 2 arguments, but got 1.
+components/orders/unified-sale-invoices.tsx(1746,24): error TS2339: Property 'orderItems' does not exist on type '{ isSubmitting: boolean; customers: Customer[]; products: Product[]; formData: any; FormDataBackup: OrderFormData | null; customerSearch: string; productSearch: string; ... 12 more ...; isDeleting: boolean; }'.
+components/orders/unified-sale-invoices.tsx(1755,13): error TS2367: This comparison appears to be unintentional because the types '"id" | "product_code" | "product_name" | "barcode" | "unit" | "notes" | "product_id" | "warehouse" | "batch_number" | "lot_id" | "ser" | "expiry_date" | "discount_amount" | "vat_amount" | ... 7 more ... | "source_voucher_code"' and '"tax_percentage"' have no overlap.
+components/orders/unified-sale-invoices.tsx(1757,42): error TS2339: Property 'quantity' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1757,65): error TS2339: Property 'unit_price' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1758,25): error TS2339: Property 'discount_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1758,67): error TS2339: Property 'discount_percentage' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1759,58): error TS2339: Property 'discount_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1760,25): error TS2339: Property 'vat_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1760,67): error TS2339: Property 'tax_percentage' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1761,25): error TS2339: Property 'total_price' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1761,67): error TS2339: Property 'tax_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sale-invoices.tsx(1843,53): error TS2339: Property 'product_name' does not exist on type 'Product'.
+components/orders/unified-sale-invoices.tsx(1844,48): error TS2339: Property 'barcode' does not exist on type 'Product'.
+components/orders/unified-sale-invoices.tsx(1924,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sale-invoices.tsx(1980,16): error TS2339: Property 'has_batch_number' does not exist on type '{ ser: number; unit_id: number; unit_name: string; units: never[]; name: string; discount: number; batch: string; expiry_date: string; item_status: number; barcode: string; id: number; code: string; ... 6 more ...; store_name: string; } | Partial<...>'.
+components/orders/unified-sale-invoices.tsx(1985,16): error TS2339: Property 'has_batch_number' does not exist on type '{ ser: number; unit_id: number; unit_name: string; units: never[]; name: string; discount: number; batch: string; expiry_date: string; item_status: number; barcode: string; id: number; code: string; ... 6 more ...; store_name: string; } | Partial<...>'.
+components/orders/unified-sale-invoices.tsx(2364,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sale-invoices.tsx(2448,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sale-invoices.tsx(2505,7): error TS2349: This expression is not callable.
+components/orders/unified-sale-invoices.tsx(2515,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sale-invoices.tsx(2527,7): error TS2349: This expression is not callable.
+components/orders/unified-sale-invoices.tsx(2537,7): error TS2349: This expression is not callable.
+components/orders/unified-sale-invoices.tsx(2686,16): error TS2551: Property 'select' does not exist on type 'HTMLElement'. Did you mean 'onselect'?
+components/orders/unified-sale-invoices.tsx(2991,35): error TS2339: Property 'flex' does not exist on type 'FlexGrid<any>'.
+components/orders/unified-sale-invoices.tsx(3080,26): error TS2339: Property 'orderItems' does not exist on type '{ isSubmitting: boolean; customers: Customer[]; products: Product[]; formData: any; FormDataBackup: OrderFormData | null; customerSearch: string; productSearch: string; ... 12 more ...; isDeleting: boolean; }'.
+components/orders/unified-sale-invoices.tsx(3360,15): error TS2322: Type '{ id: number; code: String; warehouse_name: string; }[]' is not assignable to type 'Store[]'.
+components/orders/unified-sale-invoices.tsx(3533,25): error TS2322: Type '{ inputId: string; value: any; options: { label: string; value: string; }[]; optionLabel: string; optionValue: string; className: string; panelClassName: string; appendTo: "self"; baseZIndex: number; panelStyle: { ...; }; onChange: (e: any) => void; onHide: () => void; }' is not assignable to type 'IntrinsicAttributes & DropdownProps & RefAttributes<Dropdown>'.
+components/orders/unified-sale-invoices.tsx(3566,25): error TS2322: Type '{ id: string; inputId: string; value: number | null; options: { currency_id: number; currency_name: any; }[]; optionLabel: string; optionValue: string; placeholder: string; filter: true; className: string; ... 6 more ...; onChange: (e: any) => Promise<...>; }' is not assignable to type 'IntrinsicAttributes & DropdownProps & RefAttributes<Dropdown>'.
+components/orders/unified-sale-invoices.tsx(3781,29): error TS2322: Type '{ inputId: string; value: any; options: { label: string; value: string; }[]; optionLabel: string; optionValue: string; className: string; panelClassName: string; appendTo: "self"; baseZIndex: number; panelStyle: { ...; }; onChange: (e: any) => void; onHide: () => void; }' is not assignable to type 'IntrinsicAttributes & DropdownProps & RefAttributes<Dropdown>'.
+components/orders/unified-sale-invoices.tsx(3808,29): error TS2322: Type '{ inputId: string; value: any; options: { label: string; value: number; }[]; optionLabel: string; optionValue: string; className: string; panelClassName: string; appendTo: "self"; baseZIndex: number; panelStyle: { ...; }; onChange: (e: any) => void; onHide: () => void; }' is not assignable to type 'IntrinsicAttributes & DropdownProps & RefAttributes<Dropdown>'.
+components/orders/unified-sale-invoices.tsx(3831,29): error TS2322: Type '{ inputId: string; value: any; options: { label: string; value: number; }[]; optionLabel: string; optionValue: string; className: string; panelClassName: string; appendTo: "self"; baseZIndex: number; panelStyle: { ...; }; onChange: (e: any) => void; onHide: () => void; }' is not assignable to type 'IntrinsicAttributes & DropdownProps & RefAttributes<Dropdown>'.
+components/orders/unified-sale-invoices.tsx(3899,29): error TS2322: Type '{ inputId: string; value: any; options: { label: string; value: number; }[]; optionLabel: string; optionValue: string; className: string; panelClassName: string; appendTo: "self"; baseZIndex: number; ... 4 more ...; onHide: () => void; }' is not assignable to type 'IntrinsicAttributes & DropdownProps & RefAttributes<Dropdown>'.
+components/orders/unified-sale-invoices.tsx(4230,38): error TS2339: Property 'orderItems' does not exist on type '{ isSubmitting: boolean; customers: Customer[]; products: Product[]; formData: any; FormDataBackup: OrderFormData | null; customerSearch: string; productSearch: string; ... 12 more ...; isDeleting: boolean; }'.
+components/orders/unified-sales-order.tsx(570,5): error TS2322: Type '(orderToSave: any, isNewRecord: boolean, showPrintPrompt?: boolean) => Promise<boolean>' is not assignable to type '(record: SalesOrder, isNew: boolean) => Promise<void>'.
+components/orders/unified-sales-order.tsx(1001,35): error TS2339: Property 'flex' does not exist on type 'FlexGrid<any>'.
+components/orders/unified-sales-order.tsx(1047,35): error TS2339: Property 'flex' does not exist on type 'FlexGrid<any>'.
+components/orders/unified-sales-order.tsx(1224,51): error TS2345: Argument of type '(col: { binding: string; }) => boolean' is not assignable to parameter of type '(value: Column, index: number, obj: Column[]) => unknown'.
+components/orders/unified-sales-order.tsx(1226,49): error TS2345: Argument of type '(col: { binding: string; }) => boolean' is not assignable to parameter of type '(value: Column, index: number, obj: Column[]) => unknown'.
+components/orders/unified-sales-order.tsx(1229,49): error TS2345: Argument of type '(col: { binding: string; }) => boolean' is not assignable to parameter of type '(value: Column, index: number, obj: Column[]) => unknown'.
+components/orders/unified-sales-order.tsx(1256,9): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sales-order.tsx(1257,9): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sales-order.tsx(1257,14): error TS2339: Property 'select' does not exist on type '{ focus: () => { (): any; new (): any; select: { (arg0: number, arg1: string): void; new (): any; }; }; }'.
+components/orders/unified-sales-order.tsx(1267,11): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sales-order.tsx(1268,11): error TS18048: 'grid' is possibly 'undefined'.
+components/orders/unified-sales-order.tsx(1268,16): error TS2339: Property 'select' does not exist on type '{ focus: () => { (): any; new (): any; select: { (arg0: number, arg1: string): void; new (): any; }; }; }'.
+components/orders/unified-sales-order.tsx(1629,17): error TS2554: Expected 2 arguments, but got 1.
+components/orders/unified-sales-order.tsx(1700,47): error TS2339: Property 'name' does not exist on type 'OrderItem'.
+components/orders/unified-sales-order.tsx(1704,97): error TS2339: Property 'name' does not exist on type 'OrderItem'.
+components/orders/unified-sales-order.tsx(1705,30): error TS2345: Argument of type '"name"' is not assignable to parameter of type 'keyof OrderItem'.
+components/orders/unified-sales-order.tsx(1705,68): error TS2339: Property 'name' does not exist on type 'OrderItem'.
+components/orders/unified-sales-order.tsx(1854,24): error TS2339: Property 'orderItems' does not exist on type '{ isSubmitting: boolean; customers: Customer[]; products: Product[]; formData: any; FormDataBackup: OrderFormData | null; customerSearch: string; productSearch: string; ... 12 more ...; isDeleting: boolean; }'.
+components/orders/unified-sales-order.tsx(1863,13): error TS2367: This comparison appears to be unintentional because the types '"id" | "product_code" | "product_name" | "barcode" | "unit" | "notes" | "product_id" | "warehouse" | "batch_number" | "lot_id" | "attributes" | "ser" | "expiry_date" | "discount_amount" | ... 6 more ... | "lotAllocations"' and '"tax_percentage"' have no overlap.
+components/orders/unified-sales-order.tsx(1865,42): error TS2339: Property 'quantity' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1865,65): error TS2339: Property 'unit_price' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1866,25): error TS2339: Property 'discount_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1866,67): error TS2339: Property 'discount_percentage' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1867,58): error TS2339: Property 'discount_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1868,25): error TS2339: Property 'vat_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1868,67): error TS2339: Property 'tax_percentage' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1869,25): error TS2339: Property 'total_price' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1869,67): error TS2339: Property 'tax_amount' does not exist on type '{ id: string; }'.
+components/orders/unified-sales-order.tsx(1951,53): error TS2339: Property 'product_name' does not exist on type 'Product'.
+components/orders/unified-sales-order.tsx(1952,48): error TS2339: Property 'barcode' does not exist on type 'Product'.
+components/orders/unified-sales-order.tsx(2070,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sales-order.tsx(2421,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sales-order.tsx(2499,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sales-order.tsx(2559,7): error TS2349: This expression is not callable.
+components/orders/unified-sales-order.tsx(2569,22): error TS2339: Property 'clear' does not exist on type 'typeof Messages'.
+components/orders/unified-sales-order.tsx(2586,7): error TS2349: This expression is not callable.
+components/orders/unified-sales-order.tsx(2596,7): error TS2349: This expression is not callable.
+components/orders/unified-sales-order.tsx(2716,16): error TS2551: Property 'select' does not exist on type 'HTMLElement'. Did you mean 'onselect'?
+components/orders/unified-sales-order.tsx(3170,35): error TS2339: Property 'flex' does not exist on type 'FlexGrid<any>'.
+components/orders/unified-sales-order.tsx(3229,26): error TS2339: Property 'orderItems' does not exist on type '{ isSubmitting: boolean; customers: Customer[]; products: Product[]; formData: any; FormDataBackup: OrderFormData | null; customerSearch: string; productSearch: string; ... 12 more ...; isDeleting: boolean; }'.
+components/orders/unified-sales-order.tsx(3657,15): error TS2322: Type '{ id: number; code: String; warehouse_name: string; }[]' is not assignable to type 'Store[]'.
+components/orders/unified-sales-order.tsx(4463,38): error TS2339: Property 'orderItems' does not exist on type '{ isSubmitting: boolean; customers: Customer[]; products: Product[]; formData: any; FormDataBackup: OrderFormData | null; customerSearch: string; productSearch: string; ... 12 more ...; isDeleting: boolean; }'.
+components/pos/campaign-items-grid.tsx(205,80): error TS2322: Type '{ innerRef: MutableRefObject<any>; scheme: { name: string; sortable: boolean; columns: ({ name: string; header: string; width: number; isReadOnly: boolean; minWidth?: undefined; ... 5 more ...; onClick?: undefined; } | ... 4 more ... | { ...; })[]; }; ... 6 more ...; style: { ...; }; }' is not assignable to type 'IntrinsicAttributes'.
+components/pos/pos-start-session-dialog.tsx(42,106): error TS2339: Property 'readOnly' does not exist on type 'HTMLInputElement | HTMLSelectElement'.
+components/products/customers-with-toolbar.tsx(260,9): error TS2322: Type '{ currentIndex: number; totalRecords: number; onFirst: () => void; onPrevious: () => void; onNext: () => void; onLast: () => void; onNew: () => void; onSave: () => Promise<void>; onDelete: () => Promise<void>; ... 7 more ...; isLastRecord: boolean; }' is not assignable to type 'IntrinsicAttributes & UniversalToolbarProps'.
+components/products/customers.tsx(634,75): error TS2739: Type '{ id: number; customer_code: string; name: string; name_en: string; mobile1: string; mobile2: string; whatsapp1: string; whatsapp2: string; city: string; address: string; email: string; status: string; ... 20 more ...; branch_ids: never[]; }' is missing the following properties from type 'CustomerFormData': job_title, region, sales_commission, collection_commission
+components/products/customers.tsx(710,33): error TS2339: Property 'father_id' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(710,67): error TS2339: Property 'father_id' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(711,41): error TS2339: Property 'finanical_list_id' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(711,83): error TS2339: Property 'finanical_list_id' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(712,35): error TS2339: Property 'currency_id' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(712,71): error TS2339: Property 'currency_id' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(713,50): error TS2339: Property 'allow_trans_with_diff_curr' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(714,33): error TS2339: Property 'allow_trans_with_diff_curr' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/customers.tsx(716,54): error TS2339: Property 'iscalc_curr_diff_rates' does not exist on type 'Customer & { customer_name?: string | undefined; customer_name_en?: string | undefined; }'.
+components/products/enhanced-customers.tsx(162,16): error TS2345: Argument of type '(prev: { customers: Customer[]; loading: boolean; error: null; selectedCustomer: null; currentView: string; filters: { search: string; classification: string; status: string; city: string; salesman: string; }; sortBy: string; sortOrder: "desc" | "asc"; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ customers: Customer[]; loading: boolean; error: null; selectedCustomer: null; currentView: string; filters: { search: string; classification: string; status: string; city: string; salesman: string; }; sortBy: string; sortOrder: "desc" | "asc"; }>'.
+components/products/ProductCodeInput.tsx(139,17): error TS2322: Type '(selectedProducts: Product[]) => void' is not assignable to type '(products: Product[]) => void'.
+components/products/services.tsx(336,64): error TS2367: This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.
+components/products/services.tsx(353,16): error TS2345: Argument of type '(prev: { products: Product[]; categories: string[]; loading: boolean; error: string | null; showDialog: boolean; editingProduct: Product | null; isSubmitting: boolean; currentPage: number; ... 5 more ...; pendingFreezeProduct: Product | null; }) => { ...; }' is not assignable to parameter of type 'SetStateAction<{ products: Product[]; categories: string[]; loading: boolean; error: string | null; showDialog: boolean; editingProduct: Product | null; isSubmitting: boolean; currentPage: number; ... 5 more ...; pendingFreezeProduct: Product | null; }>'.
+components/products/services.tsx(599,65): error TS2367: This comparison appears to be unintentional because the types 'string' and 'number' have no overlap.
+components/products/warehouse-inventory-table.tsx(185,11): error TS2322: Type '{ name: string; responsiveColumnIndex: number; columns: ({ name: string; header: string; width: string; editor: (cell: any) => React.JSX.Element; isReadOnly?: undefined; buttonBody?: undefined; iconType?: undefined; onClick?: undefined; } | { ...; } | { ...; } | { ...; })[]; }' is not assignable to type '{ columns: Column[]; }'.
+components/reports/advanced-reporting-dashboard.tsx(404,65): error TS18048: 'percent' is possibly 'undefined'.
+components/reports/batch-reports.tsx(581,27): error TS2322: Type '(value: any, name: string) => [any, "القيمة الإجمالية" | "عدد الدفعات"]' is not assignable to type 'Formatter<any, string>'.
+components/reports/batch-reports.tsx(673,27): error TS2322: Type '(value: any, name: string) => [any, "إجمالي الكمية" | "عدد الحركات"]' is not assignable to type 'Formatter<any, string>'.
+components/reports/cashier-log-report.tsx(160,135): error TS2322: Type '{}' is not assignable to type 'ReactI18NextChildren | Iterable<ReactI18NextChildren>'.
+components/reports/product-reports.tsx(398,13): error TS2322: Type '{ currentPage: number; totalPages: number; totalItems: number; onPageChange: () => void; onFirst: () => void; onPrevious: () => void; onNext: () => void; onLast: () => void; }' is not assignable to type 'IntrinsicAttributes & UniversalToolbarProps'.
+components/reports/product-reports.tsx(473,13): error TS2322: Type '{ currentPage: number; totalPages: number; totalItems: number; onPageChange: () => void; onFirst: () => void; onPrevious: () => void; onNext: () => void; onLast: () => void; }' is not assignable to type 'IntrinsicAttributes & UniversalToolbarProps'.
+components/search/customer-supplier-search.tsx(475,31): error TS2322: Type 'Dispatch<SetStateAction<"customers" | "suppliers">>' is not assignable to type '(value: string) => void'.
+components/search/enhanced-product-search.tsx(116,55): error TS2339: Property 'warehouse' does not exist on type 'Product'.
+components/search/enhanced-product-search.tsx(204,50): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+components/search/product-search.tsx(198,50): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+components/search/search-modal.tsx(133,11): error TS2322: Type '"customers" | "suppliers" | "sales" | "both" | "purchases" | "transactions" | "movements"' is not assignable to type '"customers" | "suppliers" | "both" | undefined'.
+components/search/transaction-search.tsx(637,33): error TS2322: Type 'Dispatch<SetStateAction<"sales" | "purchases" | "movements">>' is not assignable to type '(value: string) => void'.
+components/search/unified-customer-supplier-search.tsx(513,33): error TS2322: Type 'Dispatch<SetStateAction<"customers" | "suppliers">>' is not assignable to type '(value: string) => void'.
+components/settings/system-settings.tsx(665,19): error TS2345: Argument of type '{ defaultPrinter: string; paperSize: string; printLogo: true; printFooter: true; sellingAccount: string; purchaseAccount: string; sellingReturnsAccount: string; purchaseReturnsAccount: string; ... 91 more ...; accountStart: number; }' is not assignable to parameter of type 'SetStateAction<{ defaultPrinter: string; paperSize: string; printLogo: boolean; printFooter: boolean; sellingAccount: string; purchaseAccount: string; sellingReturnsAccount: string; purchaseReturnsAccount: string; ... 93 more ...; accountStart: number; }>'.
+components/settings/user-settings.tsx(230,27): error TS7006: Parameter 'isActive' implicitly has an 'any' type.
+components/settings/user-settings.tsx(244,27): error TS7006: Parameter 'user' implicitly has an 'any' type.
+components/settings/user-settings.tsx(255,34): error TS7006: Parameter 'user' implicitly has an 'any' type.
+components/settings/user-settings.tsx(292,27): error TS7006: Parameter 'userData' implicitly has an 'any' type.
+components/settings/user-settings.tsx(356,29): error TS18047: 'selectedUser' is possibly 'null'.
+components/settings/user-settings.tsx(356,54): error TS18047: 'selectedUser' is possibly 'null'.
+components/settings/user-settings.tsx(384,45): error TS18047: 'selectedUser' is possibly 'null'.
+components/ui/chart.tsx(109,3): error TS2339: Property 'payload' does not exist on type 'Omit<Props<ValueType, NameType>, PropertiesReadFromContext> & { active?: boolean | undefined; allowEscapeViewBox?: AllowInDimension | undefined; ... 17 more ...; wrapperStyle?: CSSProperties | undefined; } & ClassAttributes<...> & HTMLAttributes<...> & { ...; }'.
+components/ui/chart.tsx(114,3): error TS2339: Property 'label' does not exist on type 'Omit<Props<ValueType, NameType>, PropertiesReadFromContext> & { active?: boolean | undefined; allowEscapeViewBox?: AllowInDimension | undefined; ... 17 more ...; wrapperStyle?: CSSProperties | undefined; } & ClassAttributes<...> & HTMLAttributes<...> & { ...; }'.
+components/ui/chart.tsx(182,23): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/ui/chart.tsx(182,29): error TS7006: Parameter 'index' implicitly has an 'any' type.
+components/ui/chart.tsx(260,39): error TS2344: Type '"payload" | "verticalAlign"' does not satisfy the constraint '"string" | "key" | "filter" | "fill" | "values" | "max" | "orientation" | "origin" | "name" | "path" | "id" | "type" | "y" | "content" | "media" | "role" | "method" | "order" | "version" | ... 424 more ... | "onBBoxUpdate"'.
+components/ui/chart.tsx(266,17): error TS2339: Property 'length' does not exist on type '{}'.
+components/ui/chart.tsx(278,16): error TS2339: Property 'map' does not exist on type '{}'.
+components/ui/chart.tsx(278,21): error TS7006: Parameter 'item' implicitly has an 'any' type.
+components/ui/command.tsx(53,9): error TS2322: Type '{ children: Element; className: string; showCloseButton: boolean; }' is not assignable to type 'IntrinsicAttributes & DialogContentProps & RefAttributes<HTMLDivElement>'.
+components/ui/dropdown-menu.tsx(114,25): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+components/ui/dropdown-menu.tsx(182,27): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+components/ui/select.tsx(29,26): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+components/ui/select.tsx(44,22): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+components/ui/select.tsx(58,24): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+components/ui/select.tsx(117,22): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes'.
+components/window-manager/modal-window.tsx(42,76): error TS2339: Property 'innerWidth' does not exist on type 'WindowState'.
+components/window-manager/modal-window.tsx(43,76): error TS2339: Property 'innerHeight' does not exist on type 'WindowState'.
+components/workflow/order-tracking-dashboard.tsx(591,37): error TS2339: Property 'stage_name' does not exist on type 'PieLabelRenderProps'.
+components/workflow/order-tracking-dashboard.tsx(591,49): error TS2339: Property 'order_count' does not exist on type 'PieLabelRenderProps'.
+components/workflow/workflow-sequences-management.tsx(196,9): error TS2322: Type '{ currentIndex: number; totalRecords: number; onFirst: () => void; onPrevious: () => void; onNext: () => void; onLast: () => void; isFirstRecord: boolean; isLastRecord: boolean; isSaving: boolean; }' is not assignable to type 'IntrinsicAttributes & UniversalToolbarProps'.
+components/workflow/workflow-stages-management.tsx(179,7): error TS2322: Type '"normal" | "end" | "start" | "conditional"' is not assignable to type '"normal"'.
+components/workflow/workflow-stages-management.tsx(235,9): error TS2322: Type '{ currentIndex: number; totalRecords: number; onFirst: () => void; onPrevious: () => void; onNext: () => void; onLast: () => void; isFirstRecord: boolean; isLastRecord: boolean; isSaving: boolean; }' is not assignable to type 'IntrinsicAttributes & UniversalToolbarProps'.
+lib/database.ts(436,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(479,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(528,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(581,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(629,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(674,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(878,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(918,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(929,37): error TS18046: 'error' is of type 'unknown'.
+lib/database.ts(956,37): error TS18046: 'error' is of type 'unknown'.
+lib/orders.ts(890,52): error TS2339: Property 'unit_price' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(896,75): error TS2551: Property 'product_code' does not exist on type 'Partial<OrderItem>'. Did you mean 'product_id'?
+lib/orders.ts(897,38): error TS2339: Property 'unit_price' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(897,79): error TS2339: Property 'notes' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1045,32): error TS2339: Property 'salesman' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1047,37): error TS2551: Property 'currency_code' does not exist on type 'Partial<SalesOrder>'. Did you mean 'currency_id'?
+lib/orders.ts(1048,37): error TS2339: Property 'currency_name' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1051,40): error TS2339: Property 'financial_status' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1052,41): error TS2551: Property 'delivery_datetime' does not exist on type 'Partial<SalesOrder>'. Did you mean 'delivery_date'?
+lib/orders.ts(1053,39): error TS2339: Property 'manual_document' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1054,29): error TS2339: Property 'notes' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1055,38): error TS2339: Property 'invoice_number' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1056,31): error TS2339: Property 'barcode' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1057,35): error TS2339: Property 'attachments' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1058,44): error TS2339: Property 'workflow_sequence_id' does not exist on type 'Partial<SalesOrder>'.
+lib/orders.ts(1072,54): error TS2339: Property 'unit_price' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1085,20): error TS2551: Property 'product_code' does not exist on type 'Partial<OrderItem>'. Did you mean 'product_id'?
+lib/orders.ts(1087,20): error TS2339: Property 'unit_price' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1088,20): error TS2339: Property 'discount_percentage' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1089,56): error TS2339: Property 'unit_price' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1090,20): error TS2339: Property 'notes' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1092,20): error TS2339: Property 'unit' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1093,20): error TS2339: Property 'warehouse' does not exist on type 'Partial<OrderItem>'.
+lib/orders.ts(1094,20): error TS2339: Property 'bonus_quantity' does not exist on type 'Partial<OrderItem>'.
+lib/pos-campaigns.ts(108,15): error TS2322: Type 'number' is not assignable to type 'null'.
+lib/pos-campaigns.ts(123,13): error TS2322: Type 'number' is not assignable to type 'null'.
+lib/pos-campaigns.ts(154,45): error TS2322: Type 'number' is not assignable to type 'null'.
+lib/pos-campaigns.ts(170,45): error TS2322: Type 'number' is not assignable to type 'null'.
+lib/qa-system/component-validator.ts(92,74): error TS1501: This regular expression flag is only available when targeting 'es2018' or later.
+lib/whatsapp-bot.ts(207,21): error TS7006: Parameter 'order' implicitly has an 'any' type.
+lib/whatsapp-bot.ts(207,28): error TS7006: Parameter 'index' implicitly has an 'any' type.
+lib/whatsapp-bot.ts(339,23): error TS7006: Parameter 'product' implicitly has an 'any' type.
+lib/whatsapp-bot.ts(339,32): error TS7006: Parameter 'index' implicitly has an 'any' type.
+lib/whatsapp-bot.ts(423,8): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+lib/whatsapp-bot.ts(423,13): error TS7006: Parameter 's' implicitly has an 'any' type.

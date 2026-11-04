@@ -1,0 +1,300 @@
+Balance sheet assets
+Sales delivery
+Purchase delivery
+Add a new classification
+Add a new classification type
+Add a new cost center type
+Stop all transactions on the account
+Choose the asset
+Choose the parent account
+Choose an account then press «New» to create a sub-account.
+Choose the classification type
+Classification name *
+Classification name is required
+The English account name must not exceed 150 characters
+The account name is duplicated. Code: {0}
+The account name must not exceed 100 characters
+Type name *
+Type name is required
+Cost center name
+Classification type name
+Cost center type name
+Cost center type name *
+Add a new classification
+Add a new type
+Add a new cost center type
+Parent account:
+Parent account (belongs to)
+The account was deleted successfully
+The account is subject to currency difference
+Allow transactions on the account in a currency other than its own
+Parent center
+Search for an account
+Transaction stop date
+Account classifications
+Edit account
+Change status
+Cost center updated successfully
+The record was changed, do you want to save?
+Cost center deleted
+Cost center deleted successfully
+Expand
+Expand sub-accounts
+An error occurred while searching for the account
+Specify the classification type and classification name
+Balance sheet liabilities
+Error deleting the account
+Error saving the account
+Chart of accounts tree
+Sales order
+Purchase order
+Invalid account number length - it must be 10 uppercase English letters or digits
+Collapse
+Collapse sub-accounts
+Don't show
+Failed to save the account
+No classification types - add a new type
+No transaction types
+No data - add a new cost center type
+No matching accounts
+A sub-account cannot be added; the parent account must be an accounting account
+An account cannot be its own parent
+The account cannot be deleted because it is the parent of another account
+This account cannot be deleted from the chart of accounts; use its dedicated definition page
+The account cannot be shown; it must be an accounting account only
+A deleted account cannot be shown
+Cost center
+Clear the parent account selection
+Allowed without warning
+Allowed with warning
+Classification ID
+Classification type ID
+Classification type
+Classification type *
+Invalid classification type
+Transaction type
+Cost center type
+This account belongs to a customer, supplier, subscriber or employee definition, and is edited from its dedicated page
+This account belongs to a customer, supplier, subscriber or employee definition. View and edit it from its dedicated page.
+Are you sure you want to delete the record?
+Do you want to delete the classification?
+Do you want to delete the cost center?
+The account number must be 10 uppercase English letters or digits
+The classification type must be chosen
+The balance sheet assets and liabilities must be specified
+The currency must be specified
+The income statement item must be specified
+The account name must be filled in
+The account number must be filled in
+Add a new account
+Account name *
+Edit account: {0}
+Last updated
+Purchase, sale and exchange rates must be greater than zero
+Daily exchange rates
+Highest exchange rate
+Lowest exchange rate
+Add currency
+Add a new currency
+Currency name *
+Add
+Search currencies...
+Change
+Code *
+Available currencies
+Current values:
+Update rates
+Edit exchange rate
+Currency and exchange rate added successfully
+A new exchange rate for today was added successfully
+Exchange rate updated successfully
+Loading exchange rates...
+All fields are required
+An error occurred while loading exchange rates
+An error occurred while saving the data:
+An error occurred while saving the changes
+Unknown error
+Selling rate
+Selling rate *
+Selling rate:
+Buying rate
+Buying rate *
+The buying, selling and exchange rates must be between 0.0001 and 10000
+Buying rate:
+Exchange rate:
+Shekel
+Print
+New currency
+Inactive
+Example: USD
+Example: US Dollar
+Reload the page
+Database setup
+Press the button below to create the tables and sample data
+Database set up successfully!
+Setting up the database...
+Error: {0}
+Failed to connect to the database
+An unexpected error occurred
+Sorry, an error occurred while loading this component. Please try again.
+{0} years
+Capital addition
+Revaluation
+Create journal entry
+Stop depreciation
+Resume depreciation
+Disposal / sale
+By default: the revaluation surplus or impairment loss from the classification
+Accumulated depreciation
+Expected disposal:
+Cost
+Reason / notes
+Cash, bank or customer account
+Total useful life (months)
+Difference: {0}
+Department
+Book value
+New fair value
+Residual value
+Responsible / custodian
+Supplier, cash or intermediary account
+Impairment
+Change depreciation policy
+Extend life (months)
+Loss account (optional)
+Proceeds account
+Alternative account (optional)
+Depreciation method
+Empty = double the straight-line rate
+Sale value
+Impairment amount
+Annual declining balance rate %
+Transfer asset
+Disposal type
+— annual:
+Last approved depreciation
+Cost effect
+Accumulated effect
+New fixed asset
+Added
+Turn it off if the cost is already recorded on the asset account
+Leave empty for automatic numbering
+Asset name
+Default {0} months
+Classification default {0}%
+By default the ready-for-use date — the first month is pro-rated
+The asset is active — financial data changes only through transactions (capital addition, revaluation, depreciation policy change) to keep the audit trail.
+Depreciation
+Estimated monthly depreciation:
+Opening accumulated depreciation
+Acquisition and cost
+Barcode
+Installation / commissioning
+Operation
+Original cost (in base currency)
+Size
+Transactions (
+Credit account for the acquisition entry
+Accounting book
+Book
+Serial number
+Reason
+Manufacturer
+Method / life
+Useful life (months)
+Original currency
+Opening value
+Residual (salvage) value
+Amount in original currency
+Accumulated
+Documents (
+Components (
+Components are independent assets with their own life and depreciation (like the elevator and air-conditioning in a building). Create a new asset and choose this asset in the "Component of asset" field.
+File
+Model
+Supplier, cash or purchase invoice account
+Location and custody
+Annual rate %
+Depreciation start
+Acquisition date
+Expiry date
+Opening balance date
+Post the acquisition entry on activation
+Unable to load the asset
+Unable to upload the file
+Unable to open the document
+Unable to read the file
+There are unsaved changes to the asset, do you want to save them?
+Ready for use
+Depreciation schedule
+The file size exceeds 5 MB
+Delete document
+Delete draft {0}?
+Opening balances account
+Save and activate
+Capital / opening balances
+Upload a file (up to 5MB)
+Asset number
+Transfer log
+Depreciation policy
+month
+No documents — upload the invoice, warranty, insurance or a picture of the asset
+No components
+No depreciation schedule (the asset is not depreciable or fully depreciated)
+No employees are defined
+To change the location or custody use "Transfer asset" so the transfer log is kept.
+For components with a different life (building elevator, machine engine)
+Acquisition source
+Its source is purchase invoice line no.
+Component of asset
+From — to
+Warranty end
+Document type
+Saved as a draft, then activated to post the acquisition entry and generate the depreciation schedule
+The depreciation expense is charged to it
+Ends
+Previous unapproved months
+Total depreciation
+Calculate
+Asset
+Assets
+Book value after
+Depreciation run lines
+Posting date
+Post and create the entry
+Run monthly depreciation
+Calculation failed
+Reversal failed
+Unable to load runs
+{0} posted: {1} for {2} assets
+Will be posted in this run
+Depreciation run log
+Number of assets
+Reverse
+Reverse depreciation run {0}? A reversing entry will be created and the periods return to "planned".
+Reversal entries
+There is no unapproved planned depreciation up to this period
+No depreciation has been posted yet
+Review before posting
+The run includes all unapproved planned depreciation up to the selected period (including missed previous months) for the current branch's assets, and creates one combined depreciation entry by accounts and cost centers.
+— depreciation run
+{0} active · {1} fully depreciated
+{0}% of cost
+New asset
+asset since
+Fixed asset departments
+Total cost
+Unapproved depreciation up to this month
+Start by defining asset classifications and linking them to accounts (asset account, accumulated depreciation, depreciation expense).
+Fixed assets
+Acquisition
+Classifications and accounts
+Transactions
+Value by classification
+Locations
+Unable to load fixed assets
+Define classifications
+Loading…
+A sub-ledger linked to the general ledger: acquisition, depreciation, transfer, disposal
+Transaction number
+Number, name, serial number, barcode…

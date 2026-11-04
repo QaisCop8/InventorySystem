@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import type React from "react"
 
 import { useState } from "react"
@@ -63,7 +64,7 @@ export function ResponsiveTable({ data, columns, title, onRowClick }: Responsive
                       onClick={() => onRowClick?.(row)}
                     >
                       {columns.map((column) => (
-                        <td key={column.key} className="p-4 text-right">
+                        <td key={column.key} className="p-4 text-start">
                           {column.render ? column.render(row[column.key], row) : row[column.key]}
                         </td>
                       ))}
@@ -111,13 +112,13 @@ export function ResponsiveTable({ data, columns, title, onRowClick }: Responsive
                     <Button variant="ghost" size="sm" onClick={() => toggleRow(index)} className="w-full mt-2">
                       {expandedRows.has(index) ? (
                         <>
-                          <ChevronUp className="h-4 w-4 ml-2" />
-                          إخفاء التفاصيل
+                          <ChevronUp className="h-4 w-4 me-2" />
+                          {tr("إخفاء التفاصيل")}
                         </>
                       ) : (
                         <>
-                          <ChevronDown className="h-4 w-4 ml-2" />
-                          عرض التفاصيل
+                          <ChevronDown className="h-4 w-4 me-2" />
+                          {tr("عرض التفاصيل")}
                         </>
                       )}
                     </Button>

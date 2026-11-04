@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, UserPlus, UserRound, Zap } from "lucide-react"
@@ -64,10 +65,10 @@ function passwordStrength(password: string) {
   if (/[^A-Za-z0-9]/.test(password)) score++
   const level = Math.min(4, Math.max(1, score))
   return [
-    { score: 1, label: "ضعيفة", color: "bg-rose-400" },
-    { score: 2, label: "مقبولة", color: "bg-amber-300" },
-    { score: 3, label: "جيدة", color: "bg-cyan-300" },
-    { score: 4, label: "قوية", color: "bg-emerald-400" },
+    { score: 1, label: tr("ضعيفة"), color: "bg-rose-400" },
+    { score: 2, label: tr("مقبولة"), color: "bg-amber-300" },
+    { score: 3, label: tr("جيدة"), color: "bg-cyan-300" },
+    { score: 4, label: tr("قوية"), color: "bg-emerald-400" },
   ][level - 1]
 }
 
@@ -97,11 +98,11 @@ export default function ManagementSignupPage() {
     event.preventDefault()
     setError("")
     if (form.password !== form.confirmPassword) {
-      setError("كلمة المرور وتأكيد كلمة المرور غير متطابقتين")
+      setError(tr("كلمة المرور وتأكيد كلمة المرور غير متطابقتين"))
       return
     }
     if (form.password.length < 6) {
-      setError("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+      setError(tr("كلمة المرور يجب أن تكون 6 أحرف على الأقل"))
       return
     }
 
@@ -114,24 +115,24 @@ export default function ManagementSignupPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        setError(data.error || "حدث خطأ أثناء إنشاء الحساب")
+        setError(data.error || tr("حدث خطأ أثناء إنشاء الحساب"))
         return
       }
       setSuccess(true)
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      setError(tr("تعذّر الاتصال بالخادم"))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main ref={rootRef} dir="rtl" onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} className="su-root grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
+    <main ref={rootRef} dir={appDir()} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} className="su-root grid min-h-screen lg:grid-cols-[1fr_1.1fr]">
       <style dangerouslySetInnerHTML={{ __html: css }} />
       <div className="su-aurora" aria-hidden="true" />
       <div className="su-dots" aria-hidden="true" />
-      <div className="su-blob -left-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
-      <div className="su-blob -right-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
+      <div className="su-blob -end-24 top-0 h-80 w-80 bg-amber-200/60" aria-hidden="true" />
+      <div className="su-blob -start-24 bottom-0 h-96 w-96 bg-emerald-200/50 [animation-delay:-6s]" aria-hidden="true" />
 
       <section className="relative flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-8">
         <div className="mb-8 lg:hidden"><Wordmark /></div>
@@ -143,18 +144,18 @@ export default function ManagementSignupPage() {
                   <span className="su-pop mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_18px_40px_-12px_rgba(16,185,129,.9)] ring-1 ring-white/30">
                     <CheckCircle2 className="h-10 w-10 text-white" />
                   </span>
-                  <h2 className="mt-6 text-[1.75rem] font-black">تم إنشاء الحساب بنجاح! 🎉</h2>
-                  <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-stone-500">يمكنك الآن تسجيل الدخول إلى بوابة الإدارة وإضافة شركتك الأولى.</p>
+                  <h2 className="mt-6 text-[1.75rem] font-black">{tr("تم إنشاء الحساب بنجاح! 🎉")}</h2>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-stone-500">{tr("يمكنك الآن تسجيل الدخول إلى بوابة الإدارة وإضافة شركتك الأولى.")}</p>
                   <Link href="/management/login" className="su-btn group mt-7 inline-flex h-12 w-full items-center justify-center gap-2 text-sm font-black text-white">
-                    الذهاب لتسجيل الدخول<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                    {tr("الذهاب لتسجيل الدخول")}<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                   </Link>
                 </div>
               ) : (
                 <>
                   <div className="mb-7">
-                    <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200"><UserPlus className="h-3.5 w-3.5" />حساب إدارة جديد</span>
-                    <h1 className="text-[1.75rem] font-black leading-tight">أنشئ حسابك ✨</h1>
-                    <p className="mt-1.5 text-sm text-stone-500">دقيقة واحدة وتبدأ بإدارة شركاتك من بوابة واحدة</p>
+                    <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200"><UserPlus className="h-3.5 w-3.5" />{tr("حساب إدارة جديد")}</span>
+                    <h1 className="text-[1.75rem] font-black leading-tight">{tr("أنشئ حسابك ✨")}</h1>
+                    <p className="mt-1.5 text-sm text-stone-500">{tr("دقيقة واحدة وتبدأ بإدارة شركاتك من بوابة واحدة")}</p>
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-5">
@@ -165,43 +166,43 @@ export default function ManagementSignupPage() {
                     )}
 
                     <div className="space-y-2">
-                      <label htmlFor="signup-name" className="text-sm font-bold text-slate-700">الاسم الكامل</label>
+                      <label htmlFor="signup-name" className="text-sm font-bold text-slate-700">{tr("الاسم الكامل")}</label>
                       <div className="relative">
-                        <UserRound className="pointer-events-none absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
-                        <input id="signup-name" autoComplete="name" autoFocus required placeholder="أدخل الاسم الكامل" className="su-field pl-4 pr-11 text-right"
+                        <UserRound className="pointer-events-none absolute start-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                        <input id="signup-name" autoComplete="name" autoFocus required placeholder={tr("أدخل الاسم الكامل")} className="su-field pe-4 ps-11 text-start"
                           value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="signup-email" className="text-sm font-bold text-slate-700">البريد الإلكتروني</label>
+                      <label htmlFor="signup-email" className="text-sm font-bold text-slate-700">{tr("البريد الإلكتروني")}</label>
                       <div className="relative" dir="ltr">
-                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                        <Mail className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
                         <input id="signup-email" type="email" inputMode="email" autoComplete="email" required dir="ltr" style={ltrStyle} spellCheck={false} autoCapitalize="none"
-                          placeholder="name@company.com" className="su-field pl-11 pr-4" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+                          placeholder="name@company.com" className="su-field pe-11 ps-4" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
                       </div>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <label htmlFor="signup-password" className="text-sm font-bold text-slate-700">كلمة المرور</label>
+                        <label htmlFor="signup-password" className="text-sm font-bold text-slate-700">{tr("كلمة المرور")}</label>
                         <div className="relative" dir="ltr">
-                          <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                          <LockKeyhole className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
                           <input id="signup-password" type={showPassword ? "text" : "password"} autoComplete="new-password" required dir="ltr" style={ltrStyle}
-                            placeholder="6 أحرف على الأقل" className="su-field pl-11 pr-12" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} />
-                          <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                            className="absolute right-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-slate-900">
+                            placeholder={tr("6 أحرف على الأقل")} className="su-field pe-11 ps-12" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} />
+                          <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? tr("إخفاء كلمة المرور") : tr("إظهار كلمة المرور")}
+                            className="absolute start-1.5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-slate-900">
                             {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
                           </button>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label htmlFor="signup-confirm-password" className="text-sm font-bold text-slate-700">تأكيد كلمة المرور</label>
+                        <label htmlFor="signup-confirm-password" className="text-sm font-bold text-slate-700">{tr("تأكيد كلمة المرور")}</label>
                         <div className="relative" dir="ltr">
-                          <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                          <LockKeyhole className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
                           <input id="signup-confirm-password" type={showPassword ? "text" : "password"} autoComplete="new-password" required dir="ltr" style={ltrStyle}
-                            placeholder="أعد كتابتها" className={`su-field pl-11 pr-4 ${confirmMismatch ? "!border-rose-400/70" : ""}`}
+                            placeholder={tr("أعد كتابتها")} className={`su-field pe-11 ps-4 ${confirmMismatch ? "!border-rose-400/70" : ""}`}
                             value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} />
                         </div>
                       </div>
@@ -214,32 +215,32 @@ export default function ManagementSignupPage() {
                             <div className="grid flex-1 grid-cols-4 gap-1.5" dir="ltr">
                               {[1, 2, 3, 4].map((step) => <span key={step} className={`h-1.5 rounded-full transition-colors ${step <= strength.score ? strength.color : "bg-stone-200"}`} />)}
                             </div>
-                            <span className="w-14 text-left text-xs font-bold text-slate-600">{strength.label}</span>
+                            <span className="w-14 text-end text-xs font-bold text-slate-600">{strength.label}</span>
                           </div>
                         )}
                         {form.confirmPassword && (
                           <p className={`flex items-center gap-1.5 text-xs font-semibold ${confirmMismatch ? "text-rose-600" : "text-emerald-700"}`}>
                             {confirmMismatch ? <AlertCircle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                            {confirmMismatch ? "كلمتا المرور غير متطابقتين" : "كلمتا المرور متطابقتان"}
+                            {confirmMismatch ? tr("كلمتا المرور غير متطابقتين") : tr("كلمتا المرور متطابقتان")}
                           </p>
                         )}
                       </div>
                     )}
 
                     <button type="submit" disabled={loading} className="su-btn group flex h-12 w-full items-center justify-center gap-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-70">
-                      {loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />جاري إنشاء الحساب…</> : <>إنشاء الحساب<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
+                      {loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />{tr("جاري إنشاء الحساب…")}</> : <>{tr("إنشاء الحساب")}<ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
                     </button>
                   </form>
                 </>
               )}
 
               <div className="mt-6 border-t border-[#ece3d3] pt-5 text-center text-sm text-stone-500">
-                لديك حساب بالفعل؟ <Link href="/management/login" className="font-semibold text-emerald-700 transition-colors hover:text-emerald-800">تسجيل الدخول</Link>
+                {tr("لديك حساب بالفعل؟ ")}<Link href="/management/login" className="font-semibold text-emerald-700 transition-colors hover:text-emerald-800">{tr("تسجيل الدخول")}</Link>
               </div>
             </div>
           </div>
         </div>
-        <p className="mt-6 flex items-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">Noon ERP</span></p>
+        <p className="mt-6 flex items-center gap-1.5 text-xs text-stone-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />{tr("اتصال مشفّر · ")}<span dir="ltr">Noon ERP</span></p>
         <PoweredBy className="mt-2" />
       </section>
 
@@ -248,20 +249,20 @@ export default function ManagementSignupPage() {
 
         <div className="su-rise max-w-xl [animation-delay:.1s]">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#ece3d3] bg-white/80 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5" />ابدأ مجاناً
+            <Sparkles className="h-3.5 w-3.5" />{tr("ابدأ مجاناً")}
           </p>
           <h2 className="text-4xl font-black leading-[1.3] xl:text-[3.25rem]">
-            ابدأ إدارة شركتك<br />
-            <span className="bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">في دقائق</span>
+            {tr("ابدأ إدارة شركتك")}<br />
+            <span className="bg-gradient-to-l from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">{tr("في دقائق")}</span>
           </h2>
-          <p className="mt-5 max-w-md text-[15px] leading-8 text-slate-600">أنشئ حساب إدارة، أضف شركتك أو جرّب شركة تجريبية لمدة 10 أيام، وادخل إلى المخزون والمبيعات والحسابات والتقارير من مكان واحد.</p>
+          <p className="mt-5 max-w-md text-[15px] leading-8 text-slate-600">{tr("أنشئ حساب إدارة، أضف شركتك أو جرّب شركة تجريبية لمدة 10 أيام، وادخل إلى المخزون والمبيعات والحسابات والتقارير من مكان واحد.")}</p>
         </div>
 
         <ol className="su-rise relative max-w-md space-y-3 [animation-delay:.2s]">
           {[
-            { title: "أنشئ حسابك", text: "الاسم والبريد وكلمة المرور" },
-            { title: "أضف شركتك", text: "أو ابدأ بشركة تجريبية فوراً" },
-            { title: "ادخل إلى النظام", text: "كل شركة بقاعدة بيانات معزولة" },
+            { title: tr("أنشئ حسابك"), text: tr("الاسم والبريد وكلمة المرور") },
+            { title: tr("أضف شركتك"), text: tr("أو ابدأ بشركة تجريبية فوراً") },
+            { title: tr("ادخل إلى النظام"), text: tr("كل شركة بقاعدة بيانات معزولة") },
           ].map((step, index) => (
             <li key={step.title} className="flex items-center gap-4 rounded-2xl border border-[#ece3d3] bg-white/80 p-3.5 backdrop-blur-xl">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/30 to-cyan-400/10 text-base font-black text-emerald-700 ring-1 ring-emerald-200/60">{index + 1}</span>
@@ -272,9 +273,9 @@ export default function ManagementSignupPage() {
 
         <div className="su-rise grid grid-cols-3 gap-3 [animation-delay:.3s]">
           {[
-            { icon: Building2, title: "عدة شركات", text: "من حساب واحد" },
-            { icon: ShieldCheck, title: "حماية البيانات", text: "تشفير وصلاحيات" },
-            { icon: Zap, title: "بداية سريعة", text: "إعداد بسيط" },
+            { icon: Building2, title: tr("عدة شركات"), text: tr("من حساب واحد") },
+            { icon: ShieldCheck, title: tr("حماية البيانات"), text: tr("تشفير وصلاحيات") },
+            { icon: Zap, title: tr("بداية سريعة"), text: tr("إعداد بسيط") },
           ].map((item) => (
             <div key={item.title} className="rounded-2xl border border-[#ece3d3] bg-white/80 p-3.5 backdrop-blur-xl transition duration-300 hover:-translate-y-1.5 hover:border-emerald-300/30 hover:bg-white">
               <span className="mb-2 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400/25 to-cyan-400/10 text-emerald-700 ring-1 ring-emerald-200/60"><item.icon className="h-[18px] w-[18px]" /></span>

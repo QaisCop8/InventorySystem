@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 import { useState, useEffect, useMemo } from "react"
@@ -223,7 +224,7 @@ export function BatchMovements() {
     e.preventDefault()
 
     if (!formData.lot_id) {
-      showAlert("يرجى اختيار الدفعة")
+      showAlert(tr("يرجى اختيار الدفعة"))
       return
     }
 
@@ -247,14 +248,14 @@ export function BatchMovements() {
         resetForm()
         fetchMovements()
         fetchLots()
-        showAlert("تم إضافة حركة الدفعة بنجاح")
+        showAlert(tr("تم إضافة حركة الدفعة بنجاح"))
       } else {
         const error = await response.json()
-        throw new Error(error.error || "فشل في إضافة حركة الدفعة")
+        throw new Error(error.error || tr("فشل في إضافة حركة الدفعة"))
       }
     } catch (error) {
       console.error("Error creating batch movement:", error)
-      showAlert(error instanceof Error ? error.message : "حدث خطأ في إضافة حركة الدفعة")
+      showAlert(error instanceof Error ? error.message : tr("حدث خطأ في إضافة حركة الدفعة"))
     }
   }
 
@@ -302,10 +303,10 @@ export function BatchMovements() {
 
   const getMovementBadge = (type: string) => {
     const config = {
-      new: { color: "bg-green-100 text-green-800", text: "جديد" },
-      inUse: { color: "bg-red-100 text-red-800", text: "قيد الإستخدام" },
-      closed: { color: "bg-blue-100 text-blue-800", text: "مغلق" },
-      damaged: { color: "bg-purple-100 text-purple-800", text: "تالف" },
+      new: { color: "bg-green-100 text-green-800", text: tr("جديد") },
+      inUse: { color: "bg-red-100 text-red-800", text: tr("قيد الإستخدام") },
+      closed: { color: "bg-blue-100 text-blue-800", text: tr("مغلق") },
+      damaged: { color: "bg-purple-100 text-purple-800", text: tr("تالف") },
     }
     const { color, text } = config[type as keyof typeof config] || config.inUse
     return <Badge className={color}>{text}</Badge>
@@ -313,10 +314,10 @@ export function BatchMovements() {
 
   const getStatusBadge = (status: string) => {
     const config = {
-      new: { color: "bg-blue-100 text-blue-800", text: "جديد" },
-      in_use: { color: "bg-green-100 text-green-800", text: "قيد الاستخدام" },
-      finished: { color: "bg-gray-100 text-gray-800", text: "منتهي" },
-      damaged: { color: "bg-red-100 text-red-800", text: "تالف" },
+      new: { color: "bg-blue-100 text-blue-800", text: tr("جديد") },
+      in_use: { color: "bg-green-100 text-green-800", text: tr("قيد الاستخدام") },
+      finished: { color: "bg-gray-100 text-gray-800", text: tr("منتهي") },
+      damaged: { color: "bg-red-100 text-red-800", text: tr("تالف") },
     }
     const { color, text } = config[status as keyof typeof config] || config.new
     return <Badge className={color}>{text}</Badge>
@@ -324,9 +325,9 @@ export function BatchMovements() {
 
   const getExpiryBadge = (status: string) => {
     const config = {
-      "منتهي الصلاحية": { color: "bg-red-100 text-red-800", text: "منتهي الصلاحية" },
-      "قريب الانتهاء": { color: "bg-yellow-100 text-yellow-800", text: "قريب الانتهاء" },
-      صالح: { color: "bg-green-100 text-green-800", text: "صالح" },
+      "منتهي الصلاحية": { color: "bg-red-100 text-red-800", text: tr("منتهي الصلاحية") },
+      "قريب الانتهاء": { color: "bg-yellow-100 text-yellow-800", text: tr("قريب الانتهاء") },
+      صالح: { color: "bg-green-100 text-green-800", text: tr("صالح") },
     }
     const { color, text } = config[status as keyof typeof config] || config["صالح"]
     return <Badge className={color}>{text}</Badge>
@@ -416,7 +417,7 @@ export function BatchMovements() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">إدارة حركات الرقم التشغيلي - الباتش</h2>
+          <h2 className="text-2xl font-bold">{tr("إدارة حركات الرقم التشغيلي - الباتش")}</h2>
         </div>
 
       </div>
@@ -453,7 +454,7 @@ export function BatchMovements() {
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div className="space-y-4">
                   <Label className="text-sm font-medium">
-                    {"رقم الصنف"} <span className="text-red-500 mr-1"></span>
+                    {tr("رقم الصنف")} <span className="text-red-500 ms-1"></span>
                   </Label>
 
                   <div className="flex flex-row-reverse gap-2 items-center">
@@ -483,7 +484,7 @@ export function BatchMovements() {
                         setFilters((prev) => ({ ...prev, product_id: e.target.value }))
                       }
                       className="text-right font-medium h-11 flex-1"
-                      dir="rtl"
+                      dir={appDir()}
                       placeholder={""}
                       maxLength={8}
                     />
@@ -491,36 +492,36 @@ export function BatchMovements() {
                 </div>
 
                 <div>
-                  <Label>الرقم التشغيلي</Label>
+                  <Label>{tr("الرقم التشغيلي")}</Label>
                   <Input
                     value={filters.lot_number}
                     onChange={(e) => setFilters((prev) => ({ ...prev, lot_number: e.target.value }))}
-                    placeholder="ابحث عن رقم تشغيلي..."
+                    placeholder={tr("ابحث عن رقم تشغيلي...")}
                     maxLength={30}
                   />
                 </div>
 
                 <div>
-                  <Label>الحالة</Label>
+                  <Label>{tr("الحالة")}</Label>
                   <Select
                     value={String(filters.transaction_type) ?? "0"}
                     onValueChange={(value) => setFilters((prev) => ({ ...prev, transaction_type: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="الكل" />
+                      <SelectValue placeholder={tr("الكل")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">الكل</SelectItem>
-                      <SelectItem value="1">جديد</SelectItem>
-                      <SelectItem value="2">قيد الإستخدام</SelectItem>
-                      <SelectItem value="3">مغلق</SelectItem>
-                      <SelectItem value="4">تالف</SelectItem>
+                      <SelectItem value="0">{tr("الكل")}</SelectItem>
+                      <SelectItem value="1">{tr("جديد")}</SelectItem>
+                      <SelectItem value="2">{tr("قيد الإستخدام")}</SelectItem>
+                      <SelectItem value="3">{tr("مغلق")}</SelectItem>
+                      <SelectItem value="4">{tr("تالف")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label>من تاريخ</Label>
+                  <Label>{tr("من تاريخ")}</Label>
                   <Input
                     type="date"
                     value={filters.date_from}
@@ -529,7 +530,7 @@ export function BatchMovements() {
                 </div>
 
                 <div>
-                  <Label>إلى تاريخ</Label>
+                  <Label>{tr("إلى تاريخ")}</Label>
                   <Input
                     type="date"
                     value={filters.date_to}
@@ -540,7 +541,7 @@ export function BatchMovements() {
                 <div className="flex items-end">
                   <Button onClick={fetchMovements} className="w-full">
                     <Search className="ml-2 h-4 w-4" />
-                    بحث
+                    {tr("بحث")}
                   </Button>
                 </div>
               </div>
@@ -554,7 +555,7 @@ export function BatchMovements() {
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  سجل حركات الأرقام التشغيلية
+                  {tr("سجل حركات الأرقام التشغيلية")}
                 </CardTitle>
 
                 <Button
@@ -563,7 +564,7 @@ export function BatchMovements() {
                   className="bg-white/20 border-white/30 text-white hover:bg-white/30"
                 >
                   <Download className="ml-2 h-4 w-4" />
-                  تصدير
+                  {tr("تصدير")}
                 </Button>
               </div>
             </CardHeader>
@@ -576,17 +577,17 @@ export function BatchMovements() {
                   {/* HEADER */}
                   <thead className="bg-gradient-to-r from-gray-50 to-blue-50/50">
                     <tr>
-                      <th className="p-2 text-right">##</th>
-                      <th className="p-4 text-right">التاريخ</th>
-                      <th className="p-4 text-right">الصنف</th>
-                      <th className="p-4 text-right">الكمية</th>
-                      <th className="p-4 text-right">الرقم التشغيلي</th>
-                      <th className="p-4 text-right">الحالة</th>
-                      <th className="p-4 text-right">رقم الحركة</th>
-                      {Util.checkUserAccess(11) && <th className="p-4 text-right">المورد</th>}
-                      <th className="p-4 text-right">السند اليدوي</th>
-                      <th className="p-4 text-right">تاريخ اخر حركة</th>
-                      <th className="p-4 text-right">اجراءات</th>
+                      <th className="p-2 text-start">##</th>
+                      <th className="p-4 text-start">{tr("التاريخ")}</th>
+                      <th className="p-4 text-start">{tr("الصنف")}</th>
+                      <th className="p-4 text-start">{tr("الكمية")}</th>
+                      <th className="p-4 text-start">{tr("الرقم التشغيلي")}</th>
+                      <th className="p-4 text-start">{tr("الحالة")}</th>
+                      <th className="p-4 text-start">{tr("رقم الحركة")}</th>
+                      {Util.checkUserAccess(11) && <th className="p-4 text-start">{tr("المورد")}</th>}
+                      <th className="p-4 text-start">{tr("السند اليدوي")}</th>
+                      <th className="p-4 text-start">{tr("تاريخ اخر حركة")}</th>
+                      <th className="p-4 text-start">{tr("اجراءات")}</th>
                     </tr>
                   </thead>
 
@@ -706,7 +707,7 @@ export function BatchMovements() {
                     ) : (
                       <tr>
                         <td colSpan={11} className="p-8 text-center text-gray-500">
-                          لا توجد بيانات
+                          {tr("لا توجد بيانات")}
                         </td>
                       </tr>
                     )}
@@ -718,7 +719,7 @@ export function BatchMovements() {
               <div className="flex justify-between items-center p-4 border-t">
 
                 <div>
-                  صفحة {currentPage} من {totalPages}
+                  {tr("صفحة ")}{currentPage}{tr(" من ")}{totalPages}
                 </div>
 
                 <div className="flex gap-2">
@@ -727,7 +728,7 @@ export function BatchMovements() {
                     disabled={currentPage === 1}
                     onClick={() => handlePageChange(currentPage - 1)}
                   >
-                    السابق
+                    {tr("السابق")}
                   </Button>
 
                   {pages.map((page, index) =>
@@ -748,7 +749,7 @@ export function BatchMovements() {
                     disabled={currentPage === totalPages}
                     onClick={() => handlePageChange(currentPage + 1)}
                   >
-                    التالي
+                    {tr("التالي")}
                   </Button>
 
                 </div>
@@ -763,7 +764,7 @@ export function BatchMovements() {
             <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-lg">
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                إدارة الدفعات النشطة
+                {tr("إدارة الدفعات النشطة")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -771,16 +772,16 @@ export function BatchMovements() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-4 font-semibold">المنتج</th>
-                      <th className="text-right p-4 font-semibold">رقم الدفعة</th>
-                      <th className="text-right p-4 font-semibold">تاريخ الإنتاج</th>
-                      <th className="text-right p-4 font-semibold">تاريخ الانتهاء</th>
-                      <th className="text-right p-4 font-semibold">حالة الصلاحية</th>
-                      <th className="text-right p-4 font-semibold">الكمية الحالية</th>
-                      <th className="text-right p-4 font-semibold">الكمية المتاحة</th>
-                      <th className="text-right p-4 font-semibold">الحالة</th>
-                      <th className="text-right p-4 font-semibold">المورد</th>
-                      <th className="text-right p-4 font-semibold">إجراءات</th>
+                      <th className="text-right p-4 font-semibold">{tr("المنتج")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("رقم الدفعة")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("تاريخ الإنتاج")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("تاريخ الانتهاء")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("حالة الصلاحية")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("الكمية الحالية")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("الكمية المتاحة")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("الحالة")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("المورد")}</th>
+                      <th className="text-right p-4 font-semibold">{tr("إجراءات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -827,7 +828,7 @@ export function BatchMovements() {
                     ) : (
                       <tr>
                         <td colSpan={10} className="p-8 text-center text-gray-500">
-                          لا توجد دفعات للعرض
+                          {tr("لا توجد دفعات للعرض")}
                         </td>
                       </tr>
                     )}
@@ -844,7 +845,7 @@ export function BatchMovements() {
           <DialogHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 -m-6 mb-6 rounded-t-lg">
             <DialogTitle className="flex items-center gap-2 text-white">
               <Plus className="h-5 w-5" />
-              إضافة حركة دفعة جديدة
+              {tr("إضافة حركة دفعة جديدة")}
             </DialogTitle>
           </DialogHeader>
 
@@ -852,17 +853,17 @@ export function BatchMovements() {
             {/* Lot Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="lot">الدفعة *</Label>
+                <Label htmlFor="lot">{tr("الدفعة *")}</Label>
                 <Select value={formData.lot_id} onValueChange={handleLotSelect}>
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر الدفعة" />
+                    <SelectValue placeholder={tr("اختر الدفعة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">اختر الدفعة</SelectItem>
+                    <SelectItem value="none">{tr("اختر الدفعة")}</SelectItem>
                     {Array.isArray(lots) &&
                       lots.map((lot) => (
                         <SelectItem key={lot.id} value={lot.id.toString()}>
-                          {lot.product_name} - {lot.lot_number} (متاح: {lot.available_quantity})
+                          {lot.product_name} - {lot.lot_number}{tr(" (متاح: ")}{lot.available_quantity})
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -870,7 +871,7 @@ export function BatchMovements() {
               </div>
 
               <div>
-                <Label htmlFor="transaction_type">نوع الحركة *</Label>
+                <Label htmlFor="transaction_type">{tr("نوع الحركة *")}</Label>
                 <Select
                   value={formData.transaction_type}
                   onValueChange={(value: BatchMovement["transaction_type"]) =>
@@ -881,14 +882,14 @@ export function BatchMovements() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="purchase">شراء</SelectItem>
-                    <SelectItem value="sale">بيع</SelectItem>
-                    <SelectItem value="adjustment">تعديل كمية</SelectItem>
-                    <SelectItem value="transfer">تحويل</SelectItem>
-                    <SelectItem value="return">مرتجع</SelectItem>
-                    <SelectItem value="status_change">تغيير حالة</SelectItem>
-                    <SelectItem value="damage">تلف</SelectItem>
-                    <SelectItem value="close">إغلاق دفعة</SelectItem>
+                    <SelectItem value="purchase">{tr("شراء")}</SelectItem>
+                    <SelectItem value="sale">{tr("بيع")}</SelectItem>
+                    <SelectItem value="adjustment">{tr("تعديل كمية")}</SelectItem>
+                    <SelectItem value="transfer">{tr("تحويل")}</SelectItem>
+                    <SelectItem value="return">{tr("مرتجع")}</SelectItem>
+                    <SelectItem value="status_change">{tr("تغيير حالة")}</SelectItem>
+                    <SelectItem value="damage">{tr("تلف")}</SelectItem>
+                    <SelectItem value="close">{tr("إغلاق دفعة")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -900,21 +901,21 @@ export function BatchMovements() {
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="font-medium">المنتج:</span>
+                      <span className="font-medium">{tr("المنتج:")}</span>
                       <div>{selectedLot.product_name}</div>
                     </div>
                     <div>
-                      <span className="font-medium">الكمية الحالية:</span>
+                      <span className="font-medium">{tr("الكمية الحالية:")}</span>
                       <div>{selectedLot.current_quantity.toLocaleString("en-US")}</div>
                     </div>
                     <div>
-                      <span className="font-medium">الكمية المتاحة:</span>
+                      <span className="font-medium">{tr("الكمية المتاحة:")}</span>
                       <div className="text-green-600 font-medium">
                         {selectedLot.available_quantity.toLocaleString("en-US")}
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium">الحالة:</span>
+                      <span className="font-medium">{tr("الحالة:")}</span>
                       <div>{getStatusBadge(selectedLot.status)}</div>
                     </div>
                   </div>
@@ -926,7 +927,7 @@ export function BatchMovements() {
             {formData.transaction_type !== "status_change" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="quantity">الكمية *</Label>
+                  <Label htmlFor="quantity">{tr("الكمية *")}</Label>
                   <Input
                     id="quantity"
                     type="number"
@@ -943,7 +944,7 @@ export function BatchMovements() {
                 </div>
 
                 <div>
-                  <Label htmlFor="unit_cost">تكلفة الوحدة</Label>
+                  <Label htmlFor="unit_cost">{tr("تكلفة الوحدة")}</Label>
                   <Input
                     id="unit_cost"
                     type="number"
@@ -963,7 +964,7 @@ export function BatchMovements() {
             {/* Status Change */}
             {formData.transaction_type === "status_change" && (
               <div>
-                <Label htmlFor="new_status">الحالة الجديدة *</Label>
+                <Label htmlFor="new_status">{tr("الحالة الجديدة *")}</Label>
                 <Select
                   value={formData.new_status}
                   onValueChange={(value: ProductLot["status"]) =>
@@ -971,13 +972,13 @@ export function BatchMovements() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر الحالة الجديدة" />
+                    <SelectValue placeholder={tr("اختر الحالة الجديدة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="new">جديد</SelectItem>
-                    <SelectItem value="in_use">قيد الاستخدام</SelectItem>
-                    <SelectItem value="finished">منتهي</SelectItem>
-                    <SelectItem value="damaged">تالف</SelectItem>
+                    <SelectItem value="new">{tr("جديد")}</SelectItem>
+                    <SelectItem value="in_use">{tr("قيد الاستخدام")}</SelectItem>
+                    <SelectItem value="finished">{tr("منتهي")}</SelectItem>
+                    <SelectItem value="damaged">{tr("تالف")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -986,53 +987,53 @@ export function BatchMovements() {
             {/* Reference */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="reference_type">نوع المرجع</Label>
+                <Label htmlFor="reference_type">{tr("نوع المرجع")}</Label>
                 <Select
                   value={formData.reference_type}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, reference_type: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر نوع المرجع" />
+                    <SelectValue placeholder={tr("اختر نوع المرجع")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="purchase_order">أمر شراء</SelectItem>
-                    <SelectItem value="sales_order">أمر بيع</SelectItem>
-                    <SelectItem value="adjustment">تعديل</SelectItem>
-                    <SelectItem value="transfer">تحويل</SelectItem>
-                    <SelectItem value="manual">يدوي</SelectItem>
+                    <SelectItem value="purchase_order">{tr("أمر شراء")}</SelectItem>
+                    <SelectItem value="sales_order">{tr("أمر بيع")}</SelectItem>
+                    <SelectItem value="adjustment">{tr("تعديل")}</SelectItem>
+                    <SelectItem value="transfer">{tr("تحويل")}</SelectItem>
+                    <SelectItem value="manual">{tr("يدوي")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="reference_id">رقم المرجع</Label>
+                <Label htmlFor="reference_id">{tr("رقم المرجع")}</Label>
                 <Input
                   id="reference_id"
                   value={formData.reference_id}
                   onChange={(e) => setFormData((prev) => ({ ...prev, reference_id: e.target.value }))}
-                  placeholder="رقم الأمر أو المرجع"
+                  placeholder={tr("رقم الأمر أو المرجع")}
                 />
               </div>
             </div>
 
             {/* Notes */}
             <div>
-              <Label htmlFor="notes">ملاحظات</Label>
+              <Label htmlFor="notes">{tr("ملاحظات")}</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
-                placeholder="أدخل أي ملاحظات إضافية..."
+                placeholder={tr("أدخل أي ملاحظات إضافية...")}
               />
             </div>
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
-              <Button type="submit">حفظ الحركة</Button>
+              <Button type="submit">{tr("حفظ الحركة")}</Button>
             </div>
           </form>
         </DialogContent>

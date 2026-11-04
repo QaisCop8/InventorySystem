@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { isEnglish } from "@/lib/i18n"
 import { reapplyUserFont } from "@/lib/user-font"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/components/auth/auth-context"
@@ -310,12 +311,8 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
       root.classList.remove("dark")
     }
 
-    // Apply RTL support
-    if (settings.rtl_support) {
-      root.setAttribute("dir", "rtl")
-    } else {
-      root.setAttribute("dir", "ltr")
-    }
+    // الاتجاه تحدده لغة الواجهة (lib/i18n.ts): الإنجليزية دائماً LTR، والعربية حسب إعداد rtl_support
+    root.setAttribute("dir", isEnglish() ? "ltr" : settings.rtl_support ? "rtl" : "ltr")
 
     // Apply to body
     document.body.style.fontSize = `${settings.font_size}px`

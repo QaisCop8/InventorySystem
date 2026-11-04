@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -231,22 +232,22 @@ export function OrderTrackingDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-primary">لوحة تحكم متابعة الطلبيات</h1>
-          <p className="text-muted-foreground">متابعة شاملة لجميع الطلبيات ومراحل العمل</p>
+          <h1 className="text-2xl font-heading font-bold text-primary">{tr("لوحة تحكم متابعة الطلبيات")}</h1>
+          <p className="text-muted-foreground">{tr("متابعة شاملة لجميع الطلبيات ومراحل العمل")}</p>
         </div>
         <div className="flex items-center gap-4">
           <NotificationCenter department={selectedDepartment} />
           <BatchPrintDialog />
           <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="جميع الأقسام" />
+              <SelectValue placeholder={tr("جميع الأقسام")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">جميع الأقسام</SelectItem>
-              <SelectItem value="المبيعات">المبيعات</SelectItem>
-              <SelectItem value="المشتريات">المشتريات</SelectItem>
-              <SelectItem value="المحاسبة">المحاسبة</SelectItem>
-              <SelectItem value="المستودعات">المستودعات</SelectItem>
+              <SelectItem value="all">{tr("جميع الأقسام")}</SelectItem>
+              <SelectItem value="المبيعات">{tr("المبيعات")}</SelectItem>
+              <SelectItem value="المشتريات">{tr("المشتريات")}</SelectItem>
+              <SelectItem value="المحاسبة">{tr("المحاسبة")}</SelectItem>
+              <SelectItem value="المستودعات">{tr("المستودعات")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -259,7 +260,7 @@ export function OrderTrackingDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">إجمالي الطلبيات</p>
+                  <p className="text-sm font-medium text-muted-foreground">{tr("إجمالي الطلبيات")}</p>
                   <p className="text-2xl font-bold">{dashboardData.generalStats.total_orders}</p>
                 </div>
                 <Package className="h-8 w-8 text-blue-500" />
@@ -271,7 +272,7 @@ export function OrderTrackingDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">طلبيات متأخرة</p>
+                  <p className="text-sm font-medium text-muted-foreground">{tr("طلبيات متأخرة")}</p>
                   <p className="text-2xl font-bold text-red-600">{dashboardData.generalStats.overdue_orders}</p>
                 </div>
                 <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -283,7 +284,7 @@ export function OrderTrackingDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">طلبيات مكتملة</p>
+                  <p className="text-sm font-medium text-muted-foreground">{tr("طلبيات مكتملة")}</p>
                   <p className="text-2xl font-bold text-green-600">{dashboardData.generalStats.completed_orders}</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-green-500" />
@@ -295,9 +296,9 @@ export function OrderTrackingDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">متوسط المدة</p>
+                  <p className="text-sm font-medium text-muted-foreground">{tr("متوسط المدة")}</p>
                   <p className="text-2xl font-bold">
-                    {Math.round(dashboardData.generalStats.avg_stage_duration || 0)}س
+                    {Math.round(dashboardData.generalStats.avg_stage_duration || 0)}{tr("س")}
                   </p>
                 </div>
                 <Clock className="h-8 w-8 text-orange-500" />
@@ -309,10 +310,10 @@ export function OrderTrackingDashboard() {
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-          <TabsTrigger value="stages">المراحل</TabsTrigger>
-          <TabsTrigger value="orders">الطلبيات</TabsTrigger>
-          <TabsTrigger value="analytics">التحليلات</TabsTrigger>
+          <TabsTrigger value="overview">{tr("نظرة عامة")}</TabsTrigger>
+          <TabsTrigger value="stages">{tr("المراحل")}</TabsTrigger>
+          <TabsTrigger value="orders">{tr("الطلبيات")}</TabsTrigger>
+          <TabsTrigger value="analytics">{tr("التحليلات")}</TabsTrigger>
         </TabsList>
 
         {/* نظرة عامة */}
@@ -323,7 +324,7 @@ export function OrderTrackingDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  الطلبيات الحديثة
+                  {tr("الطلبيات الحديثة")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -340,7 +341,7 @@ export function OrderTrackingDashboard() {
                         </div>
                         <div className="text-left">
                           <Badge variant="outline">{order.stage_name}</Badge>
-                          <p className="text-sm text-muted-foreground mt-1">{Math.round(order.hours_in_stage)}س</p>
+                          <p className="text-sm text-muted-foreground mt-1">{Math.round(order.hours_in_stage)}{tr("س")}</p>
                         </div>
                       </div>
                     ))}
@@ -354,7 +355,7 @@ export function OrderTrackingDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-red-500" />
-                  الطلبيات المتأخرة
+                  {tr("الطلبيات المتأخرة")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -371,7 +372,7 @@ export function OrderTrackingDashboard() {
                         </div>
                         <div className="text-left">
                           <Badge variant="destructive">{order.stage_name}</Badge>
-                          <p className="text-sm text-red-600 mt-1">متأخر {Math.round(order.hours_overdue)}س</p>
+                          <p className="text-sm text-red-600 mt-1">{tr("متأخر ")}{Math.round(order.hours_overdue)}{tr("س")}</p>
                         </div>
                       </div>
                     ))}
@@ -394,17 +395,17 @@ export function OrderTrackingDashboard() {
                         <div className="w-4 h-4 rounded-full" style={{ backgroundColor: stage.stage_color }} />
                         <h3 className="font-semibold">{stage.stage_name}</h3>
                       </div>
-                      <Badge variant="outline">{stage.order_count} طلبية</Badge>
+                      <Badge variant="outline">{stage.order_count}{tr(" طلبية")}</Badge>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span>متأخرة:</span>
+                        <span>{tr("متأخرة:")}</span>
                         <span className="text-red-600">{stage.overdue_count}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>متوسط المدة:</span>
-                        <span>{Math.round(stage.avg_hours_in_stage || 0)}س</span>
+                        <span>{tr("متوسط المدة:")}</span>
+                        <span>{Math.round(stage.avg_hours_in_stage || 0)}{tr("س")}</span>
                       </div>
                     </div>
 
@@ -420,7 +421,7 @@ export function OrderTrackingDashboard() {
           {(!dashboardData || !dashboardData.stageStats || !Array.isArray(dashboardData.stageStats)) && (
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">لا توجد بيانات مراحل متاحة</p>
+                <p className="text-muted-foreground">{tr("لا توجد بيانات مراحل متاحة")}</p>
               </CardContent>
             </Card>
           )}
@@ -434,9 +435,9 @@ export function OrderTrackingDashboard() {
               <div className="flex flex-wrap gap-4">
                 <div className="flex-1 min-w-64">
                   <div className="relative">
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="البحث في الطلبيات..."
+                      placeholder={tr("البحث في الطلبيات...")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pr-10"
@@ -446,10 +447,10 @@ export function OrderTrackingDashboard() {
 
                 <Select value={selectedStage} onValueChange={setSelectedStage}>
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="جميع المراحل" />
+                    <SelectValue placeholder={tr("جميع المراحل")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع المراحل</SelectItem>
+                    <SelectItem value="all">{tr("جميع المراحل")}</SelectItem>
                     {dashboardData?.stageStats &&
                       Array.isArray(dashboardData.stageStats) &&
                       dashboardData.stageStats.map((stage) => (
@@ -462,23 +463,23 @@ export function OrderTrackingDashboard() {
 
                 <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="نوع الطلبية" />
+                    <SelectValue placeholder={tr("نوع الطلبية")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع الأنواع</SelectItem>
-                    <SelectItem value="sales">أوامر البيع</SelectItem>
-                    <SelectItem value="purchase">أوامر الشراء</SelectItem>
+                    <SelectItem value="all">{tr("جميع الأنواع")}</SelectItem>
+                    <SelectItem value="sales">{tr("أوامر البيع")}</SelectItem>
+                    <SelectItem value="purchase">{tr("أوامر الشراء")}</SelectItem>
                   </SelectContent>
                 </Select>
 
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="الحالة" />
+                    <SelectValue placeholder={tr("الحالة")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">جميع الحالات</SelectItem>
-                    <SelectItem value="normal">عادية</SelectItem>
-                    <SelectItem value="overdue">متأخرة</SelectItem>
+                    <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                    <SelectItem value="normal">{tr("عادية")}</SelectItem>
+                    <SelectItem value="overdue">{tr("متأخرة")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -488,7 +489,7 @@ export function OrderTrackingDashboard() {
           {/* قائمة الطلبيات */}
           <Card>
             <CardHeader>
-              <CardTitle>الطلبيات ({filteredOrders.length})</CardTitle>
+              <CardTitle>{tr("الطلبيات (")}{filteredOrders.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -513,10 +514,10 @@ export function OrderTrackingDashboard() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="urgent">عاجلة</SelectItem>
-                              <SelectItem value="high">عالية</SelectItem>
-                              <SelectItem value="normal">عادية</SelectItem>
-                              <SelectItem value="low">منخفضة</SelectItem>
+                              <SelectItem value="urgent">{tr("عاجلة")}</SelectItem>
+                              <SelectItem value="high">{tr("عالية")}</SelectItem>
+                              <SelectItem value="normal">{tr("عادية")}</SelectItem>
+                              <SelectItem value="low">{tr("منخفضة")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -527,7 +528,7 @@ export function OrderTrackingDashboard() {
                     <div className="flex items-center gap-4">
                       <div className="text-center">
                         <Badge variant="outline">{order.stage_name}</Badge>
-                        <p className="text-sm text-muted-foreground mt-1">{Math.round(order.hours_in_stage)}س</p>
+                        <p className="text-sm text-muted-foreground mt-1">{Math.round(order.hours_in_stage)}{tr("س")}</p>
                       </div>
 
                       <div className="text-left">
@@ -537,7 +538,7 @@ export function OrderTrackingDashboard() {
                             currency: "SAR",
                           })}
                         </p>
-                        <p className="text-sm text-muted-foreground">{order.order_type === "sales" ? "بيع" : "شراء"}</p>
+                        <p className="text-sm text-muted-foreground">{order.order_type === "sales" ? tr("بيع") : tr("شراء")}</p>
                       </div>
 
                       <div className="flex gap-2">
@@ -574,7 +575,7 @@ export function OrderTrackingDashboard() {
               {/* إحصائيات المراحل */}
               <Card>
                 <CardHeader>
-                  <CardTitle>توزيع الطلبيات حسب المراحل</CardTitle>
+                  <CardTitle>{tr("توزيع الطلبيات حسب المراحل")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {dashboardData.stageStats &&
@@ -601,7 +602,7 @@ export function OrderTrackingDashboard() {
                     </ResponsiveContainer>
                   ) : (
                     <div className="flex items-center justify-center h-[300px]">
-                      <p className="text-muted-foreground">لا توجد بيانات للعرض</p>
+                      <p className="text-muted-foreground">{tr("لا توجد بيانات للعرض")}</p>
                     </div>
                   )}
                 </CardContent>
@@ -610,7 +611,7 @@ export function OrderTrackingDashboard() {
               {/* الأداء اليومي */}
               <Card>
                 <CardHeader>
-                  <CardTitle>الأداء اليومي</CardTitle>
+                  <CardTitle>{tr("الأداء اليومي")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>

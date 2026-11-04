@@ -1,5 +1,6 @@
 "use client";
 
+import { tr, appDir } from "@/lib/i18n"
 import * as React from "react";
 import { Hash, Loader2, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -64,14 +65,14 @@ export default function ProductNumbers({
         const invalid = validate?.(trimmed);
         if (invalid) return invalid;
         if (list.some((row, index) => index !== ignoreIndex && row.trim().toLowerCase() === trimmed.toLowerCase())) {
-            return `${title} مكرر مع صنف - ${currentProductName || "هذا الصنف"}`;
+            return tr("{0} مكرر مع صنف - {1}", title, currentProductName || "هذا الصنف");
         }
         if (!numberType) return "";
         try {
             const response = await fetch(`/api/inventory/products/check-number?type=${numberType}&number=${encodeURIComponent(trimmed)}&exclude_id=${excludeProductId || 0}`);
             if (response.ok) {
                 const data = await response.json();
-                if (data?.duplicate) return `${title} مكرر مع صنف - ${data.product_name}`;
+                if (data?.duplicate) return tr("{0} مكرر مع صنف - {1}", title, data.product_name);
             }
         } catch (reason) {
             console.error("Failed to check product number duplicate", reason);
@@ -108,17 +109,17 @@ export default function ProductNumbers({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[3001] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-[2px]" dir="rtl" onMouseDown={(event) => { if (event.target === event.currentTarget) onOpenChange(false); }}>
+        <div className="fixed inset-0 z-[3001] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-[2px]" dir={appDir()} onMouseDown={(event) => { if (event.target === event.currentTarget) onOpenChange(false); }}>
             <div role="dialog" aria-modal="true" aria-label={title} className="flex max-h-[85dvh] w-[min(560px,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex items-center justify-between gap-3 bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-3 text-white">
                     <div className="flex items-center gap-3">
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Hash className="h-5 w-5" /></span>
                         <div>
                             <h2 className="text-base font-bold">{title}</h2>
-                            <p className="text-xs text-emerald-50">{subtitle ?? `${currentProductName || "صنف جديد"} · يمكن إضافة أكثر من رقم`}</p>
+                            <p className="text-xs text-emerald-50">{subtitle ?? tr("{0} · يمكن إضافة أكثر من رقم", currentProductName || "صنف جديد")}</p>
                         </div>
                     </div>
-                    <button type="button" aria-label="إغلاق" onClick={() => onOpenChange(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/15 hover:bg-white/25"><X className="h-4 w-4" /></button>
+                    <button type="button" aria-label={tr("إغلاق")} onClick={() => onOpenChange(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/15 hover:bg-white/25"><X className="h-4 w-4" /></button>
                 </div>
 
                 <div className="space-y-2 border-b bg-slate-50 p-4">
@@ -129,11 +130,11 @@ export default function ProductNumbers({
                             value={draft}
                             onChange={(event) => { setDraft(event.target.value); if (error) setError(""); }}
                             onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void add(); } }}
-                            placeholder={`أدخل ${title} ثم Enter`}
-                            className="h-10 rounded-xl bg-white text-right"
+                            placeholder={tr("أدخل {0} ثم Enter", title)}
+                            className="h-10 rounded-xl bg-white text-start"
                         />
                         <Button type="button" onClick={() => void add()} disabled={!draft.trim() || checking} className="h-10 shrink-0 rounded-xl bg-emerald-600 px-4 hover:bg-emerald-700">
-                            {checking ? <Loader2 className="ml-1.5 h-4 w-4 animate-spin" /> : <Plus className="ml-1.5 h-4 w-4" />}إضافة
+                            {checking ? <Loader2 className="ml-1.5 h-4 w-4 animate-spin" /> : <Plus className="ml-1.5 h-4 w-4" />}{tr("إضافة")}
                         </Button>
                     </div>
                     {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">{error}</p>}
@@ -142,7 +143,7 @@ export default function ProductNumbers({
                 <div className="min-h-[160px] flex-1 overflow-y-auto p-4">
                     {rows.length === 0 ? (
                         <div className="flex h-full min-h-[140px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 text-sm text-slate-400">
-                            <Hash className="h-8 w-8 text-slate-300" />لا توجد أرقام بعد — أضف الرقم من الحقل أعلاه
+                            <Hash className="h-8 w-8 text-slate-300" />{tr("لا توجد أرقام بعد — أضف الرقم من الحقل أعلاه")}
                         </div>
                     ) : (
                         <ul className="space-y-2">
@@ -155,9 +156,9 @@ export default function ProductNumbers({
                                         onChange={(event) => editRow(index, event.target.value)}
                                         onBlur={() => void validateRow(index)}
                                         onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); (event.target as HTMLInputElement).blur(); } }}
-                                        className="h-9 flex-1 rounded-lg border-transparent bg-transparent text-right font-mono shadow-none focus-visible:border-emerald-300 focus-visible:bg-white"
+                                        className="h-9 flex-1 rounded-lg border-transparent bg-transparent text-start font-mono shadow-none focus-visible:border-emerald-300 focus-visible:bg-white"
                                     />
-                                    <button type="button" aria-label={`حذف ${value}`} onClick={() => remove(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700"><Trash2 className="h-4 w-4" /></button>
+                                    <button type="button" aria-label={tr("حذف {0}", value)} onClick={() => remove(index)} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700"><Trash2 className="h-4 w-4" /></button>
                                 </li>
                             ))}
                         </ul>
@@ -165,8 +166,8 @@ export default function ProductNumbers({
                 </div>
 
                 <div className="flex items-center justify-between gap-3 border-t bg-slate-50 px-5 py-3">
-                    <span className="text-xs text-slate-500">{rows.filter((row) => row.trim()).length} رقم · تُحفظ مع الصنف عند حفظه</span>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">إغلاق</Button>
+                    <span className="text-xs text-slate-500">{rows.filter((row) => row.trim()).length}{tr(" رقم · تُحفظ مع الصنف عند حفظه")}</span>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{tr("إغلاق")}</Button>
                 </div>
             </div>
         </div>

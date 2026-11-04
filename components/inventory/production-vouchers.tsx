@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -41,7 +42,7 @@ const money = (value: number) => Number(value || 0).toLocaleString("en-US", amou
 const qty = (value: number) => Number(value || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })
 const keyOf = () => Math.random().toString(36).slice(2)
 const num = (value: unknown) => { const n = Number(value); return Number.isFinite(n) ? n : 0 }
-const STATUS_LABEL: Record<number, string> = { 1: "غير معتمد", 2: "معتمد", 3: "ملغى", 4: "قيد الإلغاء", 5: "قيد الحفظ" }
+const STATUS_LABEL: Record<number, string> = { 1: tr("غير معتمد"), 2: tr("معتمد"), 3: tr("ملغى"), 4: tr("قيد الإلغاء"), 5: tr("قيد الحفظ") }
 const STATUS_TONE: Record<number, string> = { 1: "bg-amber-100 text-amber-800", 2: "bg-emerald-100 text-emerald-800", 3: "bg-rose-100 text-rose-700", 4: "bg-orange-100 text-orange-800" }
 
 const emptyForm = (defaults?: { finished_store_id?: number | null; raw_store_id?: number | null }, branchId: number | null = null): Form => ({
@@ -106,7 +107,7 @@ export default function ProductionVouchers() {
   const locked = form.status !== 1
   const dirty = open && !locked && JSON.stringify(form) !== initialRef.current
   useNavigationGuard(() => dirty, (continueNavigation) => {
-    void confirmYesNo("توجد تغييرات غير محفوظة على سند الانتاج. هل تريد المتابعة دون حفظ؟").then((ok) => { if (ok) { setOpen(false); continueNavigation() } })
+    void confirmYesNo(tr("توجد تغييرات غير محفوظة على سند الانتاج. هل تريد المتابعة دون حفظ؟")).then((ok) => { if (ok) { setOpen(false); continueNavigation() } })
   })
 
   const loadList = useCallback(async () => {
@@ -115,10 +116,10 @@ export default function ProductionVouchers() {
       const query = new URLSearchParams({ from_date: filters.from, to_date: filters.to, status: filters.status, q: filters.q })
       if (activeBranchId) query.set("branch_id", String(activeBranchId))
       const response = await fetch(`/api/production-vouchers?${query}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await readError(response, "تعذر تحميل سندات الانتاج"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر تحميل سندات الانتاج")))
       setRows(await response.json())
     } catch (e) {
-      setError(e instanceof Error ? e.message : "تعذر تحميل سندات الانتاج")
+      setError(e instanceof Error ? e.message : tr("تعذر تحميل سندات الانتاج"))
     } finally { setLoading(false) }
   }, [filters, activeBranchId])
 
@@ -172,13 +173,13 @@ export default function ProductionVouchers() {
     try {
       const query = new URLSearchParams({ resolve_code: typed, branch_id: String(form.branch_id || activeBranchId || "") })
       const response = await fetch(`/api/production-vouchers?${query}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await readError(response, "تعذر قراءة رقم السند"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر قراءة رقم السند")))
       const data = await response.json()
       if (data.id && data.id !== form.id) { await guarded(() => void openRow(Number(data.id))); return }
       if (!form.id) autoPatch({ code: data.code })
       else setForm((value) => ({ ...value, code: current?.code || value.code }))
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر قراءة رقم السند")
+      setFormError(e instanceof Error ? e.message : tr("تعذر قراءة رقم السند"))
     }
   }
 
@@ -191,17 +192,17 @@ export default function ProductionVouchers() {
     setBusy(true)
     try {
       const response = await fetch(`/api/production-vouchers?id=${id}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await readError(response, "تعذر فتح سند الانتاج"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر فتح سند الانتاج")))
       const row = await response.json()
       begin(fromServer(row), row)
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر فتح سند الانتاج")
-      setError(e instanceof Error ? e.message : "تعذر فتح سند الانتاج")
+      setFormError(e instanceof Error ? e.message : tr("تعذر فتح سند الانتاج"))
+      setError(e instanceof Error ? e.message : tr("تعذر فتح سند الانتاج"))
     } finally { setBusy(false) }
   }
   const refresh = (row: any) => { const value = fromServer(row); setForm(value); setCurrent(row); initialRef.current = JSON.stringify(value) }
   const close = async () => {
-    if (dirty && !(await confirmYesNo("توجد تغييرات غير محفوظة. هل تريد الإغلاق دون حفظ؟"))) return
+    if (dirty && !(await confirmYesNo(tr("توجد تغييرات غير محفوظة. هل تريد الإغلاق دون حفظ؟")))) return
     setOpen(false); void loadList()
   }
 
@@ -220,7 +221,7 @@ export default function ProductionVouchers() {
   }))
   const removeProduced = async (line: Line) => {
     const linked = form.raw.filter((row) => row.source === line.key && !row.edited)
-    const dropLinked = linked.length ? await confirmYesNo(`حذف "${line.product_name}" — هل تريد حذف مكونات التصنيع التي أُضيفت معه (${linked.length}) من المواد الخام؟`) : false
+    const dropLinked = linked.length ? await confirmYesNo(tr("حذف \"{0}\" — هل تريد حذف مكونات التصنيع التي أُضيفت معه ({1}) من المواد الخام؟", line.product_name, linked.length)) : false
     setForm((value) => ({
       ...value,
       produced: value.produced.filter((row) => row.key !== line.key),
@@ -297,11 +298,11 @@ export default function ProductionVouchers() {
     setFormError("")
     try {
       const response = await fetch(`/api/production-vouchers?product_ids=${ids.join(",")}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await readError(response, "تعذر تحميل الأصناف"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر تحميل الأصناف")))
       const { items } = await response.json()
       return applyProducts(items || [], target, atIndex)
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر إضافة الصنف")
+      setFormError(e instanceof Error ? e.message : tr("تعذر إضافة الصنف"))
       return false
     } finally {
       addingRef.current.delete(guardKey)
@@ -315,11 +316,11 @@ export default function ProductionVouchers() {
     addingRef.current.add(guardKey)
     try {
       const response = await fetch(`/api/production-vouchers?product_code=${encodeURIComponent(code)}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await readError(response, `لا يوجد صنف برقم ${code}`))
+      if (!response.ok) throw new Error(await readError(response, tr("لا يوجد صنف برقم {0}", code)))
       const { items } = await response.json()
       return applyProducts(items || [], target, row)
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر البحث عن الصنف")
+      setFormError(e instanceof Error ? e.message : tr("تعذر البحث عن الصنف"))
       return false
     } finally {
       addingRef.current.delete(guardKey)
@@ -344,28 +345,28 @@ export default function ProductionVouchers() {
   }
 
   const save = async (post: boolean, print = false) => {
-    if (!form.branch_id) { setFormError("اختر الفرع"); return }
-    if (!form.finished_store_id || !form.raw_store_id) { setFormError("اختر مستودع المواد الجاهزة ومستودع المواد الخام"); return }
-    if (!form.produced.length) { setFormError("أضف صنفاً واحداً على الأقل في المواد المنتجة"); return }
-    if (!form.raw.length) { setFormError("أضف صنفاً واحداً على الأقل في المواد الخام"); return }
+    if (!form.branch_id) { setFormError(tr("اختر الفرع")); return }
+    if (!form.finished_store_id || !form.raw_store_id) { setFormError(tr("اختر مستودع المواد الجاهزة ومستودع المواد الخام")); return }
+    if (!form.produced.length) { setFormError(tr("أضف صنفاً واحداً على الأقل في المواد المنتجة")); return }
+    if (!form.raw.length) { setFormError(tr("أضف صنفاً واحداً على الأقل في المواد الخام")); return }
     setBusy(true); setFormError("")
     try {
       const response = await fetch("/api/production-vouchers", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload(), post }) })
-      if (!response.ok) throw new Error(await readError(response, "تعذر حفظ سند الانتاج"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر حفظ سند الانتاج")))
       const data = await response.json()
       if (data.post_error) {
         // حُفظ ولم يُرحَّل: يبقى السند مفتوحاً ليصحّح المستخدم السبب
         refresh(data)
-        setFormError(`حُفظ السند ${data.code} لكن تعذر ترحيله: ${data.post_error}`)
+        setFormError(tr("حُفظ السند {0} لكن تعذر ترحيله: {1}", data.code, data.post_error))
         return
       }
       // كباقي السندات: بعد الحفظ يُفتح سند جديد بنفس الفرع
-      setNotice(`تم ${post ? "حفظ وترحيل" : "حفظ"} سند الانتاج ${data.code}${data.posted ? ` — سند الإخراج ${data.posted.out_voucher?.vch_code || ""} وسند الإدخال ${data.posted.in_voucher?.vch_code || ""}` : ""}`)
+      setNotice(tr("تم {0} سند الانتاج {1}{2}", post ? "حفظ وترحيل" : "حفظ", data.code, data.posted ? ` — سند الإخراج ${data.posted.out_voucher?.vch_code || ""} وسند الإدخال ${data.posted.in_voucher?.vch_code || ""}` : ""))
       if (print) handlePrint(fromServer(data))
       begin(newForm(form.branch_id), null)
       void loadList()
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر حفظ سند الانتاج")
+      setFormError(e instanceof Error ? e.message : tr("تعذر حفظ سند الانتاج"))
     } finally { setBusy(false) }
   }
 
@@ -375,12 +376,12 @@ export default function ProductionVouchers() {
     setBusy(true); setFormError("")
     try {
       const response = await fetch("/api/production-vouchers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: form.id, action, ...extra }) })
-      if (!response.ok) throw new Error(await readError(response, "تعذر تنفيذ الإجراء"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر تنفيذ الإجراء")))
       const data = await response.json()
       refresh(data.production)
       return true
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر تنفيذ الإجراء")
+      setFormError(e instanceof Error ? e.message : tr("تعذر تنفيذ الإجراء"))
       return false
     } finally { setBusy(false) }
   }
@@ -395,8 +396,8 @@ export default function ProductionVouchers() {
       quantity: num(line.quantity), unit_price: num(line.price), total_price: Math.round(num(line.quantity) * num(line.price) * 1000) / 1000,
     }))
     setPrintData({
-      title: "سند انتاج بضاعة",
-      copyLabel: doc.status === 2 ? "" : "نسخة للتدقيق",
+      title: tr("سند انتاج بضاعة"),
+      copyLabel: doc.status === 2 ? "" : tr("نسخة للتدقيق"),
       vch_code: doc.code,
       vch_date: doc.vch_date,
       note: [doc.note, `قيمة المواد المنتجة ${money(value(doc.produced))} — قيمة المواد الخام ${money(value(doc.raw))}`].filter(Boolean).join(" — "),
@@ -406,19 +407,19 @@ export default function ProductionVouchers() {
 
   // ───── شريط الأدوات الموحّد: التنقل بين سندات القائمة، جديد، نسخ ─────
   const guarded = async (action: () => void) => {
-    if (dirty && !(await confirmYesNo("توجد تغييرات غير محفوظة على سند الانتاج. هل تريد المتابعة دون حفظ؟"))) return
+    if (dirty && !(await confirmYesNo(tr("توجد تغييرات غير محفوظة على سند الانتاج. هل تريد المتابعة دون حفظ؟")))) return
     action()
   }
   // التنقل من الخادم بترتيب المعرّف (كباقي السندات) — لا يعتمد على القائمة المصفّاة في الشاشة
   const navigate = async (direction: "first" | "previous" | "next" | "last") => {
     try {
       const response = await fetch(`/api/production-vouchers?navigate=${direction}&current_id=${form.id || 0}`, { cache: "no-store" })
-      if (!response.ok) throw new Error(await readError(response, "تعذر التنقل"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر التنقل")))
       const data = await response.json()
       if (!data.id || data.id === form.id) return
       await guarded(() => void openRow(Number(data.id)))
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر التنقل")
+      setFormError(e instanceof Error ? e.message : tr("تعذر التنقل"))
     }
   }
   // نسخ: سند جديد غير معتمد بنفس المستودعات والأصناف والكميات والأسعار (بتاريخ اليوم)
@@ -433,15 +434,15 @@ export default function ProductionVouchers() {
   }
 
   const remove = async () => {
-    if (!form.id || !(await confirmYesNo(`حذف سند الانتاج ${form.code}؟`))) return
+    if (!form.id || !(await confirmYesNo(tr("حذف سند الانتاج {0}؟", form.code)))) return
     setBusy(true)
     try {
       const response = await fetch(`/api/production-vouchers?id=${form.id}`, { method: "DELETE" })
-      if (!response.ok) throw new Error(await readError(response, "تعذر حذف سند الانتاج"))
+      if (!response.ok) throw new Error(await readError(response, tr("تعذر حذف سند الانتاج")))
       initialRef.current = JSON.stringify(form)
       setOpen(false); void loadList()
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "تعذر حذف سند الانتاج")
+      setFormError(e instanceof Error ? e.message : tr("تعذر حذف سند الانتاج"))
     } finally { setBusy(false) }
   }
 
@@ -449,10 +450,10 @@ export default function ProductionVouchers() {
   const showExpiry = form.produced.some((line) => line.has_expiry || line.expiry_date)
   const showBatch = form.produced.some((line) => line.has_batch || line.batch_no)
   const listStats = [
-    { label: "عدد السندات", value: rows.length },
-    { label: "المعتمدة", value: rows.filter((row) => Number(row.status) === 2).length },
-    { label: "قيمة المواد المنتجة", value: money(rows.reduce((sum, row) => sum + num(row.produced_value), 0)) },
-    { label: "قيمة المواد الخام", value: money(rows.reduce((sum, row) => sum + num(row.raw_value), 0)) },
+    { label: tr("عدد السندات"), value: rows.length },
+    { label: tr("المعتمدة"), value: rows.filter((row) => Number(row.status) === 2).length },
+    { label: tr("قيمة المواد المنتجة"), value: money(rows.reduce((sum, row) => sum + num(row.produced_value), 0)) },
+    { label: tr("قيمة المواد الخام"), value: money(rows.reduce((sum, row) => sum + num(row.raw_value), 0)) },
   ]
 
   const grid = (target: "produced" | "raw") => {
@@ -463,23 +464,23 @@ export default function ProductionVouchers() {
         <div className={`flex items-center justify-between gap-2 border-b px-4 py-3 ${target === "produced" ? "bg-emerald-50/70" : "bg-amber-50/70"}`}>
           <h3 className="flex items-center gap-2 font-bold text-slate-800">
             {target === "produced" ? <PackagePlus className="h-5 w-5 text-emerald-600" /> : <Factory className="h-5 w-5 text-amber-600" />}
-            {target === "produced" ? "المواد المنتجة" : "المواد الخام"}
+            {target === "produced" ? tr("المواد المنتجة") : tr("المواد الخام")}
             <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">{lines.length}</span>
-            <span className="text-xs font-normal text-slate-500">— {warehouseName(target === "produced" ? form.finished_store_id : form.raw_store_id) || "اختر المستودع"}</span>
+            <span className="text-xs font-normal text-slate-500">— {warehouseName(target === "produced" ? form.finished_store_id : form.raw_store_id) || tr("اختر المستودع")}</span>
           </h3>
           <div className="flex items-center gap-3">
             {target === "produced" && form.status === 2 && (
               <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={() => setTransferOpen(true)}>
-                <ArrowLeftRight className="h-3.5 w-3.5 text-sky-600" />نقل الى مستودع
+                <ArrowLeftRight className="h-3.5 w-3.5 text-sky-600" />{tr("نقل الى مستودع")}
               </Button>
             )}
             {target === "produced" && (form.status === 2 || form.status === 4) && (
-              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={() => void act("unpost", {}, "إلغاء ترحيل سند الانتاج؟ سيُلغى سند الإدخال وسند الإخراج المرتبطان ويعود السند غير معتمد.")}>
-                <Undo2 className="h-3.5 w-3.5 text-amber-600" />إلغاء الترحيل
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={() => void act("unpost", {}, tr("إلغاء ترحيل سند الانتاج؟ سيُلغى سند الإدخال وسند الإخراج المرتبطان ويعود السند غير معتمد."))}>
+                <Undo2 className="h-3.5 w-3.5 text-amber-600" />{tr("إلغاء الترحيل")}
               </Button>
             )}
-            <span className="text-sm">الإجمالي: <b dir="ltr" className="font-mono">{money(target === "produced" ? totals.produced : totals.raw)}</b></span>
-            {!locked && <Button size="sm" variant="outline" className="gap-1" onClick={() => { setSearchRow(lines.length); setSearch(target) }}><Plus className="h-4 w-4" />إضافة صنف</Button>}
+            <span className="text-sm">{tr("الإجمالي: ")}<b dir="ltr" className="font-mono">{money(target === "produced" ? totals.produced : totals.raw)}</b></span>
+            {!locked && <Button size="sm" variant="outline" className="gap-1" onClick={() => { setSearchRow(lines.length); setSearch(target) }}><Plus className="h-4 w-4" />{tr("إضافة صنف")}</Button>}
           </div>
         </div>
         <ProductionGrid
@@ -494,26 +495,26 @@ export default function ProductionVouchers() {
           onPatch={(key, patch) => update(key, patch)}
           onRemove={(row) => { const line = lines[row]; if (!line) return; if (target === "produced") void removeProduced(line); else setForm((value) => ({ ...value, raw: value.raw.filter((item) => item.key !== line.key) })) }}
         />
-        {!locked && <p className="border-t bg-slate-50 px-4 py-1.5 text-[11px] text-slate-500">اكتب رقم الصنف ثم Enter — F10 بحث الأصناف، F7 حذف السطر{target === "produced" ? "، مكونات التصنيع تُضاف للمواد الخام تلقائياً" : ""}</p>}
+        {!locked && <p className="border-t bg-slate-50 px-4 py-1.5 text-[11px] text-slate-500">{tr("اكتب رقم الصنف ثم Enter — F10 بحث الأصناف، F7 حذف السطر")}{target === "produced" ? tr("، مكونات التصنيع تُضاف للمواد الخام تلقائياً") : ""}</p>}
       </section>
     )
   }
 
   return (
-    <div className="space-y-5 p-4" dir="rtl">
-      <VoucherListHero icon={Factory} title="سند انتاج بضاعة" subtitle="المواد المنتجة تدخل مستودع المواد الجاهزة والمواد الخام تُصرف من مستودع المواد الخام" addLabel="سند انتاج جديد" onNew={openNew} addDisabled={busy} />
+    <div className="space-y-5 p-4" dir={appDir()}>
+      <VoucherListHero icon={Factory} title={tr("سند انتاج بضاعة")} subtitle={tr("المواد المنتجة تدخل مستودع المواد الجاهزة والمواد الخام تُصرف من مستودع المواد الخام")} addLabel={tr("سند انتاج جديد")} onNew={openNew} addDisabled={busy} />
       <VoucherStats stats={listStats} />
 
       <section className="grid gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
-        <div className="space-y-1"><Label>من تاريخ</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
-        <div className="space-y-1"><Label>إلى تاريخ</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
+        <div className="space-y-1"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
+        <div className="space-y-1"><Label>{tr("إلى تاريخ")}</Label><Input type="date" dir="ltr" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
         <div className="space-y-1">
-          <Label>حالة السند</Label>
+          <Label>{tr("حالة السند")}</Label>
           <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
-            <option value="0">الكل</option><option value="1">غير معتمد</option><option value="2">معتمد</option>
+            <option value="0">{tr("الكل")}</option><option value="1">{tr("غير معتمد")}</option><option value="2">{tr("معتمد")}</option>
           </select>
         </div>
-        <div className="space-y-1"><Label>بحث</Label><Input placeholder="رقم السند، الصنف، الملاحظات" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
+        <div className="space-y-1"><Label>{tr("بحث")}</Label><Input placeholder={tr("رقم السند، الصنف، الملاحظات")} value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} onKeyDown={searchOnEnter(() => void loadList())} /></div>
         <div className="flex items-end"><VoucherSearchButton onClick={() => void loadList()} loading={loading} className="w-full" /></div>
       </section>
 
@@ -523,20 +524,20 @@ export default function ProductionVouchers() {
         loading={loading}
         rows={rows.map((row) => ({ ...row, display_date: String(row.vch_date || "").slice(0, 10), display_amount: money(num(row.produced_value)), display_raw: money(num(row.raw_value)) }))}
         columns={[
-          { header: "رقم السند", name: "code", width: 130 },
-          { header: "التاريخ", name: "display_date", width: 110 },
-          { header: "المواد المنتجة", name: "produced_names", width: "*" },
-          { header: "مستودع المواد الجاهزة", name: "finished_store_name", width: 160 },
-          { header: "مستودع المواد الخام", name: "raw_store_name", width: 160 },
-          { header: "قيمة المنتَج", name: "display_amount", width: 120 },
-          { header: "قيمة الخام", name: "display_raw", width: 120 },
+          { header: tr("رقم السند"), name: "code", width: 130 },
+          { header: tr("التاريخ"), name: "display_date", width: 110 },
+          { header: tr("المواد المنتجة"), name: "produced_names", width: "*" },
+          { header: tr("مستودع المواد الجاهزة"), name: "finished_store_name", width: 160 },
+          { header: tr("مستودع المواد الخام"), name: "raw_store_name", width: 160 },
+          { header: tr("قيمة المنتَج"), name: "display_amount", width: 120 },
+          { header: tr("قيمة الخام"), name: "display_raw", width: 120 },
         ]}
         onOpen={(row: any) => void openRow(Number(row.id))}
       />
 
       <Dialog open={open} onOpenChange={(value) => { if (!value) void close() }}>
         <DialogContent
-          dir="rtl"
+          dir={appDir()}
           className="flex max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0"
           // نافذة بحث الأصناف/النقل تُفتح خارج هذه النافذة: التركيز أو النقر فيها يُعدّ "خارجها" فكانت تُغلق السند
           onPointerDownOutside={(event) => event.preventDefault()}
@@ -565,10 +566,10 @@ export default function ProductionVouchers() {
             isLastRecord={form.id ? nav.index >= nav.total : nav.total === 0}
             isNewRecord={!form.id}
           />
-          <DialogHeader className="border-b bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-4 text-right text-white">
+          <DialogHeader className="border-b bg-gradient-to-l from-emerald-700 to-teal-600 px-5 py-4 text-start text-white">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
-              <Factory className="h-5 w-5" />سند انتاج بضاعة
-              <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-sm">{form.code || "جديد"}</span>
+              <Factory className="h-5 w-5" />{tr("سند انتاج بضاعة")}
+              <span className="rounded-full bg-white/15 px-2.5 py-0.5 font-mono text-sm">{form.code || tr("جديد")}</span>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${STATUS_TONE[form.status] || "bg-white/20"}`}>{STATUS_LABEL[form.status] || ""}</span>
             </DialogTitle>
           </DialogHeader>
@@ -578,13 +579,13 @@ export default function ProductionVouchers() {
             {notice && !formError && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">{notice}</p>}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1">
-                <Label htmlFor="production-code">رقم السند *</Label>
+                <Label htmlFor="production-code">{tr("رقم السند *")}</Label>
                 <div className="flex min-w-0 items-center gap-1.5">
                   <Input id="production-code" dir="ltr" maxLength={10} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) })} onBlur={() => void handleCodeBlur()} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleCodeBlur() } }} />
                   <CodeSearchButton onClick={() => setCodeSearchOpen(true)} />
                 </div>
               </div>
-              <div className="space-y-1"><Label>التاريخ</Label><Input type="date" dir="ltr" disabled={locked} value={form.vch_date} onChange={(event) => setForm({ ...form, vch_date: event.target.value })} /></div>
+              <div className="space-y-1"><Label>{tr("التاريخ")}</Label><Input type="date" dir="ltr" disabled={locked} value={form.vch_date} onChange={(event) => setForm({ ...form, vch_date: event.target.value })} /></div>
               <TransactionBranchField family="production" action={form.id ? "update" : "create"} value={form.branch_id} disabled={locked}
                 onChange={(id) => {
                   if (id === form.branch_id) return
@@ -593,47 +594,47 @@ export default function ProductionVouchers() {
                   else setForm((value) => ({ ...value, branch_id: id, code: value.id ? value.code : "" }))
                 }} />
               <div className="space-y-1">
-                <Label>مستودع المواد الجاهزة</Label>
+                <Label>{tr("مستودع المواد الجاهزة")}</Label>
                 <select disabled={locked} className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.finished_store_id} onChange={(event) => setForm({ ...form, finished_store_id: event.target.value })}>
-                  <option value="">— اختر —</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>مستودع المواد الخام</Label>
+                <Label>{tr("مستودع المواد الخام")}</Label>
                 <select disabled={locked} className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={form.raw_store_id} onChange={(event) => setForm({ ...form, raw_store_id: event.target.value })}>
-                  <option value="">— اختر —</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
-              <div className="space-y-1"><Label>ملاحظات</Label><Input disabled={locked} value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></div>
+              <div className="space-y-1"><Label>{tr("ملاحظات")}</Label><Input disabled={locked} value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></div>
             </div>
 
             {grid("produced")}
             {grid("raw")}
 
             <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 text-sm sm:grid-cols-3">
-              <div>قيمة المواد المنتجة: <b dir="ltr" className="font-mono">{money(totals.produced)}</b></div>
-              <div>قيمة المواد الخام: <b dir="ltr" className="font-mono">{money(totals.raw)}</b></div>
-              <div>الفرق: <b dir="ltr" className={`font-mono ${totals.produced - totals.raw < 0 ? "text-rose-700" : "text-emerald-700"}`}>{money(totals.produced - totals.raw)}</b></div>
+              <div>{tr("قيمة المواد المنتجة: ")}<b dir="ltr" className="font-mono">{money(totals.produced)}</b></div>
+              <div>{tr("قيمة المواد الخام: ")}<b dir="ltr" className="font-mono">{money(totals.raw)}</b></div>
+              <div>{tr("الفرق: ")}<b dir="ltr" className={`font-mono ${totals.produced - totals.raw < 0 ? "text-rose-700" : "text-emerald-700"}`}>{money(totals.produced - totals.raw)}</b></div>
             </div>
 
             {current && (current.in_vch_code || current.out_vch_code || current.transfers?.length > 0) && (
               <div className="space-y-2 rounded-2xl border p-4 text-sm">
-                <p className="font-bold text-slate-700">السندات المرتبطة</p>
+                <p className="font-bold text-slate-700">{tr("السندات المرتبطة")}</p>
                 <div className="flex flex-wrap gap-2">
-                  {current.out_vch_code && <Button size="sm" variant="outline" className="gap-1" onClick={() => openVoucher(current.out_voucher_id, 9)}><ExternalLink className="h-3.5 w-3.5" />سند اخراج الخام {current.out_vch_code}</Button>}
-                  {current.in_vch_code && <Button size="sm" variant="outline" className="gap-1" onClick={() => openVoucher(current.in_voucher_id, 8)}><ExternalLink className="h-3.5 w-3.5" />سند ادخال المنتَج {current.in_vch_code}</Button>}
+                  {current.out_vch_code && <Button size="sm" variant="outline" className="gap-1" onClick={() => openVoucher(current.out_voucher_id, 9)}><ExternalLink className="h-3.5 w-3.5" />{tr("سند اخراج الخام ")}{current.out_vch_code}</Button>}
+                  {current.in_vch_code && <Button size="sm" variant="outline" className="gap-1" onClick={() => openVoucher(current.in_voucher_id, 8)}><ExternalLink className="h-3.5 w-3.5" />{tr("سند ادخال المنتَج ")}{current.in_vch_code}</Button>}
                 </div>
                 {current.transfers?.length > 0 && (
                   <table className="mt-2 w-full text-xs">
-                    <thead className="text-slate-500"><tr><th className="p-1 text-right">الإرسالية</th><th className="p-1 text-right">إلى مستودع</th><th className="p-1 text-right">الكمية</th><th className="p-1 text-right">الحالة</th><th /></tr></thead>
+                    <thead className="text-slate-500"><tr><th className="p-1 text-start">{tr("الإرسالية")}</th><th className="p-1 text-start">{tr("إلى مستودع")}</th><th className="p-1 text-start">{tr("الكمية")}</th><th className="p-1 text-start">{tr("الحالة")}</th><th /></tr></thead>
                     <tbody>
                       {current.transfers.map((transfer: any) => (
                         <tr key={transfer.id} className="border-t">
                           <td className="p-1"><button type="button" className="font-mono text-emerald-700 underline" onClick={() => openVoucher(transfer.voucher_id, 10)}>{transfer.vch_code || "—"}</button></td>
                           <td className="p-1">{transfer.to_store_name}</td>
                           <td className="p-1 font-mono" dir="ltr">{qty(transfer.quantity)}</td>
-                          <td className="p-1">{transfer.status === 1 ? "فعّال" : transfer.status === 3 ? "ملغى" : "قيد الإلغاء"}</td>
-                          <td className="p-1 text-left">{transfer.status !== 3 && <Button size="sm" variant="ghost" className="h-7 text-rose-600" disabled={busy} onClick={() => void act("cancel_transfer", { transfer_id: transfer.id }, `إلغاء النقل ${transfer.vch_code || ""}؟ ستُلغى الإرسالية الداخلية.`)}>إلغاء النقل</Button>}</td>
+                          <td className="p-1">{transfer.status === 1 ? tr("فعّال") : transfer.status === 3 ? tr("ملغى") : tr("قيد الإلغاء")}</td>
+                          <td className="p-1 text-end">{transfer.status !== 3 && <Button size="sm" variant="ghost" className="h-7 text-rose-600" disabled={busy} onClick={() => void act("cancel_transfer", { transfer_id: transfer.id }, tr("إلغاء النقل {0}؟ ستُلغى الإرسالية الداخلية.", transfer.vch_code || ""))}>{tr("إلغاء النقل")}</Button>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -663,7 +664,7 @@ export default function ProductionVouchers() {
         searchText=""
         productTypes={[1]}
         selectBaseProduct
-        title={search === "raw" ? "اختيار مادة خام" : "اختيار صنف منتَج"}
+        title={search === "raw" ? tr("اختيار مادة خام") : tr("اختيار صنف منتَج")}
       />
 
       <StockVoucherPrintLayout data={printData} voucherTypeId={8} />
@@ -704,31 +705,31 @@ function TransferDialog({ production, warehouses, busy, onClose, onSubmit }: {
   const [error, setError] = useState("")
   const submit = () => {
     const chosen = lines.map((line: any) => ({ production_item_id: Number(line.id), quantity: num(quantities[line.id]), remaining: line.remaining, name: line.product_name })).filter((line: any) => line.quantity > 0)
-    if (!store) { setError("اختر المستودع المستلم"); return }
-    if (!chosen.length) { setError("أدخل كمية لصنف واحد على الأقل"); return }
+    if (!store) { setError(tr("اختر المستودع المستلم")); return }
+    if (!chosen.length) { setError(tr("أدخل كمية لصنف واحد على الأقل")); return }
     const over = chosen.find((line: any) => line.quantity > line.remaining + 0.000001)
-    if (over) { setError(`${over.name}: الكمية أكبر من المتبقي (${qty(over.remaining)})`); return }
+    if (over) { setError(tr("{0}: الكمية أكبر من المتبقي ({1})", over.name, qty(over.remaining))); return }
     setError("")
     void onSubmit({ to_store_id: Number(store), vch_date: date, note, lines: chosen.map(({ production_item_id, quantity }: any) => ({ production_item_id, quantity })) })
   }
   return (
     <Dialog open onOpenChange={(value) => { if (!value && !busy) onClose() }}>
-      <DialogContent dir="rtl" className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto" onPointerDownOutside={(event) => event.preventDefault()}>
-        <DialogHeader className="text-right"><DialogTitle className="flex items-center gap-2"><ArrowLeftRight className="h-5 w-5 text-sky-600" />نقل الى مستودع — {production.code}</DialogTitle></DialogHeader>
+      <DialogContent dir={appDir()} className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto" onPointerDownOutside={(event) => event.preventDefault()}>
+        <DialogHeader className="text-right"><DialogTitle className="flex items-center gap-2"><ArrowLeftRight className="h-5 w-5 text-sky-600" />{tr("نقل الى مستودع — ")}{production.code}</DialogTitle></DialogHeader>
         {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm font-semibold text-rose-700">{error}</p>}
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1"><Label>من مستودع</Label><Input disabled value={production.finished_store_name || ""} /></div>
+          <div className="space-y-1"><Label>{tr("من مستودع")}</Label><Input disabled value={production.finished_store_name || ""} /></div>
           <div className="space-y-1">
-            <Label>إلى مستودع</Label>
+            <Label>{tr("إلى مستودع")}</Label>
             <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={store} onChange={(event) => setStore(event.target.value)} autoFocus>
-              <option value="">— اختر —</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              <option value="">{tr("— اختر —")}</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
-          <div className="space-y-1"><Label>تاريخ الإرسالية</Label><Input type="date" dir="ltr" value={date} onChange={(event) => setDate(event.target.value)} /></div>
+          <div className="space-y-1"><Label>{tr("تاريخ الإرسالية")}</Label><Input type="date" dir="ltr" value={date} onChange={(event) => setDate(event.target.value)} /></div>
         </div>
         <div className="overflow-x-auto rounded-xl border">
           <table className="w-full min-w-[520px] text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2 text-right">الصنف</th><th className="p-2 text-right">المنتَج</th><th className="p-2 text-right">المنقول</th><th className="p-2 text-right">المتبقي</th><th className="w-32 p-2 text-right">كمية النقل</th></tr></thead>
+            <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-2 text-start">{tr("الصنف")}</th><th className="p-2 text-start">{tr("المنتَج")}</th><th className="p-2 text-start">{tr("المنقول")}</th><th className="p-2 text-start">{tr("المتبقي")}</th><th className="w-32 p-2 text-start">{tr("كمية النقل")}</th></tr></thead>
             <tbody>
               {lines.map((line: any) => (
                 <tr key={line.id} className="border-t">
@@ -742,10 +743,10 @@ function TransferDialog({ production, warehouses, busy, onClose, onSubmit }: {
             </tbody>
           </table>
         </div>
-        <div className="space-y-1"><Label>ملاحظات</Label><Input value={note} onChange={(event) => setNote(event.target.value)} /></div>
+        <div className="space-y-1"><Label>{tr("ملاحظات")}</Label><Input value={note} onChange={(event) => setNote(event.target.value)} /></div>
         <DialogFooter className="gap-2">
-          <Button disabled={busy} onClick={submit} className="gap-1 bg-sky-700 hover:bg-sky-800">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}إنشاء ارسالية داخلية</Button>
-          <Button variant="outline" disabled={busy} onClick={onClose}>إلغاء</Button>
+          <Button disabled={busy} onClick={submit} className="gap-1 bg-sky-700 hover:bg-sky-800">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}{tr("إنشاء ارسالية داخلية")}</Button>
+          <Button variant="outline" disabled={busy} onClick={onClose}>{tr("إلغاء")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -769,15 +770,15 @@ function ProductionCodeSearch({ branchId, onClose, onPick }: { branchId: number 
   useEffect(() => { void run("") }, [run])
   return (
     <Dialog open onOpenChange={(value) => { if (!value) onClose() }}>
-      <DialogContent dir="rtl" className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-3xl overflow-hidden" onPointerDownOutside={(event) => event.preventDefault()}>
-        <DialogHeader className="text-right"><DialogTitle>بحث سندات الانتاج</DialogTitle></DialogHeader>
+      <DialogContent dir={appDir()} className="max-h-[calc(100%-1.5rem)] w-[calc(100vw-1.5rem)] max-w-3xl overflow-hidden" onPointerDownOutside={(event) => event.preventDefault()}>
+        <DialogHeader className="text-right"><DialogTitle>{tr("بحث سندات الانتاج")}</DialogTitle></DialogHeader>
         <div className="flex gap-2">
-          <Input autoFocus value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void run(q) } }} placeholder="رقم السند، الصنف، الملاحظات" />
-          <Button onClick={() => void run(q)} disabled={loading} className="gap-1">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}بحث</Button>
+          <Input autoFocus value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void run(q) } }} placeholder={tr("رقم السند، الصنف، الملاحظات")} />
+          <Button onClick={() => void run(q)} disabled={loading} className="gap-1">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{tr("بحث")}</Button>
         </div>
         <div className="max-h-[55vh] overflow-auto rounded-xl border">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500"><tr><th className="p-2 text-right">رقم السند</th><th className="p-2 text-right">التاريخ</th><th className="p-2 text-right">المواد المنتجة</th><th className="p-2 text-right">الحالة</th></tr></thead>
+            <thead className="sticky top-0 bg-slate-50 text-xs text-slate-500"><tr><th className="p-2 text-start">{tr("رقم السند")}</th><th className="p-2 text-start">{tr("التاريخ")}</th><th className="p-2 text-start">{tr("المواد المنتجة")}</th><th className="p-2 text-start">{tr("الحالة")}</th></tr></thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} tabIndex={0} className="cursor-pointer border-t hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none"
@@ -790,7 +791,7 @@ function ProductionCodeSearch({ branchId, onClose, onPick }: { branchId: number 
               ))}
             </tbody>
           </table>
-          {!loading && !rows.length && <p className="p-6 text-center text-muted-foreground">لا توجد سندات</p>}
+          {!loading && !rows.length && <p className="p-6 text-center text-muted-foreground">{tr("لا توجد سندات")}</p>}
         </div>
       </DialogContent>
     </Dialog>

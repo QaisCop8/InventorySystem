@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Bell, CheckCheck, Clock, AlertTriangle, Info, ChevronLeft } from "lucide-react"
@@ -206,7 +207,7 @@ export function NotificationCenter({ userId, department, className }: Notificati
     const first = grown[0]
     toast({
       title: first.title,
-      description: grown.length > 1 ? `${first.message} — و${grown.length - 1} تنبيه آخر في الجرس` : first.message,
+      description: grown.length > 1 ? tr("{0} — و{1} تنبيه آخر في الجرس", first.message, grown.length - 1) : first.message,
       variant: first.priority === "urgent" ? "destructive" : "default",
     })
   }, [visibleAlerts])
@@ -230,7 +231,7 @@ export function NotificationCenter({ userId, department, className }: Notificati
           {badgeCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center"
+              className="absolute -top-1 -start-1 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center"
             >
               {badgeCount > 99 ? "99+" : badgeCount}
             </Badge>
@@ -238,19 +239,19 @@ export function NotificationCenter({ userId, department, className }: Notificati
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-96 p-0" align="end" dir="rtl">
+      <PopoverContent className="w-96 p-0" align="end" dir={appDir()}>
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">التنبيهات</CardTitle>
+              <CardTitle className="text-lg">{tr("التنبيهات")}</CardTitle>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs">
-                    <CheckCheck className="h-4 w-4 ml-1" />
-                    تحديد الكل كمقروء
+                    <CheckCheck className="h-4 w-4 me-1" />
+                    {tr("تحديد الكل كمقروء")}
                   </Button>
                 )}
-                <Badge variant="secondary">{unreadCount} غير مقروء</Badge>
+                <Badge variant="secondary">{unreadCount}{tr(" غير مقروء")}</Badge>
               </div>
             </div>
           </CardHeader>
@@ -261,13 +262,13 @@ export function NotificationCenter({ userId, department, className }: Notificati
             <ScrollArea className="h-96">
               {visibleAlerts.length > 0 && (
                 <div className="border-b bg-amber-50/40 p-2">
-                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground">بحاجة لمتابعة</div>
+                  <div className="px-2 pb-1 text-xs font-semibold text-muted-foreground">{tr("بحاجة لمتابعة")}</div>
                   {visibleAlerts.map((alert) => (
                     <button
                       key={alert.key}
                       type="button"
                       onClick={() => openAlert(alert)}
-                      className="flex w-full items-start gap-3 rounded-lg p-2 text-right transition-colors hover:bg-white"
+                      className="flex w-full items-start gap-3 rounded-lg p-2 text-start transition-colors hover:bg-white"
                     >
                       <div className="mt-0.5 flex-shrink-0">{getPriorityIcon(alert.priority)}</div>
                       <div className="min-w-0 flex-1">
@@ -285,7 +286,7 @@ export function NotificationCenter({ userId, department, className }: Notificati
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 </div>
               ) : notifications.length === 0 ? (
-                visibleAlerts.length ? null : <div className="text-center py-8 text-muted-foreground">لا توجد تنبيهات</div>
+                visibleAlerts.length ? null : <div className="text-center py-8 text-muted-foreground">{tr("لا توجد تنبيهات")}</div>
               ) : (
                 <div className="divide-y">
                   {notifications.map((notification) => (

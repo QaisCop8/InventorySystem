@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useRef, useState, type RefObject } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -158,7 +159,7 @@ export default function MeasurementInputDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-sm"
-        dir="rtl"
+        dir={appDir()}
         // نفس نمط AccountSearchDialog/AccountCostCenters وأخواتها (انظر تعليقها) — يمنع Radix من سرقة
         // التركيز عند الإغلاق (افتراضياً يُعيده لعنصر داخلي/document.body بدل ترك restoreGridFocus
         // بملفَي unified-stock-voucher.tsx/unified-sales-delivery.tsx يتحكّم به كاملاً)، وإلا فقد
@@ -166,12 +167,12 @@ export default function MeasurementInputDialog({
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>بيانات القياس{productName ? ` - ${productName}` : ""}</DialogTitle>
+          <DialogTitle>{tr("بيانات القياس")}{productName ? ` - ${productName}` : ""}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           {needsLength && (
             <div className="grid gap-1.5">
-              <Label htmlFor="measurement-length">الطول</Label>
+              <Label htmlFor="measurement-length">{tr("الطول")}</Label>
               <Input
                 id="measurement-length"
                 type="number"
@@ -189,7 +190,7 @@ export default function MeasurementInputDialog({
           )}
           {needsWidth && (
             <div className="grid gap-1.5">
-              <Label htmlFor="measurement-width">العرض</Label>
+              <Label htmlFor="measurement-width">{tr("العرض")}</Label>
               <Input
                 id="measurement-width"
                 type="number"
@@ -207,7 +208,7 @@ export default function MeasurementInputDialog({
           )}
           {needsHeight && (
             <div className="grid gap-1.5">
-              <Label htmlFor="measurement-height">الارتفاع</Label>
+              <Label htmlFor="measurement-height">{tr("الارتفاع")}</Label>
               <Input
                 id="measurement-height"
                 type="number"
@@ -225,7 +226,7 @@ export default function MeasurementInputDialog({
           )}
           {needsCount && (
             <div className="grid gap-1.5">
-              <Label htmlFor="measurement-count">العدد</Label>
+              <Label htmlFor="measurement-count">{tr("العدد")}</Label>
               <Input
                 id="measurement-count"
                 type="number"
@@ -242,16 +243,16 @@ export default function MeasurementInputDialog({
             </div>
           )}
           <div className="flex items-center justify-between rounded-md bg-slate-50 p-2 text-sm">
-            <span className="text-muted-foreground">الكمية المحتسبة</span>
+            <span className="text-muted-foreground">{tr("الكمية المحتسبة")}</span>
             <span className="font-bold">{quantity.toLocaleString("en-US")}</span>
           </div>
         </div>
         <div className="mt-2 flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            إلغاء
+            {tr("إلغاء")}
           </Button>
           <Button ref={confirmButtonRef} onClick={handleConfirm} disabled={!canConfirm}>
-            موافق
+            {tr("موافق")}
           </Button>
         </div>
       </DialogContent>

@@ -1,5 +1,6 @@
 ﻿"use client"
 
+import { tr } from "@/lib/i18n"
 import type React from "react"
 
 import { useState } from "react"
@@ -68,46 +69,46 @@ export function SearchModal({
   const getTitle = () => {
     switch (type) {
       case "products":
-        return "البحث عن الأصناف"
+        return tr("البحث عن الأصناف")
       case "customers":
-        return "البحث عن العملاء"
+        return tr("البحث عن العملاء")
       case "suppliers":
-        return "البحث عن الموردين"
+        return tr("البحث عن الموردين")
       case "both":
-        return "البحث عن العملاء والموردين"
+        return tr("البحث عن العملاء والموردين")
       case "transactions":
-        return "البحث عن الحركات والمعاملات"
+        return tr("البحث عن الحركات والمعاملات")
       case "sales":
-        return "البحث عن طلبات البيع"
+        return tr("البحث عن طلبات البيع")
       case "purchases":
-        return "البحث عن طلبات الشراء"
+        return tr("البحث عن طلبات الشراء")
       case "movements":
-        return "البحث عن حركات المخزون"
+        return tr("البحث عن حركات المخزون")
       default:
-        return "البحث"
+        return tr("البحث")
     }
   }
 
   const getTriggerText = () => {
     switch (type) {
       case "products":
-        return "البحث عن صنف"
+        return tr("البحث عن صنف")
       case "customers":
-        return "البحث عن عميل"
+        return tr("البحث عن عميل")
       case "suppliers":
-        return "البحث عن مورد"
+        return tr("البحث عن مورد")
       case "both":
-        return "البحث عن عميل/مورد"
+        return tr("البحث عن عميل/مورد")
       case "transactions":
-        return "البحث عن حركة"
+        return tr("البحث عن حركة")
       case "sales":
-        return "البحث عن طلب بيع"
+        return tr("البحث عن طلب بيع")
       case "purchases":
-        return "البحث عن طلب شراء"
+        return tr("البحث عن طلب شراء")
       case "movements":
-        return "البحث عن حركة مخزون"
+        return tr("البحث عن حركة مخزون")
       default:
-        return "بحث"
+        return tr("بحث")
     }
   }
 

@@ -1,0 +1,300 @@
+All cards
+All currencies
+Card transactions
+Credit card transactions in approved receipt vouchers without a commission entry: one entry per transaction moves the amount from the cards account to the bank account and records the bank commission.
+Cards account
+Bank account
+Currency conversion account
+Currency difference account
+Balance-sheet accounts subject to currency difference that have transactions in this currency. Values are in the base currency except the balance.
+Loss
+Error. Please choose the currency first
+Error. Please choose the currency difference account first
+Error. Please enter the exchange rate
+Gain
+Gain: debit the account / credit the currency difference account. Loss: the reverse. Previous entries for the same currency are deducted automatically so the difference is not repeated.
+Exchange rate
+Account exchange rate
+Receipt voucher
+Net difference
+Number of transactions
+Show transactions
+Base currency — exchange rate 1
+Account currency
+Not defined
+Currency difference {0}
+Account currency difference
+Previous differences
+One base-currency entry per account
+Currency conversion entry
+Visa commission entry
+A separate entry for each card transaction
+Two linked entries per balance
+Two linked posted entries
+Account currency conversion entries
+Visa commission entries
+Currency difference entries
+No card transactions are waiting for a commission entry
+No results
+No rate
+Note
+First entry note
+Second entry note
+From date
+The balance is recalculated when running. If any account fails, no entry is created.
+. Make sure all statement lines or balances were imported.
+) + statement transactions (
+) doesn't equal the closing balance — difference
+• Matched ledger lines:
++ Deposits in the books not shown on the statement
++ Deposits/interest on the statement not recorded
+= Adjusted bank balance
+= Adjusted book balance
+− Pending cheques/payments not shown on the statement
+− Fees/withdrawals on the statement not recorded
+Matched statement lines:
+Add to reconciliation
+Reopen
+Close reconciliation
+Cancel
+Undo automatic matches
+To
+To date *
+Create the entry and match it
+Create and continue
+Deposit (credit)
+Cash deposit
+Start a new reconciliation and import the bank statement from an Excel file.
+Choose the matching entry line(s) — candidates with the same amount are at the top
+Now import the bank statement from Excel
+Import the bank statement from Excel and match it automatically with the bank account vouchers, then handle the differences and close the reconciliation.
+Import statement
+Import the bank statement from Excel
+Statement opening
+Description
+Bank reconciliation
+The reconciliation is balanced
+Status
+Counter account *
+Statement closing
+Books
+Balance
+Opening balance (
+Statement opening balance
+Closing balance
+Statement closing balance
+Statement closing balance *
+The line has both a deposit and a withdrawal
+Difference
+Difference:
+Signed amount
+The two amounts are not equal (difference {0}). Match despite the difference?
+Selected from the books:
+Reference
+Matching
+Automatic matching
+Summary
+By amount and voucher/cheque number, then amount and the nearest date, then grouped deposits
+Search...
+An alternative to the deposit and withdrawal columns
+Refresh
+Record an entry
+Record an entry for the statement line
+New bank reconciliation
+New reconciliation
+Export Excel
+Unable to add
+Unable to create
+Unable to load
+Unable to run
+Unable to delete
+Automatic
+Reconciliation created
+Creating...
+Loading...
+Loading the reconciliation...
+Delete the reconciliation and all its statement lines and matches? (Reconciliation entries already created remain)
+Delete line
+Delete the statement line?
+Reconciliation deleted
+Bank account (in the chart of accounts) *
+Defined bank accounts
+Per books
+Per bank statement
+Save balances
+Out of period
+Error
+Back
+Account balance up to the statement end
+Withdrawal (debit)
+Statement line:
+Cheque no. 000123
+Match now
+The date column is required, and the amount either as deposit and withdrawal columns or as a single amount column (positive = deposit, negative = withdrawal). Lines with a zero amount are ignored.
+Unmatched
+Not approved
+Statement period
+Date difference up to
+Unmatch
+Reconciliation entry
+Bank account entries in the books
+Bank statement
+Statement from
+No lines match this filter
+No bank reconciliations
+No entries match this filter
+No amount (deposit, withdrawal or amount)
+For review only
+No statement imported yet — press «Import statement»
+Debit: the counter account (e.g. bank fees expense) • Credit: the bank account
+Debit: the bank account • Credit: the counter account (e.g. interest income)
+Reconciled in another reconciliation
+Matched
+Match
+Open
+Closed
+Notes
+From date *
+Manual
+An approved journal voucher is created on the statement line date and matched with it directly.
+There is a difference of {0} — close the reconciliation despite the difference?
+day
+Clear outgoing cheques
+Deposit incoming cheques
+Search by number or name...
+Choose the incoming cheques and the beneficiary account, and a separate voucher is created for each cheque.
+Choose at least one cheque
+Due to
+Due from
+Bank
+The account doesn't exist or is an accounting account — choose a customer, supplier, salesman or subscriber
+Cheques available for the operation
+Selected
+Global search
+Operation date
+Endorse cheques
+Only cheques whose current status allows the operation are shown.
+Unable to load cheques
+Runs for all selected cheques, with one journal voucher per branch
+Run
+Run batch
+All banks
+Select several due cheques and deposit them in the bank account, creating a separate voucher for each cheque.
+Beneficiary account
+Post several due outgoing cheques, creating a separate voucher for each cheque.
+Account number or open search
+Cheque number, customer, bank or voucher...
+Cheques
+Number of cheques
+Show matching cheques
+Bulk cheque operations
+No cheques match the operation and filters
+Clear filters
+Note / bank document number
+Each cheque's status is checked again on save. If any cheque fails, the rest of the batch won't change.
+The selected cheques must be in the same currency
+{0} must be chosen
+Total value
+Choose the bank account
+Due
+Bank account
+New account
+Current account
+Voucher
+Source voucher
+Cheques
+Available operations
+Customer / beneficiary
+Branch
+Cheque data and full operations log
+Track incoming and outgoing cheques, due dates and current status from one place.
+Due date
+New due date
+Export CSV
+Only operations allowed for the cheque's current status are shown.
+Unable to load the cheque operations log
+Details of cheque no.
+Run the operation
+Run an operation on cheque #
+Cheque status
+Voucher no.
+Cheque no.
+Cheque number, account, customer, bank or voucher number...
+Operations log
+Journal voucher
+Cheque payment voucher
+Journal voucher
+An approved journal voucher will be created
+Returned cheques
+Outgoing cheques
+Incoming cheques
+Cheque owner / beneficiary
+View
+View cheques
+View the cheque operations log
+Cheque operations
+Due entry
+No cheques match the filters
+No operations are available for this cheque's status.
+No operations have been run on this cheque yet
+Amount to
+Amount from
+Optional note...
+Operation note
+Run deposit, return, endorsement and due-date change operations with a full log kept for every transaction.
+Total {0}
+Total amounts
+Add credit note
+Add debit note
+Search by name...
+Search by voucher number...
+Credit note
+Debit note
+Credit notes
+Debit notes
+Advanced search
+Next
+Previous
+Invalid tax
+Total
+Voucher date is required
+Voucher number is required
+The voucher number must contain only uppercase English letters, digits and -
+The exchange rate must be greater than zero
+This month's vouchers
+Failed to cancel the voucher
+Failed to delete the voucher
+Failed to save the voucher
+Average voucher value
+From
+Invalid tax rate
+Copy
+Original copy
+Review copy
+The amount must be entered
+The total must be entered
+The currency must be chosen
+The customer must be chosen
+The tax account must be chosen
+The voucher book must be chosen
+Total journal vouchers
+Add journal voucher
+The entry is not balanced: total debit doesn't equal total credit
+Note
+Journal vouchers
+Journal vouchers ({0})
+Failed to cancel the journal voucher
+Failed to delete the journal voucher
+Failed to save the journal voucher
+The voucher must contain at least two accounting lines (a debit side and a credit side)
+The voucher book must be set
+— recalculated automatically if the invoice is edited)
+(in the invoice currency
+Allocation basis
+Invoice items without a defined weight
+Document cancelled
+Add to the main unit cost
+Show cancelled
+Cancel document
+Cancel the document and its entry? The costs will be removed from the item cost.
+Search by invoice number, supplier name or manual voucher

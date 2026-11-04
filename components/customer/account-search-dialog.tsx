@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, useRef } from "react"
 import { Search, Wallet, Plus, UserPlus } from "lucide-react"
 import { newRecordHref } from "@/lib/new-record-param"
@@ -107,7 +108,7 @@ interface AccountSearchDialogProps {
 export const isParentAccount = (account: Pick<AccountItem, "id" | "has_children">, accounts: Pick<AccountItem, "father_id">[] = []) =>
   account.has_children === true || accounts.some((candidate) => Number(candidate.father_id ?? 0) === Number(account.id))
 
-export const PARENT_ACCOUNT_MESSAGE = "لا يمكن اختيار حساب رئيسي (له حسابات فرعية) — اختر حساباً فرعياً"
+export const PARENT_ACCOUNT_MESSAGE = tr("لا يمكن اختيار حساب رئيسي (له حسابات فرعية) — اختر حساباً فرعياً")
 
 interface CurrencyOption {
   currency_id: number
@@ -120,11 +121,11 @@ const codeCollator = new Intl.Collator("en", { numeric: true, sensitivity: "base
 const CURRENCIES_API_URL = "/api/exchange-rates"
 
 const ACCOUNT_TYPE_OPTIONS = [
-  { label: "حساب محاسبي", value: "1" },
-  { label: "عميل", value: "2" },
-  { label: "مورد", value: "3" },
-  { label: "مندوب", value: "4" },
-  { label: "مشترك", value: "5" },
+  { label: tr("حساب محاسبي"), value: "1" },
+  { label: tr("عميل"), value: "2" },
+  { label: tr("مورد"), value: "3" },
+  { label: tr("مندوب"), value: "4" },
+  { label: tr("مشترك"), value: "5" },
 ]
 
 const getAccountTypeId = (account: Pick<AccountItem, "type" | "classification_type_id">) =>
@@ -138,12 +139,12 @@ const getAccountTypeLabel = (
 ) => {
   const typeId = getAccountTypeId(account)
 
-  if (typeId === 1) return "حساب محاسبي"
-  if (typeId === 2) return "عميل"
-  if (typeId === 3) return "مورد"
-  if (typeId === 4) return "مندوب"
-  if (typeId === 5) return "مشترك"
-  return "أخرى"
+  if (typeId === 1) return tr("حساب محاسبي")
+  if (typeId === 2) return tr("عميل")
+  if (typeId === 3) return tr("مورد")
+  if (typeId === 4) return tr("مندوب")
+  if (typeId === 5) return tr("مشترك")
+  return tr("أخرى")
 }
 
 export default function AccountSearchDialog({
@@ -211,24 +212,24 @@ export default function AccountSearchDialog({
       ? ACCOUNT_TYPE_OPTIONS.filter((option) => allowedTypeValues.includes(Number(option.value)))
       : ACCOUNT_TYPE_OPTIONS
 
-    return [{ label: "الكل", value: "__all__" }, ...filteredTypes]
+    return [{ label: tr("الكل"), value: "__all__" }, ...filteredTypes]
   }, [allowedTypeValues])
 
   const financialListOptions = useMemo(
     () => [
-      { label: "الكل", value: "__all__" },
-      { label: "الميزانية العمومية", value: "1" },
-      { label: "قائمة الدخل", value: "2" },
-      { label: "تقييم بضاعة", value: "3" },
+      { label: tr("الكل"), value: "__all__" },
+      { label: tr("الميزانية العمومية"), value: "1" },
+      { label: tr("قائمة الدخل"), value: "2" },
+      { label: tr("تقييم بضاعة"), value: "3" },
     ],
     [],
   )
 
   const currencyOptions = useMemo(
     () => [
-      { label: "الكل", value: "__all__" },
+      { label: tr("الكل"), value: "__all__" },
       ...currencies.map((c) => ({
-        label: c.currency_name || c.currency_code || "غير محدد",
+        label: c.currency_name || c.currency_code || tr("غير محدد"),
         value: String(c.currency_id),
       })),
     ],
@@ -503,7 +504,7 @@ export default function AccountSearchDialog({
 
   const handleRowDoubleClick = (account: AccountItem) => {
     if (leafOnly && isParentAccount(account, allAccounts)) {
-      toast({ title: "تعذر اختيار الحساب", description: `${PARENT_ACCOUNT_MESSAGE}: ${account.code} - ${account.name}`, variant: "destructive" })
+      toast({ title: tr("تعذر اختيار الحساب"), description: `${PARENT_ACCOUNT_MESSAGE}: ${account.code} - ${account.name}`, variant: "destructive" })
       return
     }
     if (onSelect) {
@@ -527,18 +528,18 @@ export default function AccountSearchDialog({
   )
 
   const resultColumns: SearchColumn<(typeof gridDataSource)[number]>[] = [
-    { key: "code", header: "رقم الحساب", width: "140px", className: "font-mono text-xs text-slate-600" },
-    { key: "name", header: "اسم الحساب", className: "max-w-[380px] truncate font-semibold text-slate-800" },
+    { key: "code", header: tr("رقم الحساب"), width: "140px", className: "font-mono text-xs text-slate-600" },
+    { key: "name", header: tr("اسم الحساب"), className: "max-w-[380px] truncate font-semibold text-slate-800" },
     {
       key: "type_name",
-      header: "النوع",
+      header: tr("النوع"),
       width: "120px",
       render: (account) => (
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{account.type_name}</span>
       ),
     },
-    { key: "finanical_list_id", header: "القائمة المالية", width: "140px", className: "text-xs text-slate-500" },
-    { key: "currency_label", header: "العملة", width: "80px", align: "center", className: "text-xs font-bold text-slate-600" },
+    { key: "finanical_list_id", header: tr("القائمة المالية"), width: "140px", className: "text-xs text-slate-500" },
+    { key: "currency_label", header: tr("العملة"), width: "80px", align: "center", className: "text-xs font-bold text-slate-600" },
   ]
 
   return (
@@ -548,7 +549,7 @@ export default function AccountSearchDialog({
         className={confined
           ? "h-[min(720px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(1000px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] gap-0 overflow-hidden rounded-2xl border-0 bg-slate-50 p-0 shadow-2xl ring-1 ring-slate-900/10"
           : "!fixed !inset-0 !left-0 !top-0 !h-[100dvh] !max-h-[100dvh] !w-full !max-w-none !translate-x-0 !translate-y-0 gap-0 overflow-hidden rounded-none border-0 bg-slate-50 p-0 shadow-2xl sm:!left-1/2 sm:!top-1/2 sm:!h-[min(80dvh,720px)] sm:!max-h-[min(80dvh,720px)] sm:!w-[calc(100%-2rem)] sm:!max-w-[1000px] sm:!-translate-x-1/2 sm:!-translate-y-1/2 sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"}
-        dir="rtl"
+        dir={appDir()}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
         // كان Radix يركّز أول زر بالنافذة (إضافة حساب) حتى ينتقل التركيز لمربع البحث بعد 120ms —
@@ -562,8 +563,8 @@ export default function AccountSearchDialog({
         <div className="account-search-dialog-shell flex h-full min-h-0 flex-col">
           <SearchDialogHeader
             icon={<Wallet className="h-4 w-4" />}
-            title="دليل الحسابات"
-            subtitle="Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار"
+            title={tr("دليل الحسابات")}
+            subtitle={tr("Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار")}
             count={searchResults.length}
             onClose={() => onOpenChange(false)}
             actions={
@@ -574,20 +575,20 @@ export default function AccountSearchDialog({
                   tabIndex={-1}
                   onClick={() => window.open(newRecordHref("accounts"), "_blank", "noopener,noreferrer")}
                   className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
-                  title="تعريف حساب"
+                  title={tr("تعريف حساب")}
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">تعريف حساب</span>
+                  <span className="hidden sm:inline">{tr("تعريف حساب")}</span>
                 </Button>
                 <Button
                   type="button"
                   tabIndex={-1}
                   onClick={() => window.open(newRecordHref("customers"), "_blank", "noopener,noreferrer")}
                   className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-sky-700 hover:bg-sky-50"
-                  title="تعريف عميل"
+                  title={tr("تعريف عميل")}
                 >
                   <UserPlus className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">تعريف عميل</span>
+                  <span className="hidden sm:inline">{tr("تعريف عميل")}</span>
                 </Button>
               </>
             }
@@ -597,7 +598,7 @@ export default function AccountSearchDialog({
           <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-4 sm:py-3">
             <div className="flex min-w-0 flex-col gap-2">
               <div ref={filterContainerRef} className="account-search-dialog-filters-grid grid min-w-0 gap-2">
-                <SearchFilterField label="رقم الحساب">
+                <SearchFilterField label={tr("رقم الحساب")}>
                   <Input
                     value={searchFilters.accountNumber}
                     onChange={(e) => {
@@ -605,12 +606,12 @@ export default function AccountSearchDialog({
                       setSearchFilters(nextFilters)
                       applySearchFilters(nextFilters)
                     }}
-                    placeholder="رقم الحساب"
+                    placeholder={tr("رقم الحساب")}
                     className={searchInputClassName}
                     onBlur={handleCodeOrNameBlur}
                   />
                 </SearchFilterField>
-                <SearchFilterField label="الاسم" className="col-span-2 sm:col-span-1">
+                <SearchFilterField label={tr("الاسم")} className="col-span-2 sm:col-span-1">
                   <Input
                     ref={accountNameInputRef}
                     value={searchFilters.accountName}
@@ -619,21 +620,21 @@ export default function AccountSearchDialog({
                       setSearchFilters(nextFilters)
                       applySearchFilters(nextFilters)
                     }}
-                    placeholder="يمكن كتابة أكثر من كلمة"
+                    placeholder={tr("يمكن كتابة أكثر من كلمة")}
                     className={searchInputClassName}
                     onBlur={handleCodeOrNameBlur}
                   />
                 </SearchFilterField>
                 {showFinancialListFilter ? (
-                  <SearchFilterField label="القائمة المالية" className="invoice-currency-dropdown-wrap">
+                  <SearchFilterField label={tr("القائمة المالية")} className="invoice-currency-dropdown-wrap">
                     <PrimeDropdown
                       value={searchFilters.financialList}
                       options={financialListOptions}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر القائمة المالية"
+                      placeholder={tr("اختر القائمة المالية")}
                       className="invoice-currency-dropdown w-full"
-                      valueTemplate={(option) => <div className="w-full text-right">{option?.label ?? "اختر القائمة المالية"}</div>}
+                      valueTemplate={(option) => <div className="w-full text-start">{option?.label ?? tr("اختر القائمة المالية")}</div>}
                       style={dropdownStyle}
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -646,15 +647,15 @@ export default function AccountSearchDialog({
                   </SearchFilterField>
                 ) : null}
                 {showTypeFilter ? (
-                  <SearchFilterField label="النوع" className="invoice-currency-dropdown-wrap">
+                  <SearchFilterField label={tr("النوع")} className="invoice-currency-dropdown-wrap">
                     <PrimeDropdown
                       value={searchFilters.type}
                       options={typeOptions}
                       optionLabel="label"
                       optionValue="value"
-                      placeholder="اختر النوع"
+                      placeholder={tr("اختر النوع")}
                       className="invoice-currency-dropdown w-full"
-                      valueTemplate={(option) => <div className="w-full text-right">{option?.label ?? "اختر النوع"}</div>}
+                      valueTemplate={(option) => <div className="w-full text-start">{option?.label ?? tr("اختر النوع")}</div>}
                       style={dropdownStyle}
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -666,15 +667,15 @@ export default function AccountSearchDialog({
                     />
                   </SearchFilterField>
                 ) : null}
-                <SearchFilterField label="العملة" className="invoice-currency-dropdown-wrap" data-filter-field="currency">
+                <SearchFilterField label={tr("العملة")} className="invoice-currency-dropdown-wrap" data-filter-field="currency">
                   <PrimeDropdown
                     value={searchFilters.currency}
                     options={currencyOptions}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر العملة"
+                    placeholder={tr("اختر العملة")}
                     className="invoice-currency-dropdown w-full"
-                    valueTemplate={(option) => <div className="w-full text-right">{option?.label ?? "اختر العملة"}</div>}
+                    valueTemplate={(option) => <div className="w-full text-start">{option?.label ?? tr("اختر العملة")}</div>}
                     style={dropdownStyle}
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
@@ -696,7 +697,7 @@ export default function AccountSearchDialog({
                 className="h-9 w-full shrink-0 gap-1.5 rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white hover:bg-emerald-700"
               >
                 <Search className="h-3.5 w-3.5" />
-                بحث
+                {tr("بحث")}
               </Button>
             </div>
             {(showDeliveryOnlyFilter || showOrderOnlyFilter) && (
@@ -721,7 +722,7 @@ export default function AccountSearchDialog({
                       }}
                       className="h-4 w-4 rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    إظهار العملاء الذين لديهم ارساليات فقط
+                    {tr("إظهار العملاء الذين لديهم ارساليات فقط")}
                   </label>
                 ) : null}
                 {showOrderOnlyFilter ? (
@@ -743,7 +744,7 @@ export default function AccountSearchDialog({
                       }}
                       className="h-4 w-4 rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    إظهار العملاء الذين لديهم طلبيات فقط
+                    {tr("إظهار العملاء الذين لديهم طلبيات فقط")}
                   </label>
                 ) : null}
               </div>
@@ -753,17 +754,17 @@ export default function AccountSearchDialog({
           {/* النتائج */}
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
             <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
-              <span>نتائج البحث</span>
+              <span>{tr("نتائج البحث")}</span>
               <span>
                 {searchResults.length > MAX_VISIBLE_RESULTS
-                  ? `عرض أول ${MAX_VISIBLE_RESULTS} من ${searchResults.length.toLocaleString("en-US")} — ضيّق البحث`
-                  : `${searchResults.length.toLocaleString("en-US")} حساب`}
+                  ? tr("عرض أول {0} من {1} — ضيّق البحث", MAX_VISIBLE_RESULTS, searchResults.length.toLocaleString("en-US"))
+                  : tr("{0} حساب", searchResults.length.toLocaleString("en-US"))}
               </span>
             </div>
             {emptyActionLabel && !loading && visibleRows.length === 0 ? (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
                 <Search className="h-8 w-8 text-slate-300" />
-                <p className="text-sm text-slate-500">لا توجد نتائج مطابقة</p>
+                <p className="text-sm text-slate-500">{tr("لا توجد نتائج مطابقة")}</p>
                 <Button
                   type="button"
                   onClick={() => window.open(emptyActionHref, "_blank", "noopener,noreferrer")}
@@ -784,13 +785,13 @@ export default function AccountSearchDialog({
                 if (account) handleRowDoubleClick(account)
               }}
               onActiveChange={(row) => setSelectedAccount(row ? searchResults.find((item) => item.id === row.id) ?? null : null)}
-              emptyText={loading ? "جاري تحميل البيانات ..." : "لا توجد نتائج مطابقة"}
+              emptyText={loading ? tr("جاري تحميل البيانات ...") : tr("لا توجد نتائج مطابقة")}
             />}
           </div>
 
           <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-2.5">
             <span className="hidden truncate text-[11px] text-slate-400 sm:block">
-              {selectedAccount ? `${selectedAccount.code} — ${selectedAccount.name}` : "نقر مزدوج أو Enter للاختيار"}
+              {selectedAccount ? `${selectedAccount.code} — ${selectedAccount.name}` : tr("نقر مزدوج أو Enter للاختيار")}
             </span>
             <div className="grid w-full flex-1 grid-cols-2 gap-2 sm:w-auto sm:flex-none sm:flex">
               <Button
@@ -798,10 +799,10 @@ export default function AccountSearchDialog({
                 disabled={!selectedAccount}
                 className="h-9 w-full min-w-0 rounded-lg bg-emerald-600 px-3 font-bold text-white hover:bg-emerald-700 sm:w-auto sm:px-6"
               >
-                موافق
+                {tr("موافق")}
               </Button>
               <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 w-full min-w-0 rounded-lg border-2 border-slate-300 bg-white px-3 font-bold text-slate-700 hover:bg-slate-50 sm:w-auto sm:px-6">
-                إلغاء
+                {tr("إلغاء")}
               </Button>
             </div>
           </div>

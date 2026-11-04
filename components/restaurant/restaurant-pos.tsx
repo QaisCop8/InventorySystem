@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { currentPosTenantKey, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
 import { ArrowRightLeft, Ban, Combine, Loader2, Lock, Minus, Plus, Printer, Split, Wallet } from "lucide-react"
@@ -156,7 +157,7 @@ export default function RestaurantPos() {
       const data = await response.json()
       setDenied(false); setFloorError(""); setFloor(data)
     } catch (error) {
-      if (!silent) setFloorError(error instanceof Error ? error.message : "تعذر تحميل الطاولات")
+      if (!silent) setFloorError(error instanceof Error ? error.message : tr("تعذر تحميل الطاولات"))
     } finally {
       if (!silent) setLoadingFloor(false)
     }
@@ -205,7 +206,7 @@ export default function RestaurantPos() {
     try {
       return await fetchCatalog(locationId)
     } catch (error) {
-      setCatalog(null); setCatalogError(error instanceof Error ? error.message : "تعذر تحميل الأصناف")
+      setCatalog(null); setCatalogError(error instanceof Error ? error.message : tr("تعذر تحميل الأصناف"))
       return null
     } finally {
       setCatalogLoading(false)
@@ -218,11 +219,11 @@ export default function RestaurantPos() {
       const response = await fetch(`/api/restaurant/orders?id=${orderId}`, { cache: "no-store" })
       if (!response.ok) throw new Error(await errorOf(response, "تعذر تحميل الطلب"))
       const data: Order = await response.json()
-      if (data.status !== "open") { setMessage({ type: "error", text: "الطلب لم يعد مفتوحاً" }); await loadFloor(true); return }
+      if (data.status !== "open") { setMessage({ type: "error", text: tr("الطلب لم يعد مفتوحاً") }); await loadFloor(true); return }
       setOrder(data); setPending([]); setQuery(""); setCategory("all"); setMobileTab("menu")
       void loadCatalog(data.location_id)
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذر تحميل الطلب" })
+      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تحميل الطلب") })
     } finally {
       setBusy(false)
     }
@@ -244,7 +245,7 @@ export default function RestaurantPos() {
       void loadFloor(true)
       return data
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذر تنفيذ العملية" })
+      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تنفيذ العملية") })
       return null
     } finally {
       setBusy(false)
@@ -252,17 +253,17 @@ export default function RestaurantPos() {
   }, [loadFloor, order, showOrder])
 
   useNavigationGuard(() => pending.length > 0, (continueNavigation) => {
-    void confirmYesNo("توجد أصناف لم تُرسل للطاولة بعد. هل تريد المتابعة وتجاهلها؟").then((ok) => { if (ok) { setPending([]); continueNavigation() } })
+    void confirmYesNo(tr("توجد أصناف لم تُرسل للطاولة بعد. هل تريد المتابعة وتجاهلها؟")).then((ok) => { if (ok) { setPending([]); continueNavigation() } })
   })
 
   const backToFloor = async () => {
-    if (pending.length && !(await confirmYesNo("توجد أصناف لم تُرسل بعد. هل تريد تجاهلها والعودة للطاولات؟"))) return
+    if (pending.length && !(await confirmYesNo(tr("توجد أصناف لم تُرسل بعد. هل تريد تجاهلها والعودة للطاولات؟")))) return
     setOrder(null); setPending([]); setPayLines(null); void loadFloor(true)
   }
 
   const clickTable = async (table: FloorTable) => {
     if (table.order_id) { void showOrder(table.order_id); return }
-    if (!(await ensurePermission("openTable", table.location_id))) { setMessage({ type: "error", text: "لا توجد لديك صلاحية فتح طاولة" }); return }
+    if (!(await ensurePermission("openTable", table.location_id))) { setMessage({ type: "error", text: tr("لا توجد لديك صلاحية فتح طاولة") }); return }
     setGuests(Math.min(table.seats || 2, 2) || 1); setOpenTable(table)
   }
   const confirmOpenTable = async () => {
@@ -301,7 +302,7 @@ export default function RestaurantPos() {
       if (!(await ensurePermission(session ? "handoverCustody" : "receiveCustody", resolved))) return
       setCustodyOpen(true)
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذر تحميل العهدة" })
+      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذر تحميل العهدة") })
     }
   }
   const runCustody = async (sourceId?: number, shiftGuid?: string) => {
@@ -326,13 +327,13 @@ export default function RestaurantPos() {
         void printCustodyHandover({
           kind: action === "close" ? "close" : "handover", pointName: custodyLocationName, userName: user?.fullName || user?.username || "",
           currencyCode: custodyCurrency?.currency_code || "", session, currencies, amounts: { ...custodyAmounts }, note: custodyNote,
-        }).catch((error) => setMessage({ type: "error", text: `تمت العملية لكن تعذرت الطباعة: ${error instanceof Error ? error.message : ""}` }))
+        }).catch((error) => setMessage({ type: "error", text: tr("تمت العملية لكن تعذرت الطباعة: {0}", error instanceof Error ? error.message : "") }))
       }
-      setMessage({ type: "success", text: "تم تنفيذ عملية العهدة بنجاح" })
+      setMessage({ type: "success", text: tr("تم تنفيذ عملية العهدة بنجاح") })
       setCustodyOpen(false); setMovementAmounts({}); setCustodyNote("")
       await loadCustody(custodyLocation)
     } catch (error) {
-      setCustodyError(error instanceof Error ? error.message : "فشلت عملية العهدة")
+      setCustodyError(error instanceof Error ? error.message : tr("فشلت عملية العهدة"))
     } finally {
       setCustodyBusy(false)
     }
@@ -367,8 +368,8 @@ export default function RestaurantPos() {
   const custodyDialogs = (
     <>
       <Dialog open={custodyPicker} onOpenChange={setCustodyPicker}>
-        <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
-          <DialogHeader><DialogTitle>عهدة أي موقع؟</DialogTitle></DialogHeader>
+        <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-sm">
+          <DialogHeader><DialogTitle>{tr("عهدة أي موقع؟")}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-2">
             {(floor?.locations || []).map((location) => <Button key={location.id} variant="outline" className="h-12" onClick={() => void openCustody(location.id)}>{location.name}</Button>)}
           </div>
@@ -427,10 +428,10 @@ export default function RestaurantPos() {
    * التوابع غير الموجودة في قائمة الموقع (مستودع/فئة سعر مختلفة) تُتخطّى مع تنبيه.
    */
   const addProduct = async (product: Product) => {
-    if (!(await ensurePermission("addItems", order?.location_id))) { setMessage({ type: "error", text: "لا توجد لديك صلاحية إضافة أصناف للطاولة" }); return }
+    if (!(await ensurePermission("addItems", order?.location_id))) { setMessage({ type: "error", text: tr("لا توجد لديك صلاحية إضافة أصناف للطاولة") }); return }
     const related = product.relatedMode > 1 ? product.relatedIds.map((id) => productById.get(id)).filter((row): row is Product => Boolean(row)) : []
     const missing = product.relatedMode > 1 ? product.relatedIds.length - related.length : 0
-    if (missing > 0) setMessage({ type: "error", text: `${missing} من توابع ${product.name} غير متاحة في قائمة هذا الموقع وتم تخطيها` })
+    if (missing > 0) setMessage({ type: "error", text: tr("{0} من توابع {1} غير متاحة في قائمة هذا الموقع وتم تخطيها", missing, product.name) })
     if (product.relatedMode === 4 && related.length) { setRelatedPick({ product, options: related, selected: [] }); return }
     addLines(product, product.relatedMode === 2 || product.relatedMode === 3 ? related : [], product.relatedMode !== 2 || !related.length)
   }
@@ -479,11 +480,11 @@ export default function RestaurantPos() {
       const unit = unitId ? product.unitPrices.find((option) => option.unitId === unitId) : undefined
       await addProduct(unit ? { ...product, unitId: unit.unitId, unitName: unit.unitName || product.unitName, price: unit.price } : product)
     }
-    if (missing.length) setMessage({ type: "error", text: `أصناف غير متاحة في قائمة هذا الموقع: ${missing.join("، ")}` })
+    if (missing.length) setMessage({ type: "error", text: tr("أصناف غير متاحة في قائمة هذا الموقع: {0}", missing.join("، ")) })
   }
 
   const isTakeaway = order?.order_type === "takeaway"
-  const tableNames = isTakeaway ? `سفري${order?.takeaway_name ? ` ${order.takeaway_name}` : ""}` : order?.tables.map((table) => table.name).join(" + ") || ""
+  const tableNames = isTakeaway ? tr("سفري{0}", order?.takeaway_name ? ` ${order.takeaway_name}` : "") : order?.tables.map((table) => table.name).join(" + ") || ""
 
   // قسائم المطبخ: ورقة بالأصناف والكميات والملاحظات (بلا أسعار) — كما في كاشير نقطة البيع. الأولوية لطابعة الصنف
   // (الطابعة الافتراضية في ملف الصنف): أصنافها تُجمع على ورقة واحدة لكل طابعة؛ وإلا حسب مجموعة الصنف وطابعتها.
@@ -508,17 +509,17 @@ export default function RestaurantPos() {
       const failures: string[] = []
       for (const group of groups.values()) {
         const document: PrintDocument = {
-          noAudit: true, voucherTypeId: 12, title: `${group.name} — ${isTakeaway ? "" : "طاولة "}${tableNames}`, code: order.order_no, date: nowText(),
-          fields: [{ label: "الموقع", value: order.location_name }, { label: "الطاولة", value: tableNames }],
-          columns: [{ key: "name", label: "الصنف", weight: 3.2 }, { key: "quantity", label: "الكمية", align: "center", weight: 1 }],
+          noAudit: true, voucherTypeId: 12, title: tr("{0} — {1}{2}", group.name, isTakeaway ? "" : "طاولة ", tableNames), code: order.order_no, date: nowText(),
+          fields: [{ label: tr("الموقع"), value: order.location_name }, { label: tr("الطاولة"), value: tableNames }],
+          columns: [{ key: "name", label: tr("الصنف"), weight: 3.2 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }],
           rows: group.lines.map((line) => ({ name: `${line.name}${line.unitName ? ` (${line.unitName})` : ""}${line.addons.length ? ` + ${addonsText(line.addons)}` : ""}${line.note ? ` — ${line.note}` : ""}`, quantity: qtyText(line.quantity) })),
         }
         try { await printVoucherWithSettings(document, { ...slip, printer_name: group.printer }, company) }
         catch (error) { failures.push(`${group.name}: ${error instanceof Error ? error.message : "تعذرت الطباعة"}`) }
       }
-      if (failures.length) setMessage({ type: "error", text: `أُرسلت الأصناف لكن تعذرت طباعة المطبخ: ${failures.join(" — ")}` })
+      if (failures.length) setMessage({ type: "error", text: tr("أُرسلت الأصناف لكن تعذرت طباعة المطبخ: {0}", failures.join(" — ")) })
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذرت طباعة المطبخ" })
+      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذرت طباعة المطبخ") })
     }
   }
 
@@ -532,7 +533,7 @@ export default function RestaurantPos() {
     const incomplete = pending.find((line) => missingGroups(line.productId, line.addons).length)
     if (incomplete) {
       setMobileTab("ticket")
-      setMessage({ type: "error", text: `اختر إضافات "${incomplete.name}": ${missingGroups(incomplete.productId, incomplete.addons).join("، ")}` })
+      setMessage({ type: "error", text: tr("اختر إضافات \"{0}\": {1}", incomplete.name, missingGroups(incomplete.productId, incomplete.addons).join("، ")) })
       setAddonsTarget({ kind: "pending", key: incomplete.key })
       return
     }
@@ -540,11 +541,11 @@ export default function RestaurantPos() {
     const data = await act("add_items", {
       order_id: order.id,
       items: lines.map((line) => ({ product_id: line.productId, product_name: line.name, unit_id: line.unitId, unit_name: line.unitName, price: line.price, quantity: line.quantity, discount: line.discount, note: line.note, addons: line.addons })),
-    }, "تم إرسال الأصناف للطاولة")
+    }, tr("تم إرسال الأصناف للطاولة"))
     if (!data) return
     setPending([])
     // خيار الموقع "اظهار رسالة طباعة عند ارسال الطلب الى المطبخ": يسأل قبل طباعة القسائم (لا = إرسال بلا طباعة)
-    if (catalog?.point?.kitchen_print_confirm && !(await confirmYesNo("تم إرسال الطلب إلى المطبخ. هل تريد طباعة قسائم المطبخ؟"))) return
+    if (catalog?.point?.kitchen_print_confirm && !(await confirmYesNo(tr("تم إرسال الطلب إلى المطبخ. هل تريد طباعة قسائم المطبخ؟")))) return
     void printKitchen(lines)
   }
 
@@ -597,12 +598,12 @@ export default function RestaurantPos() {
 
   const startPayment = async (lines: Line[], partial: boolean) => {
     if (!order) return
-    if (!catalog?.canPay && !(await ensurePermission("pay", order.location_id))) { setMessage({ type: "error", text: "لا توجد لديك صلاحية دفع حساب الطاولة" }); return }
+    if (!catalog?.canPay && !(await ensurePermission("pay", order.location_id))) { setMessage({ type: "error", text: tr("لا توجد لديك صلاحية دفع حساب الطاولة") }); return }
     // مثل الكاشير: لا دفع بلا عهدة مفتوحة على موقع الطلب
     const info = await loadCustody(order.location_id).catch(() => null)
     if (!info?.session) {
       setScopeOpen(false)
-      setMessage({ type: "error", text: "يجب فتح أو استلام العهدة على هذا الموقع قبل الدفع" })
+      setMessage({ type: "error", text: tr("يجب فتح أو استلام العهدة على هذا الموقع قبل الدفع") })
       void openCustody(order.location_id)
       return
     }
@@ -623,9 +624,9 @@ export default function RestaurantPos() {
     const cash = round2(payments.find((row) => row.method === "cash")?.amount || 0)
     const change = round2(Math.max(0, allocated - total))
     const changeAllowed = change > 0 && cash >= change - 0.009 && allocated - cash <= total + 0.009
-    if (allocated < total - 0.009) { setPayError("مجموع تفاصيل الدفع أقل من المبلغ المطلوب"); return }
-    if (change > 0 && !changeAllowed) { setPayError("الزيادة على المبلغ مسموحة للدفع النقدي فقط"); return }
-    if (payments.some((row) => row.amount > 0 && (row.method === "cheque" || row.method === "account")) && !payCustomerId) { setPayError("اختر العميل عند الدفع بشيك أو على الحساب"); return }
+    if (allocated < total - 0.009) { setPayError(tr("مجموع تفاصيل الدفع أقل من المبلغ المطلوب")); return }
+    if (change > 0 && !changeAllowed) { setPayError(tr("الزيادة على المبلغ مسموحة للدفع النقدي فقط")); return }
+    if (payments.some((row) => row.amount > 0 && (row.method === "cheque" || row.method === "account")) && !payCustomerId) { setPayError(tr("اختر العميل عند الدفع بشيك أو على الحساب")); return }
     setPayError("")
     // لقطة الفاتورة قبل الحفظ (الطلب يتحدّث بعده) — تُطبع بنفس طريقة كاشير نقطة البيع
     const point = catalog?.point
@@ -660,13 +661,13 @@ export default function RestaurantPos() {
       cash_change_amount: changeAllowed ? change : 0,
       cash_currency_amounts: (catalog?.currencies || []).filter((row) => (cashAmounts[row.currency_id] || 0) > 0).map((row) => ({ currency_id: row.currency_id, amount: cashAmounts[row.currency_id] })),
     })
-    if (!result) { setPayError("تعذر الدفع؛ راجع الرسالة"); return }
+    if (!result) { setPayError(tr("تعذر الدفع؛ راجع الرسالة")); return }
     setPayLines(null)
     void printPosReceipt({ ...receiptSnapshot, code: String(result.vch_code || "") }, {
       point, receiptSettings: catalog?.receiptSettings || {}, taxRate: catalog?.taxRate || 0,
       cashierName: user?.fullName || user?.username || "", onPreview: setPrintPreview, onMessage: setMessage,
     })
-    setMessage({ type: "success", text: `تم حفظ الفاتورة ${result.vch_code || ""}${result.closed ? " وإغلاق الطاولة" : " — دفعة جزئية، الطاولة ما زالت مفتوحة"}${change > 0 ? ` — الباقي للعميل ${money(change)}` : ""}` })
+    setMessage({ type: "success", text: tr("تم حفظ الفاتورة {0}{1}{2}", result.vch_code || "", result.closed ? " وإغلاق الطاولة" : " — دفعة جزئية، الطاولة ما زالت مفتوحة", change > 0 ? ` — الباقي للعميل ${money(change)}` : "") })
     if (order.location_id) void loadCatalog(order.location_id, true)
   }
 
@@ -676,21 +677,21 @@ export default function RestaurantPos() {
       const { settings, company } = await loadVoucherPrintSettings(12)
       const lines = order.items.filter((item) => item.remaining_quantity > 0)
       const document: PrintDocument = {
-        noAudit: true, voucherTypeId: 12, title: "حساب طاولة", code: order.order_no, date: nowText(),
-        fields: [{ label: "الموقع", value: order.location_name }, { label: isTakeaway ? "النوع" : "الطاولة", value: tableNames }, ...(isTakeaway ? [] : [{ label: "عدد الأشخاص", value: String(order.guests) }])],
-        columns: [{ key: "name", label: "الصنف", weight: 3 }, { key: "quantity", label: "الكمية", align: "center", weight: 1 }, { key: "price", label: "السعر", align: "center", weight: 1.2 }, { key: "total", label: "المجموع", align: "center", weight: 1.3 }],
+        noAudit: true, voucherTypeId: 12, title: tr("حساب طاولة"), code: order.order_no, date: nowText(),
+        fields: [{ label: tr("الموقع"), value: order.location_name }, { label: isTakeaway ? tr("النوع") : tr("الطاولة"), value: tableNames }, ...(isTakeaway ? [] : [{ label: tr("عدد الأشخاص"), value: String(order.guests) }])],
+        columns: [{ key: "name", label: tr("الصنف"), weight: 3 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }, { key: "price", label: tr("السعر"), align: "center", weight: 1.2 }, { key: "total", label: tr("المجموع"), align: "center", weight: 1.3 }],
         rows: lines.map((item) => ({ name: `${item.product_name}${item.addons?.length ? ` + ${addonsText(item.addons)}` : ""}`, quantity: qtyText(item.remaining_quantity), price: money(item.price), total: money(item.price * item.remaining_quantity * (1 - item.discount / 100)) })),
         totals: [
-          ...(order.totals.paid > 0 ? [{ label: "مدفوع سابقاً", value: money(order.totals.paid) }] : []),
-          ...(order.discount_percent > 0 ? [{ label: "خصم", value: `${order.discount_percent}%` }] : []),
-          { label: "المطلوب", value: `${money(remainingTotal)} ${currency}`, strong: true },
+          ...(order.totals.paid > 0 ? [{ label: tr("مدفوع سابقاً"), value: money(order.totals.paid) }] : []),
+          ...(order.discount_percent > 0 ? [{ label: tr("خصم"), value: `${order.discount_percent}%` }] : []),
+          { label: tr("المطلوب"), value: `${money(remainingTotal)} ${currency}`, strong: true },
         ],
         amount: remainingTotal,
       }
       await printVoucherWithSettings(document, { ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, show_totals: true, show_signatures: false, show_amount_in_words: false }, company)
       void act("print", { order_id: order.id })
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "تعذرت الطباعة" })
+      setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذرت الطباعة") })
     }
   }
 
@@ -730,7 +731,7 @@ export default function RestaurantPos() {
     if (!editing || !order) return
     if (editing.kind === "pending") { setPending((rows) => rows.filter((row) => row.key !== editing.key)); setEditing(null); return }
     if (!(await ensurePermission("deleteItems", order.location_id))) return
-    if (!(await confirmYesNo(`حذف ${editing.item.product_name} من الطاولة؟`))) return
+    if (!(await confirmYesNo(tr("حذف {0} من الطاولة؟", editing.item.product_name)))) return
     const data = await act("remove_item", { order_id: order.id, item_id: editing.item.id })
     if (data) setEditing(null)
   }
@@ -739,14 +740,14 @@ export default function RestaurantPos() {
   const removeService = async (item: OrderItem) => {
     if (!order) return
     if (!(await ensurePermission("removeTableService", order.location_id))) return
-    if (!(await confirmYesNo(`حذف ${item.product_name} من الطاولة؟`))) return
-    await act("remove_item", { order_id: order.id, item_id: item.id }, "تم حذف خدمة الطاولة")
+    if (!(await confirmYesNo(tr("حذف {0} من الطاولة؟", item.product_name)))) return
+    await act("remove_item", { order_id: order.id, item_id: item.id }, tr("تم حذف خدمة الطاولة"))
   }
 
   const saveValueDialog = async (raw: string) => {
     if (!order || !valueDialog) return
     const data = valueDialog === "discount"
-      ? await act("update_order", { order_id: order.id, discount_percent: Number(raw) }, "تم تحديث خصم الطلب")
+      ? await act("update_order", { order_id: order.id, discount_percent: Number(raw) }, tr("تم تحديث خصم الطلب"))
       : await act("update_order", { order_id: order.id, takeaway_name: raw })
     if (data) setValueDialog(null)
   }
@@ -780,18 +781,18 @@ export default function RestaurantPos() {
   // ---------------- العرض ----------------
   if (denied) {
     return (
-      <div dir="rtl" className="flex h-full min-h-[320px] items-center justify-center p-6">
+      <div dir={appDir()} className="flex h-full min-h-[320px] items-center justify-center p-6">
         <div className="max-w-md rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/70 px-8 py-10 text-center">
           <Lock className="mx-auto mb-3 h-10 w-10 text-amber-600" />
-          <h2 className="text-lg font-bold text-amber-900">لا توجد صلاحية</h2>
-          <p className="mt-1 text-sm text-amber-800">{floorError || "لا توجد لديك صلاحية الدخول لشاشة المطعم في الفرع الحالي."}</p>
+          <h2 className="text-lg font-bold text-amber-900">{tr("لا توجد صلاحية")}</h2>
+          <p className="mt-1 text-sm text-amber-800">{floorError || tr("لا توجد لديك صلاحية الدخول لشاشة المطعم في الفرع الحالي.")}</p>
         </div>
       </div>
     )
   }
 
   const toast = message && (
-    <div className={`fixed bottom-20 left-1/2 z-[60] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-lg lg:bottom-6 ${message.type === "success" ? "bg-emerald-600" : "bg-red-600"}`} onClick={() => setMessage(null)}>
+    <div className={`fixed bottom-20 end-1/2 z-[60] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-lg lg:bottom-6 ${message.type === "success" ? "bg-emerald-600" : "bg-red-600"}`} onClick={() => setMessage(null)}>
       {message.text}
     </div>
   )
@@ -800,24 +801,24 @@ export default function RestaurantPos() {
       {custodyDialogs}
       {printPreview && <PosPrintPreview title={printPreview.title} html={printPreview.html} onClose={() => setPrintPreview(null)} />}
       <Dialog open={relatedPick !== null} onOpenChange={(value) => { if (!value) setRelatedPick(null) }}>
-        <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-md">
-          <DialogHeader><DialogTitle>الأصناف التابعة — {relatedPick?.product.name}</DialogTitle></DialogHeader>
+        <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-md">
+          <DialogHeader><DialogTitle>{tr("الأصناف التابعة — ")}{relatedPick?.product.name}</DialogTitle></DialogHeader>
           <div className="max-h-[60vh] space-y-1.5 overflow-y-auto">
             {relatedPick?.options.map((row) => {
               const checked = relatedPick.selected.includes(row.id)
               const option = relatedPick.product.relatedItems?.find((item) => item.id === row.id)
               return (
                 <button key={row.id} type="button" onClick={() => setRelatedPick((pick) => pick && { ...pick, selected: checked ? pick.selected.filter((id) => id !== row.id) : [...pick.selected, row.id] })}
-                  className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-right text-sm transition-colors ${checked ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40" : "hover:bg-muted"}`}>
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start text-sm transition-colors ${checked ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40" : "hover:bg-muted"}`}>
                   <span className="flex items-center gap-2"><input type="checkbox" readOnly tabIndex={-1} checked={checked} className="h-4 w-4 accent-emerald-600" />{row.name}{row.unitName ? ` (${row.unitName})` : ""}</span>
-                  <span className="text-xs text-muted-foreground">{option?.addPrice === false ? "بدون سعر" : row.price.toFixed(2)}</span>
+                  <span className="text-xs text-muted-foreground">{option?.addPrice === false ? tr("بدون سعر") : row.price.toFixed(2)}</span>
                 </button>
               )
             })}
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setRelatedPick(null)}>إلغاء</Button>
-            <Button className="h-11" onClick={confirmRelatedPick}>إضافة</Button>
+            <Button variant="outline" onClick={() => setRelatedPick(null)}>{tr("إلغاء")}</Button>
+            <Button className="h-11" onClick={confirmRelatedPick}>{tr("إضافة")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -836,10 +837,10 @@ export default function RestaurantPos() {
           onTable={clickTable} onOrder={(orderId) => void showOrder(orderId)} />
 
         <Dialog open={openTable !== null} onOpenChange={(value) => { if (!value) setOpenTable(null) }}>
-          <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-xs">
-            <DialogHeader><DialogTitle>فتح طاولة {openTable?.name}</DialogTitle></DialogHeader>
+          <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-xs">
+            <DialogHeader><DialogTitle>{tr("فتح طاولة ")}{openTable?.name}</DialogTitle></DialogHeader>
             <div className="flex items-center justify-between gap-3">
-              <Label>عدد الأشخاص</Label>
+              <Label>{tr("عدد الأشخاص")}</Label>
               <div className="flex items-center gap-1">
                 <Button size="icon" variant="outline" className="h-11 w-11" onClick={() => setGuests((g) => Math.max(1, g - 1))}><Minus className="h-4 w-4" /></Button>
                 <Input type="number" className="h-11 w-16 text-center text-lg font-bold" min={1} value={guests} onChange={(e) => setGuests(Math.max(1, Math.trunc(Number(e.target.value) || 1)))} />
@@ -847,32 +848,32 @@ export default function RestaurantPos() {
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setOpenTable(null)}>إلغاء</Button>
-              <Button className="h-11" disabled={busy} onClick={() => void confirmOpenTable()}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}فتح الطاولة</Button>
+              <Button variant="outline" onClick={() => setOpenTable(null)}>{tr("إلغاء")}</Button>
+              <Button className="h-11" disabled={busy} onClick={() => void confirmOpenTable()}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("فتح الطاولة")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog open={takeawayOpen} onOpenChange={setTakeawayOpen}>
-          <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
-            <DialogHeader><DialogTitle>طلب سفري جديد</DialogTitle></DialogHeader>
+          <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-sm">
+            <DialogHeader><DialogTitle>{tr("طلب سفري جديد")}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               {locations.length > 1 && (
                 <div className="space-y-1">
-                  <Label>الموقع</Label>
+                  <Label>{tr("الموقع")}</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {locations.map((location) => <Button key={location.id} size="sm" variant={takeawayLocation === location.id ? "default" : "outline"} onClick={() => setTakeawayLocation(location.id)}>{location.name}</Button>)}
                   </div>
                 </div>
               )}
               <div className="space-y-1">
-                <Label>اسم/رقم الزبون (اختياري)</Label>
+                <Label>{tr("اسم/رقم الزبون (اختياري)")}</Label>
                 <Input className="h-11" value={takeawayName} autoFocus onChange={(e) => setTakeawayName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void confirmTakeaway() }} />
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => setTakeawayOpen(false)}>إلغاء</Button>
-              <Button className="h-11" disabled={busy || !takeawayLocation} onClick={() => void confirmTakeaway()}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}فتح الطلب</Button>
+              <Button variant="outline" onClick={() => setTakeawayOpen(false)}>{tr("إلغاء")}</Button>
+              <Button className="h-11" disabled={busy || !takeawayLocation} onClick={() => void confirmTakeaway()}>{busy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}{tr("فتح الطلب")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -884,13 +885,13 @@ export default function RestaurantPos() {
   // ---------------- شاشة الطلب ----------------
   const hasRemaining = remainingLines.length > 0
   const actions: OrderAction[] = [
-    { key: "transfer", label: isTakeaway ? "إلى طاولة" : "نقل", icon: ArrowRightLeft, show: true, onClick: gated("transfer", () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") }, order.location_id) },
-    { key: "merge", label: "دمج", icon: Combine, show: !isTakeaway, onClick: gated("merge", () => setPicker("merge"), order.location_id) },
-    { key: "split", label: "فصل", icon: Split, show: true, disabled: !hasRemaining, onClick: gated("split", () => { setSplitQty({}); setSplitOpen(true) }, order.location_id) },
-    { key: "print", label: "طباعة الحساب", icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
-    { key: "cancel", label: order.payments.length ? "إغلاق" : "إلغاء", icon: Ban, show: order.payments.length ? !hasRemaining : true, tone: "text-red-600",
-      onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, "تم إغلاق الطاولة"); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
-    { key: "custody", label: "العهدة", icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
+    { key: "transfer", label: isTakeaway ? tr("إلى طاولة") : tr("نقل"), icon: ArrowRightLeft, show: true, onClick: gated("transfer", () => { setTransferFrom(order.tables[0]?.table_id ?? null); setPicker("transfer") }, order.location_id) },
+    { key: "merge", label: tr("دمج"), icon: Combine, show: !isTakeaway, onClick: gated("merge", () => setPicker("merge"), order.location_id) },
+    { key: "split", label: tr("فصل"), icon: Split, show: true, disabled: !hasRemaining, onClick: gated("split", () => { setSplitQty({}); setSplitOpen(true) }, order.location_id) },
+    { key: "print", label: tr("طباعة الحساب"), icon: Printer, show: true, disabled: !hasRemaining, onClick: gated("printBill", () => void printBill(), order.location_id) },
+    { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemaining : true, tone: "text-red-600",
+      onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, tr("تم إغلاق الطاولة")); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
+    { key: "custody", label: tr("العهدة"), icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
   ]
 
   return (
@@ -910,19 +911,19 @@ export default function RestaurantPos() {
           const incomplete = order.items.find((item) => item.remaining_quantity > 0 && missingGroups(item.product_id, item.addons).length)
           if (incomplete) {
             setMobileTab("ticket")
-            setMessage({ type: "error", text: `اختر إضافات "${incomplete.product_name}" قبل الدفع: ${missingGroups(incomplete.product_id, incomplete.addons).join("، ")}` })
+            setMessage({ type: "error", text: tr("اختر إضافات \"{0}\" قبل الدفع: {1}", incomplete.product_name, missingGroups(incomplete.product_id, incomplete.addons).join("، ")) })
             if (can("editItems")) setAddonsTarget({ kind: "item", item: incomplete })
             return
           }
           setScopeOpen(true)
         }, order.location_id)} onDiscount={gated("discount", () => setValueDialog("discount"), order.location_id)} onGuests={(delta) => void changeGuests(delta)}
-        onUnmerge={(tableId, name) => gated("split", () => void confirmYesNo(`فك الطاولة ${name} من الطلب؟`).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, `تم فك الطاولة ${name}`) }), order.location_id)()}
+        onUnmerge={(tableId, name) => gated("split", () => void confirmYesNo(tr("فك الطاولة {0} من الطلب؟", name)).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, tr("تم فك الطاولة {0}", name)) }), order.location_id)()}
         onRenameTakeaway={gated("takeaway", () => setValueDialog("takeaway_name"), order.location_id)} />
 
       <ValueDialog open={valueDialog !== null} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
         {...(valueDialog === "discount"
-          ? { title: "خصم الطلب", label: "نسبة الخصم على الطلب", value: String(order.discount_percent || 0), kind: "number" as const, min: 0, max: 100, suffix: "%", presets: [0, 5, 10, 15, 20, 25, 30, 50] }
-          : { title: "اسم الطلب السفري", label: "اسم/رقم الزبون", value: order.takeaway_name || "", placeholder: "اختياري" })} />
+          ? { title: tr("خصم الطلب"), label: tr("نسبة الخصم على الطلب"), value: String(order.discount_percent || 0), kind: "number" as const, min: 0, max: 100, suffix: "%", presets: [0, 5, 10, 15, 20, 25, 30, 50] }
+          : { title: tr("اسم الطلب السفري"), label: tr("اسم/رقم الزبون"), value: order.takeaway_name || "", placeholder: tr("اختياري") })} />
 
       <ItemEditDialog open={editing !== null} onOpenChange={(value) => { if (!value) setEditing(null) }} line={editLine} busy={busy}
         canDiscount canDelete canReduce
@@ -931,40 +932,40 @@ export default function RestaurantPos() {
       <AddonsDialog open={addonsLine !== null} onOpenChange={(value) => { if (!value) setAddonsTarget(null) }} title={addonsLine?.title || ""}
         groups={addonsLine?.groups || []} selected={addonsLine?.selected || []} note={addonsLine?.note || ""} busy={busy} onSave={(addons, note) => void saveAddons(addons, note)} />
 
-      <TablePickerDialog open={picker === "transfer"} onOpenChange={(value) => { if (!value) setPicker(null) }} title={isTakeaway ? "تحويل الطلب السفري إلى طاولة" : "نقل الطاولة"} description="اختر طاولة فارغة لنقل الطلب إليها"
-        tables={tables} locations={locations} allow={(table) => !table.order_id} busy={busy} confirmLabel="نقل"
-        onConfirm={(ids) => void act("transfer", { order_id: order.id, from_table_id: transferFrom, to_table_id: ids[0] }, "تم نقل الطاولة").then((data) => { if (data) setPicker(null) })}>
+      <TablePickerDialog open={picker === "transfer"} onOpenChange={(value) => { if (!value) setPicker(null) }} title={isTakeaway ? tr("تحويل الطلب السفري إلى طاولة") : tr("نقل الطاولة")} description={tr("اختر طاولة فارغة لنقل الطلب إليها")}
+        tables={tables} locations={locations} allow={(table) => !table.order_id} busy={busy} confirmLabel={tr("نقل")}
+        onConfirm={(ids) => void act("transfer", { order_id: order.id, from_table_id: transferFrom, to_table_id: ids[0] }, tr("تم نقل الطاولة")).then((data) => { if (data) setPicker(null) })}>
         {order.tables.length > 1 && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span>الطاولة المنقولة:</span>
+            <span>{tr("الطاولة المنقولة:")}</span>
             {order.tables.map((table) => <Button key={table.table_id} size="sm" variant={transferFrom === table.table_id ? "default" : "outline"} onClick={() => setTransferFrom(table.table_id)}>{table.name}</Button>)}
           </div>
         )}
       </TablePickerDialog>
 
-      <TablePickerDialog open={picker === "merge"} onOpenChange={(value) => { if (!value) setPicker(null) }} title="دمج طاولات" multiple
-        description="الطاولات الفارغة تُضاف للطلب، والمشغولة ينتقل طلبها بالكامل (أصنافه ودفعاته) إلى هذا الطلب"
-        tables={tables} locations={locations} allow={(table) => !orderTableIds.has(table.id)} busy={busy} confirmLabel="دمج"
-        onConfirm={(ids) => void act("merge", { order_id: order.id, table_ids: ids }, "تم دمج الطاولات").then((data) => { if (data) setPicker(null) })} />
+      <TablePickerDialog open={picker === "merge"} onOpenChange={(value) => { if (!value) setPicker(null) }} title={tr("دمج طاولات")} multiple
+        description={tr("الطاولات الفارغة تُضاف للطلب، والمشغولة ينتقل طلبها بالكامل (أصنافه ودفعاته) إلى هذا الطلب")}
+        tables={tables} locations={locations} allow={(table) => !orderTableIds.has(table.id)} busy={busy} confirmLabel={tr("دمج")}
+        onConfirm={(ids) => void act("merge", { order_id: order.id, table_ids: ids }, tr("تم دمج الطاولات")).then((data) => { if (data) setPicker(null) })} />
 
-      <TablePickerDialog open={splitOpen} onOpenChange={setSplitOpen} title="فصل أصناف لطاولة أخرى"
-        description="حدد الكميات ثم اختر الطاولة: الفارغة يُفتح عليها طلب جديد، والمشغولة تُضاف الأصناف لطلبها"
-        tables={tables} locations={locations} allow={(table) => !orderTableIds.has(table.id)} busy={busy} confirmLabel="فصل"
+      <TablePickerDialog open={splitOpen} onOpenChange={setSplitOpen} title={tr("فصل أصناف لطاولة أخرى")}
+        description={tr("حدد الكميات ثم اختر الطاولة: الفارغة يُفتح عليها طلب جديد، والمشغولة تُضاف الأصناف لطلبها")}
+        tables={tables} locations={locations} allow={(table) => !orderTableIds.has(table.id)} busy={busy} confirmLabel={tr("فصل")}
         onConfirm={(ids) => {
           const lines = Object.entries(splitQty).filter(([, quantity]) => quantity > 0).map(([itemId, quantity]) => ({ item_id: Number(itemId), quantity }))
-          if (!lines.length) { setMessage({ type: "error", text: "حدد كمية صنف واحد على الأقل" }); return }
-          void act("split", { order_id: order.id, to_table_id: ids[0], lines }, "تم فصل الأصناف").then((data) => { if (data) setSplitOpen(false) })
+          if (!lines.length) { setMessage({ type: "error", text: tr("حدد كمية صنف واحد على الأقل") }); return }
+          void act("split", { order_id: order.id, to_table_id: ids[0], lines }, tr("تم فصل الأصناف")).then((data) => { if (data) setSplitOpen(false) })
         }}>
         <LineQuantities items={order.items} values={splitQty} onChange={setSplitQty} />
       </TablePickerDialog>
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent dir="rtl" className="w-[calc(100vw-1rem)] max-w-sm">
-          <DialogHeader><DialogTitle>إلغاء الطلب</DialogTitle></DialogHeader>
-          <div className="space-y-1"><Label>سبب الإلغاء *</Label><Textarea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} /></div>
+        <DialogContent dir={appDir()} className="w-[calc(100vw-1rem)] max-w-sm">
+          <DialogHeader><DialogTitle>{tr("إلغاء الطلب")}</DialogTitle></DialogHeader>
+          <div className="space-y-1"><Label>{tr("سبب الإلغاء *")}</Label><Textarea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} /></div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setCancelOpen(false)}>رجوع</Button>
-            <Button variant="destructive" disabled={busy || !cancelReason.trim()} onClick={() => void act("cancel", { order_id: order.id, reason: cancelReason }, "تم إلغاء الطلب").then((data) => { if (data) setCancelOpen(false) })}>إلغاء الطلب</Button>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>{tr("رجوع")}</Button>
+            <Button variant="destructive" disabled={busy || !cancelReason.trim()} onClick={() => void act("cancel", { order_id: order.id, reason: cancelReason }, tr("تم إلغاء الطلب")).then((data) => { if (data) setCancelOpen(false) })}>{tr("إلغاء الطلب")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

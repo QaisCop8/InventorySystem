@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -36,8 +37,8 @@ export default function DeliverySearchPopup({
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
 
-  const title = deliveryType === 18 ? "بحث إرسالية مشتريات" : "بحث إرسالية مبيعات"
-  const searchPlaceholder = deliveryType === 18 ? "ابحث عن ارسالية مشتريات..." : "ابحث عن ارسالية مبيعات..."
+  const title = deliveryType === 18 ? tr("بحث إرسالية مشتريات") : tr("بحث إرسالية مبيعات")
+  const searchPlaceholder = deliveryType === 18 ? tr("ابحث عن ارسالية مشتريات...") : tr("ابحث عن ارسالية مبيعات...")
 
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedId) || null,
@@ -54,7 +55,7 @@ export default function DeliverySearchPopup({
       if (searchTerm.trim()) query.set("search", searchTerm.trim())
       setLoading(true)
       fetch(`/api/vouchers/sales?${query.toString()}`, { signal: controller.signal })
-        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("فشل تحميل الإرساليات"))))
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(tr("فشل تحميل الإرساليات")))))
         .then((data) => {
           const rawItems = Array.isArray(data) ? data : []
           setItems(
@@ -71,7 +72,7 @@ export default function DeliverySearchPopup({
         .catch((err) => {
           if (err.name === "AbortError") return
           console.error("DeliverySearchPopup fetch error:", err)
-          setError((err as Error).message || "حدث خطأ أثناء التحميل")
+          setError((err as Error).message || tr("حدث خطأ أثناء التحميل"))
           setItems([])
         })
         .finally(() => setLoading(false))
@@ -103,19 +104,19 @@ export default function DeliverySearchPopup({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[92vw] max-h-[92vh] p-0">
-        <div className="flex h-full min-h-[480px] flex-col bg-white" dir="rtl">
+        <div className="flex h-full min-h-[480px] flex-col bg-white" dir={appDir()}>
           <div className="border-b border-slate-200 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-lg font-semibold">{title}</p>
-                <p className="text-sm text-slate-500">ابحث برقم الإرسالية أو باسم العميل.</p>
+                <p className="text-sm text-slate-500">{tr("ابحث برقم الإرسالية أو باسم العميل.")}</p>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-end">
             <div className="flex-1 min-w-0">
-              <Label className="mb-2 block text-sm font-medium">بحث</Label>
+              <Label className="mb-2 block text-sm font-medium">{tr("بحث")}</Label>
               <Input
                 ref={searchInputRef}
                 value={searchTerm}
@@ -125,27 +126,27 @@ export default function DeliverySearchPopup({
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setSearchTerm("")}>مسح</Button>
+              <Button variant="outline" onClick={() => setSearchTerm("")}>{tr("مسح")}</Button>
             </div>
           </div>
 
           <div className="flex-1 overflow-auto p-4">
             {loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">جارٍ تحميل البيانات...</div>
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">{tr("جارٍ تحميل البيانات...")}</div>
             ) : error ? (
               <div className="flex h-full items-center justify-center text-sm text-red-600">{error}</div>
             ) : items.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">لا توجد نتائج</div>
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">{tr("لا توجد نتائج")}</div>
             ) : (
               <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
-                <table className="min-w-full divide-y divide-slate-200 text-sm text-right">
+                <table className="min-w-full divide-y divide-slate-200 text-sm text-start">
                   <thead className="bg-slate-100 text-slate-700">
                     <tr>
-                      <th className="px-3 py-3 text-right">#</th>
-                      <th className="px-3 py-3 text-right">رقم الإرسالية</th>
-                      <th className="px-3 py-3 text-right">التاريخ</th>
-                      <th className="px-3 py-3 text-right">اسم العميل</th>
-                      <th className="px-3 py-3 text-right">المبلغ</th>
+                      <th className="px-3 py-3 text-start">#</th>
+                      <th className="px-3 py-3 text-start">{tr("رقم الإرسالية")}</th>
+                      <th className="px-3 py-3 text-start">{tr("التاريخ")}</th>
+                      <th className="px-3 py-3 text-start">{tr("اسم العميل")}</th>
+                      <th className="px-3 py-3 text-start">{tr("المبلغ")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -173,8 +174,8 @@ export default function DeliverySearchPopup({
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t border-slate-200 p-4 bg-white">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button">إغلاق</Button>
-            <Button disabled={!selectedItem} onClick={handleConfirm}>اختيار</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button">{tr("إغلاق")}</Button>
+            <Button disabled={!selectedItem} onClick={handleConfirm}>{tr("اختيار")}</Button>
           </div>
         </div>
       </DialogContent>

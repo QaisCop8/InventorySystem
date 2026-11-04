@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useId } from "react"
 import { cn } from "@/lib/utils"
 
@@ -54,8 +55,8 @@ export function NoonLogo({
           noon<span className="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text font-light text-transparent">ERP</span>
         </span>
         {tagline !== null && (
-          <span className={cn("mt-1 block text-[11px] font-semibold", tone === "dark" ? "text-emerald-200/80" : "text-slate-500")} dir="rtl">
-            {tagline ?? "نظام إدارة موارد المؤسسات"}
+          <span className={cn("mt-1 block text-[11px] font-semibold", tone === "dark" ? "text-emerald-200/80" : "text-slate-500")} dir={appDir()}>
+            {tagline ?? tr("نظام إدارة موارد المؤسسات")}
           </span>
         )}
       </span>

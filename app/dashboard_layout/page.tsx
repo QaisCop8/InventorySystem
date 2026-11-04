@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import type React from "react"
 import { useState, useEffect } from "react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -61,7 +62,7 @@ export default function DashboardLayoutPage() {
     if (activeWindows && activeWindows.length === 0) {
       openWindow({
         id: "dashboard",
-        title: "لوحة التحكم",
+        title: tr("لوحة التحكم"),
         component: Dashboard,
         icon: "dashboard",
         isMinimized: false,

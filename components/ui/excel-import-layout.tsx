@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import type { ReactNode } from "react"
 import { Check, FileSpreadsheet } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -7,10 +8,10 @@ import { cn } from "@/lib/utils"
 export type ExcelImportStep = "upload" | "mapping" | "preview" | "result"
 
 const steps: Array<{ key: ExcelImportStep; label: string }> = [
-  { key: "upload", label: "رفع الملف" },
-  { key: "mapping", label: "مطابقة الأعمدة" },
-  { key: "preview", label: "مراجعة البيانات" },
-  { key: "result", label: "النتيجة" },
+  { key: "upload", label: tr("رفع الملف") },
+  { key: "mapping", label: tr("مطابقة الأعمدة") },
+  { key: "preview", label: tr("مراجعة البيانات") },
+  { key: "result", label: tr("النتيجة") },
 ]
 
 export function ExcelImportHeader({ title, description, step, hideMapping = false }: { title: string; description?: string; step: ExcelImportStep; hideMapping?: boolean }) {
@@ -43,7 +44,7 @@ export function ExcelImportProgress({ current, total, label = "جاري استي
 }
 
 export function ExcelImportStats({ success, failed, duplicates = 0 }: { success: number; failed: number; duplicates?: number }) {
-  const cards = [{ label: "تم بنجاح", value: success, className: "border-emerald-200 bg-emerald-50 text-emerald-700" }, { label: "فشل", value: failed, className: "border-rose-200 bg-rose-50 text-rose-700" }, { label: "مكرر", value: duplicates, className: "border-amber-200 bg-amber-50 text-amber-700" }]
+  const cards = [{ label: tr("تم بنجاح"), value: success, className: "border-emerald-200 bg-emerald-50 text-emerald-700" }, { label: tr("فشل"), value: failed, className: "border-rose-200 bg-rose-50 text-rose-700" }, { label: tr("مكرر"), value: duplicates, className: "border-amber-200 bg-amber-50 text-amber-700" }]
   return <div className="grid grid-cols-3 gap-3">{cards.map((card) => <div key={card.label} className={cn("rounded-xl border p-4 text-center", card.className)}><div className="text-2xl font-bold tabular-nums">{card.value}</div><div className="mt-1 text-xs font-semibold sm:text-sm">{card.label}</div></div>)}</div>
 }
 

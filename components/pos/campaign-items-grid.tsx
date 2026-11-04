@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
 import dynamic from "next/dynamic"
 import { Plus, Search, Package, X, ScanBarcode, Loader2 } from "lucide-react"
@@ -77,17 +78,17 @@ export function CampaignItemsGrid({ title, items, setItems, products, gridRef, o
 
   const scheme = useMemo(() => ({ name: "campaign-items", sortable: false, columns: [
     { name: "ser", header: "#", width: 48, isReadOnly: true },
-    { name: "item_code", header: "رقم الصنف", width: 130, isReadOnly: true },
-    { name: "item_name", header: "اسم الصنف", width: "*", minWidth: 200, isReadOnly: true },
-    { name: "unit_name", header: "الوحدة", width: 90, isReadOnly: true },
-    { name: "price", header: "السعر", width: 100, dataType: "Number", format: "n2", isReadOnly: true },
-    { name: "quantity", header: "الكمية", width: 100, dataType: "Number", format: "n2" },
-    { name: "qtyAmount", header: "القيمة الأصلية", width: 125, dataType: "Number", format: "n2", isReadOnly: true },
-    { name: "discount", header: "مبلغ الخصم", width: 110, dataType: "Number", format: "n2" },
-    { name: "discount_ratio", header: "الخصم %", width: 100, dataType: "Number", format: "n2" },
-    { name: "campQtyAmount", header: "قيمة الحملة", width: 125, dataType: "Number", format: "n2" },
-    { name: "notes", header: "ملاحظات", width: 180 },
-    { name: "delete", header: "حذف", width: 65, buttonBody: "button", iconType: "delete", className: "danger", isReadOnly: true,
+    { name: "item_code", header: tr("رقم الصنف"), width: 130, isReadOnly: true },
+    { name: "item_name", header: tr("اسم الصنف"), width: "*", minWidth: 200, isReadOnly: true },
+    { name: "unit_name", header: tr("الوحدة"), width: 90, isReadOnly: true },
+    { name: "price", header: tr("السعر"), width: 100, dataType: "Number", format: "n2", isReadOnly: true },
+    { name: "quantity", header: tr("الكمية"), width: 100, dataType: "Number", format: "n2" },
+    { name: "qtyAmount", header: tr("القيمة الأصلية"), width: 125, dataType: "Number", format: "n2", isReadOnly: true },
+    { name: "discount", header: tr("مبلغ الخصم"), width: 110, dataType: "Number", format: "n2" },
+    { name: "discount_ratio", header: tr("الخصم %"), width: 100, dataType: "Number", format: "n2" },
+    { name: "campQtyAmount", header: tr("قيمة الحملة"), width: 125, dataType: "Number", format: "n2" },
+    { name: "notes", header: tr("ملاحظات"), width: 180 },
+    { name: "delete", header: tr("حذف"), width: 65, buttonBody: "button", iconType: "delete", className: "danger", isReadOnly: true,
       onClick: (_event: any, context: any) => {
         const index = Number(context?.item?._index)
         if (!Number.isInteger(index)) return
@@ -177,7 +178,7 @@ export function CampaignItemsGrid({ title, items, setItems, products, gridRef, o
     } catch (reason) {
       Object.assign(row, original, campaignAmounts(original))
       grid.invalidate()
-      setError(reason instanceof Error ? reason.message : "قيمة غير صالحة")
+      setError(reason instanceof Error ? reason.message : tr("قيمة غير صالحة"))
     }
   }, [configureGrid])
 
@@ -193,16 +194,16 @@ export function CampaignItemsGrid({ title, items, setItems, products, gridRef, o
     }}
   >
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3"><span className="rounded-xl bg-teal-50 p-2 text-teal-700"><Package size={20} /></span><div><h3 className="font-bold">{title}</h3><p className="text-xs text-slate-500">عدّل الكمية أو مبلغ الخصم أو النسبة أو قيمة الحملة — يُعاد الاحتساب فور الضغط على Enter</p></div></div>
-      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{items.length} أصناف</span>
+      <div className="flex items-center gap-3"><span className="rounded-xl bg-teal-50 p-2 text-teal-700"><Package size={20} /></span><div><h3 className="font-bold">{title}</h3><p className="text-xs text-slate-500">{tr("عدّل الكمية أو مبلغ الخصم أو النسبة أو قيمة الحملة — يُعاد الاحتساب فور الضغط على Enter")}</p></div></div>
+      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{items.length}{tr(" أصناف")}</span>
     </div>
-    <div className="relative flex max-w-2xl items-center gap-2"><div className="relative flex-1"><ScanBarcode className="absolute right-3 top-3 h-4 w-4 text-slate-400" /><Input ref={searchInputRef} aria-label={`بحث ${title}`} className="pr-9 pl-9" placeholder="رقم الصنف، الباركود أو الاسم — Enter للإضافة، F10 للبحث" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void resolveEntry() } if (event.key === "Escape") setSearch("") }} />{resolving && <Loader2 className="absolute left-3 top-3 h-4 w-4 animate-spin text-teal-600" />}</div>
-      <button type="button" onClick={() => openItemSearch()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-bold text-teal-700 hover:bg-teal-100"><Search size={15} />بحث الأصناف<kbd className="rounded bg-white px-1.5 font-mono text-[10px] text-teal-600 ring-1 ring-teal-200">F10</kbd></button>
-      {search.trim() && !resolving && <div className="absolute right-0 top-full z-30 mt-2 max-h-64 w-full overflow-auto rounded-xl border bg-white shadow-xl">{matches.map(product => <button type="button" key={product.id} onClick={() => add(product)} className="flex w-full items-center gap-3 border-b p-3 text-right text-sm hover:bg-teal-50"><Plus size={16} /><span className="flex-1">{product.name}<small className="block text-slate-500">{product.code} · {product.unit_name}</small></span><span>{Number(product.sale_price || 0).toFixed(2)}</span></button>)}{!matches.length && <p className="p-4 text-sm text-slate-500">لا توجد أصناف مطابقة</p>}</div>}
+    <div className="relative flex max-w-2xl items-center gap-2"><div className="relative flex-1"><ScanBarcode className="absolute start-3 top-3 h-4 w-4 text-slate-400" /><Input ref={searchInputRef} aria-label={tr("بحث {0}", title)} className="ps-9 pe-9" placeholder={tr("رقم الصنف، الباركود أو الاسم — Enter للإضافة، F10 للبحث")} value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void resolveEntry() } if (event.key === "Escape") setSearch("") }} />{resolving && <Loader2 className="absolute end-3 top-3 h-4 w-4 animate-spin text-teal-600" />}</div>
+      <button type="button" onClick={() => openItemSearch()} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-bold text-teal-700 hover:bg-teal-100"><Search size={15} />{tr("بحث الأصناف")}<kbd className="rounded bg-white px-1.5 font-mono text-[10px] text-teal-600 ring-1 ring-teal-200">F10</kbd></button>
+      {search.trim() && !resolving && <div className="absolute start-0 top-full z-30 mt-2 max-h-64 w-full overflow-auto rounded-xl border bg-white shadow-xl">{matches.map(product => <button type="button" key={product.id} onClick={() => add(product)} className="flex w-full items-center gap-3 border-b p-3 text-start text-sm hover:bg-teal-50"><Plus size={16} /><span className="flex-1">{product.name}<small className="block text-slate-500">{product.code} · {product.unit_name}</small></span><span>{Number(product.sale_price || 0).toFixed(2)}</span></button>)}{!matches.length && <p className="p-4 text-sm text-slate-500">{tr("لا توجد أصناف مطابقة")}</p>}</div>}
     </div>
-    {localError && <p role="alert" className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{localError}<button type="button" aria-label="إغلاق" onClick={() => setLocalError("")}><X size={14} /></button></p>}
+    {localError && <p role="alert" className="flex items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{localError}<button type="button" aria-label={tr("إغلاق")} onClick={() => setLocalError("")}><X size={14} /></button></p>}
     <div className="h-[390px] overflow-hidden rounded-xl border"><DataGridView innerRef={gridRef} scheme={scheme} dataSource={rows} beginningEdit={beginningEdit} cellEditEnded={edited} defaultRowHeight={42} dontConvertToCards containerStyle={{ height: "100%" }} style={{ height: "100%" }} /></div>
-    {!items.length && <p className="text-center text-sm text-slate-500">ابحث عن صنف أعلاه لبدء إعداد العرض.</p>}
-    {searchOpen && <ProductSearchPopup visible={searchOpen} onClose={() => { setSearchOpen(false); requestAnimationFrame(() => searchInputRef.current?.focus()) }} onSelect={handlePopupSelect} priceCategoryId={priceClass} ShowSelect searchText={searchSeed} title="بحث الأصناف" />}
+    {!items.length && <p className="text-center text-sm text-slate-500">{tr("ابحث عن صنف أعلاه لبدء إعداد العرض.")}</p>}
+    {searchOpen && <ProductSearchPopup visible={searchOpen} onClose={() => { setSearchOpen(false); requestAnimationFrame(() => searchInputRef.current?.focus()) }} onSelect={handlePopupSelect} priceCategoryId={priceClass} ShowSelect searchText={searchSeed} title={tr("بحث الأصناف")} />}
   </section>
 }

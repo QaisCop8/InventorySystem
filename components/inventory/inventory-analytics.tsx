@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   BarChart,
@@ -44,52 +45,52 @@ export function InventoryAnalytics() {
   console.log("[v0] InventoryAnalytics component rendered")
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">تحليلات المخزون</h1>
-        <p className="text-blue-100">تحليل شامل لحالة المخزون والمبيعات</p>
+        <h1 className="text-2xl font-bold mb-2">{tr("تحليلات المخزون")}</h1>
+        <p className="text-blue-100">{tr("تحليل شامل لحالة المخزون والمبيعات")}</p>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي المخزون</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("إجمالي المخزون")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">610</div>
-            <p className="text-xs text-muted-foreground">قطعة</p>
+            <p className="text-xs text-muted-foreground">{tr("قطعة")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">المبيعات الشهرية</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("المبيعات الشهرية")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">465</div>
-            <p className="text-xs text-muted-foreground">قطعة مباعة</p>
+            <p className="text-xs text-muted-foreground">{tr("قطعة مباعة")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">معدل الدوران</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("معدل الدوران")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">76%</div>
-            <p className="text-xs text-muted-foreground">شهرياً</p>
+            <p className="text-xs text-muted-foreground">{tr("شهرياً")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">المخزون المنخفض</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("المخزون المنخفض")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">3</div>
-            <p className="text-xs text-muted-foreground">منتجات</p>
+            <p className="text-xs text-muted-foreground">{tr("منتجات")}</p>
           </CardContent>
         </Card>
       </div>
@@ -99,8 +100,8 @@ export function InventoryAnalytics() {
         {/* Inventory vs Sales Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>المخزون مقابل المبيعات</CardTitle>
-            <CardDescription>مقارنة بين كمية المخزون والمبيعات لكل منتج</CardDescription>
+            <CardTitle>{tr("المخزون مقابل المبيعات")}</CardTitle>
+            <CardDescription>{tr("مقارنة بين كمية المخزون والمبيعات لكل منتج")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -119,8 +120,8 @@ export function InventoryAnalytics() {
         {/* Category Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>توزيع الفئات</CardTitle>
-            <CardDescription>نسبة المخزون حسب الفئة</CardDescription>
+            <CardTitle>{tr("توزيع الفئات")}</CardTitle>
+            <CardDescription>{tr("نسبة المخزون حسب الفئة")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -149,8 +150,8 @@ export function InventoryAnalytics() {
       {/* Trend Analysis */}
       <Card>
         <CardHeader>
-          <CardTitle>اتجاه المخزون والمبيعات</CardTitle>
-          <CardDescription>تطور المخزون والمبيعات على مدار الأشهر الماضية</CardDescription>
+          <CardTitle>{tr("اتجاه المخزون والمبيعات")}</CardTitle>
+          <CardDescription>{tr("تطور المخزون والمبيعات على مدار الأشهر الماضية")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={400}>
@@ -169,19 +170,19 @@ export function InventoryAnalytics() {
       {/* Detailed Inventory Table */}
       <Card>
         <CardHeader>
-          <CardTitle>تفاصيل المخزون</CardTitle>
-          <CardDescription>جدول مفصل بحالة كل منتج</CardDescription>
+          <CardTitle>{tr("تفاصيل المخزون")}</CardTitle>
+          <CardDescription>{tr("جدول مفصل بحالة كل منتج")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-right p-2">المنتج</th>
-                  <th className="text-right p-2">الفئة</th>
-                  <th className="text-right p-2">المخزون</th>
-                  <th className="text-right p-2">المبيعات</th>
-                  <th className="text-right p-2">الحالة</th>
+                  <th className="text-right p-2">{tr("المنتج")}</th>
+                  <th className="text-right p-2">{tr("الفئة")}</th>
+                  <th className="text-right p-2">{tr("المخزون")}</th>
+                  <th className="text-right p-2">{tr("المبيعات")}</th>
+                  <th className="text-right p-2">{tr("الحالة")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,7 +202,7 @@ export function InventoryAnalytics() {
                               : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {item.stock > 100 ? "جيد" : item.stock > 50 ? "متوسط" : "منخفض"}
+                        {item.stock > 100 ? tr("جيد") : item.stock > 50 ? tr("متوسط") : tr("منخفض")}
                       </span>
                     </td>
                   </tr>

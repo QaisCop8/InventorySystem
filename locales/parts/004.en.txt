@@ -1,0 +1,300 @@
+Budget *
+Activity
+ID
+Search by name, ID, mobile or code
+Aid programs
+No limit
+Top up
+Top up balance
+Edit aid activity
+Unable to send the message
+Done
+Code cancelled
+Sent
+Imported
+Unlocked
+Topped up
+Balance allocation
+Delete the activity «{0}» and its participants? (Allowed only if no transactions were recorded on it)
+Donor account *
+Donor ledger
+Shops ledger
+Shop ledger
+Participant ledger
+Participants ledger
+Participant balance after
+New PIN and send it
+Redemption code
+Redemption codes and PINs
+Redemption at a point of sale
+item
+Redemption reversal
+Redemptions
+Unallocated
+Unlock
+The value of redeemed vouchers is recorded as a receivable on the donor account in the cashier invoice entry.
+All items allowed
+All active participants (
+All points of sale (shops) approved
+No activities yet — add a new activity.
+No transactions
+No redemptions yet
+No participants — import an Excel file.
+Not sent
+Not sent by SMS. These are shown only once and the PINs are not stored — export them or hand them to the participants now.
+Nothing was imported — fix the following errors in the file and import again:
+Example: CRS
+Frozen
+Item group…
+Group: {0}
+Dues of each shop (point of sale)
+participant
+Closed
+Locked
+New activity
+New aid activity
+Point of sale
+Excel template
+Must match the currency of the points of sale that redeem the vouchers.
+The total is deducted from the activity's unallocated budget (
+Search for an item above to start setting up the offer.
+Discount %
+Original value
+Item search
+Item number, barcode or name — Enter to add, F10 to search
+Edit the quantity, discount amount, rate or campaign value — recalculated as soon as you press Enter
+Campaign value
+Invalid value
+Discount amount
+Manage sales offers, discounts and free items
+Search by campaign code or name...
+Campaigns
+Stop campaign
+Stop campaign {0}? It won't apply in the cashier until it is activated
+Unable to update the campaign status
+Unable to load campaigns
+Unable to delete the campaign
+Activate campaign
+Activate campaign {0}?
+Delete campaign {0}?
+Campaign
+New campaign
+No campaigns
+Retail system
+0 = no minimum
+0 = no cap
+0 = unlimited
+Create the first card
+Usage
+Maximum discount amount
+Discount up to
+Conditions
+Validity
+Invoice above
+Branch (optional)
+No conditions
+Discount cards
+Discount card {0}
+New card
+New discount card
+The card applies in the cashier when the customer is chosen or the card number is scanned, within the validity period and once the conditions are met.
+Edit discount card
+Unable to load discount cards
+Stopped
+Discount card deleted
+Delete discount card {0} for customer {1}? If it is used in invoices it will be suspended instead of deleted.
+Delete discount card
+Link customers to discount cards with a validity period and conditions applied automatically in the POS cashier
+Card number or customer name/number…
+Allowed number of uses
+Branch
+Active
+No discount cards yet
+No matching cards
+Not started
+The invoice amount must be more than
+Used up
+Suspended
+Discount rate % *
+: invoice below
+{0} items
+{0} items · {1} units
+{0} of the add-ons of {1} are not available at this point and were skipped
+% exceeds the limit
+Last invoice
+Enter the card number
+Enter a note for the draft before saving. The note is required.
+Items not available at this point
+Add at least one item before saving the draft
+First invoice
+Invoice actions
+Point-of-sale actions
+Total amount to refund
+Total amount to pay
+Gift total
+Hide items and categories
+Hide items and categories (expand the invoice)
+Enter item barcode
+{0} add-ons
+Add {0}
+Show items and categories
+Close message
+Cancel return
+Cancel gift
+Search by item name… (F10 search)
+Search by draft number, customer or note...
+Save or cancel the current invoice before changing the point of sale
+Choose add-ons for "{0}": {1}
+Choose the bank and branch for the cheque
+Choose the customer when paying by cheque or on account
+Choose the customer to pay on account
+Choose an item from the catalog or scan the barcode
+Choose a valid payment currency
+Choose a draft to continue in the cashier. A draft doesn't create an invoice until you press pay and save.
+Choose yes to link the return to a previous sales invoice, or no to add items manually.
+Choose the point of sale
+Choose a point of sale
+Choose the card type
+Choosing a source invoice requires a server connection
+Refund
+Open the point of sale once while online to download the main warehouse items
+Write the draft note...
+The barcode entered is incorrect
+Change for the customer
+Search by item name
+Next categories
+Previous categories
+The server is unavailable; the point of sale is working from saved data and invoices will be uploaded when the connection returns
+Manual discount
+Payment
+Pay and save
+Paying more than the invoice total is allowed for cash only (the change is returned in the point-of-sale currency)
+Cart
+The cart is empty
+Net to refund
+Net to pay
+Tax (included in the price)
+Working offline is not allowed for this point
+Custody
+Custody closed
+Custody open
+Next invoice
+Current invoice
+Previous invoice
+Cashier
+The cash received is less than the cash payment
+Warehouse
+Returns are not enabled for this point
+Returns are available in cash or on account only
+Applied:
+Gifts are not enabled for this point
+Scan or enter the barcode then Enter… (F10 search)
+Scan or type the card number
+Click to round the net down (half, then whole number) — the difference is added to the invoice discount
+Item search (F10)
+Account search
+Draft search
+Searching drafts requires a server connection
+Salesman search
+No note
+Card {0}
+Invalid discount card
+The discount card is available for sales invoices only
+Discount card
+Gift card
+New sale
+Confirm gift
+Confirm deleting invoice {0}{1}{2}?
+Invalid cheque due date
+Ignore and continue
+Check the aid voucher code and its PIN
+Editing an invoice requires a server connection
+Editing a gift voucher is not available from the cashier
+Edit and save
+Unable to reprice items for the point of sale
+Unable to cancel the old invoice
+Unable to choose the customer
+Unable to connect to the server; the saved point of sale and shift were restored
+Unable to verify the point-of-sale custody
+Unable to verify the point of sale
+Unable to refresh the point-of-sale data — showing the last saved copy: {0}
+Unable to load customer prices
+Unable to load the invoice items
+Unable to load invoices
+Unable to load the cashier
+Unable to load drafts
+Unable to load sales invoices
+Unable to load points of sale
+Unable to delete the invoice
+Unable to save the cart on the device
+Unable to save the draft
+Unable to save the cashier draft
+Unable to match one of the invoice items with the point-of-sale catalog
+Unable to match the current invoice items with the point-of-sale catalog
+Unable to match the draft items with the point-of-sale catalog
+Unable to print the item groups
+Unable to print the item groups: {0}
+Payment details
+Decrease quantity of {0}
+{0} {1} {2} done
+The gift was issued from inventory
+Gift voucher issued
+Tobacco custody received
+The transaction, inventory and payments were posted
+The custody was handed over but printing failed: {0}
+Tobacco custody handed over
+Discount card {0} ({1}%) applied for customer {2}
+Custody operation completed successfully
+Invoice {0} deleted
+Return saved
+Draft {0} saved
+Draft {0} opened
+Sale completed
+Cashier navigation on mobile
+There are unsaved changes in the current transaction. Do you want to save them before continuing?
+A shift is already open on the point of sale under {0}. It must be closed or its custody handed over before opening a new shift.
+Loading the customer category prices…
+Loading items…
+Loading invoice details...
+Editing invoice {0}
+OK
+Save changes?
+Save note
+Save as draft
+Save and continue
+The transaction was saved on the device and will sync automatically
+Campaign −
+Item discount
+Card discount
+Campaign discount
+Discount on item {0}
+The item discount must not exceed its value or 100%
+Invoice discount
+Cheque number is required
+Gift card number is required
+Cheque account number is required
+Increase quantity of {0}
+The invoice history requires a server connection
+View invoice {0}
+Show more (
+On account
+Custody operations require a server connection
+New transaction
+Cash customer
+The selected customer's price category differs from the point-of-sale price category. Do you want to recalculate item prices?
+Customer price category
+Your invoice is ready to start
+Sync failed
+Custody operation failed
+The aid voucher requires an internet connection — try again when the connection returns or pay another way
+Aid voucher
+Selected item quantity
+The gift quantity is greater than the available balance
+You have no open custody. Choose the point of sale to continue.
+No matching drafts
+Cannot {0}: {1} invoices have not been uploaded to the server yet. Check the connection, wait for the sync to finish and try again.
+An invoice with a zero total cannot be saved
+An invoice saved as a draft cannot be saved
+An invoice saved as a draft cannot be saved — finish editing the invoice and save it
+The selected item has no price and cannot be added to the invoice
+Invalid payment amount

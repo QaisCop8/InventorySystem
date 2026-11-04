@@ -1,4 +1,5 @@
 "use client"
+import { appDir } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { X, Minus, MoreHorizontal } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -16,7 +17,7 @@ export function TabBar() {
   console.log("[v0] TabBar rendering:", { tabCount: tabWindows.length, activeWindowId })
 
   return (
-    <div className="flex items-center bg-muted/30 border-b border-border px-2 py-1 gap-1" dir="rtl">
+    <div className="flex items-center bg-muted/30 border-b border-border px-2 py-1 gap-1" dir={appDir()}>
       <div className="flex items-center gap-1 flex-1 overflow-x-auto">
         {tabWindows.map((window) => (
           <div

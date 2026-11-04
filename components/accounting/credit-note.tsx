@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { FileMinus } from "lucide-react"
@@ -38,8 +39,8 @@ interface CreditNoteProps {
 }
 
 const TYPE_LABELS: Record<6 | 7, { title: string; listTitle: string; addLabel: string }> = {
-  6: { title: "اشعار دائن", listTitle: "الاشعارات الدائنة", addLabel: "إضافة اشعار دائن" },
-  7: { title: "اشعار مدين", listTitle: "الاشعارات المدينة", addLabel: "إضافة اشعار مدين" },
+  6: { title: tr("اشعار دائن"), listTitle: tr("الاشعارات الدائنة"), addLabel: tr("إضافة اشعار دائن") },
+  7: { title: tr("اشعار مدين"), listTitle: tr("الاشعارات المدينة"), addLabel: tr("إضافة اشعار مدين") },
 }
 
 const buildInitialForm = (voucherType: 6 | 7): VoucherRecord => ({
@@ -440,27 +441,27 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
 
   const validateVoucher = (data: VoucherRecord): string | null => {
     const code = data.vch_code.trim()
-    if (!code) return "رقم السند مطلوب"
-    if (!/^[A-Z0-9-]+$/.test(code)) return "رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط"
+    if (!code) return tr("رقم السند مطلوب")
+    if (!/^[A-Z0-9-]+$/.test(code)) return tr("رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط")
 
-    if (!data.vch_date) return "تاريخ السند مطلوب"
-    if (voucherBooks.length > 0 && !data.vch_book_id) return "يجب اختيار دفتر السندات"
+    if (!data.vch_date) return tr("تاريخ السند مطلوب")
+    if (voucherBooks.length > 0 && !data.vch_book_id) return tr("يجب اختيار دفتر السندات")
     if (!data.currency_id || !currencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
-      return "يجب اختيار العملة"
+      return tr("يجب اختيار العملة")
     }
-    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+    if (!(Number(data.rate) > 0)) return tr("سعر الصرف يجب أن يكون أكبر من صفر")
 
-    if (!data.account_id) return "يجب اختيار العميل"
-    if (!data.debit_account_id) return `يجب اختيار ${voucherType === 6 ? "الحساب المدين" : "الحساب الدائن"}`
+    if (!data.account_id) return tr("يجب اختيار العميل")
+    if (!data.debit_account_id) return tr("يجب اختيار {0}", voucherType === 6 ? "الحساب المدين" : "الحساب الدائن")
     if (
       (Number(data.vat_percent) > 0 || Number(data.vat) > 0) &&
       (!Number.isSafeInteger(Number(data.vat_account_id)) || Number(data.vat_account_id) <= 0)
-    ) return "يجب اختيار حساب الضريبة"
+    ) return tr("يجب اختيار حساب الضريبة")
 
-    if (!data.amount_journal_type_8 || Number(data.amount_journal_type_8) <= 0) return "يجب إدخال المبلغ"
-    if (!data.amount || Number(data.amount) <= 0) return "يجب إدخال المجموع"
-    if (Number(data.vat_percent) < 0) return "نسبة الضريبة غير صحيحة"
-    if (Number(data.vat) < 0) return "الضريبة غير صحيحة"
+    if (!data.amount_journal_type_8 || Number(data.amount_journal_type_8) <= 0) return tr("يجب إدخال المبلغ")
+    if (!data.amount || Number(data.amount) <= 0) return tr("يجب إدخال المجموع")
+    if (Number(data.vat_percent) < 0) return tr("نسبة الضريبة غير صحيحة")
+    if (Number(data.vat) < 0) return tr("الضريبة غير صحيحة")
 
     return null
   }
@@ -489,7 +490,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        setErrorMessages([responseError.error || "فشل في حفظ السند"])
+        setErrorMessages([responseError.error || tr("فشل في حفظ السند")])
         return false
       }
       const saved = await response.json()
@@ -500,7 +501,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       if (action === "post_print" || action === "save_print") {
         setPrintData({
           title: labels.title,
-          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          copyLabel: action === "post_print" ? tr("نسخة اصلية") : tr("نسخة للتدقيق"),
           vch_code: saved.vch_code,
           vch_date: saved.vch_date,
           currency_name: currencies.find((c) => Number(c.currency_id ?? c.id) === saved.currency_id)?.currency_name,
@@ -540,7 +541,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       return true
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ السند"])
+      setErrorMessages([tr("فشل في حفظ السند")])
       return false
     } finally {
       saveInFlightRef.current = false
@@ -552,7 +553,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     if (!(form.id > 0) || form.status === 3) return
 
     let isPrinted = form.is_printed || 0
-    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+    const copyLabel = form.status !== 2 ? tr("نسخة للتدقيق") : isPrinted === 1 ? tr("نسخة") : tr("نسخة اصلية")
 
     if (form.status === 2 && isPrinted !== 1) {
       try {
@@ -634,7 +635,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في إلغاء السند")
+        throw new Error(error.error || tr("فشل في إلغاء السند"))
       }
       const saved = await response.json()
       await fetchVouchers()
@@ -656,7 +657,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       const response = await fetch(`/api/credit-notes/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف السند")
+        throw new Error(error.error || tr("فشل في حذف السند"))
       }
       await advanceAfterDelete()
     } catch (error) {
@@ -697,51 +698,51 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
   }
 
   return (
-    <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
+    <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
       <VoucherListHero icon={FileMinus} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={openNewDialog} />
 
-      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي {0}", labels.listTitle)}</>, value: <>{totalVouchers}</> }, { label: <>{tr("سندات هذا الشهر")}</>, value: <>{thisMonthCount}</> }, { label: <>{tr("إجمالي المبالغ")}</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>{tr("متوسط قيمة السند")}</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث المتقدم
+            {tr("البحث المتقدم")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4" onKeyDown={searchOnEnter(runSearch)}>
             <div>
-              <Label htmlFor="search-code">رقم السند</Label>
+              <Label htmlFor="search-code">{tr("رقم السند")}</Label>
               <Input
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث برقم السند..."
+                placeholder={tr("ابحث برقم السند...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-name">العميل</Label>
+              <Label htmlFor="search-name">{tr("العميل")}</Label>
               <Input
                 id="search-name"
                 value={searchDraft.name}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, name: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث بالاسم..."
+                placeholder={tr("ابحث بالاسم...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-currency">العملة</Label>
+              <Label htmlFor="search-currency">{tr("العملة")}</Label>
               <Select
                 value={searchDraft.currencyId}
                 onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر العملة" />
+                  <SelectValue placeholder={tr("اختر العملة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">جميع العملات</SelectItem>
+                  <SelectItem value="__all__">{tr("جميع العملات")}</SelectItem>
                   {currencies.map((c) => (
                     <SelectItem key={c.currency_id ?? c.id} value={String(c.currency_id ?? c.id)}>
                       {c.currency_name || c.currency_code}
@@ -752,7 +753,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label htmlFor="search-date-from">من تاريخ</Label>
+                <Label htmlFor="search-date-from">{tr("من تاريخ")}</Label>
                 <Input
                   id="search-date-from"
                   type="date"
@@ -761,7 +762,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
                 />
               </div>
               <div>
-                <Label htmlFor="search-date-to">إلى تاريخ</Label>
+                <Label htmlFor="search-date-to">{tr("إلى تاريخ")}</Label>
                 <Input
                   id="search-date-to"
                   type="date"
@@ -787,18 +788,18 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
               loading={listSearch.loading}
               rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
-                { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
-                { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
-                { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
-                { header: "العملة", name: "display_currency", width: 120, isReadOnly: true },
-                { header: "المجموع", name: "display_amount", width: 130, isReadOnly: true },
+                { header: tr("رقم السند"), name: "vch_code", width: 150, isReadOnly: true },
+                { header: tr("التاريخ"), name: "display_date", width: 130, isReadOnly: true },
+                { header: tr("العميل"), name: "customer_name", width: "*", isReadOnly: true },
+                { header: tr("العملة"), name: "display_currency", width: 120, isReadOnly: true },
+                { header: tr("المجموع"), name: "display_amount", width: 130, isReadOnly: true },
               ]}
               onOpen={(row: any) => openRow(row.item || row)}
             />
           </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                عرض {pageStart} إلى {pageEnd} من {filteredVouchers.length}
+                {tr("عرض ")}{pageStart}{tr(" إلى ")}{pageEnd}{tr(" من ")}{filteredVouchers.length}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -807,7 +808,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 >
-                  السابق
+                  {tr("السابق")}
                 </Button>
                 <Button
                   size="sm"
@@ -815,7 +816,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 >
-                  التالي
+                  {tr("التالي")}
                 </Button>
                 <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
                   <SelectTrigger className="h-10 w-24">

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
@@ -37,11 +38,11 @@ function enqueue(request: Omit<Request, "resolve">): Promise<boolean> {
 
 /** سؤال نعم/لا — يُرجع true عند "تأكيد" */
 export const confirmYesNo = (message: string, options: Options = {}) =>
-  enqueue({ kind: "confirm", message, title: options.title ?? "تأكيد", confirmLabel: options.confirmLabel, cancelLabel: options.cancelLabel })
+  enqueue({ kind: "confirm", message, title: options.title ?? tr("تأكيد"), confirmLabel: options.confirmLabel, cancelLabel: options.cancelLabel })
 
 /** رسالة تنبيه بزر واحد ("حسناً") */
 export const showAlert = (message: string, options: Omit<Options, "cancelLabel"> = {}) =>
-  enqueue({ kind: "alert", message, title: options.title ?? "تنبيه", confirmLabel: options.confirmLabel }).then(() => undefined)
+  enqueue({ kind: "alert", message, title: options.title ?? tr("تنبيه"), confirmLabel: options.confirmLabel }).then(() => undefined)
 
 export function ConfirmHost() {
   const [current, setCurrent] = useState<Request | null>(null)

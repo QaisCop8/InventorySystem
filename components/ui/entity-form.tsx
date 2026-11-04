@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import type React from "react"
 
 import type { ReactNode } from "react"
@@ -34,7 +35,7 @@ export function EntityForm({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={onSubmit} className="space-y-6" dir="rtl">
+        <form onSubmit={onSubmit} className="space-y-6" dir={appDir()}>
           {children}
 
           <div className="flex gap-2 justify-end pt-4">
@@ -42,7 +43,7 @@ export function EntityForm({
               {cancelText}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "جاري الحفظ..." : submitText}
+              {isSubmitting ? tr("جاري الحفظ...") : submitText}
             </Button>
           </div>
         </form>

@@ -1,0 +1,300 @@
+Save rule
+Save target
+Valid until
+Valid from
+Net sales by salesman
+Salesman commissions and performance
+Unpaid
+General rule
+New commission rule
+Active rule
+Commission rules
+Commission rules, entitlements statement, collection and targets
+Commissions and performance statement
+All currencies
+All groups
+All warehouses
+All scopes
+No transactions for the selected period
+To pay an approved commission, press the «Pay» button next to it in the commission transactions table — the payment voucher is chosen automatically.
+Partially paid
+Approved - unpaid
+Salesman target
+This allocation is the source of the collection commission, and it doesn't create an accounting entry.
+Total salesmen
+Add a new salesman
+Active salesmen
+Unable to delete the salesman
+Salesman deleted successfully
+Salesman saved successfully
+The salesman number and name are required
+Sales commission %
+Salesman files, commissions and supervision
+Add salesman
+Edit salesman data
+Salesman code *
+Sales representatives (
+Salesmen parent account
+Are you sure you want to delete the salesman?
+Search by name, number, city or address...
+Email:
+Mobile:
+City:
+{0} customers found
+{0} suppliers found
+Customer number:
+Supplier number:
+Regular customer
+Premium customer
+Filters
+Advanced search filters
+No matching customers found
+No matching suppliers found
+Search by name, number, barcode or note...
+Price:
+Sub-warehouse
+{0} items found
+No matching items found
+Item group
+Available:
+Enter at least two characters to search
+Search by order number or customer/supplier name...
+Order search
+Try searching with a different order number or customer/supplier name
+No orders match the search
+Created:
+Search for a transaction
+Search for an inventory transaction
+Search for an item
+Search for a sales order
+Search for a purchase order
+Search for a customer/supplier
+Search transactions and operations
+Customer search
+Supplier search
+Inventory transactions search
+Transaction search
+Inventory transaction search
+Item search
+Sales order search
+Purchase order search
+Sales orders search
+Purchase orders search
+Customer search
+Customer/supplier search
+Supplier search
+Search by order number, customer/supplier name or item...
+Reference:
+{0} inventory transactions found
+{0} sales orders found
+{0} purchase orders found
+Sales orders
+No matching inventory transactions found
+No matching sales orders found
+No matching purchase orders found
+No matching results found
+Preset color schemes
+Layout settings
+Settings to improve accessibility for users
+Accessibility
+Save all customizations to apply them to the whole system
+Choose a ready color scheme or customize the colors manually
+Header height:
+Line height:
+Border radius:
+Colors
+High contrast
+Layout
+Fonts
+Primary color
+Secondary color
+Accent color
+Effects
+Visual effects
+Dark mode
+Compact mode
+Slow (0.5s)
+Pill
+Letter spacing:
+Full control over the system look — colors, fonts, layout and effects
+Customize the dimensions and spacing of interface elements
+Customize animations, transitions and effects
+Advanced appearance customization
+Customize the font type, size and weight
+Outlined label
+Colored label
+Enable the system dark mode
+Reduce the spacing between elements
+Settings imported successfully!
+Settings exported successfully!
+Appearance settings saved successfully!
+Loading appearance settings...
+Font size:
+An error occurred saving the settings
+Save appearance settings
+Error importing the settings
+Light (300)
+RTL support
+Right-to-left writing support
+Primary button
+Secondary button
+Accent button
+Increase contrast for easier reading
+Animation speed
+Fast (0.15s)
+Semibold (600)
+Normal (0.3s)
+Normal (400)
+Sidebar width:
+Bold (700)
+Sample title
+Large main title
+Medium main title
+Subtitle
+Medium (500)
+Outlined
+Square
+Raised (with shadows)
+Rounded
+Flat
+See changes instantly before saving
+Color preview
+Font preview
+Live preview of changes
+Small text for details, notes and additional information
+Button style
+Card style
+Font type
+This is sample text to preview the selected colors in the system. You can see how the colors will look in the actual application.
+This is sample text to preview the selected font. You can see how text will appear in the system with the chosen font, size and weight. Arabic text needs suitable fonts to ensure clarity and easy reading.
+Font weight
+Preview mode active
+: access, view, add, edit and delete
+{0} {1} for all visible reports
+{0} {1} for all {2} files
+{0} all {1} permissions
+Entry
+Remove {0} for all {1} vouchers
+Remove all
+Search for a voucher, file or permission...
+View
+People and entities
+Items and services
+Transactions by voucher type
+Access the report
+Access the screen
+Screens and general permissions
+Finance and branches
+Finance and accounting
+Vehicles and drivers
+File / definition
+Unsaved changes
+Disable visible
+Enable {0} for all {1} vouchers
+Enabling any operation on a voucher automatically enables access to its screen and viewing it, and removing access to the screen removes all its operations (and the voucher disappears from the menu). Click the column header to toggle it for all vouchers in the group.
+Enabling any operation automatically enables access to the screen, and removing access removes all the file's permissions. Viewing is independent of adding. Click the column header to toggle it for all files in the group.
+Enable visible
+Enable all
+Loading permissions
+Set access to each report, printing, and sending via WhatsApp. Removing access disables the report's other permissions automatically.
+screen ·
+Permissions
+Additional permissions
+Report permissions
+Access, print and WhatsApp permissions for each report
+{0} permission
+Full permission (legacy system)
+Permission enabled
+POS and restaurant cashier
+All changes saved
+All {0} permissions
+No reports match the search or filter.
+No vouchers match the search or filter.
+No permissions match the search or filter.
+No permissions are defined in the system.
+No files and definitions match the search or filter.
+Custom for the user
+Custom for the user in this branch
+Enabled
+files ·
+From the job role
+From the job role in this branch
+voucher type ·
+Search by username...
+Users who work in branch «
+Unable to load users
+Unable to save permissions
+User permissions saved
+User permissions
+There is no branch restriction on this user
+No users
+Enter to move between fields · F3 to save
+Enter a valid exchange rate for currency {0}
+Exchange rates at
+Main currency · 1.000
+Update currency rates for today — the main currency is fixed at 1
+Failed to load exchange rates
+Failed to save the exchange rate of some currencies
+No other currencies are enabled
+License types
+Account classification types (
+Cost center types (
+Complete system management
+Add item
+Add a new item
+Add classification
+Add a new category
+Add department
+Add a new department
+Add city
+Add a new city
+Add center
+Add a new cost center
+Add a new unit
+Choose the branch symbol
+Item name *
+Tax classification name
+Category name *
+Category name en
+Branch name *
+Department name *
+The department name already exists
+City name *
+Center name *
+Manager name
+Unit name *
+License type name
+Add category
+Parent:
+Departments (
+Departments and branches
+Unit English name
+Basic definitions
+Financial definitions
+The branch's full address
+Branches (
+Licensed branches and departments
+Cities (
+Cities, warehouses, units, classifications, financial definitions and branches in one place
+Parent center (optional)
+Manager:
+Users who work in this branch
+Level:
+Files and definitions
+Employees:
+Rate:
+Phone:
+Units (
+No parent center
+No description
+Balance sheet asset items (
+Balance sheet liability items (
+Income statement items (
+Belongs to branch
+Account classifications (
+Customer classifications
+Supplier classifications
+Edit classification
+Edit unit
+Edit balance sheet asset item
+Edit balance sheet liability item

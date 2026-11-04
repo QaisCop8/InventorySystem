@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { BranchPermissionEditor, type PermissionItem } from "./branch-permission-editor"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -59,7 +60,7 @@ export default function Permissions() {
     const load = async () => {
       try {
         const [usersResponse, branchesResponse] = await Promise.all([fetch("/api/settings/user"), fetch("/api/branches")])
-        if (!usersResponse.ok || !branchesResponse.ok) throw new Error("تعذر تحميل المستخدمين أو الفروع")
+        if (!usersResponse.ok || !branchesResponse.ok) throw new Error(tr("تعذر تحميل المستخدمين أو الفروع"))
         const [usersData, branchesData]: [User[], Branch[]] = await Promise.all([usersResponse.json(), branchesResponse.json()])
         setUsers(usersData)
         setBranches(branchesData)
@@ -70,7 +71,7 @@ export default function Permissions() {
         const firstUser = usersData.find((user) => String(user.user_id || user.id) === firstUserId) || usersData[0]
         setSelectedBranchId(String(firstUser?.branch_id || branchesData[0]?.id || ""))
       } catch (error) {
-        toast({ title: "تعذر فتح الصلاحيات", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+        toast({ title: tr("تعذر فتح الصلاحيات"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
       } finally { setLoading(false) }
     }
     void load()
@@ -84,13 +85,13 @@ export default function Permissions() {
         const response = await fetch(`/api/settings/user/user-access?userId=${encodeURIComponent(selectedUserId)}&branchId=${selectedBranchId}`)
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.details || errorData.error || "تعذر تحميل صلاحيات المستخدم")
+          throw new Error(errorData.details || errorData.error || tr("تعذر تحميل صلاحيات المستخدم"))
         }
         const data: PermissionItem[] = await response.json()
         const next = Object.fromEntries(data.map((item) => [item.access_id, Boolean(item.is_granted)]))
         setItems(data); setValues(next); setInitialValues(next)
       } catch (error) {
-        toast({ title: "فشل التحميل", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+        toast({ title: tr("فشل التحميل"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
       } finally { setPermissionsLoading(false) }
     }
     void loadPermissions()
@@ -114,7 +115,7 @@ export default function Permissions() {
     setCopying(true)
     try {
       const sourceResponse = await fetch(`/api/settings/user/user-access?userId=${encodeURIComponent(sourceUserId)}&branchId=${sourceBranchId}`)
-      if (!sourceResponse.ok) throw new Error("تعذر قراءة صلاحيات المصدر")
+      if (!sourceResponse.ok) throw new Error(tr("تعذر قراءة صلاحيات المصدر"))
       const sourceItems: PermissionItem[] = await sourceResponse.json()
       const copiedAccesses = sourceItems.map((item) => ({ access_id: item.access_id, is_granted: Boolean(item.is_granted) }))
       const saveResponse = await fetch("/api/settings/user/save-user-access", {
@@ -122,7 +123,7 @@ export default function Permissions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: selectedUserId, branchId: Number(selectedBranchId), accesses: copiedAccesses }),
       })
-      if (!saveResponse.ok) throw new Error("تعذر نسخ الصلاحيات إلى الهدف")
+      if (!saveResponse.ok) throw new Error(tr("تعذر نسخ الصلاحيات إلى الهدف"))
 
       const next = Object.fromEntries(copiedAccesses.map((item) => [item.access_id, item.is_granted]))
       setItems(sourceItems)
@@ -133,11 +134,11 @@ export default function Permissions() {
       const sourceUser = users.find((user) => String(user.user_id || user.id) === sourceUserId)
       const sourceBranch = branches.find((branch) => String(branch.id) === sourceBranchId)
       toast({
-        title: "تم نسخ الصلاحيات بنجاح",
+        title: tr("تم نسخ الصلاحيات بنجاح"),
         description: `${sourceUser?.full_name || sourceUser?.username} — ${sourceBranch?.branch_name} ← ${selectedUser?.full_name || selectedUser?.username} — ${selectedBranch?.branch_name}`,
       })
     } catch (error) {
-      toast({ title: "فشل نسخ الصلاحيات", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      toast({ title: tr("فشل نسخ الصلاحيات"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
     } finally { setCopying(false) }
   }
 
@@ -149,8 +150,8 @@ export default function Permissions() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: selectedUserId, branchId: Number(selectedBranchId), inherit, accesses: items.map((item) => ({ access_id: item.access_id, is_granted: Boolean(values[item.access_id]) })) }),
       })
-      if (!response.ok) throw new Error("تعذر حفظ الصلاحيات")
-      toast({ title: inherit ? "تمت استعادة الصلاحيات الموروثة" : "تم حفظ الصلاحيات", description: `${selectedUser?.full_name || selectedUser?.username} — ${selectedBranch?.branch_name}` })
+      if (!response.ok) throw new Error(tr("تعذر حفظ الصلاحيات"))
+      toast({ title: inherit ? tr("تمت استعادة الصلاحيات الموروثة") : tr("تم حفظ الصلاحيات"), description: `${selectedUser?.full_name || selectedUser?.username} — ${selectedBranch?.branch_name}` })
       if (inherit) {
         const reload = await fetch(`/api/settings/user/user-access?userId=${encodeURIComponent(selectedUserId)}&branchId=${selectedBranchId}`)
         const data: PermissionItem[] = await reload.json()
@@ -159,36 +160,36 @@ export default function Permissions() {
       } else setInitialValues({ ...values })
       window.dispatchEvent(new CustomEvent("user-permissions-changed", { detail: { userId: selectedUserId, branchId: Number(selectedBranchId) } }))
     } catch (error) {
-      toast({ title: "فشل الحفظ", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      toast({ title: tr("فشل الحفظ"), description: error instanceof Error ? error.message : tr("حدث خطأ"), variant: "destructive" })
     } finally { setSaving(false) }
   }
 
-  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground">جاري تحميل شاشة الصلاحيات...</div>
+  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground">{tr("جاري تحميل شاشة الصلاحيات...")}</div>
 
   return (
-    <div className="w-full space-y-5 p-4 md:p-6" dir="rtl">
+    <div className="w-full space-y-5 p-4 md:p-6" dir={appDir()}>
       <div className="flex flex-col gap-3 rounded-2xl border bg-gradient-to-l from-primary/[0.06] via-background to-background px-4 py-3.5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Shield className="h-5 w-5" /></div>
-          <div><h1 className="text-lg font-bold">صلاحيات المستخدمين</h1><p className="mt-0.5 text-xs text-muted-foreground">خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.</p></div>
+          <div><h1 className="text-lg font-bold">{tr("صلاحيات المستخدمين")}</h1><p className="mt-0.5 text-xs text-muted-foreground">{tr("خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.")}</p></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="ml-2 h-4 w-4" />نسخ صلاحيات</Button>
-          <Button variant="outline" onClick={() => void save(true)} disabled={!selectedUserId || !selectedBranchId || saving}><RotateCcw className="ml-2 h-4 w-4" />استعادة الموروث</Button>
-          <Button onClick={() => void save(false)} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Save className="ml-2 h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ الصلاحيات"}</Button>
+          <Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="ml-2 h-4 w-4" />{tr("نسخ صلاحيات")}</Button>
+          <Button variant="outline" onClick={() => void save(true)} disabled={!selectedUserId || !selectedBranchId || saving}><RotateCcw className="ml-2 h-4 w-4" />{tr("استعادة الموروث")}</Button>
+          <Button onClick={() => void save(false)} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Save className="ml-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button>
         </div>
       </div>
 
-      {branches.length === 0 ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.</div> : (
+      {branches.length === 0 ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.")}</div> : (
         <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
           <Card className="h-fit lg:sticky lg:top-4"><CardContent className="space-y-4 p-4">
-            <div><Label className="mb-2 block text-xs text-muted-foreground">1. اختر المستخدم</Label><div className="relative"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="بحث عن مستخدم..." className="pr-9" /></div></div>
-            <div className="max-h-[360px] space-y-1 overflow-y-auto pl-1">
+            <div><Label className="mb-2 block text-xs text-muted-foreground">{tr("1. اختر المستخدم")}</Label><div className="relative"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder={tr("بحث عن مستخدم...")} className="pr-9" /></div></div>
+            <div className="max-h-[360px] space-y-1 overflow-y-auto pe-1">
               {filteredUsers.map((user) => {
                 const id = String(user.user_id || user.id); const active = id === selectedUserId
-                return <button key={id} type="button" onClick={() => chooseUser(user)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-sm transition-colors ${active ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-muted"}`}>
+                return <button key={id} type="button" onClick={() => chooseUser(user)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-sm transition-colors ${active ? "bg-primary/10 text-primary ring-1 ring-primary/30" : "hover:bg-muted"}`}>
                   <Avatar className="h-9 w-9"><AvatarFallback className={active ? "bg-primary/15 text-primary" : ""}>{(user.full_name || user.username || "م").charAt(0)}</AvatarFallback></Avatar>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{user.full_name || user.username}</span><span className={`block truncate text-xs ${active ? "text-primary/70" : "text-muted-foreground"}`}>{user.branch_name || user.department || "غير مرتبط بفرع"}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{user.full_name || user.username}</span><span className={`block truncate text-xs ${active ? "text-primary/70" : "text-muted-foreground"}`}>{user.branch_name || user.department || tr("غير مرتبط بفرع")}</span></span>
                 </button>
               })}
             </div>
@@ -196,9 +197,9 @@ export default function Permissions() {
 
           <div className="min-w-0 space-y-4">
             <Card><CardContent className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_260px] md:items-end">
-              <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted"><UserRound className="h-5 w-5" /></div><div><div className="font-semibold">{selectedUser?.full_name || selectedUser?.username || "اختر مستخدماً"}</div><div className="text-sm text-muted-foreground">{selectedUser?.email || "ستظهر الصلاحيات بعد اختيار المستخدم"}</div></div></div>
-              <div><Label className="mb-2 block text-xs text-muted-foreground">2. اختر الفرع الذي ستطبق فيه الصلاحيات</Label><Dropdown id="permissions-branch" value={Number(selectedBranchId) || null} options={branches} optionLabel="branch_name" optionLabelCode="branch_code" optionValue="id" placeholder="اختر الفرع" filter onChange={(event) => setSelectedBranchId(String(event.value))} /></div>
-              {selectedUser?.branch_id && String(selectedUser.branch_id) !== selectedBranchId && <div className="md:col-span-2"><Badge variant="outline">تنبيه: هذا ليس الفرع الأساسي للمستخدم ({selectedUser.branch_name})</Badge></div>}
+              <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted"><UserRound className="h-5 w-5" /></div><div><div className="font-semibold">{selectedUser?.full_name || selectedUser?.username || tr("اختر مستخدماً")}</div><div className="text-sm text-muted-foreground">{selectedUser?.email || tr("ستظهر الصلاحيات بعد اختيار المستخدم")}</div></div></div>
+              <div><Label className="mb-2 block text-xs text-muted-foreground">{tr("2. اختر الفرع الذي ستطبق فيه الصلاحيات")}</Label><Dropdown id="permissions-branch" value={Number(selectedBranchId) || null} options={branches} optionLabel="branch_name" optionLabelCode="branch_code" optionValue="id" placeholder={tr("اختر الفرع")} filter onChange={(event) => setSelectedBranchId(String(event.value))} /></div>
+              {selectedUser?.branch_id && String(selectedUser.branch_id) !== selectedBranchId && <div className="md:col-span-2"><Badge variant="outline">{tr("تنبيه: هذا ليس الفرع الأساسي للمستخدم (")}{selectedUser.branch_name})</Badge></div>}
             </CardContent></Card>
             {selectedUserId && selectedBranchId && <BranchPermissionEditor items={items} values={values} onChange={setValues} search={permissionSearch} onSearchChange={setPermissionSearch} loading={permissionsLoading} dirty={dirty} />}
           </div>
@@ -206,32 +207,32 @@ export default function Permissions() {
       )}
 
       <Dialog open={copyOpen} onOpenChange={setCopyOpen}>
-        <DialogContent className="max-w-xl rounded-2xl" dir="rtl">
+        <DialogContent className="max-w-xl rounded-2xl" dir={appDir()}>
           <DialogHeader className="pl-10">
-            <DialogTitle className="flex items-center gap-2"><Copy className="h-5 w-5 text-primary" />نسخ الصلاحيات إلى المستخدم الحالي</DialogTitle>
-            <DialogDescription>اختر المستخدم والفرع المصدر. سيتم استبدال صلاحيات الهدف الحالية بنسخة من الصلاحيات الفعالة للمصدر.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Copy className="h-5 w-5 text-primary" />{tr("نسخ الصلاحيات إلى المستخدم الحالي")}</DialogTitle>
+            <DialogDescription>{tr("اختر المستخدم والفرع المصدر. سيتم استبدال صلاحيات الهدف الحالية بنسخة من الصلاحيات الفعالة للمصدر.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-2 md:grid-cols-2">
-            <div><Label className="mb-2 block text-sm">المستخدم المصدر</Label><Dropdown id="copy-source-user" value={sourceUserId || null} options={users} optionLabel="full_name" optionLabelCode="username" optionValue="user_id" placeholder="اختر المستخدم المصدر" filter onChange={(event) => {
+            <div><Label className="mb-2 block text-sm">{tr("المستخدم المصدر")}</Label><Dropdown id="copy-source-user" value={sourceUserId || null} options={users} optionLabel="full_name" optionLabelCode="username" optionValue="user_id" placeholder={tr("اختر المستخدم المصدر")} filter onChange={(event) => {
               const nextUserId = String(event.value)
               setSourceUserId(nextUserId)
               const nextUser = users.find((user) => String(user.user_id || user.id) === nextUserId)
               if (nextUser?.branch_id) setSourceBranchId(String(nextUser.branch_id))
             }} /></div>
-            <div><Label className="mb-2 block text-sm">الفرع المصدر</Label><Dropdown id="copy-source-branch" value={Number(sourceBranchId) || null} options={branches} optionLabel="branch_name" optionLabelCode="branch_code" optionValue="id" placeholder="اختر الفرع المصدر" filter onChange={(event) => setSourceBranchId(String(event.value))} /></div>
+            <div><Label className="mb-2 block text-sm">{tr("الفرع المصدر")}</Label><Dropdown id="copy-source-branch" value={Number(sourceBranchId) || null} options={branches} optionLabel="branch_name" optionLabelCode="branch_code" optionValue="id" placeholder={tr("اختر الفرع المصدر")} filter onChange={(event) => setSourceBranchId(String(event.value))} /></div>
           </div>
 
           <div className="rounded-xl border bg-muted/40 p-4">
-            <div className="mb-3 text-xs font-medium text-muted-foreground">الهدف الذي ستُستبدل صلاحياته</div>
+            <div className="mb-3 text-xs font-medium text-muted-foreground">{tr("الهدف الذي ستُستبدل صلاحياته")}</div>
             <div className="flex flex-wrap items-center gap-3 text-sm font-semibold">
               <span>{selectedUser?.full_name || selectedUser?.username}</span><ArrowLeft className="h-4 w-4 text-muted-foreground" /><span>{selectedBranch?.branch_name}</span>
             </div>
           </div>
 
           <DialogFooter className="gap-2 sm:justify-start">
-            <Button onClick={() => void copyPermissions()} disabled={!sourceUserId || !sourceBranchId || copying || (sourceUserId === selectedUserId && sourceBranchId === selectedBranchId)}><Copy className="ml-2 h-4 w-4" />{copying ? "جاري النسخ..." : "نسخ وحفظ"}</Button>
-            <Button variant="ghost" onClick={() => setCopyOpen(false)} disabled={copying}>إلغاء</Button>
+            <Button onClick={() => void copyPermissions()} disabled={!sourceUserId || !sourceBranchId || copying || (sourceUserId === selectedUserId && sourceBranchId === selectedBranchId)}><Copy className="ml-2 h-4 w-4" />{copying ? tr("جاري النسخ...") : tr("نسخ وحفظ")}</Button>
+            <Button variant="ghost" onClick={() => setCopyOpen(false)} disabled={copying}>{tr("إلغاء")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

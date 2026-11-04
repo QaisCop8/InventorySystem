@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -91,7 +92,7 @@ export function SystemDiagnostics() {
 
       const totalTime = Date.now() - startTime
       if (totalTime > 5000) {
-        setPerformanceWarning(`التشخيص استغرق ${totalTime}ms - قد يؤثر على الأداء`)
+        setPerformanceWarning(tr("التشخيص استغرق {0}ms - قد يؤثر على الأداء", totalTime))
       }
     } catch (error) {
       console.error("[v0] Failed to run diagnostics:", error)
@@ -133,9 +134,9 @@ export function SystemDiagnostics() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6" dir={appDir()}>
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">تشخيص النظام</h2>
+        <h2 className="text-2xl font-bold">{tr("تشخيص النظام")}</h2>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -144,14 +145,14 @@ export function SystemDiagnostics() {
               onChange={(e) => setAutoRefresh(e.target.checked)}
               className="rounded"
             />
-            تحديث تلقائي
+            {tr("تحديث تلقائي")}
           </label>
           {lastUpdate && (
-            <span className="text-sm text-muted-foreground">آخر تحديث: {lastUpdate.toLocaleTimeString("en-GB")}</span>
+            <span className="text-sm text-muted-foreground">{tr("آخر تحديث: ")}{lastUpdate.toLocaleTimeString("en-GB")}</span>
           )}
           <Button onClick={runDiagnostics} disabled={isLoading} size="sm">
-            <RefreshCw className={`h-4 w-4 ml-2 ${isLoading ? "animate-spin" : ""}`} />
-            {isLoading ? "جاري الفحص..." : "فحص الآن"}
+            <RefreshCw className={`h-4 w-4 me-2 ${isLoading ? "animate-spin" : ""}`} />
+            {isLoading ? tr("جاري الفحص...") : tr("فحص الآن")}
           </Button>
         </div>
       </div>
@@ -174,9 +175,9 @@ export function SystemDiagnostics() {
               <div className="flex items-center gap-2">
                 {getStatusIcon(healthData.status)}
                 <div>
-                  <p className="text-sm text-muted-foreground">حالة النظام</p>
+                  <p className="text-sm text-muted-foreground">{tr("حالة النظام")}</p>
                   <p className="text-lg font-bold">
-                    {healthData.status === "healthy" ? "سليم" : healthData.status === "degraded" ? "متدهور" : "معطل"}
+                    {healthData.status === "healthy" ? tr("سليم") : healthData.status === "degraded" ? tr("متدهور") : tr("معطل")}
                   </p>
                 </div>
               </div>
@@ -188,7 +189,7 @@ export function SystemDiagnostics() {
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-blue-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">وقت التشغيل</p>
+                  <p className="text-sm text-muted-foreground">{tr("وقت التشغيل")}</p>
                   <p className="text-lg font-bold">{formatUptime(healthData.uptime)}</p>
                 </div>
               </div>
@@ -200,11 +201,11 @@ export function SystemDiagnostics() {
               <div className="flex items-center gap-2">
                 <HardDrive className="h-5 w-5 text-purple-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">الذاكرة</p>
+                  <p className="text-sm text-muted-foreground">{tr("الذاكرة")}</p>
                   <p className="text-lg font-bold">
                     {healthData.checks.memory
                       ? `${healthData.checks.memory.heapUsed}/${healthData.checks.memory.heapTotal} MB`
-                      : "غير متاح"}
+                      : tr("غير متاح")}
                   </p>
                 </div>
               </div>
@@ -216,11 +217,11 @@ export function SystemDiagnostics() {
               <div className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-green-500" />
                 <div>
-                  <p className="text-sm text-muted-foreground">قاعدة البيانات</p>
+                  <p className="text-sm text-muted-foreground">{tr("قاعدة البيانات")}</p>
                   <p className="text-lg font-bold">
                     {healthData.checks.database?.responseTime
                       ? `${healthData.checks.database.responseTime}ms`
-                      : "معطلة"}
+                      : tr("معطلة")}
                   </p>
                 </div>
               </div>
@@ -231,10 +232,10 @@ export function SystemDiagnostics() {
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
-          <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-          <TabsTrigger value="database">قاعدة البيانات</TabsTrigger>
-          <TabsTrigger value="performance">الأداء</TabsTrigger>
-          <TabsTrigger value="errors">الأخطاء</TabsTrigger>
+          <TabsTrigger value="overview">{tr("نظرة عامة")}</TabsTrigger>
+          <TabsTrigger value="database">{tr("قاعدة البيانات")}</TabsTrigger>
+          <TabsTrigger value="performance">{tr("الأداء")}</TabsTrigger>
+          <TabsTrigger value="errors">{tr("الأخطاء")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -244,12 +245,12 @@ export function SystemDiagnostics() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Server className="h-5 w-5" />
-                    معلومات الخادم
+                    {tr("معلومات الخادم")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
-                    <span>الإصدار:</span>
+                    <span>{tr("الإصدار:")}</span>
                     <Badge variant="outline">{healthData.version}</Badge>
                   </div>
                   <div className="flex justify-between">
@@ -257,11 +258,11 @@ export function SystemDiagnostics() {
                     <Badge variant="outline">{healthData.performance?.nodeVersion}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span>المنصة:</span>
+                    <span>{tr("المنصة:")}</span>
                     <Badge variant="outline">{healthData.performance?.platform}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span>المعمارية:</span>
+                    <span>{tr("المعمارية:")}</span>
                     <Badge variant="outline">{healthData.performance?.arch}</Badge>
                   </div>
                 </CardContent>
@@ -271,7 +272,7 @@ export function SystemDiagnostics() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
-                    حالة المكونات
+                    {tr("حالة المكونات")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -279,17 +280,17 @@ export function SystemDiagnostics() {
                     <div key={key} className="flex items-center justify-between">
                       <span className="capitalize">
                         {key === "database"
-                          ? "قاعدة البيانات"
+                          ? tr("قاعدة البيانات")
                           : key === "memory"
-                            ? "الذاكرة"
+                            ? tr("الذاكرة")
                             : key === "environment"
-                              ? "البيئة"
+                              ? tr("البيئة")
                               : key}
                       </span>
                       <div className="flex items-center gap-2">
                         {getStatusIcon(check.status)}
                         <Badge variant={check.status === "healthy" ? "default" : "destructive"}>
-                          {check.status === "healthy" ? "سليم" : check.status === "degraded" ? "متدهور" : "معطل"}
+                          {check.status === "healthy" ? tr("سليم") : check.status === "degraded" ? tr("متدهور") : tr("معطل")}
                         </Badge>
                       </div>
                     </div>
@@ -305,15 +306,15 @@ export function SystemDiagnostics() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>إحصائيات قاعدة البيانات</CardTitle>
+                  <CardTitle>{tr("إحصائيات قاعدة البيانات")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
-                    <span>زمن الاستجابة:</span>
+                    <span>{tr("زمن الاستجابة:")}</span>
                     <Badge variant="outline">{diagnosticsData.database.responseTime}ms</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span>عدد الجداول:</span>
+                    <span>{tr("عدد الجداول:")}</span>
                     <Badge variant="outline">{diagnosticsData.database.totalTables}</Badge>
                   </div>
                 </CardContent>
@@ -321,7 +322,7 @@ export function SystemDiagnostics() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>حالة الجداول</CardTitle>
+                  <CardTitle>{tr("حالة الجداول")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[300px]">
@@ -333,12 +334,12 @@ export function SystemDiagnostics() {
                             {tableInfo.exists ? (
                               <>
                                 <CheckCircle className="h-4 w-4 text-green-500" />
-                                <Badge variant="outline">{tableInfo.records} سجل</Badge>
+                                <Badge variant="outline">{tableInfo.records}{tr(" سجل")}</Badge>
                               </>
                             ) : (
                               <>
                                 <XCircle className="h-4 w-4 text-red-500" />
-                                <Badge variant="destructive">غير موجود</Badge>
+                                <Badge variant="destructive">{tr("غير موجود")}</Badge>
                               </>
                             )}
                           </div>
@@ -357,19 +358,19 @@ export function SystemDiagnostics() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>أداء الاستعلامات</CardTitle>
+                  <CardTitle>{tr("أداء الاستعلامات")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-2">
-                      <span>استعلام بسيط:</span>
+                      <span>{tr("استعلام بسيط:")}</span>
                       <span>{diagnosticsData.performance.simpleQueryTime}ms</span>
                     </div>
                     <Progress value={Math.min(diagnosticsData.performance.simpleQueryTime / 10, 100)} />
                   </div>
                   <div>
                     <div className="flex justify-between mb-2">
-                      <span>استعلام معقد:</span>
+                      <span>{tr("استعلام معقد:")}</span>
                       <span>{diagnosticsData.performance.complexQueryTime}ms</span>
                     </div>
                     <Progress value={Math.min(diagnosticsData.performance.complexQueryTime / 100, 100)} />
@@ -379,14 +380,14 @@ export function SystemDiagnostics() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>استخدام الذاكرة</CardTitle>
+                  <CardTitle>{tr("استخدام الذاكرة")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {healthData.checks.memory && (
                     <>
                       <div>
                         <div className="flex justify-between mb-2">
-                          <span>Heap المستخدم:</span>
+                          <span>{tr("Heap المستخدم:")}</span>
                           <span>{healthData.checks.memory.heapUsed} MB</span>
                         </div>
                         <Progress
@@ -416,7 +417,7 @@ export function SystemDiagnostics() {
         <TabsContent value="errors" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>أخطاء النظام</CardTitle>
+              <CardTitle>{tr("أخطاء النظام")}</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px]">
@@ -424,7 +425,7 @@ export function SystemDiagnostics() {
                   {healthData?.errors.length === 0 && diagnosticsData?.errors.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
-                      لا توجد أخطاء في النظام
+                      {tr("لا توجد أخطاء في النظام")}
                     </div>
                   ) : (
                     <>
@@ -432,7 +433,7 @@ export function SystemDiagnostics() {
                         <div key={`health-${index}`} className="flex items-start gap-2 p-3 border rounded bg-red-50">
                           <XCircle className="h-5 w-5 text-red-500 mt-0.5" />
                           <div>
-                            <p className="font-medium text-red-700">خطأ في الصحة العامة</p>
+                            <p className="font-medium text-red-700">{tr("خطأ في الصحة العامة")}</p>
                             <p className="text-sm text-red-600">{error}</p>
                           </div>
                         </div>
@@ -441,7 +442,7 @@ export function SystemDiagnostics() {
                         <div key={`diag-${index}`} className="flex items-start gap-2 p-3 border rounded bg-yellow-50">
                           <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
                           <div>
-                            <p className="font-medium text-yellow-700">خطأ في التشخيص</p>
+                            <p className="font-medium text-yellow-700">{tr("خطأ في التشخيص")}</p>
                             <p className="text-sm text-yellow-600">{error}</p>
                           </div>
                         </div>

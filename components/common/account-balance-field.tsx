@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -42,8 +43,8 @@ export default function AccountBalanceField({ accountId, refreshKey, label = "ا
   const overLimit = Boolean(result?.credit_limit && result.credit_limit > 0 && balance > result.credit_limit)
   const text = !id ? "" : loading ? "..." : denied ? "••••••" : result ? `${fmt(balance)} ${result.side || ""} ${result.currency_code || ""}`.trim() : "—"
   const title = denied
-    ? "لا تملك صلاحية «السماح بمشاهدة رصيد الحساب في الحركات»"
-    : overLimit ? `الرصيد تجاوز حد الائتمان (${fmt(Number(result?.credit_limit))})` : "رصيد الحساب الحالي: كل السندات غير الملغاة"
+    ? tr("لا تملك صلاحية «السماح بمشاهدة رصيد الحساب في الحركات»")
+    : overLimit ? tr("الرصيد تجاوز حد الائتمان ({0})", fmt(Number(result?.credit_limit))) : tr("رصيد الحساب الحالي: كل السندات غير الملغاة")
 
   return (
     <div className={className}>

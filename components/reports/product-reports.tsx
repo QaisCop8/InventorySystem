@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
@@ -32,7 +33,7 @@ import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 
 const inventorySummary = [
   {
-    title: "إجمالي الأصناف",
+    title: tr("إجمالي الأصناف"),
     value: "450",
     change: "+15",
     icon: Package,
@@ -40,7 +41,7 @@ const inventorySummary = [
     bgColor: "bg-blue-50",
   },
   {
-    title: "قيمة المخزون",
+    title: tr("قيمة المخزون"),
     value: "892,450 شيكل",
     change: "+8.5%",
     icon: DollarSign,
@@ -48,7 +49,7 @@ const inventorySummary = [
     bgColor: "bg-green-50",
   },
   {
-    title: "أصناف تحت الحد الأدنى",
+    title: tr("أصناف تحت الحد الأدنى"),
     value: "12",
     change: "-3",
     icon: AlertTriangle,
@@ -56,7 +57,7 @@ const inventorySummary = [
     bgColor: "bg-orange-50",
   },
   {
-    title: "أصناف نفدت",
+    title: tr("أصناف نفدت"),
     value: "3",
     change: "-1",
     icon: Archive,
@@ -169,7 +170,7 @@ export function ProductReports() {
     return inventorySummary.map((item, index) => (
       <Card
         key={index}
-        className="erp-card hover:shadow-lg transition-all duration-200 border-l-4"
+        className="erp-card hover:shadow-lg transition-all duration-200 border-e-4"
         style={{ borderLeftColor: item.color.replace("text-", "#") }}
       >
         <CardHeader className="pb-2">
@@ -183,8 +184,8 @@ export function ProductReports() {
         <CardContent>
           <div className="text-2xl font-bold mb-1">{item.value}</div>
           <p className={`text-xs flex items-center ${item.change.startsWith("+") ? "text-green-600" : "text-red-600"}`}>
-            <TrendingUp className="h-3 w-3 ml-1" />
-            {item.change} من الشهر الماضي
+            <TrendingUp className="h-3 w-3 me-1" />
+            {item.change}{tr(" من الشهر الماضي")}
           </p>
         </CardContent>
       </Card>
@@ -193,7 +194,7 @@ export function ProductReports() {
 
   return (
     <ReportPage>
-<ReportHeader title="تقارير الأصناف والمخزون" />
+<ReportHeader title={tr("تقارير الأصناف والمخزون")} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">{summaryCards}</div>
 
       <ReportFilters>
@@ -201,42 +202,42 @@ export function ProductReports() {
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div>
-              <Label className="text-sm font-medium mb-2 block text-gray-700">الصنف:</Label>
+              <Label className="text-sm font-medium mb-2 block text-gray-700">{tr("الصنف:")}</Label>
               <Input
-                placeholder="بحث برقم أو اسم الصنف"
+                placeholder={tr("بحث برقم أو اسم الصنف")}
                 value={state.filters.product}
                 onChange={(e) => handleFilterChange("product", e.target.value)}
                 className="focus:ring-2 focus:ring-purple-500"
               />
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block text-gray-700">المجموعة:</Label>
+              <Label className="text-sm font-medium mb-2 block text-gray-700">{tr("المجموعة:")}</Label>
               <Select value={state.filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
                 <SelectTrigger className="focus:ring-2 focus:ring-purple-500">
-                  <SelectValue placeholder="جميع المجموعات" />
+                  <SelectValue placeholder={tr("جميع المجموعات")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المجموعات</SelectItem>
-                  <SelectItem value="electronics">إلكترونيات</SelectItem>
-                  <SelectItem value="home">أدوات منزلية</SelectItem>
+                  <SelectItem value="all">{tr("جميع المجموعات")}</SelectItem>
+                  <SelectItem value="electronics">{tr("إلكترونيات")}</SelectItem>
+                  <SelectItem value="home">{tr("أدوات منزلية")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block text-gray-700">المستودع:</Label>
+              <Label className="text-sm font-medium mb-2 block text-gray-700">{tr("المستودع:")}</Label>
               <Select value={state.filters.warehouse} onValueChange={(value) => handleFilterChange("warehouse", value)}>
                 <SelectTrigger className="focus:ring-2 focus:ring-purple-500">
-                  <SelectValue placeholder="جميع المستودعات" />
+                  <SelectValue placeholder={tr("جميع المستودعات")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المستودعات</SelectItem>
-                  <SelectItem value="main">المستودع الرئيسي</SelectItem>
-                  <SelectItem value="branch">مستودع الفرع</SelectItem>
+                  <SelectItem value="all">{tr("جميع المستودعات")}</SelectItem>
+                  <SelectItem value="main">{tr("المستودع الرئيسي")}</SelectItem>
+                  <SelectItem value="branch">{tr("مستودع الفرع")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block text-gray-700">من تاريخ:</Label>
+              <Label className="text-sm font-medium mb-2 block text-gray-700">{tr("من تاريخ:")}</Label>
               <Input
                 type="date"
                 value={state.filters.fromDate}
@@ -245,7 +246,7 @@ export function ProductReports() {
               />
             </div>
             <div>
-              <Label className="text-sm font-medium mb-2 block text-gray-700">إلى تاريخ:</Label>
+              <Label className="text-sm font-medium mb-2 block text-gray-700">{tr("إلى تاريخ:")}</Label>
               <Input
                 type="date"
                 value={state.filters.toDate}
@@ -256,40 +257,40 @@ export function ProductReports() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <Button data-report-apply onClick={applyFilters} className="bg-purple-600 hover:bg-purple-700 text-white">
-              <Search className="h-4 w-4 ml-2" />
-              تطبيق الفلتر
+              <Search className="h-4 w-4 me-2" />
+              {tr("تطبيق الفلتر")}
             </Button>
             <Button
               variant="outline"
               onClick={resetFilters}
               className="border-gray-300 hover:bg-gray-50 bg-transparent"
             >
-              <RotateCcw className="h-4 w-4 ml-2" />
-              إعادة تعيين
+              <RotateCcw className="h-4 w-4 me-2" />
+              {tr("إعادة تعيين")}
             </Button>
             <Button
               variant="outline"
               onClick={() => exportReport("excel")}
               className="border-green-300 text-green-700 hover:bg-green-50"
             >
-              <Download className="h-4 w-4 ml-2" />
-              تصدير Excel
+              <Download className="h-4 w-4 me-2" />
+              {tr("تصدير Excel")}
             </Button>
             <Button
               variant="outline"
               onClick={() => exportReport("pdf")}
               className="border-red-300 text-red-700 hover:bg-red-50"
             >
-              <FileText className="h-4 w-4 ml-2" />
-              تصدير PDF
+              <FileText className="h-4 w-4 me-2" />
+              {tr("تصدير PDF")}
             </Button>
             <Button
               variant="outline"
               onClick={event => void printReportFrom(event.currentTarget)}
               className="border-purple-300 text-purple-700 hover:bg-purple-50"
             >
-              <Printer className="h-4 w-4 ml-2" />
-              طباعة
+              <Printer className="h-4 w-4 me-2" />
+              {tr("طباعة")}
             </Button>
           </div>
         </CardContent>
@@ -298,19 +299,19 @@ export function ProductReports() {
       <Tabs value={state.activeTab} onValueChange={(value) => setState((prev) => ({ ...prev, activeTab: value }))}>
         <TabsList className="grid w-full grid-cols-5 bg-gray-100">
           <TabsTrigger value="movement" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
-            حركة الصنف
+            {tr("حركة الصنف")}
           </TabsTrigger>
           <TabsTrigger value="balance" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            أرصدة الأصناف
+            {tr("أرصدة الأصناف")}
           </TabsTrigger>
           <TabsTrigger value="batch" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
-            الكميات حسب الباتش
+            {tr("الكميات حسب الباتش")}
           </TabsTrigger>
           <TabsTrigger value="expiry" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white">
-            تواريخ الصلاحية
+            {tr("تواريخ الصلاحية")}
           </TabsTrigger>
           <TabsTrigger value="inventory" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
-            جرد المخزون
+            {tr("جرد المخزون")}
           </TabsTrigger>
         </TabsList>
 
@@ -318,27 +319,27 @@ export function ProductReports() {
           <Card className="erp-card">
             <CardHeader className="bg-purple-50 rounded-t-lg">
               <CardTitle className="text-purple-800 flex items-center">
-                <BarChart3 className="h-5 w-5 ml-2" />
-                معلومات الصنف
+                <BarChart3 className="h-5 w-5 me-2" />
+                {tr("معلومات الصنف")}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-gray-50 p-4 rounded-lg">
                 <div className="flex flex-col">
-                  <span className="font-medium text-gray-600">الصنف:</span>
-                  <span className="font-semibold text-gray-800">P001 - لابتوب ديل</span>
+                  <span className="font-medium text-gray-600">{tr("الصنف:")}</span>
+                  <span className="font-semibold text-gray-800">{tr("P001 - لابتوب ديل")}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-gray-600">المجموعة:</span>
-                  <span className="font-semibold text-gray-800">إلكترونيات</span>
+                  <span className="font-medium text-gray-600">{tr("المجموعة:")}</span>
+                  <span className="font-semibold text-gray-800">{tr("إلكترونيات")}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-gray-600">الرصيد الحالي:</span>
-                  <span className="font-semibold text-green-600">25 قطعة</span>
+                  <span className="font-medium text-gray-600">{tr("الرصيد الحالي:")}</span>
+                  <span className="font-semibold text-green-600">{tr("25 قطعة")}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-medium text-gray-600">متوسط السعر:</span>
-                  <span className="font-semibold text-blue-600">2,500 شيكل</span>
+                  <span className="font-medium text-gray-600">{tr("متوسط السعر:")}</span>
+                  <span className="font-semibold text-blue-600">{tr("2,500 شيكل")}</span>
                 </div>
               </div>
             </CardContent>
@@ -347,8 +348,8 @@ export function ProductReports() {
           <Card className="erp-card">
             <CardHeader className="bg-indigo-50 rounded-t-lg">
               <CardTitle className="text-indigo-800 flex items-center">
-                <Clock className="h-5 w-5 ml-2" />
-                حركة الصنف
+                <Clock className="h-5 w-5 me-2" />
+                {tr("حركة الصنف")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -356,16 +357,16 @@ export function ProductReports() {
                 <table className="erp-table">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-3 font-semibold text-gray-700">التاريخ</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">نوع الحركة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">رقم السند</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">المستودع</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الكمية الداخلة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الكمية الخارجة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الرصيد</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">السعر</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الإجمالي</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الملاحظات</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("التاريخ")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("رقم السند")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية الداخلة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية الخارجة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الرصيد")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("السعر")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الإجمالي")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الملاحظات")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -409,8 +410,8 @@ export function ProductReports() {
           <Card className="erp-card">
             <CardHeader className="bg-blue-50 rounded-t-lg">
               <CardTitle className="text-blue-800 flex items-center">
-                <Package className="h-5 w-5 ml-2" />
-                أرصدة الأصناف
+                <Package className="h-5 w-5 me-2" />
+                {tr("أرصدة الأصناف")}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -418,19 +419,19 @@ export function ProductReports() {
                 <table className="erp-table">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-right p-3 font-semibold text-gray-700">رقم الصنف</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الباركود</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">اسم الصنف</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">المجموعة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">المستودع</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الكمية المتاحة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الكمية المحجوزة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الرصيد الفعلي</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الحد الأدنى</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الحد الأقصى</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">متوسط التكلفة</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">القيمة</th>
-                      <th className="text-center p-3 font-semibold text-gray-700">الحالة</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("رقم الصنف")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الباركود")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("اسم الصنف")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("المجموعة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية المتاحة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الكمية المحجوزة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الرصيد الفعلي")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الحد الأدنى")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("الحد الأقصى")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("متوسط التكلفة")}</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">{tr("القيمة")}</th>
+                      <th className="text-center p-3 font-semibold text-gray-700">{tr("الحالة")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -484,15 +485,15 @@ export function ProductReports() {
           <Card className="erp-card">
             <CardHeader className="bg-green-50 rounded-t-lg">
               <CardTitle className="text-green-800 flex items-center">
-                <Archive className="h-5 w-5 ml-2" />
-                الكميات حسب الباتش
+                <Archive className="h-5 w-5 me-2" />
+                {tr("الكميات حسب الباتش")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-4 text-green-300" />
-                <p className="text-lg font-medium">لا توجد أصناف بباتش نمبر</p>
-                <p className="text-sm text-gray-500 mt-2">سيتم عرض البيانات هنا عند توفر أصناف بباتش</p>
+                <p className="text-lg font-medium">{tr("لا توجد أصناف بباتش نمبر")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("سيتم عرض البيانات هنا عند توفر أصناف بباتش")}</p>
               </div>
             </CardContent>
           </Card>
@@ -502,15 +503,15 @@ export function ProductReports() {
           <Card className="erp-card">
             <CardHeader className="bg-orange-50 rounded-t-lg">
               <CardTitle className="text-orange-800 flex items-center">
-                <Clock className="h-5 w-5 ml-2" />
-                تواريخ الصلاحية
+                <Clock className="h-5 w-5 me-2" />
+                {tr("تواريخ الصلاحية")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8 text-muted-foreground">
                 <Clock className="h-12 w-12 mx-auto mb-4 text-orange-300" />
-                <p className="text-lg font-medium">لا توجد أصناف بتاريخ صلاحية</p>
-                <p className="text-sm text-gray-500 mt-2">سيتم عرض البيانات هنا عند توفر أصناف بتاريخ صلاحية</p>
+                <p className="text-lg font-medium">{tr("لا توجد أصناف بتاريخ صلاحية")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("سيتم عرض البيانات هنا عند توفر أصناف بتاريخ صلاحية")}</p>
               </div>
             </CardContent>
           </Card>
@@ -520,29 +521,29 @@ export function ProductReports() {
           <Card className="erp-card">
             <CardHeader className="bg-indigo-50 rounded-t-lg">
               <CardTitle className="text-indigo-800 flex items-center">
-                <CheckCircle className="h-5 w-5 ml-2" />
-                جرد المخزون
+                <CheckCircle className="h-5 w-5 me-2" />
+                {tr("جرد المخزون")}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="flex gap-2 mb-6 flex-wrap">
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  <CheckCircle className="h-4 w-4 ml-2" />
-                  بدء جرد جديد
+                  <CheckCircle className="h-4 w-4 me-2" />
+                  {tr("بدء جرد جديد")}
                 </Button>
                 <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 bg-transparent">
-                  <Download className="h-4 w-4 ml-2" />
-                  تحميل نموذج الجرد
+                  <Download className="h-4 w-4 me-2" />
+                  {tr("تحميل نموذج الجرد")}
                 </Button>
                 <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50 bg-transparent">
-                  <FileText className="h-4 w-4 ml-2" />
-                  استيراد نتائج الجرد
+                  <FileText className="h-4 w-4 me-2" />
+                  {tr("استيراد نتائج الجرد")}
                 </Button>
               </div>
               <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 text-indigo-300" />
-                <p className="text-lg font-medium">لم يتم بدء عملية جرد بعد</p>
-                <p className="text-sm text-gray-500 mt-2">اضغط على "بدء جرد جديد" لبدء عملية الجرد</p>
+                <p className="text-lg font-medium">{tr("لم يتم بدء عملية جرد بعد")}</p>
+                <p className="text-sm text-gray-500 mt-2">{tr("اضغط على \"بدء جرد جديد\" لبدء عملية الجرد")}</p>
               </div>
             </CardContent>
           </Card>

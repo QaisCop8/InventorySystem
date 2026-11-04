@@ -1,4 +1,5 @@
 "use client"
+import { tr } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useMemo, type KeyboardEvent, type ReactNode } from "react"
@@ -41,7 +42,7 @@ export async function api<T = any>(url: string, init?: RequestInit & { json?: un
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   })
   const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(data?.error || "تعذر تنفيذ الطلب")
+  if (!response.ok) throw new Error(data?.error || tr("تعذر تنفيذ الطلب"))
   return data as T
 }
 
@@ -186,7 +187,7 @@ export function DataTable({ columns, rows, onRowClick, empty = "لا توجد ب
       </tbody>
       {hasTotals && <tfoot className="sticky bottom-0 bg-slate-100 font-black dark:bg-slate-800">
         <tr>{columns.map((column, index) => <td key={column.key} className={cn("whitespace-nowrap px-3 py-2", column.numeric && "text-left font-mono tabular-nums")} dir={column.numeric ? "ltr" : undefined}>
-          {column.total ? money(totals[column.key]) : index === 0 ? `الإجمالي (${rows.length})` : ""}
+          {column.total ? money(totals[column.key]) : index === 0 ? tr("الإجمالي ({0})", rows.length) : ""}
         </td>)}</tr>
       </tfoot>}
     </table>
@@ -207,7 +208,7 @@ export function exportCsv(fileName: string, columns: Column[], rows: Row[]) {
 
 export function CsvButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return <button type="button" onClick={onClick} disabled={disabled} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-    <Download className="h-4 w-4" />تصدير
+    <Download className="h-4 w-4" />{tr("تصدير")}
   </button>
 }
 

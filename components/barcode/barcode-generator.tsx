@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -54,7 +55,7 @@ export function BarcodeGenerator() {
 
   const generateBarcode = async () => {
     if (!state.inputValue.trim()) {
-      setState((prev) => ({ ...prev, error: "يرجى إدخال قيمة الباركود" }))
+      setState((prev) => ({ ...prev, error: tr("يرجى إدخال قيمة الباركود") }))
       return
     }
 
@@ -68,7 +69,7 @@ export function BarcodeGenerator() {
       setState((prev) => ({
         ...prev,
         generatedBarcode: barcodeData,
-        successMessage: "تم إنشاء الباركود بنجاح",
+        successMessage: tr("تم إنشاء الباركود بنجاح"),
       }))
 
       setTimeout(() => {
@@ -77,7 +78,7 @@ export function BarcodeGenerator() {
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        error: error instanceof Error ? error.message : "فشل في إنشاء الباركود",
+        error: error instanceof Error ? error.message : tr("فشل في إنشاء الباركود"),
       }))
     } finally {
       setState((prev) => ({ ...prev, loading: false }))
@@ -132,13 +133,13 @@ export function BarcodeGenerator() {
 
     try {
       await navigator.clipboard.writeText(state.inputValue)
-      setState((prev) => ({ ...prev, successMessage: "تم نسخ قيمة الباركود" }))
+      setState((prev) => ({ ...prev, successMessage: tr("تم نسخ قيمة الباركود") }))
 
       setTimeout(() => {
         setState((prev) => ({ ...prev, successMessage: null }))
       }, 2000)
     } catch (error) {
-      setState((prev) => ({ ...prev, error: "فشل في نسخ القيمة" }))
+      setState((prev) => ({ ...prev, error: tr("فشل في نسخ القيمة") }))
     }
   }
 
@@ -150,7 +151,7 @@ export function BarcodeGenerator() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background min-h-screen" dir="rtl">
+    <div className="space-y-6 p-6 bg-background min-h-screen" dir={appDir()}>
       {/* Success Message */}
       {state.successMessage && (
         <Alert className="border-green-200 bg-green-50">
@@ -187,34 +188,34 @@ export function BarcodeGenerator() {
       <div>
         <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
           <QrCode className="h-8 w-8 text-primary" />
-          مولد الباركود
+          {tr("مولد الباركود")}
         </h1>
-        <p className="text-muted-foreground mt-1">إنشاء باركود مخصص للمنتجات</p>
+        <p className="text-muted-foreground mt-1">{tr("إنشاء باركود مخصص للمنتجات")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Generator Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>إعدادات الباركود</CardTitle>
-            <CardDescription>قم بتخصيص شكل ونوع الباركود</CardDescription>
+            <CardTitle>{tr("إعدادات الباركود")}</CardTitle>
+            <CardDescription>{tr("قم بتخصيص شكل ونوع الباركود")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Input Value */}
             <div>
-              <Label htmlFor="barcodeValue">قيمة الباركود</Label>
+              <Label htmlFor="barcodeValue">{tr("قيمة الباركود")}</Label>
               <Input
                 id="barcodeValue"
                 value={state.inputValue}
                 onChange={(e) => setState((prev) => ({ ...prev, inputValue: e.target.value }))}
-                placeholder="أدخل النص أو الرقم"
+                placeholder={tr("أدخل النص أو الرقم")}
                 className="font-mono"
               />
             </div>
 
             {/* Format Selection */}
             <div>
-              <Label>نوع الباركود</Label>
+              <Label>{tr("نوع الباركود")}</Label>
               <Select value={state.options.format} onValueChange={(value) => updateOption("format", value)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -232,7 +233,7 @@ export function BarcodeGenerator() {
             {/* Dimensions */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>العرض</Label>
+                <Label>{tr("العرض")}</Label>
                 <Input
                   type="number"
                   min="1"
@@ -242,7 +243,7 @@ export function BarcodeGenerator() {
                 />
               </div>
               <div>
-                <Label>الارتفاع</Label>
+                <Label>{tr("الارتفاع")}</Label>
                 <Input
                   type="number"
                   min="50"
@@ -256,7 +257,7 @@ export function BarcodeGenerator() {
             {/* Colors */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>لون الخلفية</Label>
+                <Label>{tr("لون الخلفية")}</Label>
                 <Input
                   type="color"
                   value={state.options.background}
@@ -264,7 +265,7 @@ export function BarcodeGenerator() {
                 />
               </div>
               <div>
-                <Label>لون الخطوط</Label>
+                <Label>{tr("لون الخطوط")}</Label>
                 <Input
                   type="color"
                   value={state.options.lineColor}
@@ -276,7 +277,7 @@ export function BarcodeGenerator() {
             {/* Text Options */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>عرض النص</Label>
+                <Label>{tr("عرض النص")}</Label>
                 <input
                   type="checkbox"
                   checked={state.options.displayValue}
@@ -287,7 +288,7 @@ export function BarcodeGenerator() {
               {state.options.displayValue && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>حجم الخط</Label>
+                    <Label>{tr("حجم الخط")}</Label>
                     <Input
                       type="number"
                       min="10"
@@ -297,7 +298,7 @@ export function BarcodeGenerator() {
                     />
                   </div>
                   <div>
-                    <Label>موضع النص</Label>
+                    <Label>{tr("موضع النص")}</Label>
                     <Select
                       value={state.options.textPosition}
                       onValueChange={(value) => updateOption("textPosition", value)}
@@ -306,8 +307,8 @@ export function BarcodeGenerator() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="top">أعلى</SelectItem>
-                        <SelectItem value="bottom">أسفل</SelectItem>
+                        <SelectItem value="top">{tr("أعلى")}</SelectItem>
+                        <SelectItem value="bottom">{tr("أسفل")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -317,8 +318,8 @@ export function BarcodeGenerator() {
 
             {/* Generate Button */}
             <Button onClick={generateBarcode} disabled={state.loading || !state.inputValue.trim()} className="w-full">
-              <QrCode className="h-4 w-4 ml-2" />
-              {state.loading ? "جاري الإنشاء..." : "إنشاء الباركود"}
+              <QrCode className="h-4 w-4 me-2" />
+              {state.loading ? tr("جاري الإنشاء...") : tr("إنشاء الباركود")}
             </Button>
           </CardContent>
         </Card>
@@ -326,8 +327,8 @@ export function BarcodeGenerator() {
         {/* Generated Barcode */}
         <Card>
           <CardHeader>
-            <CardTitle>الباركود المُنشأ</CardTitle>
-            <CardDescription>معاينة وتحميل الباركود</CardDescription>
+            <CardTitle>{tr("الباركود المُنشأ")}</CardTitle>
+            <CardDescription>{tr("معاينة وتحميل الباركود")}</CardDescription>
           </CardHeader>
           <CardContent>
             {state.generatedBarcode ? (
@@ -344,15 +345,15 @@ export function BarcodeGenerator() {
                 {/* Barcode Info */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">القيمة:</span>
+                    <span className="text-muted-foreground">{tr("القيمة:")}</span>
                     <span className="font-mono">{state.inputValue}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">النوع:</span>
+                    <span className="text-muted-foreground">{tr("النوع:")}</span>
                     <span>{barcodeFormats.find((f) => f.value === state.options.format)?.label}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">الأبعاد:</span>
+                    <span className="text-muted-foreground">{tr("الأبعاد:")}</span>
                     <span>
                       {state.options.width} × {state.options.height}
                     </span>
@@ -362,20 +363,20 @@ export function BarcodeGenerator() {
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   <Button onClick={downloadBarcode} variant="outline" className="flex-1 bg-transparent">
-                    <Download className="h-4 w-4 ml-2" />
-                    تحميل
+                    <Download className="h-4 w-4 me-2" />
+                    {tr("تحميل")}
                   </Button>
                   <Button onClick={copyToClipboard} variant="outline" className="flex-1 bg-transparent">
-                    <Copy className="h-4 w-4 ml-2" />
-                    نسخ القيمة
+                    <Copy className="h-4 w-4 me-2" />
+                    {tr("نسخ القيمة")}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="text-center py-12">
                 <QrCode className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">لا يوجد باركود</h3>
-                <p className="text-muted-foreground">أدخل قيمة واضغط "إنشاء الباركود"</p>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{tr("لا يوجد باركود")}</h3>
+                <p className="text-muted-foreground">{tr("أدخل قيمة واضغط \"إنشاء الباركود\"")}</p>
               </div>
             )}
           </CardContent>

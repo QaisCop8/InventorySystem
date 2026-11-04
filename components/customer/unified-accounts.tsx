@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
@@ -283,11 +284,11 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
     setMessage("")
 
     if (!formData.code.trim() || !formData.name.trim()) {
-      setError("رقم الحساب واسم الحساب مطلوبان")
+      setError(tr("رقم الحساب واسم الحساب مطلوبان"))
       return
     }
     if (!["1", "2", "3"].includes(formData.finanical_list_id)) {
-      setError("يرجى اختيار القائمة المالية")
+      setError(tr("يرجى اختيار القائمة المالية"))
       return
     }
 
@@ -449,7 +450,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
   }
 
   return (
-    <div className="space-y-4 p-4 lg:p-6" dir="rtl">
+    <div className="space-y-4 p-4 lg:p-6" dir={appDir()}>
       <div className="sticky top-2 z-20 rounded-xl border bg-white/95 p-4 shadow-sm backdrop-blur">
         <UniversalToolbar
           currentRecord={accounts.length > 0 ? currentIndex + 1 : 0}
@@ -497,14 +498,14 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           className="w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[100vh] h-[95vh] max-h-[95vh] p-0 gap-0 flex flex-col overflow-hidden"
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
             <h2 className="text-xl font-semibold">
               {currentAccount?.id != null && currentAccount.id > 0 
-                ? `تعديل الحساب: ${currentAccount.code}` 
-                : "إضافة حساب جديد"}
+                ? tr("تعديل الحساب: {0}", currentAccount.code) 
+                : tr("إضافة حساب جديد")}
             </h2>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
               ✕
@@ -526,7 +527,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <Label className="mb-2 block">رقم الحساب *</Label>
+                <Label className="mb-2 block">{tr("رقم الحساب *")}</Label>
                 <Input
                   value={formData.code}
                   maxLength={10}
@@ -537,7 +538,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                 />
               </div>
               <div>
-                <Label className="mb-2 block">اسم الحساب *</Label>
+                <Label className="mb-2 block">{tr("اسم الحساب *")}</Label>
                 <Input
                   value={formData.name}
                   maxLength={100}
@@ -596,23 +597,23 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                 />
               </div>
               <div>
-                <Label className="mb-2 block">القائمة المالية</Label>
+                <Label className="mb-2 block">{tr("القائمة المالية")}</Label>
                 <Select
                   value={formData.finanical_list_id || "__choose__"}
                   disabled={Boolean(formData.father_id)}
                   onValueChange={(value) => setFormData({ ...formData, finanical_list_id: value === "__choose__" ? "" : value })}
                 >
-                  <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={tr("اختر")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__choose__">اختر</SelectItem>
-                    <SelectItem value="1">الميزانية العمومية</SelectItem>
-                    <SelectItem value="2">قائمة الدخل</SelectItem>
-                    <SelectItem value="3">تقييم بضاعة</SelectItem>
+                    <SelectItem value="__choose__">{tr("اختر")}</SelectItem>
+                    <SelectItem value="1">{tr("الميزانية العمومية")}</SelectItem>
+                    <SelectItem value="2">{tr("قائمة الدخل")}</SelectItem>
+                    <SelectItem value="3">{tr("تقييم بضاعة")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="mb-2 block">أصول الميزانية</Label>
+                <Label className="mb-2 block">{tr("أصول الميزانية")}</Label>
                 <Input
                   type="number"
                   value={formData.finanical_list_assests_id}
@@ -621,7 +622,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                 />
               </div>
               <div>
-                <Label className="mb-2 block">خصوم الميزانية</Label>
+                <Label className="mb-2 block">{tr("خصوم الميزانية")}</Label>
                 <Input
                   type="number"
                   value={formData.finanical_list_liabilities_id}
@@ -630,7 +631,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                 />
               </div>
               <div>
-                <Label className="mb-2 block">قائمة الدخل</Label>
+                <Label className="mb-2 block">{tr("قائمة الدخل")}</Label>
                 <Input
                   type="number"
                   value={formData.finanical_list_income_id}
@@ -684,8 +685,8 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="نشط">نشط</SelectItem>
-                    <SelectItem value="موقوف">موقوف</SelectItem>
+                    <SelectItem value="نشط">{tr("نشط")}</SelectItem>
+                    <SelectItem value="موقوف">{tr("موقوف")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

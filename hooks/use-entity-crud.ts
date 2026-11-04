@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useCallback } from "react"
 import { ApiService } from "@/lib/api-service"
 
@@ -22,7 +23,7 @@ export function useEntityCRUD<T extends { id?: number | string }>(endpoint: stri
         const result = await ApiService.get<T[]>(endpoint, params)
         setData(result)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع")
+        setError(err instanceof Error ? err.message : tr("حدث خطأ غير متوقع"))
       } finally {
         setLoading(false)
       }
@@ -42,7 +43,7 @@ export function useEntityCRUD<T extends { id?: number | string }>(endpoint: stri
         setData((prev) => [...prev, newItem])
         return newItem
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "حدث خطأ أثناء الإنشاء"
+        const errorMessage = err instanceof Error ? err.message : tr("حدث خطأ أثناء الإنشاء")
         setError(errorMessage)
         throw new Error(errorMessage)
       } finally {
@@ -64,7 +65,7 @@ export function useEntityCRUD<T extends { id?: number | string }>(endpoint: stri
         setData((prev) => prev.map((existing) => (existing.id === id ? updatedItem : existing)))
         return updatedItem
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "حدث خطأ أثناء التحديث"
+        const errorMessage = err instanceof Error ? err.message : tr("حدث خطأ أثناء التحديث")
         setError(errorMessage)
         throw new Error(errorMessage)
       } finally {
@@ -85,7 +86,7 @@ export function useEntityCRUD<T extends { id?: number | string }>(endpoint: stri
         await ApiService.delete(`${endpoint}/${id}`)
         setData((prev) => prev.filter((item) => item.id !== id))
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "حدث خطأ أثناء الحذف"
+        const errorMessage = err instanceof Error ? err.message : tr("حدث خطأ أثناء الحذف")
         setError(errorMessage)
         throw new Error(errorMessage)
       } finally {

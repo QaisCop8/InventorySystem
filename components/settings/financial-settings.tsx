@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -41,8 +42,8 @@ export function FinancialSettings() {
     } catch (error) {
       console.error("Error loading financial settings:", error)
       toast({
-        title: "خطأ",
-        description: "فشل تحميل الإعدادات المالية",
+        title: tr("خطأ"),
+        description: tr("فشل تحميل الإعدادات المالية"),
         variant: "destructive",
       })
     } finally {
@@ -61,8 +62,8 @@ export function FinancialSettings() {
 
       if (response.ok) {
         toast({
-          title: "تم الحفظ",
-          description: "تم حفظ الإعدادات المالية بنجاح",
+          title: tr("تم الحفظ"),
+          description: tr("تم حفظ الإعدادات المالية بنجاح"),
         })
       } else {
         throw new Error("Failed to save settings")
@@ -70,8 +71,8 @@ export function FinancialSettings() {
     } catch (error) {
       console.error("Error saving financial settings:", error)
       toast({
-        title: "خطأ",
-        description: "فشل حفظ الإعدادات المالية",
+        title: tr("خطأ"),
+        description: tr("فشل حفظ الإعدادات المالية"),
         variant: "destructive",
       })
     } finally {
@@ -95,21 +96,21 @@ export function FinancialSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">الإعدادات المالية</h2>
+          <h2 className="text-2xl font-bold">{tr("الإعدادات المالية")}</h2>
           <p className="text-sm text-muted-foreground">
-            إعدادات النظام المالي والمحاسبي (تحضير للنظام المالي المستقبلي)
+            {tr("إعدادات النظام المالي والمحاسبي (تحضير للنظام المالي المستقبلي)")}
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
           {saving ? (
             <>
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              جاري الحفظ...
+              {tr("جاري الحفظ...")}
             </>
           ) : (
             <>
               <Save className="ml-2 h-4 w-4" />
-              حفظ التغييرات
+              {tr("حفظ التغييرات")}
             </>
           )}
         </Button>
@@ -120,14 +121,14 @@ export function FinancialSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            العملة والضريبة
+            {tr("العملة والضريبة")}
           </CardTitle>
-          <CardDescription>إعدادات العملة الأساسية ونسبة الضريبة</CardDescription>
+          <CardDescription>{tr("إعدادات العملة الأساسية ونسبة الضريبة")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="base_currency">العملة الأساسية</Label>
+              <Label htmlFor="base_currency">{tr("العملة الأساسية")}</Label>
               <Select
                 value={settings.base_currency || "SAR"}
                 onValueChange={(value) => updateSetting("base_currency", value)}
@@ -136,15 +137,15 @@ export function FinancialSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="SAR">ريال سعودي (SAR)</SelectItem>
-                  <SelectItem value="USD">دولار أمريكي (USD)</SelectItem>
-                  <SelectItem value="EUR">يورو (EUR)</SelectItem>
+                  <SelectItem value="SAR">{tr("ريال سعودي (SAR)")}</SelectItem>
+                  <SelectItem value="USD">{tr("دولار أمريكي (USD)")}</SelectItem>
+                  <SelectItem value="EUR">{tr("يورو (EUR)")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tax_rate">نسبة الضريبة (%)</Label>
+              <Label htmlFor="tax_rate">{tr("نسبة الضريبة (%)")}</Label>
               <Input
                 id="tax_rate"
                 type="number"
@@ -159,8 +160,8 @@ export function FinancialSettings() {
 
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
-              <Label>دعم العملات المتعددة</Label>
-              <p className="text-sm text-muted-foreground">تفعيل التعامل بعملات متعددة (ميزة مستقبلية)</p>
+              <Label>{tr("دعم العملات المتعددة")}</Label>
+              <p className="text-sm text-muted-foreground">{tr("تفعيل التعامل بعملات متعددة (ميزة مستقبلية)")}</p>
             </div>
             <Switch
               checked={settings.enable_multi_currency === "true"}
@@ -175,13 +176,13 @@ export function FinancialSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            السنة المالية
+            {tr("السنة المالية")}
           </CardTitle>
-          <CardDescription>إعدادات الفترات المالية والسنة المالية</CardDescription>
+          <CardDescription>{tr("إعدادات الفترات المالية والسنة المالية")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="financial_year_start_month">شهر بداية السنة المالية</Label>
+            <Label htmlFor="financial_year_start_month">{tr("شهر بداية السنة المالية")}</Label>
             <Select
               value={settings.financial_year_start_month || "1"}
               onValueChange={(value) => updateSetting("financial_year_start_month", value)}
@@ -190,18 +191,18 @@ export function FinancialSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">يناير</SelectItem>
-                <SelectItem value="2">فبراير</SelectItem>
-                <SelectItem value="3">مارس</SelectItem>
-                <SelectItem value="4">أبريل</SelectItem>
-                <SelectItem value="5">مايو</SelectItem>
-                <SelectItem value="6">يونيو</SelectItem>
-                <SelectItem value="7">يوليو</SelectItem>
-                <SelectItem value="8">أغسطس</SelectItem>
-                <SelectItem value="9">سبتمبر</SelectItem>
-                <SelectItem value="10">أكتوبر</SelectItem>
-                <SelectItem value="11">نوفمبر</SelectItem>
-                <SelectItem value="12">ديسمبر</SelectItem>
+                <SelectItem value="1">{tr("يناير")}</SelectItem>
+                <SelectItem value="2">{tr("فبراير")}</SelectItem>
+                <SelectItem value="3">{tr("مارس")}</SelectItem>
+                <SelectItem value="4">{tr("أبريل")}</SelectItem>
+                <SelectItem value="5">{tr("مايو")}</SelectItem>
+                <SelectItem value="6">{tr("يونيو")}</SelectItem>
+                <SelectItem value="7">{tr("يوليو")}</SelectItem>
+                <SelectItem value="8">{tr("أغسطس")}</SelectItem>
+                <SelectItem value="9">{tr("سبتمبر")}</SelectItem>
+                <SelectItem value="10">{tr("أكتوبر")}</SelectItem>
+                <SelectItem value="11">{tr("نوفمبر")}</SelectItem>
+                <SelectItem value="12">{tr("ديسمبر")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -213,15 +214,15 @@ export function FinancialSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
-            إعدادات الفواتير
+            {tr("إعدادات الفواتير")}
           </CardTitle>
-          <CardDescription>إعدادات ترقيم الفواتير والمستندات المالية</CardDescription>
+          <CardDescription>{tr("إعدادات ترقيم الفواتير والمستندات المالية")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
-              <Label>توليد رقم الفاتورة تلقائياً</Label>
-              <p className="text-sm text-muted-foreground">إنشاء رقم فاتورة تلقائي عند إنشاء فاتورة جديدة</p>
+              <Label>{tr("توليد رقم الفاتورة تلقائياً")}</Label>
+              <p className="text-sm text-muted-foreground">{tr("إنشاء رقم فاتورة تلقائي عند إنشاء فاتورة جديدة")}</p>
             </div>
             <Switch
               checked={settings.auto_generate_invoice_number === "true"}
@@ -230,7 +231,7 @@ export function FinancialSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="invoice_number_prefix">بادئة رقم الفاتورة</Label>
+            <Label htmlFor="invoice_number_prefix">{tr("بادئة رقم الفاتورة")}</Label>
             <Input
               id="invoice_number_prefix"
               value={settings.invoice_number_prefix || "INV"}
@@ -244,14 +245,14 @@ export function FinancialSettings() {
       {/* مراكز التكلفة */}
       <Card>
         <CardHeader>
-          <CardTitle>مراكز التكلفة</CardTitle>
-          <CardDescription>إعدادات مراكز التكلفة للتحليل المالي (ميزة متقدمة)</CardDescription>
+          <CardTitle>{tr("مراكز التكلفة")}</CardTitle>
+          <CardDescription>{tr("إعدادات مراكز التكلفة للتحليل المالي (ميزة متقدمة)")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
-              <Label>تفعيل مراكز التكلفة</Label>
-              <p className="text-sm text-muted-foreground">تفعيل نظام مراكز التكلفة للتحليل المالي المتقدم</p>
+              <Label>{tr("تفعيل مراكز التكلفة")}</Label>
+              <p className="text-sm text-muted-foreground">{tr("تفعيل نظام مراكز التكلفة للتحليل المالي المتقدم")}</p>
             </div>
             <Switch
               checked={settings.enable_cost_centers === "true"}

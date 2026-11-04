@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { Plus, ListPlus, Paperclip, FileText } from "lucide-react"
@@ -432,7 +433,7 @@ export default function UnifiedJournal({
     const response = await fetch(`/api/journal-vouchers/${voucherId}`, { cache: "no-store" })
     const record = await response.json().catch(() => null)
     if (!response.ok || !record?.id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || "تعذر عرض السند", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || tr("تعذر عرض السند"), life: 3000 }])
       return
     }
     onNavigateRecord?.(record)
@@ -514,7 +515,7 @@ export default function UnifiedJournal({
       const response = await fetch(`/api/journal-vouchers/resolve-code?${query.toString()}`)
       const data = await response.json()
       if (!response.ok) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || tr("تعذر تحديد رقم السند"), life: 3000 }])
         return
       }
       if (data.code && data.code !== form.vch_code) onFormChange("vch_code", data.code)
@@ -655,14 +656,14 @@ export default function UnifiedJournal({
     const diffCurrMode = Number(account.allow_trans_with_diff_curr)
     if (diffCurrMode === 2) {
       toast({
-        title: "تعذر اختيار الحساب",
-        description: "عملة السند تختلف عن عملة الحساب لا يمكن اختياره",
+        title: tr("تعذر اختيار الحساب"),
+        description: tr("عملة السند تختلف عن عملة الحساب لا يمكن اختياره"),
         variant: "destructive",
       })
       return false
     }
     if (diffCurrMode === 1) {
-      toast({ title: "تنبيه", description: "عملة السند تختلف عن عملة الحساب" })
+      toast({ title: tr("تنبيه"), description: tr("عملة السند تختلف عن عملة الحساب") })
     }
     return true
   }
@@ -696,14 +697,14 @@ export default function UnifiedJournal({
     } else {
       patchJournalRow(index, { account_id: null, account_code: "", account_name: "", cost_centers: [] })
       focusGridCell(index, "account_code")
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بهذا الرقم: ${code}`, life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("لا يوجد حساب بهذا الرقم: {0}", code), life: 3000 }])
     }
   }
 
   const openJournalCostCenter = (index: number) => {
     const row = journal[index]
     if (!row?.account_id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد الحساب أولاً", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب تحديد الحساب أولاً"), life: 3000 }])
       return
     }
     const account = accountsListRef.current.find((a) => a.id === row.account_id) || null
@@ -727,7 +728,7 @@ export default function UnifiedJournal({
     })
     const difference = Math.round((creditSum - debitSum) * 1000) / 1000
     if (Math.abs(difference) < 0.0005) {
-      messagesRef.current?.show?.([{ severity: "info", summary: "", detail: "السند متوازن — لا يوجد فرق لإضافته", life: 2500 }])
+      messagesRef.current?.show?.([{ severity: "info", summary: "", detail: tr("السند متوازن — لا يوجد فرق لإضافته"), life: 2500 }])
       return
     }
     if (difference > 0) {
@@ -744,12 +745,12 @@ export default function UnifiedJournal({
   const validateRowComplete = (index: number): boolean => {
     const row = journalRef.current[index]
     if (!row?.account_id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال الحساب اولا", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب ادخال الحساب اولا"), life: 3000 }])
       focusGridCell(index, "account_code")
       return false
     }
     if (!(Number(row.debit || 0) > 0) && !(Number(row.credit || 0) > 0)) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال قيمة المدين او الدائن", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب ادخال قيمة المدين او الدائن"), life: 3000 }])
       focusGridCell(index, "debit")
       return false
     }
@@ -770,14 +771,14 @@ export default function UnifiedJournal({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "account_code", width: 130, minWidth: 110, maxLength: ACCOUNT_CODE_LENGTH, isReadOnly: isLocked },
+        { header: tr("رقم الحساب"), name: "account_code", width: 130, minWidth: 110, maxLength: ACCOUNT_CODE_LENGTH, isReadOnly: isLocked },
         {
           name: "btnSearch",
           header: " ",
           width: 50,
           buttonBody: "button",
           align: "center",
-          title: "بحث عن حساب (F10)",
+          title: tr("بحث عن حساب (F10)"),
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
@@ -787,17 +788,17 @@ export default function UnifiedJournal({
           },
           visible: !isLocked,
         },
-        { header: "اسم الحساب", name: "account_name", width: "*", minWidth: 180, isReadOnly: true },
-        { header: "مدين", name: "debit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30, isReadOnly: isLocked },
-        { header: "دائن", name: "credit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30, isReadOnly: isLocked },
-        { header: "ملاحظات", name: "note", width: 220, minWidth: 180, maxLength: 100, isReadOnly: isLocked },
+        { header: tr("اسم الحساب"), name: "account_name", width: "*", minWidth: 180, isReadOnly: true },
+        { header: tr("مدين"), name: "debit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30, isReadOnly: isLocked },
+        { header: tr("دائن"), name: "credit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30, isReadOnly: isLocked },
+        { header: tr("ملاحظات"), name: "note", width: 220, minWidth: 180, maxLength: 100, isReadOnly: isLocked },
         {
           name: "btnCostCenter",
-          header: "مراكز التكلفة",
+          header: tr("مراكز التكلفة"),
           width: 150,
           buttonBody: "button",
           align: "center",
-          title: "مراكز التكلفة",
+          title: tr("مراكز التكلفة"),
           iconType: "money",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => schemeHandlersRef.current.openCostCenter(ctx.row.index),
@@ -809,7 +810,7 @@ export default function UnifiedJournal({
           width: 50,
           buttonBody: "button",
           align: "center",
-          title: "حذف السطر (F7)",
+          title: tr("حذف السطر (F7)"),
           iconType: "delete",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => schemeHandlersRef.current.deleteRow(ctx.row.index),
@@ -829,7 +830,7 @@ export default function UnifiedJournal({
     if (colName === "account_code") {
       const value = String(grid.getCellData(row, e.col, false) ?? "")
       if (Util.isSpaceOrSymbols(value) || Util.isArabic(value) || !Util.isCodeFormat(value)) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "رقم الحساب يجب أن يكون أحرف/أرقام إنجليزية فقط بدون مسافات", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("رقم الحساب يجب أن يكون أحرف/أرقام إنجليزية فقط بدون مسافات"), life: 3000 }])
         return
       }
       resolveJournalAccountByCode(row, value)
@@ -925,7 +926,7 @@ export default function UnifiedJournal({
             openJournalAccountSearch(row)
             return
           }
-          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال الحساب اولا", life: 3000 }])
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب ادخال الحساب اولا"), life: 3000 }])
           focusGridCell(row, "account_code")
           return
         }
@@ -942,7 +943,7 @@ export default function UnifiedJournal({
       } else if (colName === "debit" || colName === "credit" || colName === "note") {
         if (!journalRef.current[row]?.account_id) {
           if (grid.activeEditor) grid.finishEditing()
-          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال الحساب اولا", life: 3000 }])
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("يجب ادخال الحساب اولا"), life: 3000 }])
           focusGridCell(row, "account_code")
           return
         }
@@ -985,7 +986,7 @@ export default function UnifiedJournal({
   const currencyOptions = useMemo(
     () =>
       currencies.map((c) => ({
-        label: c.currency_name || c.currency_code || "غير محدد",
+        label: c.currency_name || c.currency_code || tr("غير محدد"),
         value: Number(c.currency_id ?? c.id),
       })),
     [currencies],
@@ -1031,7 +1032,7 @@ export default function UnifiedJournal({
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
           className="journal-voucher-form voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] min-w-0 flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_select]:h-8 [&_select]:rounded-md [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
@@ -1073,11 +1074,11 @@ export default function UnifiedJournal({
             <DialogHeader className="mb-3 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 shadow-lg">
               <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
                 <FileText className="h-5 w-5" />
-                سند قيد
+                {tr("سند قيد")}
                 {form.id > 0 ? (
                   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
                 ) : (
-                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{tr("مسودة")}</span>
                 )}
                 {statusBadge && (
                   <span
@@ -1099,7 +1100,7 @@ export default function UnifiedJournal({
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
                   <FileText className="h-3.5 w-3.5" />
                 </span>
-                تفاصيل السند
+                {tr("تفاصيل السند")}
               </div>
               <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-4">
                 <div
@@ -1108,13 +1109,13 @@ export default function UnifiedJournal({
                     onBookChange ? onBookChange(value) : onFormChange("vch_book_id", value),
                   )}
                 >
-                  <Label>دفتر السندات *</Label>
+                  <Label>{tr("دفتر السندات *")}</Label>
                   <PrimeDropdown
                     value={form.vch_book_id}
                     options={voucherBooks}
                     optionLabel="name"
                     optionValue="id"
-                    placeholder="اختر"
+                    placeholder={tr("اختر")}
                     filter
                     disabled={isLocked}
                     className="invoice-currency-dropdown w-full"
@@ -1125,7 +1126,7 @@ export default function UnifiedJournal({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="vch-code">رقم السند *</Label>
+                  <Label htmlFor="vch-code">{tr("رقم السند *")}</Label>
                   <div className="flex min-w-0 items-center gap-1.5">
                     <Input
                       id="vch-code"
@@ -1139,7 +1140,7 @@ export default function UnifiedJournal({
                   </div>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="vch-date">تاريخ السند *</Label>
+                  <Label htmlFor="vch-date">{tr("تاريخ السند *")}</Label>
                   <DateTimeControl
                     id="vch-date"
                     ref={dateInputRef}
@@ -1161,13 +1162,13 @@ export default function UnifiedJournal({
                     void handleCurrencyChange(value),
                   )}
                 >
-                  <Label>العملة *</Label>
+                  <Label>{tr("العملة *")}</Label>
                   <PrimeDropdown
                     value={form.currency_id}
                     options={currencyOptions}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر العملة"
+                    placeholder={tr("اختر العملة")}
                     filter
                     disabled={isLocked}
                     className="invoice-currency-dropdown w-full"
@@ -1178,7 +1179,7 @@ export default function UnifiedJournal({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="vch-rate">سعر الصرف *</Label>
+                  <Label htmlFor="vch-rate">{tr("سعر الصرف *")}</Label>
                   <Input
                     id="vch-rate"
                     type="number"
@@ -1189,7 +1190,7 @@ export default function UnifiedJournal({
                   />
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="manual-voucher">سند يدوي</Label>
+                  <Label htmlFor="manual-voucher">{tr("سند يدوي")}</Label>
                   <Input
                     id="manual-voucher"
                     value={form.manual_voucher}
@@ -1202,7 +1203,7 @@ export default function UnifiedJournal({
 
               <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-3">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="manual-date">تاريخ السند اليدوي</Label>
+                  <Label htmlFor="manual-date">{tr("تاريخ السند اليدوي")}</Label>
                   <DateTimeControl
                     id="manual-date"
                     value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
@@ -1211,7 +1212,7 @@ export default function UnifiedJournal({
                   />
                 </div>
                 <div className="journal-voucher-note grid gap-1.5 md:col-span-2">
-                  <Label htmlFor="vch-note">الملاحظة</Label>
+                  <Label htmlFor="vch-note">{tr("الملاحظة")}</Label>
                   <Input
                     id="vch-note"
                     value={form.note}
@@ -1232,10 +1233,10 @@ export default function UnifiedJournal({
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-                <TabsTrigger value="journal" className={voucherTabTriggerClass}>الحسابات</TabsTrigger>
-                <TabsTrigger value="extra-data" className={voucherTabTriggerClass}>بيانات اضافية</TabsTrigger>
-                <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
-                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>المرفقات</TabsTrigger>
+                <TabsTrigger value="journal" className={voucherTabTriggerClass}>{tr("الحسابات")}</TabsTrigger>
+                <TabsTrigger value="extra-data" className={voucherTabTriggerClass}>{tr("بيانات اضافية")}</TabsTrigger>
+                <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
+                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="journal" className="mt-3 flex flex-none flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
@@ -1243,12 +1244,12 @@ export default function UnifiedJournal({
                   <div
                     className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}
                   >
-                    إجمالي المدين: {totalDebit.toLocaleString("en-US")} — إجمالي الدائن: {totalCredit.toLocaleString("en-US")}
-                    {journalDiff !== 0 && ` — الفرق: ${journalDiff.toLocaleString("en-US")}`}
+                    {tr("إجمالي المدين: ")}{totalDebit.toLocaleString("en-US")}{tr(" — إجمالي الدائن: ")}{totalCredit.toLocaleString("en-US")}
+                    {journalDiff !== 0 && tr(" — الفرق: {0}", journalDiff.toLocaleString("en-US"))}
                   </div>
                   <Button type="button" variant="outline" size="sm" disabled={isLocked} onClick={() => addJournalRow()}>
                     <Plus className="ml-1 h-4 w-4" />
-                    إضافة سطر
+                    {tr("إضافة سطر")}
                   </Button>
                 </div>
                 <div className="h-[clamp(240px,38vh,440px)] min-h-0 w-full max-w-full overflow-auto">
@@ -1281,13 +1282,13 @@ export default function UnifiedJournal({
                       onFormChange("salesman_id", value),
                     )}
                   >
-                    <Label>المندوب</Label>
+                    <Label>{tr("المندوب")}</Label>
                     <PrimeDropdown
                       value={form.salesman_id}
                       options={salesmen}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       showClear
                       disabled={isLocked}
@@ -1307,13 +1308,13 @@ export default function UnifiedJournal({
                       (value) => onFormChange("payment_classification_id", value),
                     )}
                   >
-                    <Label>تصنيف الدفعة</Label>
+                    <Label>{tr("تصنيف الدفعة")}</Label>
                     <PrimeDropdown
                       value={form.payment_classification_id}
                       options={paymentClassifications}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       showClear
                       disabled={isLocked}
@@ -1331,7 +1332,7 @@ export default function UnifiedJournal({
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
                     <ListPlus className="ml-1 h-4 w-4" />
-                    إضافة ملاحظة
+                    {tr("إضافة ملاحظة")}
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -1349,14 +1350,14 @@ export default function UnifiedJournal({
                       </Button>
                     </div>
                   ))}
-                  {notes.length === 0 && <p className="py-4 text-center text-sm text-slate-400">لا توجد ملاحظات</p>}
+                  {notes.length === 0 && <p className="py-4 text-center text-sm text-slate-400">{tr("لا توجد ملاحظات")}</p>}
                 </div>
               </TabsContent>
 
               <TabsContent value="attachments" className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-10 text-slate-400">
                   <Paperclip className="h-6 w-6" />
-                  <p className="text-sm">رفع المرفقات غير متاح بعد في هذا الإصدار</p>
+                  <p className="text-sm">{tr("رفع المرفقات غير متاح بعد في هذا الإصدار")}</p>
                 </div>
               </TabsContent>
             </Tabs>
@@ -1400,9 +1401,9 @@ export default function UnifiedJournal({
         visible={showDeleteConfirm}
         useAppDialog
         busy={isSaving}
-        confirmLabel="نعم"
-        cancelLabel="لا"
-        message={isPosted ? "السند معتمد هل تريد الغاؤه منطقياً؟" : "هل تريد حذف سند القيد هذا؟"}
+        confirmLabel={tr("نعم")}
+        cancelLabel={tr("لا")}
+        message={isPosted ? tr("السند معتمد هل تريد الغاؤه منطقياً؟") : tr("هل تريد حذف سند القيد هذا؟")}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -1411,18 +1412,18 @@ export default function UnifiedJournal({
         open={voucherSearchOpen}
         onOpenChange={setVoucherSearchOpen}
         vchType={3}
-        title={"سندات القيد"}
-        accountLabel={"الحساب"}
+        title={tr("سندات القيد")}
+        accountLabel={tr("الحساب")}
         onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
       />
       <ConfirmDialogYesNo
         visible={showUnsavedConfirm}
         useAppDialog
-        title="التحقق من التغييرات"
-        message="تم تعديل البيانات، هل تريد الحفظ؟"
-        confirmLabel="نعم"
-        cancelLabel="لا"
-        backLabel="رجوع"
+        title={tr("التحقق من التغييرات")}
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
+        confirmLabel={tr("نعم")}
+        cancelLabel={tr("لا")}
+        backLabel={tr("رجوع")}
         onDismiss={() => setShowUnsavedConfirm(false)}
         showBack
         onConfirm={() => {

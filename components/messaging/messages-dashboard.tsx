@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -90,34 +91,34 @@ export function MessagesDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+      <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل الأصناف...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background" dir="rtl">
+    <div className="space-y-6 p-6 bg-background" dir={appDir()}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <MessageSquare className="h-8 w-8 text-primary" />
-            لوحة إدارة الرسائل
+            {tr("لوحة إدارة الرسائل")}
           </h1>
-          <p className="text-muted-foreground mt-1">إدارة شاملة لجميع الرسائل والإشعارات</p>
+          <p className="text-muted-foreground mt-1">{tr("إدارة شاملة لجميع الرسائل والإشعارات")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2 bg-transparent">
             <Download className="h-4 w-4" />
-            تصدير التقرير
+            {tr("تصدير التقرير")}
           </Button>
           <Button className="gap-2">
             <Send className="h-4 w-4" />
-            إرسال رسالة جديدة
+            {tr("إرسال رسالة جديدة")}
           </Button>
         </div>
       </div>
@@ -127,7 +128,7 @@ export function MessagesDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">رسائل اليوم</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("رسائل اليوم")}</CardTitle>
               <Send className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -138,37 +139,37 @@ export function MessagesDashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">تم التسليم</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("تم التسليم")}</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{stats.today.total_delivered}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stats.today.total_sent > 0
-                  ? `${((stats.today.total_delivered / stats.today.total_sent) * 100).toFixed(1)}% من الإجمالي`
-                  : "لا توجد رسائل"}
+                  ? tr("{0}% من الإجمالي", ((stats.today.total_delivered / stats.today.total_sent) * 100).toFixed(1))
+                  : tr("لا توجد رسائل")}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">فشل الإرسال</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("فشل الإرسال")}</CardTitle>
               <XCircle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{stats.today.total_failed}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stats.today.total_sent > 0
-                  ? `${((stats.today.total_failed / stats.today.total_sent) * 100).toFixed(1)}% من الإجمالي`
-                  : "لا توجد رسائل"}
+                  ? tr("{0}% من الإجمالي", ((stats.today.total_failed / stats.today.total_sent) * 100).toFixed(1))
+                  : tr("لا توجد رسائل")}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">معدل النجاح</CardTitle>
+              <CardTitle className="text-sm font-medium">{tr("معدل النجاح")}</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -184,19 +185,19 @@ export function MessagesDashboard() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="gap-2">
             <BarChart3 className="h-4 w-4" />
-            نظرة عامة
+            {tr("نظرة عامة")}
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <FileText className="h-4 w-4" />
-            النماذج
+            {tr("النماذج")}
           </TabsTrigger>
           <TabsTrigger value="log" className="gap-2">
             <MessageSquare className="h-4 w-4" />
-            سجل الرسائل
+            {tr("سجل الرسائل")}
           </TabsTrigger>
           <TabsTrigger value="scheduled" className="gap-2">
             <Calendar className="h-4 w-4" />
-            الرسائل المجدولة
+            {tr("الرسائل المجدولة")}
           </TabsTrigger>
         </TabsList>
 

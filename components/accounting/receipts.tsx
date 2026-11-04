@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import { Wallet } from "lucide-react"
@@ -86,8 +87,8 @@ interface AIReceiptDraft {
 }
 
 const TYPE_LABELS: Record<4 | 5, { title: string; listTitle: string; addLabel: string; customerLabel: string }> = {
-  4: { title: "سند قبض", listTitle: "سندات القبض", addLabel: "إضافة سند قبض", customerLabel: "المقبوض منه" },
-  5: { title: "سند صرف", listTitle: "سندات الصرف", addLabel: "إضافة سند صرف", customerLabel: "المدفوع له" },
+  4: { title: tr("سند قبض"), listTitle: tr("سندات القبض"), addLabel: tr("إضافة سند قبض"), customerLabel: tr("المقبوض منه") },
+  5: { title: tr("سند صرف"), listTitle: tr("سندات الصرف"), addLabel: tr("إضافة سند صرف"), customerLabel: tr("المدفوع له") },
 }
 
 const emptyJournalRow: VoucherJournalRow = {
@@ -642,26 +643,26 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
   const validateVoucher = (data: VoucherRecord, availableCurrencies = currencies): string | null => {
     const code = data.vch_code.trim()
-    if (!code) return "رقم السند مطلوب"
-    if (!/^[A-Z0-9-]+$/.test(code)) return "رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط"
+    if (!code) return tr("رقم السند مطلوب")
+    if (!/^[A-Z0-9-]+$/.test(code)) return tr("رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط")
 
-    if (!data.vch_date) return "تاريخ السند مطلوب"
+    if (!data.vch_date) return tr("تاريخ السند مطلوب")
 
-    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
+    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return tr("يجب تحديد دفتر السندات")
 
     if (!data.currency_id || !availableCurrencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
-      return "يجب اختيار العملة"
+      return tr("يجب اختيار العملة")
     }
-    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+    if (!(Number(data.rate) > 0)) return tr("سعر الصرف يجب أن يكون أكبر من صفر")
 
-    if (!data.account_id) return `يجب اختيار ${labels.customerLabel}`
+    if (!data.account_id) return tr("يجب اختيار {0}", labels.customerLabel)
 
     const cashAmount = Number(data.cash_amount || 0)
     const checkAmount = Number(data.check_amount || 0)
     const creditCardAmount = Number(data.credit_card_amount || 0)
     const totalAmount = Number(data.amount || 0)
 
-    if (cashAmount > 0 && !data.cash_account_id) return "يجب اختيار حساب الصندوق"
+    if (cashAmount > 0 && !data.cash_account_id) return tr("يجب اختيار حساب الصندوق")
     if (checkAmount > 0) {
       if (voucherType === 5) {
         // سند الصرف: حساب صندوق الشيكات يُعبَّأ آلياً بـ jary_account_id الخاص بالحساب البنكي
@@ -669,26 +670,26 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         // بنكي مختار بلا jary_account_id معرَّف له يستحق رسالة تشخيصية أدق من الرسالة العامة أدناه.
         const anyRow = (data.cheques || []).find((row) => row.bank_account_id)
         if (anyRow && !anyRow.jary_account_id) {
-          return "الحساب البنكي المختار لا يملك حساب جاري معرَّف (jary_account_id) في تعريف الحسابات البنكية"
+          return tr("الحساب البنكي المختار لا يملك حساب جاري معرَّف (jary_account_id) في تعريف الحسابات البنكية")
         }
       }
-      if (!data.check_account_id) return "يجب ادخال حساب صندوق الشيكات"
+      if (!data.check_account_id) return tr("يجب ادخال حساب صندوق الشيكات")
     }
-    if (creditCardAmount > 0 && !data.credit_card_account_id) return "يجب اختيار حساب البطاقات"
+    if (creditCardAmount > 0 && !data.credit_card_account_id) return tr("يجب اختيار حساب البطاقات")
 
-    if (totalAmount <= 0) return "يجب إدخال المبلغ"
+    if (totalAmount <= 0) return tr("يجب إدخال المبلغ")
 
     if (Math.round((cashAmount + checkAmount + creditCardAmount - totalAmount) * 100) / 100 !== 0) {
-      return "مجموع (نقدي + شيكات + بطاقات) يجب أن يساوي المبلغ الإجمالي"
+      return tr("مجموع (نقدي + شيكات + بطاقات) يجب أن يساوي المبلغ الإجمالي")
     }
 
     const journalRows = (data.journal || []).filter((row: VoucherJournalRow) => row.account_id && Number(row.amount || 0) > 0)
     if (journalRows.length === 0) {
-      if (!data.to_account_id) return "يجب اختيار حساب مقابل (على حساب) أو إضافة سطر في تبويب الحسابات"
+      if (!data.to_account_id) return tr("يجب اختيار حساب مقابل (على حساب) أو إضافة سطر في تبويب الحسابات")
     } else {
       const journalTotal = journalRows.reduce((sum: number, row: VoucherJournalRow) => sum + Number(row.amount || 0), 0)
       if (Math.round((totalAmount - journalTotal) * 100) / 100 !== 0) {
-        return "إجمالي تبويب الحسابات يجب أن يساوي المبلغ الإجمالي"
+        return tr("إجمالي تبويب الحسابات يجب أن يساوي المبلغ الإجمالي")
       }
     }
 
@@ -699,30 +700,30 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         (row) => Number(row.amount || 0) > 0 || row.cheq_num || row.bank_account,
       )
       for (const row of enteredCheques) {
-        if (!row.cheq_num) return "رقم الشيك مطلوب في تبويب الشيكات"
-        if (!row.due_date) return "تاريخ الاستحقاق مطلوب في تبويب الشيكات"
-        if (!row.bank_id) return "البنك مطلوب في تبويب الشيكات"
-        if (!row.branch_id) return "الفرع مطلوب في تبويب الشيكات"
-        if (voucherType === 5 && !row.bank_account) return "رقم الحساب مطلوب في تبويب الشيكات"
+        if (!row.cheq_num) return tr("رقم الشيك مطلوب في تبويب الشيكات")
+        if (!row.due_date) return tr("تاريخ الاستحقاق مطلوب في تبويب الشيكات")
+        if (!row.bank_id) return tr("البنك مطلوب في تبويب الشيكات")
+        if (!row.branch_id) return tr("الفرع مطلوب في تبويب الشيكات")
+        if (voucherType === 5 && !row.bank_account) return tr("رقم الحساب مطلوب في تبويب الشيكات")
       }
 
       // سند الصرف يصدر شيكاته من حساب بنكي واحد فقط — لا يجوز خلط أكثر من حساب ضمن نفس السند.
       if (voucherType === 5) {
         const distinctAccounts = new Set(enteredCheques.map((row) => (row.bank_account || "").trim()).filter(Boolean))
         if (distinctAccounts.size > 1) {
-          return "يجب أن تكون جميع الشيكات من نفس الحساب البنكي"
+          return tr("يجب أن تكون جميع الشيكات من نفس الحساب البنكي")
         }
       }
 
       const validCheques = enteredCheques.filter((row) => row.cheq_num && Number(row.amount || 0) > 0)
       const chequesTotal = validCheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
       if (Math.round((chequesTotal - checkAmount) * 100) / 100 !== 0) {
-        return "مبلغ الشيكات غير مساوي لاجمالي مبالغ الشيكات"
+        return tr("مبلغ الشيكات غير مساوي لاجمالي مبالغ الشيكات")
       }
     }
 
     if (creditCardAmount > 0 && !data.cards?.[0]?.card_type_id) {
-      return "يجب اختيار نوع البطاقة في تبويب تفاصيل البطاقة"
+      return tr("يجب اختيار نوع البطاقة في تبويب تفاصيل البطاقة")
     }
 
     return null
@@ -767,7 +768,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        const message = responseError.error || "فشل في حفظ السند"
+        const message = responseError.error || tr("فشل في حفظ السند")
         setErrorMessages([message])
         return { ok: false, error: message }
       }
@@ -798,7 +799,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       return { ok: true, id: Number(saved.id), code: String(saved.vch_code || record.vch_code) }
     } catch (error) {
       console.error(error)
-      const message = error instanceof Error ? error.message : "فشل في حفظ السند"
+      const message = error instanceof Error ? error.message : tr("فشل في حفظ السند")
       setErrorMessages([message])
       return { ok: false, error: message }
     } finally {
@@ -813,7 +814,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     if (!(form.id > 0) || form.status === 3) return
 
     let isPrinted = form.is_printed || 0
-    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+    const copyLabel = form.status !== 2 ? tr("نسخة للتدقيق") : isPrinted === 1 ? tr("نسخة") : tr("نسخة اصلية")
 
     if (form.status === 2 && isPrinted !== 1) {
       try {
@@ -878,7 +879,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في إلغاء السند")
+        throw new Error(error.error || tr("فشل في إلغاء السند"))
       }
       const saved = await response.json()
       await fetchVouchers()
@@ -902,7 +903,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       const response = await fetch(`/api/receipts/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف السند")
+        throw new Error(error.error || tr("فشل في حذف السند"))
       }
       await advanceAfterDelete()
     } catch (error) {
@@ -939,31 +940,31 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   }
 
   return (
-    <div className="voucher-list-page w-full max-w-full space-y-5" dir="rtl">
+    <div className="voucher-list-page w-full max-w-full space-y-5" dir={appDir()}>
       {/* Header */}
       <VoucherListHero icon={Wallet} title={<>{labels.listTitle}</>} addLabel={<>{labels.addLabel}</>} onNew={() => void openNewDialog()} />
 
       {/* Statistics */}
-      <VoucherStats stats={[{ label: <>{`إجمالي ${labels.listTitle}`}</>, value: <>{totalVouchers}</> }, { label: <>سندات هذا الشهر</>, value: <>{thisMonthCount}</> }, { label: <>إجمالي المبالغ</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>متوسط قيمة السند</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
+      <VoucherStats stats={[{ label: <>{tr("إجمالي {0}", labels.listTitle)}</>, value: <>{totalVouchers}</> }, { label: <>{tr("سندات هذا الشهر")}</>, value: <>{thisMonthCount}</> }, { label: <>{tr("إجمالي المبالغ")}</>, value: <>{totalAmount.toLocaleString("en-US")}</> }, { label: <>{tr("متوسط قيمة السند")}</>, value: <>{averageAmount.toLocaleString("en-US", { maximumFractionDigits: 2 })}</> }]} />
 
       {/* Advanced Search */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            البحث المتقدم
+            {tr("البحث المتقدم")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4" onKeyDown={searchOnEnter(runSearch)}>
             <div>
-              <Label htmlFor="search-code">رقم السند</Label>
+              <Label htmlFor="search-code">{tr("رقم السند")}</Label>
               <Input
                 id="search-code"
                 value={searchDraft.code}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, code: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث برقم السند..."
+                placeholder={tr("ابحث برقم السند...")}
               />
             </div>
             <div>
@@ -973,20 +974,20 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 value={searchDraft.name}
                 onChange={(e) => setSearchDraft((prev) => ({ ...prev, name: e.target.value }))}
                 className="text-right"
-                placeholder="ابحث بالاسم..."
+                placeholder={tr("ابحث بالاسم...")}
               />
             </div>
             <div>
-              <Label htmlFor="search-currency">العملة</Label>
+              <Label htmlFor="search-currency">{tr("العملة")}</Label>
               <Select
                 value={searchDraft.currencyId}
                 onValueChange={(value) => setSearchDraft((prev) => ({ ...prev, currencyId: value }))}
               >
                 <SelectTrigger className="text-right">
-                  <SelectValue placeholder="اختر العملة" />
+                  <SelectValue placeholder={tr("اختر العملة")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">جميع العملات</SelectItem>
+                  <SelectItem value="__all__">{tr("جميع العملات")}</SelectItem>
                   {currencies.map((c) => (
                     <SelectItem key={c.currency_id ?? c.id} value={String(c.currency_id ?? c.id)}>
                       {c.currency_name || c.currency_code}
@@ -997,7 +998,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label htmlFor="search-date-from">من تاريخ</Label>
+                <Label htmlFor="search-date-from">{tr("من تاريخ")}</Label>
                 <Input
                   id="search-date-from"
                   type="date"
@@ -1006,7 +1007,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                 />
               </div>
               <div>
-                <Label htmlFor="search-date-to">إلى تاريخ</Label>
+                <Label htmlFor="search-date-to">{tr("إلى تاريخ")}</Label>
                 <Input
                   id="search-date-to"
                   type="date"
@@ -1033,18 +1034,18 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
               loading={listSearch.loading}
               rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString("en-US") }))}
               columns={[
-                { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
-                { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
+                { header: tr("رقم السند"), name: "vch_code", width: 150, isReadOnly: true },
+                { header: tr("التاريخ"), name: "display_date", width: 130, isReadOnly: true },
                 { header: labels.customerLabel, name: "customer_name", width: "*", isReadOnly: true },
-                { header: "العملة", name: "display_currency", width: 120, isReadOnly: true },
-                { header: "المبلغ", name: "display_amount", width: 130, isReadOnly: true },
+                { header: tr("العملة"), name: "display_currency", width: 120, isReadOnly: true },
+                { header: tr("المبلغ"), name: "display_amount", width: 130, isReadOnly: true },
               ]}
               onOpen={(row: any) => openRow(row.item || row)}
             />
           </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                عرض {pageStart} إلى {pageEnd} من {filteredVouchers.length}
+                {tr("عرض ")}{pageStart}{tr(" إلى ")}{pageEnd}{tr(" من ")}{filteredVouchers.length}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -1053,7 +1054,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 >
-                  السابق
+                  {tr("السابق")}
                 </Button>
                 <Button
                   size="sm"
@@ -1061,7 +1062,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 >
-                  التالي
+                  {tr("التالي")}
                 </Button>
                 <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
                   <SelectTrigger className="h-10 w-24">

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,13 +25,13 @@ export default function TestNotificationsPage() {
   const [state, setState] = useState({
     // SMS Test
     smsPhone: "+966",
-    smsMessage: "مرحباً! هذه رسالة تجريبية من نظام ERP",
+    smsMessage: tr("مرحباً! هذه رسالة تجريبية من نظام ERP"),
     smsSending: false,
     smsResult: null as { success: boolean; message: string } | null,
 
     // WhatsApp Test
     whatsappPhone: "+966",
-    whatsappMessage: "مرحباً! هذه رسالة تجريبية عبر واتساب من نظام ERP",
+    whatsappMessage: tr("مرحباً! هذه رسالة تجريبية عبر واتساب من نظام ERP"),
     whatsappSending: false,
     whatsappResult: null as { success: boolean; message: string } | null,
 
@@ -47,7 +48,7 @@ export default function TestNotificationsPage() {
     if (!state.smsPhone || !state.smsMessage) {
       setState((prev) => ({
         ...prev,
-        smsResult: { success: false, message: "الرجاء إدخال رقم الهاتف والرسالة" },
+        smsResult: { success: false, message: tr("الرجاء إدخال رقم الهاتف والرسالة") },
       }))
       return
     }
@@ -69,19 +70,19 @@ export default function TestNotificationsPage() {
       if (response.ok) {
         setState((prev) => ({
           ...prev,
-          smsResult: { success: true, message: "تم إرسال الرسالة بنجاح!" },
+          smsResult: { success: true, message: tr("تم إرسال الرسالة بنجاح!") },
         }))
         fetchLogs()
       } else {
         setState((prev) => ({
           ...prev,
-          smsResult: { success: false, message: data.message || "فشل إرسال الرسالة" },
+          smsResult: { success: false, message: data.message || tr("فشل إرسال الرسالة") },
         }))
       }
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        smsResult: { success: false, message: "حدث خطأ في الاتصال بالخادم" },
+        smsResult: { success: false, message: tr("حدث خطأ في الاتصال بالخادم") },
       }))
     } finally {
       setState((prev) => ({ ...prev, smsSending: false }))
@@ -92,7 +93,7 @@ export default function TestNotificationsPage() {
     if (!state.whatsappPhone || !state.whatsappMessage) {
       setState((prev) => ({
         ...prev,
-        whatsappResult: { success: false, message: "الرجاء إدخال رقم الهاتف والرسالة" },
+        whatsappResult: { success: false, message: tr("الرجاء إدخال رقم الهاتف والرسالة") },
       }))
       return
     }
@@ -114,19 +115,19 @@ export default function TestNotificationsPage() {
       if (response.ok) {
         setState((prev) => ({
           ...prev,
-          whatsappResult: { success: true, message: "تم إرسال رسالة واتساب بنجاح!" },
+          whatsappResult: { success: true, message: tr("تم إرسال رسالة واتساب بنجاح!") },
         }))
         fetchLogs()
       } else {
         setState((prev) => ({
           ...prev,
-          whatsappResult: { success: false, message: data.message || "فشل إرسال رسالة واتساب" },
+          whatsappResult: { success: false, message: data.message || tr("فشل إرسال رسالة واتساب") },
         }))
       }
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        whatsappResult: { success: false, message: "حدث خطأ في الاتصال بالخادم" },
+        whatsappResult: { success: false, message: tr("حدث خطأ في الاتصال بالخادم") },
       }))
     } finally {
       setState((prev) => ({ ...prev, whatsappSending: false }))
@@ -148,7 +149,7 @@ export default function TestNotificationsPage() {
           ...prev,
           reorderResult: {
             success: true,
-            message: `تم إرسال ${data.count || 0} إشعار بنجاح!`,
+            message: tr("تم إرسال {0} إشعار بنجاح!", data.count || 0),
             count: data.count,
           },
         }))
@@ -156,13 +157,13 @@ export default function TestNotificationsPage() {
       } else {
         setState((prev) => ({
           ...prev,
-          reorderResult: { success: false, message: data.message || "فشل إرسال الإشعارات" },
+          reorderResult: { success: false, message: data.message || tr("فشل إرسال الإشعارات") },
         }))
       }
     } catch (error) {
       setState((prev) => ({
         ...prev,
-        reorderResult: { success: false, message: "حدث خطأ في الاتصال بالخادم" },
+        reorderResult: { success: false, message: tr("حدث خطأ في الاتصال بالخادم") },
       }))
     } finally {
       setState((prev) => ({ ...prev, reorderSending: false }))
@@ -189,36 +190,36 @@ export default function TestNotificationsPage() {
     if (status === "sent") {
       return (
         <Badge className="bg-green-100 text-green-800 border-green-200">
-          <CheckCircle className="h-3 w-3 ml-1" />
-          تم الإرسال
+          <CheckCircle className="h-3 w-3 me-1" />
+          {tr("تم الإرسال")}
         </Badge>
       )
     } else if (status === "failed") {
       return (
         <Badge className="bg-red-100 text-red-800 border-red-200">
-          <XCircle className="h-3 w-3 ml-1" />
-          فشل
+          <XCircle className="h-3 w-3 me-1" />
+          {tr("فشل")}
         </Badge>
       )
     } else {
       return (
         <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-          <Clock className="h-3 w-3 ml-1" />
-          قيد الإرسال
+          <Clock className="h-3 w-3 me-1" />
+          {tr("قيد الإرسال")}
         </Badge>
       )
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6" dir={appDir()}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            اختبار نظام الإشعارات
+            {tr("اختبار نظام الإشعارات")}
           </h1>
-          <p className="text-slate-600 mt-2 text-lg">اختبر إرسال الإشعارات عبر SMS و WhatsApp</p>
+          <p className="text-slate-600 mt-2 text-lg">{tr("اختبر إرسال الإشعارات عبر SMS و WhatsApp")}</p>
         </div>
 
         <Tabs defaultValue="sms" className="space-y-6">
@@ -233,11 +234,11 @@ export default function TestNotificationsPage() {
             </TabsTrigger>
             <TabsTrigger value="reorder" className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
-              إشعارات المخزون
+              {tr("إشعارات المخزون")}
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              السجل
+              {tr("السجل")}
             </TabsTrigger>
           </TabsList>
 
@@ -247,32 +248,32 @@ export default function TestNotificationsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Phone className="h-5 w-5 text-blue-600" />
-                  اختبار إرسال SMS
+                  {tr("اختبار إرسال SMS")}
                 </CardTitle>
-                <CardDescription>أرسل رسالة نصية تجريبية عبر Twilio</CardDescription>
+                <CardDescription>{tr("أرسل رسالة نصية تجريبية عبر Twilio")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>رقم الهاتف (مع رمز الدولة)</Label>
+                  <Label>{tr("رقم الهاتف (مع رمز الدولة)")}</Label>
                   <Input
                     placeholder="+966501234567"
                     value={state.smsPhone}
                     onChange={(e) => setState((prev) => ({ ...prev, smsPhone: e.target.value }))}
                     className="bg-white"
                   />
-                  <p className="text-sm text-slate-500 mt-1">مثال: +966501234567 (السعودية)</p>
+                  <p className="text-sm text-slate-500 mt-1">{tr("مثال: +966501234567 (السعودية)")}</p>
                 </div>
 
                 <div>
-                  <Label>نص الرسالة</Label>
+                  <Label>{tr("نص الرسالة")}</Label>
                   <Textarea
-                    placeholder="اكتب رسالتك هنا..."
+                    placeholder={tr("اكتب رسالتك هنا...")}
                     value={state.smsMessage}
                     onChange={(e) => setState((prev) => ({ ...prev, smsMessage: e.target.value }))}
                     rows={4}
                     className="bg-white"
                   />
-                  <p className="text-sm text-slate-500 mt-1">عدد الأحرف: {state.smsMessage.length}</p>
+                  <p className="text-sm text-slate-500 mt-1">{tr("عدد الأحرف: ")}{state.smsMessage.length}</p>
                 </div>
 
                 {state.smsResult && (
@@ -298,12 +299,12 @@ export default function TestNotificationsPage() {
                   {state.smsSending ? (
                     <>
                       <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      جاري الإرسال...
+                      {tr("جاري الإرسال...")}
                     </>
                   ) : (
                     <>
                       <Send className="ml-2 h-4 w-4" />
-                      إرسال SMS
+                      {tr("إرسال SMS")}
                     </>
                   )}
                 </Button>
@@ -317,32 +318,32 @@ export default function TestNotificationsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5 text-green-600" />
-                  اختبار إرسال WhatsApp
+                  {tr("اختبار إرسال WhatsApp")}
                 </CardTitle>
-                <CardDescription>أرسل رسالة واتساب تجريبية عبر Twilio</CardDescription>
+                <CardDescription>{tr("أرسل رسالة واتساب تجريبية عبر Twilio")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>رقم الهاتف (مع رمز الدولة)</Label>
+                  <Label>{tr("رقم الهاتف (مع رمز الدولة)")}</Label>
                   <Input
                     placeholder="+966501234567"
                     value={state.whatsappPhone}
                     onChange={(e) => setState((prev) => ({ ...prev, whatsappPhone: e.target.value }))}
                     className="bg-white"
                   />
-                  <p className="text-sm text-slate-500 mt-1">مثال: +966501234567 (السعودية)</p>
+                  <p className="text-sm text-slate-500 mt-1">{tr("مثال: +966501234567 (السعودية)")}</p>
                 </div>
 
                 <div>
-                  <Label>نص الرسالة</Label>
+                  <Label>{tr("نص الرسالة")}</Label>
                   <Textarea
-                    placeholder="اكتب رسالتك هنا..."
+                    placeholder={tr("اكتب رسالتك هنا...")}
                     value={state.whatsappMessage}
                     onChange={(e) => setState((prev) => ({ ...prev, whatsappMessage: e.target.value }))}
                     rows={4}
                     className="bg-white"
                   />
-                  <p className="text-sm text-slate-500 mt-1">عدد الأحرف: {state.whatsappMessage.length}</p>
+                  <p className="text-sm text-slate-500 mt-1">{tr("عدد الأحرف: ")}{state.whatsappMessage.length}</p>
                 </div>
 
                 {state.whatsappResult && (
@@ -370,12 +371,12 @@ export default function TestNotificationsPage() {
                   {state.whatsappSending ? (
                     <>
                       <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      جاري الإرسال...
+                      {tr("جاري الإرسال...")}
                     </>
                   ) : (
                     <>
                       <Send className="ml-2 h-4 w-4" />
-                      إرسال WhatsApp
+                      {tr("إرسال WhatsApp")}
                     </>
                   )}
                 </Button>
@@ -389,14 +390,14 @@ export default function TestNotificationsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertCircle className="h-5 w-5 text-amber-600" />
-                  اختبار إشعارات إعادة الطلب
+                  {tr("اختبار إشعارات إعادة الطلب")}
                 </CardTitle>
-                <CardDescription>إرسال إشعارات تلقائية للمنتجات التي وصلت لنقطة إعادة الطلب</CardDescription>
+                <CardDescription>{tr("إرسال إشعارات تلقائية للمنتجات التي وصلت لنقطة إعادة الطلب")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Alert className="bg-blue-50 border-blue-200">
                   <AlertDescription>
-                    سيتم فحص جميع المنتجات في المخزون وإرسال إشعارات للمنتجات التي وصلت أو تجاوزت نقطة إعادة الطلب.
+                    {tr("سيتم فحص جميع المنتجات في المخزون وإرسال إشعارات للمنتجات التي وصلت أو تجاوزت نقطة إعادة الطلب.")}
                   </AlertDescription>
                 </Alert>
 
@@ -425,12 +426,12 @@ export default function TestNotificationsPage() {
                   {state.reorderSending ? (
                     <>
                       <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                      جاري الفحص والإرسال...
+                      {tr("جاري الفحص والإرسال...")}
                     </>
                   ) : (
                     <>
                       <Send className="ml-2 h-4 w-4" />
-                      فحص وإرسال الإشعارات
+                      {tr("فحص وإرسال الإشعارات")}
                     </>
                   )}
                 </Button>
@@ -446,12 +447,12 @@ export default function TestNotificationsPage() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-slate-600" />
-                      سجل الإشعارات
+                      {tr("سجل الإشعارات")}
                     </CardTitle>
-                    <CardDescription>آخر الإشعارات المرسلة</CardDescription>
+                    <CardDescription>{tr("آخر الإشعارات المرسلة")}</CardDescription>
                   </div>
                   <Button onClick={fetchLogs} variant="outline" size="sm">
-                    تحديث
+                    {tr("تحديث")}
                   </Button>
                 </div>
               </CardHeader>
@@ -459,12 +460,12 @@ export default function TestNotificationsPage() {
                 {state.logsLoading ? (
                   <div className="text-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-400" />
-                    <p className="text-slate-600 mt-2">جاري تحميل السجل...</p>
+                    <p className="text-slate-600 mt-2">{tr("جاري تحميل السجل...")}</p>
                   </div>
                 ) : state.logs.length === 0 ? (
                   <div className="text-center py-8">
                     <Clock className="h-12 w-12 mx-auto text-slate-300 mb-2" />
-                    <p className="text-slate-600">لا توجد إشعارات مسجلة</p>
+                    <p className="text-slate-600">{tr("لا توجد إشعارات مسجلة")}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,25 +52,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
 function DefaultErrorFallback({ error, retry }: { error: Error; retry: () => void }) {
   return (
-    <div className="flex items-center justify-center min-h-[400px] p-6" dir="rtl">
+    <div className="flex items-center justify-center min-h-[400px] p-6" dir={appDir()}>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
             <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
-          <CardTitle className="text-red-600">حدث خطأ غير متوقع</CardTitle>
+          <CardTitle className="text-red-600">{tr("حدث خطأ غير متوقع")}</CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
-          <p className="text-sm text-muted-foreground">عذراً، حدث خطأ أثناء تحميل هذا المكون. يرجى المحاولة مرة أخرى.</p>
+          <p className="text-sm text-muted-foreground">{tr("عذراً، حدث خطأ أثناء تحميل هذا المكون. يرجى المحاولة مرة أخرى.")}</p>
           {process.env.NODE_ENV === "development" && (
             <details className="text-left text-xs bg-gray-100 p-2 rounded">
-              <summary className="cursor-pointer font-medium">تفاصيل الخطأ</summary>
+              <summary className="cursor-pointer font-medium">{tr("تفاصيل الخطأ")}</summary>
               <pre className="mt-2 whitespace-pre-wrap">{error.message}</pre>
             </details>
           )}
           <Button onClick={retry} className="w-full">
-            <RefreshCw className="h-4 w-4 ml-2" />
-            إعادة المحاولة
+            <RefreshCw className="h-4 w-4 me-2" />
+            {tr("إعادة المحاولة")}
           </Button>
         </CardContent>
       </Card>

@@ -1,0 +1,300 @@
+Scan log
+scans
+Failed to search for the product
+Failed to start the camera
+Failed to initialize the camera
+Camera {0}
+Scanning camera
+Product code:
+No available camera was found
+No product found with barcode: {0}
+Scan barcodes and search for products
+Enterprise resource planning system
+Powered by Sabbah Soft
+· daily sales
+· updated
+{0} days
+% vs last week (
+Performance
+Retry
+Last week
+Accounts receivable
+Amounts in the base currency
+Sales by branch
+Returns
+Receipts
+Receipts ({0})
+Morning briefing
+Approximate margin
+No returns
+Exceeded the limit
+Unable to load the briefing
+Alerts worth reviewing
+Large invoice discount
+Customer portal payment awaiting approval
+Stagnant
+voucher
+cheque ·
+Returned cheque
+Cheques due within a week
+Net sales ({0})
+Net today
+item may run out ·
+Number of invoices
+Customer with a debit balance
+Invoice
+Cash difference:
+Smart assistant reading
+No debit balances
+No items at risk of running out within a week
+No sales on this day
+No notes — a quiet day
+No incoming cheques due this week
+No sales on the same day last week
+No analysis is available right now.
+for lines with a known cost
+Inventory that needs action
+Sales return
+Returns
+An order draft with a deposit not converted for more than a week
+Out of stock
+and what needs your follow-up today
+Add users from the users screen to show them here.
+Search for a colleague or branch...
+Start a conversation
+Colleagues
+Conversations
+Unable to load colleagues
+Other colleagues
+No results for «
+There are no other users in the company
+Online now
+Type a message...
+No messages yet — start the conversation
+Not sent — retry
+Last seen {0}
+Yesterday
+Today
+Offline
+{0} online now
+Close chat
+Internal chat
+Talk to your colleagues in the company
+Open chat
+Open conversation
+· sent
+· transfer
+· reference {0}
+(copied):
+Last opened
+Created
+Action
+Cancel the portal link for customer {0}? The link that was sent will no longer work.
+Create link
+Search for the customer
+Search for the bank account
+Notice
+The link is shown only once and copied automatically. Creating a new link for the same customer cancels their previous link.
+Active links (
+Reference / bank
+Awaiting review
+Customer portal
+Transfer date
+Post the voucher directly (it appears in the customer's account statement immediately)
+Unable to cancel the link
+Unable to create the link
+Unable to load payments
+Unable to load links
+Review failed
+The payment was rejected and the customer was told the reason in the portal
+The payment was accepted and receipt voucher {0} was created
+Bank / cash account the amount arrived in *
+Pending payments
+Link
+New link
+New link (cancels the current one)
+New link for a customer
+A private link for each customer that shows their account statement and lets them send a transfer notice — accepting creates a receipt voucher automatically
+Reject
+Reject payment
+Rejection reason * — shown to the customer
+Accept
+Accept the payment and create a receipt voucher
+Accept and create the voucher
+No payments
+No active links
+times
+Hello {0}, this is the link to your account statement with us, and you can use it to send a transfer notice when you pay: {1}
+Rejected
+Accepted
+Note (optional)
+Copy
+WhatsApp
+· receipt voucher {0}
+Attach an image or PDF of the transfer notice
+Send transfer notice
+Sender name
+Bank / wallet
+Transaction
+Invalid link
+Balance you owe
+Reason:
+Total (
+Transfer date *
+Transfer dated
+Unable to send the payment
+Unable to load the account statement
+Unable to open the link
+The transfer notice was sent — the payment will appear in your account statement after the company reviews it.
+Accepted
+Based on approved transactions up to today
+Transfer the amount to the company's bank account or wallet, then send the transfer details and the notice image here. The payment is added to your account statement after it is reviewed.
+My sent payments
+Opening balance
+Balance in your favour
+Reference / transfer number
+Pay by bank transfer
+Image (JPG/PNG) or PDF up to 4 MB
+Transfer notice image *
+Print / PDF
+Account statement
+Account statement
+No transactions in this period
+You haven't sent any payments yet
+This link is private to you — don't share it with anyone.
+Cancel
+Loading cost centers...
+No cost center data
+No account selected
+Cost centers
+{0} accounts
+Other
+Show only customers with deliveries
+Show only customers with orders
+Choose the type
+Define an account
+Define a customer
+Loading data ...
+Accounting account
+Chart of accounts
+Showing the first {0} of {1} — narrow the search
+Customer
+No matching results
+A parent account (with sub-accounts) cannot be chosen — choose a sub-account
+Subscriber
+Salesman
+Supplier
+Search results
+Double-click or Enter to choose
+You can type more than one word
+Search for the account
+The transaction currency differs from the account currency and it cannot be chosen: {0} - {1}
+The transaction currency differs from the account currency: {0} - {1}
+Clear
+Search by classification name
+Classification name
+Classification search
+Search by classification name
+Show the classifications linked to the selected classification type.
+There are no classifications for this type.
+Search by brand name
+Brand name
+Brand search
+Search by brand name
+Show the brands linked to the selected type.
+There are no brands for this type.
+Search by center name, number or parent center...
+Choose a cost center of the selected type
+Choose the cost center type first
+Selected:
+Level
+Cost center search
+Within:
+There are no cost centers for this type
+to close
+to move/choose ·
+to navigate ·
+No center selected
+Center
+? This action cannot be undone.
+Add notes
+Choose the nature
+Choose a parent account
+Choose an account from the list or create a new account
+Financial data
+Classification
+Parent account
+Related accounts
+Related accounts on the account
+Opening balance
+Current balance
+Code
+Notes
+None
+No parent account
+Confirm account deletion
+Edit
+Account updated successfully
+Account saved successfully
+New
+An error occurred while deleting
+An error occurred while saving
+An error occurred while loading data
+Neutral
+Account nature
+Failed to delete the account
+No accounts
+No linked accounts
+Example: 1000
+Allowed collection rate
+Are you sure you want to delete the account
+Please enter the account code and account name
+Enter notes here
+Action when exceeding the maximum transaction
+Action when exceeding the maximum balance
+Action when exceeding the budget
+Stop transactions
+Stop credit transactions
+Stop debit transactions
+Stop transactions on the account
+Choose the assets
+Choose the action
+Choose the liabilities
+Choose the option
+Choose the company
+Choose the list
+Choose the valuation method
+Choose the cost center
+Choose from the income statement
+Account name (AR) *
+Account name (EN)
+Balance sheet assets
+Financial settings
+Maximum transaction
+Maximum balance
+Financial limits
+Financial limits and actions
+Parent account
+Allow
+Allow transactions in a currency other than its own
+Company
+Financial statement *
+Basic information
+Inventory valuation
+Currency exchange gain and loss account
+Balance sheet liabilities
+Account number in the consolidated report
+Account image (optional)
+Show notes in the account statement
+Not allowed
+Account constraints
+Additional account constraints
+Default cost center
+Allowed without settlement
+Allowed with settlement
+Block
+Budget overrun rate (%)
+Enter the classification name
+Enter the type name
+Enter the name of the new classification type
+Enter the name of the new cost center type

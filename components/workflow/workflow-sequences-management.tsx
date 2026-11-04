@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 
@@ -36,10 +37,10 @@ interface WorkflowStage {
 }
 
 const sequenceTypes = [
-  { value: "sales_order", label: "أوامر البيع" },
-  { value: "purchase_order", label: "أوامر الشراء" },
-  { value: "inventory_transfer", label: "نقل المخزون" },
-  { value: "quality_control", label: "مراقبة الجودة" },
+  { value: "sales_order", label: tr("أوامر البيع") },
+  { value: "purchase_order", label: tr("أوامر الشراء") },
+  { value: "inventory_transfer", label: tr("نقل المخزون") },
+  { value: "quality_control", label: tr("مراقبة الجودة") },
 ]
 
 export function WorkflowSequencesManagement() {
@@ -127,13 +128,13 @@ export function WorkflowSequencesManagement() {
         await fetchSequences()
         resetForm()
         setShowForm(false)
-        showAlert(result.message || "تم الحفظ بنجاح")
+        showAlert(result.message || tr("تم الحفظ بنجاح"))
       } else {
-        showAlert(result.error || "حدث خطأ أثناء الحفظ")
+        showAlert(result.error || tr("حدث خطأ أثناء الحفظ"))
       }
     } catch (error) {
       console.error("[v0] Error saving sequence:", error)
-      showAlert(`حدث خطأ أثناء الحفظ: ${error instanceof Error ? error.message : "خطأ غير معروف"}`)
+      showAlert(tr("حدث خطأ أثناء الحفظ: {0}", error instanceof Error ? error.message : "خطأ غير معروف"))
     } finally {
       setSaving(false)
     }
@@ -177,7 +178,7 @@ export function WorkflowSequencesManagement() {
   return (
     <div className="p-6 dir-rtl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-heading font-bold text-primary">إدارة تسلسلات العمل</h1>
+        <h1 className="text-2xl font-heading font-bold text-primary">{tr("إدارة تسلسلات العمل")}</h1>
         <Button
           className="erp-btn-primary"
           onClick={() => {
@@ -185,8 +186,8 @@ export function WorkflowSequencesManagement() {
             setShowForm(true)
           }}
         >
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة تسلسل جديد
+          <Plus className="h-4 w-4 me-2" />
+          {tr("إضافة تسلسل جديد")}
         </Button>
       </div>
 
@@ -207,24 +208,24 @@ export function WorkflowSequencesManagement() {
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>{editingSequence ? "تعديل التسلسل" : "إضافة تسلسل جديد"}</CardTitle>
+            <CardTitle>{editingSequence ? tr("تعديل التسلسل") : tr("إضافة تسلسل جديد")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <Label className="erp-label">اسم التسلسل *</Label>
+                  <Label className="erp-label">{tr("اسم التسلسل *")}</Label>
                   <Input
                     value={formData.sequence_name}
                     onChange={(e) => updateFormField("sequence_name", e.target.value)}
                     className="erp-input"
-                    placeholder="مثال: تسلسل أوامر البيع الافتراضي"
+                    placeholder={tr("مثال: تسلسل أوامر البيع الافتراضي")}
                     required
                   />
                 </div>
 
                 <div>
-                  <Label className="erp-label">نوع التسلسل *</Label>
+                  <Label className="erp-label">{tr("نوع التسلسل *")}</Label>
                   <Select
                     value={formData.sequence_type}
                     onValueChange={(value) => updateFormField("sequence_type", value)}
@@ -244,12 +245,12 @@ export function WorkflowSequencesManagement() {
               </div>
 
               <div>
-                <Label className="erp-label">وصف التسلسل</Label>
+                <Label className="erp-label">{tr("وصف التسلسل")}</Label>
                 <Textarea
                   value={formData.description}
                   onChange={(e) => updateFormField("description", e.target.value)}
                   className="erp-input"
-                  placeholder="وصف تفصيلي للتسلسل..."
+                  placeholder={tr("وصف تفصيلي للتسلسل...")}
                   rows={3}
                 />
               </div>
@@ -259,7 +260,7 @@ export function WorkflowSequencesManagement() {
                   checked={formData.is_default}
                   onCheckedChange={(checked) => updateFormField("is_default", checked)}
                 />
-                <Label>تسلسل افتراضي</Label>
+                <Label>{tr("تسلسل افتراضي")}</Label>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
@@ -271,10 +272,10 @@ export function WorkflowSequencesManagement() {
                     resetForm()
                   }}
                 >
-                  إلغاء
+                  {tr("إلغاء")}
                 </Button>
                 <Button type="submit" className="erp-btn-primary" disabled={saving}>
-                  {saving ? "جاري الحفظ..." : "حفظ التسلسل"}
+                  {saving ? tr("جاري الحفظ...") : tr("حفظ التسلسل")}
                 </Button>
               </div>
             </form>
@@ -290,7 +291,7 @@ export function WorkflowSequencesManagement() {
       ) : sequences.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
-            <p className="text-muted-foreground">لا توجد تسلسلات محددة بعد</p>
+            <p className="text-muted-foreground">{tr("لا توجد تسلسلات محددة بعد")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -314,27 +315,27 @@ export function WorkflowSequencesManagement() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">نوع التسلسل</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{tr("نوع التسلسل")}</Label>
                     <Badge variant="outline">
                       {sequenceTypes.find((type) => type.value === currentSequence.sequence_type)?.label}
                     </Badge>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">عدد المراحل</Label>
-                    <p className="font-medium">{currentSequence.steps_count} مرحلة</p>
+                    <Label className="text-sm font-medium text-muted-foreground">{tr("عدد المراحل")}</Label>
+                    <p className="font-medium">{currentSequence.steps_count}{tr(" مرحلة")}</p>
                   </div>
                 </div>
 
                 {currentSequence.description && (
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">الوصف</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">{tr("الوصف")}</Label>
                     <p className="text-sm">{currentSequence.description}</p>
                   </div>
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                  {currentSequence.is_default && <Badge variant="default">تسلسل افتراضي</Badge>}
-                  {currentSequence.is_active && <Badge variant="secondary">نشط</Badge>}
+                  {currentSequence.is_default && <Badge variant="default">{tr("تسلسل افتراضي")}</Badge>}
+                  {currentSequence.is_active && <Badge variant="secondary">{tr("نشط")}</Badge>}
                 </div>
               </CardContent>
             </Card>
@@ -343,7 +344,7 @@ export function WorkflowSequencesManagement() {
           {/* قائمة جميع التسلسلات */}
           <Card>
             <CardHeader>
-              <CardTitle>جميع التسلسلات ({sequences.length})</CardTitle>
+              <CardTitle>{tr("جميع التسلسلات (")}{sequences.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -366,10 +367,10 @@ export function WorkflowSequencesManagement() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{sequence.steps_count} مرحلة</Badge>
+                      <Badge variant="outline">{sequence.steps_count}{tr(" مرحلة")}</Badge>
                       {sequence.is_default && (
                         <Badge variant="default" className="text-xs">
-                          افتراضي
+                          {tr("افتراضي")}
                         </Badge>
                       )}
                     </div>

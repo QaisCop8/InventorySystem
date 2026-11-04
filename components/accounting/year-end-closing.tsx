@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { confirmYesNo } from "@/components/ui/confirm-host"
@@ -60,7 +61,7 @@ export default function YearEndClosing() {
         if (data.default_retained_account_id) setRetainedId(String(data.default_retained_account_id))
       }
     } catch (error) {
-      toast({ title: "خطأ", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     }
   }, [toast])
   useEffect(() => { void loadHistory(true) }, [loadHistory])
@@ -71,34 +72,34 @@ export default function YearEndClosing() {
       const data = await api<Preview>(`/api/year-end-closing?year=${year}&retained_account_id=${Number(retainedId) || ""}`)
       setPreview(data); setStep(1)
     } catch (error) {
-      toast({ title: "تعذر الفحص", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("تعذر الفحص"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     } finally { setLoading(false) }
   }
 
   const execute = async () => {
     if (!preview) return
-    if (!(await confirmYesNo(`إقفال السنة المالية ${year}؟ سيُنشأ قيد الإقفال${lockYear ? " وتُقفل كل سندات السنة" : ""}.`))) return
+    if (!(await confirmYesNo(tr("إقفال السنة المالية {0}؟ سيُنشأ قيد الإقفال{1}.", year, lockYear ? " وتُقفل كل سندات السنة" : "")))) return
     setRunning(true)
     try {
       const data = await api<{ journals: { code: string; branch_name: string }[]; net_result: number }>("/api/year-end-closing", {
         method: "POST", body: JSON.stringify({ year, retained_account_id: Number(retainedId), lock_year: lockYear, advance_working_year: advanceYear, note }),
       })
       setResult(data); setStep(3)
-      toast({ title: `تم إقفال السنة ${year}` })
+      toast({ title: tr("تم إقفال السنة {0}", year) })
       void loadHistory()
     } catch (error) {
-      toast({ title: "تعذر الإقفال", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("تعذر الإقفال"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     } finally { setRunning(false) }
   }
 
   const reverse = async (row: Closing) => {
-    if (!(await confirmYesNo(`التراجع عن إقفال السنة ${row.fiscal_year}؟ ستُلغى قيود الإقفال (${row.journal_codes || ""}) ويُفتح قفل السنة.`))) return
+    if (!(await confirmYesNo(tr("التراجع عن إقفال السنة {0}؟ ستُلغى قيود الإقفال ({1}) ويُفتح قفل السنة.", row.fiscal_year, row.journal_codes || "")))) return
     try {
       await api("/api/year-end-closing", { method: "PATCH", body: JSON.stringify({ id: row.id, action: "reverse" }) })
-      toast({ title: `تم التراجع عن إقفال ${row.fiscal_year}` })
+      toast({ title: tr("تم التراجع عن إقفال {0}", row.fiscal_year) })
       void loadHistory()
     } catch (error) {
-      toast({ title: "تعذر التراجع", description: error instanceof Error ? error.message : "", variant: "destructive" })
+      toast({ title: tr("تعذر التراجع"), description: error instanceof Error ? error.message : "", variant: "destructive" })
     }
   }
 
@@ -108,13 +109,13 @@ export default function YearEndClosing() {
   const warnings = preview?.checks.filter((check) => check.level === "warning").length || 0
 
   return (
-    <div dir="rtl" className="space-y-5 p-3 md:p-6">
+    <div dir={appDir()} className="space-y-5 p-3 md:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarCheck2 className="h-6 w-6 text-indigo-600" />إقفال السنة المالية</h1>
-          <p className="mt-1 text-sm text-muted-foreground">يرحّل صافي الإيرادات والمصروفات إلى حساب الأرباح المدورة، ويقفل سندات السنة، وتنتقل أرصدة الميزانية للسنة الجديدة.</p>
+          <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarCheck2 className="h-6 w-6 text-indigo-600" />{tr("إقفال السنة المالية")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tr("يرحّل صافي الإيرادات والمصروفات إلى حساب الأرباح المدورة، ويقفل سندات السنة، وتنتقل أرصدة الميزانية للسنة الجديدة.")}</p>
         </div>
-        <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="ml-2 h-4 w-4" />تحديث</Button>
+        <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="ml-2 h-4 w-4" />{tr("تحديث")}</Button>
       </div>
 
       {/* شريط الخطوات */}
@@ -131,27 +132,27 @@ export default function YearEndClosing() {
         <Card>
           <CardContent className="grid gap-4 pt-5 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>السنة المالية</Label>
+              <Label>{tr("السنة المالية")}</Label>
               <select className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm" value={year} onChange={(event) => setYear(Number(event.target.value))}>
-                {yearOptions.map((value) => <option key={value} value={value}>{value}{closings.some((row) => row.fiscal_year === value && Number(row.status) !== 3) ? " (مقفلة)" : ""}</option>)}
+                {yearOptions.map((value) => <option key={value} value={value}>{value}{closings.some((row) => row.fiscal_year === value && Number(row.status) !== 3) ? tr(" (مقفلة)") : ""}</option>)}
               </select>
-              <p className="text-xs text-muted-foreground">الفترة: {year}-01-01 ← {year}-12-31 — قيد الإقفال بتاريخ {year}-12-31</p>
+              <p className="text-xs text-muted-foreground">{tr("الفترة: ")}{year}-01-01 ← {year}{tr("-12-31 — قيد الإقفال بتاريخ ")}{year}-12-31</p>
             </div>
             <div className="space-y-1.5">
-              <AutoCompleteAccount label="حساب الأرباح المدورة (حقوق الملكية)" value={retainedId} valueMode="id" onValueChange={setRetainedId} showCostCenterButton={false} placeholder="كود الحساب" />
+              <AutoCompleteAccount label={tr("حساب الأرباح المدورة (حقوق الملكية)")} value={retainedId} valueMode="id" onValueChange={setRetainedId} showCostCenterButton={false} placeholder={tr("كود الحساب")} />
             </div>
             <label className="flex items-start gap-2 rounded-xl border p-3 text-sm">
               <input type="checkbox" className="mt-0.5 h-4 w-4" checked={lockYear} onChange={(event) => setLockYear(event.target.checked)} />
-              <span><b>إقفال سندات السنة</b><span className="block text-xs text-muted-foreground">يمنع إضافة/تعديل/ترحيل/حذف أي سند بتاريخ داخل السنة لكل الفروع (يظهر في إقفال الفترات)</span></span>
+              <span><b>{tr("إقفال سندات السنة")}</b><span className="block text-xs text-muted-foreground">{tr("يمنع إضافة/تعديل/ترحيل/حذف أي سند بتاريخ داخل السنة لكل الفروع (يظهر في إقفال الفترات)")}</span></span>
             </label>
             <label className="flex items-start gap-2 rounded-xl border p-3 text-sm">
               <input type="checkbox" className="mt-0.5 h-4 w-4" checked={advanceYear} onChange={(event) => setAdvanceYear(event.target.checked)} />
-              <span><b>فتح السنة الجديدة {year + 1}</b><span className="block text-xs text-muted-foreground">تحويل سنة العمل في الإعدادات العامة إلى {year + 1} (كل الأشهر مفتوحة)</span></span>
+              <span><b>{tr("فتح السنة الجديدة ")}{year + 1}</b><span className="block text-xs text-muted-foreground">{tr("تحويل سنة العمل في الإعدادات العامة إلى ")}{year + 1}{tr(" (كل الأشهر مفتوحة)")}</span></span>
             </label>
-            <div className="space-y-1.5 md:col-span-2"><Label>ملاحظة</Label><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="اختياري" /></div>
+            <div className="space-y-1.5 md:col-span-2"><Label>{tr("ملاحظة")}</Label><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder={tr("اختياري")} /></div>
             <div className="flex justify-end md:col-span-2">
               <Button onClick={() => void runPreview()} disabled={loading || !retainedId}>
-                {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}فحص السنة<ArrowLeft className="mr-2 h-4 w-4" />
+                {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}{tr("فحص السنة")}<ArrowLeft className="mr-2 h-4 w-4" />
               </Button>
             </div>
           </CardContent>
@@ -162,18 +163,18 @@ export default function YearEndClosing() {
         <Card>
           <CardContent className="space-y-3 pt-5">
             <div className="grid gap-3 sm:grid-cols-3">
-              <Stat label="الإيرادات" value={money(preview.revenue)} tone="emerald" />
-              <Stat label="المصروفات" value={money(preview.expenses)} tone="rose" />
-              <Stat label={preview.net_result >= 0 ? "صافي الربح" : "صافي الخسارة"} value={money(Math.abs(preview.net_result))} tone={preview.net_result >= 0 ? "indigo" : "amber"} />
+              <Stat label={tr("الإيرادات")} value={money(preview.revenue)} tone="emerald" />
+              <Stat label={tr("المصروفات")} value={money(preview.expenses)} tone="rose" />
+              <Stat label={preview.net_result >= 0 ? tr("صافي الربح") : tr("صافي الخسارة")} value={money(Math.abs(preview.net_result))} tone={preview.net_result >= 0 ? "indigo" : "amber"} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {preview.branches.map((branch) => (
                 <div key={branch.branch_id} className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
                   <div className="mb-2 font-bold">{branch.branch_name}</div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div><span className="block text-muted-foreground">الإيرادات</span><b className="font-mono">{money(branch.revenue)}</b></div>
-                    <div><span className="block text-muted-foreground">المصروفات</span><b className="font-mono">{money(branch.expenses)}</b></div>
-                    <div><span className="block text-muted-foreground">الصافي</span><b className="font-mono">{money(Math.abs(branch.net_result))} {branch.net_result >= 0 ? "ربح" : "خسارة"}</b></div>
+                    <div><span className="block text-muted-foreground">{tr("الإيرادات")}</span><b className="font-mono">{money(branch.revenue)}</b></div>
+                    <div><span className="block text-muted-foreground">{tr("المصروفات")}</span><b className="font-mono">{money(branch.expenses)}</b></div>
+                    <div><span className="block text-muted-foreground">{tr("الصافي")}</span><b className="font-mono">{money(Math.abs(branch.net_result))} {branch.net_result >= 0 ? tr("ربح") : tr("خسارة")}</b></div>
                   </div>
                 </div>
               ))}
@@ -187,12 +188,12 @@ export default function YearEndClosing() {
               ))}
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-600">
-              أرصدة الميزانية المنقولة للسنة الجديدة: <b>{preview.balance_sheet.accounts}</b> حساب — مدين <b className="font-mono">{money(preview.balance_sheet.debit)}</b> / دائن <b className="font-mono">{money(preview.balance_sheet.credit)}</b> (تنتقل تلقائياً؛ لا حاجة لقيد افتتاحي)
+              {tr("أرصدة الميزانية المنقولة للسنة الجديدة: ")}<b>{preview.balance_sheet.accounts}</b>{tr(" حساب — مدين ")}<b className="font-mono">{money(preview.balance_sheet.debit)}</b>{tr(" / دائن ")}<b className="font-mono">{money(preview.balance_sheet.credit)}</b>{tr(" (تنتقل تلقائياً؛ لا حاجة لقيد افتتاحي)")}
             </div>
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(0)}><ArrowRight className="ml-2 h-4 w-4" />رجوع</Button>
+              <Button variant="outline" onClick={() => setStep(0)}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
               <Button onClick={() => setStep(2)} disabled={!preview.can_close}>
-                {errors ? `${errors} مانع` : warnings ? `متابعة رغم ${warnings} تنبيه` : "متابعة"}<ArrowLeft className="mr-2 h-4 w-4" />
+                {errors ? tr("{0} مانع", errors) : warnings ? tr("متابعة رغم {0} تنبيه", warnings) : tr("متابعة")}<ArrowLeft className="mr-2 h-4 w-4" />
               </Button>
             </div>
           </CardContent>
@@ -202,29 +203,29 @@ export default function YearEndClosing() {
       {step === 2 && preview && (
         <Card>
           <CardContent className="space-y-4 pt-5">
-            <p className="text-sm text-muted-foreground">قيد إقفال لكل فرع بتاريخ <b className="font-mono">{preview.to}</b> بعملة الأساس: الحسابات المدينة (مصروفات) تُقفل دائناً والدائنة (إيرادات) مديناً، والفرق لحساب الأرباح المدورة.</p>
+            <p className="text-sm text-muted-foreground">{tr("قيد إقفال لكل فرع بتاريخ ")}<b className="font-mono">{preview.to}</b>{tr(" بعملة الأساس: الحسابات المدينة (مصروفات) تُقفل دائناً والدائنة (إيرادات) مديناً، والفرق لحساب الأرباح المدورة.")}</p>
             {preview.branches.map((bucket) => (
               <div key={bucket.branch_id} className="overflow-hidden rounded-xl border">
                 <div className="flex items-center justify-between bg-slate-50 px-3 py-2 text-sm">
                   <b>{bucket.branch_name}</b>
-                  <span>{bucket.net <= 0 ? "ربح" : "خسارة"}: <b className="font-mono">{money(Math.abs(bucket.net))}</b></span>
+                  <span>{bucket.net <= 0 ? tr("ربح") : tr("خسارة")}: <b className="font-mono">{money(Math.abs(bucket.net))}</b></span>
                 </div>
                 <div className="max-h-72 overflow-auto">
                   <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-white text-xs text-slate-500"><tr><th className="p-2 text-right">الحساب</th><th className="p-2 text-right">مراكز التكلفة</th><th className="p-2 text-left">مدين</th><th className="p-2 text-left">دائن</th></tr></thead>
+                    <thead className="sticky top-0 bg-white text-xs text-slate-500"><tr><th className="p-2 text-start">{tr("الحساب")}</th><th className="p-2 text-start">{tr("مراكز التكلفة")}</th><th className="p-2 text-end">{tr("مدين")}</th><th className="p-2 text-end">{tr("دائن")}</th></tr></thead>
                     <tbody>
                       {bucket.lines.map((line) => (
                         <tr key={line.key} className="border-t">
                           <td className="p-2"><span className="font-mono text-xs text-muted-foreground">{line.code}</span> {line.name}</td>
                           <td className="p-2 text-xs">{line.cost_center_names.length ? line.cost_center_names.map((name) => <span key={name} className="ml-1 inline-block rounded bg-sky-50 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">{name}</span>) : <span className="text-muted-foreground">—</span>}</td>
-                          <td className="p-2 text-left font-mono">{line.balance < 0 ? money(-line.balance) : ""}</td>
-                          <td className="p-2 text-left font-mono">{line.balance > 0 ? money(line.balance) : ""}</td>
+                          <td className="p-2 text-end font-mono">{line.balance < 0 ? money(-line.balance) : ""}</td>
+                          <td className="p-2 text-end font-mono">{line.balance > 0 ? money(line.balance) : ""}</td>
                         </tr>
                       ))}
                       <tr className="border-t bg-indigo-50/60 font-semibold">
-                        <td className="p-2">الأرباح المدورة</td>
-                        <td className="p-2 text-left font-mono">{bucket.net > 0 ? money(bucket.net) : ""}</td>
-                        <td className="p-2 text-left font-mono">{bucket.net < 0 ? money(-bucket.net) : ""}</td>
+                        <td className="p-2">{tr("الأرباح المدورة")}</td>
+                        <td className="p-2 text-end font-mono">{bucket.net > 0 ? money(bucket.net) : ""}</td>
+                        <td className="p-2 text-end font-mono">{bucket.net < 0 ? money(-bucket.net) : ""}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -232,9 +233,9 @@ export default function YearEndClosing() {
               </div>
             ))}
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)}><ArrowRight className="ml-2 h-4 w-4" />رجوع</Button>
+              <Button variant="outline" onClick={() => setStep(1)}><ArrowRight className="ml-2 h-4 w-4" />{tr("رجوع")}</Button>
               <Button onClick={() => void execute()} disabled={running} className="bg-indigo-600 hover:bg-indigo-700">
-                {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Lock className="ml-2 h-4 w-4" />}إقفال السنة {year}
+                {running ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Lock className="ml-2 h-4 w-4" />}{tr("إقفال السنة ")}{year}
               </Button>
             </div>
           </CardContent>
@@ -245,37 +246,36 @@ export default function YearEndClosing() {
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
             <CheckCircle2 className="h-12 w-12 text-emerald-500" />
-            <div className="text-lg font-bold">تم إقفال السنة المالية {year}</div>
+            <div className="text-lg font-bold">{tr("تم إقفال السنة المالية ")}{year}</div>
             <div className="text-sm text-muted-foreground">
-              {result.net_result >= 0 ? "صافي الربح" : "صافي الخسارة"} <b className="font-mono">{money(Math.abs(result.net_result))}</b> رُحّل لحساب الأرباح المدورة —
-              القيود: {result.journals.map((journal) => `${journal.code} (${journal.branch_name})`).join("، ")}
+              {result.net_result >= 0 ? tr("صافي الربح") : tr("صافي الخسارة")} <b className="font-mono">{money(Math.abs(result.net_result))}</b>{tr(" رُحّل لحساب الأرباح المدورة — القيود: ")}{result.journals.map((journal) => `${journal.code} (${journal.branch_name})`).join("، ")}
             </div>
-            <Button variant="outline" onClick={restart}>إقفال سنة أخرى</Button>
+            <Button variant="outline" onClick={restart}>{tr("إقفال سنة أخرى")}</Button>
           </CardContent>
         </Card>
       )}
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 border-b px-4 py-2.5 font-bold"><History className="h-4 w-4" />سجل الإقفالات</div>
-          {closings.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">لم تُقفل أي سنة بعد</div> : (
+          <div className="flex items-center gap-2 border-b px-4 py-2.5 font-bold"><History className="h-4 w-4" />{tr("سجل الإقفالات")}</div>
+          {closings.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">{tr("لم تُقفل أي سنة بعد")}</div> : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3 text-right">السنة</th><th className="p-3 text-left">النتيجة</th><th className="p-3 text-right">الأرباح المدورة</th><th className="p-3 text-right">القيود</th><th className="p-3 text-right">بواسطة</th><th className="p-3 text-center">الحالة</th><th className="p-3" /></tr></thead>
+                <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3 text-start">{tr("السنة")}</th><th className="p-3 text-end">{tr("النتيجة")}</th><th className="p-3 text-start">{tr("الأرباح المدورة")}</th><th className="p-3 text-start">{tr("القيود")}</th><th className="p-3 text-start">{tr("بواسطة")}</th><th className="p-3 text-center">{tr("الحالة")}</th><th className="p-3" /></tr></thead>
                 <tbody>
                   {closings.map((row) => {
                     const active = Number(row.status) !== 3
                     return (
                       <tr key={row.id} className={`border-t ${active ? "" : "text-slate-400"}`}>
                         <td className="p-3 font-mono font-bold">{row.fiscal_year}</td>
-                        <td className={`p-3 text-left font-mono ${Number(row.net_result) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{Number(row.net_result) >= 0 ? "ربح " : "خسارة "}{money(Math.abs(Number(row.net_result)))}</td>
+                        <td className={`p-3 text-end font-mono ${Number(row.net_result) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{Number(row.net_result) >= 0 ? tr("ربح ") : tr("خسارة ")}{money(Math.abs(Number(row.net_result)))}</td>
                         <td className="p-3">{row.retained_code} - {row.retained_name}</td>
                         <td className="p-3 font-mono text-xs">{row.journal_codes || "—"}</td>
                         <td className="p-3 text-xs">{row.created_by || "—"}<div className="text-muted-foreground">{String(row.created_at || "").slice(0, 10)}</div></td>
                         <td className="p-3 text-center">{active
-                          ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">مقفلة</span>
-                          : <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">تم التراجع</span>}</td>
-                        <td className="p-3 text-left">{active && <Button size="sm" variant="outline" className="text-rose-600" onClick={() => void reverse(row)}><Undo2 className="ml-1 h-3.5 w-3.5" />تراجع</Button>}</td>
+                          ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">{tr("مقفلة")}</span>
+                          : <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{tr("تم التراجع")}</span>}</td>
+                        <td className="p-3 text-end">{active && <Button size="sm" variant="outline" className="text-rose-600" onClick={() => void reverse(row)}><Undo2 className="ml-1 h-3.5 w-3.5" />{tr("تراجع")}</Button>}</td>
                       </tr>
                     )
                   })}

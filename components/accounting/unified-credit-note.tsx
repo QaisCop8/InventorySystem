@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
@@ -228,7 +229,7 @@ export default function UnifiedCreditNote({
     const record = await response.json().catch(() => null)
     if (requestId !== codeRequestRef.current) return
     if (!response.ok || !record?.id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || "تعذر عرض السند", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || tr("تعذر عرض السند"), life: 3000 }])
       return
     }
     onNavigateRecord?.(record)
@@ -250,7 +251,7 @@ export default function UnifiedCreditNote({
       const data = await response.json()
       if (requestId !== codeRequestRef.current || latestFormRef.current.id !== recordId || latestFormRef.current.vch_code.trim() !== raw) return
       if (!response.ok) {
-        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || tr("تعذر تحديد رقم السند"), life: 3000 }])
         return
       }
       if (data.code && data.code !== form.vch_code) {
@@ -312,7 +313,7 @@ export default function UnifiedCreditNote({
   const currencyOptions = useMemo(
     () =>
       currencies.map((c) => ({
-        label: c.currency_name || c.currency_code || "غير محدد",
+        label: c.currency_name || c.currency_code || tr("غير محدد"),
         value: Number(c.currency_id ?? c.id),
       })),
     [currencies],
@@ -461,7 +462,7 @@ export default function UnifiedCreditNote({
           inline={fullscreenEnabled && dialogOpen}
           className="voucher-form w-[97vw] max-w-[1400px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
           hideCloseButton
-          dir="rtl"
+          dir={appDir()}
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
@@ -470,9 +471,9 @@ export default function UnifiedCreditNote({
         >
           <button
             type="button"
-            aria-label="إغلاق"
+            aria-label={tr("إغلاق")}
             onClick={() => guardedAction(() => onOpenChange(false))}
-            className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
+            className="universal-dialog-close absolute end-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           >
             <X className="h-4 w-4" />
           </button>
@@ -509,7 +510,7 @@ export default function UnifiedCreditNote({
                 {form.id > 0 ? (
                   <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
                 ) : (
-                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{tr("مسودة")}</span>
                 )}
                 {statusBadge && (
                   <span
@@ -534,19 +535,19 @@ export default function UnifiedCreditNote({
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
                       <FileText className="h-3.5 w-3.5" />
                     </span>
-                    تفاصيل السند
+                    {tr("تفاصيل السند")}
                   </div>
                   <div className="grid gap-3">
                     {/* دفتر/رقم/تاريخ/فرع السند بشبكة 2×2 داخل "تفاصيل السند" — نفس ترتيب سند القبض. */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                        <Label>دفتر السندات *</Label>
+                        <Label>{tr("دفتر السندات *")}</Label>
                         <PrimeDropdown
                           value={form.vch_book_id}
                           options={voucherBooks}
                           optionLabel="name"
                           optionValue="id"
-                          placeholder="اختر"
+                          placeholder={tr("اختر")}
                           filter
                           disabled={isLocked}
                           className="invoice-currency-dropdown w-full"
@@ -562,7 +563,7 @@ export default function UnifiedCreditNote({
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <Label htmlFor="vch-code">رقم السند *</Label>
+                        <Label htmlFor="vch-code">{tr("رقم السند *")}</Label>
                         <div className="flex min-w-0 items-center gap-1.5">
                           <Input
                             id="vch-code"
@@ -580,7 +581,7 @@ export default function UnifiedCreditNote({
                         </div>
                       </div>
                       <div className="grid gap-1.5">
-                        <Label htmlFor="vch-date">تاريخ السند *</Label>
+                        <Label htmlFor="vch-date">{tr("تاريخ السند *")}</Label>
                         <DateTimeControl
                           id="vch-date"
                           ref={dateInputRef}
@@ -596,13 +597,13 @@ export default function UnifiedCreditNote({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                        <Label>العملة *</Label>
+                        <Label>{tr("العملة *")}</Label>
                         <PrimeDropdown
                           value={form.currency_id}
                           options={currencyOptions}
                           optionLabel="label"
                           optionValue="value"
-                          placeholder="اختر العملة"
+                          placeholder={tr("اختر العملة")}
                           filter
                           disabled={isLocked}
                           className="invoice-currency-dropdown w-full"
@@ -613,7 +614,7 @@ export default function UnifiedCreditNote({
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <Label htmlFor="vch-rate">سعر الصرف *</Label>
+                        <Label htmlFor="vch-rate">{tr("سعر الصرف *")}</Label>
                         <Input
                           id="vch-rate"
                           type="number"
@@ -626,7 +627,7 @@ export default function UnifiedCreditNote({
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-1.5">
-                        <Label htmlFor="vch-manual-code">سند يدوي</Label>
+                        <Label htmlFor="vch-manual-code">{tr("سند يدوي")}</Label>
                         <Input
                           id="vch-manual-code"
                           value={form.manual_voucher}
@@ -636,7 +637,7 @@ export default function UnifiedCreditNote({
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
+                        <Label htmlFor="vch-manual-date">{tr("تاريخ السند اليدوي")}</Label>
                         <DateTimeControl
                           id="vch-manual-date"
                           value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
@@ -655,7 +656,7 @@ export default function UnifiedCreditNote({
                       <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
                         <User className="h-3.5 w-3.5" />
                       </span>
-                      تفاصيل العميل
+                      {tr("تفاصيل العميل")}
                     </div>
                     {isCreditNote && (
                       // نفس زر "تسديد الفواتير" في فاتورة المبيعات وسند القبض. span بدور زر لا <button>: البطاقة داخل
@@ -665,7 +666,7 @@ export default function UnifiedCreditNote({
                           role="button"
                           tabIndex={form.id > 0 ? 0 : -1}
                           aria-disabled={!(form.id > 0)}
-                          title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"}
+                          title={form.id > 0 ? tr("تسديد الفواتير") : tr("احفظ السند أولاً")}
                           onClick={() => { if (form.id > 0) setBillsPaymentOpen(true) }}
                           onKeyDown={(event) => {
                             if ((event.key === "Enter" || event.key === " ") && form.id > 0) {
@@ -676,7 +677,7 @@ export default function UnifiedCreditNote({
                           }}
                         >
                           <Wallet className="h-3.5 w-3.5 text-emerald-600" />
-                          تسديد الفواتير
+                          {tr("تسديد الفواتير")}
                         </span>
                       </Button>
                     )}
@@ -684,7 +685,7 @@ export default function UnifiedCreditNote({
                   <div className="grid gap-3">
                     <div className="grid grid-cols-2 gap-3">
                       <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                        label="العميل *"
+                        label={tr("العميل *")}
                         valueMode="id"
                         value={numberValue(form.account_id)}
                         onValueChange={(v) => onFormChange("account_id", v ? Number(v) : null)}
@@ -692,25 +693,25 @@ export default function UnifiedCreditNote({
                         costCenters={form.account_cost_centers}
                         onCostCentersChange={(selection) => onFormChange("account_cost_centers", selection)}
                         requiredTypeValues={[2, 3, 5]}
-                        notFoundMessage="العميل المحدد غير موجود"
+                        notFoundMessage={tr("العميل المحدد غير موجود")}
                         disabled={isLocked}
                       />
                       <AccountBalanceField accountId={form.account_id} refreshKey={`${form.id}-${form.status}`} />
                     </div>
                     <div className="grid gap-3">
                       <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                        label={isCreditNote ? "الحساب المدين *" : "الحساب الدائن *"}
+                        label={isCreditNote ? tr("الحساب المدين *") : tr("الحساب الدائن *")}
                         valueMode="id"
                         value={numberValue(form.debit_account_id)}
                         onValueChange={(v) => onFormChange("debit_account_id", v ? Number(v) : null)}
                         costCenters={form.debit_account_cost_centers}
                         onCostCentersChange={(selection) => onFormChange("debit_account_cost_centers", selection)}
                         requiredTypeValues={[1]}
-                        notFoundMessage="الحساب غير موجود"
+                        notFoundMessage={tr("الحساب غير موجود")}
                         disabled={isLocked}
                       />
                       <div className="grid gap-1.5">
-                        <Label htmlFor="vat-percent">نسبة الضريبة % *</Label>
+                        <Label htmlFor="vat-percent">{tr("نسبة الضريبة % *")}</Label>
                         <Input
                           id="vat-percent"
                           type="number"
@@ -737,11 +738,11 @@ export default function UnifiedCreditNote({
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
                       <Percent className="h-3.5 w-3.5" />
                     </span>
-                    المبالغ والضريبة
+                    {tr("المبالغ والضريبة")}
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-amount-net">المبلغ *</Label>
+                      <Label htmlFor="vch-amount-net">{tr("المبلغ *")}</Label>
                       <Input
                         id="vch-amount-net"
                         type="number"
@@ -757,7 +758,7 @@ export default function UnifiedCreditNote({
                       />
                     </div>
                     <div className="grid gap-1.5">
-                      <Label htmlFor="vch-vat">الضريبة *</Label>
+                      <Label htmlFor="vch-vat">{tr("الضريبة *")}</Label>
                       <Input
                         id="vch-vat"
                         type="number"
@@ -775,7 +776,7 @@ export default function UnifiedCreditNote({
                     </div>
                     <div className="grid gap-1.5">
                       <Label htmlFor="vch-amount" className="font-bold text-slate-700">
-                        المجموع *
+                        {tr("المجموع *")}
                       </Label>
                       <Input
                         id="vch-amount"
@@ -799,17 +800,17 @@ export default function UnifiedCreditNote({
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
                       <Wallet className="h-3.5 w-3.5" />
                     </span>
-                    حساب الضريبة
+                    {tr("حساب الضريبة")}
                   </div>
                   <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
-                    label={Number(form.vat_percent) > 0 || Number(form.vat) > 0 ? "حساب الضريبة *" : "حساب الضريبة"}
+                    label={Number(form.vat_percent) > 0 || Number(form.vat) > 0 ? tr("حساب الضريبة *") : tr("حساب الضريبة")}
                     valueMode="id"
                     value={numberValue(form.vat_account_id)}
                     onValueChange={(v) => onFormChange("vat_account_id", v ? Number(v) : null)}
                     costCenters={form.vat_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("vat_account_cost_centers", selection)}
                     requiredTypeValues={[1]}
-                    notFoundMessage="الحساب غير موجود"
+                    notFoundMessage={tr("الحساب غير موجود")}
                     disabled={isLocked}
                   />
                 </div>
@@ -821,17 +822,17 @@ export default function UnifiedCreditNote({
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 ring-1 ring-indigo-100">
                     <Users2 className="h-3.5 w-3.5" />
                   </span>
-                  بيانات إضافية
+                  {tr("بيانات إضافية")}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>مندوب المبيعات</Label>
+                    <Label>{tr("مندوب المبيعات")}</Label>
                     <PrimeDropdown
                       value={form.salesman_id}
                       options={salesmen}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       showClear
                       disabled={isLocked}
@@ -843,13 +844,13 @@ export default function UnifiedCreditNote({
                     />
                   </div>
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>تصنيف الدفعة</Label>
+                    <Label>{tr("تصنيف الدفعة")}</Label>
                     <PrimeDropdown
                       value={form.payment_classification_id}
                       options={paymentClassifications}
                       optionLabel="name"
                       optionValue="id"
-                      placeholder="اختر"
+                      placeholder={tr("اختر")}
                       filter
                       showClear
                       disabled={isLocked}
@@ -869,7 +870,7 @@ export default function UnifiedCreditNote({
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 ring-1 ring-slate-200">
                     <MessageSquare className="h-3.5 w-3.5" />
                   </span>
-                  ملاحظة عامة للسند
+                  {tr("ملاحظة عامة للسند")}
                 </div>
                 <Textarea
                   id="vch-note"
@@ -889,8 +890,8 @@ export default function UnifiedCreditNote({
         useAppDialog
         visible={showDeleteConfirm}
         busy={isSaving}
-        title="تأكيد حذف السند"
-        message={form.status === 2 ? "السند معتمد هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
+        title={tr("تأكيد حذف السند")}
+        message={form.status === 2 ? tr("السند معتمد هل تريد الغاؤه منطقياً؟") : tr("هل تريد حذف هذا {0}؟", title)}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -900,19 +901,19 @@ export default function UnifiedCreditNote({
         onOpenChange={setVoucherSearchOpen}
         vchType={Number(form.vch_type)}
         title={title}
-        accountLabel={"الحساب"}
+        accountLabel={tr("الحساب")}
         onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
       />
       <ConfirmDialogYesNo
         useAppDialog
         visible={showUnsavedConfirm}
         busy={isSaving}
-        title="التحقق من التغييرات"
-        message="تم تعديل البيانات، هل تريد الحفظ؟"
+        title={tr("التحقق من التغييرات")}
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
         showBack
-        confirmLabel="حفظ"
-        cancelLabel="عدم الحفظ"
-        backLabel="رجوع"
+        confirmLabel={tr("حفظ")}
+        cancelLabel={tr("عدم الحفظ")}
+        backLabel={tr("رجوع")}
         onConfirm={() => void saveAndContinue()}
         onCancel={discardAndContinue}
         onBack={cancelPendingAction}

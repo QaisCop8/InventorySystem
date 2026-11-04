@@ -1,4 +1,5 @@
 "use client"
+import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -59,16 +60,16 @@ export type { CountLine, CountSummary }
 type LineEdit = { counted_qty: number | null; counted_pieces: number | null; note: string; text?: string }
 
 export const SESSION_STATUS: Record<number, { label: string; className: string }> = {
-  1: { label: "مفتوحة", className: "bg-sky-100 text-sky-800" },
-  2: { label: "منتهية", className: "bg-emerald-100 text-emerald-800" },
-  3: { label: "ملغاة", className: "bg-slate-200 text-slate-600" },
+  1: { label: tr("مفتوحة"), className: "bg-sky-100 text-sky-800" },
+  2: { label: tr("منتهية"), className: "bg-emerald-100 text-emerald-800" },
+  3: { label: tr("ملغاة"), className: "bg-slate-200 text-slate-600" },
 }
 
 export const STATUS: Record<number, { label: string; className: string }> = {
-  1: { label: "قيد الجرد", className: "bg-sky-100 text-sky-800" },
-  2: { label: "منتهي — مراجعة", className: "bg-amber-100 text-amber-800" },
-  3: { label: "معتمد", className: "bg-emerald-100 text-emerald-800" },
-  4: { label: "ملغى", className: "bg-slate-200 text-slate-600" },
+  1: { label: tr("قيد الجرد"), className: "bg-sky-100 text-sky-800" },
+  2: { label: tr("منتهي — مراجعة"), className: "bg-amber-100 text-amber-800" },
+  3: { label: tr("معتمد"), className: "bg-emerald-100 text-emerald-800" },
+  4: { label: tr("ملغى"), className: "bg-slate-200 text-slate-600" },
 }
 const today = () => new Date().toISOString().slice(0, 10)
 export const dateOnly = (value?: string | null) => (value ? String(value).slice(0, 10) : "-")
@@ -88,7 +89,7 @@ export const lotLabel = (line: Pick<CountLine, "variant_label" | "expiry_date" |
 export async function api<T = any>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init, headers: { "Content-Type": "application/json", ...(init?.headers || {}) } })
   const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(data?.error || "تعذر تنفيذ العملية")
+  if (!response.ok) throw new Error(data?.error || tr("تعذر تنفيذ العملية"))
   return data
 }
 
@@ -114,7 +115,7 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
     try {
       setRows(await api<CountSummary[]>(`/api/stock-counts?status=${status}`))
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -128,16 +129,16 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
   }), [rows])
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={appDir()}>
       {/* ترويسة موحّدة مع شاشات النظام (VoucherListHero): العنوان أبيض صراحةً — كان يرث لون العناوين العام فيظهر داكناً */}
       <VoucherListHero
-        title="جرد المخازن"
-        subtitle="عدّ فعلي لكل فرع ومستودع بتاريخ قطع — بالدفعات والمقاسات والأرقام التسلسلية — ثم ترحيل الفروقات بسندات تسوية"
-        category="ادارة الاصناف"
+        title={tr("جرد المخازن")}
+        subtitle={tr("عدّ فعلي لكل فرع ومستودع بتاريخ قطع — بالدفعات والمقاسات والأرقام التسلسلية — ثم ترحيل الفروقات بسندات تسوية")}
+        category={tr("ادارة الاصناف")}
         icon={ClipboardCheck}
-        addLabel="جرد جديد"
+        addLabel={tr("جرد جديد")}
         onNew={() => setCreating(true)}
-        actions={<button type="button" onClick={() => void load()} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</button>}
+        actions={<button type="button" onClick={() => void load()} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20 focus:outline-none focus:ring-4 focus:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</button>}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -168,21 +169,21 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
             <thead className="bg-emerald-100 text-emerald-950">
               <tr>
                 {["رقم الجرد", "الفرع", "المستودع", "تاريخ القطع", "الحالة", "الجلسات", "الأسطر", "المجرود", "أسطر بفروقات", "سندات التسوية", ""].map((header) => (
-                  <th key={header} className="p-3 text-right">{header}</th>
+                  <th key={header} className="p-3 text-start">{header}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className="cursor-pointer border-t hover:bg-emerald-50/40" onDoubleClick={() => onOpen(row.id)}>
-                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="mr-1 inline h-3.5 w-3.5 text-slate-400" aria-label="جرد أعمى" />}</td>
+                  <td className="p-3 font-mono font-bold text-emerald-700">{row.count_no}{row.blind && <EyeOff className="mr-1 inline h-3.5 w-3.5 text-slate-400" aria-label={tr("جرد أعمى")} />}</td>
                   <td className="p-3">{row.branch_name || "—"}</td>
                   <td className="p-3 font-semibold">{row.warehouse_name}</td>
                   <td className="p-3 font-mono" dir="ltr">{dateOnly(row.count_date)}</td>
                   <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${STATUS[row.status]?.className}`}>{STATUS[row.status]?.label}</span></td>
                   <td className="p-3 text-xs">
                     {row.sessions}
-                    {row.open_sessions > 0 && <span className="mr-1 rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-800">مفتوحة: {row.open_session_nos}</span>}
+                    {row.open_sessions > 0 && <span className="mr-1 rounded-full bg-sky-100 px-2 py-0.5 font-bold text-sky-800">{tr("مفتوحة: ")}{row.open_session_nos}</span>}
                   </td>
                   <td className="p-3">{row.lines.toLocaleString("en-US")}</td>
                   <td className="p-3">
@@ -199,12 +200,12 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
                       {!row.out_voucher_id && !row.in_voucher_id && <span className="text-slate-400">—</span>}
                     </div>
                   </td>
-                  <td className="p-3 text-left"><Button size="sm" variant="outline" className="rounded-lg" onClick={() => onOpen(row.id)}>فتح</Button></td>
+                  <td className="p-3 text-end"><Button size="sm" variant="outline" className="rounded-lg" onClick={() => onOpen(row.id)}>{tr("فتح")}</Button></td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!loading && !rows.length && <div className="py-14 text-center text-muted-foreground">لا توجد وثائق جرد — ابدأ بـ«جرد جديد»</div>}
+          {!loading && !rows.length && <div className="py-14 text-center text-muted-foreground">{tr("لا توجد وثائق جرد — ابدأ بـ«جرد جديد»")}</div>}
         </div>
       </div>
 
@@ -236,18 +237,18 @@ function NewCountDialog({ open, onOpenChange, onCreated }: { open: boolean; onOp
   }, [open])
 
   const create = async () => {
-    if (!form.branch_id) { toast({ title: "تنبيه", description: "اختر الفرع", variant: "destructive" }); return }
-    if (!form.warehouse_id) { toast({ title: "تنبيه", description: "اختر المستودع", variant: "destructive" }); return }
+    if (!form.branch_id) { toast({ title: tr("تنبيه"), description: tr("اختر الفرع"), variant: "destructive" }); return }
+    if (!form.warehouse_id) { toast({ title: tr("تنبيه"), description: tr("اختر المستودع"), variant: "destructive" }); return }
     setSaving(true)
     try {
       const result = await api<{ id: number; lines: number }>("/api/stock-counts", {
         method: "POST",
         body: JSON.stringify({ ...form, warehouse_id: Number(form.warehouse_id), branch_id: Number(form.branch_id) }),
       })
-      toast({ title: "تم إنشاء الجرد", description: `تم توليد ${result.lines} سطراً للجرد` })
+      toast({ title: tr("تم إنشاء الجرد"), description: tr("تم توليد {0} سطراً للجرد", result.lines) })
       onCreated(result.id)
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -256,46 +257,46 @@ function NewCountDialog({ open, onOpenChange, onCreated }: { open: boolean; onOp
   const selectClass = "mt-1 h-10 w-full rounded-lg border bg-background px-3"
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Warehouse className="h-5 w-5 text-emerald-600" />جرد مخزن جديد</DialogTitle></DialogHeader>
+      <DialogContent dir={appDir()} className="max-w-lg">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Warehouse className="h-5 w-5 text-emerald-600" />{tr("جرد مخزن جديد")}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label>الفرع *</Label>
+              <Label>{tr("الفرع *")}</Label>
               <select className={selectClass} value={form.branch_id} onChange={(event) => setForm({ ...form, branch_id: event.target.value })}>
-                <option value="">اختر الفرع</option>
+                <option value="">{tr("اختر الفرع")}</option>
                 {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
               </select>
             </div>
             <div>
-              <Label>المستودع *</Label>
+              <Label>{tr("المستودع *")}</Label>
               <select className={selectClass} value={form.warehouse_id} onChange={(event) => setForm({ ...form, warehouse_id: event.target.value })}>
-                <option value="">اختر المستودع</option>
+                <option value="">{tr("اختر المستودع")}</option>
                 {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name}</option>)}
               </select>
             </div>
           </div>
-          <p className="-mt-2 text-xs text-muted-foreground">الكمية الدفترية تُحسب من حركات هذا الفرع على هذا المستودع فقط، وتُنشأ سندات التسوية على الفرع نفسه.</p>
+          <p className="-mt-2 text-xs text-muted-foreground">{tr("الكمية الدفترية تُحسب من حركات هذا الفرع على هذا المستودع فقط، وتُنشأ سندات التسوية على الفرع نفسه.")}</p>
           <div>
-            <Label>تاريخ القطع (تاريخ الجرد) *</Label>
+            <Label>{tr("تاريخ القطع (تاريخ الجرد) *")}</Label>
             <Input className="mt-1" type="date" value={form.count_date} onChange={(event) => setForm({ ...form, count_date: event.target.value })} />
-            <p className="mt-1 text-xs text-muted-foreground">الكمية الدفترية = الرصيد بنهاية هذا اليوم؛ الحركات بعده لا تؤثر على الفروقات.</p>
+            <p className="mt-1 text-xs text-muted-foreground">{tr("الكمية الدفترية = الرصيد بنهاية هذا اليوم؛ الحركات بعده لا تؤثر على الفروقات.")}</p>
           </div>
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-3">
             <input type="checkbox" className="mt-1 h-4 w-4 accent-emerald-600" checked={form.blind} onChange={(event) => setForm({ ...form, blind: event.target.checked })} />
-            <span><b className="block text-sm">جرد أعمى</b><span className="text-xs text-muted-foreground">إخفاء الكميات والسيريالات الدفترية عن العدّادين أثناء الجرد، وإظهارها عند المراجعة فقط</span></span>
+            <span><b className="block text-sm">{tr("جرد أعمى")}</b><span className="text-xs text-muted-foreground">{tr("إخفاء الكميات والسيريالات الدفترية عن العدّادين أثناء الجرد، وإظهارها عند المراجعة فقط")}</span></span>
           </label>
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-3">
             <input type="checkbox" className="mt-1 h-4 w-4 accent-emerald-600" checked={form.include_zero} onChange={(event) => setForm({ ...form, include_zero: event.target.checked })} />
-            <span><b className="block text-sm">تضمين الأصناف ذات الرصيد صفر</b><span className="text-xs text-muted-foreground">وإلا تُضاف عند مسحها بالباركود إن وُجدت فعلياً</span></span>
+            <span><b className="block text-sm">{tr("تضمين الأصناف ذات الرصيد صفر")}</b><span className="text-xs text-muted-foreground">{tr("وإلا تُضاف عند مسحها بالباركود إن وُجدت فعلياً")}</span></span>
           </label>
           <div>
-            <Label>ملاحظات</Label>
-            <Input className="mt-1" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="مثال: جرد نهاية الربع" />
+            <Label>{tr("ملاحظات")}</Label>
+            <Input className="mt-1" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder={tr("مثال: جرد نهاية الربع")} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-            <Button onClick={() => void create()} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? "جاري الإنشاء..." : "إنشاء وبدء الجرد"}</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
+            <Button onClick={() => void create()} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? tr("جاري الإنشاء...") : tr("إنشاء وبدء الجرد")}</Button>
           </div>
         </div>
       </DialogContent>
@@ -328,7 +329,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       setEdits({})
       return data
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
       return null
     }
   }, [countId, toast])
@@ -340,7 +341,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
   const mySessionNo = count?.my_session?.session_no ?? null
 
   // التبديل لشاشة أخرى/إغلاق التبويب مع كميات غير محفوظة ⇐ نفس نافذة التأكيد
-  useNavigationGuard(() => dirty, (continueNavigation) => setConfirm({ message: "توجد كميات غير محفوظة، هل تريد الخروج دون حفظ؟", run: continueNavigation }))
+  useNavigationGuard(() => dirty, (continueNavigation) => setConfirm({ message: tr("توجد كميات غير محفوظة، هل تريد الخروج دون حفظ؟"), run: continueNavigation }))
 
   // كمية جلستي (المحرَّرة)
   const lineValue = (line: CountLine) => (edits[line.id] ? edits[line.id].counted_qty : line.my_counted_qty)
@@ -407,11 +408,11 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
           lines: Object.entries(edits).map(([id, value]) => ({ id: Number(id), counted_qty: value.counted_qty, counted_pieces: value.counted_pieces, note: value.note })),
         }),
       })
-      if (!silent) toast({ title: "تم الحفظ", description: "تم حفظ كميات جلستك" })
+      if (!silent) toast({ title: tr("تم الحفظ"), description: tr("تم حفظ كميات جلستك") })
       await load()
       return true
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
       return false
     }
   }
@@ -421,11 +422,11 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
     try {
       if (!(await saveEdits(true))) return
       const result = await api(`/api/stock-counts/${countId}`, { method: "PATCH", body: JSON.stringify({ action, ...extra }) })
-      if (success || result?.message) toast({ title: "تم", description: result?.message || success })
+      if (success || result?.message) toast({ title: tr("تم"), description: result?.message || success })
       await load()
       return result
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
     } finally {
       setBusy(false)
     }
@@ -451,7 +452,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
     const code = scanCode.trim()
     if (!code || !count) return
     const amount = Number(scanQty || 1)
-    if (!(amount > 0)) { toast({ title: "تنبيه", description: "الكمية يجب أن تكون أكبر من صفر", variant: "destructive" }); return }
+    if (!(amount > 0)) { toast({ title: tr("تنبيه"), description: tr("الكمية يجب أن تكون أكبر من صفر"), variant: "destructive" }); return }
     const upper = code.toUpperCase()
     const matches = count.lines.filter((item) => item.product_code?.toUpperCase() === upper || item.barcode === code)
 
@@ -461,7 +462,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       if (matches.length > 1) {
         setSearch(first.product_code)
         setFilter("all")
-        toast({ title: "اختر الدفعة", description: `${first.product_name}: ${matches.length} دفعات/مقاسات — أدخل الكمية بالسطر الصحيح أو أضف دفعة جديدة` })
+        toast({ title: tr("اختر الدفعة"), description: tr("{0}: {1} دفعات/مقاسات — أدخل الكمية بالسطر الصحيح أو أضف دفعة جديدة", first.product_name, matches.length) })
         resetScan()
         return
       }
@@ -483,7 +484,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       if (!serial.not_found && serial.line_id) {
         await load()
         focusLine(serial.line_id)
-        toast({ title: "تم جرد الرقم التسلسلي", description: serial.extra ? `${code} — غير موجود دفترياً بهذا المستودع (زيادة)` : code })
+        toast({ title: tr("تم جرد الرقم التسلسلي"), description: serial.extra ? tr("{0} — غير موجود دفترياً بهذا المستودع (زيادة)", code) : code })
         return
       }
       const result = await api<{ line_id?: number; need_lot?: boolean; item_id?: number }>(`/api/stock-counts/${countId}`, { method: "PATCH", body: JSON.stringify({ action: "add_item", code }) })
@@ -494,9 +495,9 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       if (line.has_serial) { setSerialLineId(line.id); return }
       setEdits({ [line.id]: { counted_qty: Number(line.my_counted_qty || 0) + amount, counted_pieces: null, note: line.my_note || "" } })
       focusLine(line.id)
-      toast({ title: "أُضيف صنف للجرد", description: `${line.product_code} — ${line.product_name}` })
+      toast({ title: tr("أُضيف صنف للجرد"), description: `${line.product_code} — ${line.product_name}` })
     } catch (error: any) {
-      toast({ title: "غير موجود", description: error.message, variant: "destructive" })
+      toast({ title: tr("غير موجود"), description: error.message, variant: "destructive" })
     } finally {
       resetScan()
     }
@@ -525,7 +526,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
     const sheet = XLSX.utils.json_to_sheet(rows)
     ;(sheet as any)["!cols"] = [{ wch: 14 }, { wch: 36 }, { wch: 16 }, { wch: 10 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 30 }]
     const book = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(book, sheet, "الجرد")
+    XLSX.utils.book_append_sheet(book, sheet, tr("الجرد"))
     XLSX.writeFile(book, `جرد-${count.count_no}-${count.warehouse_name}.xlsx`)
   }
 
@@ -552,20 +553,20 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
           height: pick(row, ["الارتفاع", "height"]),
         }))
         .filter((row) => row.code && (row.counted_qty !== "" || row.counted_pieces !== ""))
-      if (!parsed.length) { toast({ title: "لا توجد بيانات", description: "الملف يجب أن يحوي عمودي «رقم الصنف» و«الكمية المجرودة» (أو «عدد القطع المجرود» لأصناف القياس)", variant: "destructive" }); return }
+      if (!parsed.length) { toast({ title: tr("لا توجد بيانات"), description: tr("الملف يجب أن يحوي عمودي «رقم الصنف» و«الكمية المجرودة» (أو «عدد القطع المجرود» لأصناف القياس)"), variant: "destructive" }); return }
       const result = await runAction("import", { rows: parsed })
       if (result) {
         toast({
-          title: "تم الاستيراد",
-          description: `حُدِّث ${result.updated} سطراً${result.not_found?.length ? ` — لم يُطابَق: ${result.not_found.slice(0, 8).join("، ")}${result.not_found.length > 8 ? "…" : ""}` : ""}`,
+          title: tr("تم الاستيراد"),
+          description: tr("حُدِّث {0} سطراً{1}", result.updated, result.not_found?.length ? ` — لم يُطابَق: ${result.not_found.slice(0, 8).join("، ")}${result.not_found.length > 8 ? "…" : ""}` : ""),
         })
       }
     } catch (error: any) {
-      toast({ title: "تعذر قراءة الملف", description: error.message, variant: "destructive" })
+      toast({ title: tr("تعذر قراءة الملف"), description: error.message, variant: "destructive" })
     }
   }
 
-  if (!count) return <div className="flex h-64 items-center justify-center text-sm text-muted-foreground" dir="rtl">جاري تحميل الجرد...</div>
+  if (!count) return <div className="flex h-64 items-center justify-center text-sm text-muted-foreground" dir={appDir()}>{tr("جاري تحميل الجرد...")}</div>
 
   const RENDER_LIMIT = 400
   const rendered = visible.slice(0, RENDER_LIMIT)
@@ -580,25 +581,25 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={appDir()}>
       {/* الرأس */}
       <div className="rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-4 text-white shadow-lg">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <button type="button" onClick={() => (dirty ? setConfirm({ message: "توجد كميات غير محفوظة، هل تريد الخروج دون حفظ؟", run: onBack }) : onBack())}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 hover:bg-white/25" aria-label="رجوع">
+            <button type="button" onClick={() => (dirty ? setConfirm({ message: tr("توجد كميات غير محفوظة، هل تريد الخروج دون حفظ؟"), run: onBack }) : onBack())}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 hover:bg-white/25" aria-label={tr("رجوع")}>
               <ArrowRight className="h-5 w-5" />
             </button>
             <div>
               <h1 className="flex flex-wrap items-center gap-2 text-lg font-extrabold">
-                جرد رقم <span className="font-mono">{count.count_no}</span>
+                {tr("جرد رقم ")}<span className="font-mono">{count.count_no}</span>
                 <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs ring-1 ring-white/25">{status?.label}</span>
-                {count.blind && <span className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs ring-1 ring-white/25"><EyeOff className="h-3 w-3" />جرد أعمى</span>}
+                {count.blind && <span className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-xs ring-1 ring-white/25"><EyeOff className="h-3 w-3" />{tr("جرد أعمى")}</span>}
               </h1>
               <p className="flex flex-wrap items-center gap-x-2 text-xs text-emerald-50/90">
                 {count.branch_name && <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" />{count.branch_name}</span>}
                 <span className="inline-flex items-center gap-1"><Warehouse className="h-3 w-3" />{count.warehouse_name}</span>
-                <span>تاريخ القطع {dateOnly(count.count_date)}</span>
+                <span>{tr("تاريخ القطع ")}{dateOnly(count.count_date)}</span>
                 {count.notes && <span>— {count.notes}</span>}
               </p>
             </div>
@@ -606,37 +607,37 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
           <div className="flex flex-wrap gap-2">
             {counting && (
               <>
-                <HeaderButton icon={Save} label={dirty ? "حفظ*" : "حفظ"} onClick={() => void saveEdits()} disabled={busy || !dirty} />
-                <HeaderButton icon={FileSpreadsheet} label="تصدير Excel" onClick={() => void exportExcel()} />
-                <HeaderButton icon={Upload} label="استيراد Excel" onClick={() => fileRef.current?.click()} disabled={busy} />
+                <HeaderButton icon={Save} label={dirty ? tr("حفظ*") : tr("حفظ")} onClick={() => void saveEdits()} disabled={busy || !dirty} />
+                <HeaderButton icon={FileSpreadsheet} label={tr("تصدير Excel")} onClick={() => void exportExcel()} />
+                <HeaderButton icon={Upload} label={tr("استيراد Excel")} onClick={() => fileRef.current?.click()} disabled={busy} />
                 {count.my_session && (
-                  <HeaderButton icon={CheckCircle2} label={`إنهاء جلستي (${count.my_session.session_no})`} primary disabled={busy}
+                  <HeaderButton icon={CheckCircle2} label={tr("إنهاء جلستي ({0})", count.my_session.session_no)} primary disabled={busy}
                     onClick={() => setConfirm({
-                      message: `إنهاء جلسة الجرد رقم - ${count.my_session!.session_no}؟ تُحفظ كمياتك وتُجمع مع باقي الجلسات عند الاعتماد.`,
+                      message: tr("إنهاء جلسة الجرد رقم - {0}؟ تُحفظ كمياتك وتُجمع مع باقي الجلسات عند الاعتماد.", count.my_session!.session_no),
                       run: () => void runAction("finish_session", {}, "انتهت جلستك — الاعتماد من شاشة «اعتماد الجرد» بعد إنهاء كل الجلسات"),
                     })} />
                 )}
               </>
             )}
             {count.status === 2 && (
-              <HeaderButton icon={Download} label="تصدير Excel" onClick={() => void exportExcel()} />
+              <HeaderButton icon={Download} label={tr("تصدير Excel")} onClick={() => void exportExcel()} />
             )}
             {count.status === 3 && (
               <>
-                {count.out_voucher_id && <HeaderButton icon={Lock} label={`سند اخراج ${count.out_voucher_code}`} onClick={() => openVoucher(count.out_voucher_id, 9)} />}
-                {count.in_voucher_id && <HeaderButton icon={Lock} label={`سند ادخال ${count.in_voucher_code}`} onClick={() => openVoucher(count.in_voucher_id, 8)} />}
-                <HeaderButton icon={Download} label="تصدير Excel" onClick={() => void exportExcel()} />
+                {count.out_voucher_id && <HeaderButton icon={Lock} label={tr("سند اخراج {0}", count.out_voucher_code)} onClick={() => openVoucher(count.out_voucher_id, 9)} />}
+                {count.in_voucher_id && <HeaderButton icon={Lock} label={tr("سند ادخال {0}", count.in_voucher_code)} onClick={() => openVoucher(count.in_voucher_id, 8)} />}
+                <HeaderButton icon={Download} label={tr("تصدير Excel")} onClick={() => void exportExcel()} />
               </>
             )}
             {(count.status === 1 || count.status === 2) && (
-              <HeaderButton icon={XCircle} label="إلغاء الجرد" onClick={() => setConfirm({ message: "إلغاء وثيقة الجرد؟ لن تُرحَّل أي فروقات.", run: () => void runAction("cancel", {}, "أُلغي الجرد") })} disabled={busy} />
+              <HeaderButton icon={XCircle} label={tr("إلغاء الجرد")} onClick={() => setConfirm({ message: tr("إلغاء وثيقة الجرد؟ لن تُرحَّل أي فروقات."), run: () => void runAction("cancel", {}, "أُلغي الجرد") })} disabled={busy} />
             )}
             {count.status !== 3 && (
-              <HeaderButton icon={Trash2} label="حذف" onClick={() => setConfirm({
-                message: "حذف وثيقة الجرد نهائياً بكل كمياتها المجرودة؟",
+              <HeaderButton icon={Trash2} label={tr("حذف")} onClick={() => setConfirm({
+                message: tr("حذف وثيقة الجرد نهائياً بكل كمياتها المجرودة؟"),
                 run: async () => {
                   try { await api(`/api/stock-counts/${countId}`, { method: "DELETE" }); onBack() }
-                  catch (error: any) { toast({ title: "خطأ", description: error.message, variant: "destructive" }) }
+                  catch (error: any) { toast({ title: tr("خطأ"), description: error.message, variant: "destructive" }) }
                 },
               })} disabled={busy} />
             )}
@@ -647,23 +648,23 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
 
       {/* جلسات الجرد */}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-white px-3 py-2 text-xs shadow-sm">
-        <span className="flex items-center gap-1 font-bold text-slate-700"><Users className="h-4 w-4 text-emerald-600" />جلسات الجرد:</span>
+        <span className="flex items-center gap-1 font-bold text-slate-700"><Users className="h-4 w-4 text-emerald-600" />{tr("جلسات الجرد:")}</span>
         {counting && (
           count.my_session
-            ? <span className="rounded-full bg-emerald-600 px-2.5 py-1 font-bold text-white">جلستي رقم - {count.my_session.session_no} (مفتوحة)</span>
-            : <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-800 ring-1 ring-amber-200">لا توجد لك جلسة مفتوحة — تبدأ جلسة جديدة مع أول كمية تحفظها</span>
+            ? <span className="rounded-full bg-emerald-600 px-2.5 py-1 font-bold text-white">{tr("جلستي رقم - ")}{count.my_session.session_no}{tr(" (مفتوحة)")}</span>
+            : <span className="rounded-full bg-amber-50 px-2.5 py-1 font-bold text-amber-800 ring-1 ring-amber-200">{tr("لا توجد لك جلسة مفتوحة — تبدأ جلسة جديدة مع أول كمية تحفظها")}</span>
         )}
         {count.sessions.filter((session) => session.status !== 3).map((session) => (
           <span key={session.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${SESSION_STATUS[session.status]?.className}`}>
-            {session.session_no} — {session.user_name || "مستخدم"} · {SESSION_STATUS[session.status]?.label}
+            {session.session_no} — {session.user_name || tr("مستخدم")} · {SESSION_STATUS[session.status]?.label}
             {counting && session.status === 2 && !count.my_session && session.user_id === count.me && (
               <button type="button" className="mr-1 underline" disabled={busy}
-                onClick={() => void runAction("reopen_session", { session_id: session.id }, `أُعيد فتح الجلسة رقم - ${session.session_no}`)}>إعادة فتح</button>
+                onClick={() => void runAction("reopen_session", { session_id: session.id }, `أُعيد فتح الجلسة رقم - ${session.session_no}`)}>{tr("إعادة فتح")}</button>
             )}
           </span>
         ))}
-        {!count.sessions.length && <span className="text-slate-400">لا توجد جلسات بعد</span>}
-        {count.status === 2 && <span className="mr-auto font-bold text-amber-700">بانتظار الاعتماد وترحيل الفروقات من شاشة «اعتماد الجرد»</span>}
+        {!count.sessions.length && <span className="text-slate-400">{tr("لا توجد جلسات بعد")}</span>}
+        {count.status === 2 && <span className="mr-auto font-bold text-amber-700">{tr("بانتظار الاعتماد وترحيل الفروقات من شاشة «اعتماد الجرد»")}</span>}
       </div>
 
       {/* شريط المسح + الملخص */}
@@ -671,30 +672,30 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
         {counting ? (
           <div className="flex flex-wrap items-end gap-2 rounded-2xl border bg-white p-3 shadow-sm">
             <div className="min-w-[220px] flex-1">
-              <Label className="text-xs text-slate-500">باركود / رقم الصنف / رقم تسلسلي (Enter للإضافة)</Label>
+              <Label className="text-xs text-slate-500">{tr("باركود / رقم الصنف / رقم تسلسلي (Enter للإضافة)")}</Label>
               <div className="relative mt-1">
-                <Barcode className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
-                <Input ref={scanRef} autoFocus value={scanCode} onChange={(event) => setScanCode(event.target.value)} className="h-10 pr-9 font-mono"
-                  placeholder="امسح الباركود أو الرقم التسلسلي أو اكتب رقم الصنف"
+                <Barcode className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+                <Input ref={scanRef} autoFocus value={scanCode} onChange={(event) => setScanCode(event.target.value)} className="h-10 ps-9 font-mono"
+                  placeholder={tr("امسح الباركود أو الرقم التسلسلي أو اكتب رقم الصنف")}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleScan() } }} />
               </div>
             </div>
             <div className="w-24">
-              <Label className="text-xs text-slate-500">الكمية / القطع</Label>
+              <Label className="text-xs text-slate-500">{tr("الكمية / القطع")}</Label>
               <Input value={scanQty} onChange={(event) => setScanQty(event.target.value)} inputMode="decimal" className="mt-1 h-10 text-center"
                 onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleScan() } }} />
             </div>
-            <Button onClick={() => void handleScan()} className="h-10 bg-emerald-600 hover:bg-emerald-700"><Plus className="ml-1 h-4 w-4" />إضافة</Button>
+            <Button onClick={() => void handleScan()} className="h-10 bg-emerald-600 hover:bg-emerald-700"><Plus className="ml-1 h-4 w-4" />{tr("إضافة")}</Button>
           </div>
         ) : <div />}
         <div className="grid grid-cols-3 gap-2 rounded-2xl border bg-white p-3 text-center shadow-sm">
-          <div className="px-2"><p className="text-[11px] text-slate-500">المجرود</p><p className="text-lg font-extrabold">{summary.counted}<span className="text-xs font-normal text-slate-400">/{summary.total}</span></p></div>
+          <div className="px-2"><p className="text-[11px] text-slate-500">{tr("المجرود")}</p><p className="text-lg font-extrabold">{summary.counted}<span className="text-xs font-normal text-slate-400">/{summary.total}</span></p></div>
           {hidden ? (
-            <div className="col-span-2 flex items-center justify-center gap-2 text-xs text-slate-500"><EyeOff className="h-4 w-4" />الفروقات تظهر بعد إنهاء الجرد</div>
+            <div className="col-span-2 flex items-center justify-center gap-2 text-xs text-slate-500"><EyeOff className="h-4 w-4" />{tr("الفروقات تظهر بعد إنهاء الجرد")}</div>
           ) : (
             <>
-              <div className="px-2"><p className="text-[11px] text-emerald-700">زيادة ({summary.surplusLines})</p><p className="text-lg font-extrabold text-emerald-700">{money(summary.surplusValue)}</p></div>
-              <div className="px-2"><p className="text-[11px] text-rose-700">عجز ({summary.shortageLines})</p><p className="text-lg font-extrabold text-rose-700">{money(summary.shortageValue)}</p></div>
+              <div className="px-2"><p className="text-[11px] text-emerald-700">{tr("زيادة (")}{summary.surplusLines})</p><p className="text-lg font-extrabold text-emerald-700">{money(summary.surplusValue)}</p></div>
+              <div className="px-2"><p className="text-[11px] text-rose-700">{tr("عجز (")}{summary.shortageLines})</p><p className="text-lg font-extrabold text-rose-700">{money(summary.shortageValue)}</p></div>
             </>
           )}
         </div>
@@ -703,8 +704,8 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
       {/* الفلاتر */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[240px] flex-1">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 pr-9" placeholder="بحث برقم أو اسم أو باركود الصنف، الدفعة، أو رقم تسلسلي" />
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 ps-9" placeholder={tr("بحث برقم أو اسم أو باركود الصنف، الدفعة، أو رقم تسلسلي")} />
         </div>
         {([["all", "الكل"], ["uncounted", "غير مجرود"], ["tracked", "دفعات / مقاسات / سيريال"], ...(hidden ? [] : [["difference", "بفروقات"]])] as [typeof filter, string][]).map(([value, label]) => (
           <button key={value} type="button" onClick={() => setFilter(value)}
@@ -720,16 +721,16 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
           <table className="w-full min-w-[1080px] text-sm">
             <thead className="sticky top-0 z-[1] bg-emerald-100 text-emerald-950">
               <tr>
-                <th className="p-3 text-right">#</th>
-                <th className="p-3 text-right">رقم الصنف</th>
-                <th className="p-3 text-right">اسم الصنف / الدفعة</th>
-                <th className="p-3 text-right">الوحدة</th>
-                {!hidden && <th className="p-3 text-center">الدفترية</th>}
-                <th className="p-3 text-center">{counting ? `كميتي${mySessionNo ? ` (جلسة ${mySessionNo})` : ""}` : "المجرودة"}</th>
-                {counting && <th className="p-3 text-center">إجمالي الجلسات</th>}
-                {!hidden && <th className="p-3 text-center">الفرق</th>}
-                {!hidden && <th className="p-3 text-center">قيمة الفرق</th>}
-                <th className="p-3 text-right">ملاحظة</th>
+                <th className="p-3 text-start">#</th>
+                <th className="p-3 text-start">{tr("رقم الصنف")}</th>
+                <th className="p-3 text-start">{tr("اسم الصنف / الدفعة")}</th>
+                <th className="p-3 text-start">{tr("الوحدة")}</th>
+                {!hidden && <th className="p-3 text-center">{tr("الدفترية")}</th>}
+                <th className="p-3 text-center">{counting ? tr("كميتي{0}", mySessionNo ? ` (جلسة ${mySessionNo})` : "") : tr("المجرودة")}</th>
+                {counting && <th className="p-3 text-center">{tr("إجمالي الجلسات")}</th>}
+                {!hidden && <th className="p-3 text-center">{tr("الفرق")}</th>}
+                {!hidden && <th className="p-3 text-center">{tr("قيمة الفرق")}</th>}
+                <th className="p-3 text-start">{tr("ملاحظة")}</th>
                 {counting && <th className="p-3" />}
               </tr>
             </thead>
@@ -749,42 +750,42 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                     <td className="p-3">
                       <div className="font-semibold">{line.product_name}</div>
                       <div className="mt-1 flex flex-wrap items-center gap-1">
-                        {line.has_serial && <Tag icon={Hash} tone="violet">سيريال</Tag>}
+                        {line.has_serial && <Tag icon={Hash} tone="violet">{tr("سيريال")}</Tag>}
                         {line.variant_label && <Tag icon={Layers} tone="sky">{line.variant_label}</Tag>}
-                        {line.expiry_date && <Tag tone="amber">صلاحية {line.expiry_date}</Tag>}
-                        {line.batch_no && <Tag tone="amber">دفعة {line.batch_no}</Tag>}
-                        {measured && <Tag icon={Ruler} tone="teal">{dimensionsLabel(line) ? `مقاس ${dimensionsLabel(line)}` : "بلا أبعاد"}</Tag>}
-                        {isLotProduct(line) && !label && <Tag tone="slate">بلا دفعة</Tag>}
-                        {line.manual && <Tag tone="emerald">أُضيف أثناء الجرد</Tag>}
+                        {line.expiry_date && <Tag tone="amber">{tr("صلاحية ")}{line.expiry_date}</Tag>}
+                        {line.batch_no && <Tag tone="amber">{tr("دفعة ")}{line.batch_no}</Tag>}
+                        {measured && <Tag icon={Ruler} tone="teal">{dimensionsLabel(line) ? tr("مقاس {0}", dimensionsLabel(line)) : tr("بلا أبعاد")}</Tag>}
+                        {isLotProduct(line) && !label && <Tag tone="slate">{tr("بلا دفعة")}</Tag>}
+                        {line.manual && <Tag tone="emerald">{tr("أُضيف أثناء الجرد")}</Tag>}
                       </div>
                     </td>
                     <td className="p-3 text-slate-600">{line.unit_name}</td>
                     {!hidden && (
                       <td className="p-3 text-center tabular-nums">
                         {qty(line.system_qty)}
-                        {measured && line.system_pieces != null && <div className="text-[11px] text-slate-400">{qty(line.system_pieces)} قطعة</div>}
+                        {measured && line.system_pieces != null && <div className="text-[11px] text-slate-400">{qty(line.system_pieces)}{tr(" قطعة")}</div>}
                       </td>
                     )}
                     <td className="p-2 text-center">
                       {line.has_serial ? (
                         <button type="button" onClick={() => setSerialLineId(line.id)}
                           className="mx-auto flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100">
-                          <ScanLine className="h-3.5 w-3.5" />{total == null ? "مسح الأرقام" : `${qty(total)} رقم`}
+                          <ScanLine className="h-3.5 w-3.5" />{total == null ? tr("مسح الأرقام") : tr("{0} رقم", qty(total))}
                         </button>
                       ) : measured ? (
                         counting ? (
                           <div className="flex flex-col items-center gap-0.5">
-                            <Input value={edits[line.id]?.text ?? (linePieces(line) ?? "")} inputMode="decimal" className="h-8 w-24 text-center tabular-nums" placeholder="القطع"
+                            <Input value={edits[line.id]?.text ?? (linePieces(line) ?? "")} inputMode="decimal" className="h-8 w-24 text-center tabular-nums" placeholder={tr("القطع")}
                               onChange={(event) => {
                                 const raw = event.target.value.trim()
                                 const parsed = Number(raw)
                                 setPieces(line, raw === "" || !Number.isFinite(parsed) ? null : parsed, event.target.value)
                               }}
                               onKeyDown={moveNext} data-count-input />
-                            <span className="text-[11px] text-slate-500">{value == null ? "عدد القطع" : `= ${qty(value)} ${line.unit_name}`}</span>
+                            <span className="text-[11px] text-slate-500">{value == null ? tr("عدد القطع") : `= ${qty(value)} ${line.unit_name}`}</span>
                           </div>
                         ) : (
-                          <span className="tabular-nums">{qty(total)}{totalPieces(line) != null && <div className="text-[11px] text-slate-400">{qty(totalPieces(line))} قطعة</div>}</span>
+                          <span className="tabular-nums">{qty(total)}{totalPieces(line) != null && <div className="text-[11px] text-slate-400">{qty(totalPieces(line))}{tr(" قطعة")}</div>}</span>
                         )
                       ) : counting ? (
                         <Input value={edits[line.id]?.text ?? (value ?? "")} inputMode="decimal" className="mx-auto h-8 w-24 text-center tabular-nums"
@@ -799,7 +800,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                     {counting && (
                       <td className="p-3 text-center tabular-nums" title={line.parts.length ? partsLabel(line.parts) : undefined}>
                         <span className="font-bold">{qty(total)}</span>
-                        {measured && totalPieces(line) != null && <div className="text-[11px] text-slate-400">{qty(totalPieces(line))} قطعة</div>}
+                        {measured && totalPieces(line) != null && <div className="text-[11px] text-slate-400">{qty(totalPieces(line))}{tr(" قطعة")}</div>}
                         {othersParts(line).length > 0 && <div className="text-[10px] text-slate-400">{partsLabel(othersParts(line))}</div>}
                       </td>
                     )}
@@ -811,14 +812,14 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
                         : <span className="text-xs text-slate-500">{line.note || ""}</span>}
                     </td>
                     {counting && (
-                      <td className="whitespace-nowrap p-2 text-left">
+                      <td className="whitespace-nowrap p-2 text-end">
                         {isLotProduct(line) && (
-                          <button type="button" title="إضافة دفعة / مقاس / متغير لهذا الصنف" onClick={() => setLotItemId(line.item_id)}
+                          <button type="button" title={tr("إضافة دفعة / مقاس / متغير لهذا الصنف")} onClick={() => setLotItemId(line.item_id)}
                             className="rounded-lg p-1.5 text-emerald-700 hover:bg-emerald-50"><Plus className="h-4 w-4" /></button>
                         )}
                         {line.manual && !Number(line.system_qty || 0) && (
-                          <button type="button" title="حذف السطر المضاف" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
-                            onClick={() => setConfirm({ message: "حذف هذا السطر المضاف أثناء الجرد؟", run: () => void runAction("remove_line", { line_id: line.id }) })}>
+                          <button type="button" title={tr("حذف السطر المضاف")} className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                            onClick={() => setConfirm({ message: tr("حذف هذا السطر المضاف أثناء الجرد؟"), run: () => void runAction("remove_line", { line_id: line.id }) })}>
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
@@ -829,8 +830,8 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
               })}
             </tbody>
           </table>
-          {!visible.length && <div className="py-12 text-center text-muted-foreground">لا توجد أصناف مطابقة</div>}
-          {visible.length > RENDER_LIMIT && <div className="border-t bg-amber-50 py-2 text-center text-xs text-amber-800">يُعرض أول {RENDER_LIMIT} من {visible.length} — استخدم البحث أو الباركود للوصول لصنف</div>}
+          {!visible.length && <div className="py-12 text-center text-muted-foreground">{tr("لا توجد أصناف مطابقة")}</div>}
+          {visible.length > RENDER_LIMIT && <div className="border-t bg-amber-50 py-2 text-center text-xs text-amber-800">{tr("يُعرض أول ")}{RENDER_LIMIT}{tr(" من ")}{visible.length}{tr(" — استخدم البحث أو الباركود للوصول لصنف")}</div>}
         </div>
       </div>
 
@@ -855,7 +856,7 @@ function StockCountEditor({ countId, onBack }: { countId: number; onBack: () => 
         beforeAdd={() => saveEdits(true)}
       />
 
-      <ConfirmDialogYesNo useAppDialog visible={!!confirm} title="تأكيد" message={confirm?.message || ""}
+      <ConfirmDialogYesNo useAppDialog visible={!!confirm} title={tr("تأكيد")} message={confirm?.message || ""}
         onConfirm={() => { const action = confirm?.run; setConfirm(null); action?.() }}
         onCancel={() => setConfirm(null)} />
     </div>
@@ -905,7 +906,7 @@ function SerialDialog({ line, countId, editable, hidden, onClose, onChanged }: {
       await api(`/api/stock-counts/${countId}`, { method: "PATCH", body: JSON.stringify({ action: "set_serial", line_id: line.id, serial, counted }) })
       await onChanged()
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
     } finally {
       setBusy(false)
       inputRef.current?.focus()
@@ -924,27 +925,27 @@ function SerialDialog({ line, countId, editable, hidden, onClose, onChanged }: {
   const systemCount = (line?.serials || []).filter((s) => s.in_system).length
   return (
     <Dialog open={!!line} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent dir="rtl" className="max-w-2xl">
+      <DialogContent dir={appDir()} className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><ScanLine className="h-5 w-5 text-violet-600" />الأرقام التسلسلية — {line?.product_name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><ScanLine className="h-5 w-5 text-violet-600" />{tr("الأرقام التسلسلية — ")}{line?.product_name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center text-sm">
-            <div><p className="text-[11px] text-slate-500">المجرودة</p><p className="text-lg font-extrabold text-violet-700">{countedCount}</p></div>
-            <div><p className="text-[11px] text-slate-500">الدفترية</p><p className="text-lg font-extrabold">{hidden ? "—" : systemCount}</p></div>
-            <div><p className="text-[11px] text-slate-500">زائدة (غير دفترية)</p><p className="text-lg font-extrabold text-emerald-700">{hidden ? "—" : (line?.serials || []).filter((s) => s.counted && !s.in_system).length}</p></div>
+            <div><p className="text-[11px] text-slate-500">{tr("المجرودة")}</p><p className="text-lg font-extrabold text-violet-700">{countedCount}</p></div>
+            <div><p className="text-[11px] text-slate-500">{tr("الدفترية")}</p><p className="text-lg font-extrabold">{hidden ? "—" : systemCount}</p></div>
+            <div><p className="text-[11px] text-slate-500">{tr("زائدة (غير دفترية)")}</p><p className="text-lg font-extrabold text-emerald-700">{hidden ? "—" : (line?.serials || []).filter((s) => s.counted && !s.in_system).length}</p></div>
           </div>
           {editable && (
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Barcode className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-violet-600" />
-                <Input ref={inputRef} value={code} onChange={(event) => setCode(event.target.value)} disabled={busy} className="h-10 pr-9 font-mono" placeholder="امسح الرقم التسلسلي ثم Enter"
+                <Barcode className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-violet-600" />
+                <Input ref={inputRef} value={code} onChange={(event) => setCode(event.target.value)} disabled={busy} className="h-10 ps-9 font-mono" placeholder={tr("امسح الرقم التسلسلي ثم Enter")}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void scan() } }} />
               </div>
-              <Button onClick={() => void scan()} disabled={busy || !code.trim()} className="h-10 bg-violet-600 hover:bg-violet-700"><Plus className="ml-1 h-4 w-4" />جرد</Button>
+              <Button onClick={() => void scan()} disabled={busy || !code.trim()} className="h-10 bg-violet-600 hover:bg-violet-700"><Plus className="ml-1 h-4 w-4" />{tr("جرد")}</Button>
             </div>
           )}
-          <Input value={term} onChange={(event) => setTerm(event.target.value)} className="h-9" placeholder="بحث في الأرقام" />
+          <Input value={term} onChange={(event) => setTerm(event.target.value)} className="h-9" placeholder={tr("بحث في الأرقام")} />
           <div className="max-h-[45vh] overflow-auto rounded-xl border">
             {serials.length ? serials.map((s) => (
               <label key={s.serial} className={`flex items-center justify-between gap-2 border-b px-3 py-2 text-sm last:border-b-0 ${s.counted ? "bg-violet-50/50" : ""}`}>
@@ -954,13 +955,13 @@ function SerialDialog({ line, countId, editable, hidden, onClose, onChanged }: {
                 </span>
                 {!hidden && (
                   s.in_system
-                    ? (s.counted ? <span className="text-[11px] font-bold text-emerald-700">موجود</span> : <span className="text-[11px] font-bold text-rose-600">مفقود</span>)
-                    : <span className="text-[11px] font-bold text-amber-700">زائد — غير دفتري</span>
+                    ? (s.counted ? <span className="text-[11px] font-bold text-emerald-700">{tr("موجود")}</span> : <span className="text-[11px] font-bold text-rose-600">{tr("مفقود")}</span>)
+                    : <span className="text-[11px] font-bold text-amber-700">{tr("زائد — غير دفتري")}</span>
                 )}
               </label>
-            )) : <div className="py-8 text-center text-sm text-muted-foreground">{hidden ? "لم يُمسح أي رقم بعد" : "لا توجد أرقام"}</div>}
+            )) : <div className="py-8 text-center text-sm text-muted-foreground">{hidden ? tr("لم يُمسح أي رقم بعد") : tr("لا توجد أرقام")}</div>}
           </div>
-          <p className="text-xs text-muted-foreground">عند الترحيل: الأرقام الدفترية غير المجرودة تُخرَج بسند الإخراج، والأرقام الزائدة تُدخَل بسند الإدخال.</p>
+          <p className="text-xs text-muted-foreground">{tr("عند الترحيل: الأرقام الدفترية غير المجرودة تُخرَج بسند الإخراج، والأرقام الزائدة تُدخَل بسند الإدخال.")}</p>
         </div>
       </DialogContent>
     </Dialog>
@@ -987,7 +988,7 @@ function AddLotDialog({ countId, itemId, onClose, onAdded, beforeAdd }: {
     setForm({ expiry_date: "", batch_no: "", length: "", width: "", height: "" })
     setValues({})
     api<ItemOptions>(`/api/stock-counts/${countId}?item_options=${itemId}`).then(setOptions).catch((error) => {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
       onClose()
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1009,10 +1010,10 @@ function AddLotDialog({ countId, itemId, onClose, onAdded, beforeAdd }: {
           attribute_value_ids: Object.values(values).map(Number).filter((id) => id > 0),
         }),
       })
-      toast({ title: result.existed ? "الدفعة موجودة" : "أُضيفت الدفعة", description: result.existed ? "انتقل للسطر الموجود لإدخال كميته" : "أدخل الكمية المجرودة بالسطر الجديد" })
+      toast({ title: result.existed ? tr("الدفعة موجودة") : tr("أُضيفت الدفعة"), description: result.existed ? tr("انتقل للسطر الموجود لإدخال كميته") : tr("أدخل الكمية المجرودة بالسطر الجديد") })
       await onAdded(result.line_id)
     } catch (error: any) {
-      toast({ title: "خطأ", description: error.message, variant: "destructive" })
+      toast({ title: tr("خطأ"), description: error.message, variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -1020,37 +1021,37 @@ function AddLotDialog({ countId, itemId, onClose, onAdded, beforeAdd }: {
 
   return (
     <Dialog open={!!itemId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent dir="rtl" className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Layers className="h-5 w-5 text-emerald-600" />إضافة دفعة / مقاس للجرد</DialogTitle></DialogHeader>
-        {!product ? <div className="py-10 text-center text-sm text-muted-foreground">جاري التحميل...</div> : (
+      <DialogContent dir={appDir()} className="max-w-lg">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Layers className="h-5 w-5 text-emerald-600" />{tr("إضافة دفعة / مقاس للجرد")}</DialogTitle></DialogHeader>
+        {!product ? <div className="py-10 text-center text-sm text-muted-foreground">{tr("جاري التحميل...")}</div> : (
           <div className="space-y-4">
             <div className="rounded-xl bg-slate-50 p-3 text-sm"><span className="font-mono text-slate-500">{product.product_code}</span> — <b>{product.product_name}</b></div>
             {options!.attributes.map((attribute) => (
               <div key={attribute.id}>
                 <Label>{attribute.name} *</Label>
                 <select className="mt-1 h-10 w-full rounded-lg border bg-background px-3" value={values[attribute.id] || ""} onChange={(event) => setValues({ ...values, [attribute.id]: event.target.value })}>
-                  <option value="">اختر {attribute.name}</option>
+                  <option value="">{tr("اختر ")}{attribute.name}</option>
                   {attribute.values.map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}
                 </select>
               </div>
             ))}
             {(product.has_expiry || product.has_batch) && (
               <div className="grid gap-3 sm:grid-cols-2">
-                {product.has_expiry && <div><Label>تاريخ الصلاحية *</Label><Input className="mt-1" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} /></div>}
-                {product.has_batch && <div><Label>الرقم التشغيلي *</Label><Input className="mt-1" value={form.batch_no} onChange={(event) => setForm({ ...form, batch_no: event.target.value })} /></div>}
+                {product.has_expiry && <div><Label>{tr("تاريخ الصلاحية *")}</Label><Input className="mt-1" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} /></div>}
+                {product.has_batch && <div><Label>{tr("الرقم التشغيلي *")}</Label><Input className="mt-1" value={form.batch_no} onChange={(event) => setForm({ ...form, batch_no: event.target.value })} /></div>}
               </div>
             )}
             {isMeasuredProduct(measurement) && (
               <div className="grid gap-3 sm:grid-cols-3">
-                {measurementRequiresLength(measurement) && <div><Label>الطول *</Label><Input className="mt-1" inputMode="decimal" value={form.length} onChange={(event) => setForm({ ...form, length: event.target.value })} /></div>}
-                {measurementRequiresWidth(measurement) && <div><Label>العرض *</Label><Input className="mt-1" inputMode="decimal" value={form.width} onChange={(event) => setForm({ ...form, width: event.target.value })} /></div>}
-                {measurementRequiresHeight(measurement) && <div><Label>الارتفاع *</Label><Input className="mt-1" inputMode="decimal" value={form.height} onChange={(event) => setForm({ ...form, height: event.target.value })} /></div>}
-                <p className="text-xs text-muted-foreground sm:col-span-3">يُعدّ هذا المقاس بعدد القطع، والكمية = معادلة نوع قياس الصنف.</p>
+                {measurementRequiresLength(measurement) && <div><Label>{tr("الطول *")}</Label><Input className="mt-1" inputMode="decimal" value={form.length} onChange={(event) => setForm({ ...form, length: event.target.value })} /></div>}
+                {measurementRequiresWidth(measurement) && <div><Label>{tr("العرض *")}</Label><Input className="mt-1" inputMode="decimal" value={form.width} onChange={(event) => setForm({ ...form, width: event.target.value })} /></div>}
+                {measurementRequiresHeight(measurement) && <div><Label>{tr("الارتفاع *")}</Label><Input className="mt-1" inputMode="decimal" value={form.height} onChange={(event) => setForm({ ...form, height: event.target.value })} /></div>}
+                <p className="text-xs text-muted-foreground sm:col-span-3">{tr("يُعدّ هذا المقاس بعدد القطع، والكمية = معادلة نوع قياس الصنف.")}</p>
               </div>
             )}
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={onClose}>إلغاء</Button>
-              <Button onClick={() => void add()} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? "جاري الإضافة..." : "إضافة للجرد"}</Button>
+              <Button variant="outline" onClick={onClose}>{tr("إلغاء")}</Button>
+              <Button onClick={() => void add()} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? tr("جاري الإضافة...") : tr("إضافة للجرد")}</Button>
             </div>
           </div>
         )}
@@ -1083,22 +1084,22 @@ export function PostDialog({ open, onOpenChange, summary, onPost }: {
   const uncountedLines = summary.total - summary.counted
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-lg">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-emerald-600" />ترحيل فروقات الجرد</DialogTitle></DialogHeader>
+      <DialogContent dir={appDir()} className="max-w-lg">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5 text-emerald-600" />{tr("ترحيل فروقات الجرد")}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
-            <div>زيادة: <b className="text-emerald-700">{summary.surplusLines} سطر — {money(summary.surplusValue)}</b></div>
-            <div>عجز: <b className="text-rose-700">{summary.shortageLines} سطر — {money(summary.shortageValue)}</b></div>
+            <div>{tr("زيادة: ")}<b className="text-emerald-700">{summary.surplusLines}{tr(" سطر — ")}{money(summary.surplusValue)}</b></div>
+            <div>{tr("عجز: ")}<b className="text-rose-700">{summary.shortageLines}{tr(" سطر — ")}{money(summary.shortageValue)}</b></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>دفتر سندات الإدخال (الزيادة)</Label>
+              <Label>{tr("دفتر سندات الإدخال (الزيادة)")}</Label>
               <select className="mt-1 h-10 w-full rounded-lg border bg-background px-3" value={inBook} onChange={(event) => setInBook(event.target.value)}>
                 {books.map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}
               </select>
             </div>
             <div>
-              <Label>دفتر سندات الإخراج (العجز)</Label>
+              <Label>{tr("دفتر سندات الإخراج (العجز)")}</Label>
               <select className="mt-1 h-10 w-full rounded-lg border bg-background px-3" value={outBook} onChange={(event) => setOutBook(event.target.value)}>
                 {books.map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}
               </select>
@@ -1106,21 +1107,21 @@ export function PostDialog({ open, onOpenChange, summary, onPost }: {
           </div>
           {uncountedLines > 0 && (
             <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
-              <p className="font-bold text-amber-900">{uncountedLines} سطراً لم يُجرد — كيف يُعامَل؟</p>
-              <label className="flex cursor-pointer items-center gap-2"><input type="radio" className="accent-emerald-600" checked={uncounted === "skip"} onChange={() => setUncounted("skip")} />تجاهلها (تبقى أرصدتها كما هي)</label>
-              <label className="flex cursor-pointer items-center gap-2"><input type="radio" className="accent-emerald-600" checked={uncounted === "zero"} onChange={() => setUncounted("zero")} />اعتبار كميتها صفراً (تُخرَج كعجز)</label>
+              <p className="font-bold text-amber-900">{uncountedLines}{tr(" سطراً لم يُجرد — كيف يُعامَل؟")}</p>
+              <label className="flex cursor-pointer items-center gap-2"><input type="radio" className="accent-emerald-600" checked={uncounted === "skip"} onChange={() => setUncounted("skip")} />{tr("تجاهلها (تبقى أرصدتها كما هي)")}</label>
+              <label className="flex cursor-pointer items-center gap-2"><input type="radio" className="accent-emerald-600" checked={uncounted === "zero"} onChange={() => setUncounted("zero")} />{tr("اعتبار كميتها صفراً (تُخرَج كعجز)")}</label>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">يُنشأ سند اخراج بضاعة للعجز وسند ادخال بضاعة للزيادة على فرع الجرد وبتاريخ القطع ومرحّلين، بتكلفة متوسط الصنف بذلك التاريخ — كل سطر بدفعته (صلاحية/رقم تشغيلي/متغير) ومقاسه وعدد قطعه وأرقامه التسلسلية.</p>
+          <p className="text-xs text-muted-foreground">{tr("يُنشأ سند اخراج بضاعة للعجز وسند ادخال بضاعة للزيادة على فرع الجرد وبتاريخ القطع ومرحّلين، بتكلفة متوسط الصنف بذلك التاريخ — كل سطر بدفعته (صلاحية/رقم تشغيلي/متغير) ومقاسه وعدد قطعه وأرقامه التسلسلية.")}</p>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{tr("إلغاء")}</Button>
             <Button disabled={saving} className="bg-emerald-600 hover:bg-emerald-700"
               onClick={async () => {
                 setSaving(true)
                 try { await onPost({ in_book_id: Number(inBook) || null, out_book_id: Number(outBook) || null, uncounted }) }
                 finally { setSaving(false) }
               }}>
-              {saving ? "جاري الترحيل..." : "ترحيل"}
+              {saving ? tr("جاري الترحيل...") : tr("ترحيل")}
             </Button>
           </div>
         </div>

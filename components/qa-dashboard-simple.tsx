@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -126,17 +127,17 @@ export default function QADashboardSimple() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">فحص جودة النظام</h1>
+        <h1 className="text-3xl font-bold">{tr("فحص جودة النظام")}</h1>
         <Button onClick={startScan} disabled={isScanning} className="bg-blue-600 hover:bg-blue-700">
           {isScanning ? (
             <>
               <Zap className="mr-2 h-4 w-4 animate-spin" />
-              جاري الفحص...
+              {tr("جاري الفحص...")}
             </>
           ) : (
             <>
               <Zap className="mr-2 h-4 w-4" />
-              بدء الفحص
+              {tr("بدء الفحص")}
             </>
           )}
         </Button>
@@ -147,7 +148,7 @@ export default function QADashboardSimple() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-center space-x-2">
               <Zap className="h-5 w-5 animate-spin text-blue-500" />
-              <span className="text-lg">جاري فحص النظام...</span>
+              <span className="text-lg">{tr("جاري فحص النظام...")}</span>
             </div>
           </CardContent>
         </Card>
@@ -156,7 +157,7 @@ export default function QADashboardSimple() {
       {shouldShowResults && (
         <div className="space-y-6" key={`results-${report?.timestamp}`}>
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            ✅ تم اكتمال الفحص! تم العثور على {report!.summary.totalIssues} مشكلة في {report!.summary.totalFiles} ملف
+            {tr("✅ تم اكتمال الفحص! تم العثور على ")}{report!.summary.totalIssues}{tr(" مشكلة في ")}{report!.summary.totalFiles}{tr(" ملف")}
           </div>
 
           {/* ملخص النتائج */}
@@ -164,26 +165,26 @@ export default function QADashboardSimple() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-500" />
-                ملخص نتائج الفحص
+                {tr("ملخص نتائج الفحص")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{report!.summary.totalFiles}</div>
-                  <div className="text-sm text-gray-600">ملف تم فحصه</div>
+                  <div className="text-sm text-gray-600">{tr("ملف تم فحصه")}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-red-600">{report!.summary.criticalErrors}</div>
-                  <div className="text-sm text-gray-600">أخطاء حرجة</div>
+                  <div className="text-sm text-gray-600">{tr("أخطاء حرجة")}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-600">{report!.summary.warnings}</div>
-                  <div className="text-sm text-gray-600">تحذيرات</div>
+                  <div className="text-sm text-gray-600">{tr("تحذيرات")}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{report!.summary.suggestions}</div>
-                  <div className="text-sm text-gray-600">اقتراحات</div>
+                  <div className="text-sm text-gray-600">{tr("اقتراحات")}</div>
                 </div>
               </div>
             </CardContent>
@@ -191,7 +192,7 @@ export default function QADashboardSimple() {
 
           {/* تفاصيل الملفات */}
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">تفاصيل الملفات</h2>
+            <h2 className="text-xl font-semibold">{tr("تفاصيل الملفات")}</h2>
             {report!.fileReports.map((fileReport, index) => (
               <Card key={index}>
                 <CardHeader>
@@ -206,14 +207,14 @@ export default function QADashboardSimple() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <Badge variant={getIssueColor(issue.type) as any}>
-                              {issue.type === "error" ? "خطأ" : issue.type === "warning" ? "تحذير" : "اقتراح"}
+                              {issue.type === "error" ? tr("خطأ") : issue.type === "warning" ? tr("تحذير") : tr("اقتراح")}
                             </Badge>
-                            {issue.line && <span className="text-sm text-gray-500">السطر {issue.line}</span>}
+                            {issue.line && <span className="text-sm text-gray-500">{tr("السطر ")}{issue.line}</span>}
                           </div>
                           <p className="text-sm mb-2">{issue.message}</p>
                           {issue.fix && (
                             <div className="bg-gray-50 p-2 rounded text-sm">
-                              <strong>الحل المقترح:</strong> {issue.fix}
+                              <strong>{tr("الحل المقترح:")}</strong> {issue.fix}
                             </div>
                           )}
                         </div>
@@ -232,7 +233,7 @@ export default function QADashboardSimple() {
           <CardContent className="pt-6">
             <div className="text-center text-gray-500">
               <Zap className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>اضغط على "بدء الفحص" لفحص جودة النظام</p>
+              <p>{tr("اضغط على \"بدء الفحص\" لفحص جودة النظام")}</p>
             </div>
           </CardContent>
         </Card>

@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState, type TouchEvent } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useTransactionPermission } from "@/components/auth/transaction-access-gate"
@@ -35,10 +36,10 @@ type GroupedTask = TaskOpenTask & { siblingItemIds: number[] }
 type Scope = "mine" | "section" | "all"
 
 const COMPLETED_DAYS_OPTIONS = [
-  { value: 1, label: "اليوم" },
-  { value: 3, label: "3 أيام" },
-  { value: 7, label: "أسبوع" },
-  { value: 30, label: "شهر" },
+  { value: 1, label: tr("اليوم") },
+  { value: 3, label: tr("3 أيام") },
+  { value: 7, label: tr("أسبوع") },
+  { value: 30, label: tr("شهر") },
 ]
 
 // حالة SLA لمهمة مفتوحة: due_at يُحسَب بالخادم (إنشاء المهمة + sla_hours للخطوة). كان sla_hours
@@ -52,7 +53,7 @@ function slaInfo(task: { due_at?: string | null; status: string }): { overdue: b
   const hours = Math.floor((abs % 86400) / 3600)
   const minutes = Math.floor((abs % 3600) / 60)
   const span = days > 0 ? `${days} يوم ${hours} س` : hours > 0 ? `${hours} س ${minutes} د` : `${minutes} د`
-  return diffSeconds < 0 ? { overdue: true, label: `متأخرة ${span}` } : { overdue: false, label: `متبقٍ ${span}` }
+  return diffSeconds < 0 ? { overdue: true, label: tr("متأخرة {0}", span) } : { overdue: false, label: tr("متبقٍ {0}", span) }
 }
 
 const STATUS_COLUMN_STYLE: Record<string, { bar: string; chip: string; icon: any; empty: string }> = {
@@ -156,7 +157,7 @@ export function TaskBoard() {
       const active = (Array.isArray(data) ? data : []).filter((w: TaskWorkflow) => w.is_active)
       setWorkflows(active)
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب سير العمل", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب سير العمل"), variant: "destructive" })
     }
   }
 
@@ -189,7 +190,7 @@ export function TaskBoard() {
       const data = await res.json()
       setTasks(Array.isArray(data) ? data : [])
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب المهام", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب المهام"), variant: "destructive" })
     } finally {
       setLoadingTasks(false)
     }
@@ -345,26 +346,26 @@ export function TaskBoard() {
     return [
       {
         key: "pending",
-        label: "مهام جديدة",
-        subtitle: "بانتظار الاستلام والبدء",
+        label: tr("مهام جديدة"),
+        subtitle: tr("بانتظار الاستلام والبدء"),
         tasks: groupTasksForDisplay(byStatus.pending),
       },
       {
         key: "paused",
-        label: "مهام متوقفة",
-        subtitle: "أُوقف العمل عليها مؤقتاً",
+        label: tr("مهام متوقفة"),
+        subtitle: tr("أُوقف العمل عليها مؤقتاً"),
         tasks: groupTasksForDisplay(byStatus.paused),
       },
       {
         key: "in_progress",
-        label: "مهام جارية",
-        subtitle: "العداد يعمل الآن",
+        label: tr("مهام جارية"),
+        subtitle: tr("العداد يعمل الآن"),
         tasks: groupTasksForDisplay(byStatus.in_progress),
       },
       {
         key: "completed",
-        label: "مهام منتهية",
-        subtitle: `خلال ${COMPLETED_DAYS_OPTIONS.find((o) => o.value === completedDays)?.label || ""}`,
+        label: tr("مهام منتهية"),
+        subtitle: tr("خلال {0}", COMPLETED_DAYS_OPTIONS.find((o) => o.value === completedDays)?.label || ""),
         tasks: groupTasksForDisplay(byStatus.completed),
       },
     ]
@@ -383,7 +384,7 @@ export function TaskBoard() {
       if (!res.ok) throw new Error()
       setDetailItem(await res.json())
     } catch {
-      toast({ title: "خطأ", description: "فشل في جلب تفاصيل الصنف", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في جلب تفاصيل الصنف"), variant: "destructive" })
       setDetailItemId(null)
     } finally {
       setDetailLoading(false)
@@ -398,7 +399,7 @@ export function TaskBoard() {
       if (!res.ok) throw new Error()
       setDetailItem(await res.json())
     } catch {
-      toast({ title: "خطأ", description: "فشل في تحديث تفاصيل الصنف", variant: "destructive" })
+      toast({ title: tr("خطأ"), description: tr("فشل في تحديث تفاصيل الصنف"), variant: "destructive" })
       setDetailItemId(null)
     } finally {
       setDetailLoading(false)
@@ -471,19 +472,19 @@ export function TaskBoard() {
     }
 
     if (targetColumnKey === "in_progress" && ["pending", "paused"].includes(task.status)) {
-      openNoteDialog(task.id, "start", "بدء المهمة")
+      openNoteDialog(task.id, "start", tr("بدء المهمة"))
       setNoteDialogExtra(null)
       return
     }
 
     if (targetColumnKey === "paused" && task.status === "in_progress") {
-      openNoteDialog(task.id, "stop", "إيقاف المهمة")
+      openNoteDialog(task.id, "stop", tr("إيقاف المهمة"))
       setNoteDialogExtra(null)
       return
     }
 
     if (targetColumnKey === "completed" && task.status === "in_progress") {
-      openNoteDialog(task.id, "complete", "إنهاء المهمة")
+      openNoteDialog(task.id, "complete", tr("إنهاء المهمة"))
       setNoteDialogExtra(null)
       return
     }
@@ -491,7 +492,7 @@ export function TaskBoard() {
     // paused -> completed: require start then complete
     if (targetColumnKey === "completed" && task.status === "paused") {
       setNoteDialogExtra({ needStartFirst: true })
-      openNoteDialog(task.id, "complete", "إنهاء المهمة")
+      openNoteDialog(task.id, "complete", tr("إنهاء المهمة"))
       return
     }
 
@@ -510,13 +511,13 @@ export function TaskBoard() {
         body: JSON.stringify({ userId, ...body }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
+      if (!res.ok) throw new Error(data?.error || tr("فشل تنفيذ العملية"))
       await refreshDetail()
       await fetchTasks(selectedWorkflowId)
-      toast({ title: "تم", description: "تم تنفيذ العملية بنجاح" })
+      toast({ title: tr("تم"), description: tr("تم تنفيذ العملية بنجاح") })
       return true
     } catch (error: any) {
-      toast({ title: "تعذّر التنفيذ", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+      toast({ title: tr("تعذّر التنفيذ"), description: error?.message || tr("خطأ غير متوقع"), variant: "destructive" })
       return false
     } finally {
       setActionBusy(false)
@@ -540,12 +541,12 @@ export function TaskBoard() {
           body: JSON.stringify({ userId }),
         })
         const data = await res.json()
-        if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
+        if (!res.ok) throw new Error(data?.error || tr("فشل تنفيذ العملية"))
         await refreshDetail()
-        toast({ title: "تم", description: "تم إنهاء المرحلة لكل أصناف الطلبية" })
+        toast({ title: tr("تم"), description: tr("تم إنهاء المرحلة لكل أصناف الطلبية") })
         setDetailItemId(null)
       } catch (error: any) {
-        toast({ title: "تعذّر التنفيذ", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+        toast({ title: tr("تعذّر التنفيذ"), description: error?.message || tr("خطأ غير متوقع"), variant: "destructive" })
       } finally {
         setActionBusy(false)
       }
@@ -570,13 +571,13 @@ export function TaskBoard() {
         body: JSON.stringify({ userId }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "فشل الإغلاق الإجباري")
-      toast({ title: "تم", description: "تم إغلاق الطلبية بشكل إجباري" })
+      if (!res.ok) throw new Error(data?.error || tr("فشل الإغلاق الإجباري"))
+      toast({ title: tr("تم"), description: tr("تم إغلاق الطلبية بشكل إجباري") })
       setForceCloseInstanceId(null)
       await refreshDetail()
       setDetailItemId(null)
     } catch (error: any) {
-      toast({ title: "تعذّر الإغلاق", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+      toast({ title: tr("تعذّر الإغلاق"), description: error?.message || tr("خطأ غير متوقع"), variant: "destructive" })
     } finally {
       setActionBusy(false)
     }
@@ -604,9 +605,9 @@ export function TaskBoard() {
         // If we need to start first (paused -> completed), start then complete
         if (noteDialogExtra?.needStartFirst) {
           const started = await callInstanceAction("start", noteDialog.instanceId, body)
-          if (!started) throw new Error("فشل بدء المهمة")
+          if (!started) throw new Error(tr("فشل بدء المهمة"))
           const completed = await callInstanceAction("complete", noteDialog.instanceId, body)
-          if (!completed) throw new Error("فشل إنهاء المهمة")
+          if (!completed) throw new Error(tr("فشل إنهاء المهمة"))
           setNoteDialog(null)
           setNoteDialogText("")
           setNoteDialogExtra(null)
@@ -652,14 +653,14 @@ export function TaskBoard() {
           },
         )
         const data = await res.json()
-        if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
+        if (!res.ok) throw new Error(data?.error || tr("فشل تنفيذ العملية"))
         await refreshDetail()
-        toast({ title: "تم", description: "تم رفض كل أصناف الطلبية بهذه المرحلة" })
+        toast({ title: tr("تم"), description: tr("تم رفض كل أصناف الطلبية بهذه المرحلة") })
         setRejectingInstanceId(null)
         setRejectOrderContext(null)
         setRejectNote("")
       } catch (error: any) {
-        toast({ title: "تعذّر التنفيذ", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+        toast({ title: tr("تعذّر التنفيذ"), description: error?.message || tr("خطأ غير متوقع"), variant: "destructive" })
       } finally {
         setActionBusy(false)
       }
@@ -693,14 +694,14 @@ export function TaskBoard() {
     !((SPECIAL_STEP_TYPES.has(t.step_type) || t.show_all_items || t.print_barcode) && t.customer_order_id)
 
   const statCards = [
-    { key: "pending", label: "مهام جديدة", value: statusSummary.pending.count, seconds: statusSummary.pending.totalSeconds, icon: Inbox, tone: "text-slate-600 bg-slate-100" },
-    { key: "in_progress", label: "مهام جارية", value: statusSummary.in_progress.count, seconds: statusSummary.in_progress.totalSeconds, icon: Play, tone: "text-emerald-700 bg-emerald-100" },
-    { key: "paused", label: "مهام متوقفة", value: statusSummary.paused.count, seconds: statusSummary.paused.totalSeconds, icon: Pause, tone: "text-amber-700 bg-amber-100" },
-    { key: "completed", label: "منتهية بالفترة", value: statusSummary.completed.count, seconds: statusSummary.completed.totalSeconds, icon: CheckCircle2, tone: "text-sky-700 bg-sky-100" },
+    { key: "pending", label: tr("مهام جديدة"), value: statusSummary.pending.count, seconds: statusSummary.pending.totalSeconds, icon: Inbox, tone: "text-slate-600 bg-slate-100" },
+    { key: "in_progress", label: tr("مهام جارية"), value: statusSummary.in_progress.count, seconds: statusSummary.in_progress.totalSeconds, icon: Play, tone: "text-emerald-700 bg-emerald-100" },
+    { key: "paused", label: tr("مهام متوقفة"), value: statusSummary.paused.count, seconds: statusSummary.paused.totalSeconds, icon: Pause, tone: "text-amber-700 bg-amber-100" },
+    { key: "completed", label: tr("منتهية بالفترة"), value: statusSummary.completed.count, seconds: statusSummary.completed.totalSeconds, icon: CheckCircle2, tone: "text-sky-700 bg-sky-100" },
   ]
 
   return (
-    <div dir="rtl" className="flex min-h-[calc(100vh-104px)] flex-col gap-4 md:min-h-[calc(100vh-136px)]">
+    <div dir={appDir()} className="flex min-h-[calc(100vh-104px)] flex-col gap-4 md:min-h-[calc(100vh-136px)]">
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-5 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
@@ -708,8 +709,8 @@ export function TaskBoard() {
               <KanbanSquare className="h-6 w-6" />
             </span>
             <div>
-              <h1 className="text-xl font-extrabold sm:text-2xl">لوحة متابعة الطلبات</h1>
-              <p className="text-xs text-slate-500 sm:text-sm">تتبّع أصناف الطلبيات عبر مراحل سير العمل مع تسجيل وقت التنفيذ لحظياً</p>
+              <h1 className="text-xl font-extrabold sm:text-2xl">{tr("لوحة متابعة الطلبات")}</h1>
+              <p className="text-xs text-slate-500 sm:text-sm">{tr("تتبّع أصناف الطلبيات عبر مراحل سير العمل مع تسجيل وقت التنفيذ لحظياً")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -720,7 +721,7 @@ export function TaskBoard() {
               className="h-10 rounded-xl"
             >
               <RefreshCw className={cn("ml-2 h-4 w-4", loadingTasks && "animate-spin")} />
-              تحديث
+              {tr("تحديث")}
             </Button>
             {userId && (
               <div className="rounded-xl ring-1 ring-slate-200 dark:ring-slate-700">
@@ -750,15 +751,15 @@ export function TaskBoard() {
           type="button"
           onClick={() => setOverdueOnly((v) => !v)}
           className={cn(
-            "col-span-2 flex items-center justify-between rounded-2xl border p-4 text-right shadow-sm transition lg:col-span-1",
+            "col-span-2 flex items-center justify-between rounded-2xl border p-4 text-start shadow-sm transition lg:col-span-1",
             overdueOnly ? "border-red-300 bg-red-50 ring-2 ring-red-200" : "bg-white hover:border-red-200 hover:bg-red-50/40",
           )}
-          title="عرض المهام المتأخرة عن مدة الإنجاز (SLA) فقط"
+          title={tr("عرض المهام المتأخرة عن مدة الإنجاز (SLA) فقط")}
         >
           <div>
-            <p className="text-xs font-medium text-slate-500">متأخرة عن SLA</p>
+            <p className="text-xs font-medium text-slate-500">{tr("متأخرة عن SLA")}</p>
             <p className={cn("mt-1 text-2xl font-bold", overdueCount > 0 ? "text-red-600" : "text-slate-800")}>{overdueCount}</p>
-            <p className="mt-0.5 text-[11px] text-slate-400">{overdueOnly ? "إلغاء التصفية" : "اضغط للتصفية"}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{overdueOnly ? tr("إلغاء التصفية") : tr("اضغط للتصفية")}</p>
           </div>
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-600">
             <AlarmClock className="h-5 w-5" />
@@ -769,17 +770,17 @@ export function TaskBoard() {
       <div className="rounded-2xl border bg-white p-3 shadow-sm">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1.4fr_1fr]">
           <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Layers className="h-3.5 w-3.5" /> سير العمل</label>
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Layers className="h-3.5 w-3.5" />{tr(" سير العمل")}</label>
             <div className="invoice-currency-dropdown-wrap">
               <PrimeDropdown
                 value={selectedWorkflowId}
                 options={[
-                  { id: "all", label: "الكل" },
-                  ...filteredWorkflows.map((w) => ({ id: w.id, label: `${w.name}${w.version > 1 ? ` (إصدار ${w.version})` : ""}` })),
+                  { id: "all", label: tr("الكل") },
+                  ...filteredWorkflows.map((w) => ({ id: w.id, label: tr("{0}{1}", w.name, w.version > 1 ? ` (إصدار ${w.version})` : "") })),
                 ]}
                 optionLabel="label"
                 optionValue="id"
-                placeholder="اختر سير العمل"
+                placeholder={tr("اختر سير العمل")}
                 filter
                 className="invoice-currency-dropdown w-full"
                 panelClassName="invoice-currency-dropdown-panel"
@@ -790,14 +791,14 @@ export function TaskBoard() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Building2 className="h-3.5 w-3.5" /> الفرع</label>
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Building2 className="h-3.5 w-3.5" />{tr(" الفرع")}</label>
             <div className="invoice-currency-dropdown-wrap">
               <PrimeDropdown
                 value={branchFilter}
-                options={[{ label: "الكل", value: "all" }, ...branches.map((b) => ({ label: b.branch_name, value: String(b.id) }))]}
+                options={[{ label: tr("الكل"), value: "all" }, ...branches.map((b) => ({ label: b.branch_name, value: String(b.id) }))]}
                 optionLabel="label"
                 optionValue="value"
-                placeholder="الفرع"
+                placeholder={tr("الفرع")}
                 filter
                 className="invoice-currency-dropdown w-full"
                 panelClassName="invoice-currency-dropdown-panel"
@@ -808,20 +809,20 @@ export function TaskBoard() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Search className="h-3.5 w-3.5" /> بحث</label>
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Search className="h-3.5 w-3.5" />{tr(" بحث")}</label>
             <div className="relative">
-              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder="رقم الصنف، العنوان، العميل أو رقم الطلبية"
-                className="h-10 w-full rounded-xl pr-8"
+                placeholder={tr("رقم الصنف، العنوان، العميل أو رقم الطلبية")}
+                className="h-10 w-full rounded-xl ps-8"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><CheckCircle2 className="h-3.5 w-3.5" /> المنتهية خلال</label>
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><CheckCircle2 className="h-3.5 w-3.5" />{tr(" المنتهية خلال")}</label>
             <div className="flex h-10 items-center gap-1 rounded-xl bg-slate-100 p-1">
               {COMPLETED_DAYS_OPTIONS.map((option) => (
                 <button
@@ -841,11 +842,11 @@ export function TaskBoard() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
-          <span className="flex items-center gap-1 text-xs font-medium text-slate-500"><Users className="h-3.5 w-3.5" /> نطاق العرض:</span>
+          <span className="flex items-center gap-1 text-xs font-medium text-slate-500"><Users className="h-3.5 w-3.5" />{tr(" نطاق العرض:")}</span>
           {[
-            { label: "مهامي", value: "mine" as Scope },
-            { label: "أقسامي", value: "section" as Scope },
-            ...(canSeeAll ? [{ label: "كل المهام", value: "all" as Scope }] : []),
+            { label: tr("مهامي"), value: "mine" as Scope },
+            { label: tr("أقسامي"), value: "section" as Scope },
+            ...(canSeeAll ? [{ label: tr("كل المهام"), value: "all" as Scope }] : []),
           ].map((option) => (
             <button
               key={option.value}
@@ -860,14 +861,14 @@ export function TaskBoard() {
             </button>
           ))}
           {scope === "mine" && (
-            <span className="text-[11px] text-slate-400">المهام غير المستلَمة بعد تظهر في "أقسامي"</span>
+            <span className="text-[11px] text-slate-400">{tr("المهام غير المستلَمة بعد تظهر في \"أقسامي\"")}</span>
           )}
         </div>
       </div>
 
       {workflows.length === 0 && !loadingTasks ? (
         <Card className="rounded-2xl">
-          <CardContent className="py-10 text-center text-slate-500">لا يوجد سير عمل نشِط بعد — أنشئ واحداً من شاشة إدارة الأقسام وسير العمل</CardContent>
+          <CardContent className="py-10 text-center text-slate-500">{tr("لا يوجد سير عمل نشِط بعد — أنشئ واحداً من شاشة إدارة الأقسام وسير العمل")}</CardContent>
         </Card>
       ) : (
         <div className="flex min-h-[420px] flex-1 flex-col gap-4 overflow-x-auto pb-3 lg:flex-row">
@@ -902,23 +903,23 @@ export function TaskBoard() {
                   if (!task) return
                   if (column.key === "in_progress" && ["pending", "paused"].includes(task.status)) {
                     setNoteDialogExtra(null)
-                    openNoteDialog(task.id, "start", "بدء المهمة")
+                    openNoteDialog(task.id, "start", tr("بدء المهمة"))
                     return
                   }
                   if (column.key === "paused" && task.status === "in_progress") {
                     setNoteDialogExtra(null)
-                    openNoteDialog(task.id, "stop", "إيقاف المهمة")
+                    openNoteDialog(task.id, "stop", tr("إيقاف المهمة"))
                     return
                   }
                   if (column.key === "completed" && task.status === "in_progress") {
                     setNoteDialogExtra(null)
-                    openNoteDialog(task.id, "complete", "إنهاء المهمة")
+                    openNoteDialog(task.id, "complete", tr("إنهاء المهمة"))
                     return
                   }
                   // paused -> completed: بدء ثم إنهاء بتأكيد واحد
                   if (column.key === "completed" && task.status === "paused") {
                     setNoteDialogExtra({ needStartFirst: true })
-                    openNoteDialog(task.id, "complete", "إنهاء المهمة")
+                    openNoteDialog(task.id, "complete", tr("إنهاء المهمة"))
                   }
                 }}
                 onTouchEnd={(e) => void handleTouchTaskEnd(e, column.key)}
@@ -998,7 +999,7 @@ export function TaskBoard() {
                           }}
                           style={{ touchAction: draggable ? "none" : "auto" }}
                           className={cn(
-                            "group relative w-full rounded-xl border border-r-4 bg-white p-3.5 text-right shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                            "group relative w-full rounded-xl border border-s-4 bg-white p-3.5 text-start shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
                             PRIORITY_CARD_ACCENT[t.item_priority]?.split(" ")[0] || "border-r-blue-500",
                             sla?.overdue && "ring-1 ring-red-200",
                             draggedTaskId === t.id && "opacity-50",
@@ -1012,7 +1013,7 @@ export function TaskBoard() {
                             <Badge className={cn("border px-1.5 py-0 text-[10px]", PRIORITY_BADGE_CLASS[t.item_priority])}>{PRIORITY_LABELS[t.item_priority] || t.item_priority}</Badge>
                           </div>
                           <div className="line-clamp-2 text-sm font-bold leading-6 text-slate-800">
-                            {isGroup ? `الطلبية — ${t.siblingItemIds.length} أصناف` : t.title}
+                            {isGroup ? tr("الطلبية — {0} أصناف", t.siblingItemIds.length) : t.title}
                           </div>
                           {(t.customer_name || t.source_order_number) && (
                             <div className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
@@ -1043,7 +1044,7 @@ export function TaskBoard() {
                               <Avatar className="h-7 w-7 border border-white shadow-sm">
                                 <AvatarFallback className="bg-emerald-100 text-[10px] font-semibold text-emerald-800">{initials(t.claimed_by_name)}</AvatarFallback>
                               </Avatar>
-                              <span className="max-w-[120px] truncate">{t.claimed_by_name || "غير مسند"}</span>
+                              <span className="max-w-[120px] truncate">{t.claimed_by_name || tr("غير مسند")}</span>
                             </div>
                             <div
                               className={cn(
@@ -1069,7 +1070,7 @@ export function TaskBoard() {
       {/* نافذة تفاصيل الصنف — تعرض كل المهام (StepInstance) المفتوحة/المكتملة له معاً، لأن التفرّع
           المتوازي قد يعني أكثر من مهمة مفتوحة في آنٍ واحد بأقسام مختلفة. */}
       <Dialog open={detailItemId !== null} onOpenChange={(open) => !open && setDetailItemId(null)}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl p-0" dir="rtl">
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl p-0" dir={appDir()}>
           {detailLoading || !detailItem ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
@@ -1083,28 +1084,28 @@ export function TaskBoard() {
                 </DialogTitle>
                 <div className="flex flex-wrap items-center gap-1.5 pt-2">
                   <Badge className="border-0 bg-white/90 text-emerald-800">
-                    {detailItem.status === "completed" ? "مكتمل" : detailItem.status === "cancelled" ? "ملغى" : "جارٍ بسير العمل"}
+                    {detailItem.status === "completed" ? tr("مكتمل") : detailItem.status === "cancelled" ? tr("ملغى") : tr("جارٍ بسير العمل")}
                   </Badge>
                   <Badge className={cn("border", PRIORITY_BADGE_CLASS[detailItem.priority])}>{PRIORITY_LABELS[detailItem.priority] || detailItem.priority}</Badge>
-                  {detailItem.qty != null && <Badge className="border-0 bg-white/15 text-white">الكمية: {Number(detailItem.qty)}</Badge>}
+                  {detailItem.qty != null && <Badge className="border-0 bg-white/15 text-white">{tr("الكمية: ")}{Number(detailItem.qty)}</Badge>}
                 </div>
               </DialogHeader>
 
               <div className="space-y-4 px-5 pb-5">
               <div className="grid grid-cols-1 gap-2 rounded-xl border bg-slate-50/60 p-3 text-sm sm:grid-cols-3">
                 <div>
-                  <div className="text-[11px] text-slate-400">سير العمل</div>
+                  <div className="text-[11px] text-slate-400">{tr("سير العمل")}</div>
                   <div className="font-semibold text-slate-700">{detailItem.workflow_name}</div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-slate-400">الطلبية</div>
+                  <div className="text-[11px] text-slate-400">{tr("الطلبية")}</div>
                   <div className="font-semibold text-slate-700">
                     {detailItem.customer_order_code ? detailItem.source_order_number || detailItem.customer_order_code : "-"}
                     {detailItem.customer_name ? <span className="font-normal text-slate-500"> · {detailItem.customer_name}</span> : null}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[11px] text-slate-400">أنشئ بواسطة</div>
+                  <div className="text-[11px] text-slate-400">{tr("أنشئ بواسطة")}</div>
                   <div className="font-semibold text-slate-700">{detailItem.created_by_name || "-"}</div>
                 </div>
               </div>
@@ -1142,10 +1143,10 @@ export function TaskBoard() {
                           size="sm"
                           className="gap-1"
                           disabled={actionBusy || loadingBlocked}
-                          title={loadingBlocked ? "يجب فحص كل الأصناف أولاً" : undefined}
+                          title={loadingBlocked ? tr("يجب فحص كل الأصناف أولاً") : undefined}
                           onClick={() => handleMarkDone(activeSpecialInstance, detailItem.customer_order_id)}
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> تم
+                          <CheckCircle2 className="h-3.5 w-3.5" />{tr(" تم")}
                         </Button>
                         {!activeSpecialInstance.first_started_at && (
                           <Button
@@ -1160,7 +1161,7 @@ export function TaskBoard() {
                               )
                             }}
                           >
-                            <Undo2 className="h-3.5 w-3.5" /> رفض
+                            <Undo2 className="h-3.5 w-3.5" />{tr(" رفض")}
                           </Button>
                         )}
                         {canForce && (
@@ -1171,7 +1172,7 @@ export function TaskBoard() {
                             disabled={actionBusy}
                             onClick={() => setForceCloseInstanceId(activeSpecialInstance.id)}
                           >
-                            <ShieldAlert className="h-3.5 w-3.5" /> إغلاق إجباري
+                            <ShieldAlert className="h-3.5 w-3.5" />{tr(" إغلاق إجباري")}
                           </Button>
                         )}
                       </div>
@@ -1179,7 +1180,7 @@ export function TaskBoard() {
 
                     {rejectingInstanceId === activeSpecialInstance.id && (
                       <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-2">
-                        <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="سبب إعادة المهمة للمرحلة السابقة (مطلوب)" rows={2} />
+                        <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={tr("سبب إعادة المهمة للمرحلة السابقة (مطلوب)")} rows={2} />
                         <div className="flex justify-end gap-2">
                           <Button
                             size="sm"
@@ -1189,10 +1190,10 @@ export function TaskBoard() {
                               setRejectOrderContext(null)
                             }}
                           >
-                            إلغاء
+                            {tr("إلغاء")}
                           </Button>
                           <Button size="sm" variant="destructive" onClick={confirmReject} disabled={actionBusy || !rejectNote.trim()}>
-                            تأكيد الرفض
+                            {tr("تأكيد الرفض")}
                           </Button>
                         </div>
                       </div>
@@ -1204,7 +1205,7 @@ export function TaskBoard() {
               <Separator />
 
               <div className="space-y-2">
-                <div className="text-sm font-semibold text-slate-600">مراحل التنفيذ</div>
+                <div className="text-sm font-semibold text-slate-600">{tr("مراحل التنفيذ")}</div>
                 {/* خطوات تدقيق/اعتماد/تجهيز/تحميل (التي تعرض لوحة أصناف الطلبية أعلاه) لا تظهر هنا
                     إطلاقاً — إجراؤها عبر أزرار تم/رفض/إغلاق إجباري المبسّطة فقط، لا سجل المراحل
                     التفصيلي (بدء/إيقاف مؤقت/تحويل إداري...) المخصَّص للخطوات العادية. */}
@@ -1230,7 +1231,7 @@ export function TaskBoard() {
                               )}
                             </div>
                             <div className="text-xs text-slate-500">
-                              {instance.claimed_by_name || "غير مسند"} · <Clock className="inline h-3 w-3" /> {formatDuration(liveSeconds)}
+                              {instance.claimed_by_name || tr("غير مسند")} · <Clock className="inline h-3 w-3" /> {formatDuration(liveSeconds)}
                             </div>
                           </div>
                           <Badge className={cn("border text-[10px]", STATUS_BADGE_CLASS[instance.status])}>{STEP_STATUS_LABELS[instance.status]}</Badge>
@@ -1240,21 +1241,21 @@ export function TaskBoard() {
                           <div className="flex flex-wrap items-center gap-2 pt-1">
                             {instance.status !== "in_progress" ? (
                               <Button size="sm" onClick={() => handleStart(instance.id)} disabled={actionBusy} className="gap-1">
-                                <Play className="h-3.5 w-3.5" /> بدء
+                                <Play className="h-3.5 w-3.5" />{tr(" بدء")}
                               </Button>
                             ) : (
-                              <Button size="sm" variant="outline" onClick={() => openNoteDialog(instance.id, "stop", "إيقاف مؤقت")} disabled={actionBusy} className="gap-1">
-                                <Pause className="h-3.5 w-3.5" /> إيقاف مؤقت
+                              <Button size="sm" variant="outline" onClick={() => openNoteDialog(instance.id, "stop", tr("إيقاف مؤقت"))} disabled={actionBusy} className="gap-1">
+                                <Pause className="h-3.5 w-3.5" />{tr(" إيقاف مؤقت")}
                               </Button>
                             )}
                             <Button
                               size="sm"
                               className="gap-1"
                               disabled={actionBusy || instance.status !== "in_progress" || (instance.step_type === "loading" && !allLoadingChecked)}
-                              onClick={() => openNoteDialog(instance.id, "complete", "إنهاء")}
-                              title={instance.step_type === "loading" && !allLoadingChecked ? "يجب فحص كل الأصناف أولاً" : undefined}
+                              onClick={() => openNoteDialog(instance.id, "complete", tr("إنهاء"))}
+                              title={instance.step_type === "loading" && !allLoadingChecked ? tr("يجب فحص كل الأصناف أولاً") : undefined}
                             >
-                              <CheckCircle2 className="h-3.5 w-3.5" /> إنهاء
+                              <CheckCircle2 className="h-3.5 w-3.5" />{tr(" إنهاء")}
                             </Button>
                             {!instance.first_started_at && (
                               <Button
@@ -1264,7 +1265,7 @@ export function TaskBoard() {
                                 disabled={actionBusy || !instance.parent_instance_id}
                                 onClick={() => setRejectingInstanceId(instance.id)}
                               >
-                                <Undo2 className="h-3.5 w-3.5" /> رفض
+                                <Undo2 className="h-3.5 w-3.5" />{tr(" رفض")}
                               </Button>
                             )}
                           </div>
@@ -1279,16 +1280,16 @@ export function TaskBoard() {
                               disabled={actionBusy}
                               onClick={() => setTransferringInstanceId(instance.id)}
                             >
-                              <ArrowRightLeft className="h-3.5 w-3.5" /> تحويل إداري
+                              <ArrowRightLeft className="h-3.5 w-3.5" />{tr(" تحويل إداري")}
                             </Button>}
                             {canForce && <Button
                               size="sm"
                               variant="ghost"
                               className="gap-1 text-blue-600"
                               disabled={actionBusy}
-                              onClick={() => openNoteDialog(instance.id, "force_complete", "إنهاء إجباري")}
+                              onClick={() => openNoteDialog(instance.id, "force_complete", tr("إنهاء إجباري"))}
                             >
-                              <ShieldAlert className="h-3.5 w-3.5" /> إنهاء إجباري
+                              <ShieldAlert className="h-3.5 w-3.5" />{tr(" إنهاء إجباري")}
                             </Button>}
                             {canForce && instance.parent_instance_id && (
                               <Button
@@ -1301,7 +1302,7 @@ export function TaskBoard() {
                                   setForceRejectInstanceId(instance.id)
                                 }}
                               >
-                                <ShieldAlert className="h-3.5 w-3.5" /> رفض إجباري
+                                <ShieldAlert className="h-3.5 w-3.5" />{tr(" رفض إجباري")}
                               </Button>
                             )}
                           </div>
@@ -1309,13 +1310,13 @@ export function TaskBoard() {
 
                         {rejectingInstanceId === instance.id && (
                           <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-2">
-                            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="سبب إعادة المهمة للمرحلة السابقة (مطلوب)" rows={2} />
+                            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={tr("سبب إعادة المهمة للمرحلة السابقة (مطلوب)")} rows={2} />
                             <div className="flex justify-end gap-2">
                               <Button size="sm" variant="ghost" onClick={() => setRejectingInstanceId(null)}>
-                                إلغاء
+                                {tr("إلغاء")}
                               </Button>
                               <Button size="sm" variant="destructive" onClick={confirmReject} disabled={actionBusy || !rejectNote.trim()}>
-                                تأكيد الرفض
+                                {tr("تأكيد الرفض")}
                               </Button>
                             </div>
                           </div>
@@ -1323,11 +1324,11 @@ export function TaskBoard() {
 
                         {forceRejectInstanceId === instance.id && (
                           <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-2.5">
-                            <div className="text-xs font-semibold text-red-700">رفض إجباري (إداري) — تُعاد المهمة للمرحلة السابقة حتى لو بدأ العمل عليها</div>
-                            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="سبب الرفض الإجباري (مطلوب)" rows={2} autoFocus />
+                            <div className="text-xs font-semibold text-red-700">{tr("رفض إجباري (إداري) — تُعاد المهمة للمرحلة السابقة حتى لو بدأ العمل عليها")}</div>
+                            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder={tr("سبب الرفض الإجباري (مطلوب)")} rows={2} autoFocus />
                             <div className="flex justify-end gap-2">
                               <Button size="sm" variant="ghost" onClick={() => setForceRejectInstanceId(null)}>
-                                إلغاء
+                                {tr("إلغاء")}
                               </Button>
                               <Button
                                 size="sm"
@@ -1341,7 +1342,7 @@ export function TaskBoard() {
                                   }
                                 }}
                               >
-                                تأكيد الرفض الإجباري
+                                {tr("تأكيد الرفض الإجباري")}
                               </Button>
                             </div>
                           </div>
@@ -1356,7 +1357,7 @@ export function TaskBoard() {
                                   options={sections.map((s) => ({ id: String(s.id), name: s.name }))}
                                   optionLabel="name"
                                   optionValue="id"
-                                  placeholder="قسم آخر (اختياري)"
+                                  placeholder={tr("قسم آخر (اختياري)")}
                                   showClear
                                   filter
                                   className="invoice-currency-dropdown w-full text-xs"
@@ -1373,7 +1374,7 @@ export function TaskBoard() {
                                   )}
                                   optionLabel="full_name"
                                   optionValue="user_id"
-                                  placeholder="مستخدم محدد (اختياري)"
+                                  placeholder={tr("مستخدم محدد (اختياري)")}
                                   showClear
                                   filter
                                   className="invoice-currency-dropdown w-full text-xs"
@@ -1386,15 +1387,15 @@ export function TaskBoard() {
                             <Textarea
                               value={transferTarget.reason}
                               onChange={(e) => setTransferTarget((f) => ({ ...f, reason: e.target.value }))}
-                              placeholder="سبب التحويل (مطلوب)"
+                              placeholder={tr("سبب التحويل (مطلوب)")}
                               rows={2}
                             />
                             <div className="flex justify-end gap-2">
                               <Button size="sm" variant="ghost" onClick={() => setTransferringInstanceId(null)}>
-                                إلغاء
+                                {tr("إلغاء")}
                               </Button>
                               <Button size="sm" onClick={confirmTransfer} disabled={actionBusy || !transferTarget.reason.trim()}>
-                                تأكيد التحويل
+                                {tr("تأكيد التحويل")}
                               </Button>
                             </div>
                           </div>
@@ -1408,12 +1409,12 @@ export function TaskBoard() {
               <Separator />
 
               <div>
-                <div className="mb-2 text-sm font-semibold text-slate-600">سجلّ الأحداث</div>
+                <div className="mb-2 text-sm font-semibold text-slate-600">{tr("سجلّ الأحداث")}</div>
                 <ScrollArea className="max-h-56">
-                  <div className="space-y-2 pl-2">
+                  <div className="space-y-2 pe-2">
                     {detailItem.logs.map((log) => (
                       <div key={log.id} className="text-xs">
-                        <span className="font-medium text-slate-700">{log.user_name || "النظام"}</span>{" "}
+                        <span className="font-medium text-slate-700">{log.user_name || tr("النظام")}</span>{" "}
                         <span className="text-slate-500">{ACTION_LABELS[log.action] || log.action}</span>
                         {log.duration_sec > 0 && <span className="text-slate-500"> — {formatDuration(log.duration_sec)}</span>}
                         {log.note && <div className="text-slate-500">{log.note}</div>}
@@ -1431,23 +1432,23 @@ export function TaskBoard() {
 
       {/* نافذة ملاحظة عند الإيقاف المؤقت أو الإنهاء — اختيارية، لا تمنع التأكيد بلا نص. */}
       <Dialog open={noteDialog !== null} onOpenChange={(open) => !open && setNoteDialog(null)}>
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent dir={appDir()} className="max-w-md">
           <DialogHeader>
             <DialogTitle>{noteDialog?.label}</DialogTitle>
           </DialogHeader>
           <Textarea
             value={noteDialogText}
             onChange={(e) => setNoteDialogText(e.target.value)}
-            placeholder="ملاحظة (اختياري)"
+            placeholder={tr("ملاحظة (اختياري)")}
             rows={3}
             autoFocus
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => { setNoteDialog(null); setNoteDialogExtra(null); }}>
-              إلغاء
+              {tr("إلغاء")}
             </Button>
             <Button onClick={confirmNoteAction} disabled={actionBusy}>
-              {actionBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />} {(noteDialog?.action === "start" || noteDialog?.action === "complete" || noteDialog?.action === "stop" || noteDialog?.action === "force_complete") ? "تم" : "تأكيد"}
+              {actionBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />} {(noteDialog?.action === "start" || noteDialog?.action === "complete" || noteDialog?.action === "stop" || noteDialog?.action === "force_complete") ? tr("تم") : tr("تأكيد")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1455,7 +1456,7 @@ export function TaskBoard() {
 
       <ConfirmDialogYesNo
         visible={forceCloseInstanceId !== null}
-        message="سيتم إلغاء كل مهام هذه الطلبية بالكامل وإغلاق الطلب الفعلي المرتبط بها نهائياً. هل تريد تأكيد الإغلاق الإجباري؟"
+        message={tr("سيتم إلغاء كل مهام هذه الطلبية بالكامل وإغلاق الطلب الفعلي المرتبط بها نهائياً. هل تريد تأكيد الإغلاق الإجباري؟")}
         onConfirm={confirmForceClose}
         onCancel={() => setForceCloseInstanceId(null)}
       />

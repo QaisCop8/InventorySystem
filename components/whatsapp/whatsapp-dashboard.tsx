@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { showAlert } from "@/components/ui/confirm-host"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -138,17 +139,17 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        showAlert("تم إرسال الرسالة بنجاح")
+        showAlert(tr("تم إرسال الرسالة بنجاح"))
         setShowSendDialog(false)
         setSendForm({ phone: "", message: "", template_code: "", variables: {} })
         fetchMessages()
       } else {
         const error = await response.json()
-        showAlert(`فشل إرسال الرسالة: ${error.error}`)
+        showAlert(tr("فشل إرسال الرسالة: {0}", error.error))
       }
     } catch (error) {
       console.error("Error sending message:", error)
-      showAlert("حدث خطأ أثناء إرسال الرسالة")
+      showAlert(tr("حدث خطأ أثناء إرسال الرسالة"))
     } finally {
       setLoading(false)
     }
@@ -164,7 +165,7 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        showAlert("تم إنشاء النموذج بنجاح")
+        showAlert(tr("تم إنشاء النموذج بنجاح"))
         setShowTemplateDialog(false)
         setTemplateForm({
           template_name: "",
@@ -176,11 +177,11 @@ export function WhatsAppDashboard() {
         fetchTemplates()
       } else {
         const error = await response.json()
-        showAlert(`فشل إنشاء النموذج: ${error.error}`)
+        showAlert(tr("فشل إنشاء النموذج: {0}", error.error))
       }
     } catch (error) {
       console.error("Error creating template:", error)
-      showAlert("حدث خطأ أثناء إنشاء النموذج")
+      showAlert(tr("حدث خطأ أثناء إنشاء النموذج"))
     } finally {
       setLoading(false)
     }
@@ -195,7 +196,7 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        showAlert("تم حل الاستفسار بنجاح")
+        showAlert(tr("تم حل الاستفسار بنجاح"))
         fetchInquiries()
       }
     } catch (error) {
@@ -208,12 +209,12 @@ export function WhatsAppDashboard() {
       string,
       { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
     > = {
-      sent: { label: "مرسل", variant: "default" },
-      delivered: { label: "تم التسليم", variant: "secondary" },
-      read: { label: "مقروء", variant: "outline" },
-      failed: { label: "فشل", variant: "destructive" },
-      pending: { label: "قيد الانتظار", variant: "outline" },
-      resolved: { label: "محلول", variant: "secondary" },
+      sent: { label: tr("مرسل"), variant: "default" },
+      delivered: { label: tr("تم التسليم"), variant: "secondary" },
+      read: { label: tr("مقروء"), variant: "outline" },
+      failed: { label: tr("فشل"), variant: "destructive" },
+      pending: { label: tr("قيد الانتظار"), variant: "outline" },
+      resolved: { label: tr("محلول"), variant: "secondary" },
     }
 
     const config = statusConfig[status] || { label: status, variant: "default" as const }
@@ -239,20 +240,20 @@ export function WhatsAppDashboard() {
   })
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir={appDir()}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">إدارة الواتساب</h1>
-          <p className="text-muted-foreground">إدارة الرسائل والنماذج واستفسارات العملاء</p>
+          <h1 className="text-3xl font-bold">{tr("إدارة الواتساب")}</h1>
+          <p className="text-muted-foreground">{tr("إدارة الرسائل والنماذج واستفسارات العملاء")}</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowSendDialog(true)}>
             <Send className="ml-2 h-4 w-4" />
-            إرسال رسالة
+            {tr("إرسال رسالة")}
           </Button>
           <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
             <FileText className="ml-2 h-4 w-4" />
-            نموذج جديد
+            {tr("نموذج جديد")}
           </Button>
         </div>
       </div>
@@ -261,45 +262,45 @@ export function WhatsAppDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">إجمالي الرسائل</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("إجمالي الرسائل")}</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{messages.length}</div>
-            <p className="text-xs text-muted-foreground">جميع الرسائل المرسلة</p>
+            <p className="text-xs text-muted-foreground">{tr("جميع الرسائل المرسلة")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">رسائل مقروءة</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("رسائل مقروءة")}</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{messages.filter((m) => m.status === "read").length}</div>
-            <p className="text-xs text-muted-foreground">تم قراءتها من قبل العملاء</p>
+            <p className="text-xs text-muted-foreground">{tr("تم قراءتها من قبل العملاء")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">استفسارات جديدة</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("استفسارات جديدة")}</CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{inquiries.filter((i) => i.status === "pending").length}</div>
-            <p className="text-xs text-muted-foreground">بانتظار الرد</p>
+            <p className="text-xs text-muted-foreground">{tr("بانتظار الرد")}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">النماذج النشطة</CardTitle>
+            <CardTitle className="text-sm font-medium">{tr("النماذج النشطة")}</CardTitle>
             <FileText className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{templates.filter((t) => t.status === "active").length}</div>
-            <p className="text-xs text-muted-foreground">نماذج جاهزة للاستخدام</p>
+            <p className="text-xs text-muted-foreground">{tr("نماذج جاهزة للاستخدام")}</p>
           </CardContent>
         </Card>
       </div>
@@ -307,9 +308,9 @@ export function WhatsAppDashboard() {
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="messages">الرسائل</TabsTrigger>
-          <TabsTrigger value="templates">النماذج</TabsTrigger>
-          <TabsTrigger value="inquiries">الاستفسارات</TabsTrigger>
+          <TabsTrigger value="messages">{tr("الرسائل")}</TabsTrigger>
+          <TabsTrigger value="templates">{tr("النماذج")}</TabsTrigger>
+          <TabsTrigger value="inquiries">{tr("الاستفسارات")}</TabsTrigger>
         </TabsList>
 
         {/* Messages Tab */}
@@ -318,14 +319,14 @@ export function WhatsAppDashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>سجل الرسائل</CardTitle>
-                  <CardDescription>جميع رسائل الواتساب المرسلة</CardDescription>
+                  <CardTitle>{tr("سجل الرسائل")}</CardTitle>
+                  <CardDescription>{tr("جميع رسائل الواتساب المرسلة")}</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <div className="relative">
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="بحث..."
+                      placeholder={tr("بحث...")}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pr-10 w-64"
@@ -336,11 +337,11 @@ export function WhatsAppDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">جميع الحالات</SelectItem>
-                      <SelectItem value="sent">مرسل</SelectItem>
-                      <SelectItem value="delivered">تم التسليم</SelectItem>
-                      <SelectItem value="read">مقروء</SelectItem>
-                      <SelectItem value="failed">فشل</SelectItem>
+                      <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                      <SelectItem value="sent">{tr("مرسل")}</SelectItem>
+                      <SelectItem value="delivered">{tr("تم التسليم")}</SelectItem>
+                      <SelectItem value="read">{tr("مقروء")}</SelectItem>
+                      <SelectItem value="failed">{tr("فشل")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button variant="outline" size="icon" onClick={fetchMessages}>
@@ -353,11 +354,11 @@ export function WhatsAppDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">التاريخ</TableHead>
-                    <TableHead className="text-right">المستلم</TableHead>
-                    <TableHead className="text-right">الرسالة</TableHead>
-                    <TableHead className="text-right">النوع</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-right">{tr("المستلم")}</TableHead>
+                    <TableHead className="text-right">{tr("الرسالة")}</TableHead>
+                    <TableHead className="text-right">{tr("النوع")}</TableHead>
+                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -366,7 +367,7 @@ export function WhatsAppDashboard() {
                       <TableCell>{new Date(message.sent_at).toLocaleString("en-GB")}</TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{message.recipient_name || "غير معروف"}</div>
+                          <div className="font-medium">{message.recipient_name || tr("غير معروف")}</div>
                           <div className="text-sm text-muted-foreground">{message.recipient_phone}</div>
                         </div>
                       </TableCell>
@@ -378,7 +379,7 @@ export function WhatsAppDashboard() {
                   {filteredMessages.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        لا توجد رسائل
+                        {tr("لا توجد رسائل")}
                       </TableCell>
                     </TableRow>
                   )}
@@ -392,8 +393,8 @@ export function WhatsAppDashboard() {
         <TabsContent value="templates" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>نماذج الرسائل</CardTitle>
-              <CardDescription>نماذج جاهزة لإرسال رسائل سريعة</CardDescription>
+              <CardTitle>{tr("نماذج الرسائل")}</CardTitle>
+              <CardDescription>{tr("نماذج جاهزة لإرسال رسائل سريعة")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -414,7 +415,7 @@ export function WhatsAppDashboard() {
                       <p className="text-sm text-muted-foreground line-clamp-3">{template.content}</p>
                       {template.variables && template.variables.length > 0 && (
                         <div className="mt-2">
-                          <p className="text-xs font-medium">المتغيرات:</p>
+                          <p className="text-xs font-medium">{tr("المتغيرات:")}</p>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {template.variables.map((variable, idx) => (
                               <Badge key={idx} variant="secondary" className="text-xs">
@@ -428,7 +429,7 @@ export function WhatsAppDashboard() {
                   </Card>
                 ))}
                 {templates.length === 0 && (
-                  <div className="col-span-full text-center text-muted-foreground py-8">لا توجد نماذج</div>
+                  <div className="col-span-full text-center text-muted-foreground py-8">{tr("لا توجد نماذج")}</div>
                 )}
               </div>
             </CardContent>
@@ -441,8 +442,8 @@ export function WhatsAppDashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>استفسارات العملاء</CardTitle>
-                  <CardDescription>رسائل واستفسارات واردة من العملاء</CardDescription>
+                  <CardTitle>{tr("استفسارات العملاء")}</CardTitle>
+                  <CardDescription>{tr("رسائل واستفسارات واردة من العملاء")}</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -450,9 +451,9 @@ export function WhatsAppDashboard() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">جميع الحالات</SelectItem>
-                      <SelectItem value="pending">قيد الانتظار</SelectItem>
-                      <SelectItem value="resolved">محلول</SelectItem>
+                      <SelectItem value="all">{tr("جميع الحالات")}</SelectItem>
+                      <SelectItem value="pending">{tr("قيد الانتظار")}</SelectItem>
+                      <SelectItem value="resolved">{tr("محلول")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button variant="outline" size="icon" onClick={fetchInquiries}>
@@ -465,12 +466,12 @@ export function WhatsAppDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">التاريخ</TableHead>
-                    <TableHead className="text-right">العميل</TableHead>
-                    <TableHead className="text-right">الرسالة</TableHead>
-                    <TableHead className="text-right">النوع</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">إجراءات</TableHead>
+                    <TableHead className="text-right">{tr("التاريخ")}</TableHead>
+                    <TableHead className="text-right">{tr("العميل")}</TableHead>
+                    <TableHead className="text-right">{tr("الرسالة")}</TableHead>
+                    <TableHead className="text-right">{tr("النوع")}</TableHead>
+                    <TableHead className="text-right">{tr("الحالة")}</TableHead>
+                    <TableHead className="text-right">{tr("إجراءات")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -479,7 +480,7 @@ export function WhatsAppDashboard() {
                       <TableCell>{new Date(inquiry.created_at).toLocaleString("en-GB")}</TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{inquiry.customer_name || "غير معروف"}</div>
+                          <div className="font-medium">{inquiry.customer_name || tr("غير معروف")}</div>
                           <div className="text-sm text-muted-foreground">{inquiry.customer_phone}</div>
                         </div>
                       </TableCell>
@@ -491,7 +492,7 @@ export function WhatsAppDashboard() {
                       <TableCell>
                         {inquiry.status === "pending" && (
                           <Button size="sm" variant="outline" onClick={() => handleResolveInquiry(inquiry.id)}>
-                            حل
+                            {tr("حل")}
                           </Button>
                         )}
                       </TableCell>
@@ -500,7 +501,7 @@ export function WhatsAppDashboard() {
                   {filteredInquiries.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        لا توجد استفسارات
+                        {tr("لا توجد استفسارات")}
                       </TableCell>
                     </TableRow>
                   )}
@@ -513,14 +514,14 @@ export function WhatsAppDashboard() {
 
       {/* Send Message Dialog */}
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle>إرسال رسالة واتساب</DialogTitle>
-            <DialogDescription>أرسل رسالة نصية أو استخدم نموذج جاهز</DialogDescription>
+            <DialogTitle>{tr("إرسال رسالة واتساب")}</DialogTitle>
+            <DialogDescription>{tr("أرسل رسالة نصية أو استخدم نموذج جاهز")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>رقم الهاتف</Label>
+              <Label>{tr("رقم الهاتف")}</Label>
               <Input
                 placeholder="966xxxxxxxxx"
                 value={sendForm.phone}
@@ -529,16 +530,16 @@ export function WhatsAppDashboard() {
             </div>
 
             <div className="space-y-2">
-              <Label>النموذج (اختياري)</Label>
+              <Label>{tr("النموذج (اختياري)")}</Label>
               <Select
                 value={sendForm.template_code}
                 onValueChange={(value) => setSendForm({ ...sendForm, template_code: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر نموذج..." />
+                  <SelectValue placeholder={tr("اختر نموذج...")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">بدون نموذج</SelectItem>
+                  <SelectItem value="none">{tr("بدون نموذج")}</SelectItem>
                   {templates
                     .filter((t) => t.status === "active")
                     .map((template) => (
@@ -551,9 +552,9 @@ export function WhatsAppDashboard() {
             </div>
 
             <div className="space-y-2">
-              <Label>الرسالة</Label>
+              <Label>{tr("الرسالة")}</Label>
               <Textarea
-                placeholder="اكتب رسالتك هنا..."
+                placeholder={tr("اكتب رسالتك هنا...")}
                 value={sendForm.message}
                 onChange={(e) => setSendForm({ ...sendForm, message: e.target.value })}
                 rows={5}
@@ -562,11 +563,11 @@ export function WhatsAppDashboard() {
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowSendDialog(false)}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button onClick={handleSendMessage} disabled={loading || !sendForm.phone || !sendForm.message}>
                 <Send className="ml-2 h-4 w-4" />
-                إرسال
+                {tr("إرسال")}
               </Button>
             </div>
           </div>
@@ -575,24 +576,24 @@ export function WhatsAppDashboard() {
 
       {/* Create Template Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-2xl" dir={appDir()}>
           <DialogHeader>
-            <DialogTitle>إنشاء نموذج جديد</DialogTitle>
-            <DialogDescription>أنشئ نموذج رسالة قابل لإعادة الاستخدام</DialogDescription>
+            <DialogTitle>{tr("إنشاء نموذج جديد")}</DialogTitle>
+            <DialogDescription>{tr("أنشئ نموذج رسالة قابل لإعادة الاستخدام")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>اسم النموذج</Label>
+                <Label>{tr("اسم النموذج")}</Label>
                 <Input
-                  placeholder="مثال: ترحيب بالعملاء"
+                  placeholder={tr("مثال: ترحيب بالعملاء")}
                   value={templateForm.template_name}
                   onChange={(e) => setTemplateForm({ ...templateForm, template_name: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>كود النموذج</Label>
+                <Label>{tr("كود النموذج")}</Label>
                 <Input
                   placeholder="welcome_customer"
                   value={templateForm.template_code}
@@ -603,7 +604,7 @@ export function WhatsAppDashboard() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>الفئة</Label>
+                <Label>{tr("الفئة")}</Label>
                 <Select
                   value={templateForm.category}
                   onValueChange={(value) => setTemplateForm({ ...templateForm, category: value })}
@@ -612,16 +613,16 @@ export function WhatsAppDashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="marketing">تسويق</SelectItem>
-                    <SelectItem value="transactional">معاملات</SelectItem>
-                    <SelectItem value="notification">إشعارات</SelectItem>
-                    <SelectItem value="support">دعم فني</SelectItem>
+                    <SelectItem value="marketing">{tr("تسويق")}</SelectItem>
+                    <SelectItem value="transactional">{tr("معاملات")}</SelectItem>
+                    <SelectItem value="notification">{tr("إشعارات")}</SelectItem>
+                    <SelectItem value="support">{tr("دعم فني")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>اللغة</Label>
+                <Label>{tr("اللغة")}</Label>
                 <Select
                   value={templateForm.language}
                   onValueChange={(value) => setTemplateForm({ ...templateForm, language: value })}
@@ -630,7 +631,7 @@ export function WhatsAppDashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ar">العربية</SelectItem>
+                    <SelectItem value="ar">{tr("العربية")}</SelectItem>
                     <SelectItem value="en">English</SelectItem>
                   </SelectContent>
                 </Select>
@@ -638,21 +639,21 @@ export function WhatsAppDashboard() {
             </div>
 
             <div className="space-y-2">
-              <Label>محتوى النموذج</Label>
+              <Label>{tr("محتوى النموذج")}</Label>
               <Textarea
-                placeholder="مرحباً {{customer_name}}، شكراً لتعاملك معنا..."
+                placeholder={tr("مرحباً {{customer_name}}، شكراً لتعاملك معنا...")}
                 value={templateForm.content}
                 onChange={(e) => setTemplateForm({ ...templateForm, content: e.target.value })}
                 rows={6}
               />
               <p className="text-xs text-muted-foreground">
-                استخدم {"{{"} متغير {"}}"} لإضافة متغيرات ديناميكية
+                {tr("استخدم ")}{"{{"}{tr(" متغير ")}{"}}"}{tr(" لإضافة متغيرات ديناميكية")}
               </p>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
-                إلغاء
+                {tr("إلغاء")}
               </Button>
               <Button
                 onClick={handleCreateTemplate}
@@ -661,7 +662,7 @@ export function WhatsAppDashboard() {
                 }
               >
                 <FileText className="ml-2 h-4 w-4" />
-                إنشاء النموذج
+                {tr("إنشاء النموذج")}
               </Button>
             </div>
           </div>

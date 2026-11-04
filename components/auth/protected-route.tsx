@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@/lib/i18n"
 import type React from "react"
 
 import { useEffect } from "react"
@@ -37,8 +38,8 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-emerald-100 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="text-gray-600 text-lg">جاري تحميل النظام...</p>
-          <p className="text-gray-500 text-sm">يرجى الانتظار</p>
+          <p className="text-gray-600 text-lg">{tr("جاري تحميل النظام...")}</p>
+          <p className="text-gray-500 text-sm">{tr("يرجى الانتظار")}</p>
         </div>
       </div>
     )
@@ -49,7 +50,7 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
       <div className="min-h-screen bg-[#050b14] flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mx-auto"></div>
-          <p className="text-slate-300 text-lg">جاري التحويل إلى تسجيل الدخول...</p>
+          <p className="text-slate-300 text-lg">{tr("جاري التحويل إلى تسجيل الدخول...")}</p>
         </div>
       </div>
     )
@@ -60,8 +61,8 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">غير مصرح</h2>
-          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى هذا القسم</p>
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("غير مصرح")}</h2>
+          <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى هذا القسم")}</p>
         </div>
       </div>
     )

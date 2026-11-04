@@ -1,5 +1,6 @@
 "use client";
 
+import { appDir } from "@/lib/i18n"
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Sidebar, SIDEBAR_COLLAPSED_WIDTH, SIDEBAR_WIDTH } from "./sidebar";
@@ -51,7 +52,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
   const sidebarOffset = isMobile ? 0 : sidebarOpen ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
   return (
     <MenuThemeProvider>
-      <div className="flex h-screen bg-background" dir="rtl">
+      <div className="flex h-screen bg-background" dir={appDir()}>
         {/* Mobile overlay */}
         {isMobile && sidebarOpen && (
           <div
@@ -65,7 +66,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
         <div
           className={`${
             isMobile
-              ? "fixed right-0 top-0 h-full z-50 transform transition-transform duration-300 ease-in-out"
+              ? "fixed start-0 top-0 h-full z-50 transform transition-transform duration-300 ease-in-out"
               : "relative"
           } ${isMobile ? (sidebarOpen ? "translate-x-0" : "translate-x-full") : "block"}`}
         >

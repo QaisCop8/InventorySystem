@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import type React from "react"
 
@@ -169,9 +170,9 @@ export default function ProductCategoriesPage() {
     } catch (error: unknown) {
       console.error("[v0] Error submitting form:", error)
 
-      const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع"
+      const message = error instanceof Error ? error.message : tr("حدث خطأ غير متوقع")
 
-      showAlert(`خطأ في ${editingCategory ? "تحديث" : "إنشاء"} التصنيف: ${message}`)
+      showAlert(tr("خطأ في {0} التصنيف: {1}", editingCategory ? "تحديث" : "إنشاء", message))
     }
   }
 
@@ -197,7 +198,7 @@ export default function ProductCategoriesPage() {
   }
 
   const handleDelete = async (categoryId: number) => {
-    if (!(await confirmYesNo("هل أنت متأكد من حذف هذا التصنيف؟"))) {
+    if (!(await confirmYesNo(tr("هل أنت متأكد من حذف هذا التصنيف؟")))) {
       return
     }
 
@@ -212,9 +213,9 @@ export default function ProductCategoriesPage() {
     } catch (error: unknown) {
       console.error("[v0] Error deleting category:", error)
 
-      const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع"
+      const message = error instanceof Error ? error.message : tr("حدث خطأ غير متوقع")
 
-      showAlert(`خطأ في حذف التصنيف: ${message}`)
+      showAlert(tr("خطأ في حذف التصنيف: {0}", message))
     }
   }
 
@@ -234,54 +235,54 @@ export default function ProductCategoriesPage() {
     } catch (error: unknown) {
       console.error("[v0] Error toggling status:", error)
 
-      const message = error instanceof Error ? error.message : "حدث خطأ غير متوقع"
+      const message = error instanceof Error ? error.message : tr("حدث خطأ غير متوقع")
 
-      showAlert(`خطأ في تغيير حالة التصنيف: ${message}`)
+      showAlert(tr("خطأ في تغيير حالة التصنيف: {0}", message))
     }
 
   }
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center" dir="rtl">
+      <div className="p-6 flex items-center justify-center" dir={appDir()}>
         <div className="text-center">
           <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
-          <p className="text-muted-foreground">جاري تحميل التصنيفات...</p>
+          <p className="text-muted-foreground">{tr("جاري تحميل التصنيفات...")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6" dir="rtl">
+    <div className="p-6" dir={appDir()}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Package className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-heading font-bold text-primary">تصنيفات الأصناف</h1>
+          <h1 className="text-2xl font-heading font-bold text-primary">{tr("تصنيفات الأصناف")}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-sm">
-            {filteredCategories.length} تصنيف
+            {filteredCategories.length}{tr(" تصنيف")}
           </Badge>
           <Button className="erp-btn-primary" onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            تصنيف جديد
+            <Plus className="h-4 w-4 ms-2" />
+            {tr("تصنيف جديد")}
           </Button>
         </div>
       </div>
 
       {/* Search and Filter Bar */}
-      <Card className="mb-6" dir="rtl">
+      <Card className="mb-6" dir={appDir()}>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="البحث في التصنيفات..."
+                placeholder={tr("البحث في التصنيفات...")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="erp-input pr-10 text-right"
-                dir="rtl"
+                className="erp-input ps-10 text-start"
+                dir={appDir()}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -291,21 +292,21 @@ export default function ProductCategoriesPage() {
                 size="sm"
                 onClick={() => setFilterActive(null)}
               >
-                الكل
+                {tr("الكل")}
               </Button>
               <Button
                 variant={filterActive === true ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilterActive(true)}
               >
-                نشط
+                {tr("نشط")}
               </Button>
               <Button
                 variant={filterActive === false ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilterActive(false)}
               >
-                غير نشط
+                {tr("غير نشط")}
               </Button>
             </div>
           </div>
@@ -315,12 +316,12 @@ export default function ProductCategoriesPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Categories List */}
         <div className="xl:col-span-2">
-          <Card dir="rtl">
+          <Card dir={appDir()}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-primary" />
-                  قائمة التصنيفات
+                  {tr("قائمة التصنيفات")}
                 </CardTitle>
                 <UniversalToolbar
                   currentIndex={currentIndex}
@@ -347,7 +348,7 @@ export default function ProductCategoriesPage() {
                         : "bg-background hover:bg-muted/50",
                     )}
                     onClick={() => setCurrentIndex(index)}
-                    dir="rtl"
+                    dir={appDir()}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -358,18 +359,18 @@ export default function ProductCategoriesPage() {
                         </div>
                       </div>
                       <Badge variant={category.is_active ? "default" : "secondary"} className="text-xs">
-                        {category.is_active ? "نشط" : "غير نشط"}
+                        {category.is_active ? tr("نشط") : tr("غير نشط")}
                       </Badge>
                     </div>
 
                     {category.description && (
-                      <p className="text-sm text-muted-foreground mb-3 text-right">{category.description}</p>
+                      <p className="text-sm text-muted-foreground mb-3 text-start">{category.description}</p>
                     )}
 
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-4">
                         <Badge variant="outline" className="text-xs">
-                          {category.product_count || 0} صنف
+                          {category.product_count || 0}{tr(" صنف")}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-1">
@@ -391,7 +392,7 @@ export default function ProductCategoriesPage() {
                             toggleStatus(category.id)
                           }}
                         >
-                          {category.is_active ? "إلغاء" : "تفعيل"}
+                          {category.is_active ? tr("إلغاء") : tr("تفعيل")}
                         </Button>
                         <Button
                           variant="outline"
@@ -414,37 +415,37 @@ export default function ProductCategoriesPage() {
 
         {/* Form Panel */}
         <div>
-          <Card dir="rtl">
+          <Card dir={appDir()}>
             <CardHeader>
-              <CardTitle className="text-right">{editingCategory ? "تعديل التصنيف" : "إضافة تصنيف جديد"}</CardTitle>
+              <CardTitle className="text-right">{editingCategory ? tr("تعديل التصنيف") : tr("إضافة تصنيف جديد")}</CardTitle>
             </CardHeader>
             <CardContent>
               {showForm ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="text-right">
-                    <Label className="erp-label text-right block">اسم التصنيف *</Label>
+                    <Label className="erp-label text-start block">{tr("اسم التصنيف *")}</Label>
                     <Input
                       required
                       value={formData.group_name}
                       onChange={(e) => setFormData({ ...formData, group_name: e.target.value })}
-                      className="erp-input text-right"
-                      placeholder="مثال: مواد غذائية"
-                      dir="rtl"
+                      className="erp-input text-start"
+                      placeholder={tr("مثال: مواد غذائية")}
+                      dir={appDir()}
                     />
                   </div>
 
                   <div className="text-right">
-                    <Label className="erp-label text-right block">الوصف</Label>
+                    <Label className="erp-label text-start block">{tr("الوصف")}</Label>
                     <Input
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="erp-input text-right"
-                      placeholder="وصف مختصر للتصنيف"
-                      dir="rtl"
+                      className="erp-input text-start"
+                      placeholder={tr("وصف مختصر للتصنيف")}
+                      dir={appDir()}
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 text-right">
+                  <div className="flex items-center gap-2 text-start">
                     <input
                       type="checkbox"
                       id="isActive"
@@ -453,26 +454,26 @@ export default function ProductCategoriesPage() {
                       className="rounded"
                     />
                     <Label htmlFor="isActive" className="text-right">
-                      تصنيف نشط
+                      {tr("تصنيف نشط")}
                     </Label>
                   </div>
 
                   <div className="flex justify-start gap-2 pt-4">
                     <Button type="submit" className="erp-btn-primary">
-                      {editingCategory ? "تحديث التصنيف" : "حفظ التصنيف"}
+                      {editingCategory ? tr("تحديث التصنيف") : tr("حفظ التصنيف")}
                     </Button>
                     <Button type="button" variant="outline" onClick={resetForm}>
-                      إلغاء
+                      {tr("إلغاء")}
                     </Button>
                   </div>
                 </form>
               ) : (
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">انقر على "تصنيف جديد" لإضافة تصنيف جديد</p>
+                  <p className="text-muted-foreground mb-4">{tr("انقر على \"تصنيف جديد\" لإضافة تصنيف جديد")}</p>
                   <Button onClick={() => setShowForm(true)} className="erp-btn-primary">
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة تصنيف
+                    <Plus className="h-4 w-4 ms-2" />
+                    {tr("إضافة تصنيف")}
                   </Button>
                 </div>
               )}
@@ -481,9 +482,9 @@ export default function ProductCategoriesPage() {
 
           {/* Category Details */}
           {filteredCategories.length > 0 && (
-            <Card className="mt-4" dir="rtl">
+            <Card className="mt-4" dir={appDir()}>
               <CardHeader>
-                <CardTitle className="text-right">تفاصيل التصنيف</CardTitle>
+                <CardTitle className="text-right">{tr("تفاصيل التصنيف")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {filteredCategories[currentIndex] && (
@@ -496,21 +497,21 @@ export default function ProductCategoriesPage() {
                     <div className="text-sm space-y-2">
                       <div className="flex justify-between">
                         <span>{filteredCategories[currentIndex].group_number}</span>
-                        <span className="text-muted-foreground">:الرمز</span>
+                        <span className="text-muted-foreground">{tr(":الرمز")}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>{filteredCategories[currentIndex].product_count || 0}</span>
-                        <span className="text-muted-foreground">:عدد الأصناف</span>
+                        <span className="text-muted-foreground">{tr(":عدد الأصناف")}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>{new Date(filteredCategories[currentIndex].created_at).toLocaleDateString("en-GB")}</span>
-                        <span className="text-muted-foreground">:تاريخ الإنشاء</span>
+                        <span className="text-muted-foreground">{tr(":تاريخ الإنشاء")}</span>
                       </div>
                     </div>
 
                     {filteredCategories[currentIndex].description && (
                       <div>
-                        <Label className="text-sm font-medium">الوصف:</Label>
+                        <Label className="text-sm font-medium">{tr("الوصف:")}</Label>
                         <p className="text-sm text-muted-foreground mt-1">
                           {filteredCategories[currentIndex].description}
                         </p>

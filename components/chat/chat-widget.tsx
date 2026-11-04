@@ -1,5 +1,6 @@
 "use client"
 
+import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowRight, MessagesSquare, X } from "lucide-react"
 import { ToastAction } from "@/components/ui/toast"
@@ -24,8 +25,8 @@ export function ChatWidget() {
       title: latest.sender_name,
       description: latest.body,
       action: (
-        <ToastAction altText="فتح المحادثة" onClick={() => { setOpen(true); chatRef.current?.openById(String(latest.sender_id), latest.sender_name) }}>
-          فتح
+        <ToastAction altText={tr("فتح المحادثة")} onClick={() => { setOpen(true); chatRef.current?.openById(String(latest.sender_id), latest.sender_name) }}>
+          {tr("فتح")}
         </ToastAction>
       ),
     })
@@ -51,13 +52,13 @@ export function ChatWidget() {
   if (!enabled || !user) return null
 
   return (
-    <div dir="rtl" className="fixed bottom-24 left-4 z-[9998] sm:left-6">
+    <div dir={appDir()} className="fixed bottom-24 end-4 z-[9998] sm:end-6">
       {open && (
         <div className="mb-3 flex h-[min(34rem,calc(100dvh-9rem))] w-[min(23rem,calc(100vw-2rem))] origin-bottom-left animate-in fade-in zoom-in-95 flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_60px_-20px_rgba(15,60,50,.45)] ring-1 ring-slate-900/10 duration-150 dark:bg-slate-900 dark:ring-white/10">
           <header className="flex shrink-0 items-center gap-3 bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-3 text-white">
             {active ? (
               <>
-                <button type="button" onClick={chat.closeConversation} aria-label="رجوع" className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
+                <button type="button" onClick={chat.closeConversation} aria-label={tr("رجوع")} className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
                   <ArrowRight className="h-4 w-4" />
                 </button>
                 <ChatAvatar name={active.full_name} size="sm" />
@@ -72,12 +73,12 @@ export function ChatWidget() {
               <>
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15"><MessagesSquare className="h-5 w-5" /></span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold">الدردشة الداخلية</div>
-                  <div className="text-[11px] text-emerald-50/90">{onlineCount ? `${onlineCount} متصل الآن` : "تواصل مع زملائك في الشركة"}</div>
+                  <div className="text-sm font-bold">{tr("الدردشة الداخلية")}</div>
+                  <div className="text-[11px] text-emerald-50/90">{onlineCount ? tr("{0} متصل الآن", onlineCount) : tr("تواصل مع زملائك في الشركة")}</div>
                 </div>
               </>
             )}
-            <button type="button" onClick={() => setOpen(false)} aria-label="إغلاق" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
+            <button type="button" onClick={() => setOpen(false)} aria-label={tr("إغلاق")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/15">
               <X className="h-4 w-4" />
             </button>
           </header>
@@ -93,7 +94,7 @@ export function ChatWidget() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        aria-label={open ? "إغلاق الدردشة" : "فتح الدردشة"}
+        aria-label={open ? tr("إغلاق الدردشة") : tr("فتح الدردشة")}
         className={cn(
           "relative flex h-14 w-14 items-center justify-center rounded-full text-white shadow-[0_12px_30px_-8px_rgba(5,150,105,.7)] transition-transform hover:scale-105 active:scale-95",
           "bg-gradient-to-br from-emerald-500 to-teal-600",
@@ -101,7 +102,7 @@ export function ChatWidget() {
       >
         {open ? <X className="h-6 w-6" /> : <MessagesSquare className="h-6 w-6" />}
         {!open && chat.unreadTotal > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-6 min-w-6">
+          <span className="absolute -start-1 -top-1 flex h-6 min-w-6">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-60" />
             <span className="relative flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white ring-2 ring-white">
               {chat.unreadTotal > 99 ? "99+" : chat.unreadTotal}
