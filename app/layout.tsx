@@ -52,6 +52,7 @@ import Script from "next/script"
 import { LANG_COOKIE, tr } from "@/lib/i18n"
 import { I18N_BUILD } from "@/lib/i18n-build"
 import { HydrationLanguageGate } from "@/components/i18n/hydration-language-gate"
+import { DomTranslationFallback } from "@/components/i18n/dom-translation-fallback"
 import "./globals.css"
 
 const inter = Inter({
@@ -121,6 +122,7 @@ export default async function RootLayout({
                     <ClientProviders>
                       <HydrationLanguageGate language={language}>
                         <Suspense fallback={null}>{children}</Suspense>
+                        {language === "en" && <DomTranslationFallback />}
                       </HydrationLanguageGate>
                     </ClientProviders>
                 </WindowManagerProvider>

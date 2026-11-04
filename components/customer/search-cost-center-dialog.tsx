@@ -156,7 +156,7 @@ export default function SearchCostCenterDialog({ open, onOpenChange, type, costC
                   onKeyDown={(event) => onRowKeyDown(event, index)}
                   onFocus={() => setActiveIndex(index)}
                   className={`mb-1 flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-start transition focus:outline-none ${selected ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200 dark:border-emerald-700 dark:bg-emerald-950/40 dark:ring-emerald-900" : "border-transparent hover:bg-muted"}`}
-                  style={{ paddingRight: `${0.75 + (level - 1) * 1}rem` }}
+                  style={{ paddingInlineStart: `${0.75 + (level - 1) * 1}rem` }}
                 >
                   <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold ${selected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>{center.id}</span>
                   <span className="min-w-0 flex-1">

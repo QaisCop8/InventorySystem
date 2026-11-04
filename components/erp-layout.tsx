@@ -85,7 +85,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
         {/* Main content */}
         <div
           className="min-w-0 flex-1 flex flex-col overflow-hidden transition-all duration-300"
-          style={{ marginRight: sidebarOffset }}
+          style={{ marginInlineStart: sidebarOffset }}
         >
           <Header
             onMenuClick={handleSidebarToggle}

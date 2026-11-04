@@ -1,0 +1,300 @@
+Transfer from
+Transfer to
+bank-statement-template
+Transaction date
+Description
+Credit
+Deposit
+Deposits
+Debit
+Withdrawals
+Value
+Closing balance per bank statement
++ Deposits in the books not shown on the statement
+− Payments/cheques in the books not shown on the statement
+Account balance in the books
+،
+Operation
+Debit account
+The period was locked
+The period was locked again
+The period was opened
+The record was deleted
+At least one cheque
+Approved - printed
+No cheque was read
+Unable to read the cheques
+There is no image for this cheque — images are saved when the cheque is read with the cheque reader
+Cheque front
+Cheque back
+Setup
+Checks
+Closing entry
+Execution
+Not available
+Arab Bank
+Bank of Palestine (Verifone X990)
+Failed to generate the analysis. Please try again.
+An error occurred during the analysis. Please try again.
+Receipt voucher from customer [customer name] cash [amount]
+Payment voucher to supplier [supplier name] cash [amount]
+Sales and orders
+Order for customer [customer name] [quantity] [item name]
+Internal goods request from branch [branch] [quantity] [item name]
+Queries
+Give me the sales summary for the last 30 days
+Which products are low in stock?
+Failed to generate recommendations. Please try again.
+An error occurred while generating recommendations.
+Participant name
+Household size
+Household
+The three ledgers
+participants-template.xlsx
+Allocated to participants
+Unallocated
+Number of participants
+Active codes
+Their total balances
+Net redeemed
+Number of redemptions
+Shop dues owed by the donor
+Product A
+Product B
+Product C
+Product D
+Books
+Summer
+Winter
+Back to school
+Inventory management system
+Sales branch
+Purchasing branch
+Quick search
+Quick reports
+Quick settings
+Horizon Company
+Al-Nour Est.
+Pioneers Group
+Choose the date
+This month
+This year
+ا
+ي
+Enter the account code
+No asset item
+Liabilities
+No liability item
+No income statement item
+Financial statements
+Parent accounts
+Incoming payments
+Customer links
+Now
+Good morning
+Good evening
+Good evening
+vs the same period last month
+30 days
+12 months
+Current user
+0 shekels
+A forward change of the useful life, residual value or method — it doesn't change previously approved depreciation.
+Transfer the asset between branches, locations, departments, cost centers or custody. The transfer log is kept permanently.
+Depreciation stops for the asset until it is resumed, and the remaining life is kept.
+Depreciation resumes from the resume date over the saved remaining life.
+Remove the asset from the books. Depreciation must be posted up to the month before the disposal date first.
+The asset was activated and the acquisition entry posted
+Asset saved
+Asset deleted
+Journal entry
+Asset cost
+Accumulated depreciation
+Accumulated depreciation account
+Depreciation expense account
+Gain on asset disposal
+Loss on asset disposal
+Revaluation surplus
+Impairment loss
+Classification saved
+Not depreciable
+Location saved
+Location deleted
+Planned
+Reversed
+Overtime hours
+Lateness hours
+Scheduled
+Check-in
+Check-out
+Early leave
+Overtime
+Overtime
+Absence days
+Days in month for the daily wage
+Working day hours
+Night shift allowance / day
+Overtime factor (× hourly wage)
+Holiday overtime factor
+Deduction hours
+Deduction/unpaid days
+Bonuses − penalties
+The Arabic and English names are required
+The accounting account is required
+Unable to load employees
+Unable to open the month's payroll
+2 days, 2 nights, 2 off
+Rotate 3 shifts
+5 work + 2 off
+24 hours / 48 off
+Shekel
+Israeli Shekel
+Israeli Shekel
+Income
+Valuation
+Don't show
+accounts-template
+Current assets
+Account name in English
+Parent account
+Financial statement name
+Al-Nour Company
+Phone
+Email
+Balance currency
+ه
+٠١٢٣٤٥٦٧٨٩
+True
+False
+Ready data
+Item code
+White sugar 1 kg
+Classification (number)
+Quantity warehouse
+Sale category
+Price category
+Unit 1
+piece
+items-update-template
+items-template
+Add new items
+Update existing items
+There is no default goods receipt voucher book for the user
+Opening quantity - importing items from Excel
+voucher-lines-template
+Quantity
+Product A
+Product B
+Product C
+Product D
+Product E
+Sports
+Supplier without a name
+Ready for approval
+With open sessions
+Count number
+Sessions
+Lines with differences
+Adjustment vouchers
+Approval
+The book quantities were recalculated at the cut-off date
+The count was reopened for counting
+Session number
+Started
+Ended
+Counted lines
+Total quantities
+With differences
+Not counted
+Sessions breakdown
+Total counted
+Awaiting review and posting
+Counted quantity
+Counted pieces
+Lot
+Your session finished — approval is from the «Approve count» screen after all sessions are finished
+The count was cancelled
+Lots / sizes / serial
+Production price
+First in, first out
+Last price
+Under development
+Done in a previous version
+The payment window was closed before the payment was completed
+New requests
+Completed requests
+Goods branch
+Completed requests
+Recorded transactions
+Total requested quantity
+The request was checked
+The request was prepared
+Approve check
+The ready request was checked
+The request was sent
+The request was received
+The request was closed
+Al-Amal Company
+Gulf Supplier
+Customers parent account
+Credit customers parent account
+Currency transfers account
+Currency exchange gain and loss account
+Suppliers parent account
+Subscribers parent account
+Parent account for new employees
+Discount allowed account
+Municipal expenses account
+Returned cheques account
+Short text
+Long text
+Decimal number
+Date
+Yes / No
+Update customer accounts
+Total drafts
+Converted to orders
+Production checks
+Manufacturing materials needed
+Saudi Riyal
+Direct
+Euro
+Israeli Shekel
+Instalments
+Email
+Website
+Mobile app
+Sub-warehouse 1
+Sub-warehouse 2
+The quantity or bonus must be entered
+The lot number must be entered
+Invoice deleted successfully ✅
+The order was sent to the printer
+Order deleted successfully ✅
+No warehouse
+Number of cards
+Active today
+Uncategorized
+Another user
+The connection was lost
+Delete an item from an invoice
+Round the net
+Edit invoice
+Save invoice
+Add discount
+Add item discount
+Maximum discount rate
+Print full invoice
+Print QR invoice
+The system manager email is required
+The administrator email is required
+Cash account
+Cheques account
+Gift cards account
+Work offline
+Allow returns
+Allow gifts
+From hour
+To hour
+Refunded
+Expiry date / lot number / serial number can't be enabled for an item with a non-standard measurement type

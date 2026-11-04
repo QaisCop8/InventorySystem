@@ -30,7 +30,7 @@ const steps = [
 ]
 
 const defaultAccountFields = [
-  ["default_customer_parent_account", "حساب أب العملاء"], ["default_customer_credit_account", "حساب أب عملاء الاعتمادات"],
+  ["default_customer_parent_account", "حساب أب العملاء"],
   ["default_sales_tax_account", "حساب الضريبة على المبيعات"], ["default_currency_transfer_account", "حساب تحويلات العملة"],
   ["default_earned_discount_account", "حساب الخصم المكتسب"], ["default_exchange_gain_loss_account", "حساب أرباح وخسائر فروقات العملة"],
   ["default_salesman_parent_account", "حساب أب المندوبين"], ["default_supplier_parent_account", "حساب أب الموردين"],
@@ -924,7 +924,7 @@ function CurrencyDefaultAccountsStep({ rows, busy, onChange, onSave }: {
         {rows.map((row) => <div key={row.currency_id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
           <div className="mb-4 flex items-center gap-2"><span className="rounded-lg bg-sky-700 px-3 py-1 text-sm font-black text-white">{row.currency_code}</span><h5 className="font-bold text-slate-800">{row.currency_name}</h5></div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {currencyAccountFields.map(([field, label]) => <div key={field}><Label className="mb-2 block text-sm font-bold text-slate-700">{label}</Label><AutoCompleteAccount label="" value={row[field]} valueMode="id" onValueChange={(value) => onChange(row.currency_id, field, String(value || ""))} onAccountSelect={(account) => onChange(row.currency_id, field, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly /></div>)}
+            {currencyAccountFields.map(([field, label]) => <div key={field}><Label className="mb-2 block text-sm font-bold text-slate-700">{tr(label)}</Label><AutoCompleteAccount label="" value={row[field]} valueMode="id" onValueChange={(value) => onChange(row.currency_id, field, String(value || ""))} onAccountSelect={(account) => onChange(row.currency_id, field, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly /></div>)}
           </div>
         </div>)}
       </div>}
@@ -932,7 +932,7 @@ function CurrencyDefaultAccountsStep({ rows, busy, onChange, onSave }: {
 }
 
 function AccountSettingsStep({ title, fields, values, onChange, busy, onSave }: { title: string; fields: readonly (readonly [string, string])[]; values: Record<string, string>; onChange: (key: string, value: string) => void; busy: boolean; onSave: () => void }) {
-  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm"><div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-blue-700 to-indigo-600 px-5 py-4 text-white"><div><h4 className="text-lg font-black">{title}</h4><p className="mt-1 text-xs text-blue-100">{tr("ابحث برقم الحساب أو اسمه ثم اختره لكل حقل")}</p></div></div><div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">{fields.map(([key, label]) => <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"><Label className="mb-2 block text-sm font-bold text-slate-700">{label}</Label><AutoCompleteAccount label="" value={values[key] || ""} valueMode="id" onValueChange={(value) => onChange(key, String(value || ""))} onAccountSelect={(account) => onChange(key, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly={!/parent_account|credit_account|subscription_account|new_employee_account/.test(String(key))} /></div>)}</div></section>
+  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm"><div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-blue-700 to-indigo-600 px-5 py-4 text-white"><div><h4 className="text-lg font-black">{title}</h4><p className="mt-1 text-xs text-blue-100">{tr("ابحث برقم الحساب أو اسمه ثم اختره لكل حقل")}</p></div></div><div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">{fields.map(([key, label]) => <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"><Label className="mb-2 block text-sm font-bold text-slate-700">{tr(label)}</Label><AutoCompleteAccount label="" value={values[key] || ""} valueMode="id" onValueChange={(value) => onChange(key, String(value || ""))} onAccountSelect={(account) => onChange(key, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly={!/parent_account|credit_account|subscription_account|new_employee_account/.test(String(key))} /></div>)}</div></section>
 }
 
 function SavedProductsTable({ products }: { products: any[] }) {

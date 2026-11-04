@@ -574,7 +574,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const top = depth === 0
       return (
         <div key={node.id}>
-          <div className="flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 hover:bg-slate-100" style={{ paddingLeft: `${depth * 13}px` }}>
+          <div className="flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 hover:bg-slate-100" style={{ paddingInlineEnd: `${depth * 13}px` }}>
             <button
               type="button"
               className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}
@@ -600,7 +600,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     const focused = focusedTreeAccountId === Number(node.id)
     return (
       <div key={node.id}>
-        <div className={`flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : focused ? "bg-sky-50 text-sky-900 ring-1 ring-sky-300" : "hover:bg-slate-100"}`} style={{ paddingLeft: `${depth * 13}px` }}>
+        <div className={`flex min-h-7 min-w-0 items-center gap-1 rounded-sm px-1 ${selected ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300" : focused ? "bg-sky-50 text-sky-900 ring-1 ring-sky-300" : "hover:bg-slate-100"}`} style={{ paddingInlineEnd: `${depth * 13}px` }}>
           <button
             type="button"
             className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[2px] border border-slate-400 bg-white text-slate-700 ${node.children.length ? "visible" : "invisible"}`}

@@ -1,0 +1,275 @@
+The expiry date / lot number / serial number of an item with actual stock movement can't be changed
+No name
+Product updated successfully ✅
+Product created successfully ✅
+1,245,800 shekels
+suppliers
+subscribers
+salesmen
+Hasn't signed in yet
+None
+Product updated successfully
+Product created successfully
+Mobile number is required
+The mobile number must be 10 digits
+Invalid email
+Mohammad Ali
+Ali Ahmad
+Fatima Salem
+Khadija Yousef
+Returned
+HP printer
+Wireless mouse
+Mechanical keyboard
+Samsung monitor
+Surplus
+Comprehensive
+No expiry date
+Receive custody
+Hand over custody
+Delete invoice
+New without stock
+Gifts
+Item discount %
+Item discount from the invoice
+# Incoming
+# Outgoing
+Running balance
+Cheque #
+Incoming (debit)
+Outgoing (credit)
+Liabilities and equity
+Number of accounts
+Net (debit − credit)
+Invoicing status
+Invoice status
+Customer balance
+Number of deliveries
+Not invoiced / partially
+Delivery value
+Invoices / returns
+Returned
+Total values
+Total liabilities
+Net result
+Debit movement
+Credit movement
+Period debit
+Period credit
+In
+Out
+Valuation price
+892,450 shekels
+Customer: Ahmad Ali
+Apply item filters:
+Aging balance
+Share
+WhatsApp link
+Open/view
+PDF / WhatsApp
+users
+Report filters
+Unspecified user
+Unspecified point of sale
+Total numbers
+Total VAT
+Sales tax
+Purchases tax
+Net refundable
+Net purchases
+Total operations
+Edits
+Delete and cancel
+Batch
+Expiry
+Cash account (cash customer)
+Location name
+Sales invoice book
+Previously settled
+Settlement amount
+Voucher amount
+Settled amount
+Invoice issued
+Approved - invoice issued
+Remaining to pay
+Earned
+Adjustments
+Approved due
+Commission statement
+Commissions due
+Action log
+Period commission
+Returns and adjustments
+Unapproved
+Calculated
+Gross profit
+Net commissions
+Statement and dues
+Statement and analysis
+Collection allocation
+Targets
+Gross profit
+Profit ratio
+Collection
+Net/collection
+Net sales
+Sales brackets
+Sales value
+Sales target achievement %
+Collection target achievement %
+Profit target achievement %
+Basis
+Scope
+Validity
+Brackets
+Receipt voucher number
+Sales invoice number
+Allocated amount
+Sales target
+Collection target
+Profit target
+Achievement %
+Search for the customer...
+Al-Ahmad Trading Co.
+Riyadh, Saudi Arabia
+Al-Nour Trading Est.
+Jeddah, Saudi Arabia
+Al-Fahd online store
+Dammam, Saudi Arabia
+Search for the item...
+Dell Inspiron 15 laptop
+Computers
+Logitech wireless mouse
+Computer accessories
+Issue
+Adjustment
+Indigo
+Teal
+Geist (default)
+Main mobile app
+Production
+5 minutes ago
+Accounting system
+Development environment
+Development
+Two days ago
+Limited
+Inventory update
+Order alerts
+Access the screen
+Access the screen
+Access the screens
+Open screen
+Entry
+Add
+Post and unpost
+Transaction permissions
+Post and unpost
+Access the screen
+View and process
+Delete attachments
+Delete attachments
+Add draft
+Edit draft
+View draft
+Enabled
+Disabled
+Bethlehem
+Second branch warehouse
+VIP customers
+Regular customers
+Wholesale customers
+Local suppliers
+30 days
+International suppliers
+60 days
+Strategic suppliers
+45 days
+Home appliances
+Jordanian Dinar
+Nablus - Center
+Khaled Ahmad
+Global company
+International est.
+Laptop
+Mobile
+Shirt
+Trousers
+Sequence
+Item number and name
+Gradient
+Compact
+Classic
+ILS - Israeli Shekel
+JOD - Jordanian Dinar
+EGP - Egyptian Pound
+SAR - Saudi Riyal
+AED - UAE Dirham
+LBP - Lebanese Pound
+SYP - Syrian Pound
+IQD - Iraqi Dinar
+KWD - Kuwaiti Dinar
+QAR - Qatari Riyal
+BHD - Bahraini Dinar
+OMR - Omani Rial
+YER - Yemeni Rial
+MAD - Moroccan Dirham
+TND - Tunisian Dinar
+DZD - Algerian Dinar
+LYD - Libyan Dinar
+SDG - Sudanese Pound
+Point of sale
+Restaurant location
+All shortcuts were deleted
+Right
+Left
+Message settings saved
+Template saved
+Template deleted
+Settings saved successfully:
+Settings reset
+Error importing settings:
+System manager
+Sales manager
+Purchasing manager
+Accountant
+Sales representative
+Warehouse employee
+Saved and settings reloaded successfully
+The default book must be one of the books chosen below
+Save failed
+Failed to apply the books to all voucher types
+Original number
+Error clearing data:
+Excellent
+Needs improvement
+Urgent / high priority
+Alert the step assignee
+Alert the department manager
+Alert the system administrator
+Move to the next stage
+No new tasks
+No paused tasks
+Drag a task here to start working
+No finished tasks in the period
+New development
+Confirm journal voucher deletion
+Are you sure you want to delete?
+Importing data...
+Submitted from the dashboard
+Rejected from the dashboard
+Rejected from the dashboard
+Submitted from the dashboard
+Product groups
+Exchange rates
+Lot reports
+Lot log
+Order tracking
+Lot status management
+Customer portal management
+WhatsApp settings
+Smart chat
+Smart analytics
+Product reports
+Document settings
+API settings

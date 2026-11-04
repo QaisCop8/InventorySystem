@@ -16,11 +16,10 @@ import VouchersGeneralSettings from "@/components/settings/vouchers-general-sett
 import { buildVoucherCode } from "@/lib/voucher-code"
 
 // حقول "حساب الأب" تُختار منها حسابات رئيسية — بقية الحسابات الافتراضية يجب أن تكون فرعية (بلا أبناء)
-const PARENT_ACCOUNT_SETTING_KEYS = new Set(["customerParentAccount", "customerCreditAccount", "salesmanParentAccount", "supplierParentAccount", "newEmployeeAccount", "customerSubscriptionAccount"])
+const PARENT_ACCOUNT_SETTING_KEYS = new Set(["customerParentAccount", "salesmanParentAccount", "supplierParentAccount", "newEmployeeAccount", "customerSubscriptionAccount"])
 
 const defaultAccountFields = [
   { key: "customerParentAccount", label: tr("حساب اب العملاء في ملف تعريف العملاء") },
-  { key: "customerCreditAccount", label: tr("حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات") },
   { key: "salesTaxAccount", label: tr("حساب الضريبة على المبيعات") },
   { key: "currencyTransferAccount", label: tr("حساب تحويلات عملة") },
   { key: "earnedDiscountAccount", label: tr("حساب الخصم المكتسب") },
@@ -373,7 +372,6 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
             printFooter: settingsPayload.print_footer !== false,
             autoNumbering: settingsPayload.auto_numbering !== false,
             customerParentAccount: toAccountIdString(settingsPayload.default_customer_parent_account ?? prev.customerParentAccount),
-            customerCreditAccount: toAccountIdString(settingsPayload.default_customer_credit_account ?? prev.customerCreditAccount),
             salesTaxAccount: toAccountIdString(settingsPayload.default_sales_tax_account ?? prev.salesTaxAccount),
             currencyTransferAccount: toAccountIdString(settingsPayload.default_currency_transfer_account ?? prev.currencyTransferAccount),
             earnedDiscountAccount: toAccountIdString(settingsPayload.default_earned_discount_account ?? prev.earnedDiscountAccount),
@@ -617,7 +615,6 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
           printFooter: settings.printFooter,
           autoNumbering: settings.autoNumbering,
           default_customer_parent_account: settings.customerParentAccount ? Number(settings.customerParentAccount) : null,
-          default_customer_credit_account: settings.customerCreditAccount ? Number(settings.customerCreditAccount) : null,
           default_sales_tax_account: settings.salesTaxAccount ? Number(settings.salesTaxAccount) : null,
           default_currency_transfer_account: settings.currencyTransferAccount ? Number(settings.currencyTransferAccount) : null,
           default_earned_discount_account: settings.earnedDiscountAccount ? Number(settings.earnedDiscountAccount) : null,
