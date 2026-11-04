@@ -43,10 +43,14 @@ export async function middleware(request: NextRequest) {
   if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status })
   touchPresence(session.dbName, session.userId, clientIp(request))
 
-  // هوية المستخدم من الجلسة فقط: x-user-id كان يُقرأ كما أرسله المتصفح (الكاشير وأرشيف السندات) فيمكن انتحال أي مستخدم
-  const headers = new Headers(request.headers)
-  headers.set("x-user-id", session.userId)
-  return NextResponse.next({ request: { headers } })
+  // هوية المستخدم من الجلسة فقط: x-user-id كان يُقرأ كما أرسله المتصفح (الكاشير وأرشيف السندات) فيمكن انتحال أي مستخدم.
+  // نرفض الطلب إن خالف الجلسة بدل استبدال الهيدر: NextResponse.next({ request: { headers } }) كان يُفسد جسم الطلبات
+  // على الخادم الحي (Docker/Render) — «Unexpected end of JSON input» و«Failed to parse body as FormData» عند الحفظ والرفع.
+  const claimedUserId = request.headers.get("x-user-id")?.trim()
+  if (claimedUserId && claimedUserId !== session.userId) {
+    return NextResponse.json({ error: "انتهت الجلسة أو تغيّر المستخدم — سجّل الدخول من جديد" }, { status: 401 })
+  }
+  return NextResponse.next()
 }
 
 export const config = {
