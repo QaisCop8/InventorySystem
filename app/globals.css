@@ -551,6 +551,12 @@
   }
 }
 
+/* النموذج بملء الشاشة (DialogContent inline): overflow-hidden قابل للتمرير برمجياً — تركيز حقل أو تبويب أعرض قليلاً
+   من المساحة (شاشات اللابتوب مع القائمة الجانبية) كان يزيح النموذج كله أفقياً فيختفي طرفه تحت القائمة. clip لا يُمرَّر. */
+.universal-dialog-inline {
+  overflow: clip !important;
+}
+
 /* Dialogs with UniversalToolbar keep the close action in the toolbar's
    physical left edge. Dialogs without the toolbar retain their normal close
    button placement. */
