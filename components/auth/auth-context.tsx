@@ -125,6 +125,8 @@ let sessionEndedHandled = false
 function handleSessionEnded(response: Response): Response {
   const reason = response.status === 401 ? response.headers.get("x-session-ended") : null
   if (!reason || sessionEndedHandled) return response
+  // صفحات الإدارة (شركاتي/الدخول) هي الوجهة نفسها: طلب شركة بالجلسة المنتهية من هناك كان يعيد التوجيه إليها بلا نهاية
+  if (window.location.pathname.startsWith("/management")) return response
   sessionEndedHandled = true
   try {
     for (const key of ["erp_user", "erp_token", "erp_session", "active_tenant_db", "active_company_id"]) {
