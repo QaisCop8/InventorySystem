@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server"
 import sql, { resolveTenantDbFromValues, withTenantDb } from "./database"
+import { SESSION_COOKIE, sessionTokenCandidates } from "./session-cookies"
 
 // بوابة الجلسة لكل مسارات /api (يستدعيها middleware.ts): لا يصل طلب لأي مسار إلا بجلسة شركة صالحة
 // لنفس القاعدة التي يحددها هيدر x-tenant-db/كوكي tenant_db. سابقاً كانت ~270 مساراً بلا أي فحص، والقاعدة
 // تُختار من هيدر يرسله المتصفح — فمعرفة اسم قاعدة شركة كانت تكفي لقراءة بياناتها وتعديلها.
 // الجلسة نفسها تُقرأ كما في lib/tenant-auth.ts (loadSessionUser): كوكي الشركة أولاً ثم الكوكي العامة.
 
-const SESSION_COOKIE = "tenant_session"
 const CACHE_TTL_MS = 30_000
 const CACHE_MAX = 5_000
 
@@ -42,8 +42,8 @@ export async function checkApiSession(request: NextRequest): Promise<ApiSessionR
     return { ok: false, status: 403, error: "الشركة المفتوحة في هذا التبويب غير متاحة حالياً (منتهية الاشتراك أو غير معتمدة) — أعد اختيار الشركة" }
   }
 
-  const tokens = [request.cookies.get(`${SESSION_COOKIE}_${dbName}`)?.value, request.cookies.get(SESSION_COOKIE)?.value]
-    .filter((token): token is string => Boolean(token) && /^[a-f0-9]{16,255}$/i.test(String(token)))
+  // جلسة مستخدم هذا التبويب أولاً (عدة مستخدمين على نفس المتصفح — lib/session-cookies.ts)
+  const tokens = sessionTokenCandidates((name) => request.cookies.get(name)?.value, dbName, request.headers.get("x-user-id"))
   if (!tokens.length) return { ok: false, status: 401, error: "يجب تسجيل الدخول" }
 
   const now = Date.now()

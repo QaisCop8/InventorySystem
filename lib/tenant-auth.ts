@@ -1,21 +1,19 @@
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import crypto from "crypto"
 import sql, { memoInTransaction, resolveCurrentDbName } from "./database"
 import { ensurePermissionTables, hasEffectivePermission, syncPermissionDefinitions } from "./permissions"
 import { shouldUseSecureCookies } from "./cookie-security"
+import { SESSION_COOKIE, isCompanySessionCookie, sessionCookieFor, sessionTokenCandidates, userSessionCookieFor } from "./session-cookies"
 
 // جلسة خادمية حقيقية لتسجيل دخول الشركة (تينانت) — نفس نمط management_sessions/mgmt_session في
 // lib/management-auth.ts تماماً، لكن مقيَّدة بقاعدة الشركة الحالية (sql من lib/database.ts يُحلّها
 // تلقائياً كبقية التطبيق). أساس "التحقق من الصلاحية فعلياً على الخادم" بدل الاعتماد فقط على إخفاء
 // الواجهة (Util.checkUserAccess) — انظر خطة الصلاحيات لسياق كامل.
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
-const SESSION_COOKIE = "tenant_session"
-// كوكي جلسة لكل قاعدة شركة: التبويبات المختلفة قد تعمل على شركات مختلفة في نفس الوقت (هيدر x-tenant-db)،
-// والكوكي المشتركة الواحدة كانت تُستبدل بجلسة آخر شركة فُتحت — فترفض الشركة الأخرى كل الطلبات
-// بـ"يجب تسجيل الدخول". الكوكي القديمة (بلا اسم القاعدة) تُقرأ احتياطياً حتى لا تُفقد الجلسات القائمة.
-const sessionCookieFor = (dbName: string) => `${SESSION_COOKIE}_${dbName}`
+// كوكي جلسة لكل قاعدة شركة ولكل مستخدم (lib/session-cookies.ts): التبويبات قد تعمل على شركات مختلفة وبمستخدمين
+// مختلفين في نفس الوقت — كوكي واحدة كانت تُستبدل بآخر دخول فيُطالَب المستخدم الآخر بالدخول من جديد.
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex")
@@ -27,11 +25,11 @@ export type ActiveSessionElsewhere = { user_agent: string | null; ip_address: st
 // جلسة أقدم (متصفح أُغلق دون خروج، أو جلسة قبل هذه الميزة بلا last_seen_at) لا تمنع الدخول وتُنهى بصمت عنده.
 const ACTIVE_SESSION_MINUTES = 15
 
-// رموز جلسات هذا المتصفح (كل تبويباته تشترك بالكوكيز) — جلسته على نفس الشركة ليست "جهازاً آخر"
+// رموز جلسات هذا المتصفح على الشركة (كل مستخدميه وتبويباته تشترك بالكوكيز) — جلسته ليست "جهازاً آخر"
 async function browserSessionTokens(): Promise<string[]> {
   const cookieStore = await cookies()
   const dbName = await resolveCurrentDbName()
-  return [cookieStore.get(sessionCookieFor(dbName))?.value, cookieStore.get(SESSION_COOKIE)?.value].filter((token): token is string => Boolean(token))
+  return [...new Set(cookieStore.getAll().filter((cookie) => isCompanySessionCookie(cookie.name, dbName)).map((cookie) => cookie.value).filter(Boolean))]
 }
 
 /** جهاز واحد لكل مستخدم: جلسة مستخدمة حالياً لنفس المستخدم من متصفح/جهاز آخر (أحدثها نشاطاً)، أو null. */
@@ -78,8 +76,11 @@ export async function createTenantSession(userId: string, device: { ip?: string 
 
   const cookieStore = await cookies()
   const options = { httpOnly: true, secure: await shouldUseSecureCookies(), sameSite: "lax" as const, expires: expiresAt, path: "/" }
-  cookieStore.set(sessionCookieFor(await resolveCurrentDbName()), sessionToken, options)
-  // الكوكي العامة تبقى لتوافق المسارات/الإصدارات القديمة (احتياطي فقط عند القراءة).
+  const dbName = await resolveCurrentDbName()
+  // كوكي هذا المستخدم (تبويباته ترسل x-user-id فتُختار جلسته حتى لو دخل مستخدم آخر بعده على نفس المتصفح)
+  cookieStore.set(userSessionCookieFor(dbName, userId), sessionToken, options)
+  // آخر دخول على الشركة + العامة: احتياط لطلبات بلا x-user-id
+  cookieStore.set(sessionCookieFor(dbName), sessionToken, options)
   cookieStore.set(SESSION_COOKIE, sessionToken, options)
 }
 
@@ -98,15 +99,28 @@ export async function isPrimaryCompanyUser(userId: string | number): Promise<boo
   return row?.first_id != null && Number(row.first_id) === Number(userId)
 }
 
+// خروج مستخدم هذا التبويب فقط (x-user-id): جلسات المستخدمين الآخرين على نفس المتصفح تبقى
 export async function clearTenantSession(): Promise<void> {
   try {
     const dbName = await resolveCurrentDbName()
     await ensurePermissionTables(dbName)
     const cookieStore = await cookies()
-    const tokens = [cookieStore.get(sessionCookieFor(dbName))?.value, cookieStore.get(SESSION_COOKIE)?.value].filter(Boolean) as string[]
-    for (const token of tokens) await sql`DELETE FROM tenant_sessions WHERE session_token = ${token}`
-    cookieStore.delete(sessionCookieFor(dbName))
-    cookieStore.delete(SESSION_COOKIE)
+    const rawUserId = ((await headers()).get("x-user-id") || "").trim()
+    const userId = /^\d+$/.test(rawUserId) ? rawUserId : ""
+    const named = [...(userId ? [userSessionCookieFor(dbName, userId)] : []), sessionCookieFor(dbName), SESSION_COOKIE]
+    const tokens = sessionTokenCandidates((name) => cookieStore.get(name)?.value, dbName, userId)
+    for (const token of tokens) {
+      if (userId) await sql`DELETE FROM tenant_sessions WHERE session_token = ${token} AND user_id = ${Number(userId)}`
+      else await sql`DELETE FROM tenant_sessions WHERE session_token = ${token}`
+    }
+    // ما بقي من هذه الرموز جلسات مستخدمين آخرين (آخر دخول على الشركة قد يكون لغيره) — كوكيزها تبقى
+    const otherUsersTokens = userId
+      ? (await sql`SELECT session_token FROM tenant_sessions WHERE session_token = ANY(${tokens}::text[])`).map((row: any) => row.session_token as string)
+      : []
+    for (const name of named) {
+      const value = cookieStore.get(name)?.value
+      if (value && !otherUsersTokens.includes(value)) cookieStore.delete(name)
+    }
   } catch (error) {
     console.error("[tenant-auth] clearTenantSession error:", error)
   }
@@ -120,15 +134,16 @@ export interface TenantSessionUser {
 
 // داخل معاملة (حفظ فاتورة الكاشير يتحقق من الصلاحية عدة مرات) تُقرأ الجلسة مرة واحدة لنفس الكوكي
 export function getSessionUser(request: NextRequest): Promise<TenantSessionUser | null> {
-  return memoInTransaction(`session-user:${request.headers.get("cookie") || ""}`, () => loadSessionUser(request))
+  return memoInTransaction(`session-user:${request.headers.get("x-user-id") || ""}:${request.headers.get("cookie") || ""}`, () => loadSessionUser(request))
 }
 
 async function loadSessionUser(request: NextRequest): Promise<TenantSessionUser | null> {
   try {
     const dbName = await resolveCurrentDbName()
     await ensurePermissionTables(dbName)
-    // جلسة هذه الشركة أولاً، ثم الكوكي العامة (قد تحمل جلسة شركة أخرى فلا تُطابق هنا).
-    const candidates = [request.cookies.get(sessionCookieFor(dbName))?.value, request.cookies.get(SESSION_COOKIE)?.value].filter(Boolean) as string[]
+    // جلسة مستخدم هذا التبويب أولاً، ثم آخر دخول على الشركة، ثم العامة (lib/session-cookies.ts)
+    const userIdHint = request.headers.get("x-user-id")
+    const candidates = sessionTokenCandidates((name) => request.cookies.get(name)?.value, dbName, userIdHint)
     if (!candidates.length) return null
 
     let sessionToken = ""
@@ -140,6 +155,8 @@ async function loadSessionUser(request: NextRequest): Promise<TenantSessionUser 
     if (sessionRows.length === 0) return null
 
     const session = sessionRows[0]
+    // التبويب لمستخدم آخر غير صاحب الجلسة المتاحة ⇐ لا جلسة (لا يعمل تبويب مستخدم بجلسة مستخدم غيره)
+    if (userIdHint && String(session.user_id) !== String(userIdHint).trim()) return null
     if (new Date(session.expires_at) < new Date()) {
       await sql`DELETE FROM tenant_sessions WHERE session_token = ${sessionToken}`
       return null
