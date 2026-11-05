@@ -5,15 +5,18 @@ export interface ActivateCompanyResult {
   success: boolean
   error?: string
   dbName?: string
+  /** active_elsewhere: المستخدم مسجَّل الدخول من جهاز آخر — يُعاد الطلب بـforce بعد تأكيده */
+  code?: string
+  device?: { user_agent: string | null; ip_address: string | null; created_at: string }
 }
 
-export async function activateCompany(companyId: number): Promise<ActivateCompanyResult> {
+export async function activateCompany(companyId: number, options: { force?: boolean } = {}): Promise<ActivateCompanyResult> {
   let res: Response
   try {
     res = await fetch("/api/management/select-company", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyId }),
+      body: JSON.stringify({ companyId, force: options.force === true }),
     })
   } catch (error) {
     console.warn("[tenant] Unable to reach the company selection endpoint", error)
@@ -24,7 +27,7 @@ export async function activateCompany(companyId: number): Promise<ActivateCompan
   }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    return { success: false, error: data.error || "تعذّر فتح الشركة" }
+    return { success: false, error: data.error || "تعذّر فتح الشركة", code: data.code, device: data.device }
   }
 
   sessionStorage.setItem("active_tenant_db", data.dbName)

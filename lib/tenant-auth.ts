@@ -21,14 +21,53 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex")
 }
 
-export async function createTenantSession(userId: string): Promise<void> {
+export type ActiveSessionElsewhere = { user_agent: string | null; ip_address: string | null; created_at: string }
+
+// رموز جلسات هذا المتصفح (كل تبويباته تشترك بالكوكيز) — جلسته على نفس الشركة ليست "جهازاً آخر"
+async function browserSessionTokens(): Promise<string[]> {
+  const cookieStore = await cookies()
+  const dbName = await resolveCurrentDbName()
+  return [cookieStore.get(sessionCookieFor(dbName))?.value, cookieStore.get(SESSION_COOKIE)?.value].filter((token): token is string => Boolean(token))
+}
+
+/** جهاز واحد لكل مستخدم: جلسة سارية لنفس المستخدم من متصفح/جهاز آخر (أحدثها)، أو null. */
+export async function findActiveSessionElsewhere(userId: string): Promise<ActiveSessionElsewhere | null> {
   await ensurePermissionTables(await resolveCurrentDbName())
+  const ownTokens = await browserSessionTokens()
+  const rows = await sql`
+    SELECT user_agent, ip_address, created_at AT TIME ZONE current_setting('TimeZone') AS created_at
+    FROM tenant_sessions
+    WHERE user_id = ${userId} AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+      AND NOT (session_token = ANY(${ownTokens}::text[]))
+    ORDER BY created_at DESC
+    LIMIT 1
+  `
+  return (rows[0] as ActiveSessionElsewhere | undefined) ?? null
+}
+
+/**
+ * replaceOtherDevices: المستخدم أكّد «سجّل الخروج من الجهاز الآخر» — جلساته الأخرى تُعلَّم مُزاحة (لا تُحذف)
+ * فيعرف الجهاز القديم عند طلبه التالي أنه خرج بسبب دخول من جهاز آخر (lib/api-session-gate.ts).
+ */
+export async function createTenantSession(userId: string, device: { ip?: string | null; userAgent?: string | null; replaceOtherDevices?: boolean } = {}): Promise<void> {
+  await ensurePermissionTables(await resolveCurrentDbName())
+
+  const ownTokens = await browserSessionTokens()
+  // جلسة هذا المتصفح القديمة تُستبدل بالجديدة (لا تتراكم جلسات لنفس الجهاز)
+  if (ownTokens.length) await sql`DELETE FROM tenant_sessions WHERE user_id = ${userId} AND session_token = ANY(${ownTokens}::text[])`
+  if (device.replaceOtherDevices) {
+    await sql`
+      UPDATE tenant_sessions SET revoked_at = CURRENT_TIMESTAMP, revoked_reason = ${"other_device"}
+      WHERE user_id = ${userId} AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+    `
+  }
 
   const sessionToken = generateToken()
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+  const ip = device.ip?.split(",")[0]?.trim().slice(0, 64) || null
   await sql`
-    INSERT INTO tenant_sessions (user_id, session_token, expires_at)
-    VALUES (${userId}, ${sessionToken}, ${expiresAt})
+    INSERT INTO tenant_sessions (user_id, session_token, expires_at, ip_address, user_agent)
+    VALUES (${userId}, ${sessionToken}, ${expiresAt}, ${ip}, ${device.userAgent?.slice(0, 500) || null})
   `
 
   const cookieStore = await cookies()
@@ -36,6 +75,21 @@ export async function createTenantSession(userId: string): Promise<void> {
   cookieStore.set(sessionCookieFor(await resolveCurrentDbName()), sessionToken, options)
   // الكوكي العامة تبقى لتوافق المسارات/الإصدارات القديمة (احتياطي فقط عند القراءة).
   cookieStore.set(SESSION_COOKIE, sessionToken, options)
+}
+
+/** إيقاف/حذف مستخدم: كل جلساته على أي جهاز تنتهي فوراً، ويعرف الجهاز عند طلبه التالي أن حسابه أُوقف. */
+export async function revokeUserSessions(userId: string | number, reason: "account_disabled" | "other_device"): Promise<void> {
+  await ensurePermissionTables(await resolveCurrentDbName())
+  await sql`
+    UPDATE tenant_sessions SET revoked_at = CURRENT_TIMESTAMP, revoked_reason = ${reason}
+    WHERE user_id = ${Number(userId)} AND revoked_at IS NULL
+  `
+}
+
+/** أول مستخدم في الشركة (أصغر رقم مستخدم — مدير النظام الذي أنشأها): لا يُوقف ولا يُحذف. */
+export async function isPrimaryCompanyUser(userId: string | number): Promise<boolean> {
+  const row = (await sql`SELECT MIN(user_id) AS first_id FROM user_settings`)[0] as { first_id: number | null } | undefined
+  return row?.first_id != null && Number(row.first_id) === Number(userId)
 }
 
 export async function clearTenantSession(): Promise<void> {
@@ -74,7 +128,7 @@ async function loadSessionUser(request: NextRequest): Promise<TenantSessionUser 
     let sessionToken = ""
     let sessionRows: any[] = []
     for (const token of candidates) {
-      sessionRows = await sql`SELECT user_id, expires_at FROM tenant_sessions WHERE session_token = ${token}`
+      sessionRows = await sql`SELECT user_id, expires_at FROM tenant_sessions WHERE session_token = ${token} AND revoked_at IS NULL`
       if (sessionRows.length) { sessionToken = token; break }
     }
     if (sessionRows.length === 0) return null

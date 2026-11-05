@@ -1,7 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import {
@@ -29,7 +29,9 @@ import {
 import { ONLINE_COMPANY_PAYMENT_VISIBLE, priceFor, type Pricing } from "@/lib/company-pricing"
 import { SubscriptionDialog } from "@/components/management/subscription-dialog"
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
-import { activateCompany } from "@/lib/tenant-client"
+import { activateCompany, type ActivateCompanyResult } from "@/lib/tenant-client"
+import Messages from "@/components/common/Messages"
+import { deviceLabel, formatSessionTime } from "@/lib/device-label"
 import { useToast } from "@/hooks/use-toast"
 import { NoonLogo } from "@/components/brand/noon-logo"
 import { PoweredBy } from "@/components/brand/powered-by"
@@ -145,6 +147,8 @@ export default function ManagementCompaniesPage() {
   const [selecting, setSelecting] = useState<number | null>(null)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
+  // جهاز واحد لكل مستخدم: رسالة «مسجَّل الدخول من جهاز آخر» بزر المتابعة هنا (app/api/management/select-company)
+  const sessionMessagesRef = useRef<any>(null)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   // شركة تجريبية (اعتماد فوري ذاتي، اشتراك TRIAL_EXPIRY_DAYS يوماً — انظر
   // app/api/management/companies/trial/route.ts) — حوار منفصل عن "اضافة شركة جديدة" العادية
@@ -290,11 +294,56 @@ export default function ManagementCompaniesPage() {
     }
   }
 
-  const handleSelectCompany = async (company: Company) => {
+  const showDeviceConflict = (company: Company, device: ActivateCompanyResult["device"]) => {
+    const since = formatSessionTime(device?.created_at)
+    sessionMessagesRef.current?.clear?.()
+    sessionMessagesRef.current?.show?.([{
+      severity: "warn",
+      sticky: true,
+      closable: false,
+      content: (
+        <div className="flex w-full flex-col gap-3" dir={appDir()}>
+          <div>
+            <div className="font-bold">{tr("حسابك مسجَّل الدخول الآن من جهاز آخر")}</div>
+            <div className="mt-1 text-sm">
+              {tr("الجهاز: {0}", deviceLabel(device?.user_agent))}
+              {since ? <span dir="ltr"> · {since}</span> : null}
+            </div>
+            <div className="mt-1 text-sm">{tr("هل تريد تسجيل الخروج من الجهاز الآخر والدخول من هذا الجهاز؟")}</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => { sessionMessagesRef.current?.clear?.(); void handleSelectCompany(company, true) }} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-sm font-bold text-white hover:bg-amber-700">
+              <LogOut className="h-4 w-4" />{tr("نعم، سجّل الخروج من الجهاز الآخر وادخل هنا")}
+            </button>
+            <button type="button" onClick={() => sessionMessagesRef.current?.clear?.()} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-50">
+              {tr("إلغاء")}
+            </button>
+          </div>
+        </div>
+      ),
+    }])
+  }
+
+  // هذا الجهاز أُخرج: الحساب فُتح من جهاز آخر أو أُوقف المستخدم (auth-context ⇐ ?reason=)
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("reason")
+    if (reason !== "other_device" && reason !== "account_disabled") return
+    sessionMessagesRef.current?.show?.([reason === "other_device"
+      ? { severity: "info", sticky: true, summary: "", detail: tr("تم تسجيل خروجك لأن حسابك فُتح من جهاز آخر") }
+      : { severity: "error", sticky: true, summary: "", detail: tr("تم إيقاف حسابك — راجع مدير النظام") }])
+    window.history.replaceState(null, "", window.location.pathname)
+  }, [])
+
+  const handleSelectCompany = async (company: Company, force = false) => {
     if (company.status !== "approved") return
     setSelecting(company.id)
     try {
-      const result = await activateCompany(company.id)
+      const result = await activateCompany(company.id, { force })
+      if (result.code === "active_elsewhere") {
+        setSelecting(null)
+        showDeviceConflict(company, result.device)
+        return
+      }
       if (!result.success) {
         setError(result.error || tr("تعذّر فتح الشركة"))
         setSelecting(null)
@@ -382,6 +431,7 @@ export default function ManagementCompaniesPage() {
           </div>
         </section>
 
+        <Messages innerRef={sessionMessagesRef} />
         {error && (
           <div role="alert" className="mb-6 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
             <XCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}

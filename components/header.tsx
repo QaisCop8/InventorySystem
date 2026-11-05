@@ -23,6 +23,7 @@ import { GlobalSearch } from "@/components/navigation/global-search";
 import { menuItems, SECTION_TITLES, type MenuItem } from "@/components/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { activateCompany } from "@/lib/tenant-client";
+import { deviceLabel } from "@/lib/device-label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { requestGuardedNavigation } from "@/lib/navigation-guard";
 import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
@@ -106,7 +107,11 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     if (!target || target.status !== "approved") return;
 
     setSwitchingCompanyName(target.name);
-    const result = await activateCompany(companyId);
+    let result = await activateCompany(companyId);
+    // جهاز واحد لكل مستخدم: الحساب مفتوح على هذه الشركة من جهاز آخر
+    if (result.code === "active_elsewhere" && window.confirm(tr("حسابك مسجَّل الدخول الآن من جهاز آخر ({0}). هل تريد تسجيل الخروج من الجهاز الآخر والدخول من هذا الجهاز؟", deviceLabel(result.device?.user_agent)))) {
+      result = await activateCompany(companyId, { force: true });
+    }
     if (!result.success) {
       setSwitchingCompanyName(null);
       // العودة للشركة السابقة: لا شيء إضافي مطلوب هنا فعلياً — عنصر <select> مربوط بـcurrentCompanyId
@@ -427,16 +432,9 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
             </Tooltip>
           </TooltipProvider>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <RefButton className={toolButtonClass} aria-label={tr("الإشعارات")}>
-                <Icons.Bell className="h-[18px] w-[18px]" />
-              </RefButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <NotificationCenter userId={user?.id} department={user?.department} />
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* جرس واحد: مركز الإشعارات نفسه هو زر الهيدر (كان داخل قائمة منسدلة بجرس ثانٍ يجب النقر عليه) */}
+          <NotificationCenter userId={user?.id} department={user?.department} className={`${toolButtonClass} [&_svg]:h-[18px] [&_svg]:w-[18px]`} />
+
 
           {/* طريقة عرض الصفحات: شاشة مقسمة / تبويبات — تفضيل شخصي (dashboard_layout.display_mode) */}
           <div className="hidden xl:block">

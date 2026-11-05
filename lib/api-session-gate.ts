@@ -15,7 +15,15 @@ const validated = new Map<string, { userId: string; until: number }>()
 
 export type ApiSessionResult =
   | { ok: true; userId: string; dbName: string }
-  | { ok: false; status: number; error: string }
+  | { ok: false; status: number; error: string; code?: SessionEndedCode }
+
+// جلسة أُنهيت عمداً — الواجهة (auth-context) تُخرج هذا الجهاز وتعرض السبب في «شركاتي»
+export type SessionEndedCode = "other_device" | "account_disabled"
+const SESSION_ENDED_MESSAGES: Record<SessionEndedCode, string> = {
+  other_device: "تم تسجيل خروجك لأن حسابك فُتح من جهاز آخر",
+  account_disabled: "تم إيقاف حسابك — راجع مدير النظام",
+}
+const ended = (code: SessionEndedCode): ApiSessionResult => ({ ok: false, status: 401, error: SESSION_ENDED_MESSAGES[code], code })
 
 function cacheKey(dbName: string, token: string) {
   return `${dbName}\u0000${token}`
@@ -46,15 +54,28 @@ export async function checkApiSession(request: NextRequest): Promise<ApiSessionR
 
   try {
     for (const token of tokens) {
-      const rows: any[] = await withTenantDb(dbName, () => sql`
-        SELECT s.user_id, s.expires_at
+      const rows = (await withTenantDb(dbName, () => sql`
+        SELECT s.user_id, s.expires_at, s.revoked_at, s.revoked_reason, u.is_active
         FROM tenant_sessions s
         JOIN user_settings u ON u.user_id::text = s.user_id::text
-        WHERE s.session_token = ${token} AND u.is_active IS TRUE
+        WHERE s.session_token = ${token}
         LIMIT 1
-      `)
+      `).catch((error: any) => {
+        // قاعدة لم تُرحَّل بعد لعمود revoked_at (lib/permissions.ts يضيفه عند أول دخول بعد النشر)
+        if (error?.code !== "42703") throw error
+        return withTenantDb(dbName, () => sql`
+          SELECT s.user_id, s.expires_at, NULL AS revoked_at, NULL AS revoked_reason, u.is_active
+          FROM tenant_sessions s
+          JOIN user_settings u ON u.user_id::text = s.user_id::text
+          WHERE s.session_token = ${token}
+          LIMIT 1
+        `)
+      })) as any[]
       const row = rows[0]
       if (!row || new Date(row.expires_at) < new Date()) continue
+      // مستخدم موقوف، أو جلسة أزاحها دخول من جهاز آخر (lib/tenant-auth.ts)
+      if (row.is_active !== true || row.revoked_reason === "account_disabled") return ended("account_disabled")
+      if (row.revoked_at) return ended("other_device")
       if (validated.size >= CACHE_MAX) validated.clear()
       validated.set(cacheKey(dbName, token), { userId: String(row.user_id), until: now + CACHE_TTL_MS })
       return { ok: true, userId: String(row.user_id), dbName }

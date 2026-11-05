@@ -1,0 +1,12 @@
+Your account is currently signed in on another device
+Device: {0}
+Do you want to sign out the other device and sign in here?
+Yes, sign out the other device and sign in here
+You were signed out because your account was opened on another device
+Your account has been deactivated — contact your system administrator
+Your account is currently signed in on another device ({0}). Sign out that device and sign in here?
+Unknown device
+Browser
+{0} on {1}
+The first system administrator can't be deactivated
+The first system administrator can't be deleted

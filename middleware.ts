@@ -43,12 +43,17 @@ export async function middleware(request: NextRequest) {
   if (isPublic(pathname)) return NextResponse.next()
 
   const session = await checkApiSession(request)
-  if (!session.ok) return NextResponse.json({ error: session.error }, { status: session.status })
+  if (!session.ok) {
+    // x-session-ended (other_device / account_disabled): الواجهة (auth-context) تُخرج هذا الجهاز وتعرض السبب
+    return NextResponse.json(
+      { error: session.error, ...(session.code ? { code: session.code } : {}) },
+      { status: session.status, headers: session.code ? { "x-session-ended": session.code } : undefined },
+    )
+  }
   touchPresence(session.dbName, session.userId, clientIp(request))
 
   // هوية المستخدم من الجلسة فقط: x-user-id كان يُقرأ كما أرسله المتصفح (الكاشير وأرشيف السندات) فيمكن انتحال أي مستخدم.
-  // نرفض الطلب إن خالف الجلسة بدل استبدال الهيدر: NextResponse.next({ request: { headers } }) كان يُفسد جسم الطلبات
-  // على الخادم الحي (Docker/Render) — «Unexpected end of JSON input» و«Failed to parse body as FormData» عند الحفظ والرفع.
+  // نرفض الطلب إن خالف الجلسة بدل استبدال الهيدر (NextResponse.next({ request: { headers } })) — أبسط ولا يمسّ الطلب.
   const claimedUserId = request.headers.get("x-user-id")?.trim()
   if (claimedUserId && claimedUserId !== session.userId) {
     return NextResponse.json({ error: "انتهت الجلسة أو تغيّر المستخدم — سجّل الدخول من جديد" }, { status: 401 })

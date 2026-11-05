@@ -5,7 +5,7 @@ import { getManagementSession } from "@/lib/management-auth"
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { withTenantDb } from "@/lib/database"
 import { authenticateByEmail } from "@/lib/auth"
-import { createTenantSession } from "@/lib/tenant-auth"
+import { createTenantSession, findActiveSessionElsewhere, type ActiveSessionElsewhere } from "@/lib/tenant-auth"
 import { recordManagementLogin } from "@/lib/management-login-audit"
 
 export async function POST(request: NextRequest) {
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json()
     const companyId = Number(data.companyId)
+    // المستخدم أكّد في «شركاتي» تسجيل الخروج من الجهاز الآخر والدخول هنا
+    const replaceOtherDevices = data.force === true
     if (!companyId) return NextResponse.json({ error: "معرّف الشركة مطلوب" }, { status: 400 })
 
     const rows = await managementSql`
@@ -48,20 +50,34 @@ export async function POST(request: NextRequest) {
     // الاستعلام على قاعدة الشركة الصحيحة ضمن هذا الطلب تحديداً، بصرف النظر عن كوكي tenant_db.
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"
     const userAgent = request.headers.get("user-agent") || "unknown"
+    let activeElsewhere: ActiveSessionElsewhere | null = null
     const authResult = await withTenantDb(company.db_name, async () => {
       const result = await authenticateByEmail(session.email, { ip, userAgent })
+      // جهاز واحد لكل مستخدم: جلسة سارية من جهاز آخر ⇐ لا دخول قبل تأكيد المستخدم
+      if (result.success && result.user?.id && !replaceOtherDevices) {
+        activeElsewhere = await findActiveSessionElsewhere(String(result.user.id))
+        if (activeElsewhere) return result
+      }
       // بلا هذا، الشاشات التي تتطلب tenant_session (مثل حفظ/تعديل المستخدمين) كانت ترفض كل من
       // يدخل عبر لوحة الإدارة برسالة "يجب تسجيل الدخول" لأن هذا المسار لم يكن يصدر كوكي الجلسة
       // إطلاقاً، خلافاً لمسار تسجيل الدخول المباشر في app/api/auth/login.
       if (result.success && result.user?.id) {
         try {
-          await createTenantSession(String(result.user.id))
+          await createTenantSession(String(result.user.id), { ip, userAgent, replaceOtherDevices })
         } catch (sessionError) {
           console.error("[management/select-company] Failed to create tenant session:", sessionError)
         }
       }
       return result
     })
+
+    if (activeElsewhere) {
+      return NextResponse.json({
+        error: "حسابك مسجَّل الدخول الآن من جهاز آخر",
+        code: "active_elsewhere",
+        device: activeElsewhere,
+      }, { status: 409 })
+    }
 
     if (!authResult.success || !authResult.user || !authResult.token) {
       return NextResponse.json(

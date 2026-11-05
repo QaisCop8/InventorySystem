@@ -69,6 +69,9 @@ export function UserSettings() {
   const { license, reload: reloadLicense } = useCompanyLicense()
   const licenseRequest = useLicenseRequestDialog(() => void reloadLicense())
   const [users, setUsers] = useState<User[]>([])
+  // أول مستخدم في الشركة (مدير النظام): لا يُوقف ولا يُحذف — الخادم يرفض ذلك أيضاً (app/api/settings/user)
+  const primaryUserId = users.length ? Math.min(...users.map((u) => Number(u.user_id) || u.id)) : null
+  const isPrimaryUser = (user: User | null | undefined) => Boolean(user) && primaryUserId !== null && (Number(user!.user_id) || user!.id) === primaryUserId
   const [branches, setBranches] = useState<Branch[]>([])
   const [jobRoles, setJobRoles] = useState<JobRole[]>([])
   const [departmentDefs, setDepartmentDefs] = useState<DepartmentDefinition[]>([])
@@ -540,7 +543,7 @@ export function UserSettings() {
                         >
                           <Shield className="h-3 w-3" />
                         </Button>
-                        {user.is_active ? (
+                        {isPrimaryUser(user) ? null : user.is_active ? (
                           <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" disabled={statusBusyId !== null} onClick={() => void changeUserStatus(user, false)} title={tr("إيقاف المستخدم (غير نشط)")}>
                             <UserX className="h-3 w-3" />
                           </Button>
@@ -602,7 +605,7 @@ export function UserSettings() {
                   theme: (formData.get("theme") as string) || "light",
                   notifications_enabled: formData.get("notifications") === "on",
                   email_notifications: formData.get("emailNotifications") === "on",
-                  is_active: formData.get("active") === "on",
+                  is_active: isPrimaryUser(selectedUser) ? true : formData.get("active") === "on",
                   dashboard_layout: dashboardLayout,
                 }
                 saveUser(userData)
@@ -698,9 +701,11 @@ export function UserSettings() {
 
                 <FormSection icon={Shield} title={tr("تفضيلات النظام")} description={tr("حالة الحساب والإشعارات")} tone="violet">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <ToggleTile id="active" title={tr("مستخدم نشط")} description={tr("يمكنه تسجيل الدخول للنظام")}>
-                      <Switch id="active" name="active" defaultChecked={selectedUser.is_active} />
-                    </ToggleTile>
+                    {!isPrimaryUser(selectedUser) && (
+                      <ToggleTile id="active" title={tr("مستخدم نشط")} description={tr("يمكنه تسجيل الدخول للنظام")}>
+                        <Switch id="active" name="active" defaultChecked={selectedUser.is_active} />
+                      </ToggleTile>
+                    )}
                     <ToggleTile id="notifications" title={tr("تفعيل الإشعارات")} description={tr("إشعارات داخل النظام")}>
                       <Switch id="notifications" name="notifications" defaultChecked={selectedUser.notifications_enabled} />
                     </ToggleTile>

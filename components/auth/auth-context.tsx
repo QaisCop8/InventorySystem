@@ -111,12 +111,31 @@ function installTenantFetchPatch() {
       // حفظ/تعديل/حذف سند: يُقفل المنيو الجانبي حتى انتهاء الطلب (lib/saving-lock.ts)
       if (isVoucherSaveRequest(input, init)) {
         const endSaving = beginSaving()
-        return originalFetch(input, init).then((response) => translateApiResponse(input, response)).finally(endSaving)
+        return originalFetch(input, init).then(handleSessionEnded).then((response) => translateApiResponse(input, response)).finally(endSaving)
       }
-      return originalFetch(input, init).then((response) => translateApiResponse(input, response))
+      return originalFetch(input, init).then(handleSessionEnded).then((response) => translateApiResponse(input, response))
     }) as typeof window.fetch
     ;(window as any).__tenantFetchPatched = true
   }
+}
+
+// جلسة أنهاها الخادم (middleware ⇐ x-session-ended): دخول نفس الحساب من جهاز آخر، أو إيقاف المستخدم.
+// يُمسح دخول هذا المتصفح ويُفتح «شركاتي» برسالة السبب — مرة واحدة حتى لو رُفضت طلبات كثيرة معاً.
+let sessionEndedHandled = false
+function handleSessionEnded(response: Response): Response {
+  const reason = response.status === 401 ? response.headers.get("x-session-ended") : null
+  if (!reason || sessionEndedHandled) return response
+  sessionEndedHandled = true
+  try {
+    for (const key of ["erp_user", "erp_token", "erp_session", "active_tenant_db", "active_company_id"]) {
+      sessionStorage.removeItem(key)
+      localStorage.removeItem(key)
+    }
+  } catch {
+    // التخزين غير متاح: التحويل أدناه يكفي
+  }
+  window.location.replace(`/management/companies?reason=${encodeURIComponent(reason)}`)
+  return response
 }
 
 // الواجهة بالإنجليزية: رسائل الخادم (error/message...) عربية دائماً، تُترجم هنا بالقاموس قبل وصولها للشاشات.
@@ -395,7 +414,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "")
-        throw new Error(errorText || `Login failed (${response.status})`)
+        let message = errorText
+        try { message = JSON.parse(errorText)?.error || errorText } catch { /* نص غير JSON */ }
+        throw new Error(message || `Login failed (${response.status})`)
       }
 
       const result = await response.json()

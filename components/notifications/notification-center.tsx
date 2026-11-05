@@ -239,7 +239,7 @@ export function NotificationCenter({ userId, department, className }: Notificati
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-96 p-0" align="end" dir={appDir()}>
+      <PopoverContent className="w-[min(24rem,calc(100vw-1rem))] p-0" align="end" dir={appDir()}>
         <Card className="border-0 shadow-lg">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">

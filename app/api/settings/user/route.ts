@@ -6,7 +6,7 @@ import { issuePasswordCode, sendAddedToCompanyEmail } from "@/lib/password-codes
 import { randomBytes } from "crypto"
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { ensurePermissionTables } from "@/lib/permissions"
-import { getSessionUser } from "@/lib/tenant-auth"
+import { getSessionUser, isPrimaryCompanyUser, revokeUserSessions } from "@/lib/tenant-auth"
 import managementSql from "@/lib/management-db"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { authorizeUserAdmin, isSelfServiceUpdate } from "@/lib/user-admin-access"
@@ -266,6 +266,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
+    // أول مستخدم في الشركة (مدير النظام) لا يُوقف — حتى لا تبقى الشركة بلا من يديرها
+    if (data.is_active === false && (await isPrimaryCompanyUser(data.user_id))) {
+      return NextResponse.json({ error: "لا يمكن إيقاف مستخدم مدير النظام الأول" }, { status: 400 })
+    }
+
     if (data.permissions && Object.keys(data).length === 2 && data.user_id) {
       const result = await sql`
         UPDATE user_settings
@@ -422,6 +427,8 @@ export async function PUT(request: NextRequest) {
         RETURNING *
       `)[0] as any
       if (!updated) return NextResponse.json({ error: "User not found" }, { status: 404 })
+      // إيقاف ⇐ خروج فوري من كل الأجهزة (يرى رسالة «تم إيقاف حسابك»)
+      if (data.is_active === false) await revokeUserSessions(data.user_id, "account_disabled")
       if (updated.management_user_id) {
         try {
           const currentDbName = await resolveCurrentDbName()
@@ -496,6 +503,7 @@ export async function PUT(request: NextRequest) {
 
     // Company administrators can change local credentials and this company membership only.
     const updatedUser = result[0]
+    if (data.is_active === false) await revokeUserSessions(data.user_id, "account_disabled")
     if (updatedUser.management_user_id) {
       try {
         if (data.is_active !== undefined) {
@@ -572,12 +580,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     await ensureBranchColumn()
+    if (await isPrimaryCompanyUser(userId)) {
+      return NextResponse.json({ error: "لا يمكن حذف مستخدم مدير النظام الأول" }, { status: 400 })
+    }
     const deleted = (await sql`
       UPDATE user_settings
       SET is_active = false, is_deleted = true, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
       RETURNING management_user_id
     `)[0] as any
+    if (deleted) await revokeUserSessions(userId, "account_disabled")
     // عضوية "شركاتي" لهذه الشركة تُعطَّل أيضاً — كان المستخدم المحذوف يرى الشركة ويدخلها من بوابة الإدارة
     if (deleted?.management_user_id) {
       try {
