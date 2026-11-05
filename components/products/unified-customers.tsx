@@ -1130,7 +1130,7 @@ export default function UnifiedCustomers({
   )
 
   return (
-    <div ref={setPopupRoot} className="unified-customers-compact relative flex h-full flex-col">
+    <div ref={setPopupRoot} className="unified-customers-compact relative flex h-full min-w-0 flex-col">
       <ProgressSpinner loading={loading} />
       <CustomerSearchPopup
         visible={showCustomerSearch}

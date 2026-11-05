@@ -1924,7 +1924,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
             <UnifiedCustomers
               open={showNewCustomerDialog}
               onOpenChange={(open) => {
