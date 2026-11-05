@@ -21,7 +21,11 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex")
 }
 
-export type ActiveSessionElsewhere = { user_agent: string | null; ip_address: string | null; created_at: string }
+export type ActiveSessionElsewhere = { user_agent: string | null; ip_address: string | null; created_at: string; last_seen_at: string }
+
+// «مسجَّل من جهاز آخر» = جلسة استُخدمت خلال هذه المدة (lib/api-session-gate.ts يحدّث last_seen_at ما دام التبويب مفتوحاً).
+// جلسة أقدم (متصفح أُغلق دون خروج، أو جلسة قبل هذه الميزة بلا last_seen_at) لا تمنع الدخول وتُنهى بصمت عنده.
+const ACTIVE_SESSION_MINUTES = 15
 
 // رموز جلسات هذا المتصفح (كل تبويباته تشترك بالكوكيز) — جلسته على نفس الشركة ليست "جهازاً آخر"
 async function browserSessionTokens(): Promise<string[]> {
@@ -30,24 +34,28 @@ async function browserSessionTokens(): Promise<string[]> {
   return [cookieStore.get(sessionCookieFor(dbName))?.value, cookieStore.get(SESSION_COOKIE)?.value].filter((token): token is string => Boolean(token))
 }
 
-/** جهاز واحد لكل مستخدم: جلسة سارية لنفس المستخدم من متصفح/جهاز آخر (أحدثها)، أو null. */
+/** جهاز واحد لكل مستخدم: جلسة مستخدمة حالياً لنفس المستخدم من متصفح/جهاز آخر (أحدثها نشاطاً)، أو null. */
 export async function findActiveSessionElsewhere(userId: string): Promise<ActiveSessionElsewhere | null> {
   await ensurePermissionTables(await resolveCurrentDbName())
   const ownTokens = await browserSessionTokens()
   const rows = await sql`
-    SELECT user_agent, ip_address, created_at AT TIME ZONE current_setting('TimeZone') AS created_at
+    SELECT user_agent, ip_address,
+           created_at AT TIME ZONE current_setting('TimeZone') AS created_at,
+           last_seen_at AT TIME ZONE current_setting('TimeZone') AS last_seen_at
     FROM tenant_sessions
     WHERE user_id = ${userId} AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+      AND last_seen_at > CURRENT_TIMESTAMP - make_interval(mins => ${ACTIVE_SESSION_MINUTES})
       AND NOT (session_token = ANY(${ownTokens}::text[]))
-    ORDER BY created_at DESC
+    ORDER BY last_seen_at DESC
     LIMIT 1
   `
   return (rows[0] as ActiveSessionElsewhere | undefined) ?? null
 }
 
 /**
- * replaceOtherDevices: المستخدم أكّد «سجّل الخروج من الجهاز الآخر» — جلساته الأخرى تُعلَّم مُزاحة (لا تُحذف)
- * فيعرف الجهاز القديم عند طلبه التالي أنه خرج بسبب دخول من جهاز آخر (lib/api-session-gate.ts).
+ * جهاز واحد لكل مستخدم: كل جلساته الأخرى تُعلَّم مُزاحة (لا تُحذف) فيعرف الجهاز القديم عند طلبه التالي أنه خرج بسبب
+ * دخول من جهاز آخر (lib/api-session-gate.ts). الجلسة المستخدمة حالياً لا تصل هنا إلا بعد تأكيد المستخدم
+ * (replaceOtherDevices) — المسارات تتحقق أولاً بـfindActiveSessionElsewhere.
  */
 export async function createTenantSession(userId: string, device: { ip?: string | null; userAgent?: string | null; replaceOtherDevices?: boolean } = {}): Promise<void> {
   await ensurePermissionTables(await resolveCurrentDbName())
@@ -55,19 +63,17 @@ export async function createTenantSession(userId: string, device: { ip?: string 
   const ownTokens = await browserSessionTokens()
   // جلسة هذا المتصفح القديمة تُستبدل بالجديدة (لا تتراكم جلسات لنفس الجهاز)
   if (ownTokens.length) await sql`DELETE FROM tenant_sessions WHERE user_id = ${userId} AND session_token = ANY(${ownTokens}::text[])`
-  if (device.replaceOtherDevices) {
-    await sql`
-      UPDATE tenant_sessions SET revoked_at = CURRENT_TIMESTAMP, revoked_reason = ${"other_device"}
-      WHERE user_id = ${userId} AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
-    `
-  }
+  await sql`
+    UPDATE tenant_sessions SET revoked_at = CURRENT_TIMESTAMP, revoked_reason = ${"other_device"}
+    WHERE user_id = ${userId} AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+  `
 
   const sessionToken = generateToken()
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
   const ip = device.ip?.split(",")[0]?.trim().slice(0, 64) || null
   await sql`
-    INSERT INTO tenant_sessions (user_id, session_token, expires_at, ip_address, user_agent)
-    VALUES (${userId}, ${sessionToken}, ${expiresAt}, ${ip}, ${device.userAgent?.slice(0, 500) || null})
+    INSERT INTO tenant_sessions (user_id, session_token, expires_at, ip_address, user_agent, last_seen_at)
+    VALUES (${userId}, ${sessionToken}, ${expiresAt}, ${ip}, ${device.userAgent?.slice(0, 500) || null}, CURRENT_TIMESTAMP)
   `
 
   const cookieStore = await cookies()

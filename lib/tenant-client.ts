@@ -7,7 +7,7 @@ export interface ActivateCompanyResult {
   dbName?: string
   /** active_elsewhere: المستخدم مسجَّل الدخول من جهاز آخر — يُعاد الطلب بـforce بعد تأكيده */
   code?: string
-  device?: { user_agent: string | null; ip_address: string | null; created_at: string }
+  device?: { user_agent: string | null; ip_address: string | null; created_at: string; last_seen_at?: string | null }
 }
 
 export async function activateCompany(companyId: number, options: { force?: boolean } = {}): Promise<ActivateCompanyResult> {

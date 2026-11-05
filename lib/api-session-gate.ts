@@ -78,6 +78,12 @@ export async function checkApiSession(request: NextRequest): Promise<ApiSessionR
       if (row.revoked_at) return ended("other_device")
       if (validated.size >= CACHE_MAX) validated.clear()
       validated.set(cacheKey(dbName, token), { userId: String(row.user_id), until: now + CACHE_TTL_MS })
+      // آخر استخدام للجلسة (مرة كل دقيقة على الأكثر، دون انتظار): يميّز جهازاً يعمل الآن عن جلسة متروكة —
+      // findActiveSessionElsewhere (lib/tenant-auth.ts) لا يمنع الدخول إلا بسبب جلسة مستخدمة حالياً
+      void withTenantDb(dbName, () => sql`
+        UPDATE tenant_sessions SET last_seen_at = CURRENT_TIMESTAMP
+        WHERE session_token = ${token} AND (last_seen_at IS NULL OR last_seen_at < CURRENT_TIMESTAMP - INTERVAL '1 minute')
+      `).catch(() => undefined)
       return { ok: true, userId: String(row.user_id), dbName }
     }
   } catch (error: any) {

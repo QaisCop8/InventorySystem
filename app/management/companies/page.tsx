@@ -295,7 +295,7 @@ export default function ManagementCompaniesPage() {
   }
 
   const showDeviceConflict = (company: Company, device: ActivateCompanyResult["device"]) => {
-    const since = formatSessionTime(device?.created_at)
+    const since = formatSessionTime(device?.last_seen_at || device?.created_at)
     sessionMessagesRef.current?.clear?.()
     sessionMessagesRef.current?.show?.([{
       severity: "warn",
@@ -307,7 +307,7 @@ export default function ManagementCompaniesPage() {
             <div className="font-bold">{tr("حسابك مسجَّل الدخول الآن من جهاز آخر")}</div>
             <div className="mt-1 text-sm">
               {tr("الجهاز: {0}", deviceLabel(device?.user_agent))}
-              {since ? <span dir="ltr"> · {since}</span> : null}
+              {since ? <span> · {tr("آخر نشاط")} <span dir="ltr">{since}</span></span> : null}
             </div>
             <div className="mt-1 text-sm">{tr("هل تريد تسجيل الخروج من الجهاز الآخر والدخول من هذا الجهاز؟")}</div>
           </div>
