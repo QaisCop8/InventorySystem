@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
         error: "حسابك مسجَّل الدخول الآن من جهاز آخر",
         code: "active_elsewhere",
         device: activeElsewhere,
+        account: { name: authResult.user?.fullName || null, email: authResult.user?.email || null },
       }, { status: 409 })
     }
 

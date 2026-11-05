@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (result.success && result.user?.id && !replaceOtherDevices) {
       const device = await findActiveSessionElsewhere(String(result.user.id))
       if (device) {
-        return NextResponse.json({ success: false, error: "حسابك مسجَّل الدخول الآن من جهاز آخر", code: "active_elsewhere", device }, { status: 409 })
+        return NextResponse.json({ success: false, error: "حسابك مسجَّل الدخول الآن من جهاز آخر", code: "active_elsewhere", device, account: { name: result.user.fullName || null, email: result.user.email || null } }, { status: 409 })
       }
     }
     if (result.success && result.user?.id) {

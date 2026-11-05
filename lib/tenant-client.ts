@@ -8,6 +8,8 @@ export interface ActivateCompanyResult {
   /** active_elsewhere: المستخدم مسجَّل الدخول من جهاز آخر — يُعاد الطلب بـforce بعد تأكيده */
   code?: string
   device?: { user_agent: string | null; ip_address: string | null; created_at: string; last_seen_at?: string | null }
+  /** الحساب المقصود (حساب الإدارة الحالي في هذا المتصفح قد يختلف عمّا يظنه المستخدم) */
+  account?: { name: string | null; email: string | null }
 }
 
 export async function activateCompany(companyId: number, options: { force?: boolean } = {}): Promise<ActivateCompanyResult> {
@@ -27,7 +29,7 @@ export async function activateCompany(companyId: number, options: { force?: bool
   }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    return { success: false, error: data.error || "تعذّر فتح الشركة", code: data.code, device: data.device }
+    return { success: false, error: data.error || "تعذّر فتح الشركة", code: data.code, device: data.device, account: data.account }
   }
 
   sessionStorage.setItem("active_tenant_db", data.dbName)

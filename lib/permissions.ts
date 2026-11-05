@@ -125,7 +125,7 @@ const ensuredTenants = new Map<string, Promise<void>>()
 // ~20 أمر CREATE/ALTER كانت تُنفَّذ مع أول طلب في كل نسخة خادم جديدة (Cloudflare) قبل حفظ الصلاحيات وغيره —
 // ثوانٍ مع قاعدة بعيدة. تُسجَّل الآن في app_schema_state (نفس جدول lib/schema-once.ts) فتتخطاها النسخ اللاحقة
 // باستعلامين. ارفع هذا الرقم عند تعديل الجداول أدناه لإعادة تطبيقها مرة واحدة على كل شركة.
-const PERMISSION_TABLES_VERSION = "permission-tables:4"
+const PERMISSION_TABLES_VERSION = "permission-tables:5"
 
 export function ensurePermissionTables(dbName: string): Promise<void> {
   let promise = ensuredTenants.get(dbName)
@@ -242,6 +242,7 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
       await client.query(`ALTER TABLE tenant_sessions ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMP`, [])
       await client.query(`ALTER TABLE tenant_sessions ADD COLUMN IF NOT EXISTS revoked_reason VARCHAR(30)`, [])
       await client.query(`ALTER TABLE tenant_sessions ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP`, [])
+      await client.query(`ALTER TABLE tenant_sessions ADD COLUMN IF NOT EXISTS device_id VARCHAR(64)`, [])
       await client.query(`CREATE INDEX IF NOT EXISTS idx_tenant_sessions_user ON tenant_sessions (user_id, expires_at)`, [])
       await client.query(`CREATE TABLE IF NOT EXISTS app_schema_state (key TEXT PRIMARY KEY, version TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`, [])
       await client.query(

@@ -25,6 +25,24 @@ export type ActiveSessionElsewhere = { user_agent: string | null; ip_address: st
 // جلسة أقدم (متصفح أُغلق دون خروج، أو جلسة قبل هذه الميزة بلا last_seen_at) لا تمنع الدخول وتُنهى بصمت عنده.
 const ACTIVE_SESSION_MINUTES = 15
 
+// معرّف ثابت لهذا المتصفح (سنة): جلسات نفس الجهاز تُعرف به حتى لو استُبدلت كوكي جلسة (دخول مستخدم آخر، أو جلسات
+// قبل الكوكيز لكل مستخدم) — بدونه كانت جلسة نفس الجهاز تُعامَل كـ«جهاز آخر».
+const DEVICE_COOKIE = "noon_device"
+const DEVICE_ID_PATTERN = /^[a-f0-9]{32}$/
+
+async function currentDeviceId(): Promise<string | null> {
+  const value = (await cookies()).get(DEVICE_COOKIE)?.value || ""
+  return DEVICE_ID_PATTERN.test(value) ? value : null
+}
+
+async function ensureDeviceId(): Promise<string> {
+  const existing = await currentDeviceId()
+  if (existing) return existing
+  const deviceId = crypto.randomBytes(16).toString("hex")
+  ;(await cookies()).set(DEVICE_COOKIE, deviceId, { httpOnly: true, secure: await shouldUseSecureCookies(), sameSite: "lax", path: "/", maxAge: 365 * 24 * 60 * 60 })
+  return deviceId
+}
+
 // رموز جلسات هذا المتصفح على الشركة (كل مستخدميه وتبويباته تشترك بالكوكيز) — جلسته ليست "جهازاً آخر"
 async function browserSessionTokens(): Promise<string[]> {
   const cookieStore = await cookies()
@@ -36,6 +54,7 @@ async function browserSessionTokens(): Promise<string[]> {
 export async function findActiveSessionElsewhere(userId: string): Promise<ActiveSessionElsewhere | null> {
   await ensurePermissionTables(await resolveCurrentDbName())
   const ownTokens = await browserSessionTokens()
+  const deviceId = await currentDeviceId()
   const rows = await sql`
     SELECT user_agent, ip_address,
            created_at AT TIME ZONE current_setting('TimeZone') AS created_at,
@@ -44,6 +63,7 @@ export async function findActiveSessionElsewhere(userId: string): Promise<Active
     WHERE user_id = ${userId} AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
       AND last_seen_at > CURRENT_TIMESTAMP - make_interval(mins => ${ACTIVE_SESSION_MINUTES})
       AND NOT (session_token = ANY(${ownTokens}::text[]))
+      AND (${deviceId}::text IS NULL OR device_id IS DISTINCT FROM ${deviceId})
     ORDER BY last_seen_at DESC
     LIMIT 1
   `
@@ -59,6 +79,7 @@ export async function createTenantSession(userId: string, device: { ip?: string 
   await ensurePermissionTables(await resolveCurrentDbName())
 
   const ownTokens = await browserSessionTokens()
+  const deviceId = await ensureDeviceId()
   // جلسة هذا المتصفح القديمة تُستبدل بالجديدة (لا تتراكم جلسات لنفس الجهاز)
   if (ownTokens.length) await sql`DELETE FROM tenant_sessions WHERE user_id = ${userId} AND session_token = ANY(${ownTokens}::text[])`
   await sql`
@@ -70,8 +91,8 @@ export async function createTenantSession(userId: string, device: { ip?: string 
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
   const ip = device.ip?.split(",")[0]?.trim().slice(0, 64) || null
   await sql`
-    INSERT INTO tenant_sessions (user_id, session_token, expires_at, ip_address, user_agent, last_seen_at)
-    VALUES (${userId}, ${sessionToken}, ${expiresAt}, ${ip}, ${device.userAgent?.slice(0, 500) || null}, CURRENT_TIMESTAMP)
+    INSERT INTO tenant_sessions (user_id, session_token, expires_at, ip_address, user_agent, last_seen_at, device_id)
+    VALUES (${userId}, ${sessionToken}, ${expiresAt}, ${ip}, ${device.userAgent?.slice(0, 500) || null}, CURRENT_TIMESTAMP, ${deviceId})
   `
 
   const cookieStore = await cookies()

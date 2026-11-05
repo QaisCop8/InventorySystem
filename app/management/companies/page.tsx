@@ -149,6 +149,8 @@ export default function ManagementCompaniesPage() {
   const [notice, setNotice] = useState("")
   // جهاز واحد لكل مستخدم: رسالة «مسجَّل الدخول من جهاز آخر» بزر المتابعة هنا (app/api/management/select-company)
   const sessionMessagesRef = useRef<any>(null)
+  // حساب الإدارة المسجَّل في هذا المتصفح (دخول واحد لكل متصفح — آخر من دخل) يظهر في الرأس حتى لا يُظن أنه حساب آخر
+  const [account, setAccount] = useState<{ name: string; email: string } | null>(null)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   // شركة تجريبية (اعتماد فوري ذاتي، اشتراك TRIAL_EXPIRY_DAYS يوماً — انظر
   // app/api/management/companies/trial/route.ts) — حوار منفصل عن "اضافة شركة جديدة" العادية
@@ -168,7 +170,10 @@ export default function ManagementCompaniesPage() {
   useEffect(() => {
     fetch("/api/management/me")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setIsPlatformAdmin(!!data?.isPlatformAdmin))
+      .then((data) => {
+        setIsPlatformAdmin(!!data?.isPlatformAdmin)
+        setAccount(data ? { name: data.fullName || "", email: data.email || "" } : null)
+      })
       .catch(() => setIsPlatformAdmin(false))
   }, [])
 
@@ -294,7 +299,7 @@ export default function ManagementCompaniesPage() {
     }
   }
 
-  const showDeviceConflict = (company: Company, device: ActivateCompanyResult["device"]) => {
+  const showDeviceConflict = (company: Company, device: ActivateCompanyResult["device"], conflictAccount?: ActivateCompanyResult["account"]) => {
     const since = formatSessionTime(device?.last_seen_at || device?.created_at)
     sessionMessagesRef.current?.clear?.()
     sessionMessagesRef.current?.show?.([{
@@ -305,6 +310,12 @@ export default function ManagementCompaniesPage() {
         <div className="flex w-full flex-col gap-3" dir={appDir()}>
           <div>
             <div className="font-bold">{tr("حسابك مسجَّل الدخول الآن من جهاز آخر")}</div>
+            {conflictAccount?.name || conflictAccount?.email ? (
+              <div className="mt-1 text-sm">
+                {tr("الحساب: {0}", conflictAccount.name || conflictAccount.email || "")}
+                {conflictAccount.name && conflictAccount.email ? <span dir="ltr"> ({conflictAccount.email})</span> : null}
+              </div>
+            ) : null}
             <div className="mt-1 text-sm">
               {tr("الجهاز: {0}", deviceLabel(device?.user_agent))}
               {since ? <span> · {tr("آخر نشاط")} <span dir="ltr">{since}</span></span> : null}
@@ -341,7 +352,7 @@ export default function ManagementCompaniesPage() {
       const result = await activateCompany(company.id, { force })
       if (result.code === "active_elsewhere") {
         setSelecting(null)
-        showDeviceConflict(company, result.device)
+        showDeviceConflict(company, result.device, result.account)
         return
       }
       if (!result.success) {
@@ -388,6 +399,12 @@ export default function ManagementCompaniesPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Wordmark />
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {account && (
+              <div className="hidden min-w-0 max-w-56 text-end sm:block">
+                <div className="truncate text-sm font-bold text-slate-700">{account.name || account.email}</div>
+                {account.name && <div className="truncate text-[11px] text-slate-400" dir="ltr">{account.email}</div>}
+              </div>
+            )}
             {isPlatformAdmin && (
               <a href="/management/admin" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-900">
                 <LayoutDashboard className="h-4 w-4" />{tr(" لوحة الإدارة")}

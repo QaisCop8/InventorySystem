@@ -1,0 +1,2 @@
+Account: {0}
+Account {0} is currently signed in on another device ({1}). Sign out that device and sign in here?

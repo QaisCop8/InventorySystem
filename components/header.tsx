@@ -109,7 +109,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     setSwitchingCompanyName(target.name);
     let result = await activateCompany(companyId);
     // جهاز واحد لكل مستخدم: الحساب مفتوح على هذه الشركة من جهاز آخر
-    if (result.code === "active_elsewhere" && window.confirm(tr("حسابك مسجَّل الدخول الآن من جهاز آخر ({0}). هل تريد تسجيل الخروج من الجهاز الآخر والدخول من هذا الجهاز؟", deviceLabel(result.device?.user_agent)))) {
+    if (result.code === "active_elsewhere" && window.confirm(tr("الحساب {0} مسجَّل الدخول الآن من جهاز آخر ({1}). هل تريد تسجيل الخروج من الجهاز الآخر والدخول من هذا الجهاز؟", result.account?.name || result.account?.email || "", deviceLabel(result.device?.user_agent)))) {
       result = await activateCompany(companyId, { force: true });
     }
     if (!result.success) {
