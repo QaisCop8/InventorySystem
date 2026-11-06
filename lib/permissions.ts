@@ -24,6 +24,8 @@ import {
   RESTAURANT_PERMISSION_CATEGORY,
   USER_ADMIN_PERMISSION,
   USER_ADMIN_PERMISSION_CATEGORY,
+  EXCHANGE_RATE_PERMISSION_CATEGORY,
+  EXCHANGE_RATE_PERMISSIONS,
   RESTAURANT_PERMISSIONS,
   CHEQUE_OPERATION_PERMISSION_CATEGORY,
   CHEQUE_OPERATION_PERMISSIONS,
@@ -445,7 +447,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 9
+const PERMISSION_SYNC_VERSION = 10
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -470,7 +472,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, CHEQUE_OPERATION_PERMISSIONS, USER_ADMIN_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, CHEQUE_OPERATION_PERMISSIONS, USER_ADMIN_PERMISSION, EXCHANGE_RATE_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -861,6 +863,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     [RESTAURANT_PERMISSION_CATEGORY, Object.values(RESTAURANT_PERMISSIONS)],
     [CHEQUE_OPERATION_PERMISSION_CATEGORY, Object.values(CHEQUE_OPERATION_PERMISSIONS)],
     [USER_ADMIN_PERMISSION_CATEGORY, [USER_ADMIN_PERMISSION]],
+    [EXCHANGE_RATE_PERMISSION_CATEGORY, Object.values(EXCHANGE_RATE_PERMISSIONS)],
   ] as const) {
   const creditCategoryRows = await client.query(
     `INSERT INTO access_category (name)

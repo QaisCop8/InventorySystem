@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { PoolClient } from "pg"
 import { getCurrenciesWithLatestRate, getOrCreateRatesForDate, getTenantPool, updateExchangeRate } from "@/lib/database"
+import { authorizeExchangeRateChange, ensureExchangeRateAuditColumns, exchangeRatePermissionFor, markExchangeRateEntered, resolveExchangeRateTarget } from "@/lib/exchange-rate-access"
+import { EXCHANGE_RATE_PERMISSIONS } from "@/lib/transaction-permission-definitions"
 
 const MIN_EXCHANGE_RATE = 0.001
 const MAX_EXCHANGE_RATE = 100000
@@ -15,6 +17,8 @@ const MAX_EXCHANGE_RATE = 100000
 export async function GET(request: NextRequest) {
   try {
     const date = request.nextUrl.searchParams.get("date")
+    // entered (أُدخل من مستخدم) يحتاج أعمدة exchange_rates.entered_at — lib/exchange-rate-access.ts
+    if (date) await ensureExchangeRateAuditColumns()
     const result = date ? await getOrCreateRatesForDate(date) : await getCurrenciesWithLatestRate()
 
     if (!result.success) {
@@ -33,6 +37,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let client: PoolClient | null = null
   try {
+    // عملة جديدة بسعرها = إضافة سعر صرف
+    const auth = await authorizeExchangeRateChange(request, EXCHANGE_RATE_PERMISSIONS.add)
+    if (!auth.ok) return auth.response
+    await ensureExchangeRateAuditColumns()
     const body = await request.json()
     const { currency_name, currency_code, buy_rate, sell_rate, exchange_rate, is_active } = body
     const currencyName = String(currency_name || "").trim()
@@ -104,12 +112,14 @@ export async function POST(request: NextRequest) {
         sell_rate,
         exchange_rate,
         is_active,
-        rate_date
+        rate_date,
+        entered_at,
+        entered_by
       ) VALUES (
-        $1, $2, $3, $4, $5, CURRENT_DATE
+        $1, $2, $3, $4, $5, CURRENT_DATE, CURRENT_TIMESTAMP, $6
       ) RETURNING *
       `,
-      [newId, buyRate, sellRate, exchangeRate, is_active !== false],
+      [newId, buyRate, sellRate, exchangeRate, is_active !== false, Number(auth.user.user_id) || null],
     )
     await client.query("COMMIT")
 
@@ -136,11 +146,18 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { id, ...rates } = await request.json()
+    // إضافة / تعديل / يوم سابق حسب السطر المستهدف (lib/exchange-rate-access.ts)
+    const target = await resolveExchangeRateTarget(id, rates)
+    if (Number(rates.type) !== 1 && !target) return NextResponse.json({ error: "سعر الصرف غير موجود" }, { status: 404 })
+    const auth = await authorizeExchangeRateChange(request, exchangeRatePermissionFor(target))
+    if (!auth.ok) return auth.response
+
     const result = await updateExchangeRate(id, rates)
 
     if (!result.success || !result.data || result.data.length === 0) {
       return NextResponse.json({ error: result.error ?? "No data returned" }, { status: 500 })
     }
+    await markExchangeRateEntered(Number(result.data[0].id), auth.user.user_id)
 
     return NextResponse.json({ rate: result.data[0] })
   } catch (error) {

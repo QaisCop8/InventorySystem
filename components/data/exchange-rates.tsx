@@ -28,6 +28,7 @@ import { useExchangeRates } from "@/hooks/use-swr-data"
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ErrorBoundary } from "@/components/error-boundary"
 import Messages from "@/components/common/Messages"
+import { readExchangeRateAccess } from "@/lib/exchange-rate-permissions-client"
 
 interface ExchangeRate {
   id: number,
@@ -51,6 +52,8 @@ const MAX_EXCHANGE_RATE = 10000
 
 function ExchangeRatesContent() {
   const { rates: exchangeRates, isLoading, isError, refresh, updateRate } = useExchangeRates()
+  // صلاحيات أسعار الصرف (اضافة / تعديل / يوم سابق) — الخادم يفرضها، هنا لتعطيل الأزرار فقط
+  const [rateAccess] = useState(readExchangeRateAccess)
 
   const [selectedRate, setSelectedRate] = useState<ExchangeRate | null>(null)
   const [showRateDialog, setShowRateDialog] = useState(false)
@@ -296,7 +299,7 @@ function ExchangeRatesContent() {
     } catch (err) {
       console.error("[v0] Error saving rate changes:", err)
       rateDialogMessagesRef.current?.show?.([
-        { severity: "error", summary: "", detail: tr("حدث خطأ أثناء حفظ التغييرات"), life: 5000 },
+        { severity: "error", summary: "", detail: err instanceof Error && err.message ? err.message : tr("حدث خطأ أثناء حفظ التغييرات"), life: 5000 },
       ])
     } finally {
       submittingRef.current = false
@@ -415,6 +418,8 @@ function ExchangeRatesContent() {
                   setShowNewRateDialog(true)
                 }}
                 variant="outline"
+                disabled={!rateAccess.add}
+                title={rateAccess.add ? undefined : tr("لا يوجد لديك صلاحية اضافة سعر الصرف")}
               >
                 <Plus className="h-4 w-4 ms-2" />
                 {tr("عملة جديدة")}
@@ -503,11 +508,11 @@ function ExchangeRatesContent() {
                       <div className="flex gap-1 justify-center">
                         {rate && rate.currency_id !== 1 &&
                           <div className="flex flex-wrap justify-center gap-1">
-                            <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleAddRate(rate) : undefined; console.log("rate ", rate) }} className="text-xs">
+                            <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleAddRate(rate) : undefined }} className="text-xs" disabled={!rateAccess.add} title={rateAccess.add ? undefined : tr("لا يوجد لديك صلاحية اضافة سعر الصرف")}>
                               <Edit className="h-3 w-1 me-1" />
                               {tr("اضافة")}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleEditRate(rate) : undefined; console.log("rate ", rate) }} className="text-xs">
+                            <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleEditRate(rate) : undefined }} className="text-xs" disabled={!rateAccess.edit && !rateAccess.editPast} title={rateAccess.edit || rateAccess.editPast ? undefined : tr("لا يوجد لديك صلاحية تعديل سعر صرف")}>
                               <Edit className="h-3 w-3 me-1" />
                               {tr("تعديل")}
                             </Button>

@@ -720,7 +720,8 @@ export async function getOrCreateRatesForDate(date: string) {
     const rows = await sql`
       SELECT
         c.id AS currency_id, c.currency_code, c.currency_name, c.is_active,
-        er.id, er.buy_rate, er.sell_rate, er.exchange_rate, to_char(er.rate_date, 'YYYY-MM-DD') AS rate_date
+        er.id, er.buy_rate, er.sell_rate, er.exchange_rate, to_char(er.rate_date, 'YYYY-MM-DD') AS rate_date,
+        (er.entered_at IS NOT NULL) AS entered
       FROM currency c
       LEFT JOIN LATERAL (
         SELECT *
@@ -757,7 +758,7 @@ export async function getOrCreateRatesForDate(date: string) {
         VALUES (${currencyId}, ${row.buy_rate ?? 1}, ${row.sell_rate ?? 1}, ${row.exchange_rate ?? 1}, true, ${date})
         RETURNING id, buy_rate, sell_rate, exchange_rate, rate_date
       `
-      result.push({ ...row, ...carried[0] })
+      result.push({ ...row, ...carried[0], entered: false })
     }
 
     return { success: true, data: result }

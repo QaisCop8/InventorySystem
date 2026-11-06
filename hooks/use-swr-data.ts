@@ -137,7 +137,8 @@ export function useExchangeRates() {
           body: JSON.stringify({ id, ...rateData }),
         })
 
-        if (!response.ok) throw new Error("Failed to update exchange rate")
+        // رسالة الخادم (مثل «لا يوجد لديك صلاحية تعديل سعر صرف») تصل للشاشة كما هي
+        if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || "Failed to update exchange rate")
 
         mutate()
         return await response.json()

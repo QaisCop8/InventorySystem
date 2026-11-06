@@ -1,0 +1,16 @@
+Add exchange rate
+Edit a previous day's exchange rate
+Exchange rates report
+You don't have permission to add exchange rates
+You don't have permission to edit exchange rates
+You don't have permission to edit a previous day's rates — view only
+You don't have permission to add or edit exchange rates — view only
+Couldn't load the exchange rates report
+Currency rates per day, the change from the previous day, and who entered each rate
+Rates
+Entered manually
+Copied automatically
+No exchange rates in this period
+Change
+Entered by
+Copied automatically

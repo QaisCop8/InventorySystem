@@ -57,6 +57,7 @@ const Drivers = lazyDefault(() => import("@/components/products/drivers"))
 const SalesmenPage = lazyDefault(() => import("@/components/salesmen/salesmen-pages"))
 const SalesmanCommissionPage = lazyDefault(() => import("@/components/salesmen/salesman-commission-page"))
 const ExchangeRates = lazyNamed(() => import("@/components/data/exchange-rates"), "ExchangeRates")
+const ExchangeRatesReport = lazyNamed(() => import("@/components/reports/exchange-rates-report"), "ExchangeRatesReport")
 const BatchMovements = lazyNamed(() => import("@/components/inventory/batch-movements"), "BatchMovements")
 const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"), "BatchReports")
 const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
@@ -452,6 +453,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   shifts: ShiftRosterPage,
   "official-holidays": OfficialHolidaysPage,
   "salary-items-report": (props: any) => <PayrollPage {...props} report="items" />,
+  "exchange-rates-report": ExchangeRatesReport,
   "income-tax-report": (props: any) => <PayrollPage {...props} report="tax" />,
 }
 

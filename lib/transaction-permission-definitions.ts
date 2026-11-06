@@ -184,6 +184,15 @@ export const ACCOUNT_BALANCE_VIEW_PERMISSION = "السماح بمشاهدة رص
 export const PURCHASE_PRICE_PERMISSION_CATEGORY = "الأصناف"
 export const PURCHASE_PRICE_VIEW_PERMISSION = "السماح بمشاهدة أسعار الشراء"
 
+// أسعار الصرف (نافذة أسعار الصرف اليومية وشاشة العملات — app/api/exchange-rates، lib/exchange-rate-access.ts):
+// إضافة = أول إدخال لسعر اليوم أو عملة جديدة؛ تعديل = تغيير سعر اليوم بعد إدخاله؛ يوم سابق = أي حفظ بتاريخ قبل اليوم
+export const EXCHANGE_RATE_PERMISSION_CATEGORY = "أسعار الصرف"
+export const EXCHANGE_RATE_PERMISSIONS = {
+  add: "اضافة سعر الصرف",
+  edit: "تعديل سعر صرف",
+  editPast: "تعديل سعر صرف ليوم سابق",
+} as const
+
 // إعدادات المستخدمين والصلاحيات (الإعدادات ← اعدادات المستخدمين): تُفتح فقط لمسؤول (دور "مدير"/admin أو "جميع
 // الصلاحيات") أو لمن مُنح صراحةً هذه الصلاحية — خلافاً لباقي الشاشات، غياب الصلاحية من القائمة يعني المنع.
 export const USER_ADMIN_PERMISSION_CATEGORY = "الإعدادات"

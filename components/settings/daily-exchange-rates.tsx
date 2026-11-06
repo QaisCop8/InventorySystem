@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Button } from "@/components/ui/button"
 import { ArrowLeftRight, CalendarDays, Coins, Loader2, Save, X } from "lucide-react"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { readExchangeRateAccess } from "@/lib/exchange-rate-permissions-client"
 
 interface CurrencyRateRow {
   currency_id: number
@@ -15,7 +16,12 @@ interface CurrencyRateRow {
   buy_rate: number
   sell_rate: number
   exchange_rate: number
+  /** أُدخل من مستخدم (لا نسخ تلقائي) — بلا تغيير لا يُعاد حفظه (حفظه تعديل يحتاج «تعديل سعر صرف») */
+  entered: boolean
+  original: string
 }
+
+const rateSignature = (row: Pick<CurrencyRateRow, "buy_rate" | "sell_rate" | "exchange_rate">) => [row.buy_rate, row.sell_rate, row.exchange_rate].map(Number).join("|")
 
 interface DailyExchangeRatesDialogProps {
   open: boolean
@@ -56,9 +62,16 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const savingRef = useRef(false)
+  const canSaveRef = useRef(true)
   const rowsRef = useRef(rows)
   useEffect(() => { rowsRef.current = rows }, [rows])
   const listRef = useRef<HTMLDivElement>(null)
+  // صلاحيات أسعار الصرف: يوم سابق ⇐ «تعديل سعر صرف ليوم سابق»؛ اليوم ⇐ «اضافة سعر الصرف» أو «تعديل سعر صرف» (الخادم يحدد أيهما)
+  const [rateAccess, setRateAccess] = useState(readExchangeRateAccess)
+  useEffect(() => { if (open) setRateAccess(readExchangeRateAccess()) }, [open])
+  const isPastDate = rateDate < today
+  const canSave = isPastDate ? rateAccess.editPast : rateAccess.add || rateAccess.edit
+  const readOnlyReason = canSave ? "" : isPastDate ? tr("لا يوجد لديك صلاحية تعديل سعر صرف ليوم سابق — العرض فقط") : tr("لا يوجد لديك صلاحية اضافة أو تعديل سعر الصرف — العرض فقط")
 
   useEffect(() => {
     if (!open) return
@@ -79,6 +92,8 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             buy_rate: Number(r.buy_rate) || 0,
             sell_rate: Number(r.sell_rate) || 0,
             exchange_rate: Number(r.exchange_rate) || 0,
+            entered: r.entered === true,
+            original: rateSignature({ buy_rate: Number(r.buy_rate) || 0, sell_rate: Number(r.sell_rate) || 0, exchange_rate: Number(r.exchange_rate) || 0 }),
           }))
           .sort((a: CurrencyRateRow, b: CurrencyRateRow) => a.currency_id - b.currency_id)
         setRows(mapped)
@@ -108,6 +123,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       if (invalid) throw new Error(tr("أدخل سعر صرف صحيحاً لعملة {0}", invalid.currency_code))
       for (const row of rowsRef.current) {
         if (row.is_base) continue
+        if (row.entered && rateSignature(row) === row.original) continue
         const res = await fetch("/api/exchange-rates", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -122,7 +138,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             rate_date: rateDate,
           }),
         })
-        if (!res.ok) throw new Error(tr("فشل حفظ سعر صرف بعض العملات"))
+        if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || tr("فشل حفظ سعر صرف بعض العملات"))
       }
       onOpenChange(false)
       onSaved?.()
@@ -146,7 +162,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       if (event.key !== "F3") return
       event.preventDefault()
       event.stopPropagation()
-      if (!savingRef.current && !loading && rowsRef.current.length > 0) void handleSave()
+      if (!savingRef.current && !loading && rowsRef.current.length > 0 && canSaveRef.current) void handleSave()
     }
     document.addEventListener("keydown", handleShortcut, true)
     return () => document.removeEventListener("keydown", handleShortcut, true)
@@ -162,6 +178,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     if (next) { next.focus(); next.select() } else document.getElementById("daily-rates-save")?.focus()
   }
 
+  canSaveRef.current = canSave
   const base = rows.find((row) => row.is_base)
   const others = rows.filter((row) => !row.is_base)
 
@@ -220,6 +237,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
           )}
 
           {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700">{error}</div>}
+          {readOnlyReason && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">{readOnlyReason}</div>}
 
           {base && (
             <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
@@ -263,6 +281,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
                       onChange={(e) => setField(row.currency_id, field.key, e.target.value)}
                       onFocus={(e) => e.target.select()}
                       onKeyDown={handleEnter}
+                      readOnly={!canSave}
                       className={`h-11 w-full rounded-xl border px-3 text-center font-mono text-base font-bold outline-none transition focus:ring-4 dark:bg-slate-900 ${field.key === "exchange_rate"
                         ? "border-emerald-300 bg-emerald-50/60 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-100 dark:text-emerald-200 dark:focus:ring-emerald-900/50"
                         : "border-slate-200 bg-slate-50 text-slate-800 focus:border-sky-400 focus:bg-white focus:ring-sky-100 dark:border-slate-700 dark:text-slate-100 dark:focus:ring-sky-900/50"}`}
@@ -278,7 +297,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
         <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:justify-between sm:px-6 dark:border-slate-800 dark:bg-slate-950">
           <span className="hidden text-xs text-slate-500 sm:block">{tr("Enter للانتقال بين الحقول · F3 للحفظ")}</span>
           <div className="flex w-full gap-2 sm:w-auto">
-            <Button id="daily-rates-save" onClick={handleSave} disabled={saving || loading || rows.length === 0} className="h-11 flex-1 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700 sm:h-10 sm:w-32 sm:flex-none">
+            <Button id="daily-rates-save" onClick={handleSave} disabled={saving || loading || rows.length === 0 || !canSave} className="h-11 flex-1 rounded-xl bg-emerald-600 font-bold hover:bg-emerald-700 sm:h-10 sm:w-32 sm:flex-none">
               {saving ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
               {tr("حفظ")}
             </Button>

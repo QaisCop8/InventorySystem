@@ -112,6 +112,9 @@ const DialogContent = React.forwardRef<
         className,
       )}
       style={{
+        // داخل مساحة الشاشة (confined): لا تتجاوز النافذة عرض المساحة أبداً — w-[96vw] من عرض المتصفح كله (نموذج العملاء)
+        // كان أعرض من المساحة بجانب القائمة فيُقصّ طرفاه ويختفي يمينه تحت القائمة الجانبية
+        ...(confined ? { maxWidth: "calc(100% - 1.5rem)" } : {}),
         ...(confined && isLargeTransactionDialog
           ? {
               width: "calc(100% - 1.5rem)",

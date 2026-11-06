@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { readExchangeRateAccess } from "@/lib/exchange-rate-permissions-client"
 
 const CHECK_INTERVAL_MS = 30 * 60 * 1000 // كل 30 دقيقة
 
@@ -32,6 +33,8 @@ export function useDailyExchangeRatesCheck() {
   const checkNow = useCallback(async () => {
     try {
       if (openRef.current || wasHandledToday()) return
+      // النافذة التلقائية لإدخال سعر اليوم — لمن يملك «اضافة سعر الصرف» فقط (الزر اليدوي يبقى للعرض)
+      if (!readExchangeRateAccess().add) return
       const res = await fetch("/api/exchange-rates")
       if (!res.ok) return
       const data = await res.json()
