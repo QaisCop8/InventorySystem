@@ -71,7 +71,7 @@ export const metadata: Metadata = {
     title: "NoonERP System",
   },
   icons: {
-    icon: [{ url: "/brand/noonerp-favicon.png", type: "image/png", sizes: "64x64" }, { url: "/icon-192.png", type: "image/png", sizes: "192x192" }],
+    icon: [{ url: "/brand/noonerp-favicon.png?v=3", type: "image/png", sizes: "64x64" }, { url: "/icon-192.png?v=2", type: "image/png", sizes: "192x192" }],
     apple: "/apple-touch-icon.png",
   },
   other: {

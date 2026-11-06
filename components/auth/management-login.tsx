@@ -79,7 +79,7 @@ const css = `
 `
 
 function Wordmark() {
-  return <NoonLogo size="lg" />
+  return <NoonLogo size="md" />
 }
 
 function DashboardScene() {
