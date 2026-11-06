@@ -1,0 +1,17 @@
+Default
+Payment classification name
+e.g. Bank transfer
+Please enter the payment classification name
+An error occurred while saving the payment classification
+Payment classification updated successfully
+Payment classification added successfully
+Failed to delete the payment classification
+Payment classification deleted
+Could not delete the payment classification
+Edit payment classification
+Are you sure you want to delete this payment classification?
+Delete payment classification
+Payment classification name is required
+Duplicate payment classification name, cannot continue
+Invalid payment classification ID
+Payment classification not found

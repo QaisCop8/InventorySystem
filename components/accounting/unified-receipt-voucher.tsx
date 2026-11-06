@@ -612,7 +612,9 @@ export default function UnifiedReceiptVoucher({
     const snapshotTimer = window.setTimeout(() => {
       initialFormHashRef.current = hashForm(latestFormRef.current)
     }, 350)
-    setActiveTab("main")
+    // سند القبض يفتح على تبويب الشيكات (طلب المستخدم)، وسند الصرف على الرئيسية.
+    detachGridItemsSource(journalGridRef)
+    setActiveTab(isReceipt ? "cheques" : "main")
     return () => window.clearTimeout(snapshotTimer)
     // لا تعتمد على form.vch_code هنا: كل حرف يكتبه المستخدم كان يعيد ضبط لقطة التغييرات غير
     // المحفوظة ويعيد التبويب إلى الرئيسية، فيُعامَل تعديل رقم السند كأنه لم يحدث.
@@ -2422,7 +2424,7 @@ export default function UnifiedReceiptVoucher({
             <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
                 <TabsTrigger value="cheques" className={voucherTabTriggerClass}>{tr("الشيكات")}</TabsTrigger>
-                <TabsTrigger value="main" className={voucherTabTriggerClass}>{tr("الرئيسية")}</TabsTrigger>
+                <TabsTrigger value="main" className={voucherTabTriggerClass}>{tr("افتراضية")}</TabsTrigger>
                 {!isPayment && (
                   <TabsTrigger value="card" className={voucherTabTriggerClass}>{tr("تفاصيل البطاقة")}</TabsTrigger>
                 )}

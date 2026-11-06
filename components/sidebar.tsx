@@ -852,7 +852,7 @@ export function Sidebar({
         className={cn(
           "fixed start-0 top-0 z-40 flex h-[100dvh] flex-col border-e border-slate-200/80 bg-white text-slate-800 shadow-[0_0_40px_-20px_rgba(15,23,42,0.25)] transition-[width,transform] duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_60%,#0b1220_100%)] dark:text-slate-100",
           isMobile && "z-50 w-[min(22rem,calc(100vw-1rem))]",
-          isMobile && !isOpen ? "translate-x-full" : "translate-x-0",
+          isMobile && !isOpen ? "rtl:translate-x-full ltr:-translate-x-full" : "translate-x-0",
         )}
         style={width ? { width } : undefined}
         dir={appDir()}

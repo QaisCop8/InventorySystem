@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<title>Al-Sabbah Logo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1535px; height: 1024px; overflow: hidden; background: #fdfaf1; }
+  .logo { position: relative; width: 1535px; height: 1024px; background: url(al-sabbah-original.png) no-repeat 0 0; }
+  /* hide the old Arabic line, keep the swoosh on the right untouched */
+  .patch { position: absolute; left: 295px; top: 664px; width: 772px; height: 136px; background: #fdfaf1;
+    clip-path: polygon(0 0, 100% 0, 100% 74%, 88% 74%, 88% 100%, 0 100%); }
+  .ar {
+    position: absolute; left: 140px; width: 1000px; top: 660px; text-align: center; direction: rtl;
+    font-family: "Cairo", sans-serif; font-weight: 800; font-size: 88px; line-height: 1.5; color: #074128;
+  }
+</style>
+</head>
+<body>
+  <div class="logo">
+    <div class="patch"></div>
+    <div class="ar">شركة الصبّاح للبرمجة</div>
+  </div>
+</body>
+</html>

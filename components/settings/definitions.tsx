@@ -298,6 +298,9 @@ function Definitions() {
   const [licenseTypeForm, setLicenseTypeForm] = useState({
     name: "",
   })
+  const [paymentClassifications, setPaymentClassifications] = useState<{ id: number; name: string }[]>([])
+  const [showPaymentClassificationForm, setShowPaymentClassificationForm] = useState(false)
+  const [paymentClassificationForm, setPaymentClassificationForm] = useState({ id: 0, name: "" })
   const [branchForm, setBranchForm] = useState({
     id: 0,
     branch_code: "",
@@ -390,7 +393,7 @@ function Definitions() {
   const fetchAllData = async () => {
     setLoading(true)
     try {
-      await Promise.all([fetchCities(), fetchCustomerCategories(), fetchsupplierCategories(), fetchProductCategories(), fetchLicenseTypes(), fetchPrices()])
+      await Promise.all([fetchCities(), fetchCustomerCategories(), fetchsupplierCategories(), fetchProductCategories(), fetchLicenseTypes(), fetchPaymentClassifications(), fetchPrices()])
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -703,6 +706,16 @@ function Definitions() {
     } catch (error) {
       console.error("Error fetching license types:", error)
       setLicenseTypes([])
+    }
+  }
+  const fetchPaymentClassifications = async () => {
+    try {
+      const response = await fetch("/api/payment-classifications")
+      const data = response.ok ? await response.json() : []
+      setPaymentClassifications(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("Error fetching payment classifications:", error)
+      setPaymentClassifications([])
     }
   }
   const fetchTaxClassifications = async () => {
@@ -1104,6 +1117,50 @@ function Definitions() {
         description: error instanceof Error ? error.message : tr("تعذر حذف نوع الرخصة"),
         variant: "destructive",
       })
+    }
+  }
+
+  // تصنيف الدفعة: يملأ قائمة "تصنيف الدفعة" في سندات القبض/الصرف والقيود وإشعارات الدائن
+  const handleSavePaymentClassification = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const name = paymentClassificationForm.name.trim()
+    if (!name) {
+      toast({ title: tr("خطأ"), description: tr("يرجى إدخال اسم تصنيف الدفعة"), variant: "destructive" })
+      return
+    }
+    const editing = paymentClassificationForm.id > 0
+    try {
+      const response = await fetch(editing ? `/api/payment-classifications/${paymentClassificationForm.id}` : "/api/payment-classifications", {
+        method: editing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        toast({ title: tr("فشل الحفظ"), description: error.error || tr("حدث خطأ أثناء حفظ تصنيف الدفعة"), variant: "destructive" })
+        return
+      }
+      toast({ title: tr("تم الحفظ بنجاح"), description: editing ? tr("تم تعديل تصنيف الدفعة بنجاح") : tr("تم إضافة تصنيف الدفعة بنجاح") })
+      await fetchPaymentClassifications()
+      setPaymentClassificationForm({ id: 0, name: "" })
+      setShowPaymentClassificationForm(false)
+    } catch (error) {
+      console.error("Error saving payment classification:", error)
+      toast({ title: tr("خطأ في الاتصال"), description: tr("تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى"), variant: "destructive" })
+    }
+  }
+
+  const handleDeletePaymentClassification = async (id: number) => {
+    try {
+      const response = await fetch(`/api/payment-classifications/${id}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error || tr("فشل في حذف تصنيف الدفعة"))
+      }
+      await fetchPaymentClassifications()
+      toast({ title: tr("تم الحذف"), description: tr("تم حذف تصنيف الدفعة") })
+    } catch (error) {
+      toast({ title: tr("فشل الحذف"), description: error instanceof Error ? error.message : tr("تعذر حذف تصنيف الدفعة"), variant: "destructive" })
     }
   }
 
@@ -3585,6 +3642,106 @@ function Definitions() {
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* تصنيف الدفعة — مصدر قائمة "تصنيف الدفعة" في السندات */}
+            <Card dir={appDir()}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    {tr("تصنيف الدفعة")} ({paymentClassifications.length})
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setPaymentClassificationForm({ id: 0, name: "" })
+                      setShowPaymentClassificationForm(!showPaymentClassificationForm || paymentClassificationForm.id > 0)
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {showPaymentClassificationForm && (
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir={appDir()}>
+                    <form className="space-y-3" onSubmit={handleSavePaymentClassification}>
+                      <div className="text-start">
+                        <Label className="erp-label text-sm text-start block">{tr("اسم تصنيف الدفعة")}</Label>
+                        <Input
+                          className="erp-input text-start"
+                          placeholder={tr("مثال: تحويل بنكي")}
+                          dir={appDir()}
+                          maxLength={100}
+                          autoFocus
+                          value={paymentClassificationForm.name}
+                          onChange={(e) => setPaymentClassificationForm({ ...paymentClassificationForm, name: e.target.value.slice(0, 100) })}
+                        />
+                      </div>
+                      <div className="flex justify-start gap-2">
+                        <Button type="submit" size="sm" className="erp-btn-primary">
+                          {tr("حفظ")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowPaymentClassificationForm(false)
+                            setPaymentClassificationForm({ id: 0, name: "" })
+                          }}
+                        >
+                          {tr("إلغاء")}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {paymentClassifications.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
+                      dir={appDir()}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                          <div className="text-start">
+                            <h4 className="font-medium text-sm">{item.name}</h4>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setPaymentClassificationForm({ id: item.id, name: item.name })
+                              setShowPaymentClassificationForm(true)
+                            }}
+                            aria-label={tr("تعديل تصنيف الدفعة")}
+                            title={tr("تعديل تصنيف الدفعة")}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm(tr("هل أنت متأكد من حذف تصنيف الدفعة هذا؟"), () => handleDeletePaymentClassification(item.id))}
+                            aria-label={tr("حذف تصنيف الدفعة")}
+                            title={tr("حذف تصنيف الدفعة")}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
