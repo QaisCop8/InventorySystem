@@ -64,6 +64,8 @@ import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/vo
 import { useTransactionSuccessMessages } from "@/lib/transaction-success"
 import { SmsSendDialog } from "@/components/sms/sms-send-dialog"
 import { pickRoleUnit } from "@/lib/product-unit-roles"
+import VoucherItemCards, { type ItemCardField } from "@/components/sales/voucher-item-cards"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -532,6 +534,7 @@ export default function UnifiedSalesDelivery({
   const isFromConsignment = voucherType === SALES_INVOICE_VCH_TYPE && Number(form.invoice_source_type || 1) === 4
   const isSalesmanVoucher = isConsignment || isConsignmentReturn
   const consignmentLinked = isFromConsignment || isConsignmentReturn
+  const isMobile = useIsMobile()
   const consignmentCode = String((form as any).consignment_code || ((form.items || []) as any[]).find((row: any) => Number(row.delivery_item_id) > 0 && row.source_voucher_code)?.source_voucher_code || "")
   // إرسالية مبيعات ومشتريات: "عادية" أو "من طلبية" فقط (من طلبية = نفس إجراء الفاتورة: اختيار الطلبية والمتبقي وربط الأسطر)
   const invoiceSourceOptions = voucherType === SALES_INVOICE_VCH_TYPE
@@ -2126,13 +2129,15 @@ export default function UnifiedSalesDelivery({
     // Only the active voucher's view may commit edits or replace the grid ref.
     if (grid?.disposed || grid?.itemsSource !== itemsCollectionViewRef.current || e.cancel) return
     itemsGridRef.current = grid
-    const row = e.row
-    const colName = grid?.columns?.[e.col]?.binding
-    const value = grid.getCellData(row, e.col, false)
+    commitItemField(e.row, grid?.columns?.[e.col]?.binding, grid.getCellData(e.row, e.col, false), grid)
+  }
+
+  // منطق إنهاء تحرير حقل سطر — تستدعيه الشبكة وبطاقات الجوال (VoucherItemCards) معاً
+  const commitItemField = (row: number, colName: string, value: any, grid?: any) => {
     if (colName === "total_price") {
       const snapshot = amountEditSnapshotRef.current
       const currentRow = itemsRef.current[row]
-      const oldAmount = snapshot && snapshot.grid === grid && snapshot.row === row
+      const oldAmount = grid && snapshot && snapshot.grid === grid && snapshot.row === row
         ? snapshot.value
         : currentRow?.total_price
       const safeOldAmount = oldAmount == null ? oldAmount : finiteItemNumber(oldAmount) ?? 0
@@ -2290,6 +2295,45 @@ export default function UnifiedSalesDelivery({
         e.cancel = true
       }
     }
+  }
+
+  // ===== بطاقات الأصناف على الجوال (إرسالية مبيعات فقط حالياً — تجربة قبل تعميمها على باقي السندات) =====
+  const useItemCards = isMobile && voucherType === DELIVERY_SELL_VCH_TYPE
+
+  // نفس قيود isReadOnly في scheme وhandleBeginningEdit للشبكة
+  const canEditItemCard = (index: number, field: ItemCardField) => {
+    if (isLocked) return false
+    const row = itemsRef.current[index]
+    if (field === "product" || field === "warehouse" || field === "unit") return !isFromDelivery && !consignmentLinked
+    if (field === "delete") return !isFromDelivery && !isConsignmentReturn
+    if (isFromDelivery) return field === "unit_price"
+    if (consignmentLinked) {
+      const allowed = isConsignmentReturn ? ["note"] : ["quantity", "bonus_quantity", "unit_price", "discount_percent", "total_price", "note"]
+      return allowed.includes(field) && Number(row?.delivery_item_id) > 0
+    }
+    return true
+  }
+
+  // صنف جديد: السطر الأخير الفارغ يُملأ، وإلا يُضاف سطر فارغ في النهاية
+  const targetEmptyItemRow = () => {
+    const rows = itemsRef.current
+    if (rows.length > 0 && !rows[rows.length - 1].product_id) return rows.length - 1
+    const next = [...rows, { ...emptyItemRow }]
+    itemsRef.current = next
+    onItemsChange(next)
+    return next.length - 1
+  }
+
+  const openCardProductSearch = (index: number | null) => {
+    pendingFocusRow.current = index ?? targetEmptyItemRow()
+    popupHasCalled()
+    setTimeout(() => setProductSearchOpen(true), 0)
+  }
+
+  const handleCardQuickCode = (code: string) => {
+    const row = targetEmptyItemRow()
+    // البحث يطابق رقم الصنف والباركود معاً؛ "barcode" يحفظ القيمة كما مُسحت (بلا تعبئة رقم الصنف)
+    void lookupProductByCode(row, code, "barcode", false)
   }
 
   const handleWarehouseSelect = (store: WarehouseOption) => {
@@ -3726,6 +3770,44 @@ export default function UnifiedSalesDelivery({
 
             <fieldset className="contents">
               <TabsContent value="items" className="mt-2 min-h-[300px] space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                {useItemCards ? (
+                  <VoucherItemCards
+                    items={items}
+                    show={{
+                      warehouse: Util.getVoucherSettingScreenData(voucherType, "store"),
+                      unit: Util.getVoucherSettingScreenData(voucherType, "unit"),
+                      bonus: Util.getVoucherSettingScreenData(voucherType, "bonus"),
+                      price: Util.getVoucherSettingScreenData(voucherType, "price"),
+                      discount: Util.getVoucherSettingScreenData(voucherType, "discount"),
+                      batch: Util.getVoucherSettingScreenData(voucherType, "batch"),
+                      expiry: showExpiryColumn,
+                    }}
+                    canEdit={canEditItemCard}
+                    canAdd={!isLocked && !isFromDelivery && !consignmentLinked}
+                    onCommit={(row, field, value) => commitItemField(row, field, value)}
+                    onAdd={() => openCardProductSearch(null)}
+                    onQuickCode={handleCardQuickCode}
+                    onChangeProduct={(row) => openCardProductSearch(row)}
+                    onPickWarehouse={(row) => {
+                      setWarehouseSearchRow(row)
+                      popupHasCalled()
+                      setTimeout(() => setWarehouseSearchOpen(true), 0)
+                    }}
+                    onPickUnit={(row) => {
+                      setUnitsSearchRow(row)
+                      popupHasCalled()
+                      setTimeout(() => setUnitsSearchOpen(true), 0)
+                    }}
+                    onMeasurement={(row) => {
+                      popupHasCalled()
+                      setMeasurementDialogRow(row)
+                      setMeasurementDialogOpen(true)
+                    }}
+                    onAttributes={(row) => void openAttributeEditor(row)}
+                    onSerials={(row) => openSerialsDialog(row, true)}
+                    onDelete={(row) => void removeItemRow(row)}
+                  />
+                ) : (
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
                     key={`sales-delivery-items-${gridResetToken}-${form.id}-${form.status}`}
@@ -3747,6 +3829,7 @@ export default function UnifiedSalesDelivery({
                     dontConvertToCards={true}
                   />
                 </div>
+                )}
               </TabsContent>
 
               {showAccountsTab && (

@@ -88,7 +88,7 @@ export async function GET() {
         updated_at
       FROM units
       WHERE COALESCE(status, 1) != 3
-      ORDER BY unit_name
+      ORDER BY unit_code ASC NULLS LAST, id
     `
 
     return NextResponse.json(units)

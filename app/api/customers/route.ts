@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
                    , acc.iscalc_curr_diff_rates
                    , acc.level_no
                    , acc.max_balance_amount
-          ORDER BY c.created_at DESC
+          ORDER BY c.customer_code ASC NULLS LAST, c.id ASC
         `
       : await sql`
           SELECT 
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
                    , acc.iscalc_curr_diff_rates
                    , acc.level_no
                    , acc.max_balance_amount
-          ORDER BY c.created_at DESC
+          ORDER BY c.customer_code ASC NULLS LAST, c.id ASC
         `
 
     if (permission.lookupOnly) {

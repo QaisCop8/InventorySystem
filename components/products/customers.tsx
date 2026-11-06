@@ -973,7 +973,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           const filteredRecords = allRecords.filter((record: { type: number }) =>
             Number(record.type ?? 1) === entityTypeCode
           );
-          filteredRecords.sort((a: Customer, b: Customer) => a.id - b.id);
+          filteredRecords.sort((a: Customer, b: Customer) => String(a.customer_code || "").localeCompare(String(b.customer_code || ""), "en", { numeric: true }) || a.id - b.id);
           setCustomers(filteredRecords);
 
           if (filteredRecords.length > 0) {

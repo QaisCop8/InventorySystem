@@ -639,7 +639,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             dir={appDir()}
           >
             <span className={`min-w-0 flex-1 truncate text-start ${node.children.length ? `font-bold ${tone.parent}` : "font-medium"}`}>{node.name}</span>
-            <span className="shrink-0 font-mono text-[10px] text-slate-500" dir="ltr">{node.code}</span>
+            <span className="shrink-0 font-mono text-[13px] font-bold text-slate-700" dir="ltr">{node.code}</span>
           </button>
         </div>
         {expanded && node.children.length > 0 && (

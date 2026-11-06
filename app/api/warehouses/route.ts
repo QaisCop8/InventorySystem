@@ -70,7 +70,7 @@ export async function GET() {
         updated_at
       FROM warehouses
       WHERE status != 3
-      ORDER BY id ASC
+      ORDER BY warehouse_code ASC NULLS LAST, id ASC
     `
 
     // مراكز التكلفة الافتراضية لكل مستودع (تُستخدم لسطور الأصناف بالسندات — انظر lib/cost-center-defaults.ts)

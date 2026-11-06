@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       SELECT id, bank_code, bank_name, bank_name_en, status, created_at, updated_at
       FROM banks
       WHERE status != 3
-      ORDER BY id
+      ORDER BY bank_code ASC NULLS LAST, id
     `
 
     return NextResponse.json(authorization.lookupOnly ? projectFileLookup("banks", banks) : banks)

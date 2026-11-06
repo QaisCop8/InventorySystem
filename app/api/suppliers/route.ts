@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
     const suppliers = await sql`
       SELECT *
       FROM suppliers
-      ORDER BY created_at DESC
+      ORDER BY supplier_code ASC NULLS LAST, id ASC
     `
 
     return NextResponse.json(permission.lookupOnly ? projectFileLookup("suppliers", suppliers) : suppliers)

@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         updated_at
       FROM item_groups
       WHERE status <> 3
-      ORDER BY id
+      ORDER BY group_code ASC NULLS LAST, id
     `
 
     const formattedGroups: ItemGroup[] = itemGroups.map((group) => ({

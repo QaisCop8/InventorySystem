@@ -459,8 +459,7 @@ export default function Branches() {
         canSave={
           /^\d{1,4}$/.test(form.branch_code) &&
           !!form.branch_name.trim() &&
-          !!form.branch_symbol &&
-          !branches.some((b) => (b.branch_symbol || "").toUpperCase() === form.branch_symbol.toUpperCase() && b.id !== form.id) &&
+          // فروع البنوك بلا رمز (الرمز لفروع الشركة فقط — يُحفَظ null دائماً هنا)
           !!form.bank_id &&
           Number(form.bank_id) > 0 &&
           !branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id) &&

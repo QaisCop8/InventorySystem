@@ -25,7 +25,7 @@ export async function GET() {
       JOIN cost_center_types t ON t.id = c.cost_type_id
       LEFT JOIN cost_centers p ON p.id = c.parent_id
       WHERE c.status IN (1, 2)
-      ORDER BY c.id DESC
+      ORDER BY c.id ASC
     `
 
     return NextResponse.json(items)

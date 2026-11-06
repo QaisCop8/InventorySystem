@@ -39,14 +39,23 @@ export async function GET(request: NextRequest) {
           SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status, COALESCE(is_bank_branch, false) AS is_bank_branch
           FROM branches
           WHERE status != 3 AND bank_id = ${bankId}
-          ORDER BY id ASC
+          ORDER BY branch_code ASC NULLS LAST, id ASC
         `
       : await sql`
           SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status, COALESCE(is_bank_branch, false) AS is_bank_branch
           FROM branches
           WHERE status != 3
-          ORDER BY id ASC
+          ORDER BY branch_code ASC NULLS LAST, id ASC
         `).filter((row: any) => kind === "all" || (kind === "bank") === Boolean(row.is_bank_branch))
+    // فروع البنوك: ترتيب برقم البنك ثم رقم الفرع (جدول banks يُنشأ عند فتح شاشة البنوك فقط — قد لا يوجد)
+    if (kind !== "company") {
+      const bankCodes = new Map<number, string>()
+      try {
+        for (const bank of await sql`SELECT id, bank_code FROM banks`) bankCodes.set(Number(bank.id), String(bank.bank_code ?? ""))
+      } catch {}
+      const bankKey = (row: any) => (row.bank_id != null && bankCodes.has(Number(row.bank_id)) ? bankCodes.get(Number(row.bank_id))! : "￿")
+      branches.sort((a: any, b: any) => bankKey(a).localeCompare(bankKey(b), "en", { numeric: true }) || String(a.branch_code ?? "").localeCompare(String(b.branch_code ?? ""), "en", { numeric: true }))
+    }
 
     // scope=mine (قائمة فرع رأس الصفحة): دائماً فروع عضوية المستخدم فقط (بلا صفوف = كل الفروع)، حتى لمن يملك صلاحية ملف الفروع
     if (searchParams.get("scope") === "mine") {

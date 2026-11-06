@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         OR p.status = 'ACTIVE'
       )
       AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
-      ORDER BY p.created_at DESC
+      ORDER BY p.product_code ASC NULLS LAST, p.id ASC
     `
 
     return NextResponse.json(products.map((product: any) => {

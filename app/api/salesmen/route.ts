@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const rows = await sql`
       SELECT s.*, supervisor.name AS supervisor_name, account.code AS parent_account_code, account.name AS parent_account_name
       FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id = s.supervisor_id LEFT JOIN account_tbl account ON account.id=s.parent_account_id
-      ORDER BY s.id ASC
+      ORDER BY s.code ASC NULLS LAST, s.id ASC
     `;
 
     return NextResponse.json({ success: true, data: rows });
