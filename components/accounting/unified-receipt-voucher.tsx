@@ -264,6 +264,11 @@ const selectCell = (rawGrid: any, row: number, colName: string) => {
   const colIndex = grid.columns.findIndex((c: any) => c.binding === colName)
   if (colIndex >= 0) {
     grid.select(new CellRange(row, colIndex))
+    try {
+      grid.scrollIntoView(row, colIndex)
+    } catch {
+      // Selection still works if the grid implementation does not expose scrollIntoView.
+    }
   }
 }
 
@@ -1150,6 +1155,7 @@ export default function UnifiedReceiptVoucher({
     if (isLocked) return
     // تاريخ الاستحقاق يبدأ بتاريخ اليوم دائماً بدل فارغ — المستخدم يعدّله يدوياً إن أراد.
     const next = [...chequesRef.current, { ...emptyChequeRow, due_date: new Date().toISOString().slice(0, 10) }]
+    if (!pendingChequeFocusRef.current) pendingChequeFocusRef.current = { row: next.length - 1, col: "bank_account" }
     chequesRef.current = next
     onChequesChange(next)
   }
@@ -2411,19 +2417,18 @@ export default function UnifiedReceiptVoucher({
               />
             </div>
 
-            {/* Tabs: الرئيسية, الشيكات, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات, الحقول الإضافية */}
+            {/* Tabs: الشيكات, الرئيسية, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات */}
             </fieldset>
             <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-                <TabsTrigger value="main" className={voucherTabTriggerClass}>{tr("الرئيسية")}</TabsTrigger>
                 <TabsTrigger value="cheques" className={voucherTabTriggerClass}>{tr("الشيكات")}</TabsTrigger>
+                <TabsTrigger value="main" className={voucherTabTriggerClass}>{tr("الرئيسية")}</TabsTrigger>
                 {!isPayment && (
                   <TabsTrigger value="card" className={voucherTabTriggerClass}>{tr("تفاصيل البطاقة")}</TabsTrigger>
                 )}
                 <TabsTrigger value="journal" className={voucherTabTriggerClass}>{tr("الحسابات")}</TabsTrigger>
                 <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
                 <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
-                <TabsTrigger value="extra" className={voucherTabTriggerClass}>{tr("الحقول الإضافية")}</TabsTrigger>
               </TabsList>
 
               {/* الرئيسية */}
@@ -2727,12 +2732,6 @@ export default function UnifiedReceiptVoucher({
               </fieldset>
               </TabsContent>
 
-              {/* الحقول الإضافية */}
-              <TabsContent value="extra" className="mt-4 min-h-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <fieldset disabled={isLocked} className="contents">
-                <p className="py-4 text-center text-sm text-slate-400">{tr("لا توجد حقول إضافية معرّفة لهذا النوع من السندات")}</p>
-              </fieldset>
-              </TabsContent>
             </Tabs>
           </div>
         </DialogContent>

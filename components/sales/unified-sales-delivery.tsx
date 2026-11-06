@@ -3722,7 +3722,6 @@ export default function UnifiedSalesDelivery({
               <TabsTrigger value="quantities" className={voucherTabTriggerClass}>{tr("تفاصيل كميات الصنف")}</TabsTrigger>
               <TabsTrigger value="notes" className={voucherTabTriggerClass}>{tr("ملاحظات")}</TabsTrigger>
               <TabsTrigger value="attachments" className={voucherTabTriggerClass}>{tr("المرفقات")}</TabsTrigger>
-              <TabsTrigger value="custom_fields" className={voucherTabTriggerClass}>{tr("الحقول الإضافية")}</TabsTrigger>
             </TabsList>
 
             <fieldset className="contents">
@@ -3890,9 +3889,6 @@ export default function UnifiedSalesDelivery({
                 <AttachmentManager modelName="voucher" recordId={form.id > 0 ? form.id : null} disabled={isLocked} />
               </TabsContent>
 
-              <TabsContent value="custom_fields" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <p className="py-4 text-center text-sm text-slate-400">{tr("لا توجد حقول إضافية معرّفة لهذا النوع من السندات")}</p>
-              </TabsContent>
             </fieldset>
           </Tabs>
 
