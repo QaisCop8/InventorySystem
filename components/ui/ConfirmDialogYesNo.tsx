@@ -118,7 +118,8 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
 
   if (useAppDialog) return (
     <AppDialog modal open={visible} onOpenChange={open => { if (!open && !busy) (onDismiss ?? onCancel)() }}>
-      <DialogContent dir={appDir()} hideCloseButton className="z-[1100] max-w-md rounded-2xl p-6 text-center" onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
+      {/* داخل مساحة الشاشة يضع DialogContent maxWidth كـ style فيُلغي max-w-md وتمتد النافذة بعرض الشاشة كلها أعلى الصفحة؛ نحدّها ونوسّطها هنا */}
+      <DialogContent dir={appDir()} hideCloseButton className="top-1/2 z-[1100] max-w-md -translate-y-1/2 rounded-2xl p-6 text-center" style={{ maxWidth: "min(28rem, calc(100% - 1.5rem))" }} onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <ShieldAlert className="mx-auto h-10 w-10 text-rose-600" aria-hidden="true" />
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription className="text-center leading-7">{message}</DialogDescription>
