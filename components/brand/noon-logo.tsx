@@ -24,10 +24,10 @@ export function NoonLogo({
   size?: "sm" | "md" | "lg"
   tagline?: string | null
 }) {
-  const width = { sm: "w-[150px]", md: "w-[210px]", lg: "w-[260px]" }[size]
+  const width = { sm: "w-[100px]", md: "w-[140px]", lg: "w-[165px]" }[size]
   return (
     <img
-      src="/brand/noonerp-logo.jpg"
+      src="/brand/noonerp-logo.png"
       className={cn("h-auto max-w-full object-contain", width, className)}
       alt="noon ERP — نون لإدارة موارد الشركات"
     />
