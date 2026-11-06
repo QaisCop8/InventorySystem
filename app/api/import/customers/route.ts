@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const types = body.check === true ? [Number(body.type) || 1] : Array.isArray(data) ? [...new Set(data.map((item: any) => Number(item?.type) || 1))] : [1]
     let actor: { userId: string; branchId: number } | null = null
     for (const type of types) {
-      const permission = await authorizeCustomerType(request, type, "create")
+      const permission = await authorizeCustomerType(request, type, body.mode === "update" && body.check !== true ? "update" : "create")
       if (!permission.ok) return permission.response
       actor = { userId: String(permission.userId), branchId: Number(permission.branchId) || 0 }
     }
@@ -54,13 +54,16 @@ export async function POST(request: NextRequest) {
       const checkPrefix = await defaultPrefixForType(Number(body.type) || 1)
       const normalized = Object.fromEntries(codes.map((code) => [code, normalizeImportedCode(code, checkPrefix)]))
       const values = [...new Set(Object.values(normalized).filter(Boolean))]
-      const rows = values.length ? await sql`SELECT customer_code FROM customers WHERE customer_code = ANY(${values}::text[])` : []
-      return NextResponse.json({ existing: rows.map((row: any) => String(row.customer_code)), normalized })
+      const rows = values.length ? await sql`SELECT customer_code, type FROM customers WHERE customer_code = ANY(${values}::text[]) AND COALESCE(isDeleted, false) = false` : []
+      // types: نوع كل رقم موجود — وضع التحديث يرفض رقماً لنوع آخر (مثلاً رقم مورد في تحديث العملاء)
+      return NextResponse.json({ existing: rows.map((row: any) => String(row.customer_code)), types: Object.fromEntries(rows.map((row: any) => [String(row.customer_code), Number(row.type) || 1])), normalized })
     }
 
     if (!Array.isArray(data) || data.length === 0) {
       return NextResponse.json({ error: "لا توجد بيانات للاستيراد" }, { status: 400 })
     }
+
+    if (body.mode === "update") return NextResponse.json(await updateImportedCustomers(data))
 
     // حساب الأب إلزامي: يُحدَّد لكل نوع مرة واحدة قبل حفظ أي سطر، ولا يُستورد شيء إن لم يكن معرَّفاً.
     const settings = await loadStoredSettings()
@@ -255,3 +258,62 @@ export async function POST(request: NextRequest) {
 
 
 
+
+// وضع التحديث: تعديل عملاء/موردين موجودين برقمهم — الرقم للمطابقة فقط ولا يتغيّر، والخلية الفارغة تُبقي
+// القيمة الحالية. لا رصيد افتتاحي هنا (له سند قيد مستقل)، وتغيير الاسم ينعكس على اسم الحساب المرتبط فقط.
+const UPDATE_FIELDS = [
+  ["name", "customer_name"], ["mobile1", "mobile1"], ["mobile2", "mobile2"], ["whatsapp1", "whatsapp1"], ["city", "city"],
+  ["address", "address"], ["email", "email"], ["classification", "classification"], ["pricecategory", "priceCategory"],
+] as const
+
+async function updateImportedCustomers(data: any[]) {
+  let success = 0
+  let failed = 0
+  const results: Array<{ rowIndex: number; status: "success" | "failed"; error?: string }> = []
+  const prefixByType = new Map<number, string>()
+  for (const item of data) {
+    const rowIndex = item.rowIndex || data.indexOf(item) + 1
+    try {
+      const type = Number(item.type) || 1
+      if (!prefixByType.has(type)) prefixByType.set(type, await defaultPrefixForType(type))
+      const customerCode = normalizeImportedCode(item.customer_code, prefixByType.get(type) || "")
+      if (!customerCode) throw new Error("الرقم مطلوب في وضع التحديث")
+      const stored = (await sql`SELECT id, type, account_id, name FROM customers WHERE customer_code = ${customerCode} AND COALESCE(isDeleted, false) = false LIMIT 1`)[0]
+      if (!stored) throw new Error(`الرقم ${customerCode} غير موجود`)
+      if ((Number(stored.type) || 1) !== type) throw new Error(`الرقم ${customerCode} ليس من نفس النوع`)
+
+      const patch: Record<string, any> = {}
+      for (const [column, key] of UPDATE_FIELDS) {
+        const raw = item[key]
+        if (raw === undefined || raw === null || String(raw).trim() === "") continue
+        patch[column] = column === "pricecategory" ? Number(raw) || 0 : String(raw).trim()
+      }
+      if (!Object.keys(patch).length) throw new Error("لا توجد قيم للتحديث")
+
+      const v = (column: string) => (column in patch ? patch[column] : null)
+      await sql`
+        UPDATE customers SET
+          name = COALESCE(${v("name")}, name),
+          mobile1 = COALESCE(${v("mobile1")}, mobile1),
+          mobile2 = COALESCE(${v("mobile2")}, mobile2),
+          whatsapp1 = COALESCE(${v("whatsapp1")}, whatsapp1),
+          city = COALESCE(${v("city")}, city),
+          address = COALESCE(${v("address")}, address),
+          email = COALESCE(${v("email")}, email),
+          classification = COALESCE(${v("classification")}, classification),
+          pricecategory = COALESCE(${v("pricecategory")}::int, pricecategory),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${stored.id}
+      `
+      if (patch.name && patch.name !== stored.name && stored.account_id) {
+        await sql`UPDATE account_tbl SET name = ${patch.name}, last_update_date = CURRENT_TIMESTAMP WHERE id = ${stored.account_id}`
+      }
+      success++
+      results.push({ rowIndex, status: "success" })
+    } catch (error: any) {
+      failed++
+      results.push({ rowIndex, status: "failed", error: error?.message || "فشل التحديث" })
+    }
+  }
+  return { success, failed, duplicates: 0, errors: [], results }
+}

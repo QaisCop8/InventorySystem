@@ -1,0 +1,9 @@
+Existing number — used for matching only, never changed
+Update {0} from Excel
+Update existing records by their number: only filled columns are updated, empty ones stay unchanged. The number never changes, and the opening balance is not updated in this mode.
+Add new {0}
+Update existing {0}
+The number is for matching only — all other data can be updated
+Number {0} already exists — choose “Update existing {1}” to update it
+Number {0} does not exist — update works on existing records only
+Number {0} is not one of the {1}
