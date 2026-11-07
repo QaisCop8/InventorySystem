@@ -106,7 +106,8 @@ const ACCENTS: Record<string, Accent> = {
   definitions: { tile: "bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20", bar: "bg-emerald-500", soft: "bg-emerald-50 text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-50" },
   "general-accounting": { tile: "bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/20", bar: "bg-amber-500", soft: "bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-50" },
   "item-management": { tile: "bg-lime-50 text-lime-700 ring-lime-100 dark:bg-lime-400/10 dark:text-lime-300 dark:ring-lime-400/20", bar: "bg-lime-500", soft: "bg-lime-50 text-lime-900 dark:bg-lime-400/10 dark:text-lime-50" },
-  orders: { tile: "bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-400/10 dark:text-rose-300 dark:ring-rose-400/20", bar: "bg-rose-500", soft: "bg-rose-50 text-rose-900 dark:bg-rose-400/10 dark:text-rose-50" },
+  purchases: { tile: "bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-400/10 dark:text-rose-300 dark:ring-rose-400/20", bar: "bg-rose-500", soft: "bg-rose-50 text-rose-900 dark:bg-rose-400/10 dark:text-rose-50" },
+  sales: { tile: "bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/20", bar: "bg-sky-500", soft: "bg-sky-50 text-sky-900 dark:bg-sky-400/10 dark:text-sky-50" },
   "retail-pos": { tile: "bg-teal-50 text-teal-600 ring-teal-100 dark:bg-teal-400/10 dark:text-teal-300 dark:ring-teal-400/20", bar: "bg-teal-500", soft: "bg-teal-50 text-teal-900 dark:bg-teal-400/10 dark:text-teal-50" },
   "accounting-reports": { tile: "bg-indigo-50 text-indigo-600 ring-indigo-100 dark:bg-indigo-400/10 dark:text-indigo-300 dark:ring-indigo-400/20", bar: "bg-indigo-500", soft: "bg-indigo-50 text-indigo-900 dark:bg-indigo-400/10 dark:text-indigo-50" },
   "cost-center-reports": { tile: "bg-purple-50 text-purple-600 ring-purple-100 dark:bg-purple-400/10 dark:text-purple-300 dark:ring-purple-400/20", bar: "bg-purple-500", soft: "bg-purple-50 text-purple-900 dark:bg-purple-400/10 dark:text-purple-50" },
@@ -139,19 +140,8 @@ export const menuItems: MenuItem[] = [
     icon: Users,
     submenu: [
       { title: tr("التعريفات الاساسية"), section: "definitions", icon: Settings },
-      { title: tr("العملاء"), section: "customers", icon: Users },
-      { title: tr("بوابة العملاء"), section: "customer-portal", icon: Globe },
-      { title: tr("الموردين"), section: "suppliers", icon: Truck },
-      { title: tr("المشتركين"), section: "subscribers", icon: UserCheck },
-    ],
-  },
-  {
-    id: "general-accounting",
-    title: tr("المحاسبة العامة"),
-    icon: Wallet,
-    submenu: [
       {
-        title: tr("الملفات"),
+        title: tr("ملفات محاسبية"),
         section: "general-accounting-files",
         icon: Users,
         submenu: [
@@ -163,6 +153,30 @@ export const menuItems: MenuItem[] = [
           { title: tr("بطاقات الائتمان"), section: "credit-cards", icon: CreditCard },
         ],
       },
+      {
+        title: tr("ملفات العملاء والموردين"),
+        section: "customer-supplier-files",
+        icon: Users,
+        submenu: [
+          { title: tr("العملاء"), section: "customers", icon: Users },
+          { title: tr("الموردين"), section: "suppliers", icon: Truck },
+          { title: tr("المشتركين"), section: "subscribers", icon: UserCheck },
+          { title: tr("المندوبين"), section: "salesmen", icon: UserCheck },
+          { title: tr("عمولات المندوبين"), section: "salesman-commissions", icon: WalletCards },
+          { title: tr("نماذج العملاء والأصناف"), section: "customer-product-templates", icon: Grid3x3 },
+          { title: tr("العروض والأسعار الخاصة"), section: "promotions", icon: Megaphone },
+          { title: tr("السيارات"), section: "cars", icon: Car },
+          { title: tr("السائقين"), section: "drivers", icon: IdCard },
+        ],
+      },
+      { title: tr("بوابة العملاء"), section: "customer-portal", icon: Globe },
+    ],
+  },
+  {
+    id: "general-accounting",
+    title: tr("المحاسبة العامة"),
+    icon: Wallet,
+    submenu: [
       { title: tr("الأصول الثابتة"), section: "fixed-assets", icon: Landmark },
       {
         title: tr("الحركات"),
@@ -205,51 +219,12 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    id: "orders",
-    title: tr("الطلبيات"),
-    icon: ShoppingCart,
-    submenu: [
-      {
-        title: tr("الحركات"),
-        section: "transactions",
-        icon: ShoppingCart,
-        submenu: [
-          { title: tr("طلبيات المشتريات"), section: "purchase-orders", icon: Truck },
-          { title: tr("طلبيات المبيعات"), section: "sales-orders", icon: ShoppingCart },
-          { title: tr("معالجة حالة الطلبيات"), section: "order-management", icon: Package },
-        ],
-      },
-    ],
-  },
-  {
-    id: "task-orders",
-    title: tr("تتبع أوامر العمل"),
-    icon: KanbanSquare,
-    submenu: [
-      { title: tr("إدارة الأقسام وسير العمل"), section: "task-orders-admin", icon: Settings },
-      { title: tr("قوائم تحقق الطلبيات"), section: "order-checklists", icon: FileText },
-      { title: tr("مسودات طلبيات المبيعات"), section: "draft-sales-order", icon: FilePlus2 },
-      { title: tr("متابعة طلباتي"), section: "task-orders-board", icon: KanbanSquare },
-      { title: tr("تأكيد الطلبيات"), section: "order-confirmation", icon: PackageCheck },
-      { title: tr("اعتماد الطلبيات الجاهزة"), section: "task-orders-approval", icon: PackageCheck },
-      {
-        title: tr("التقارير"),
-        section: "task-orders-reports",
-        icon: BarChart3,
-        submenu: [
-          { title: tr("تقارير أوامر العمل"), section: "task-orders-report", icon: BarChart3 },
-          { title: tr("تقرير ارشفة مسودات طلبيات المبيعات"), section: "sales-drafts-archive-report", icon: Archive },
-        ],
-      },
-    ],
-  },
-  {
     id: "item-management",
     title: tr("ادارة الاصناف"),
     icon: Package,
     submenu: [
       {
-        title: tr("الملفات"),
+        title: tr("ملفات الاصناف"),
         section: "item-management-files",
         icon: Users,
         submenu: [
@@ -282,7 +257,6 @@ export const menuItems: MenuItem[] = [
           { title: tr("مطابقة الجرد"), section: "stock-count-approval", icon: CheckCircle2 },
         ],
       },
-      { title: tr("تخطيط المشتريات الذكي"), section: "purchase-planning", icon: TrendingUp },
       {
         title: tr("طلبات بضاعة داخلي"),
         section: "internal-manufacturing-orders",
@@ -303,38 +277,50 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    id: "sales-purchase-vouchers",
-    title: tr("المبيعات والمشتريات"),
+    id: "purchases",
+    title: tr("المشتريات"),
+    icon: ShoppingCart,
+    submenu: [
+      { title: tr("طلبية مشتريات"), section: "purchase-orders", icon: ClipboardList },
+      { title: tr("إرسالية مشتريات"), section: "delivery-pay", icon: ArrowDownCircle },
+      { title: tr("فاتورة مشتريات"), section: "purchase-invoices", icon: ShoppingCart },
+      { title: tr("مرتجع مشتريات"), section: "return-purchase", icon: FileMinus2 },
+      { title: tr("تخطيط المشتريات الذكي"), section: "purchase-planning", icon: TrendingUp },
+      { title: tr("تحميل تكاليف الشحن والجمارك"), section: "landed-costs", icon: Ship },
+    ],
+  },
+  {
+    id: "sales",
+    title: tr("المبيعات"),
     icon: Truck,
     submenu: [
+      { title: tr("طلبية مبيعات"), section: "sales-orders", icon: ClipboardList },
+      { title: tr("إرسالية مبيعات"), section: "sales-delivery", icon: Truck },
+      { title: tr("فاتورة مبيعات"), section: "sales-invoices", icon: FileText },
+      { title: tr("إرسالية برسم البيع"), section: "delivery-consignment-sale", icon: ArrowUpCircle },
+      { title: tr("مرتجع إرسالية برسم البيع"), section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
+      { title: tr("مرتجع مبيعات"), section: "return-sell", icon: FileMinus2 },
+      { title: tr("معالجة حالة الطلبيات"), section: "order-management", icon: Package },
+    ],
+  },
+  {
+    id: "task-orders",
+    title: tr("تتبع أوامر العمل"),
+    icon: KanbanSquare,
+    submenu: [
+      { title: tr("إدارة الأقسام وسير العمل"), section: "task-orders-admin", icon: Settings },
+      { title: tr("قوائم تحقق الطلبيات"), section: "order-checklists", icon: FileText },
+      { title: tr("مسودات طلبيات المبيعات"), section: "draft-sales-order", icon: FilePlus2 },
+      { title: tr("متابعة طلباتي"), section: "task-orders-board", icon: KanbanSquare },
+      { title: tr("تأكيد الطلبيات"), section: "order-confirmation", icon: PackageCheck },
+      { title: tr("اعتماد الطلبيات الجاهزة"), section: "task-orders-approval", icon: PackageCheck },
       {
-        title: tr("الملفات"),
-        section: "sales-purchase-vouchers-files",
-        icon: Users,
+        title: tr("التقارير"),
+        section: "task-orders-reports",
+        icon: BarChart3,
         submenu: [
-          { title: tr("المندوبين"), section: "salesmen", icon: UserCheck },
-          { title: tr("عمولات المندوبين"), section: "salesman-commissions", icon: WalletCards },
-          { title: tr("نماذج العملاء والأصناف"), section: "customer-product-templates", icon: Grid3x3 },
-          { title: tr("العروض والأسعار الخاصة"), section: "promotions", icon: Megaphone },
-          { title: tr("السيارات"), section: "cars", icon: Car },
-          { title: tr("السائقين"), section: "drivers", icon: IdCard },
-        ],
-      },
-      {
-        title: tr("الحركات"),
-        section: "sales-purchase-vouchers-transactions",
-        icon: Truck,
-        submenu: [
-          // الترتيب: المشتريات (إرسالية ← فاتورة ← مرتجع) ثم المبيعات (إرسالية ← فاتورة ← مرتجع) ثم برسم البيع
-          { title: tr("إرسالية مشتريات"), section: "delivery-pay", icon: ArrowDownCircle },
-          { title: tr("فاتورة مشتريات"), section: "purchase-invoices", icon: ShoppingCart },
-          { title: tr("مرتجع مشتريات"), section: "return-purchase", icon: FileMinus2 },
-          { title: tr("تحميل تكاليف الشحن والجمارك"), section: "landed-costs", icon: Ship },
-          { title: tr("إرسالية مبيعات"), section: "sales-delivery", icon: Truck },
-          { title: tr("فاتورة مبيعات"), section: "sales-invoices", icon: FileText },
-          { title: tr("مرتجع مبيعات"), section: "return-sell", icon: FileMinus2 },
-          { title: tr("إرسالية برسم البيع"), section: "delivery-consignment-sale", icon: ArrowUpCircle },
-          { title: tr("مرتجع إرسالية برسم البيع"), section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
+          { title: tr("تقارير أوامر العمل"), section: "task-orders-report", icon: BarChart3 },
+          { title: tr("تقرير ارشفة مسودات طلبيات المبيعات"), section: "sales-drafts-archive-report", icon: Archive },
         ],
       },
     ],
