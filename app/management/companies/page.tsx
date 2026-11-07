@@ -666,6 +666,20 @@ export default function ManagementCompaniesPage() {
             return (
               <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                 <p className="flex items-center gap-2 text-sm font-black text-emerald-700"><CreditCard className="h-4 w-4" />{tr("تكلفة الاشتراك السنوي")}</p>
+                {/* أسعار الإضافات: كم يزيد الاشتراك عند زيادة كل عدد */}
+                <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-emerald-100 bg-white/70 p-2">
+                  {[
+                    { label: tr("كل مستخدم إضافي"), amount: pricing.per_user },
+                    { label: tr("كل فرع إضافي"), amount: pricing.per_branch },
+                    { label: tr("كل نقطة بيع"), amount: pricing.per_pos_point },
+                    { label: tr("كل موقع مطعم"), amount: Number(pricing.per_restaurant_location) || 0 },
+                  ].map((price) => (
+                    <div key={price.label} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-[11px] text-slate-600">
+                      <span>{price.label}</span>
+                      <span className="font-bold tabular-nums text-emerald-700" dir="ltr">+{Number(price.amount || 0).toFixed(2)} {quote.currency}</span>
+                    </div>
+                  ))}
+                </div>
                 {quote.lines.filter((line) => line.amount > 0).map((line) => (
                   <div key={line.label} className="flex justify-between text-xs text-slate-600"><span>{line.label}</span><span className="tabular-nums" dir="ltr">{line.amount.toFixed(2)}</span></div>
                 ))}

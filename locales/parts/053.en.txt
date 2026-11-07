@@ -1,1 +1,5 @@
 Import manufacturing components from Excel
+Each extra user
+Each extra branch
+Each POS point
+Each restaurant location
