@@ -39,3 +39,9 @@ Edit VAT rate in sales return
 Edit VAT rate in purchase invoice
 Edit VAT rate in purchase delivery
 Edit VAT rate in purchase return
+Customer balance
+Top receivables
+Item stock
+Compare sales
+Copy reply
+No reply came from the assistant. Rephrase the question or try again.

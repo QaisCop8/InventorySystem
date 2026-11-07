@@ -112,17 +112,26 @@ export default function PageShortcutsSettings() {
 
   return (
     <div className="w-full max-w-full space-y-6" dir={appDir()}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold"><Keyboard className="h-7 w-7 text-emerald-600" />{tr("اختصارات الصفحات")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("اربط أي صفحة باختصار من لوحة المفاتيح لفتحها مباشرة من أي مكان في النظام. الاختصارات خاصة بك.")}</p>
+      <header className="page-hero relative overflow-hidden rounded-2xl px-5 py-5 sm:px-7">
+        <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 start-1/3 h-56 w-56 rounded-full bg-teal-300/25 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Keyboard /></div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-emerald-50/90">{tr("أدوات")}</p>
+              <h1 className="truncate text-2xl font-black text-white drop-shadow-sm sm:text-3xl">{tr("اختصارات الصفحات")}</h1>
+              <p className="mt-1 text-sm text-emerald-50/85">{tr("اربط أي صفحة باختصار من لوحة المفاتيح لفتحها مباشرة من أي مكان في النظام. الاختصارات خاصة بك.")}</p>
+            </div>
+          </div>
+          {assignedCount > 0 && (
+            <Button variant="outline" disabled={saving} className="border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white" onClick={async () => { if ((await confirmYesNo(tr("حذف جميع اختصاراتك؟")))) void save({}, "حُذفت جميع الاختصارات") }}>
+              <RotateCcw className="me-2 h-4 w-4" />{tr("حذف الكل")}
+            </Button>
+          )}
         </div>
-        {assignedCount > 0 && (
-          <Button variant="outline" disabled={saving} onClick={async () => { if ((await confirmYesNo(tr("حذف جميع اختصاراتك؟")))) void save({}, "حُذفت جميع الاختصارات") }}>
-            <RotateCcw className="me-2 h-4 w-4" />{tr("حذف الكل")}
-          </Button>
-        )}
-      </div>
+      </header>
 
       <Card>
         <CardContent className="space-y-3 p-4 text-sm text-slate-600 dark:text-slate-300">

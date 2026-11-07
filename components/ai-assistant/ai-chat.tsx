@@ -2,7 +2,7 @@
 import { tr, appDir } from "@/lib/i18n"
 import { amountFractionOptions } from "@/lib/decimals"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth/auth-context"
 import { saveAIReceiptDraft } from "@/lib/ai-receipt-direct-save"
@@ -38,6 +38,7 @@ import {
   Copy,
   History,
   Building2,
+  Square,
 } from "lucide-react"
 
 type SpeechRecognitionEventLike = Event & { resultIndex: number; results: { length: number; [index: number]: { isFinal: boolean; [index: number]: { transcript: string } } } }
@@ -68,15 +69,59 @@ const withoutConfirmLine = (content: string) => content.replace(CONFIRM_LINE, ""
 // ردود الموافقة المكتوبة ("نعم"، "تأكيد"، "اعتمد"...) تنفّذ آخر أمر مقترح
 const CONFIRM_WORDS = /^\s*(?:نعم|ايوه|أيوه|ايوا|اكيد|أكيد|اكد|أكد|تأكيد|تاكيد|اعتمد|موافق|احفظ|نفذ|نفّذ|تمام|ok|okay|yes)(?:\s|[.!،,]|$)/i
 
-// تنسيق بسيط لردود المساعد: **عريض** والنقاط "* " ⇒ "• " (بدل ظهور رموز markdown كما هي)
+// سطر "اقتراحات: س1 | س2 | س3" في آخر رد الاستعلام ⇐ أزرار أسئلة متابعة
+const SUGGESTIONS_LINE = /^\s*[*_`]*اقتراحات\s*[:：][*_`]*\s*(.+?)\s*$/m
+const suggestionsOf = (content: string) =>
+  (content.match(SUGGESTIONS_LINE)?.[1] || "").split("|").map((item) => item.replace(/[*_`]/g, "").trim()).filter((item) => item.length > 1).slice(0, 4)
+const withoutSuggestionsLine = (content: string) => content.replace(SUGGESTIONS_LINE, "").trim()
+
+// سؤال/استعلام واضح بلا طلب مستند ⇐ يُرسل للمحادثة مباشرة دون تحليل السند/الطلبية (استدعاءا ذكاء اصطناعي أقل = رد أسرع)
+const DOCUMENT_WORDS = /سند|قبض|قبص|صرف|دفع|دفعت|استلم|قبضت|شيك|طلبي|اطلب|أطلب|مسود|بضاع|سجّل|سجل/
+const QUESTION_START = /^\s*(?:كم|ما|ماذا|من|مين|هل|أين|وين|متى|لماذا|ليش|كيف|شو|أعطني|اعطني|اعرض|عرض|أظهر|اظهر|ملخص|لخص|حلل|حلّل|قارن|ابحث|رصيد|أكبر|اكبر|أفضل|افضل|أكثر|اكثر|أقل|اقل)/
+const isPlainQuestion = (text: string) => !DOCUMENT_WORDS.test(text) && (QUESTION_START.test(text) || /[؟?]\s*$/.test(text))
+
+const renderInline = (text: string) =>
+  text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
+    /^\*\*[^*]+\*\*$/.test(part) ? <strong key={index}>{part.slice(2, -2)}</strong> : <span key={index}>{part.replace(/\*\*/g, "")}</span>)
+
+// تنسيق ردود المساعد: **عريض**، النقاط والترقيم، عناوين ###، وجداول markdown (| أ | ب |)
 function renderAssistantText(text: string) {
-  return text.split("\n").map((line, lineIndex) => {
+  const lines = text.split("\n")
+  const out: ReactNode[] = []
+  const isTableLine = (line: string) => /^\s*\|.*\|\s*$/.test(line)
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    if (isTableLine(line)) {
+      const rows: string[][] = []
+      const start = index
+      while (index < lines.length && isTableLine(lines[index])) {
+        const cells = lines[index].trim().slice(1, -1).split("|").map((cell) => cell.trim())
+        if (!cells.every((cell) => /^:?-{2,}:?$/.test(cell))) rows.push(cells)
+        index++
+      }
+      index--
+      const [head, ...body] = rows
+      out.push(
+        <div key={`t${start}`} className="my-2 overflow-x-auto rounded-lg border border-slate-200 dark:border-white/10">
+          <table className="w-full text-xs">
+            {head && <thead className="bg-emerald-50 text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-100"><tr>{head.map((cell, cellIndex) => <th key={cellIndex} className="whitespace-nowrap px-2.5 py-1.5 text-start font-bold">{renderInline(cell)}</th>)}</tr></thead>}
+            <tbody>{body.map((row, rowIndex) => <tr key={rowIndex} className="border-t border-slate-100 dark:border-white/10">{row.map((cell, cellIndex) => <td key={cellIndex} className="px-2.5 py-1.5 tabular-nums" dir="auto">{renderInline(cell)}</td>)}</tr>)}</tbody>
+          </table>
+        </div>,
+      )
+      continue
+    }
+    const heading = line.match(/^\s*#{1,4}\s+(.*)$/)
+    if (heading) {
+      out.push(<span key={index} className="mt-2 block font-extrabold text-emerald-800 dark:text-emerald-200">{renderInline(heading[1])}</span>)
+      continue
+    }
     const bullet = /^\s*[*-]\s+/.test(line)
-    const body = bullet ? line.replace(/^\s*[*-]\s+/, "") : line
-    const parts = body.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) =>
-      /^\*\*[^*]+\*\*$/.test(part) ? <strong key={index}>{part.slice(2, -2)}</strong> : <span key={index}>{part.replace(/\*\*/g, "")}</span>)
-    return <span key={lineIndex} className="block min-h-[1em]">{bullet ? "• " : null}{parts}</span>
-  })
+    const numbered = line.match(/^\s*(\d+)[.)]\s+/)
+    const body = bullet ? line.replace(/^\s*[*-]\s+/, "") : numbered ? line.slice(numbered[0].length) : line
+    out.push(<span key={index} className={cn("block min-h-[1em]", (bullet || numbered) && "ps-3")}>{bullet ? "• " : numbered ? `${numbered[1]}. ` : null}{renderInline(body)}</span>)
+  }
+  return out
 }
 
 interface Message {
@@ -126,7 +171,11 @@ const QUICK_ACTIONS: { group: string; items: { icon: any; title: string; prompt:
     group: "استعلامات",
     items: [
       { icon: BarChart3, title: tr("ملخص المبيعات"), prompt: "أعطني ملخص المبيعات خلال آخر 30 يوماً", tone: "bg-violet-50 text-violet-700 ring-violet-100" },
-      { icon: Package, title: tr("الأصناف منخفضة المخزون"), prompt: "ما هي المنتجات منخفضة المخزون؟", tone: "bg-lime-50 text-lime-700 ring-lime-100" },
+      { icon: Package, title: tr("الأصناف منخفضة المخزون"), prompt: "ما هي الأصناف التي ستنفد خلال أسبوع؟", tone: "bg-lime-50 text-lime-700 ring-lime-100" },
+      { icon: User, title: tr("رصيد زبون"), prompt: "كم رصيد الزبون [اسم الزبون]؟", tone: "bg-violet-50 text-violet-700 ring-violet-100" },
+      { icon: AlertCircle, title: tr("أكبر الذمم"), prompt: "من أكبر 10 زبائن عليهم ذمم؟", tone: "bg-rose-50 text-rose-700 ring-rose-100" },
+      { icon: Package, title: tr("رصيد صنف"), prompt: "كم رصيد الصنف [اسم الصنف]؟", tone: "bg-lime-50 text-lime-700 ring-lime-100" },
+      { icon: BarChart3, title: tr("مقارنة المبيعات"), prompt: "قارن مبيعات هذا الشهر بالشهر الماضي", tone: "bg-violet-50 text-violet-700 ring-violet-100" },
     ],
   },
 ]
@@ -157,6 +206,15 @@ export function AIChat() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const keepListeningRef = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const [streaming, setStreaming] = useState(false)
+  const [copiedAt, setCopiedAt] = useState<number | null>(null)
+  const copyReply = (message: Message) => {
+    void navigator.clipboard?.writeText(withoutSuggestionsLine(withoutConfirmLine(message.content))).then(() => {
+      setCopiedAt(message.at ?? null)
+      window.setTimeout(() => setCopiedAt(null), 1500)
+    }).catch(() => undefined)
+  }
 
   // المحادثة تبقى عند التنقل بين الشاشات خلال الجلسة
   useEffect(() => {
@@ -395,6 +453,10 @@ export function AIChat() {
     const commandText = options?.command || suggested || messageText
 
     try {
+      if (!options?.command && !suggested && isPlainQuestion(messageText)) {
+        await streamChat(userMessage)
+        return
+      }
       // تحليل السند وتحليل الطلبية يعملان بالتوازي (كانا متتاليين: انتظار الأول كاملاً ثم بدء الثاني)، مع مهلة
       // قصوى لكل منهما حتى لا يبقى "جاري معالجة طلبك" معلّقاً عند انشغال خدمة الذكاء الاصطناعي.
       const postJson = (url: string, body: unknown, timeoutMs: number) =>
@@ -456,47 +518,11 @@ export function AIChat() {
         pushAssistant({ kind: "success", content: tr("تم حفظ {0} بنجاح", label), details: [{ label: tr("الرقم"), value: code }], documentLink: { section, code, id: Number(saved.id) } })
         return
       }
-      const response = await fetch("/api/ai-assistant/chat", {
-        method: "POST",
-        signal: AbortSignal.timeout(60_000),
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      })
-
-      if (!response.ok) throw new Error((await response.text()) || tr("فشل في الحصول على الرد"))
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let assistantContent = ""
-
-      if (reader) {
-        const startedAt = Date.now()
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value)
-          assistantContent += chunk
-
-          setMessages((prev) => {
-            const newMessages = [...prev]
-            const lastMessage = newMessages[newMessages.length - 1]
-            if (lastMessage?.role === "assistant" && lastMessage.at === startedAt) {
-              newMessages[newMessages.length - 1] = { ...lastMessage, content: assistantContent }
-            } else {
-              newMessages.push({ role: "assistant", content: assistantContent, at: startedAt })
-            }
-            return newMessages
-          })
-        }
-      }
+      await streamChat(userMessage)
     } catch (error) {
-      console.error("[v0] AI Chat error:", error)
+      // إيقاف بزر "إيقاف": يبقى ما وصل من الرد كما هو
+      if (error instanceof DOMException && error.name === "AbortError") return
+      console.error("[ai] AI Chat error:", error)
       pushAssistant({
         kind: "error",
         content: error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")
@@ -507,6 +533,57 @@ export function AIChat() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // المحادثة الحرة (أسئلة واستعلامات): آخر الرسائل للسياق، والرد يُعرض أثناء وصوله ويمكن إيقافه.
+  // انتهاء المهلة يُرمى TimeoutError (رسالة "تأخرت الخدمة")، والإيقاف اليدوي AbortError (يبقى ما وصل).
+  const streamChat = async (userMessage: Message) => {
+    const controller = new AbortController()
+    abortRef.current = controller
+    let timedOut = false
+    const timeout = window.setTimeout(() => { timedOut = true; controller.abort() }, 60_000)
+    try {
+      const history = [...messages, userMessage].filter((m) => !m.kind).slice(-20)
+      const response = await fetch("/api/ai-assistant/chat", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", ...(activeBranchId ? { "x-branch-id": String(activeBranchId) } : {}) },
+        body: JSON.stringify({
+          branch_id: activeBranchId || null,
+          branch_name: activeBranchName || "",
+          messages: history.map((m) => ({ role: m.role, content: m.role === "assistant" ? withoutSuggestionsLine(m.content) : m.content })),
+        }),
+      })
+      if (!response.ok) throw new Error((await response.text()) || tr("فشل في الحصول على الرد"))
+      const reader = response.body?.getReader()
+      if (!reader) return
+      // stream: true — حرف عربي (بايتان) قد ينقسم بين دفعتين؛ بدونه يظهر "�" داخل الرد
+      const decoder = new TextDecoder()
+      let assistantContent = ""
+      const startedAt = Date.now()
+      setStreaming(true)
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        assistantContent += decoder.decode(value, { stream: true })
+        const content = assistantContent
+        setMessages((prev) => {
+          const newMessages = [...prev]
+          const lastMessage = newMessages[newMessages.length - 1]
+          if (lastMessage?.role === "assistant" && lastMessage.at === startedAt) newMessages[newMessages.length - 1] = { ...lastMessage, content }
+          else newMessages.push({ role: "assistant", content, at: startedAt })
+          return newMessages
+        })
+      }
+      if (!assistantContent.trim()) pushAssistant({ kind: "error", content: tr("لم يصل رد من المساعد. أعد صياغة السؤال أو حاول مرة أخرى.") })
+    } catch (error) {
+      if (timedOut) throw new DOMException("timeout", "TimeoutError")
+      throw error
+    } finally {
+      window.clearTimeout(timeout)
+      abortRef.current = null
+      setStreaming(false)
     }
   }
 
@@ -814,7 +891,7 @@ export function AIChat() {
                           {isUser ? (
                             <p className="whitespace-pre-wrap break-words text-sm leading-7" dir="auto">{message.content}</p>
                           ) : (
-                            <div className="break-words text-sm leading-7" dir="auto">{renderAssistantText(withoutConfirmLine(message.content))}</div>
+                            <div className="break-words text-sm leading-7" dir="auto">{renderAssistantText(withoutSuggestionsLine(withoutConfirmLine(message.content)))}</div>
                           )}
                           {!isUser && confirmCommandOf(message.content) && (
                             <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 dark:border-white/10">
@@ -842,6 +919,31 @@ export function AIChat() {
                               </div>
                             </div>
                           )}
+                          {!isUser && !(streaming && index === messages.length - 1) && suggestionsOf(message.content).length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5 border-t border-slate-100 pt-2 dark:border-white/10">
+                              {suggestionsOf(message.content).map((suggestion) => (
+                                <button
+                                  key={suggestion}
+                                  type="button"
+                                  disabled={isLoading}
+                                  onClick={() => void handleSubmit(suggestion)}
+                                  className="rounded-full border border-emerald-200 bg-emerald-50/60 px-3 py-1 text-start text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+                                >
+                                  {suggestion}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {!isUser && message.content.trim() && (
+                            <button
+                              type="button"
+                              title={tr("نسخ الرد")}
+                              onClick={() => copyReply(message)}
+                              className="absolute -start-8 top-1 hidden h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 group-hover:flex"
+                            >
+                              {copiedAt && copiedAt === message.at ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
                           {isUser && (
                             <button
                               type="button"
@@ -859,7 +961,7 @@ export function AIChat() {
                   </div>
                 )
               })}
-              {isLoading && (
+              {isLoading && !streaming && (
                 <div className="flex flex-row-reverse items-end gap-2.5" role="status">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                     <Sparkles className="h-4 w-4" />
@@ -944,16 +1046,29 @@ export function AIChat() {
                 rows={1}
                 className="block max-h-[200px] min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-slate-800 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:text-slate-100"
               />
-              <Button
-                type="button"
-                onClick={() => void handleSubmit()}
-                disabled={!canSend}
-                className="h-10 shrink-0 gap-1.5 rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                aria-label={tr("إرسال")}
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 -scale-x-100" />}
-                <span className="hidden sm:inline">{tr("إرسال")}</span>
-              </Button>
+              {streaming ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => abortRef.current?.abort()}
+                  className="h-10 shrink-0 gap-1.5 rounded-xl border-rose-200 px-4 text-rose-700 hover:bg-rose-50"
+                  aria-label={tr("إيقاف")}
+                >
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                  <span className="hidden sm:inline">{tr("إيقاف")}</span>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => void handleSubmit()}
+                  disabled={!canSend}
+                  className="h-10 shrink-0 gap-1.5 rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                  aria-label={tr("إرسال")}
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 -scale-x-100" />}
+                  <span className="hidden sm:inline">{tr("إرسال")}</span>
+                </Button>
+              )}
             </div>
             <p className="mt-1.5 px-1 text-[11px] text-slate-400">
               {tr("Enter للإرسال · Shift+Enter لسطر جديد · 📎 أرفق فاتورة أو سند (صورة/PDF) لإدخاله · السندات المكتملة تُحفظ مباشرة بدفترك الافتراضي")}
