@@ -146,3 +146,5 @@ Add your mobile number so our team can contact you about your companies and subs
 Later
 Could not save the mobile number
 Mobile number saved
+Limit reached: two trial companies
+A user cannot create more than two trial companies

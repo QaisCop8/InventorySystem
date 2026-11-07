@@ -5,6 +5,7 @@ import { provisionCompanyDatabase } from "@/lib/provisioning"
 import { ensureBillingTables } from "@/lib/company-billing"
 
 const TRIAL_EXPIRY_DAYS = 10
+const MAX_TRIALS_PER_USER = 2
 
 // شركة تجريبية: خلافاً لـ/api/management/companies (POST) العادية — التي تُنشئ الشركة بحالة
 // 'pending' بانتظار موافقة مسؤول المنصة يدوياً عبر لوحة الإدارة — هذا المسار يُزوِّد قاعدة الشركة
@@ -42,6 +43,11 @@ export async function POST(request: NextRequest) {
     if (userRows.length === 0) return NextResponse.json({ error: "تعذّر العثور على المستخدم" }, { status: 404 })
 
     await ensureBillingTables()
+    // حد النسخ التجريبية: شركتان لكل مستخدم (يشمل ما حُوِّل لاحقاً لنسخة حقيقية)
+    const [trials] = await managementSql`SELECT COUNT(*)::int AS n FROM companies WHERE created_by = ${session.id} AND created_as_trial = true`
+    if (Number(trials?.n) >= MAX_TRIALS_PER_USER) {
+      return NextResponse.json({ error: "لا يمكن إنشاء أكثر من شركتين تجريبيتين لنفس المستخدم", code: "TRIAL_LIMIT" }, { status: 409 })
+    }
     const inserted = await managementSql`
       INSERT INTO companies (name, status, created_by, contact_mobile)
       VALUES (${name}, 'pending', ${session.id}, ${mobile})
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     // علامة "نسخة تجريبية" — تتيح لاحقاً "التحويل إلى نسخة حقيقية" بالدفع الإلكتروني
     await ensureBillingTables()
-    await managementSql`UPDATE companies SET is_trial = true WHERE id = ${company.id}`
+    await managementSql`UPDATE companies SET is_trial = true, created_as_trial = true WHERE id = ${company.id}`
 
     return NextResponse.json({ success: true, dbName, expiryDate })
   } catch (error) {

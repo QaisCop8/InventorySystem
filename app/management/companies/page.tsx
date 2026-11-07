@@ -44,6 +44,8 @@ interface Company {
   provisioning_error?: string | null
   provisioning_stale?: boolean | null
   is_trial?: boolean
+  /** نسخة تجريبية أنشأها المستخدم الحالي (تبقى حتى بعد تحويلها لحقيقية) — حد شركتين */
+  my_trial?: boolean
   renewal_due?: boolean
   number_of_users?: number
   number_of_branches?: number
@@ -275,6 +277,7 @@ export default function ManagementCompaniesPage() {
 
   // رقم الجوال إلزامي — نفس فحص الخادم (9-15 رقماً، + اختيارية، المسافات والشرطات مسموحة)
   const trialMobileValid = /^\+?\d{9,15}$/.test(trialMobile.replace(/[\s-]/g, ""))
+  const trialLimitReached = companies.filter((company) => company.my_trial).length >= 2
   const handleAddTrialCompany = async () => {
     // نفس سبب عدم استخدام شارة الصفحة بـhandleAddCompany أعلاه.
     if (!trialCompanyName.trim() || !trialMobileValid) return
@@ -603,13 +606,13 @@ export default function ManagementCompaniesPage() {
             <span className="text-xs text-stone-500">{paymentEnabled ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("ادفع إلكترونياً وتُفعَّل فوراً") : tr("أرسل طلبك للمبيعات وتُفعَّل بعد الاعتماد")) : tr("تُفعَّل بعد موافقة إدارة النظام")}</span>
           </button>
 
-          <button type="button" onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-700">
+          <button type="button" disabled={trialLimitReached} onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-700 disabled:cursor-not-allowed disabled:opacity-60">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-50 ring-1 ring-violet-200 transition group-hover:bg-violet-500/25">
               <Gift className="h-7 w-7" />
             </span>
             <span className="text-base font-black">{tr("شركة تجريبية")}</span>
             {/* معلومة الانتهاء على الزر نفسه بلا حاجة لفتح الحوار؛ التاريخ الفعلي (اليوم + المدة) يُحسب داخل الحوار. */}
-            <span className="text-xs text-violet-700/80">{tr("مجانية لمدة ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام — اعتماد فوري بلا انتظار")}</span>
+            <span className="text-xs text-violet-700/80">{trialLimitReached ? tr("استخدمت الحد الأقصى: شركتان تجريبيتان") : <>{tr("مجانية لمدة ")}{TRIAL_EXPIRY_DAYS}{tr(" أيام — اعتماد فوري بلا انتظار")}</>}</span>
           </button>
         </div>
 

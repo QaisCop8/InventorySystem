@@ -62,6 +62,9 @@ export function ensureBillingTables() {
         UPDATE companies SET is_trial = (approved_at IS NOT NULL AND expiry_date IS NOT NULL AND expiry_date <= approved_at + INTERVAL '15 days')
         WHERE is_trial IS NULL`
       await managementSql`ALTER TABLE companies ALTER COLUMN is_trial SET DEFAULT false`
+      // أُنشئت كنسخة تجريبية (لا يتغير عند التحويل لنسخة حقيقية، بخلاف is_trial) — حد النسخ التجريبية لكل مستخدم
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_as_trial BOOLEAN NOT NULL DEFAULT false`
+      await managementSql`UPDATE companies SET created_as_trial = true WHERE is_trial = true AND created_as_trial = false`
       // دفعات التجديد/التحويل لنسخة حقيقية: تُطبَّق مرة واحدة فقط (applied_at)
       await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS applied_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_started_at TIMESTAMP`

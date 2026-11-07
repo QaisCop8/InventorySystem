@@ -21,6 +21,7 @@ export async function GET() {
     const rows = await managementSql`
       SELECT c.id, c.name, c.status, c.created_at, c.expiry_date, c.db_name, c.provisioning_error,
              COALESCE(c.is_trial, false) AS is_trial,
+             (c.created_as_trial AND c.created_by = ${session.id}) AS my_trial,
              COALESCE(c.number_of_users, 1) AS number_of_users, COALESCE(c.number_of_branches, 1) AS number_of_branches, COALESCE(c.number_of_pos_points, 0) AS number_of_pos_points, COALESCE(c.number_of_restaurant_locations, 0) AS number_of_restaurant_locations,
              (c.status = 'approved' AND (c.expiry_date IS NULL OR c.expiry_date < CURRENT_TIMESTAMP + INTERVAL '30 days')) AS renewal_due,
              (c.status = 'provisioning' AND c.provisioning_started_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes') AS provisioning_stale,
