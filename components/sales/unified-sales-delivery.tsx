@@ -1,6 +1,8 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { useVoucherPricingPermission, voucherPricingPermissionLabel } from "@/components/auth/transaction-access-gate"
+import type { VoucherPricingAction } from "@/lib/transaction-permission-definitions"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { armVoucherWhatsApp } from "@/lib/voucher-print/whatsapp-share"
 import { fetchCustomerDefaultSalesman, useCustomerDefaultSalesman } from "@/lib/use-customer-default-salesman"
@@ -551,6 +553,14 @@ export default function UnifiedSalesDelivery({
         : ""
 
   const messagesRef = useRef<any>(null)
+  // صلاحيات تسعير السند (lib/transaction-permission-definitions.ts VOUCHER_PRICING_ACTIONS): تعديل السعر/المبلغ،
+  // خصم الصنف، الخصم العام (ومعه الصافي للدفع لأنه يعيد حساب الخصم)، ونسبة الضريبة — تُمنع في الشاشة عند الإدخال اليدوي.
+  const canPricing = useVoucherPricingPermission(voucherType)
+  const denyPricing = (action: VoucherPricingAction) => {
+    messagesRef.current?.show?.([{ severity: "error", summary: "", detail: tr("لا توجد لديك صلاحية {0}", voucherPricingPermissionLabel(voucherType, action)), life: 3500 }])
+  }
+  const pricingActionForColumn = (colName: string): VoucherPricingAction | null =>
+    colName === "discount_percent" ? "item_discount" : colName === "unit_price" || colName === "total_price" ? "price" : null
 
   // "تمت العملية بنجاح" بعد حفظ السند (lib/transaction-success.ts)
 
@@ -1434,6 +1444,7 @@ export default function UnifiedSalesDelivery({
     if (Number(currentForm.status) === 2 || Number(currentForm.status) === 3) return
     const currentRow = itemsRef.current[row]
     if (!currentRow?.product_id) return
+    if (!canPricing("price")) { denyPricing("price"); return }
     const level = amountVatLevelRef.current.get(row) ?? 0
     if (action === "add" && level >= 1) {
       messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: tr("تمت إضافة الضريبة لهذا السطر مسبقاً"), life: 2000 }])
@@ -2264,6 +2275,12 @@ export default function UnifiedSalesDelivery({
   const handleBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const row = itemsRef.current[e.row]
+    const pricingAction = pricingActionForColumn(colName)
+    if (pricingAction && !canPricing(pricingAction)) {
+      e.cancel = true
+      denyPricing(pricingAction)
+      return
+    }
     if (colName === "total_price") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
       guardItemAmountInput(grid, e.row, e.col, true, true)
@@ -2306,6 +2323,8 @@ export default function UnifiedSalesDelivery({
     const row = itemsRef.current[index]
     if (field === "product" || field === "warehouse" || field === "unit") return !isFromDelivery && !consignmentLinked
     if (field === "delete") return !isFromDelivery && !isConsignmentReturn
+    const pricingAction = pricingActionForColumn(field)
+    if (pricingAction && !canPricing(pricingAction)) return false
     if (isFromDelivery) return field === "unit_price"
     if (consignmentLinked) {
       const allowed = isConsignmentReturn ? ["note"] : ["quantity", "bonus_quantity", "unit_price", "discount_percent", "total_price", "note"]
@@ -3994,7 +4013,7 @@ export default function UnifiedSalesDelivery({
                         ]}
                         optionLabel="label"
                         optionValue="value"
-                        disabled={isLocked}
+                        disabled={isLocked || !canPricing("general_discount")}
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
@@ -4008,6 +4027,8 @@ export default function UnifiedSalesDelivery({
                         type="number"
                         step="0.01"
                         value={form.discount_value || 0}
+                        disabled={!canPricing("general_discount")}
+                        title={canPricing("general_discount") ? undefined : tr("لا توجد لديك صلاحية {0}", voucherPricingPermissionLabel(voucherType, "general_discount"))}
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           let value = Number.parseFloat(e.target.value) || 0
@@ -4030,8 +4051,8 @@ export default function UnifiedSalesDelivery({
                       // معفاه/صفرية: لا نسبة ضريبة أصلاً — تُصفَّر وتُعطَّل الكتابة المباشرة (انظر
                       // فرع vat_classification_id في PrimeDropdown أعلاه لسبب التصفير التلقائي).
                       // الضريبة على مستوى الصنف: النسبة من التصنيف الضريبي لكل صنف — الحقل للعرض فقط (النسبة الفعلية)
-                      disabled={isLocked || itemVat.enabled || form.vat_classification_id === 2 || form.vat_classification_id === 3}
-                      title={itemVat.enabled ? tr("الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للسند") : undefined}
+                      disabled={isLocked || itemVat.enabled || form.vat_classification_id === 2 || form.vat_classification_id === 3 || !canPricing("vat_rate")}
+                      title={itemVat.enabled ? tr("الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للسند") : !canPricing("vat_rate") ? tr("لا توجد لديك صلاحية {0}", voucherPricingPermissionLabel(voucherType, "vat_rate")) : undefined}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onFormChange("vat_percent", Number.parseFloat(e.target.value) || 0)}
                       className="text-start"
@@ -4044,6 +4065,8 @@ export default function UnifiedSalesDelivery({
                       type="number"
                       step="0.01"
                       value={netPayableDraft ?? totals.total.toFixed(2)}
+                      // يعيد حساب الخصم العام ⇐ نفس صلاحيته
+                      disabled={!canPricing("general_discount")}
                       onFocus={(e) => {
                         setNetPayableDraft(totals.total.toFixed(2))
                         e.target.select()

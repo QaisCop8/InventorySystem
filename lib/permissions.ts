@@ -29,6 +29,10 @@ import {
   RESTAURANT_PERMISSIONS,
   CHEQUE_OPERATION_PERMISSION_CATEGORY,
   CHEQUE_OPERATION_PERMISSIONS,
+  ALL_VOUCHER_PRICING_PERMISSION_NAMES,
+  VOUCHER_PRICING_ACTIONS,
+  VOUCHER_PRICING_FAMILIES,
+  voucherPricingPermissionName,
   transactionPermissionName,
   HR_TRANSACTION_FAMILIES,
   type PosCashierPermission,
@@ -472,7 +476,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, CHEQUE_OPERATION_PERMISSIONS, USER_ADMIN_PERMISSION, EXCHANGE_RATE_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, TRANSACTION_FAMILY_ACTIONS, TRANSACTION_PERMISSION_NAME_OVERRIDES, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION, PURCHASE_PRICE_VIEW_PERMISSION, RESTAURANT_PERMISSIONS, CHEQUE_OPERATION_PERMISSIONS, ALL_VOUCHER_PRICING_PERMISSION_NAMES, USER_ADMIN_PERMISSION, EXCHANGE_RATE_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), ["access", "print", "whatsapp"], FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -864,6 +868,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     [CHEQUE_OPERATION_PERMISSION_CATEGORY, Object.values(CHEQUE_OPERATION_PERMISSIONS)],
     [USER_ADMIN_PERMISSION_CATEGORY, [USER_ADMIN_PERMISSION]],
     [EXCHANGE_RATE_PERMISSION_CATEGORY, Object.values(EXCHANGE_RATE_PERMISSIONS)],
+    [TRANSACTION_PERMISSION_CATEGORY, ALL_VOUCHER_PRICING_PERMISSION_NAMES],
   ] as const) {
   const creditCategoryRows = await client.query(
     `INSERT INTO access_category (name)
@@ -937,6 +942,35 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       [targetNames],
     )
     await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [chequeScreensMigration])
+  }
+
+  // تعديل السعر/خصم الصنف/الخصم العام/نسبة الضريبة في كل سند (2026-11-07) — كانت مفتوحة لكل من يدخل أو يعدّل السند.
+  // مرة واحدة لكل شركة: تُمنح لمن يملك "إدخال" أو "تعديل" ذلك السند (مستخدم/دور، وعلى مستوى الفروع) فلا يتغير عمل أحد اليوم،
+  // ثم يقيّدها المسؤول من شاشة الصلاحيات. لا تُعاد.
+  const voucherPricingMigration = "voucher-pricing-permissions-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [voucherPricingMigration])).length) {
+    for (const family of VOUCHER_PRICING_FAMILIES) {
+      const targetNames = (Object.keys(VOUCHER_PRICING_ACTIONS) as (keyof typeof VOUCHER_PRICING_ACTIONS)[]).map((action) => voucherPricingPermissionName(family, action))
+      const sourceNames = [transactionPermissionName(family, "create"), transactionPermissionName(family, "update")]
+      for (const [table, keys] of [
+        ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+        ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+      ] as const) {
+        const columns = keys.join(",")
+        const selected = keys.map((key) => `granted.${key}`).join(",")
+        await client.query(
+          `INSERT INTO ${table} (${columns}, access_id, is_granted)
+           SELECT DISTINCT ${selected}, target.id, TRUE
+           FROM access_list target
+           JOIN access_list source ON LOWER(BTRIM(source.name)) = ANY(SELECT LOWER(BTRIM(n)) FROM unnest($2::text[]) n)
+           JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+           WHERE target.name = ANY($1::text[])
+           ON CONFLICT (${columns}, access_id) DO NOTHING`,
+          [targetNames, sourceNames],
+        )
+      }
+    }
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [voucherPricingMigration])
   }
 
   // تتبع أوامر العمل صار بصلاحيات لكل شاشة (2026-11-03) — كان مفتوحاً لكل مستخدم مسجّل، وإدارته لمدير النظام فقط.

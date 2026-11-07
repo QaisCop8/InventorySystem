@@ -17,6 +17,8 @@ import {
   type TransactionAccessEntry,
   type TransactionAction,
   type TransactionFamily,
+  type VoucherPricingAction,
+  voucherPricingPermissionName,
 } from "@/lib/transaction-permission-definitions"
 
 /** صلاحية "الدخول لشاشة {الحركة}" للفرع النشط — من نفس قائمة الصلاحيات المخزّنة التي تستخدمها شاشات الملفات. */
@@ -82,4 +84,41 @@ export function useTransactionPermission() {
     if (!matches.length) return fallback
     return matches.some((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
   }, [entries])
+}
+
+const PRICING_VOUCHER_FAMILIES: Record<number, TransactionFamily> = {
+  12: "sales_invoice", 13: "sales_delivery", 14: "consignment_delivery", 15: "consignment_return", 16: "sales_return",
+  17: "purchase_invoice", 18: "purchase_delivery", 19: "purchase_return",
+}
+
+/**
+ * صلاحيات تسعير أسطر السند (تعديل السعر/خصم الصنف/الخصم العام/نسبة الضريبة) لنوع السند في الفرع النشط.
+ * غير موجودة بعد في قائمة المستخدم المخزّنة (لم تُزامَن) ⇐ مسموحة كما كانت.
+ */
+export function useVoucherPricingPermission(voucherType: number) {
+  const { user, activeBranchId, permissionVersion } = useAuth()
+  const entries = useMemo<TransactionAccessEntry[] | null>(() => {
+    if (!user || typeof window === "undefined") return null
+    try {
+      const raw = localStorage.getItem(`user_Access_List:${user.id}:${activeBranchId || user.branchId || "default"}`)
+      const value = raw ? JSON.parse(raw) : null
+      return Array.isArray(value) ? value : null
+    } catch {
+      return null
+    }
+  }, [user, activeBranchId, permissionVersion])
+  return useCallback((action: VoucherPricingAction) => {
+    const family = PRICING_VOUCHER_FAMILIES[Number(voucherType)]
+    if (!family) return true
+    const name = voucherPricingPermissionName(family, action)
+    const matches = (entries || []).filter((entry) => String(entry.access_name || "").trim() === name)
+    if (!matches.length) return true
+    return matches.some((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
+  }, [entries, voucherType])
+}
+
+/** اسم صلاحية التسعير لرسالة الرفض في الشاشة */
+export const voucherPricingPermissionLabel = (voucherType: number, action: VoucherPricingAction) => {
+  const family = PRICING_VOUCHER_FAMILIES[Number(voucherType)]
+  return family ? voucherPricingPermissionName(family, action) : ""
 }

@@ -243,7 +243,7 @@ export function classify(items: PermissionItem[]) {
         // اسم الشريحة بدون اسم السند نفسه (الصف يعرضه أصلاً): "إضافة مسودة طلبية مبيعات" ← "إضافة مسودة".
         const words = String(item.access_name || "").trim().split(/\s+/)
         const voucherWords = voucher.name.split(/\s+/).length
-        const label = name.endsWith(voucher.key) && words.length > voucherWords ? words.slice(0, -voucherWords).join(" ") : words.join(" ")
+        const label = name.endsWith(voucher.key) && words.length > voucherWords ? words.slice(0, -voucherWords).join(" ").replace(/\s+في$/, "") : words.join(" ")
         const existing = row.extras.find((extra) => extra.key === name)
         if (existing) existing.items.push(item)
         else row.extras.push({ key: name, label, items: [item] })

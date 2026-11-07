@@ -3,3 +3,39 @@ Each extra user
 Each extra branch
 Each POS point
 Each restaurant location
+Edit price
+Edit price in sales invoice
+Edit price in sales delivery
+Edit price in consignment delivery
+Edit price in consignment delivery return
+Edit price in sales return
+Edit price in purchase invoice
+Edit price in purchase delivery
+Edit price in purchase return
+Enter item discount
+Enter item discount in sales invoice
+Enter item discount in sales delivery
+Enter item discount in consignment delivery
+Enter item discount in consignment delivery return
+Enter item discount in sales return
+Enter item discount in purchase invoice
+Enter item discount in purchase delivery
+Enter item discount in purchase return
+Enter general discount
+Enter general discount in sales invoice
+Enter general discount in sales delivery
+Enter general discount in consignment delivery
+Enter general discount in consignment delivery return
+Enter general discount in sales return
+Enter general discount in purchase invoice
+Enter general discount in purchase delivery
+Enter general discount in purchase return
+Edit VAT rate
+Edit VAT rate in sales invoice
+Edit VAT rate in sales delivery
+Edit VAT rate in consignment delivery
+Edit VAT rate in consignment delivery return
+Edit VAT rate in sales return
+Edit VAT rate in purchase invoice
+Edit VAT rate in purchase delivery
+Edit VAT rate in purchase return
