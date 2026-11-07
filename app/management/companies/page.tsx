@@ -25,6 +25,7 @@ import {
   RefreshCw,
   CalendarClock,
   Send,
+  Phone,
 } from "lucide-react"
 import { ONLINE_COMPANY_PAYMENT_VISIBLE, priceFor, type Pricing } from "@/lib/company-pricing"
 import { SubscriptionDialog } from "@/components/management/subscription-dialog"
@@ -139,6 +140,12 @@ export default function ManagementCompaniesPage() {
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newCompanyName, setNewCompanyName] = useState("")
+  const [newCompanyMobile, setNewCompanyMobile] = useState("")
+  // حساب بلا رقم جوال (مسجّل قبل أن يصبح إلزامياً) ⇐ يُطلب مرة عند فتح الصفحة
+  const [accountMobile, setAccountMobile] = useState<string | null>(null)
+  const [mobilePrompt, setMobilePrompt] = useState("")
+  const [mobilePromptOpen, setMobilePromptOpen] = useState(false)
+  const [mobileSaving, setMobileSaving] = useState(false)
   const [newCompanyUsers, setNewCompanyUsers] = useState("1")
   const [newCompanyBranches, setNewCompanyBranches] = useState("1")
   const [newCompanyPosPoints, setNewCompanyPosPoints] = useState("0")
@@ -174,6 +181,11 @@ export default function ManagementCompaniesPage() {
       .then((data) => {
         setIsPlatformAdmin(!!data?.isPlatformAdmin)
         setAccount(data ? { name: data.fullName || "", email: data.email || "" } : null)
+        const mobile = String(data?.mobile || "")
+        setAccountMobile(mobile)
+        setNewCompanyMobile((current) => current || mobile)
+        setTrialMobile((current) => current || mobile)
+        if (data && !mobile) setMobilePromptOpen(true)
       })
       .catch(() => setIsPlatformAdmin(false))
   }, [])
@@ -238,16 +250,35 @@ export default function ManagementCompaniesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const newCompanyMobileValid = /^\+?\d{9,15}$/.test(newCompanyMobile.replace(/[\s-]/g, ""))
+  const saveAccountMobile = async () => {
+    if (!/^\+?\d{9,15}$/.test(mobilePrompt.replace(/[\s-]/g, ""))) return
+    setMobileSaving(true)
+    try {
+      const res = await fetch("/api/management/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mobile: mobilePrompt.trim() }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { toast({ title: tr("خطأ"), description: data.error || tr("تعذّر حفظ رقم الجوال"), variant: "destructive" }); return }
+      setAccountMobile(data.mobile)
+      setNewCompanyMobile((current) => current || data.mobile)
+      setTrialMobile((current) => current || data.mobile)
+      setMobilePromptOpen(false)
+      toast({ title: tr("تم الحفظ"), description: tr("تم حفظ رقم الجوال") })
+    } catch {
+      toast({ title: tr("خطأ"), description: tr("تعذّر الاتصال بالخادم"), variant: "destructive" })
+    } finally {
+      setMobileSaving(false)
+    }
+  }
   const handleAddCompany = async () => {
     // الخطأ يظهر توستاً فقط هنا — الحوار يبقى مفتوحاً عند الفشل (لا setShowAddDialog(false) إلا بالنجاح)،
     // وشارة الصفحة تُرسَم خلف الحوار المفتوح فتبقى غير مرئية عملياً بدل توست يظهر فوق كل شيء.
-    if (!newCompanyName.trim()) return
+    if (!newCompanyName.trim() || !newCompanyMobileValid) return
     setSaving(true)
     try {
       const res = await fetch("/api/management/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0), number_of_restaurant_locations: Number(newCompanyRestaurants || 0), pay: paymentEnabled }),
+        body: JSON.stringify({ name: newCompanyName.trim(), mobile: newCompanyMobile.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0), number_of_restaurant_locations: Number(newCompanyRestaurants || 0), pay: paymentEnabled }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -654,6 +685,11 @@ export default function ManagementCompaniesPage() {
             <label htmlFor="new-company-name" className="text-sm font-bold text-slate-700">{tr("اسم الشركة")}</label>
             <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-start" autoFocus />
           </div>
+          <div className="space-y-2">
+            <label htmlFor="new-company-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")} <span className="text-rose-600">*</span></label>
+            <input id="new-company-mobile" type="tel" inputMode="tel" dir="ltr" placeholder="05XXXXXXXX" value={newCompanyMobile} onChange={(e) => setNewCompanyMobile(e.target.value)} className="cp-field text-start" aria-invalid={Boolean(newCompanyMobile.trim()) && !newCompanyMobileValid} />
+            {newCompanyMobile.trim() && !newCompanyMobileValid && <p className="text-xs font-semibold text-rose-600">{tr("رقم الجوال غير صحيح")}</p>}
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: tr("عدد المستخدمين"), value: newCompanyUsers, set: setNewCompanyUsers, min: 1 },
@@ -704,10 +740,30 @@ export default function ManagementCompaniesPage() {
             <button
               type="button"
               onClick={handleAddCompany}
-              disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0) || !(Number(newCompanyRestaurants || 0) >= 0)}
+              disabled={saving || !newCompanyName.trim() || !newCompanyMobileValid || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0) || !(Number(newCompanyRestaurants || 0) >= 0)}
               className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
             >
               {saving ? <><Loader2 className="h-4 w-4 animate-spin" />{paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("جاري التحويل للدفع...") : tr("جاري الإنشاء...")}</> : paymentEnabled && ONLINE_COMPANY_PAYMENT_VISIBLE ? <><CreditCard className="h-4 w-4" />{tr("الدفع وإنشاء الشركة")}</> : paymentEnabled ? <><Send className="h-4 w-4" />{tr("إنشاء وإرسال للمبيعات")}</> : tr("إنشاء")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mobilePromptOpen} onOpenChange={(open) => { if (!open && !mobileSaving) setMobilePromptOpen(false) }}>
+        <DialogContent dir={appDir()} className="cp-dialog max-w-md">
+          <style dangerouslySetInnerHTML={{ __html: css }} />
+          <DialogHeader className="text-start">
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900"><Phone className="h-5 w-5 text-emerald-700" />{tr("رقم الجوال")}</DialogTitle>
+            <DialogDescription className="text-stone-500">{tr("أضف رقم جوالك ليتمكن فريقنا من التواصل معك بخصوص شركاتك واشتراكاتك.")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <input type="tel" inputMode="tel" dir="ltr" autoFocus placeholder="05XXXXXXXX" value={mobilePrompt} onChange={(e) => setMobilePrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void saveAccountMobile() }} className="cp-field text-start" />
+            {mobilePrompt.trim() && !/^\+?\d{9,15}$/.test(mobilePrompt.replace(/[\s-]/g, "")) && <p className="text-xs font-semibold text-rose-600">{tr("رقم الجوال غير صحيح")}</p>}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button type="button" disabled={mobileSaving} onClick={() => setMobilePromptOpen(false)} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{tr("لاحقاً")}</button>
+            <button type="button" disabled={mobileSaving || !/^\+?\d{9,15}$/.test(mobilePrompt.replace(/[\s-]/g, ""))} onClick={() => void saveAccountMobile()} className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white">
+              {mobileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{tr("حفظ")}
             </button>
           </DialogFooter>
         </DialogContent>

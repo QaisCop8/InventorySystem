@@ -48,6 +48,10 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const name = String(data.name || "").trim()
     if (!name) return NextResponse.json({ error: "اسم الشركة مطلوب" }, { status: 400 })
+    // رقم الجوال إلزامي (نفس فحص الشركة التجريبية): أرقام فقط مع + اختيارية، 9-15 رقماً
+    const mobile = String(data.mobile || "").replace(/[\s-]/g, "")
+    if (!mobile) return NextResponse.json({ error: "رقم الجوال مطلوب" }, { status: 400 })
+    if (!/^\+?\d{9,15}$/.test(mobile)) return NextResponse.json({ error: "رقم الجوال غير صحيح" }, { status: 400 })
     // الترخيص المطلوب (عدد المستخدمين والفروع) — يراه مسؤول المنصة عند الاعتماد ويمكنه تعديله.
     const numberOfUsers = Math.floor(Number(data.number_of_users ?? 1))
     const numberOfBranches = Math.floor(Number(data.number_of_branches ?? 1))
@@ -70,12 +74,15 @@ export async function POST(request: NextRequest) {
 
     // الدفع الإلكتروني (لحظة) مفعّل ⇒ الشركة تنتظر الدفع ثم تُنشأ تلقائياً عند نجاحه، بدل انتظار موافقة مسؤول المنصة
     const payNow = data.pay === true && (await paymentsEnabled())
+    await ensureBillingTables()
     const inserted = await managementSql`
-      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations, license_initialized, pos_license_initialized, restaurant_license_initialized)
-      VALUES (${name}, ${payNow ? "awaiting_payment" : "pending"}, ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, ${numberOfRestaurantLocations}, true, true, true)
+      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, number_of_pos_points, number_of_restaurant_locations, license_initialized, pos_license_initialized, restaurant_license_initialized, contact_mobile)
+      VALUES (${name}, ${payNow ? "awaiting_payment" : "pending"}, ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, ${numberOfRestaurantLocations}, true, true, true, ${mobile})
       RETURNING id, name, status, created_at
     `
     const company = inserted[0]
+    // حساب بلا رقم جوال (مسجّل قبل أن يصبح إلزامياً) ⇐ يُحفظ رقم الشركة عليه
+    await managementSql`UPDATE users SET mobile = ${mobile} WHERE id = ${session.id} AND COALESCE(mobile, '') = ''`.catch(() => undefined)
 
     await managementSql`
       INSERT INTO user_company (user_id, company_id, role)
