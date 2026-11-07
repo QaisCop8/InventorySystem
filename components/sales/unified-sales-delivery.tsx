@@ -533,6 +533,7 @@ export default function UnifiedSalesDelivery({
   // والمرتجع أسطرهما مربوطة بأسطر الارسالية (المتبقي فقط).
   const isConsignment = voucherType === DELIVERY_CONSIGNMENT_SALE_VCH_TYPE
   const isConsignmentReturn = voucherType === RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE
+  const isConsignmentDocument = isConsignment || isConsignmentReturn
   const isFromConsignment = voucherType === SALES_INVOICE_VCH_TYPE && Number(form.invoice_source_type || 1) === 4
   const isSalesmanVoucher = isConsignment || isConsignmentReturn
   const consignmentLinked = isFromConsignment || isConsignmentReturn
@@ -3699,7 +3700,8 @@ export default function UnifiedSalesDelivery({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {/* ارسالية برسم البيع ومرتجعها: نقل بضاعة لا فاتورة ⇐ بلا تصنيف ضريبي/نوع/مقاصة */}
+              {!isConsignmentDocument && <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>{tr("التصنيف الضريبي")}</Label>
                   <PrimeDropdown
@@ -3773,7 +3775,7 @@ export default function UnifiedSalesDelivery({
                     />
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
 
@@ -3918,7 +3920,7 @@ export default function UnifiedSalesDelivery({
                       className="text-start"
                     />
                   </div>
-                  <div className="grid gap-1.5">
+                  {!isConsignmentDocument && <div className="grid gap-1.5">
                     <Label htmlFor="due-date">{tr("اخر موعد للدفع")}</Label>
                     <DateTimeControl
                       id="due-date"
@@ -3926,28 +3928,30 @@ export default function UnifiedSalesDelivery({
                       disabled={isLocked}
                       onChange={(value) => onFormChange("due_date", value)}
                     />
-                  </div>
+                  </div>}
                 </div>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={!!form.is_exported_sales}
-                    disabled={isLocked}
-                    onChange={(e) => onFormChange("is_exported_sales", e.target.checked)}
-                  />
-                  {tr("مبيعات مصدرة")}
-                </label>
+                {!isConsignmentDocument && <>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!form.is_exported_sales}
+                      disabled={isLocked}
+                      onChange={(e) => onFormChange("is_exported_sales", e.target.checked)}
+                    />
+                    {tr("مبيعات مصدرة")}
+                  </label>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={!!form.vat_included}
-                    disabled={isLocked}
-                    onChange={(e) => onFormChange("vat_included", e.target.checked)}
-                  />
-                  {tr("السعر في الطباعة يشمل الضريبة")}
-                </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={!!form.vat_included}
+                      disabled={isLocked}
+                      onChange={(e) => onFormChange("vat_included", e.target.checked)}
+                    />
+                    {tr("السعر في الطباعة يشمل الضريبة")}
+                  </label>
+                </>}
               </TabsContent>
 
               <TabsContent value="quantities" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
