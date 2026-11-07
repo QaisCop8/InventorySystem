@@ -629,6 +629,8 @@ export default function ManagementCompaniesPage() {
           purpose={subscription.purpose}
           pricing={pricing}
           testMode={paymentTestMode}
+          account={account}
+          onLeadSent={() => toast({ title: tr("تم إرسال طلبك"), description: tr("سيتواصل معك فريق المبيعات قريباً، ويُفعَّل الاشتراك فور اعتماده من الإدارة.") })}
           onClose={() => setSubscription(null)}
           onDone={(expiryDate) => {
             const label = subscription.purpose === "upgrade" ? tr("تم تحويل الشركة إلى نسخة حقيقية") : tr("تم تمديد الاشتراك")

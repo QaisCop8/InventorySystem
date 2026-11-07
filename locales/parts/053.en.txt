@@ -45,3 +45,8 @@ Item stock
 Compare sales
 Copy reply
 No reply came from the assistant. Rephrase the question or try again.
+Choose the license you need and send your request to the sales team. All your data stays as it is.
+The sales team will contact you soon, and the subscription is activated once management approves it.
+Contact details for sales
+Mobile number *
+WhatsApp (if different from mobile)

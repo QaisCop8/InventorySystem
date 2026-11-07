@@ -2,14 +2,16 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useMemo, useState } from "react"
-import { CalendarClock, CreditCard, Loader2, Sparkles } from "lucide-react"
+import { CalendarClock, CheckCircle2, CreditCard, Loader2, Send, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { priceFor, type Pricing } from "@/lib/company-pricing"
+import { ONLINE_COMPANY_PAYMENT_VISIBLE, priceFor, type Pricing } from "@/lib/company-pricing"
 import { openLahzaPopup } from "@/lib/lahza-popup"
 
 // نافذة الدفع لتجديد الاشتراك (شركة حقيقية بقي عليها أقل من شهر أو انتهت) أو تحويل نسخة تجريبية إلى حقيقية.
 // المدة سنة تبدأ من نهاية الاشتراك الحالي إن لم ينتهِ، وإلا من اليوم — نفس حساب الخادم (company-billing.ts).
 // تستخدم أنماط cp-* المعرّفة في صفحة "شركاتي".
+// الدفع الإلكتروني مخفي (ONLINE_COMPANY_PAYMENT_VISIBLE = false) ⇐ بدل زر الدفع يُرسل طلب للمبيعات (/api/management/sales-leads)
+// بتفاصيل الترخيص والمبلغ والمدة، ويُفعَّل الاشتراك بعد اعتماده من الإدارة.
 
 export type SubscriptionCompany = {
   id: number
@@ -23,14 +25,18 @@ export type SubscriptionCompany = {
 
 const formatDate = (date: Date) => date.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })
 
-export function SubscriptionDialog({ company, purpose, pricing, testMode, onClose, onDone }: {
+export function SubscriptionDialog({ company, purpose, pricing, testMode, account, onClose, onDone, onLeadSent }: {
   company: SubscriptionCompany
   purpose: "renewal" | "upgrade"
   pricing: Pricing
   testMode: boolean
+  account?: { name: string; email: string } | null
   onClose: () => void
   onDone: (expiryDate: string | null) => void
+  onLeadSent?: () => void
 }) {
+  const [lead, setLead] = useState({ name: account?.name || "", email: account?.email || "", phone: "", whatsapp: "" })
+  const [leadSent, setLeadSent] = useState(false)
   const [users, setUsers] = useState(String(company.number_of_users || 1))
   const [branches, setBranches] = useState(String(company.number_of_branches || 1))
   const [posPoints, setPosPoints] = useState(String(company.number_of_pos_points || 0))
@@ -95,6 +101,34 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
     }
   }
 
+  const sendToSales = async () => {
+    setBusy(true)
+    setError("")
+    try {
+      const notes = [
+        purpose === "upgrade" ? "طلب تحويل نسخة تجريبية إلى نسخة حقيقية" : "طلب تمديد الاشتراك",
+        `الشركة: ${company.name}`,
+        `المستخدمون: ${counts.users} · الفروع: ${counts.branches} · نقاط البيع: ${counts.posPoints} · مواقع المطاعم: ${counts.restaurantLocations}`,
+        `الإجمالي: ${quote.total.toFixed(2)} ${quote.currency}`,
+        `المدة: ${formatDate(period.start)} — ${formatDate(period.end)}`,
+      ].join("\n")
+      const response = await fetch("/api/management/sales-leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...lead, whatsapp: lead.whatsapp.trim() || lead.phone, company_id: company.id, notes }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || tr("تعذّر إرسال الطلب"))
+      setLeadSent(true)
+      onLeadSent?.()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr("تعذّر إرسال الطلب"))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const leadReady = Boolean(lead.name.trim() && lead.email.trim() && lead.phone.trim())
+
   const editable = purpose === "upgrade"
   const field = (label: string, value: string, set: (value: string) => void, min: number) => (
     <div className="space-y-2">
@@ -112,7 +146,7 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
             {purpose === "upgrade" ? tr("التحويل إلى نسخة حقيقية") : tr("تمديد الاشتراك")}
           </DialogTitle>
           <DialogDescription className="text-stone-500">
-            {company.name} — {purpose === "upgrade" ? tr("اختر الترخيص المطلوب وادفع الاشتراك السنوي، وتبقى كل بياناتك كما هي.") : tr("اشتراك سنة جديدة بنفس الترخيص الحالي.")}
+            {company.name} — {purpose === "upgrade" ? (ONLINE_COMPANY_PAYMENT_VISIBLE ? tr("اختر الترخيص المطلوب وادفع الاشتراك السنوي، وتبقى كل بياناتك كما هي.") : tr("اختر الترخيص المطلوب وأرسل طلبك لفريق المبيعات، وتبقى كل بياناتك كما هي.")) : tr("اشتراك سنة جديدة بنفس الترخيص الحالي.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -135,15 +169,36 @@ export function SubscriptionDialog({ company, purpose, pricing, testMode, onClos
               {period.fromExpiry ? <span className="block text-stone-500">{tr("تبدأ من نهاية الاشتراك الحالي، فلا تخسر الأيام المتبقية.")}</span> : null}
             </span>
           </div>
-          {testMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700">{tr("وضع تجريبي: البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+          {ONLINE_COMPANY_PAYMENT_VISIBLE && testMode && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-5 text-amber-700">{tr("وضع تجريبي: البطاقة ")}<span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
         </div>
+
+        {!ONLINE_COMPANY_PAYMENT_VISIBLE && (leadSent ? (
+          <div className="rounded-2xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-100">
+            <CheckCircle2 className="mx-auto h-9 w-9 text-emerald-600" />
+            <p className="mt-1 font-black text-emerald-800">{tr("تم إرسال طلبك")}</p>
+            <p className="mt-1 text-sm text-emerald-700">{tr("سيتواصل معك فريق المبيعات قريباً، ويُفعَّل الاشتراك فور اعتماده من الإدارة.")}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-slate-600">{tr("بيانات التواصل مع المبيعات")}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input value={lead.name} onChange={(event) => setLead({ ...lead, name: event.target.value })} placeholder={tr("الاسم *")} disabled={busy} className="cp-field text-start" />
+              <input type="email" dir="ltr" value={lead.email} onChange={(event) => setLead({ ...lead, email: event.target.value })} placeholder={tr("البريد الإلكتروني *")} disabled={busy} className="cp-field text-start" />
+              <input type="tel" dir="ltr" value={lead.phone} onChange={(event) => setLead({ ...lead, phone: event.target.value })} placeholder={tr("رقم الجوال *")} disabled={busy} className="cp-field text-start" />
+              <input type="tel" dir="ltr" value={lead.whatsapp} onChange={(event) => setLead({ ...lead, whatsapp: event.target.value })} placeholder={tr("واتساب (إن اختلف عن الجوال)")} disabled={busy} className="cp-field text-start" />
+            </div>
+          </div>
+        ))}
 
         {error && <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{tr("إلغاء")}</button>
-          {verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-[#ece3d3] px-4 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{tr("إعادة التحقق دون إعادة الدفع")}</button>}
-          {!verificationReference && <button type="button" disabled={busy || !(quote.total > 0)} onClick={() => void pay()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
+          <button type="button" disabled={busy} onClick={onClose} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{leadSent ? tr("إغلاق") : tr("إلغاء")}</button>
+          {!ONLINE_COMPANY_PAYMENT_VISIBLE && !leadSent && <button type="button" disabled={busy || !leadReady || !(quote.total > 0)} onClick={() => void sendToSales()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{tr("إرسال للمبيعات")}
+          </button>}
+          {ONLINE_COMPANY_PAYMENT_VISIBLE && verificationReference && <button type="button" disabled={busy} onClick={() => void verify(verificationReference)} className="h-11 rounded-xl border border-[#ece3d3] px-4 text-sm font-bold text-slate-700 transition hover:bg-stone-100">{tr("إعادة التحقق دون إعادة الدفع")}</button>}
+          {ONLINE_COMPANY_PAYMENT_VISIBLE && !verificationReference && <button type="button" disabled={busy || !(quote.total > 0)} onClick={() => void pay()} className={`cp-btn ${purpose === "upgrade" ? "is-trial" : ""} inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white`}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}{tr("الدفع عبر الانترنت")}
           </button>}
         </DialogFooter>
