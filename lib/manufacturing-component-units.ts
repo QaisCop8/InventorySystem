@@ -45,7 +45,7 @@ export function resolveComponentUnit(units: ComponentUnit[] | undefined, unitId:
 
 /** البحث برقم الصنف أو باركوده أو باركود إحدى وحداته (استيراد Excel) — بضاعة فقط، بلا الصنف نفسه. */
 export async function lookupComponentsByCode(codes: string[], excludeProductId: number) {
-  const list = [...new Set(codes.map((code) => String(code || "").trim()).filter(Boolean))].slice(0, 2000)
+  const list = [...new Set(codes.map((code) => String(code || "").trim()).filter(Boolean))].slice(0, 10000)
   if (!list.length) return []
   const query = (withUnitBarcodes: boolean) => sql`
     WITH wanted AS (SELECT code FROM unnest(${list}::text[]) AS code)

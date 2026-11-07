@@ -52,6 +52,7 @@ export const TRANSACTION_FAMILIES = {
   manager_attachment: "التواصل مع الإدارة",
   manager_inbox: "بريد رسائل الموظفين",
   bulk_items: "تعديل الأصناف",
+  manufacturing_components_import: "استيراد مكونات التصنيع من Excel",
   // نظام ادارة الموظفين — الأسماء مطابقة لعناوين القائمة الجانبية (تُجمَّع بها في شاشة الصلاحيات). شاشة الموظفين نفسها
   // صلاحيات ملفات (lib/file-permission-definitions.ts) وتقاريره صلاحيات تقارير.
   hr_jobs: "الوظائف",
@@ -219,6 +220,7 @@ export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | nul
  */
 export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, TransactionAction[]>> = {
   bulk_items: ["access", "update"],
+  manufacturing_components_import: ["access", "update"],
   aid_program: ["access", "view", "create", "update", "delete"],
   cheque_book: ["access", "view", "create", "update"],
   cheque_register: ["access", "view"],
@@ -258,6 +260,7 @@ export const TRANSACTION_FAMILY_ACTIONS: Partial<Record<TransactionFamily, Trans
 /** أسماء أوضح لبعض الصلاحيات بدل "{الإجراء} {الحركة}" (مثل "تعديل تعديل الأصناف"). يجب أن تبقى فريدة في access_list. */
 export const TRANSACTION_PERMISSION_NAME_OVERRIDES: Partial<Record<TransactionFamily, Partial<Record<TransactionAction, string>>>> = {
   bulk_items: { update: "تنفيذ تعديل الأصناف الجماعي" },
+  manufacturing_components_import: { update: "حفظ مكونات التصنيع المستوردة" },
   aid_program: { view: "استعلام برامج المساعدات والمستفيدين", create: "إضافة نشاط مساعدة واستيراد مستفيدين", update: "تعديل نشاط مساعدة وتعبئة وإلغاء رموز المستفيدين", delete: "حذف نشاط مساعدة" },
   cheque_book: { view: "استعلام دفاتر الشيكات", create: "إضافة دفتر شيكات", update: "تعديل دفتر شيكات" },
   cheque_register: { view: "استعلام الشيكات وسجل عملياتها" },
@@ -365,6 +368,7 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "manager-attachments": "manager_attachment",
   "manager-inbox": "manager_inbox",
   "bulk-items": "bulk_items",
+  "manufacturing-components-import": "manufacturing_components_import",
   "salesman-commissions": "salesman_commission",
   "employee-jobs": "hr_jobs",
   "salary-items": "hr_salary_items",

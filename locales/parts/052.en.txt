@@ -1,0 +1,35 @@
+Some rows are not saved yet. Do you want to leave?
+Could not validate the rows
+The current unsaved rows will be replaced by the file rows. Continue?
+Missing columns in the file: {0}
+Read {0} rows — review the errors, then save
+No valid selected rows to save
+{0} rows will be saved: {1} new components added and {2} existing components updated. Continue?
+{0} manufacturing components will be added. Continue?
+Added {0} and updated {1} components
+{0} rows were not saved
+Upload a file with the item code, component code, unit and quantity, review and edit the rows, then save the selected ones
+Download template
+Upload Excel file
+Import type
+Add only
+Add only: the component is added to the item; a component already on the same item shows as an error and is not changed.
+Update: new components are added, and the unit and quantity of components already on the same item are replaced.
+The unit is optional — if left empty, the component's main unit is used.
+With errors
+Component code
+Component name
+Default ({0})
+Update — current: {0} {1}
+Download the template, fill it in and upload it, or add rows manually
+Component code is required
+The component cannot be the item itself
+Quantity is required
+Quantity must be a number
+The component has no units defined
+Default unit
+Measured item: the quantity is saved as a count with dimensions of 1
+The component already exists on the item — choose «Update» to change it
+Loop: the component contains this item among its components
+The component already exists on the item
+Save imported manufacturing components
