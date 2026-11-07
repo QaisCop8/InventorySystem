@@ -52,7 +52,7 @@ export const TRANSACTION_FAMILIES = {
   manager_attachment: "التواصل مع الإدارة",
   manager_inbox: "بريد رسائل الموظفين",
   bulk_items: "تعديل الأصناف",
-  manufacturing_components_import: "استيراد مكونات التصنيع من Excel",
+  manufacturing_components_import: "استيراد مكونات التصنيع من اكسل",
   // نظام ادارة الموظفين — الأسماء مطابقة لعناوين القائمة الجانبية (تُجمَّع بها في شاشة الصلاحيات). شاشة الموظفين نفسها
   // صلاحيات ملفات (lib/file-permission-definitions.ts) وتقاريره صلاحيات تقارير.
   hr_jobs: "الوظائف",
@@ -304,6 +304,8 @@ export const RENAMED_TRANSACTION_PERMISSIONS: { from: string; to: string }[] = (
     { from: "الدخول لشاشة بريد الرسائل", to: transactionPermissionName("manager_inbox", "access") },
     { from: "استعلام ومعالجة بريد الرسائل", to: transactionPermissionName("manager_inbox", "view") },
     { from: "حذف مرفقات بريد الرسائل", to: transactionPermissionName("manager_inbox", "delete") },
+    // 2026-11-07: «من Excel» ⇐ «من اكسل» ليطابق عنوان القائمة (تجميع شاشة الصلاحيات بالعنوان)
+    { from: "الدخول لشاشة استيراد مكونات التصنيع من Excel", to: transactionPermissionName("manufacturing_components_import", "access") },
   ])
 
 /** صلاحيات حركات لم تعد مستخدمة (إجراءات خارج TRANSACTION_FAMILY_ACTIONS) — تُحذف مع منحها */
