@@ -167,6 +167,20 @@ export default function ManagementAdminPage() {
     }
   }
 
+  // تحديث: إعادة جلب بيانات اللوحة وإعادة تحميل اللوحات المستقلة (التقارير/الأسعار/النسخ...) بتغيير مفتاحها
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshAll = async () => {
+    setRefreshing(true)
+    setError("")
+    setRefreshKey((key) => key + 1)
+    try {
+      await Promise.all([load(), loadAllCompanies(), loadUsers(), loadAccessCategories(), loadAccessDefinitions()])
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   useEffect(() => {
     load()
     loadAllCompanies()
@@ -414,9 +428,20 @@ export default function ManagementAdminPage() {
 
   return (
     <div dir={appDir()} className="min-h-screen bg-slate-50 px-3 py-5 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-6xl">
+      <div className="w-full">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-bold text-slate-800">{tr("لوحة التحكم")}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-slate-800">{tr("لوحة التحكم")}</h1>
+            <button
+              type="button"
+              onClick={() => void refreshAll()}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-sm font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              {tr("تحديث")}
+            </button>
+          </div>
           <Link href="/management/companies" className="flex items-center gap-1 text-sm text-slate-500 hover:underline">
             <ArrowRight className="h-4 w-4" />{tr(" شركاتي")}
           </Link>
@@ -489,11 +514,11 @@ export default function ManagementAdminPage() {
             {tr("النسخ الاحتياطي")}
           </button>
         </div>
-        {tab === "backups" && <BackupsPanel />}
-        {tab === "pricing" && <PricingPanel />}
-        {tab === "feature-requests" && <FeatureRequestsAdmin />}
-        {tab === "login-report" && <UserLoginReport companies={allCompanies.map(({ id, name }) => ({ id, name }))} />}
-        {tab === "site-activity" && <SiteActivityReport companies={allCompanies.map(({ id, name }) => ({ id, name }))} />}
+        {tab === "backups" && <BackupsPanel key={refreshKey} />}
+        {tab === "pricing" && <PricingPanel key={refreshKey} />}
+        {tab === "feature-requests" && <FeatureRequestsAdmin key={refreshKey} />}
+        {tab === "login-report" && <UserLoginReport key={refreshKey} companies={allCompanies.map(({ id, name }) => ({ id, name }))} />}
+        {tab === "site-activity" && <SiteActivityReport key={refreshKey} companies={allCompanies.map(({ id, name }) => ({ id, name }))} />}
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
@@ -631,7 +656,7 @@ export default function ManagementAdminPage() {
             </div>
           ))}
 
-        {tab === "licenses" && <LicenseRequestsPanel onChanged={() => void loadAllCompanies()} />}
+        {tab === "licenses" && <LicenseRequestsPanel key={refreshKey} onChanged={() => void loadAllCompanies()} />}
 
         {tab === "users" &&
           (users.length === 0 ? (
