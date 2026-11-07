@@ -191,6 +191,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     if (requestGuardedNavigation(apply)) apply();
   };
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [branchRetry, setBranchRetry] = useState(0);
   const { dialogOpen: exchangeRatesOpen, setDialogOpen: setExchangeRatesOpen, checkNow: recheckExchangeRates } = useDailyExchangeRatesCheck();
 
   useEffect(() => {
@@ -199,22 +200,30 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       return;
     }
 
+    // أول دخول لشركة أُنشئت للتو: قد يُرسم الرأس قبل حفظ الشركة المختارة، أو يصل أول رد فارغاً (قاعدة جديدة ما زالت
+    // تُهيّأ) — كان يبقى "لا توجد فروع" حتى Ctrl+F5. يُعاد المحاولة بفاصل قصير بدل الاستسلام من أول مرة.
     const tenantDb = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db");
     if (!tenantDb) {
       setBranches([]);
-      return;
+      if (branchRetry >= 20) return;
+      const timer = window.setTimeout(() => setBranchRetry((count) => count + 1), 500);
+      return () => window.clearTimeout(timer);
     }
 
     const controller = new AbortController();
+    let retryTimer: number | undefined;
     const fetchBranches = async () => {
       try {
         setIsLoadingBranches(true);
         // فروع المستخدم فقط (عضوية user_branches) — نفس الفروع المتاحة له في الحركات
-        const response = await fetch("/api/branches?scope=mine", { signal: controller.signal });
+        const response = await fetch("/api/branches?scope=mine", { signal: controller.signal, cache: "no-store" });
         if (!response.ok) throw new Error(tr("فشل في تحميل الفروع"));
         const data = await response.json();
         const normalized = Array.isArray(data) ? data : [];
         setBranches(normalized);
+        if (!normalized.length && branchRetry < 5) {
+          retryTimer = window.setTimeout(() => setBranchRetry((count) => count + 1), 1500);
+        }
 
         // الفرع النشط المحفوظ قد لا يعود مسموحاً (تغيّرت صلاحياته) ⇐ يُستبدل بفرعه الافتراضي أو أول فرع مسموح
         if (normalized.length > 0 && (!activeBranchId || !normalized.some((branch) => branch.id === activeBranchId))) {
@@ -227,6 +236,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       } catch (error) {
         if (!controller.signal.aborted) {
           console.warn("Failed to load branches", error);
+          if (branchRetry < 5) retryTimer = window.setTimeout(() => setBranchRetry((count) => count + 1), 1500);
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -236,8 +246,11 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     };
 
     void fetchBranches();
-    return () => controller.abort();
-  }, [activeBranchId, setActiveBranchContext, user?.branchId, user?.id]);
+    return () => {
+      controller.abort();
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
+  }, [activeBranchId, setActiveBranchContext, user?.branchId, user?.id, branchRetry]);
 
   useEffect(() => {
     if (!activeDepartment && user?.department) {
