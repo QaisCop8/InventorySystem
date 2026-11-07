@@ -211,6 +211,29 @@ export const ALL_VOUCHER_PRICING_PERMISSION_NAMES = VOUCHER_PRICING_FAMILIES.fla
 /** أُنشئت ثم أُلغيت (2026-11-07) — تُحذف مع منحها */
 export const REMOVED_VOUCHER_PRICING_PERMISSION_NAMES = NO_VAT_RATE_PRICING_FAMILIES.map((family) => voucherPricingPermissionName(family, "vat_rate"))
 
+// طباعة/نسخ/إرسال SMS/إرسال واتساب لكل سند — تُفحص في شريط الأدوات الموحّد (UniversalToolbar) حسب شاشة التبويب،
+// وتظهر عمليات إضافية في صف السند بشاشة الصلاحيات ("طباعة فاتورة مبيعات"...). "طباعة/نسخ طلبية مشتريات" كانتا
+// موجودتين من تأسيس الشركات بلا فحص — نفس الاسم يُعاد استخدامه.
+export const VOUCHER_OUTPUT_ACTIONS = {
+  print: "طباعة",
+  clone: "نسخ",
+  sms: "إرسال SMS",
+  whatsapp: "إرسال واتساب",
+} as const
+export type VoucherOutputAction = keyof typeof VOUCHER_OUTPUT_ACTIONS
+export const VOUCHER_OUTPUT_FAMILIES = [
+  "sales_order", "sales_invoice", "sales_delivery", "consignment_delivery", "consignment_return", "sales_return",
+  "purchase_order", "purchase_invoice", "purchase_delivery", "purchase_return",
+  "stock_in", "stock_out", "internal_delivery", "stock_use", "production",
+  "receipt", "payment", "cheque_payment", "journal", "credit_note", "debit_note",
+] as const satisfies readonly TransactionFamily[]
+export const voucherOutputPermissionName = (family: TransactionFamily, action: VoucherOutputAction) =>
+  `${VOUCHER_OUTPUT_ACTIONS[action]} ${TRANSACTION_FAMILIES[family]}`
+export const isVoucherOutputFamily = (family: TransactionFamily | null | undefined): family is (typeof VOUCHER_OUTPUT_FAMILIES)[number] =>
+  Boolean(family && (VOUCHER_OUTPUT_FAMILIES as readonly string[]).includes(family))
+export const ALL_VOUCHER_OUTPUT_PERMISSION_NAMES = VOUCHER_OUTPUT_FAMILIES.flatMap((family) =>
+  (Object.keys(VOUCHER_OUTPUT_ACTIONS) as VoucherOutputAction[]).map((action) => voucherOutputPermissionName(family, action)))
+
 export const EXCHANGE_RATE_PERMISSION_CATEGORY = "أسعار الصرف"
 export const EXCHANGE_RATE_PERMISSIONS = {
   add: "اضافة سعر الصرف",

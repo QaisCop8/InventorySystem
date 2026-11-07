@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import "./universal-toolbar.css"
 import { useThemeSettings } from "@/contexts/theme-context"
-import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useWorkspaceTabActive, useWorkspaceTabSection } from "@/contexts/workspace-tab-context"
+import { useVoucherOutputPermission } from "@/components/auth/transaction-access-gate"
+import { transactionFamilyForSection, type TransactionFamily } from "@/lib/transaction-permission-definitions"
 import { HOTKEY_LABELS, registerHotkeyScope, type HotkeyAction } from "@/lib/hotkeys"
 import { useFileAccess } from "@/components/auth/use-file-access"
 import type { FileFamily } from "@/lib/file-permission-definitions"
@@ -50,6 +52,8 @@ interface UniversalToolbarProps {
   hotkeys?: Partial<Record<HotkeyAction, (() => void) | null>>
   /** تعطيل كل اختصارات هذا الشريط (شاشة مضمّنة داخل أخرى لا يجب أن تستقبل المفاتيح) */
   disableHotkeys?: boolean
+  /** نوع السند لصلاحيات الطباعة/النسخ/SMS/واتساب — افتراضياً من قسم تبويب مساحة العمل */
+  transactionFamily?: TransactionFamily | null
 }
 
 const defaultLabels = {
@@ -61,16 +65,21 @@ const navClass = "h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white p
 
 export function UniversalToolbar({
   currentRecord = 1, totalRecords = 0, onFirst: firstAction, onPrevious: previousAction, onNext: nextAction, onLast: lastAction, onNew: newAction, onSave, onDelete,
-  onReport: reportAction, onExportExcel: exportAction, onPrint, onWhatsApp, onSms, onClone, isLoading = false, isSaving = false, canSave: saveEnabled = true,
+  onReport: reportAction, onExportExcel: exportAction, onPrint, onWhatsApp: whatsAppAction, onSms: smsAction, onClone, isLoading = false, isSaving = false, canSave: saveEnabled = true,
   canPrint: printEnabled = true, canDelete: deleteEnabled = true, canClone: cloneEnabled = true, isFirstRecord = false, isLastRecord = false,
   isNewRecord = false, labels = defaultLabels, showUtilityLabels = false, hotkeys, disableHotkeys = false,
-  fileFamily,
+  fileFamily, transactionFamily,
 }: UniversalToolbarProps) {
   const fileAccess = useFileAccess(fileFamily)
+  // صلاحيات طباعة/نسخ/SMS/واتساب السند: نوع السند من الخاصية، وإلا من قسم تبويب مساحة العمل
+  const tabSection = useWorkspaceTabSection()
+  const outputAccess = useVoucherOutputPermission(transactionFamily ?? transactionFamilyForSection(tabSection))
   const canSave = saveEnabled && fileAccess(isNewRecord ? "create" : "update")
   const canDelete = deleteEnabled && fileAccess("delete")
-  const canClone = cloneEnabled && fileAccess("create") && fileAccess("view")
-  const canPrint = printEnabled && fileAccess("view")
+  const canClone = cloneEnabled && fileAccess("create") && fileAccess("view") && outputAccess("clone")
+  const canPrint = printEnabled && fileAccess("view") && outputAccess("print")
+  const onWhatsApp = outputAccess("whatsapp") ? whatsAppAction : undefined
+  const onSms = outputAccess("sms") ? smsAction : undefined
   const onNew = fileAccess("create") ? newAction : undefined
   const onFirst = fileAccess("view") ? firstAction : undefined
   const onPrevious = fileAccess("view") ? previousAction : undefined

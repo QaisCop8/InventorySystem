@@ -58,3 +58,87 @@ Enter general discount in sales order
 Enter general discount in purchase order
 Edit VAT rate in sales order
 Edit VAT rate in purchase order
+Print sales order
+Print sales invoice
+Print sales delivery
+Print consignment delivery
+Print consignment delivery return
+Print sales return
+Print purchase order
+Print purchase invoice
+Print purchase delivery
+Print purchase return
+Print goods receipt voucher
+Print goods issue voucher
+Print internal delivery
+Print usage voucher
+Print production voucher
+Print receipt voucher
+Print payment voucher
+Print cheque payment voucher
+Print journal voucher
+Print credit note
+Print debit note
+Copy sales order
+Copy sales invoice
+Copy sales delivery
+Copy consignment delivery
+Copy consignment delivery return
+Copy sales return
+Copy purchase order
+Copy purchase invoice
+Copy purchase delivery
+Copy purchase return
+Copy goods receipt voucher
+Copy goods issue voucher
+Copy internal delivery
+Copy usage voucher
+Copy production voucher
+Copy receipt voucher
+Copy payment voucher
+Copy cheque payment voucher
+Copy journal voucher
+Copy credit note
+Copy debit note
+Send SMS for sales order
+Send SMS for sales invoice
+Send SMS for sales delivery
+Send SMS for consignment delivery
+Send SMS for consignment delivery return
+Send SMS for sales return
+Send SMS for purchase order
+Send SMS for purchase invoice
+Send SMS for purchase delivery
+Send SMS for purchase return
+Send SMS for goods receipt voucher
+Send SMS for goods issue voucher
+Send SMS for internal delivery
+Send SMS for usage voucher
+Send SMS for production voucher
+Send SMS for receipt voucher
+Send SMS for payment voucher
+Send SMS for cheque payment voucher
+Send SMS for journal voucher
+Send SMS for credit note
+Send SMS for debit note
+Send WhatsApp for sales order
+Send WhatsApp for sales invoice
+Send WhatsApp for sales delivery
+Send WhatsApp for consignment delivery
+Send WhatsApp for consignment delivery return
+Send WhatsApp for sales return
+Send WhatsApp for purchase order
+Send WhatsApp for purchase invoice
+Send WhatsApp for purchase delivery
+Send WhatsApp for purchase return
+Send WhatsApp for goods receipt voucher
+Send WhatsApp for goods issue voucher
+Send WhatsApp for internal delivery
+Send WhatsApp for usage voucher
+Send WhatsApp for production voucher
+Send WhatsApp for receipt voucher
+Send WhatsApp for payment voucher
+Send WhatsApp for cheque payment voucher
+Send WhatsApp for journal voucher
+Send WhatsApp for credit note
+Send WhatsApp for debit note

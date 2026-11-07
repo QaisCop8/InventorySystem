@@ -32,3 +32,15 @@ export function WorkspaceTabIdProvider({ tabId, children }: { tabId: string; chi
 export function useWorkspaceTabId() {
   return useContext(WorkspaceTabIdContext)
 }
+
+// قسم القائمة (section) للتبويب الحالي — شريط الأدوات الموحّد يستنتج منه نوع السند لصلاحيات الطباعة/النسخ/الإرسال.
+// خارج مساحة العمل: null.
+const WorkspaceTabSectionContext = createContext<string | null>(null)
+
+export function WorkspaceTabSectionProvider({ section, children }: { section: string | null; children: ReactNode }) {
+  return <WorkspaceTabSectionContext.Provider value={section}>{children}</WorkspaceTabSectionContext.Provider>
+}
+
+export function useWorkspaceTabSection() {
+  return useContext(WorkspaceTabSectionContext)
+}

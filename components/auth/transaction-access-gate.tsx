@@ -19,6 +19,9 @@ import {
   type TransactionFamily,
   type VoucherPricingAction,
   voucherPricingPermissionName,
+  type VoucherOutputAction,
+  isVoucherOutputFamily,
+  voucherOutputPermissionName,
 } from "@/lib/transaction-permission-definitions"
 
 /** صلاحية "الدخول لشاشة {الحركة}" للفرع النشط — من نفس قائمة الصلاحيات المخزّنة التي تستخدمها شاشات الملفات. */
@@ -123,4 +126,29 @@ export function useVoucherPricingPermission(voucherType: number) {
 export const voucherPricingPermissionLabel = (voucherType: number, action: VoucherPricingAction) => {
   const family = PRICING_VOUCHER_FAMILIES[Number(voucherType)]
   return family ? voucherPricingPermissionName(family, action) : ""
+}
+
+/**
+ * طباعة/نسخ/إرسال SMS/إرسال واتساب لسند من نوع family في الفرع النشط. نوع غير مشمول أو صلاحية لم تُزامَن بعد ⇐ مسموحة.
+ * يُرجع أيضاً اسم الصلاحية لرسالة الرفض.
+ */
+export function useVoucherOutputPermission(family: TransactionFamily | null | undefined) {
+  const { user, activeBranchId, permissionVersion } = useAuth()
+  const entries = useMemo<TransactionAccessEntry[] | null>(() => {
+    if (!user || typeof window === "undefined") return null
+    try {
+      const raw = localStorage.getItem(`user_Access_List:${user.id}:${activeBranchId || user.branchId || "default"}`)
+      const value = raw ? JSON.parse(raw) : null
+      return Array.isArray(value) ? value : null
+    } catch {
+      return null
+    }
+  }, [user, activeBranchId, permissionVersion])
+  return useCallback((action: VoucherOutputAction) => {
+    if (!isVoucherOutputFamily(family)) return true
+    const name = voucherOutputPermissionName(family, action)
+    const matches = (entries || []).filter((entry) => String(entry.access_name || "").trim() === name)
+    if (!matches.length) return true
+    return matches.some((entry) => entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true")
+  }, [entries, family])
 }

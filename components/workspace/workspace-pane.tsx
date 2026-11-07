@@ -8,7 +8,7 @@ import { SECTION_TITLES } from "@/components/sidebar"
 import { TabStrip } from "./tab-strip"
 import { PaneMenu } from "./pane-menu"
 import { WorkspaceDialogProvider } from "@/contexts/workspace-dialog-context"
-import { WorkspaceTabActiveProvider, WorkspaceTabIdProvider } from "@/contexts/workspace-tab-context"
+import { WorkspaceTabActiveProvider, WorkspaceTabIdProvider, WorkspaceTabSectionProvider } from "@/contexts/workspace-tab-context"
 import { requestGuardedNavigation } from "@/lib/navigation-guard"
 
 interface WorkspacePaneProps {
@@ -96,6 +96,7 @@ function MountedWorkspaceTab({
     >
       <WorkspaceTabActiveProvider active={hotkeysActive}>
         <WorkspaceTabIdProvider tabId={tab.id}>
+        <WorkspaceTabSectionProvider section={tab.section || null}>
           <WorkspaceDialogProvider container={dialogContainer} confined>
             {shouldRender && (
               <Profiler
@@ -116,6 +117,7 @@ function MountedWorkspaceTab({
             )}
             <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
           </WorkspaceDialogProvider>
+        </WorkspaceTabSectionProvider>
         </WorkspaceTabIdProvider>
       </WorkspaceTabActiveProvider>
     </div>
