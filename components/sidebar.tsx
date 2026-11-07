@@ -161,6 +161,7 @@ export const menuItems: MenuItem[] = [
           { title: tr("العملاء"), section: "customers", icon: Users },
           { title: tr("الموردين"), section: "suppliers", icon: Truck },
           { title: tr("المشتركين"), section: "subscribers", icon: UserCheck },
+          { title: tr("بوابة العملاء"), section: "customer-portal", icon: Globe },
           { title: tr("المندوبين"), section: "salesmen", icon: UserCheck },
           { title: tr("عمولات المندوبين"), section: "salesman-commissions", icon: WalletCards },
           { title: tr("نماذج العملاء والأصناف"), section: "customer-product-templates", icon: Grid3x3 },
@@ -169,7 +170,19 @@ export const menuItems: MenuItem[] = [
           { title: tr("السائقين"), section: "drivers", icon: IdCard },
         ],
       },
-      { title: tr("بوابة العملاء"), section: "customer-portal", icon: Globe },
+      {
+        title: tr("ملفات الاصناف"),
+        section: "item-management-files",
+        icon: Users,
+        submenu: [
+          { title: tr("المستودعات"), section: "warehouses", icon: Building },
+          { title: tr("الأصناف"), section: "products", icon: Package },
+          { title: tr("الخدمات"), section: "services", icon: Package },
+          { title: tr("مجموعات الأصناف"), section: "product-groups", icon: Package },
+          { title: tr("أنواع العلامات التجارية"), section: "brand-types", icon: Package },
+          { title: tr("العلامات التجارية"), section: "brands", icon: Package },
+        ],
+      },
     ],
   },
   {
@@ -223,19 +236,6 @@ export const menuItems: MenuItem[] = [
     title: tr("ادارة الاصناف"),
     icon: Package,
     submenu: [
-      {
-        title: tr("ملفات الاصناف"),
-        section: "item-management-files",
-        icon: Users,
-        submenu: [
-          { title: tr("المستودعات"), section: "warehouses", icon: Building },
-          { title: tr("الأصناف"), section: "products", icon: Package },
-          { title: tr("الخدمات"), section: "services", icon: Package },
-          { title: tr("مجموعات الأصناف"), section: "product-groups", icon: Package },
-          { title: tr("أنواع العلامات التجارية"), section: "brand-types", icon: Package },
-          { title: tr("العلامات التجارية"), section: "brands", icon: Package },
-        ],
-      },
       {
         title: tr("الحركات"),
         section: "item-management-transactions",
@@ -300,7 +300,6 @@ export const menuItems: MenuItem[] = [
       { title: tr("إرسالية برسم البيع"), section: "delivery-consignment-sale", icon: ArrowUpCircle },
       { title: tr("مرتجع إرسالية برسم البيع"), section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
       { title: tr("مرتجع مبيعات"), section: "return-sell", icon: FileMinus2 },
-      { title: tr("معالجة حالة الطلبيات"), section: "order-management", icon: Package },
     ],
   },
   {
