@@ -86,7 +86,9 @@ export function useTransactionPermission() {
   }, [entries])
 }
 
+// 1/2 = vch_type شاشة الطلبيات (UnifiedSalesOrder: طلبية مبيعات/مشتريات)، 12-19 = شاشة SalesDelivery
 const PRICING_VOUCHER_FAMILIES: Record<number, TransactionFamily> = {
+  1: "sales_order", 2: "purchase_order",
   12: "sales_invoice", 13: "sales_delivery", 14: "consignment_delivery", 15: "consignment_return", 16: "sales_return",
   17: "purchase_invoice", 18: "purchase_delivery", 19: "purchase_return",
 }

@@ -948,9 +948,13 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   // تعديل السعر/خصم الصنف/الخصم العام/نسبة الضريبة في كل سند (2026-11-07) — كانت مفتوحة لكل من يدخل أو يعدّل السند.
   // مرة واحدة لكل شركة: تُمنح لمن يملك "إدخال" أو "تعديل" ذلك السند (مستخدم/دور، وعلى مستوى الفروع) فلا يتغير عمل أحد اليوم،
   // ثم يقيّدها المسؤول من شاشة الصلاحيات. لا تُعاد.
-  const voucherPricingMigration = "voucher-pricing-permissions-v1"
+  // الطلبيات (طلبية مبيعات/مشتريات) أُضيفت بعد v1 ⇐ ترحيل مستقل لها حتى تُمنح في الشركات التي طُبّق فيها v1 مسبقاً
+  for (const [voucherPricingMigration, families] of [
+    ["voucher-pricing-permissions-v1", VOUCHER_PRICING_FAMILIES.filter((family) => family !== "sales_order" && family !== "purchase_order")],
+    ["voucher-pricing-permissions-orders-v1", ["sales_order", "purchase_order"]],
+  ] as const) {
   if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [voucherPricingMigration])).length) {
-    for (const family of VOUCHER_PRICING_FAMILIES) {
+    for (const family of families) {
       const targetNames = voucherPricingActionsFor(family).map((action) => voucherPricingPermissionName(family, action))
       const sourceNames = [transactionPermissionName(family, "create"), transactionPermissionName(family, "update")]
       for (const [table, keys] of [
@@ -972,6 +976,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       }
     }
     await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [voucherPricingMigration])
+  }
   }
 
   // تتبع أوامر العمل صار بصلاحيات لكل شاشة (2026-11-03) — كان مفتوحاً لكل مستخدم مسجّل، وإدارته لمدير النظام فقط.

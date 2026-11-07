@@ -60,6 +60,8 @@ import ProductSearchPopup from "../products/ProductSearchPopup"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
+import { useVoucherPricingPermission, voucherPricingPermissionLabel } from "@/components/auth/transaction-access-gate"
+import type { VoucherPricingAction } from "@/lib/transaction-permission-definitions"
 import Util from "../common/Util"
 import UnitsSearchPopup from "../products/UnitsSearchPopup"
 import StoresSearchPopup from "../products/StoresSearchPopup"
@@ -396,6 +398,9 @@ function UnifiedSalesOrder({
   }, [state.formData.id, state.formData.vch_code])
   const toast = useRef<Toast | null>(null);
   const message = useRef(Messages);
+  // صلاحيات تسعير الطلبية (VOUCHER_PRICING_ACTIONS): تعديل السعر/المبلغ، خصم الصنف، الخصم العام، نسبة الضريبة
+  const canPricing = useVoucherPricingPermission(Number(vch_type) || 1)
+  const denyPricing = (action: VoucherPricingAction) => Util.showErrorMessage(message, tr("لا توجد لديك صلاحية {0}", voucherPricingPermissionLabel(Number(vch_type) || 1, action)))
   // رسالة SMS للعميل (lib/sms.ts)
   const [smsOpen, setSmsOpen] = useState(false)
   const [loading, setLoading] = useState(false);
@@ -1487,6 +1492,13 @@ function UnifiedSalesOrder({
 
   const onBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
+    // صلاحيات التسعير: السعر/المبلغ ⇐ تعديل السعر، الخصم ⇐ خصم صنف
+    const pricingAction: VoucherPricingAction | null = colName === "discount" ? "item_discount" : colName === "price" || colName === "amount" ? "price" : null
+    if (pricingAction && !canPricing(pricingAction)) {
+      e.cancel = true
+      denyPricing(pricingAction)
+      return
+    }
     if (colName === "amount") {
       amountEditSnapshotRef.current = { grid, row: e.row, value: grid.getCellData(e.row, e.col, false) }
       guardItemAmountInput(grid, e.row, e.col, true)
@@ -4296,6 +4308,7 @@ function UnifiedSalesOrder({
                         optionLabel="label"
                         optionValue="value"
                         placeholder={tr("اختر نوع الخصم")}
+                        disabled={!canPricing("general_discount")}
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
@@ -4314,6 +4327,8 @@ function UnifiedSalesOrder({
                         type="number"
                         step="0.01"
                         value={state.formData.discount_amount || 0}
+                        disabled={!canPricing("general_discount")}
+                        title={canPricing("general_discount") ? undefined : tr("لا توجد لديك صلاحية {0}", voucherPricingPermissionLabel(Number(vch_type) || 1, "general_discount"))}
                         onChange={(e) => {
                           let value = Number.parseFloat(e.target.value) || 0;
 
@@ -4348,8 +4363,8 @@ function UnifiedSalesOrder({
                       max={100}
                       value={state.formData.vat_percent ?? 0}
                       // الضريبة على مستوى الصنف: النسبة من التصنيف الضريبي لكل صنف — الحقل للعرض فقط (النسبة الفعلية)
-                      disabled={itemVat.enabled}
-                      title={itemVat.enabled ? tr("الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للطلبية") : undefined}
+                      disabled={itemVat.enabled || !canPricing("vat_rate")}
+                      title={itemVat.enabled ? tr("الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للطلبية") : !canPricing("vat_rate") ? tr("لا توجد لديك صلاحية {0}", voucherPricingPermissionLabel(Number(vch_type) || 1, "vat_rate")) : undefined}
                       onChange={(e) => {
                         const entered = Number.parseFloat(e.target.value)
                         const value = Number.isNaN(entered) ? 0 : Math.min(Math.max(entered, 0), 100)

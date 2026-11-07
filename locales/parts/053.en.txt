@@ -50,3 +50,11 @@ The sales team will contact you soon, and the subscription is activated once man
 Contact details for sales
 Mobile number *
 WhatsApp (if different from mobile)
+Edit price in sales order
+Edit price in purchase order
+Enter item discount in sales order
+Enter item discount in purchase order
+Enter general discount in sales order
+Enter general discount in purchase order
+Edit VAT rate in sales order
+Edit VAT rate in purchase order

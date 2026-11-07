@@ -187,7 +187,7 @@ export const PURCHASE_PRICE_VIEW_PERMISSION = "السماح بمشاهدة أس�
 
 // أسعار الصرف (نافذة أسعار الصرف اليومية وشاشة العملات — app/api/exchange-rates، lib/exchange-rate-access.ts):
 // إضافة = أول إدخال لسعر اليوم أو عملة جديدة؛ تعديل = تغيير سعر اليوم بعد إدخاله؛ يوم سابق = أي حفظ بتاريخ قبل اليوم
-// تسعير أسطر السندات (شاشة SalesDelivery: فواتير/إرساليات/مرتجعات المبيعات والمشتريات) — صلاحية لكل سند:
+// تسعير أسطر السندات (شاشة SalesDelivery: فواتير/إرساليات/مرتجعات المبيعات والمشتريات، وشاشة الطلبيات) — صلاحية لكل سند:
 // "تعديل السعر في فاتورة مبيعات"... تظهر كعمليات إضافية في صف السند بشاشة الصلاحيات. تُفحص في الشاشة عند التعديل اليدوي.
 export const VOUCHER_PRICING_ACTIONS = {
   price: "تعديل السعر في",
@@ -197,8 +197,8 @@ export const VOUCHER_PRICING_ACTIONS = {
 } as const
 export type VoucherPricingAction = keyof typeof VOUCHER_PRICING_ACTIONS
 export const VOUCHER_PRICING_FAMILIES = [
-  "sales_invoice", "sales_delivery", "consignment_delivery", "consignment_return", "sales_return",
-  "purchase_invoice", "purchase_delivery", "purchase_return",
+  "sales_order", "sales_invoice", "sales_delivery", "consignment_delivery", "consignment_return", "sales_return",
+  "purchase_order", "purchase_invoice", "purchase_delivery", "purchase_return",
 ] as const satisfies readonly TransactionFamily[]
 export const voucherPricingPermissionName = (family: TransactionFamily, action: VoucherPricingAction) =>
   `${VOUCHER_PRICING_ACTIONS[action]} ${TRANSACTION_FAMILIES[family]}`
