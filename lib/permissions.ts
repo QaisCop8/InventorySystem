@@ -30,8 +30,9 @@ import {
   CHEQUE_OPERATION_PERMISSION_CATEGORY,
   CHEQUE_OPERATION_PERMISSIONS,
   ALL_VOUCHER_PRICING_PERMISSION_NAMES,
-  VOUCHER_PRICING_ACTIONS,
+  REMOVED_VOUCHER_PRICING_PERMISSION_NAMES,
   VOUCHER_PRICING_FAMILIES,
+  voucherPricingActionsFor,
   voucherPricingPermissionName,
   transactionPermissionName,
   HR_TRANSACTION_FAMILIES,
@@ -660,7 +661,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     )
   }
   // إجراءات لم تعد مستخدمة (TRANSACTION_FAMILY_ACTIONS) والأسماء القديمة المتبقية بعد إعادة التسمية: تُحذف مع منحها
-  const obsoletePermissionNames = [...REMOVED_TRANSACTION_PERMISSION_NAMES, ...RENAMED_TRANSACTION_PERMISSIONS.map((rename) => rename.from), ...LEGACY_DUPLICATE_PERMISSION_NAMES]
+  const obsoletePermissionNames = [...REMOVED_TRANSACTION_PERMISSION_NAMES, ...RENAMED_TRANSACTION_PERMISSIONS.map((rename) => rename.from), ...LEGACY_DUPLICATE_PERMISSION_NAMES, ...REMOVED_VOUCHER_PRICING_PERMISSION_NAMES]
   if (obsoletePermissionNames.length) {
     const obsolete = `SELECT id FROM access_list WHERE name = ANY($1::text[])`
     for (const table of ["user_access", "role_permissions", "user_branch_permissions", "role_branch_permissions"]) {
@@ -950,7 +951,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   const voucherPricingMigration = "voucher-pricing-permissions-v1"
   if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [voucherPricingMigration])).length) {
     for (const family of VOUCHER_PRICING_FAMILIES) {
-      const targetNames = (Object.keys(VOUCHER_PRICING_ACTIONS) as (keyof typeof VOUCHER_PRICING_ACTIONS)[]).map((action) => voucherPricingPermissionName(family, action))
+      const targetNames = voucherPricingActionsFor(family).map((action) => voucherPricingPermissionName(family, action))
       const sourceNames = [transactionPermissionName(family, "create"), transactionPermissionName(family, "update")]
       for (const [table, keys] of [
         ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],

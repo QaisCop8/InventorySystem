@@ -202,8 +202,14 @@ export const VOUCHER_PRICING_FAMILIES = [
 ] as const satisfies readonly TransactionFamily[]
 export const voucherPricingPermissionName = (family: TransactionFamily, action: VoucherPricingAction) =>
   `${VOUCHER_PRICING_ACTIONS[action]} ${TRANSACTION_FAMILIES[family]}`
+// ارسالية برسم البيع ومرتجعها: نقل بضاعة بلا تصنيف ضريبي ⇐ بلا صلاحية "تعديل نسبة الضريبة"
+const NO_VAT_RATE_PRICING_FAMILIES: readonly TransactionFamily[] = ["consignment_delivery", "consignment_return"]
+export const voucherPricingActionsFor = (family: TransactionFamily): VoucherPricingAction[] =>
+  (Object.keys(VOUCHER_PRICING_ACTIONS) as VoucherPricingAction[]).filter((action) => action !== "vat_rate" || !NO_VAT_RATE_PRICING_FAMILIES.includes(family))
 export const ALL_VOUCHER_PRICING_PERMISSION_NAMES = VOUCHER_PRICING_FAMILIES.flatMap((family) =>
-  (Object.keys(VOUCHER_PRICING_ACTIONS) as VoucherPricingAction[]).map((action) => voucherPricingPermissionName(family, action)))
+  voucherPricingActionsFor(family).map((action) => voucherPricingPermissionName(family, action)))
+/** أُنشئت ثم أُلغيت (2026-11-07) — تُحذف مع منحها */
+export const REMOVED_VOUCHER_PRICING_PERMISSION_NAMES = NO_VAT_RATE_PRICING_FAMILIES.map((family) => voucherPricingPermissionName(family, "vat_rate"))
 
 export const EXCHANGE_RATE_PERMISSION_CATEGORY = "أسعار الصرف"
 export const EXCHANGE_RATE_PERMISSIONS = {
