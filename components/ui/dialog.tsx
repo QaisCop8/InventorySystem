@@ -62,6 +62,23 @@ const DialogOverlay = React.forwardRef<
 })
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+// عرض النافذة المحدد بصنف max-w-* (sm..7xl أو [..]) — داخل مساحة الشاشة يجب أن يبقى حدّاً أعلى لا أن يُستبدل بعرض المساحة كله
+const NAMED_MAX_WIDTHS: Record<string, string> = { xs: "20rem", sm: "24rem", md: "28rem", lg: "32rem", xl: "36rem", "2xl": "42rem", "3xl": "48rem", "4xl": "56rem", "5xl": "64rem", "6xl": "72rem", "7xl": "80rem" }
+const classMaxWidth = (className: unknown) => {
+  if (typeof className !== "string") return null
+  let found: string | null = null
+  for (const token of className.split(/\s+/)) {
+    if (token.includes(":")) continue // sm:max-w-... وأمثالها: نترك السلوك الحالي
+    const match = /^!?max-w-(.+)$/.exec(token)
+    if (!match) continue
+    const value = match[1]
+    if (NAMED_MAX_WIDTHS[value]) found = NAMED_MAX_WIDTHS[value]
+    else if (/^\[[0-9.]+(px|rem|vw|%)\]$/.test(value)) found = value.slice(1, -1)
+    else found = null // max-w-none / max-w-full / غيرها: عرض المساحة كما كان
+  }
+  return found
+}
+
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   hideCloseButton?: boolean
   inline?: boolean
@@ -114,7 +131,7 @@ const DialogContent = React.forwardRef<
       style={{
         // داخل مساحة الشاشة (confined): لا تتجاوز النافذة عرض المساحة أبداً — w-[96vw] من عرض المتصفح كله (نموذج العملاء)
         // كان أعرض من المساحة بجانب القائمة فيُقصّ طرفاه ويختفي يمينه تحت القائمة الجانبية
-        ...(confined ? { maxWidth: "calc(100% - 1.5rem)" } : {}),
+        ...(confined ? { maxWidth: classMaxWidth(className) ? `min(${classMaxWidth(className)}, calc(100% - 1.5rem))` : "calc(100% - 1.5rem)" } : {}),
         ...(confined && isLargeTransactionDialog
           ? {
               width: "calc(100% - 1.5rem)",
