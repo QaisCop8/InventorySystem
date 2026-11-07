@@ -93,6 +93,8 @@ export function ensureManagementTables(): Promise<void> {
       // Ensure `email_verified` exists for older databases created before this column was added
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false`
       await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`
+      // رقم جوال صاحب الحساب (إلزامي عند التسجيل) — يظهر لمسؤول الموقع في لوحة التحكم ⇐ المستخدمون
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile VARCHAR(30)`
       await sql`
         CREATE TABLE IF NOT EXISTS companies (
           id SERIAL PRIMARY KEY,

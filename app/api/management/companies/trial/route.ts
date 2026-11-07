@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
     `
     const company = inserted[0]
 
+    // حساب قديم بلا رقم جوال ⇐ يُحفظ رقم الشركة التجريبية عليه
+    await managementSql`UPDATE users SET mobile = ${mobile} WHERE id = ${session.id} AND COALESCE(mobile, '') = ''`.catch(() => undefined)
+
     await managementSql`
       INSERT INTO user_company (user_id, company_id, role)
       VALUES (${session.id}, ${company.id}, 'owner')

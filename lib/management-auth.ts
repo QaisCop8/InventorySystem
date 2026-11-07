@@ -24,12 +24,16 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString("hex")
 }
 
-export async function signupManagementUser(data: { fullName: string; email: string; password: string }) {
+export async function signupManagementUser(data: { fullName: string; email: string; password: string; mobile?: string }) {
   await ensureManagementTables()
 
   const email = data.email.trim().toLowerCase()
+  // رقم الجوال: أرقام فقط (تُحذف المسافات والشرطات) مع + اختيارية، 9-15 رقماً
+  const mobile = String(data.mobile || "").replace(/[\s-]/g, "")
   if (!data.fullName?.trim()) return { success: false, error: "الاسم الكامل مطلوب" }
   if (!email) return { success: false, error: "البريد الإلكتروني مطلوب" }
+  if (!mobile) return { success: false, error: "رقم الجوال مطلوب" }
+  if (!/^\+?\d{9,15}$/.test(mobile)) return { success: false, error: "رقم الجوال غير صحيح" }
   if (!data.password || data.password.length < 6) return { success: false, error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" }
 
   const existing = await sql`SELECT id FROM users WHERE email = ${email}`
@@ -40,8 +44,8 @@ export async function signupManagementUser(data: { fullName: string; email: stri
   // البريد الإلكتروني يُعتبر مؤكَّداً فور التسجيل (بلا خطوة تحقق عبر رابط بريدي) — يستطيع
   // المستخدم تسجيل الدخول مباشرة بعد إنشاء الحساب.
   const inserted = await sql`
-    INSERT INTO users (full_name, email, password_hash, email_verified)
-    VALUES (${data.fullName.trim()}, ${email}, ${passwordHash}, true)
+    INSERT INTO users (full_name, email, password_hash, email_verified, mobile)
+    VALUES (${data.fullName.trim()}, ${email}, ${passwordHash}, true, ${mobile})
     RETURNING id, full_name, email
   `
   const user = inserted[0]

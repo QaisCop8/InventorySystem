@@ -3,7 +3,7 @@
 import { tr, appDir } from "@/lib/i18n"
 import { useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
-import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, UserPlus, UserRound, Zap } from "lucide-react"
+import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, Phone, ShieldCheck, Sparkles, UserPlus, UserRound, Zap } from "lucide-react"
 import { NoonLogo } from "@/components/brand/noon-logo"
 import { PoweredBy } from "@/components/brand/powered-by"
 
@@ -73,7 +73,7 @@ function passwordStrength(password: string) {
 }
 
 export default function ManagementSignupPage() {
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "" })
+  const [form, setForm] = useState({ fullName: "", email: "", mobile: "", password: "", confirmPassword: "" })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
@@ -101,6 +101,10 @@ export default function ManagementSignupPage() {
       setError(tr("كلمة المرور وتأكيد كلمة المرور غير متطابقتين"))
       return
     }
+    if (!/^\+?\d{9,15}$/.test(form.mobile.replace(/[\s-]/g, ""))) {
+      setError(tr("رقم الجوال غير صحيح"))
+      return
+    }
     if (form.password.length < 6) {
       setError(tr("كلمة المرور يجب أن تكون 6 أحرف على الأقل"))
       return
@@ -111,7 +115,7 @@ export default function ManagementSignupPage() {
       const response = await fetch("/api/management/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName: form.fullName, email: form.email, password: form.password }),
+        body: JSON.stringify({ fullName: form.fullName, email: form.email, mobile: form.mobile, password: form.password }),
       })
       const data = await response.json()
       if (!response.ok) {
@@ -180,6 +184,15 @@ export default function ManagementSignupPage() {
                         <Mail className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
                         <input id="signup-email" type="email" inputMode="email" autoComplete="email" required dir="ltr" style={ltrStyle} spellCheck={false} autoCapitalize="none"
                           placeholder="name@company.com" className="su-field pe-11 ps-4" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="signup-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")}</label>
+                      <div className="relative" dir="ltr">
+                        <Phone className="pointer-events-none absolute end-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-500" />
+                        <input id="signup-mobile" type="tel" inputMode="tel" autoComplete="tel" required dir="ltr" style={ltrStyle}
+                          placeholder="05XXXXXXXX" className="su-field pe-11 ps-4" value={form.mobile} onChange={(event) => setForm((current) => ({ ...current, mobile: event.target.value }))} />
                       </div>
                     </div>
 

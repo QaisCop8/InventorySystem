@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
       fullName: data.fullName,
       email: data.email,
       password: data.password,
+      mobile: data.mobile,
     })
 
     if (!result.success) {

@@ -8,7 +8,7 @@ import { CompanyLicenseBar, LicenseRequestsPanel } from "@/components/management
 import { PricingPanel } from "@/components/management/pricing-panel"
 import { FeatureRequestsAdmin } from "@/components/management/feature-requests-admin"
 import { ChangePasswordDialog } from "@/components/management/change-password-dialog"
-import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit, KeyRound, Database } from "lucide-react"
+import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit, KeyRound, Database, Phone } from "lucide-react"
 import { UserLoginReport } from "@/components/management/user-login-report"
 import { SiteActivityReport } from "@/components/management/site-activity-report"
 import { BackupsPanel } from "@/components/management/backups-panel"
@@ -65,6 +65,7 @@ const formatDatabaseStorage = (bytes?: number | null) => {
 interface ManagedUser {
   id: number
   full_name: string
+  mobile?: string | null
   email: string
   is_platform_admin: boolean
   is_active: boolean
@@ -680,6 +681,13 @@ export default function ManagementAdminPage() {
                       )}
                     </div>
                     <div className="text-sm text-slate-500">{user.email}</div>
+                    {user.mobile ? (
+                      <a href={`tel:${user.mobile}`} className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:underline" dir="ltr">
+                        <Phone className="h-3.5 w-3.5" />{user.mobile}
+                      </a>
+                    ) : (
+                      <div className="mt-0.5 text-xs text-slate-400">{tr("لا يوجد رقم جوال")}</div>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="outline" className="gap-1 border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => setPasswordUser(user)}>
