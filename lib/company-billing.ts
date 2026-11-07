@@ -66,6 +66,8 @@ export function ensureBillingTables() {
       await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS applied_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_started_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_error TEXT`
+      // رقم جوال صاحب الطلب للتواصل (إلزامي للشركة التجريبية)
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS contact_mobile VARCHAR(30)`
       // أرقام التواصل مع المبيعات (صفحة خيارات الدفع) — يعدّلها مسؤول المنصة مع الأسعار
       // مواقع المطاعم: سعر سنوي لكل موقع (افتراضياً 50) + عددها في كل دفعة
       await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS per_restaurant_location NUMERIC(12,2) NOT NULL DEFAULT 50`

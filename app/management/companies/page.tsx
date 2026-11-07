@@ -157,6 +157,7 @@ export default function ManagementCompaniesPage() {
   // (التي تبقى بانتظار موافقة مسؤول المنصة) حتى يبقى الفرق بين المسارين واضحاً للمستخدم.
   const [showTrialDialog, setShowTrialDialog] = useState(false)
   const [trialCompanyName, setTrialCompanyName] = useState("")
+  const [trialMobile, setTrialMobile] = useState("")
   const [trialSaving, setTrialSaving] = useState(false)
   // الدفع الإلكتروني عبر لحظة عند إنشاء شركة (مفعّل حين يضبط الخادم LAHZA_SECRET_KEY وسعراً أساسياً)
   const [pricing, setPricing] = useState<Pricing | null>(null)
@@ -266,16 +267,18 @@ export default function ManagementCompaniesPage() {
     }
   }
 
+  // رقم الجوال إلزامي — نفس فحص الخادم (9-15 رقماً، + اختيارية، المسافات والشرطات مسموحة)
+  const trialMobileValid = /^\+?\d{9,15}$/.test(trialMobile.replace(/[\s-]/g, ""))
   const handleAddTrialCompany = async () => {
     // نفس سبب عدم استخدام شارة الصفحة بـhandleAddCompany أعلاه.
-    if (!trialCompanyName.trim()) return
+    if (!trialCompanyName.trim() || !trialMobileValid) return
     setTrialSaving(true)
     setNotice("")
     try {
       const res = await fetch("/api/management/companies/trial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trialCompanyName.trim() }),
+        body: JSON.stringify({ name: trialCompanyName.trim(), mobile: trialMobile.trim() }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -287,6 +290,7 @@ export default function ManagementCompaniesPage() {
       }
       setShowTrialDialog(false)
       setTrialCompanyName("")
+      setTrialMobile("")
       const expiryLabel = data.expiryDate ? formatArabicDate(new Date(data.expiryDate)) : formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))
       const successMessage = tr("تم إنشاء الشركة التجريبية واعتمادها تلقائياً — ستنتهي صلاحيتها بتاريخ {0}", expiryLabel)
       setNotice(successMessage)
@@ -718,6 +722,11 @@ export default function ManagementCompaniesPage() {
             <label htmlFor="trial-company-name" className="text-sm font-bold text-slate-700">{tr("اسم الشركة")}</label>
             <input id="trial-company-name" value={trialCompanyName} onChange={(e) => setTrialCompanyName(e.target.value)} className="cp-field text-start" autoFocus />
           </div>
+          <div className="space-y-2">
+            <label htmlFor="trial-company-mobile" className="text-sm font-bold text-slate-700">{tr("رقم الجوال")} <span className="text-rose-600">*</span></label>
+            <input id="trial-company-mobile" type="tel" inputMode="tel" dir="ltr" placeholder="05XXXXXXXX" value={trialMobile} onChange={(e) => setTrialMobile(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && trialCompanyName.trim() && trialMobileValid && !trialSaving) void handleAddTrialCompany() }} className="cp-field text-start" aria-invalid={Boolean(trialMobile.trim()) && !trialMobileValid} />
+            {trialMobile.trim() && !trialMobileValid && <p className="text-xs font-semibold text-rose-600">{tr("رقم الجوال غير صحيح")}</p>}
+          </div>
           <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm leading-6 text-violet-700">
             <Clock className="mt-1 h-4 w-4 shrink-0 text-violet-700" />
             <span>
@@ -729,7 +738,7 @@ export default function ManagementCompaniesPage() {
             <button type="button" onClick={() => setShowTrialDialog(false)} className="h-11 rounded-xl border border-[#ece3d3] px-5 text-sm font-bold text-slate-700 transition hover:bg-stone-100">
               {tr("إلغاء")}
             </button>
-            <button type="button" onClick={handleAddTrialCompany} disabled={trialSaving || !trialCompanyName.trim()} className="cp-btn is-trial inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white">
+            <button type="button" onClick={handleAddTrialCompany} disabled={trialSaving || !trialCompanyName.trim() || !trialMobileValid} className="cp-btn is-trial inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white">
               {trialSaving ? <><Loader2 className="h-4 w-4 animate-spin" />{tr("جاري الإنشاء...")}</> : tr("إنشاء")}
             </button>
           </DialogFooter>

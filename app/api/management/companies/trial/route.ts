@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const name = String(data.name || "").trim()
     if (!name) return NextResponse.json({ error: "اسم الشركة مطلوب" }, { status: 400 })
+    // رقم الجوال إلزامي: أرقام فقط (تُحذف المسافات والشرطات) مع + اختيارية في البداية، 9-15 رقماً
+    const mobile = String(data.mobile || "").replace(/[\s-]/g, "")
+    if (!mobile) return NextResponse.json({ error: "رقم الجوال مطلوب" }, { status: 400 })
+    if (!/^\+?\d{9,15}$/.test(mobile)) return NextResponse.json({ error: "رقم الجوال غير صحيح" }, { status: 400 })
 
     // نفس فحص التكرار في /api/management/companies (POST) العادية — بلا حساسية لحالة الأحرف/
     // المسافات الطرفية، عبر كل الشركات.
@@ -37,9 +41,10 @@ export async function POST(request: NextRequest) {
     `
     if (userRows.length === 0) return NextResponse.json({ error: "تعذّر العثور على المستخدم" }, { status: 404 })
 
+    await ensureBillingTables()
     const inserted = await managementSql`
-      INSERT INTO companies (name, status, created_by)
-      VALUES (${name}, 'pending', ${session.id})
+      INSERT INTO companies (name, status, created_by, contact_mobile)
+      VALUES (${name}, 'pending', ${session.id}, ${mobile})
       RETURNING id, name
     `
     const company = inserted[0]
