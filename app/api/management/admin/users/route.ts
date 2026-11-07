@@ -14,9 +14,10 @@ export async function GET() {
 
     const rows = await managementSql`
       SELECT u.id, u.full_name, u.email, u.is_platform_admin, u.is_active, u.email_verified, u.created_at,
-        -- الحسابات المسجّلة قبل حقل الجوال: آخر رقم أدخله لشركة تجريبية أو لطلب مبيعات
-        COALESCE(NULLIF(u.mobile, ''),
+        -- رقم الجوال المُدخل عند إضافة آخر شركة (عادية أو تجريبية)، وإلا رقم التسجيل، وإلا رقم آخر طلب للمبيعات
+        COALESCE(
           (SELECT c.contact_mobile FROM companies c WHERE c.created_by = u.id AND COALESCE(c.contact_mobile, '') <> '' ORDER BY c.id DESC LIMIT 1),
+          NULLIF(u.mobile, ''),
           (SELECT l.phone FROM sales_leads l WHERE l.user_id = u.id AND COALESCE(l.phone, '') <> '' ORDER BY l.id DESC LIMIT 1)) AS mobile
       FROM users u
       ORDER BY u.created_at DESC
