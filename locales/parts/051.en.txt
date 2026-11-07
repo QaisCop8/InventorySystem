@@ -1,0 +1,8 @@
+Import manufacturing components from Excel
+Components are matched by item code or barcode; the unit is optional (main unit if left empty), and a component already in the table gets its quantity replaced
+Add to manufacturing components
+Unit name as defined on the item
+Unit {0} is not one of the item's units ({1})
+Component is duplicated in the file (row {0})
+Could not look up the items
+The selected unit is not one of the component's units

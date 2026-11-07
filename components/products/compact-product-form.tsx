@@ -16,7 +16,7 @@ import { notifyProductsChanged } from "@/lib/products-changed"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy } from "lucide-react"
+import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy, FileSpreadsheet } from "lucide-react"
 import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
@@ -47,6 +47,7 @@ import { ImageUploadField } from "@/components/common/ImageUploadField"
 import { attachEnterAsTab } from "@/components/common/enterAsTab"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { ManufacturingComponentsImportDialog, type ImportedComponentLine } from "@/components/import/manufacturing-components-import"
 
 // ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
@@ -172,6 +173,8 @@ interface ManufacturingComponentItem {
   component_code?: string
   component_name?: string
   quantity: number
+  unit_id?: number | null
+  units?: { unit_id: number; unit_name: string; factor: number }[]
   measurment_id?: number | null
   length?: number | null
   width?: number | null
@@ -488,6 +491,7 @@ export function CompactProductForm({
   const [relatedOptionsDraft, setRelatedOptionsDraft] = useState<RelatedProductItem | null>(null)
   const [manufacturingComponents, setManufacturingComponents] = useState<ManufacturingComponentItem[]>([])
   const [manufacturingComponentSearchOpen, setManufacturingComponentSearchOpen] = useState(false)
+  const [manufacturingComponentsImportOpen, setManufacturingComponentsImportOpen] = useState(false)
   // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
   // Column.editor المباشر (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً لا JSX، انظر
   // editor?: Control | null في @grapecity/wijmo.react.grid/index.d.ts)، بنفس نمط أزرار البحث
@@ -796,7 +800,7 @@ export function CompactProductForm({
             related_item_ids: relatedProducts.map((row) => row.related_id),
             related_items_mode: formData.related_items_mode,
             manufacturing_components: manufacturingComponents.map((row) => ({
-              component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row),
+              component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), unit_id: row.unit_id,
               length: row.length, width: row.width, height: row.height, count: row.count,
             })),
           }),
@@ -2081,6 +2085,16 @@ export function CompactProductForm({
 
   const hasMeasuredComponents = manufacturingComponents.some((row) => Number(row.measurment_id || 1) !== 1)
   const hasVolumeComponents = manufacturingComponents.some((row) => Number(row.measurment_id) === 3)
+  // الوحدة: DataMap واحد بكل وحدات المكونات، والقائمة المنسدلة لكل سطر تعرض وحدات صنفه فقط
+  const manufacturingUnitsKey = manufacturingComponents.map((row) => (row.units || []).map((unit) => `${unit.unit_id}:${unit.unit_name}`).join(",")).join("|")
+  const manufacturingUnitMap = useMemo(() => {
+    const all = new Map<number, string>()
+    for (const row of manufacturingComponents) for (const unit of row.units || []) all.set(unit.unit_id, unit.unit_name)
+    const map = new wjGrid.DataMap([...all].map(([unit_id, unit_name]) => ({ unit_id, unit_name })), "unit_id", "unit_name")
+    map.getDisplayValues = (dataItem?: any) => (dataItem?.units || []).map((unit: any) => unit.unit_name)
+    return map
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manufacturingUnitsKey])
   const manufacturingComponentScheme = useMemo(() => ({
     name: "ProductManufacturingComponentsScheme",
     columns: [
@@ -2091,16 +2105,19 @@ export function CompactProductForm({
       { header: tr("العرض"), name: "width", width: 110, dataType: "Number", visible: hasMeasuredComponents },
       { header: tr("الارتفاع"), name: "height", width: 110, dataType: "Number", visible: hasVolumeComponents },
       { header: tr("العدد"), name: "count", width: 110, dataType: "Number", visible: hasMeasuredComponents },
+      { header: tr("الوحدة"), name: "unit_id", width: 140, dataMap: manufacturingUnitMap },
       { header: tr("الكمية المطلوبة"), name: "quantity", width: 150, isReadOnly: false },
-      { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: tr("حذف"), onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
+      { header: " ", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: tr("حذف"), onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
     ],
-  }), [hasMeasuredComponents, hasVolumeComponents])
+  }), [hasMeasuredComponents, hasVolumeComponents, manufacturingUnitMap])
   const manufacturingComponentBeginningEdit = (grid: wjGrid.FlexGrid, event: wjGrid.CellRangeEventArgs) => {
     const row = grid.rows[event.row]?.dataItem as ManufacturingComponentItem | undefined
     const column = grid.columns[event.col]?.name
     if (row && column === "quantity" && Number(row.measurment_id || 1) !== 1) event.cancel = true
     if (row && ["length", "width", "height", "count"].includes(column || "") && Number(row.measurment_id || 1) === 1) event.cancel = true
     if (row && column === "height" && Number(row.measurment_id) !== 3) event.cancel = true
+    // أصناف القياس كميتها محسوبة بوحدتها الرئيسية من الأبعاد
+    if (row && column === "unit_id" && (Number(row.measurment_id || 1) !== 1 || (row.units || []).length < 2)) event.cancel = true
   }
   const manufacturingComponentCellEditEnded = (grid: wjGrid.FlexGrid, event: wjGrid.CellRangeEventArgs) => {
     const column = grid.columns[event.col]?.name
@@ -2126,10 +2143,33 @@ export function CompactProductForm({
     const measurmentId = Number(product.measurment_id || 1)
     setManufacturingComponents((current) => [...current, { product_id: Number(formData.id), component_id: componentId, component_code: product.product_code, component_name: componentName, measurment_id: measurmentId, length: measurmentId === 1 ? null : 1, width: measurmentId === 1 ? null : 1, height: measurmentId === 3 ? 1 : null, count: measurmentId === 1 ? null : 1, quantity: 1, ser: current.length + 1 }])
     setManufacturingComponentSearchOpen(false)
+    // وحدات المكوّن (للقائمة المنسدلة) — الرئيسية افتراضياً
+    fetch(`/api/inventory/products/${formData.id}/manufacturing-components`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes: [product.product_code] }) })
+      .then((response) => response.ok ? response.json() : [])
+      .then((rows: any[]) => {
+        const found = rows.find((row) => Number(row.id) === componentId)
+        if (!found) return
+        setManufacturingComponents((current) => current.map((row) => Number(row.component_id) === componentId && !row.units?.length ? { ...row, units: found.units, unit_id: found.units[0]?.unit_id ?? null } : row))
+      })
+      .catch(() => {})
+  }
+  // استيراد Excel: المكوّن الموجود تُستبدل وحدته وكميته، والجديد يُضاف في آخر الجدول
+  const importManufacturingComponents = (lines: ImportedComponentLine[]) => {
+    setManufacturingComponents((current) => {
+      const next = [...current]
+      for (const { product, unit, quantity } of lines) {
+        const measured = Number(product.measurment_id || 1) !== 1
+        const values = { component_code: product.product_code, component_name: product.product_name, measurment_id: product.measurment_id, units: product.units, unit_id: measured ? product.units[0]?.unit_id ?? null : unit?.unit_id ?? null, quantity, length: measured ? 1 : null, width: measured ? 1 : null, height: Number(product.measurment_id) === 3 ? 1 : null, count: measured ? quantity : null }
+        const index = next.findIndex((row) => Number(row.component_id) === product.id)
+        if (index >= 0) next[index] = { ...next[index], ...values }
+        else next.push({ product_id: Number(formData.id), component_id: product.id, ...values, ser: next.length + 1 })
+      }
+      return next.map((row, index) => ({ ...row, ser: index + 1 }))
+    })
   }
   const deleteManufacturingComponent = (index: number) => setManufacturingComponents((current) => current.filter((_row, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, ser: rowIndex + 1 })))
   const saveManufacturingComponents = async (productId: number) => {
-    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), length: row.length, width: row.width, height: row.height, count: row.count })) }) })
+    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), unit_id: row.unit_id, length: row.length, width: row.width, height: row.height, count: row.count })) }) })
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || tr("فشل حفظ مكونات التصنيع")) }
   }
   const searchProductByCode = async (code: string) => {
@@ -3719,7 +3759,7 @@ export function CompactProductForm({
                   </TabsContent>}
                   {!isService && <TabsContent value="manufacturing-components">
                     <Card>
-                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("مكونات التصنيع")}</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="me-2 h-4 w-4" />{tr("إضافة مكون")}</Button></div></CardHeader>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">{tr("مكونات التصنيع")}</CardTitle><div className="flex flex-wrap items-center gap-2"><Button type="button" variant="outline" onClick={() => setManufacturingComponentsImportOpen(true)} disabled={!formData.id || !canUpdate}><FileSpreadsheet className="me-2 h-4 w-4" />{tr("استيراد من Excel")}</Button><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="me-2 h-4 w-4" />{tr("إضافة مكون")}</Button></div></div></CardHeader>
                       <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">{tr("احفظ الصنف أولاً لإضافة مكونات التصنيع.")}</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">{tr("الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.")}</p></CardContent>
                     </Card>
                   </TabsContent>}
@@ -3764,6 +3804,7 @@ export function CompactProductForm({
           <DialogFooter className="gap-2"><Button type="button" variant="outline" onClick={() => setRelatedOptionsDraft(null)}>{tr("إلغاء")}</Button><Button type="button" onClick={confirmRelatedOptions}>{tr("موافق")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      {formData.id > 0 && <ManufacturingComponentsImportDialog open={manufacturingComponentsImportOpen && canUpdate} onOpenChange={setManufacturingComponentsImportOpen} productId={Number(formData.id)} onLines={importManufacturingComponents} />}
       <ProductSearchPopup
         visible={manufacturingComponentSearchOpen && canView && canUpdate}
         onClose={() => setManufacturingComponentSearchOpen(false)}
