@@ -61,16 +61,18 @@ export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
     <button type="button" onClick={() => setOpen(true)} className="relative flex h-10 items-center gap-2 rounded-full bg-emerald-50 px-3.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200/70 transition hover:bg-emerald-100 hover:ring-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20 dark:hover:bg-emerald-500/20" aria-label={tr("قائمة التطبيقات")}>
       <Grid3X3 className="h-5 w-5"/><span className="hidden sm:inline">{tr("التطبيقات")}</span>
     </button>
-    {open && <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/45 backdrop-blur-sm" dir={appDir()} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false) }}>
-      <div className="mx-auto mt-14 min-h-[70vh] w-[min(96vw,1400px)] rounded-2xl border bg-background shadow-2xl">
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b bg-background/95 p-4 backdrop-blur">
+    {open && <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/45 px-2 pt-8 pb-4 backdrop-blur-sm sm:pt-14" dir={appDir()} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false) }}>
+      {/* النافذة بارتفاع الشاشة: الرأس ثابت والقائمة تتمرر عمودياً داخلها */}
+      <div className="flex max-h-full w-[min(96vw,1400px)] flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl">
+        <div className="z-10 flex shrink-0 flex-wrap items-center gap-3 border-b bg-background/95 p-4 backdrop-blur">
           <div className="flex items-center gap-2 text-lg font-bold"><Grid3X3 className="h-5 w-5 text-emerald-600"/>{tr("قائمة التطبيقات")}</div>
           <div className="relative min-w-[220px] flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={tr("ابحث عن شاشة...")} className="h-10 w-full rounded-xl border bg-muted/30 ps-10 pe-3 outline-none focus:border-emerald-500"/></div>
           <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)}>{editing ? <Check className="me-2 h-4 w-4"/> : <Pencil className="me-2 h-4 w-4"/>}{editing ? tr("تم الحفظ") : tr("تخصيص قائمتي")}</Button>
           <Button size="icon" variant="ghost" onClick={() => setOpen(false)}><X className="h-5 w-5"/></Button>
         </div>
 
-        {favoriteLeaves.length > 0 && !query && <div className="border-b bg-emerald-50/50 p-5 dark:bg-emerald-950/20"><h2 className="mb-3 font-bold text-emerald-800 dark:text-emerald-300">{tr("قائمتي")}</h2><div className="flex flex-wrap gap-2">{favoriteLeaves.map(item => <button key={item.section} onClick={() => navigate(item.section)} className="flex items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm shadow-sm hover:border-emerald-400"><Star className="h-4 w-4 fill-amber-400 text-amber-400"/>{item.title}</button>)}</div></div>}
+        <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+        {favoriteLeaves.length > 0 && !query &&<div className="border-b bg-emerald-50/50 p-5 dark:bg-emerald-950/20"><h2 className="mb-3 font-bold text-emerald-800 dark:text-emerald-300">{tr("قائمتي")}</h2><div className="flex flex-wrap gap-2">{favoriteLeaves.map(item => <button key={item.section} onClick={() => navigate(item.section)} className="flex items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm shadow-sm hover:border-emerald-400"><Star className="h-4 w-4 fill-amber-400 text-amber-400"/>{item.title}</button>)}</div></div>}
 
         {/* أعمدة متدفقة (masonry) بدل الشبكة: مجموعة طويلة مثل الملفات والتعريفات لا تترك فراغاً تحت المجموعات القصيرة في نفس الصف */}
         <div className="gap-x-10 p-6 sm:columns-2 lg:columns-3 xl:columns-4">
@@ -81,6 +83,7 @@ export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
               {(editing || favoriteSections.has(item.section || "")) && <Star className={`h-4 w-4 ${favoriteSections.has(item.section || "") ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}/>} 
             </button>)}</div>
           </section>)}
+        </div>
         </div>
       </div>
     </div>}
