@@ -2,7 +2,8 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Send } from "lucide-react"
+import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Send, ClipboardList } from "lucide-react"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -201,15 +202,15 @@ export default function VoucherPostingTools() {
 
   return (
     <main dir={appDir()} className="space-y-4 p-3 sm:p-5">
-      <header className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">{tr("ترحيل السندات")}</h1>
-          <p className="mt-1 text-sm text-slate-500">{tr("اختر الفترة ونوع السند، ثم حدد السندات المراد ترحيلها.")}</p>
-        </div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading || posting}>
+      <VoucherListHero
+        icon={ClipboardList}
+        category={tr("أدوات")}
+        title={tr("ترحيل السندات")}
+        subtitle={tr("اختر الفترة ونوع السند، ثم حدد السندات المراد ترحيلها.")}
+        actions={<Button variant="outline" onClick={() => void load()} disabled={loading || posting} className="border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white">
           {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <RefreshCw className="me-2 h-4 w-4" />}{tr("تحديث")}
-        </Button>
-      </header>
+        </Button>}
+      />
 
       <section className="grid gap-3 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.4fr_auto] lg:items-end">
         <div className="space-y-1.5"><Label htmlFor="posting-from">{tr("من تاريخ")}</Label><Input id="posting-from" type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div>

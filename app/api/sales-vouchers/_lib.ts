@@ -249,10 +249,10 @@ export const ensureTables = async () => { return runSchemaOnce("app/api/sales-vo
 const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
   [SALES_INVOICE_VCH_TYPE]: { prefix: "sales_invoice_prefix", start: "sales_invoice_start", defaultPrefix: "INV" },
   [DELIVERY_SELL_VCH_TYPE]: { prefix: "delivery_sell_prefix", start: "delivery_sell_start", defaultPrefix: "DSL" },
-  [DELIVERY_CONSIGNMENT_SALE_VCH_TYPE]: { prefix: "delivery_consignment_sale_prefix", start: "delivery_consignment_sale_start", defaultPrefix: "INV" },
-  [RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE]: { prefix: "return_delivery_consignment_sale_prefix", start: "return_delivery_consignment_sale_start", defaultPrefix: "INV" },
-  [RETURN_SELL_VCH_TYPE]: { prefix: "return_sell_prefix", start: "return_sell_start", defaultPrefix: "INV" },
-  [PURCHASE_INVOICE_VCH_TYPE]: { prefix: "purchase_invoice_prefix", start: "purchase_invoice_start", defaultPrefix: "INV" },
+  [DELIVERY_CONSIGNMENT_SALE_VCH_TYPE]: { prefix: "delivery_consignment_sale_prefix", start: "delivery_consignment_sale_start", defaultPrefix: "CSL" },
+  [RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE]: { prefix: "return_delivery_consignment_sale_prefix", start: "return_delivery_consignment_sale_start", defaultPrefix: "RCS" },
+  [RETURN_SELL_VCH_TYPE]: { prefix: "return_sell_prefix", start: "return_sell_start", defaultPrefix: "RIN" },
+  [PURCHASE_INVOICE_VCH_TYPE]: { prefix: "purchase_invoice_prefix", start: "purchase_invoice_start", defaultPrefix: "PU" },
   [DELIVERY_PAY_VCH_TYPE]: { prefix: "delivery_pay_prefix", start: "delivery_pay_start", defaultPrefix: "INV" },
   [RETURN_PURCHASE_VCH_TYPE]: { prefix: "return_purchase_prefix", start: "return_purchase_start", defaultPrefix: "INV" },
 }

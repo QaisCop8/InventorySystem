@@ -87,8 +87,8 @@ const numberingKeys = [...voucherNumberingFields.flatMap(({ prefix, start }) => 
 const numberingPrefixDefaults: Record<string, string> = {
   order_prefix: "SO", purchase_prefix: "PO", receipt_prefix: "R", payment_prefix: "P", credit_note_prefix: "C", debit_note_prefix: "D",
   stock_in_prefix: "I", stock_out_prefix: "O", internal_delivery_prefix: "T", use_voucher_prefix: "U", sales_invoice_prefix: "INV",
-  delivery_sell_prefix: "DSL", delivery_consignment_sale_prefix: "INV", return_delivery_consignment_sale_prefix: "INV", return_sell_prefix: "INV",
-  purchase_invoice_prefix: "INV", delivery_pay_prefix: "DPY", return_purchase_prefix: "RPU", journal_prefix: "J", account_prefix: "A",
+  delivery_sell_prefix: "DSL", delivery_consignment_sale_prefix: "CSL", return_delivery_consignment_sale_prefix: "RCS", return_sell_prefix: "RIN",
+  purchase_invoice_prefix: "PU", delivery_pay_prefix: "DPY", return_purchase_prefix: "RPU", journal_prefix: "J", account_prefix: "A",
   customer_prefix: "C", salesman_prefix: "M", employee_prefix: "E", supplier_prefix: "S", item_group_prefix: "G",
 }
 const emptyNumberingSettings = Object.fromEntries(numberingKeys.map((key) => [key, key.endsWith("_start") ? "1" : numberingPrefixDefaults[key] || ""])) as Record<string, string>

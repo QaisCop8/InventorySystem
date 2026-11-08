@@ -583,7 +583,7 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
     ["invoice_prefix", "INV"],
     ["sales_invoice_prefix", "INV"],
     ["delivery_sell_prefix", "DSL"],
-    ["purchase_invoice_prefix", "INV"],
+    ["purchase_invoice_prefix", "PU"],
     ["invoice_start", "1"],
     ["sales_invoice_start", "1"],
     ["delivery_sell_start", "1"],

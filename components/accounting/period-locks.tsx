@@ -4,6 +4,7 @@ import { tr, appDir } from "@/lib/i18n"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { CalendarX2, Lock, LockOpen, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -83,13 +84,13 @@ export default function PeriodLocks() {
 
   return (
     <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarX2 className="h-6 w-6 text-rose-600" />{tr("إقفال الفترات")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("بعد إقفال فترة لا يمكن إضافة أو تعديل أو ترحيل أو إلغاء أو حذف أي سند بتاريخ داخلها — لفرع محدد أو لكل الفروع.")}</p>
-        </div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-      </div>
+      <VoucherListHero
+        icon={CalendarX2}
+        category={tr("أدوات")}
+        title={tr("إقفال الفترات")}
+        subtitle={tr("بعد إقفال فترة لا يمكن إضافة أو تعديل أو ترحيل أو إلغاء أو حذف أي سند بتاريخ داخلها — لفرع محدد أو لكل الفروع.")}
+        actions={<Button variant="outline" onClick={() => void load()} disabled={loading} className="border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white"><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>}
+      />
 
       {lockedUntil && (
         <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-800">

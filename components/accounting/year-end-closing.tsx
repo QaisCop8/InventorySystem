@@ -5,6 +5,7 @@ import { amountFractionOptions } from "@/lib/decimals"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useState } from "react"
 import { AlertTriangle, ArrowLeft, ArrowRight, CalendarCheck2, CheckCircle2, History, Loader2, Lock, RefreshCw, Undo2, XCircle } from "lucide-react"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -110,13 +111,13 @@ export default function YearEndClosing() {
 
   return (
     <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarCheck2 className="h-6 w-6 text-indigo-600" />{tr("إقفال السنة المالية")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("يرحّل صافي الإيرادات والمصروفات إلى حساب الأرباح المدورة، ويقفل سندات السنة، وتنتقل أرصدة الميزانية للسنة الجديدة.")}</p>
-        </div>
-        <Button variant="outline" onClick={() => void loadHistory()}><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث")}</Button>
-      </div>
+      <VoucherListHero
+        icon={CalendarCheck2}
+        category={tr("أدوات")}
+        title={tr("إقفال السنة المالية")}
+        subtitle={tr("يرحّل صافي الإيرادات والمصروفات إلى حساب الأرباح المدورة، ويقفل سندات السنة، وتنتقل أرصدة الميزانية للسنة الجديدة.")}
+        actions={<Button variant="outline" onClick={() => void loadHistory()} className="border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white"><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث")}</Button>}
+      />
 
       {/* شريط الخطوات */}
       <div className="grid grid-cols-4 gap-2">
