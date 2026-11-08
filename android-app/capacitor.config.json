@@ -3,12 +3,12 @@
   "appName": "NoonERP System",
   "webDir": "www",
   "server": {
-    "url": "https://inventorysystem-m5oh.onrender.com",
+    "url": "https://noonerp.sabbahsoft.com",
     "androidScheme": "https",
     "cleartext": false,
     "errorPath": "offline.html",
     "allowNavigation": [
-      "inventorysystem-m5oh.onrender.com"
+      "noonerp.sabbahsoft.com"
     ]
   },
   "android": {
