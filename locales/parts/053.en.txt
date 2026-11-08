@@ -153,4 +153,50 @@ Voucher {0} — journal {1}
 New landed cost voucher
 Cancel the voucher and its journal? The costs will be removed from item cost.
 Voucher cancelled
-Cost voucher 
+Cost voucher
+Edit currency
+Edit currency details
+Edit the currency name and code
+Currency details updated successfully
+Could not update the currency
+Existing vouchers are linked to the same currency and will show the new name and code.
+Currency name and code are required
+Currency code must be English letters (up to 10)
+Currency not found
+Salary advances
+Loans
+Cash deduction
+Advance
+Loan
+Employee advances — deducted from the selected month's net salary
+Employee loans — paid in monthly salary installments starting from the selected month
+Cash deductions on employees — deducted from the selected month's net salary
+New advance
+New loan
+New cash deduction
+Employee advances account (credit in the salary journal)
+Employee loans account (credit in the salary journal)
+Cash deductions account (credit in the salary journal)
+{0} settings
+The account is required to post the salary journal when salaries include deductions of this type.
+Deduction year
+Deduction month
+All months
+Account settings
+Deducted from net salary when the month's salary is opened or recalculated; an open salary is updated immediately. Saving, editing or deleting is blocked if the employee's salary for that month is closed/paid.
+Deducted from paid salaries
+Installments
+From month
+Deducted
+Included in a closed/paid salary
+Number of installments *
+First deduction month *
+Salary deduction month *
+Installment schedule
+Delete {0} for employee {1}?
+Advances, loans & deductions
+Employee is required
+Date is required
+Installments must be between 1 and 120
+Salary deduction month is required
+Cannot save: the employee's salary for {0} is closed/paid

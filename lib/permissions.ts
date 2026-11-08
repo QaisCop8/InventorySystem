@@ -757,6 +757,40 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [hrScreensMigration])
   }
 
+  // السلف والقروض والخصم النقدي (2026-11-08): مرة واحدة لكل شركة تُمنح صلاحياتها لمن يملك "الدخول لشاشة فتح راتب شهر"
+  // (مستخدم/دور، وعلى مستوى الفروع) ولدور المدير.
+  const hrDeductionsMigration = "hr-salary-deductions-access-v1"
+  if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [hrDeductionsMigration])).length) {
+    const deductionNames = (["hr_salary_advances", "hr_salary_loans", "hr_cash_deductions"] as const)
+      .flatMap((family) => transactionActionsFor(family).map((action) => transactionPermissionName(family, action)))
+    const sourceName = transactionPermissionName("hr_salary_periods", "access")
+    for (const [table, keys] of [
+      ["user_access", ["user_id"]], ["role_permissions", ["role_id"]],
+      ["user_branch_permissions", ["user_id", "branch_id"]], ["role_branch_permissions", ["role_id", "branch_id"]],
+    ] as const) {
+      const columns = keys.join(",")
+      const selected = keys.map((key) => `granted.${key}`).join(",")
+      await client.query(
+        `INSERT INTO ${table} (${columns}, access_id, is_granted)
+         SELECT DISTINCT ${selected}, target.id, TRUE
+         FROM access_list target
+         JOIN access_list source ON LOWER(BTRIM(source.name)) = LOWER(BTRIM($2::varchar))
+         JOIN ${table} granted ON granted.access_id = source.id AND granted.is_granted = TRUE
+         WHERE target.name = ANY($1::text[])
+         ON CONFLICT (${columns}, access_id) DO NOTHING`,
+        [deductionNames, sourceName],
+      )
+    }
+    await client.query(
+      `INSERT INTO role_permissions (role_id, access_id, is_granted)
+       SELECT r.id, a.id, TRUE FROM job_roles r CROSS JOIN access_list a
+       WHERE LOWER(BTRIM(r.name)) IN ('مدير', 'admin', 'administrator', 'مدير النظام', 'مسؤول النظام') AND a.name = ANY($1::text[])
+       ON CONFLICT (role_id, access_id) DO NOTHING`,
+      [deductionNames],
+    )
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [hrDeductionsMigration])
+  }
+
   const screenAccessMigration = "transaction-screen-access-v1"
   if (!(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [screenAccessMigration])).length) {
     const accessNames: string[] = []

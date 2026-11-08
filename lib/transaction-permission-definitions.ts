@@ -68,6 +68,9 @@ export const TRANSACTION_FAMILIES = {
   hr_attendance_processing: "معالجة حركات الدخول والخروج",
   hr_attendance_editor: "تعديل سجلات الدوام",
   hr_attendance_transactions: "حركات الدوام (إضافي وخصومات)",
+  hr_salary_advances: "السلف",
+  hr_salary_loans: "القروض",
+  hr_cash_deductions: "خصم نقدي",
   hr_salary_journal: "إغلاق وتنفيذ قيد الراتب",
 } as const
 
@@ -432,6 +435,9 @@ const TRANSACTION_SECTIONS: Record<string, TransactionFamily> = {
   "attendance-processing": "hr_attendance_processing",
   "attendance-editor": "hr_attendance_editor",
   "attendance-transactions": "hr_attendance_transactions",
+  "salary-advances": "hr_salary_advances",
+  "salary-loans": "hr_salary_loans",
+  "cash-deductions": "hr_cash_deductions",
   "salary-journal": "hr_salary_journal",
 }
 

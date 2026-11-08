@@ -219,6 +219,9 @@ const AttendanceSummaryReportPage = lazyNamed(() => import("@/components/hr/atte
 const ShiftRosterPage = lazyNamed(() => import("@/components/hr/shift-roster-page"), "ShiftRosterPage")
 const AttendanceProcessingPage = lazyNamed(() => import("@/components/hr/attendance-workbench"), "AttendanceProcessingPage")
 const AttendanceTransactionsPage = lazyNamed(() => import("@/components/hr/attendance-workbench"), "AttendanceTransactionsPage")
+const SalaryAdvancesPage = lazyNamed(() => import("@/components/hr/salary-deductions-page"), "SalaryAdvancesPage")
+const SalaryLoansPage = lazyNamed(() => import("@/components/hr/salary-deductions-page"), "SalaryLoansPage")
+const CashDeductionsPage = lazyNamed(() => import("@/components/hr/salary-deductions-page"), "CashDeductionsPage")
 const AttendanceEditorPage = lazyNamed(() => import("@/components/hr/attendance-workbench"), "AttendanceEditorPage")
 const OfficialHolidaysPage = lazyNamed(() => import("@/components/hr/official-holidays-page"), "OfficialHolidaysPage")
 const componentMap: Record<string, React.ComponentType<any>> = {
@@ -449,6 +452,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "attendance-records": AttendanceRecordsPage,
   "attendance-processing": AttendanceProcessingPage,
   "attendance-transactions": AttendanceTransactionsPage,
+  "salary-advances": SalaryAdvancesPage,
+  "salary-loans": SalaryLoansPage,
+  "cash-deductions": CashDeductionsPage,
   "attendance-editor": AttendanceEditorPage,
   "attendance-detailed-report": AttendanceDetailedReportPage,
   "attendance-summary-report": AttendanceSummaryReportPage,

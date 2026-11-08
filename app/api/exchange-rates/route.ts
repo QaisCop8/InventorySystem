@@ -141,6 +141,94 @@ export async function POST(request: NextRequest) {
 }
 
 // ==============================
+// PATCH - Update currency name / code
+// ==============================
+// تعديل بيانات العملة نفسها (الاسم والرمز) بصلاحية «تعديل سعر صرف». السندات تربط العملة بمعرّفها، لكن
+// جداول قديمة تحفظ نسخة من الرمز (عمود currency_code) ⇐ تُحدَّث معها في نفس المعاملة (ما عدا عموداً أقصر من الرمز الجديد).
+export async function PATCH(request: NextRequest) {
+  let client: PoolClient | null = null
+  try {
+    const auth = await authorizeExchangeRateChange(request, EXCHANGE_RATE_PERMISSIONS.edit)
+    if (!auth.ok) return auth.response
+    const body = await request.json()
+    const currencyId = Number(body?.currency_id)
+    const currencyName = String(body?.currency_name || "").trim()
+    const currencyCode = String(body?.currency_code || "").trim().toUpperCase()
+
+    if (!Number.isInteger(currencyId) || currencyId <= 0) {
+      return NextResponse.json({ error: "العملة غير موجودة" }, { status: 404 })
+    }
+    if (!currencyName || !currencyCode) {
+      return NextResponse.json({ error: "اسم العملة ورمزها مطلوبان" }, { status: 400 })
+    }
+    if (!/^[A-Z]{1,10}$/.test(currencyCode)) {
+      return NextResponse.json({ error: "رمز العملة يجب أن يكون حروفاً إنجليزية (حتى 10)" }, { status: 400 })
+    }
+
+    const pool = await getTenantPool()
+    client = await pool.connect()
+    await client.query("BEGIN")
+    await client.query("LOCK TABLE currency IN EXCLUSIVE MODE")
+
+    const current = await client.query("SELECT id, currency_code, currency_name FROM currency WHERE id = $1", [currencyId])
+    if (current.rows.length === 0) {
+      await client.query("ROLLBACK")
+      return NextResponse.json({ error: "العملة غير موجودة" }, { status: 404 })
+    }
+    const duplicateCode = await client.query(
+      "SELECT 1 FROM currency WHERE UPPER(currency_code) = $1 AND id <> $2 LIMIT 1",
+      [currencyCode, currencyId],
+    )
+    if (duplicateCode.rows.length > 0) {
+      await client.query("ROLLBACK")
+      return NextResponse.json({ error: "رمز العملة مكرر" }, { status: 400 })
+    }
+    const duplicateName = await client.query(
+      "SELECT 1 FROM currency WHERE BTRIM(currency_name) = $1 AND id <> $2 LIMIT 1",
+      [currencyName, currencyId],
+    )
+    if (duplicateName.rows.length > 0) {
+      await client.query("ROLLBACK")
+      return NextResponse.json({ error: "اسم العملة مكرر" }, { status: 400 })
+    }
+
+    const updated = await client.query(
+      "UPDATE currency SET currency_name = $1, currency_code = $2 WHERE id = $3 RETURNING *",
+      [currencyName, currencyCode, currencyId],
+    )
+
+    const oldCode = String(current.rows[0].currency_code || "").trim()
+    if (oldCode && oldCode.toUpperCase() !== currencyCode) {
+      const copies = await client.query(
+        `SELECT c.table_name FROM information_schema.columns c
+         JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+         WHERE c.table_schema = current_schema() AND c.column_name = 'currency_code' AND c.table_name <> 'currency'
+           AND c.data_type IN ('character varying', 'text', 'character')
+           AND (c.character_maximum_length IS NULL OR c.character_maximum_length >= $1)`,
+        [currencyCode.length],
+      )
+      for (const row of copies.rows) {
+        const table = String(row.table_name).replace(/"/g, '""')
+        await client.query(`UPDATE "${table}" SET currency_code = $1 WHERE currency_code = $2`, [currencyCode, oldCode])
+      }
+    }
+    await client.query("COMMIT")
+
+    return NextResponse.json({ currency: updated.rows[0] })
+  } catch (error) {
+    if (client) {
+      try {
+        await client.query("ROLLBACK")
+      } catch {}
+    }
+    console.error("Error updating currency:", error)
+    return NextResponse.json({ error: "تعذر تعديل العملة" }, { status: 500 })
+  } finally {
+    client?.release()
+  }
+}
+
+// ==============================
 // PUT - Update existing rate
 // ==============================
 export async function PUT(request: NextRequest) {

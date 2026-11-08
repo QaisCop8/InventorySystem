@@ -382,7 +382,7 @@ export function AttendanceEditorPage() {
 }
 
 // ═════════════════════════ إعدادات احتساب حركات الدوام في الراتب ═════════════════════════
-function AccountCodeField({ label, accountId, initial, onChange }: { label: string; accountId: string; initial?: { code: string; name: string }; onChange: (id: string) => void }) {
+export function AccountCodeField({ label, accountId, initial, onChange }: { label: string; accountId: string; initial?: { code: string; name: string }; onChange: (id: string) => void }) {
   const [code, setCode] = useState(initial?.code || "")
   const [name, setName] = useState(initial?.name || "")
   const [error, setError] = useState("")

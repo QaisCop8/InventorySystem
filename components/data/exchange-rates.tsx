@@ -23,6 +23,7 @@ import {
   Calendar,
   Save,
   AlertCircle,
+  Pencil,
 } from "lucide-react"
 import { useExchangeRates } from "@/hooks/use-swr-data"
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -77,6 +78,50 @@ function ExchangeRatesContent() {
     sellRate: 1,
     exchangeRate: 1,
   })
+
+  // تعديل بيانات العملة (الاسم والرمز) — PATCH /api/exchange-rates
+  const [currencyEdit, setCurrencyEdit] = useState<{ currencyId: number; currencyName: string; currencyCode: string } | null>(null)
+  const currencyEditMessagesRef = useRef<any>(null)
+
+  const handleSaveCurrencyEdit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!currencyEdit || submittingRef.current) return
+    if (!currencyEdit.currencyName.trim() || !currencyEdit.currencyCode.trim()) {
+      currencyEditMessagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: tr("جميع الحقول مطلوبة"), life: 4000 },
+      ])
+      return
+    }
+    submittingRef.current = true
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/exchange-rates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currency_id: currencyEdit.currencyId,
+          currency_name: currencyEdit.currencyName.trim(),
+          currency_code: currencyEdit.currencyCode.trim(),
+        }),
+      })
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.error || tr("تعذر تعديل العملة"))
+      }
+      refresh()
+      setCurrencyEdit(null)
+      messagesRef.current?.show?.([
+        { severity: "success", summary: "", detail: tr("تم تعديل بيانات العملة بنجاح"), life: 4000 },
+      ])
+    } catch (err) {
+      currencyEditMessagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: err instanceof Error && err.message ? err.message : tr("تعذر تعديل العملة"), life: 5000 },
+      ])
+    } finally {
+      submittingRef.current = false
+      setIsSubmitting(false)
+    }
+  }
 
   const [filters, setFilters] = useState({
     search: "",
@@ -452,7 +497,7 @@ function ExchangeRatesContent() {
       {/* Exchange Rates Table */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-sm">
         <CardHeader>
-          <CardTitle className="text-start">{tr("أسعار الصرف اليومية")}</CardTitle>
+          <CardTitle className="text-start">{tr("العملات")}</CardTitle>
         </CardHeader>
         <CardContent className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full max-h-full overflow-x-hidden overflow-y-auto" id="printArea">
@@ -505,7 +550,18 @@ function ExchangeRatesContent() {
                       </Badge>
                     </td>
                     <td className="text-start p-3">
-                      <div className="flex gap-1 justify-center">
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => setCurrencyEdit({ currencyId: Number(rate.currency_id), currencyName: rate.currency_name || "", currencyCode: rate.currency_code || "" })}
+                          disabled={!rateAccess.edit}
+                          title={rateAccess.edit ? tr("تعديل اسم العملة ورمزها") : tr("لا يوجد لديك صلاحية تعديل سعر صرف")}
+                        >
+                          <Pencil className="h-3 w-3 me-1" />
+                          {tr("تعديل العملة")}
+                        </Button>
                         {rate && rate.currency_id !== 1 &&
                           <div className="flex flex-wrap justify-center gap-1">
                             <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleAddRate(rate) : undefined }} className="text-xs" disabled={!rateAccess.add} title={rateAccess.add ? undefined : tr("لا يوجد لديك صلاحية اضافة سعر الصرف")}>
@@ -610,6 +666,69 @@ function ExchangeRatesContent() {
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Currency Dialog */}
+      <Dialog
+        open={!!currencyEdit}
+        onOpenChange={(open) => {
+          if (!open && submittingRef.current) return
+          if (!open) setCurrencyEdit(null)
+        }}
+      >
+        <DialogContent className="max-w-lg" dir={appDir()}>
+          <DialogHeader>
+            <DialogTitle className="text-start">{tr("تعديل بيانات العملة")}</DialogTitle>
+          </DialogHeader>
+          {currencyEdit && (
+            <form onSubmit={handleSaveCurrencyEdit} className="space-y-4" noValidate>
+              <Messages innerRef={currencyEditMessagesRef} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editCurrencyCode" className="text-start block">
+                    {tr("الرمز *")}
+                  </Label>
+                  <Input
+                    id="editCurrencyCode"
+                    className="text-start"
+                    dir={appDir()}
+                    value={currencyEdit.currencyCode}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^A-Za-z]/g, "").toUpperCase().slice(0, 10)
+                      setCurrencyEdit({ ...currencyEdit, currencyCode: value })
+                    }}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="editCurrencyName" className="text-start block">
+                    {tr("اسم العملة *")}
+                  </Label>
+                  <Input
+                    id="editCurrencyName"
+                    className="text-start"
+                    dir={appDir()}
+                    value={currencyEdit.currencyName}
+                    onChange={(e) => setCurrencyEdit({ ...currencyEdit, currencyName: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-start">
+                {tr("السندات السابقة مرتبطة بالعملة نفسها وستظهر بالاسم والرمز الجديدين.")}
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setCurrencyEdit(null)} disabled={isSubmitting}>
+                  {tr("إلغاء")}
+                </Button>
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
+                  <Save className="h-4 w-4 ms-2" />
+                  {isSubmitting ? tr("جاري الحفظ...") : tr("حفظ التغييرات")}
+                </Button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>

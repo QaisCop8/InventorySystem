@@ -13,6 +13,7 @@ import { authorizeAnyTransaction, authorizeTransaction, type TransactionAction, 
 import { getSessionUser } from "@/lib/tenant-auth"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 import { attendancePayrollSettings, attendancePayrollTotals } from "@/lib/attendance-payroll"
+import { SALARY_DEDUCTION_TYPES, salaryDeductionAccount, salaryDeductionTotals, type SalaryDeductionType } from "@/lib/salary-deductions"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 
 const definitions: Record<string, { table: string; fields: string[]; order: string }> = {
@@ -101,6 +102,8 @@ async function getSalaryOpeningRows(year: number, month: number, excludeExisting
   `
   // حركات الدوام المعتمدة للشهر (إضافي/خصومات/مكافآت...) — تُضاف للاستحقاقات والخصومات وتدخل وعاء الضريبة
   const { totals: attendance } = await attendancePayrollTotals(year, month, (rows as any[]).map((row) => ({ id: Number(row.id), basic_salary: Number(row.basic_salary) || 0 })))
+  // أقساط السلف والقروض والخصم النقدي للشهر (lib/salary-deductions.ts) — تُخصم من الصافي ولا تمس وعاء الضريبة
+  const salaryDeductions = await salaryDeductionTotals(year, month, (rows as any[]).map((row) => Number(row.id)))
   return rows.map((row: any) => {
     const basicSalary = Number(row.basic_salary) || 0
     const att = attendance.get(Number(row.id))
@@ -111,20 +114,24 @@ async function getSalaryOpeningRows(year: number, month: number, excludeExisting
     const taxableAmount = Math.max(0, (Number(row.taxable_items) || basicSalary) + attendanceEarnings - attendanceDeductions - (Number(row.annual_exemptions) || 0) / 12)
     const bracket = (Array.isArray(row.brackets) ? row.brackets : []).filter((item: any) => taxableAmount >= Number(item.from_amount) && (item.to_amount == null || taxableAmount <= Number(item.to_amount))).at(-1)
     const incomeTax = row.is_taxed ? taxableAmount * (Number(bracket?.tax_percent) || 0) / 100 : 0
-    return { ...row, selected: true, basic_salary: basicSalary, earnings, deductions, attendance_earnings: attendanceEarnings, attendance_deductions: attendanceDeductions, attendance_details: att?.lines || [], income_tax: incomeTax, total_salary: basicSalary + earnings - deductions, net_salary: basicSalary + earnings - deductions - incomeTax }
+    const ded = salaryDeductions.get(Number(row.id))
+    const salaryDeductionsTotal = ded?.total || 0
+    return { ...row, selected: true, basic_salary: basicSalary, earnings, deductions, attendance_earnings: attendanceEarnings, attendance_deductions: attendanceDeductions, attendance_details: att?.lines || [], income_tax: incomeTax, advance_deductions: ded?.advance || 0, loan_deductions: ded?.loan || 0, cash_deductions: ded?.cash || 0, salary_deductions_total: salaryDeductionsTotal, salary_deduction_details: ded?.lines || [], total_salary: basicSalary + earnings - deductions, net_salary: basicSalary + earnings - deductions - incomeTax - salaryDeductionsTotal }
   })
 }
 async function savePayrollRow(periodId: number, row: any, overwriteOpen: boolean) {
   const details = JSON.stringify(row.attendance_details || [])
+  const deductionDetails = JSON.stringify(row.salary_deduction_details || [])
   if (overwriteOpen) {
-    return sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary,attendance_earnings,attendance_deductions,attendance_details)
-      VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary},${row.attendance_earnings || 0},${row.attendance_deductions || 0},${details}::jsonb)
+    return sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary,attendance_earnings,attendance_deductions,attendance_details,advance_deductions,loan_deductions,cash_deductions,salary_deduction_details)
+      VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary},${row.attendance_earnings || 0},${row.attendance_deductions || 0},${details}::jsonb,${row.advance_deductions || 0},${row.loan_deductions || 0},${row.cash_deductions || 0},${deductionDetails}::jsonb)
       ON CONFLICT(period_id,employee_id) DO UPDATE SET basic_salary=EXCLUDED.basic_salary,earnings=EXCLUDED.earnings,deductions=EXCLUDED.deductions,income_tax=EXCLUDED.income_tax,net_salary=EXCLUDED.net_salary,
-        attendance_earnings=EXCLUDED.attendance_earnings,attendance_deductions=EXCLUDED.attendance_deductions,attendance_details=EXCLUDED.attendance_details
-      WHERE COALESCE(payroll_tbl.is_closed,false)=false`
+        attendance_earnings=EXCLUDED.attendance_earnings,attendance_deductions=EXCLUDED.attendance_deductions,attendance_details=EXCLUDED.attendance_details,
+        advance_deductions=EXCLUDED.advance_deductions,loan_deductions=EXCLUDED.loan_deductions,cash_deductions=EXCLUDED.cash_deductions,salary_deduction_details=EXCLUDED.salary_deduction_details
+      WHERE COALESCE(payroll_tbl.is_closed,false)=false AND payroll_tbl.journal_id IS NULL`
   }
-  return sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary,attendance_earnings,attendance_deductions,attendance_details)
-    VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary},${row.attendance_earnings || 0},${row.attendance_deductions || 0},${details}::jsonb)
+  return sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary,attendance_earnings,attendance_deductions,attendance_details,advance_deductions,loan_deductions,cash_deductions,salary_deduction_details)
+    VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary},${row.attendance_earnings || 0},${row.attendance_deductions || 0},${details}::jsonb,${row.advance_deductions || 0},${row.loan_deductions || 0},${row.cash_deductions || 0},${deductionDetails}::jsonb)
     ON CONFLICT(period_id,employee_id) DO NOTHING`
 }
 const validateEmployee = (body: any) => {
@@ -490,6 +497,13 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
             const attendanceSettings = await attendancePayrollSettings()
             if (attendanceEarnings > 0) journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(attendanceSettings.earningsAccount, "استحقاقات الدوام (من إعدادات احتساب الدوام في حركات الدوام)", true), credit_debit: 1, amount: attendanceEarnings, currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: attendanceEarnings, note: `إضافي ومكافآت الدوام - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
             if (attendanceDeductions > 0) journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(attendanceSettings.deductionsAccount, "خصومات الدوام (من إعدادات احتساب الدوام في حركات الدوام)", true), credit_debit: 2, amount: attendanceDeductions, currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: attendanceDeductions, note: `خصومات الدوام - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
+          }
+          // السلف والقروض والخصم النقدي: دائن على حساب كل نوع (من إعدادات شاشته)
+          for (const [type, column] of [["advance", "advance_deductions"], ["loan", "loan_deductions"], ["cash", "cash_deductions"]] as [SalaryDeductionType, string][]) {
+            const amount = Number(payroll[column]) || 0
+            if (amount <= 0) continue
+            const label = SALARY_DEDUCTION_TYPES[type].label
+            journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(await salaryDeductionAccount(type), `${label} (من إعدادات شاشة ${label})`, true), credit_debit: 2, amount, currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: amount, note: `${label} - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
           }
           if (Number(payroll.income_tax) > 0) {
             const law = (await sql`SELECT tl.account_code,tl.name FROM employees_tbl e JOIN tax_laws_tbl tl ON tl.id=e.tax_law_id WHERE e.id=${payroll.employee_id}`)[0]
