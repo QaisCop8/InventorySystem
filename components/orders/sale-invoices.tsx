@@ -461,16 +461,9 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
   useEffect(() => {
     setCurrentPage(1);
   }, [filteredOrders]);
-  if (isPurchase && !Util.checkUserAccess(12)) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">{tr("لا يوجد صلاحية")}</h2>
-          <p className="text-muted-foreground">{tr("ليس لديك صلاحية للوصول إلى طلبيات المشتريات")}</p>
-        </div>
-      </div>
-    )
-  }
+  // الدخول لشاشة طلبية المشتريات يفحصه TransactionAccessGate (app/page.tsx) بصلاحية "الدخول لشاشة طلبية مشتريات".
+  // كان هنا فحص قديم بمعرّف الصلاحية 12 ("الدخول لشاشة طلبيات المشتريات") — تحذفه مزامنة الصلاحيات كمكرر
+  // (LEGACY_DUPLICATE_PERMISSION_NAMES) فكان يمنع الجميع من الشاشة.
   if (state.loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" dir={appDir()}>

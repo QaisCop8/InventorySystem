@@ -148,3 +148,9 @@ Could not save the mobile number
 Mobile number saved
 Limit reached: two trial companies
 A user cannot create more than two trial companies
+No cost vouchers yet
+Voucher {0} — journal {1}
+New landed cost voucher
+Cancel the voucher and its journal? The costs will be removed from item cost.
+Voucher cancelled
+Cost voucher 

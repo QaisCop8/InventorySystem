@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowRight, Ban, FileSearch, PackagePlus, Plus, RefreshCw, Save, Search, Ship, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
@@ -14,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 
 // تحميل تكاليف الشحن والجمارك على الأصناف: بنود تكاليف (شحن/جمارك/تخليص/تأمين) على فاتورة مشتريات تُوزَّع
 // على أصنافها حسب القيمة أو الكمية أو الوزن، فتدخل في كلفة الصنف وتقييم المخزون وتقارير الأرباح.
-// الحفظ يُنشئ قيداً آلياً (مدين المخزون/المشتريات، دائن حساب كل بند). للتعديل: إلغاء المستند وإنشاء غيره.
+// الحفظ يُنشئ قيداً آلياً (مدين المخزون/المشتريات، دائن حساب كل بند). للتعديل: إلغاء السند وإنشاء غيره.
 
 type Option = { value: string; label: string }
 type Meta = {
@@ -81,25 +82,25 @@ export default function LandedCosts() {
 
   return (
     <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><Ship className="h-6 w-6 text-teal-600" />{tr("تحميل تكاليف الشحن والجمارك")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("وزّع الشحن والجمارك والتخليص والتأمين على أصناف فاتورة المشتريات لتصبح كلفة الصنف حقيقية في تقييم المخزون وأرباح الأصناف.")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button onClick={() => setMode("new")} disabled={!meta}><Plus className="me-2 h-4 w-4" />{tr("مستند جديد")}</Button>
-        </div>
-      </div>
+      <VoucherListHero
+        icon={Ship}
+        category={tr("المشتريات")}
+        title={tr("تحميل تكاليف الشحن والجمارك")}
+        subtitle={tr("وزّع الشحن والجمارك والتخليص والتأمين على أصناف فاتورة المشتريات لتصبح كلفة الصنف حقيقية في تقييم المخزون وأرباح الأصناف.")}
+        addLabel={tr("سند جديد")}
+        onNew={() => setMode("new")}
+        addDisabled={!meta}
+        actions={<Button variant="outline" onClick={() => void load()} disabled={loading} className="border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white"><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>}
+      />
 
       <Card>
         <CardContent className="p-0">
           <div className="flex items-center justify-between border-b px-4 py-2.5">
-            <span className="font-bold">{tr("المستندات")}</span>
+            <span className="font-bold">{tr("السندات")}</span>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4" checked={showCancelled} onChange={(event) => setShowCancelled(event.target.checked)} />{tr("إظهار الملغاة")}</label>
           </div>
           {loading ? <div className="p-10 text-center text-muted-foreground">{tr("جاري تحميل البيانات...")}</div> : visible.length === 0 ? (
-            <div className="p-10 text-center text-sm text-muted-foreground">{tr("لا توجد مستندات تكاليف بعد")}</div>
+            <div className="p-10 text-center text-sm text-muted-foreground">{tr("لا توجد سندات تكاليف بعد")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-sm">
@@ -206,7 +207,7 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
           charges: charges.filter((charge) => num(charge.amount) || charge.account_id).map((charge) => ({ ...charge, account_id: Number(charge.account_id) || null, amount: num(charge.amount) })),
         }),
       })
-      toast({ title: tr("تم الحفظ"), description: tr("المستند {0} — القيد {1}", result.code, result.journal.code) })
+      toast({ title: tr("تم الحفظ"), description: tr("السند {0} — القيد {1}", result.code, result.journal.code) })
       onSaved(result.id)
     } catch (error) {
       toast({ title: tr("تعذر الحفظ"), description: error instanceof Error ? error.message : "", variant: "destructive" })
@@ -218,7 +219,7 @@ function LandedCostEditor({ meta, onBack, onSaved }: { meta: Meta; onBack: () =>
   return (
     <div dir={appDir()} className="space-y-4 p-3 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-xl font-bold"><PackagePlus className="h-5 w-5 text-teal-600" />{tr("مستند تحميل تكاليف جديد")}</h1>
+        <h1 className="flex items-center gap-2 text-xl font-bold"><PackagePlus className="h-5 w-5 text-teal-600" />{tr("سند تحميل تكاليف جديد")}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onBack}><ArrowRight className="me-2 h-4 w-4" />{tr("رجوع")}</Button>
           <Button onClick={() => void save()} disabled={saving || !purchase}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ وإنشاء القيد")}</Button>
@@ -406,9 +407,9 @@ function LandedCostView({ id, meta, onBack }: { id: number; meta: Meta; onBack: 
   useEffect(() => { void load() }, [load])
 
   const cancel = async () => {
-    if (!(await confirmYesNo(tr("إلغاء المستند وقيده؟ ستُزال التكاليف من كلفة الأصناف.")))) return
+    if (!(await confirmYesNo(tr("إلغاء السند وقيده؟ ستُزال التكاليف من كلفة الأصناف.")))) return
     setBusy(true)
-    try { await api(`/api/landed-costs/${id}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) }); toast({ title: tr("أُلغي المستند") }); await load() }
+    try { await api(`/api/landed-costs/${id}`, { method: "PATCH", body: JSON.stringify({ action: "cancel" }) }); toast({ title: tr("أُلغي السند") }); await load() }
     catch (error) { toast({ title: tr("تعذر الإلغاء"), description: error instanceof Error ? error.message : "", variant: "destructive" }) }
     finally { setBusy(false) }
   }
@@ -432,12 +433,12 @@ function LandedCostView({ id, meta, onBack }: { id: number; meta: Meta; onBack: 
     <div dir={appDir()} className="space-y-4 p-3 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold">
-          <Ship className="h-5 w-5 text-teal-600" />{tr("مستند تكاليف ")}<span className="font-mono">{header.code}</span>
+          <Ship className="h-5 w-5 text-teal-600" />{tr("سند تكاليف ")}<span className="font-mono">{header.code}</span>
           {cancelled && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{tr("ملغى")}</span>}
         </h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onBack}><ArrowRight className="me-2 h-4 w-4" />{tr("رجوع")}</Button>
-          {!cancelled && <Button variant="outline" className="text-rose-600" disabled={busy} onClick={() => void cancel()}><Ban className="me-2 h-4 w-4" />{tr("إلغاء المستند")}</Button>}
+          {!cancelled && <Button variant="outline" className="text-rose-600" disabled={busy} onClick={() => void cancel()}><Ban className="me-2 h-4 w-4" />{tr("إلغاء السند")}</Button>}
         </div>
       </div>
       <Card>
