@@ -1,3 +1,4 @@
+import { ensureVoucherPrefixDefaults } from "@/lib/voucher-prefix-defaults"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { memoInTransaction, resolveCurrentDbName } from "@/lib/database"
 import { ensureWorkingPeriodGuard } from "@/lib/working-period"
@@ -350,6 +351,7 @@ async function saveSettingsPayload(payload: Record<string, unknown>, stored?: Re
 
 export async function GET() {
   try {
+    await ensureVoucherPrefixDefaults()
     const settings = await loadStoredSettings()
     // يُثبَّت فحص فترة العمل (سنة/أشهر العمل) على سندات هذه الشركة — مرة لكل قاعدة لكل تشغيل للخادم.
     // لا يُفشِل قراءة الإعدادات إن تعذّر (صلاحيات قاعدة محدودة مثلاً).

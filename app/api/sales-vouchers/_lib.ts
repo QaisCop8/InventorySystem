@@ -1,3 +1,4 @@
+import { ensureVoucherPrefixDefaults } from "@/lib/voucher-prefix-defaults"
 import sql, { memoInTransaction } from "@/lib/database"
 import { saveNewVoucherItemSelections, savedSelections } from "@/lib/voucher-item-attributes"
 import { ensureVoucherItemDiscountColumns } from "@/lib/voucher-item-columns"
@@ -266,6 +267,7 @@ export const getSalesVoucherNumberSettings = async (
   const key = SALES_VOUCHER_SETTINGS_KEY[vchType]
   const defaultPrefix = key?.defaultPrefix || "SV"
   try {
+    await ensureVoucherPrefixDefaults()
     const settingKeys = [key?.prefix, key?.start].filter((value): value is string => Boolean(value))
     const rows = settingKeys.length
       ? await memoInTransaction(`sales-number-settings:${settingKeys.join(",")}`, () => sql`
