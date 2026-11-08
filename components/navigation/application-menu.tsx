@@ -72,8 +72,9 @@ export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
 
         {favoriteLeaves.length > 0 && !query && <div className="border-b bg-emerald-50/50 p-5 dark:bg-emerald-950/20"><h2 className="mb-3 font-bold text-emerald-800 dark:text-emerald-300">{tr("قائمتي")}</h2><div className="flex flex-wrap gap-2">{favoriteLeaves.map(item => <button key={item.section} onClick={() => navigate(item.section)} className="flex items-center gap-2 rounded-xl border bg-background px-4 py-2 text-sm shadow-sm hover:border-emerald-400"><Star className="h-4 w-4 fill-amber-400 text-amber-400"/>{item.title}</button>)}</div></div>}
 
-        <div className="grid gap-x-10 gap-y-8 p-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visibleGroups.map(group => <section key={group.id || group.title}>
+        {/* أعمدة متدفقة (masonry) بدل الشبكة: مجموعة طويلة مثل الملفات والتعريفات لا تترك فراغاً تحت المجموعات القصيرة في نفس الصف */}
+        <div className="gap-x-10 p-6 sm:columns-2 lg:columns-3 xl:columns-4">
+          {visibleGroups.map(group => <section key={group.id || group.title} className="mb-8 break-inside-avoid">
             <div className="mb-3 flex items-center gap-2 border-b pb-2 text-base font-bold text-emerald-700"><group.icon className="h-5 w-5"/>{group.title}</div>
             <div className="space-y-1">{group.submenu.map(item => <button key={`${group.id}-${item.section}`} onClick={() => editing ? toggleFavorite(item) : navigate(item.section)} className="group flex w-full items-center justify-between rounded-lg px-2 py-2 text-start text-sm transition hover:bg-muted">
               <span className="flex items-center gap-2"><item.icon className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600"/>{item.title}</span>
