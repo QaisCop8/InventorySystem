@@ -8,7 +8,7 @@ import {
   type TransactionAction,
   type TransactionFamily,
 } from "@/lib/transaction-permissions"
-import { hasEffectivePermission } from "@/lib/permissions"
+import { hasEffectivePermission, isSystemAdmin } from "@/lib/permissions"
 
 export async function GET(request: NextRequest) {
   const user = await getSessionUser(request)
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   await ensureTransactionPermission(family, action)
   const permissionName = transactionPermissionName(family, action)
   const access = (await sql`SELECT id FROM access_list WHERE name = ${permissionName} ORDER BY id LIMIT 1`)[0]
-  const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
+  const memberships = (await isSystemAdmin(user.user_id)) ? [] : await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
   const membershipIds = new Set(memberships.map((row: any) => Number(row.branch_id)))
   const branches = await sql`SELECT id, branch_code, branch_name FROM branches WHERE COALESCE(status, 1) != 3 ORDER BY branch_name`
   const allowed = []

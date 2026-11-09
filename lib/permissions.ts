@@ -1,9 +1,10 @@
-import sql, { getPoolForDb, resolveCurrentDbName } from "@/lib/database"
+import sql, { getPoolForDb, memoInTransaction, resolveCurrentDbName } from "@/lib/database"
 import managementSql, {
   ensureSalesDraftPermissionDefinitions,
   ensureTransactionPermissionDefinitions,
 } from "@/lib/management-db"
 import {
+  isAdminRoleName,
   legacyTransactionPermissionName,
   TRANSACTION_ACTION_LABELS,
   TRANSACTION_FAMILY_ACTIONS,
@@ -60,7 +61,8 @@ export const DEFAULT_JOB_ROLES = [
 
 // Legacy full-access users still inherit access when no explicit user/role
 // decision exists. An explicit denial always takes precedence.
-export const LEGACY_FULL_ACCESS_SQL = `COALESCE(us.permissions::jsonb @> '["جميع الصلاحيات"]'::jsonb, FALSE)`
+// كانت علامة "جميع الصلاحيات" تمنح كل شيء ضمنياً — أُلغيت (2026-11-09): المسؤول تحدده isSystemAdmin وحدها
+export const LEGACY_FULL_ACCESS_SQL = `FALSE`
 
 // مُذاكَرة مفتاحها اسم قاعدة الشركة (dbName) — لا علم واحد للعملية بأكملها كما في ensureBranchColumn
 // (lib/auth.ts) أو ensureThemeSettingsColumns (app/api/settings/theme/route.ts): تينانت لاحق يصل
@@ -272,7 +274,24 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
 
 // يُستخدَم من كل من مسار user-access (عرض الصلاحية الفعّالة لكل مستخدم) وlib/tenant-auth.ts
 // (requirePermission) — منطق COALESCE واحد مكتوب مرة واحدة فقط.
+/**
+ * مسؤول النظام: المستخدم رقم 0، أو أول مستخدم في الشركة (منشئها)، أو الدور الوظيفي "مدير" (admin، مدير النظام…).
+ * حقل role النصي لا يُعتمد (كان كل مستخدم جديد يُحفظ "مدير النظام" افتراضياً).
+ * يرى كل الفروع (لا يقيّده user_branches) وكل الصلاحيات ممنوحة له في كل فرع، ومنها صلاحيات المستخدمين.
+ */
+export async function isSystemAdmin(userId: string | number | null | undefined): Promise<boolean> {
+  if (userId == null || String(userId).trim() === "") return false
+  if (String(userId).trim() === "0") return true
+  const row = ((await memoInTransaction(`system-admin:${userId}`, () => sql`
+    SELECT jr.name AS job_role_name, (us.user_id = (SELECT MIN(user_id) FROM user_settings)) AS first_user
+    FROM user_settings us LEFT JOIN job_roles jr ON jr.id = us.job_role_id
+    WHERE us.user_id::text = ${String(userId)} LIMIT 1
+  ` as Promise<any[]>)) as any[])[0]
+  return Boolean(row && (row.first_user || isAdminRoleName(row.job_role_name)))
+}
+
 export async function hasEffectivePermission(userId: string, accessId: number, branchId?: number | null): Promise<boolean> {
+  if (await isSystemAdmin(userId)) return true
   const requestedBranchId = Number.isInteger(branchId) && Number(branchId) > 0 ? Number(branchId) : null
   const rows = await sql`
     SELECT COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) AS is_granted
@@ -324,12 +343,6 @@ export async function ensurePosCashierPermission(permission: PosCashierPermissio
     SELECT id, ${Number(access.id)}, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
     ON CONFLICT (role_id, access_id) DO NOTHING
   `
-  await sql`
-    INSERT INTO user_access (user_id, access_id, is_granted)
-    SELECT user_id, ${Number(access.id)}, TRUE FROM user_settings
-    WHERE permissions::text LIKE '%جميع الصلاحيات%'
-    ON CONFLICT (user_id, access_id) DO NOTHING
-  `
   if (!inserted[0]) posCashierAccessIds.set(`${dbName}\u0000${permission}`, Number(access.id))
   return Number(access.id)
 }
@@ -354,8 +367,8 @@ export async function hasPosCashierPermission(userId: string, permission: PosCas
   return Boolean(rows[0]?.is_granted)
 }
 
-// صلاحية مسمّاة عامة (خارج مصفوفة الحركات) — تُنشأ عند أول استخدام وتُمنح لدور "مدير" ولمن له
-// "جميع الصلاحيات"، والفحص بنفس منطق hasEffectivePermission (فرعي → مستخدم → دور).
+// صلاحية مسمّاة عامة (خارج مصفوفة الحركات) — تُنشأ عند أول استخدام وتُمنح لدور "مدير"،
+// والفحص بنفس منطق hasEffectivePermission (فرعي → مستخدم → دور).
 const namedAccessIds = new Map<string, number>()
 
 export async function ensureNamedPermission(name: string, categoryName: string): Promise<number> {
@@ -384,12 +397,6 @@ export async function ensureNamedPermission(name: string, categoryName: string):
       SELECT id, ${Number(access.id)}, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
       ON CONFLICT (role_id, access_id) DO NOTHING
     `
-    await sql`
-      INSERT INTO user_access (user_id, access_id, is_granted)
-      SELECT user_id, ${Number(access.id)}, TRUE FROM user_settings
-      WHERE permissions::text LIKE '%جميع الصلاحيات%'
-      ON CONFLICT (user_id, access_id) DO NOTHING
-    `
   } else {
     namedAccessIds.set(cacheKey, Number(access.id))
   }
@@ -410,6 +417,7 @@ export class PermissionDeniedError extends Error {}
 // واحد فقط. يُستخدَم عندما تحتاج شاشة عرض بيانات مُقيَّدة بالفرع (كالأصناف) تجميع النتائج من كل فرع
 // يملك المستخدم صلاحية استعلامه فيه، لا فرعه النشط فقط.
 export async function getGrantedBranchIds(userId: string, accessId: number): Promise<number[]> {
+  if (await isSystemAdmin(userId)) return ((await sql`SELECT id FROM branches`) as any[]).map((r: any) => Number(r.id))
   const rows = await sql`
     SELECT b.id
     FROM branches b
@@ -888,18 +896,11 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
          ON CONFLICT (role_id, access_id) DO NOTHING`,
         [access.id],
       )
-      await client.query(
-        `INSERT INTO user_access (user_id, access_id, is_granted)
-         SELECT user_id, $1::integer, TRUE FROM user_settings
-         WHERE permissions::text LIKE '%جميع الصلاحيات%'
-         ON CONFLICT (user_id, access_id) DO NOTHING`,
-        [access.id],
-      )
     }
   }
 
   // "السماح بتجاوز حد الدين" و"مشاهدة الرصيد" و"مشاهدة أسعار الشراء" — تظهر بشاشة الصلاحيات مباشرة
-  // (لا فقط بعد أول فحص لها)، وتُمنح لدور "مدير" ولمن يملك "جميع الصلاحيات"
+  // (لا فقط بعد أول فحص لها)، وتُمنح لدور "مدير"
   for (const [categoryName, permissionNames] of [
     [CREDIT_LIMIT_PERMISSION_CATEGORY, [CREDIT_LIMIT_OVERRIDE_PERMISSION, ACCOUNT_BALANCE_VIEW_PERMISSION]],
     [PURCHASE_PRICE_PERMISSION_CATEGORY, [PURCHASE_PRICE_VIEW_PERMISSION]],
@@ -933,13 +934,6 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
         `INSERT INTO role_permissions (role_id, access_id, is_granted)
          SELECT id, $1::integer, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
          ON CONFLICT (role_id, access_id) DO NOTHING`,
-        [inserted[0].id],
-      )
-      await client.query(
-        `INSERT INTO user_access (user_id, access_id, is_granted)
-         SELECT user_id, $1::integer, TRUE FROM user_settings
-         WHERE permissions::text LIKE '%جميع الصلاحيات%'
-         ON CONFLICT (user_id, access_id) DO NOTHING`,
         [inserted[0].id],
       )
     }

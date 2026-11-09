@@ -258,8 +258,7 @@ export const isUserAdminSection = (section: string | null | undefined) => Boolea
 /** الدخول لشاشات المستخدمين والصلاحيات من جهة الواجهة (الخادم يفرضها أيضاً على عمليات الحفظ). */
 export function canAccessUserAdminScreen(entries: TransactionAccessEntry[] | null, user: { role?: string | null; permissions?: Record<string, unknown> | null } | null): boolean {
   if (!user) return false
-  const permissions = user.permissions || {}
-  if (permissions["all"] || permissions["جميع الصلاحيات"] || isAdminRoleName(user.role)) return true
+  // المسؤول (isSystemAdmin على الخادم) تصله كل الصلاحيات ممنوحة ضمن entries
   if (!entries) return false
   return entries.some((entry) => String(entry.access_name || "").trim() === USER_ADMIN_PERMISSION && (entry.is_granted === true || entry.is_granted === 1 || entry.is_granted === "true"))
 }

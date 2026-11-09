@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { createNotification } from "@/lib/notifications"
-import { hasNamedPermission } from "@/lib/permissions"
+import { hasNamedPermission, isSystemAdmin } from "@/lib/permissions"
 import { TRANSACTION_PERMISSION_CATEGORY, transactionPermissionName, type TransactionAction, type TransactionFamily } from "@/lib/transaction-permission-definitions"
 
 // كل إجراء بالمحرك يعدّل أكثر من صف (بدء/إنهاء/رفض/تحويل/حفظ خطوات...) يُنفَّذ بمعاملة واحدة —
@@ -396,13 +396,12 @@ export async function isSectionMember(sectionId: number, userId: string): Promis
 }
 
 export async function isWorkspaceAdmin(userId: string): Promise<boolean> {
-  const rows = await sql`SELECT role, permissions FROM user_settings WHERE user_id = ${userId} LIMIT 1`
+  if (await isSystemAdmin(userId)) return true
+  const rows = await sql`SELECT permissions FROM user_settings WHERE user_id = ${userId} LIMIT 1`
   if (rows.length === 0) return false
-  const { role, permissions } = rows[0]
-  if (role === "مدير النظام") return true
+  const { permissions } = rows[0]
   try {
     const perms = typeof permissions === "string" ? JSON.parse(permissions) : permissions
-    if (perms?.all || perms?.["جميع الصلاحيات"]) return true
     if (perms?.["task-orders"]?.admin) return true
   } catch {
     // permissions غير صالحة كـJSON — تُعامَل كغياب صلاحية الإدارة

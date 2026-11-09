@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { isSystemAdmin } from "@/lib/permissions"
 import { ensureBranchSymbolColumn, validateBranchSymbol } from "@/lib/branch-symbol"
 import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 
@@ -59,7 +60,8 @@ export async function GET(request: NextRequest) {
 
     // scope=mine (قائمة فرع رأس الصفحة): دائماً فروع عضوية المستخدم فقط (بلا صفوف = كل الفروع)، حتى لمن يملك صلاحية ملف الفروع
     if (searchParams.get("scope") === "mine") {
-      const mine = await sql`SELECT branch_id FROM user_branches WHERE user_id::text = ${String(authorization.userId)}`
+      // مسؤول النظام يرى كل الفروع
+      const mine = (await isSystemAdmin(authorization.userId)) ? [] : await sql`SELECT branch_id FROM user_branches WHERE user_id::text = ${String(authorization.userId)}`
       const mineIds = new Set(mine.map((row: any) => Number(row.branch_id)))
       const myBranches = mine.length ? branches.filter((row: any) => mineIds.has(Number(row.id))) : branches
       return NextResponse.json(authorization.lookupOnly ? projectFileLookup("branches", myBranches) : myBranches)

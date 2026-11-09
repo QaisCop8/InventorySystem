@@ -348,7 +348,7 @@ export async function createUser(userData: {
       ) VALUES (
         ${userData.username}, ${userData.email}, ${passwordHash},
         ${userData.fullName}, ${userData.role}, ${userData.department},
-        ${userData.organizationId}, ${JSON.stringify(userData.permissions || ["جميع الصلاحيات"])},
+        ${userData.organizationId}, ${JSON.stringify(userData.permissions || [])},
         ${userData.branchId ?? null}, ${userData.jobRoleId ?? null}, ${userData.managementUserId ?? null},
         true, 'ar', 'Asia/Riyadh', 'DD/MM/YYYY', '24h', true, true, false,
         'slate', false, NOW(), NOW()

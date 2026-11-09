@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
-import { ensurePermissionTables, syncPermissionDefinitions, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
+import { ensurePermissionTables, isSystemAdmin, syncPermissionDefinitions, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 
 export async function GET(req: NextRequest) {
@@ -63,6 +63,8 @@ export async function GET(req: NextRequest) {
 
         // Normalize rows to plain JS objects
         const data = Array.isArray(rows) ? rows : rows?.rows || []
+        // مسؤول النظام (المستخدم 0/أول مستخدم/الدور الوظيفي مدير): كل الصلاحيات ممنوحة في كل فرع
+        if (await isSystemAdmin(userId)) return NextResponse.json(data.map((row: any) => ({ ...row, is_granted: true, permission_source: "admin" })))
 
         return NextResponse.json(data)
     } catch (err) {

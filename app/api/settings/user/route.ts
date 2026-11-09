@@ -201,10 +201,10 @@ export async function POST(request: NextRequest) {
       email: data.email,
       password,
       fullName: data.full_name,
-      role: data.role || "مدير النظام",
+      role: data.role || "مستخدم",
       department: data.department || "الإدارة",
       organizationId: data.organization_id || 1,
-      permissions: data.permissions || ["جميع الصلاحيات"],
+      permissions: data.permissions || [],
       branchId: data.branch_id ? Number(data.branch_id) : null,
       jobRoleId: data.job_role_id ? Number(data.job_role_id) : null,
     })

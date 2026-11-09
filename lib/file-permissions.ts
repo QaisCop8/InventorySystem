@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
-import { ensureFilePermissions, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
+import { ensureFilePermissions, isSystemAdmin, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { filePermissionName, hasFilePermissionEntries, type FileAction, type FileFamily } from "@/lib/file-permission-definitions"
 import { TRANSACTION_FAMILIES, transactionPermissionName, type TransactionFamily } from "@/lib/transaction-permission-definitions"
@@ -20,7 +20,9 @@ async function accessContext(request: NextRequest, options: { branchSwitcher?: b
     return { ok: false, response: NextResponse.json({ error: "الفرع غير صالح" }, { status: 400 }) }
   }
   const userRow = (await sql`SELECT branch_id FROM user_settings WHERE user_id=${user.user_id} LIMIT 1`)[0]
-  const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
+  // مسؤول النظام (lib/permissions.ts#isSystemAdmin): كل الفروع وكل صلاحيات الملفات
+  const admin = await isSystemAdmin(user.user_id)
+  const memberships = admin ? [] : await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
   const memberIds = memberships.map((row: any) => Number(row.branch_id))
   const isMember = (id: number) => memberIds.includes(id)
   // مستخدم مقيَّد بفروع (صفوف user_branches): بلا فرع صريح في الطلب يُستخدم فرعه الافتراضي إن كان من فروعه وإلا
@@ -45,7 +47,7 @@ async function accessContext(request: NextRequest, options: { branchSwitcher?: b
     LEFT JOIN role_branch_permissions rbp ON rbp.role_id=us.job_role_id AND rbp.branch_id=${branchId} AND rbp.access_id=al.id
     LEFT JOIN role_permissions rp ON rp.role_id=us.job_role_id AND rp.access_id=al.id
   `
-  return { userId: user.user_id, branchId, entries }
+  return { userId: user.user_id, branchId, entries: admin ? entries.map((entry: any) => ({ ...entry, is_granted: true })) : entries }
 }
 
 function denial(family: FileFamily, action: FileAction): Denied {

@@ -697,7 +697,7 @@ export async function provisionCompanyDatabase(
       "مدير النظام",
       "الإدارة",
       1,
-      JSON.stringify(["جميع الصلاحيات"]),
+      JSON.stringify([]),
       branchId,
       true,
     ],

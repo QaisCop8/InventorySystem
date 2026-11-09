@@ -181,8 +181,8 @@ export async function ensureStockCountTables() { return runSchemaOnce("lib/stock
   preparedDatabases.add(databaseName)
 }) }
 
-// صلاحيات الجرد تُعرَّف ذاتياً (نفس أسلوب ensurePosCashierPermission) — ممنوحة لدور "مدير" ولمن له
-// "جميع الصلاحيات"، وتظهر في شاشة الصلاحيات ضمن تصنيف "جرد المخازن".
+// صلاحيات الجرد تُعرَّف ذاتياً (نفس أسلوب ensurePosCashierPermission) — ممنوحة لدور "مدير"،
+// وتظهر في شاشة الصلاحيات ضمن تصنيف "جرد المخازن".
 async function ensureStockCountPermission(name: string) {
   await ensurePermissionTables(await resolveCurrentDbName())
   const categoryRows = await sql`
@@ -202,11 +202,6 @@ async function ensureStockCountPermission(name: string) {
     INSERT INTO role_permissions (role_id, access_id, is_granted)
     SELECT id, ${accessId}, TRUE FROM job_roles WHERE LOWER(name) = LOWER('مدير')
     ON CONFLICT (role_id, access_id) DO NOTHING
-  `
-  await sql`
-    INSERT INTO user_access (user_id, access_id, is_granted)
-    SELECT user_id, ${accessId}, TRUE FROM user_settings WHERE permissions::text LIKE '%جميع الصلاحيات%'
-    ON CONFLICT (user_id, access_id) DO NOTHING
   `
 }
 

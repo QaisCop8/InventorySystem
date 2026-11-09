@@ -261,7 +261,7 @@ const SOURCE_LABELS: Record<string, string> = {
   user: tr("مخصصة للمستخدم"),
   branch_role: tr("من الدور الوظيفي في هذا الفرع"),
   role: tr("من الدور الوظيفي"),
-  legacy: tr("صلاحية كاملة (نظام قديم)"),
+  admin: tr("مسؤول النظام — كل الصلاحيات"),
 }
 
 type Filter = "all" | "granted" | "denied"

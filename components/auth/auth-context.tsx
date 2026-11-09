@@ -561,8 +561,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const hasPermission = (modulePermission: string): boolean => {
     if (!user || !user.permissions) return false;
 
-    // "جميع الصلاحيات" bypass
-    if (user.permissions["all"] || user.permissions["جميع الصلاحيات"]) return true;
 
     const [module, act] = modulePermission.split("-"); // e.g., "customers-view"
     const permModule = user.permissions[module];

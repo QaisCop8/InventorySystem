@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql, { memoInTransaction, resolveCurrentDbName } from "@/lib/database"
-import { ensurePermissionTables, getGrantedBranchIds, hasEffectivePermission } from "@/lib/permissions"
+import { ensurePermissionTables, getGrantedBranchIds, hasEffectivePermission, isSystemAdmin } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import {
   legacyTransactionPermissionName,
@@ -94,18 +94,12 @@ export async function ensureTransactionPermission(family: TransactionFamily, act
     SELECT id, ${access.id}, TRUE FROM job_roles WHERE LOWER(name) = LOWER('مدير')
     ON CONFLICT (role_id, access_id) DO NOTHING
   `
-  await sql`
-    INSERT INTO user_access (user_id, access_id, is_granted)
-    SELECT user_id, ${access.id}, TRUE
-    FROM user_settings
-    WHERE permissions::text LIKE '%جميع الصلاحيات%'
-    ON CONFLICT (user_id, access_id) DO NOTHING
-  `
   if (!inserted[0]) transactionAccessIds.set(cacheKey, Number(access.id))
   return Number(access.id)
 }
 
 async function userHasBranchMembership(userId: string, branchId: number): Promise<boolean> {
+  if (await isSystemAdmin(userId)) return true
   const rows = await memoInTransaction(`user-branches:${userId}`, () => sql`SELECT branch_id FROM user_branches WHERE user_id = ${userId}` as Promise<any[]>)
   return rows.length === 0 || rows.some((row: any) => Number(row.branch_id) === branchId)
 }
@@ -128,7 +122,7 @@ export async function authorizeTransaction(
   // A list/query without an explicit branch must include every branch where
   // the user has the requested view permission, not only their default branch.
   if (action === "view" && (rawRequested == null || rawRequested === "")) {
-    const membershipRows = await memoInTransaction(`user-branches:${user.user_id}`, () => sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}` as Promise<any[]>)
+    const membershipRows = (await isSystemAdmin(user.user_id)) ? [] : await memoInTransaction(`user-branches:${user.user_id}`, () => sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}` as Promise<any[]>)
     const memberships = new Set(membershipRows.map((row: any) => Number(row.branch_id)))
     const granted = await getGrantedBranchIds(user.user_id, accessId)
     const branchIds = membershipRows.length ? granted.filter((id) => memberships.has(id)) : granted
