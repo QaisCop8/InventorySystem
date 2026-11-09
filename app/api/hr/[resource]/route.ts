@@ -15,6 +15,7 @@ import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 import { attendancePayrollSettings, attendancePayrollTotals } from "@/lib/attendance-payroll"
 import { SALARY_DEDUCTION_TYPES, salaryDeductionAccount, salaryDeductionTotals, type SalaryDeductionType } from "@/lib/salary-deductions"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { ensureBranchSymbolColumn } from "@/lib/branch-symbol"
 
 const definitions: Record<string, { table: string; fields: string[]; order: string }> = {
   jobs: { table: "employee_jobs_tbl", fields: ["code", "name", "is_active"], order: "code" },
@@ -213,7 +214,9 @@ export async function GET(request: NextRequest, { params }: { params: { resource
     }
     if (resource === "tax-laws") return NextResponse.json(await sql`SELECT l.*, COALESCE(json_agg(json_build_object('id',b.id,'from_amount',b.from_amount,'to_amount',b.to_amount,'tax_percent',b.tax_percent) ORDER BY b.from_amount) FILTER (WHERE b.id IS NOT NULL),'[]') brackets FROM tax_laws_tbl l LEFT JOIN tax_law_brackets_tbl b ON b.tax_law_id=l.id GROUP BY l.id ORDER BY l.name`)
     if (resource === "lookups") {
-      const [jobs, departments, branches, employees, items, exemptions, taxLaws, currencies, voucherTypes] = await Promise.all([sql`SELECT * FROM employee_jobs_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM departments WHERE is_active ORDER BY id`, sql`SELECT * FROM branches WHERE is_active ORDER BY id`, sql`SELECT id,employee_code,full_name,department_id,branch_id FROM employees_tbl WHERE COALESCE(status,1)=1 ORDER BY employee_code`, sql`SELECT * FROM salary_items_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM tax_exemptions_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM tax_laws_tbl WHERE is_active ORDER BY id`, sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`, sql`SELECT id,name FROM voucher_types_tbl WHERE COALESCE(status,1)<>3 ORDER BY id`])
+      // فروع الشركة فقط: جدول branches يضم فروع البنوك أيضاً (is_bank_branch يُهيَّأ في ensureBranchSymbolColumn)
+      await ensureBranchSymbolColumn()
+      const [jobs, departments, branches, employees, items, exemptions, taxLaws, currencies, voucherTypes] = await Promise.all([sql`SELECT * FROM employee_jobs_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM departments WHERE is_active ORDER BY id`, sql`SELECT * FROM branches WHERE COALESCE(status, 1) <> 3 AND NOT COALESCE(is_bank_branch, false) ORDER BY id`, sql`SELECT id,employee_code,full_name,department_id,branch_id FROM employees_tbl WHERE COALESCE(status,1)=1 ORDER BY employee_code`, sql`SELECT * FROM salary_items_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM tax_exemptions_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM tax_laws_tbl WHERE is_active ORDER BY id`, sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`, sql`SELECT id,name FROM voucher_types_tbl WHERE COALESCE(status,1)<>3 ORDER BY id`])
       return NextResponse.json({ jobs, departments, branches, employees, items, exemptions, taxLaws, currencies, voucherTypes })
     }
     if (resource === "employee-items") return NextResponse.json(await sql`SELECT esi.*, e.employee_code, e.full_name, e.other_name, s.code item_code, s.name item_name, s.item_type, s.calculation_type FROM employee_salary_items_tbl esi JOIN employees_tbl e ON e.id=esi.employee_id JOIN salary_items_tbl s ON s.id=esi.salary_item_id ORDER BY e.employee_code,esi.id`)
