@@ -35,17 +35,13 @@ export async function GET() {
       return NextResponse.json({ ...state[0], shouldShow, isNewCompany: shouldShow ? await isNewCompany() : false })
     }
 
-    const counts = await sql`
-      SELECT
-        (SELECT COUNT(*) FROM account_tbl) AS accounts,
-        (SELECT COUNT(*) FROM products) AS products,
-        (SELECT COUNT(*) FROM customers) AS customers
-    `
-    const fresh = Number(counts[0]?.accounts || 0) === 0 && Number(counts[0]?.products || 0) === 0 && Number(counts[0]?.customers || 0) === 0
+    // بلا سجل حالة: الشركة "جديدة" = لا أصناف ولا سندات (نفس isNewCompany) — عدّ الحسابات كان يُخرج شركة جديدة
+    // بدليل حسابات جاهز من البداية السريعة فتذهب لشاشة العملات بدلها
+    const fresh = await isNewCompany()
     if (fresh) {
       await sql`INSERT INTO onboarding_assistant_state (id, current_step) VALUES (1, 0) ON CONFLICT (id) DO NOTHING`
     }
-    return NextResponse.json({ current_step: 0, wizard_version: 1, dismissed: false, completed: false, shouldShow: fresh, isNewCompany: fresh ? await isNewCompany() : false })
+    return NextResponse.json({ current_step: 0, wizard_version: 1, dismissed: false, completed: false, shouldShow: fresh, isNewCompany: fresh })
   } catch (error) {
     console.error("onboarding assistant GET", error)
     return NextResponse.json({ error: "تعذر تحميل حالة البداية السريعة" }, { status: 500 })

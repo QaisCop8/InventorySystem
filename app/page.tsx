@@ -617,16 +617,19 @@ function HomePageContent() {
     let cancelled = false
     const run = async () => {
       try {
-        const company = sessionStorage.getItem("active_company_id") || localStorage.getItem("active_company_id") || "default"
-        const onboardingKey = `onboarding-redirected:${company}`
-        if (!sessionStorage.getItem(onboardingKey)) {
-          const onboarding = await fetch("/api/onboarding-assistant").then((res) => (res.ok ? res.json() : null)).catch(() => null)
-          if (cancelled) return
-          if (onboarding?.shouldShow && onboarding?.isNewCompany) {
-            sessionStorage.setItem(onboardingKey, "1")
+        const company = sessionStorage.getItem("active_company_id") || localStorage.getItem("active_company_id") || ""
+        const onboardingKey = company ? `onboarding-redirected:${company}` : ""
+        // البداية السريعة تشمل تعريف العملة — شركة جديدة لم تُكملها لا تُحوَّل لشاشة العملات أبداً
+        // (محاولة ثانية عند فشل الطلب الأول، مثلاً أثناء تهيئة جداول الشركة الجديدة)
+        const loadOnboarding = () => fetch("/api/onboarding-assistant").then((res) => (res.ok ? res.json() : null)).catch(() => null)
+        const onboarding = (await loadOnboarding()) || (await loadOnboarding())
+        if (cancelled) return
+        if (onboarding?.shouldShow && onboarding?.isNewCompany) {
+          if (!onboardingKey || !sessionStorage.getItem(onboardingKey)) {
+            if (onboardingKey) sessionStorage.setItem(onboardingKey, "1")
             handleSectionChange("personal-assistant")
-            return
           }
+          return
         }
         const data = await fetch("/api/exchange-rates").then((res) => (res.ok ? res.json() : null))
         if (cancelled || !data) return
