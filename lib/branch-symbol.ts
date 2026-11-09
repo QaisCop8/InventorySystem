@@ -25,12 +25,15 @@ export const ensureBranchSymbolColumn = async (): Promise<void> => {
       // فروع الشركة وفروع البنوك في نفس الجدول: is_bank_branch يفصلهما. الفروع القائمة تُصنَّف مرة واحدة — فرع بنك = له بنك
       // ولم يُستخدم كفرع للشركة (سندات/مستخدمين)؛ الجديد يُحدَّد عند الحفظ (شاشة فروع البنوك أو تعريف فروع الشركة).
       await sql`ALTER TABLE branches ADD COLUMN IF NOT EXISTS is_bank_branch BOOLEAN`
+      // جدول user_branches قد لا يوجد بعد (شركة جديدة): Postgres يرفض الاستعلام كله إن ذُكر جدول غير موجود
+      // حتى خلف to_regclass — لذا يُضاف الشرط فقط إن وُجد الجدول
+      const hasUserBranches = Boolean(((await sql`SELECT to_regclass('user_branches') IS NOT NULL AS ok`) as any[])[0]?.ok)
       await sql.unsafe(`
         UPDATE branches b SET is_bank_branch = (
           b.bank_id IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM voucher_header_tbl vh WHERE vh.branch_id = b.id)
           AND NOT EXISTS (SELECT 1 FROM user_settings us WHERE us.branch_id = b.id)
-          AND (to_regclass('user_branches') IS NULL OR NOT EXISTS (SELECT 1 FROM user_branches ub WHERE ub.branch_id = b.id))
+          ${hasUserBranches ? "AND NOT EXISTS (SELECT 1 FROM user_branches ub WHERE ub.branch_id = b.id)" : ""}
         )
         WHERE b.is_bank_branch IS NULL`)
       // رقم الفرع 4 خانات: الأرقام الأقصر تُكمَّل بأصفار (ما لم يتعارض مع رقم قائم)

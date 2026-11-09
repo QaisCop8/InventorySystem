@@ -4,7 +4,6 @@ import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
 import { ensureBillingTables } from "@/lib/company-billing"
 import { ensureLicenseTables } from "@/lib/company-license"
-import { seedTrialSalesPoints } from "@/lib/trial-sales-points"
 
 const TRIAL_EXPIRY_DAYS = 10
 const MAX_TRIALS_PER_USER = 2
@@ -81,11 +80,10 @@ export async function POST(request: NextRequest) {
     await ensureBillingTables()
     await managementSql`UPDATE companies SET is_trial = true, created_as_trial = true WHERE id = ${company.id}`
 
-    // نقطة بيع 1 وموقع مطعم 1 جاهزان في النسخة التجريبية — والترخيص يسمح بواحد من كلٍّ منهما
+    // ترخيص النسخة التجريبية: نقطة بيع واحدة وموقع مطعم واحد (يعرّفهما المستخدم بنفسه)
     await ensureLicenseTables()
     await managementSql`UPDATE companies SET number_of_pos_points = GREATEST(COALESCE(number_of_pos_points, 0), 1), pos_license_initialized = true,
       number_of_restaurant_locations = GREATEST(COALESCE(number_of_restaurant_locations, 0), 1), restaurant_license_initialized = true WHERE id = ${company.id}`
-    await seedTrialSalesPoints(dbName, session.email)
 
     return NextResponse.json({ success: true, dbName, expiryDate })
   } catch (error) {
