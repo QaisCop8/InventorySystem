@@ -1,6 +1,6 @@
-import { normalizeArabicSearch } from "@/lib/arabic-search"
-﻿"use client"
+"use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import { Search, Filter, X, Users, MapPin, Phone, Mail, User, Building2 } from "lucide-react"
