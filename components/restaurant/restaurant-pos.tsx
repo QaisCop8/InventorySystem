@@ -129,7 +129,7 @@ export default function RestaurantPos() {
   const [custodyPicker, setCustodyPicker] = useState(false)
   const [custodyInfo, setCustodyInfo] = useState<{ session: any; pending: any[]; active_shift: any; currencies: CurrencyOption[] } | null>(null)
   const [custodyOpen, setCustodyOpen] = useState(false)
-  const [custodyAction, setCustodyAction] = useState("handover")
+  const [custodyAction, setCustodyAction] = useState("cash_in")
   const [custodyAmount, setCustodyAmount] = useState(0)
   const [custodyAmounts, setCustodyAmounts] = useState<Record<number, number>>({})
   const [movementAmounts, setMovementAmounts] = useState<Record<number, number>>({})
@@ -294,7 +294,7 @@ export default function RestaurantPos() {
     try {
       const info = await loadCustody(resolved)
       const session = info.session
-      setCustodyAction(session ? "handover" : info.pending.length ? "receive" : "open")
+      setCustodyAction(session ? "cash_in" : info.pending.length ? "receive" : "open")
       const amounts: Record<number, number> = {}
       for (const row of session?.currencies || []) amounts[Number(row.currency_id)] = Number(row.expected_amount || 0)
       setCustodyAmounts(amounts)

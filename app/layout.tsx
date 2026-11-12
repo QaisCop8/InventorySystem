@@ -47,6 +47,7 @@ import { ThemeSettingsProvider } from "@/contexts/theme-context"
 import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
 import { USER_FONT_BOOT_SCRIPT } from "@/lib/user-font"
+import { APP_MODE_BOOT_SCRIPT } from "@/lib/app-mode"
 import { cookies } from "next/headers"
 import { LANG_COOKIE, tr } from "@/lib/i18n"
 import { I18N_BUILD } from "@/lib/i18n-build"
@@ -104,6 +105,8 @@ export default async function RootLayout({
       <body className={`font-sans ${inter.variable} antialiased`} suppressHydrationWarning>
         {/* خط المستخدم المحفوظ قبل أول رسم (lib/user-font.ts) — لا وميض للحجم الافتراضي ولا انتظار للشبكة */}
         <script dangerouslySetInnerHTML={{ __html: USER_FONT_BOOT_SCRIPT }} />
+        {/* مشغّل الكاشير/المطعم (?app=...) — يُحفظ قبل أي تحويل لصفحة الدخول (lib/app-mode.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: APP_MODE_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

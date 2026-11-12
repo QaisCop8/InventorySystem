@@ -18,6 +18,7 @@ import { SECTION_TITLES } from "@/components/sidebar"
 // تبويب فُتح من المساعد الذكي (?handoff=): ينقل بياناته إلى sessionStorage قبل تركيب أي شاشة
 import "@/lib/new-tab-handoff"
 import { shouldResumePos } from "@/lib/pos-offline"
+import { appModeSection } from "@/lib/app-mode"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { WorkspacePane } from "@/components/workspace/workspace-pane"
 import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"
@@ -534,7 +535,8 @@ function HomePageContent() {
     // الكاشير كان مفتوحاً عند إغلاق المتصفح/الجهاز (lib/pos-offline.ts POS_RESUME_KEY) ⇐ يُفتح مباشرة عند البدء بلا قسم في الرابط
     let resumeCashier = false
     try { resumeCashier = !searchParams.get("section") && shouldResumePos() } catch { /* ignore */ }
-    const fromUrl = resumeCashier ? "pos-cashier" : searchParams.get("section")
+    // مشغّل الكاشير/المطعم (lib/app-mode.ts): بلا قسم في الرابط تُفتح شاشته مباشرة
+    const fromUrl = resumeCashier ? "pos-cashier" : searchParams.get("section") || appModeSection()
     const resolved =
       !fromUrl || fromUrl === "home-dashboard" || fromUrl === "dashboard"
         ? "home-dashboard"
@@ -616,6 +618,8 @@ function HomePageContent() {
   useEffect(() => {
     let cancelled = false
     const run = async () => {
+      // مشغّل الكاشير/المطعم يبقى على شاشته — لا تحويل للبداية السريعة أو العملات
+      if (appModeSection()) return
       try {
         const company = sessionStorage.getItem("active_company_id") || localStorage.getItem("active_company_id") || ""
         const onboardingKey = company ? `onboarding-redirected:${company}` : ""

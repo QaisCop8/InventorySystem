@@ -99,6 +99,7 @@ interface Customer {
   whatsapp1: string
   whatsapp2: string
   city: string
+  city_id?: string
   address: string
   email: string
   status: string
@@ -162,6 +163,7 @@ interface CustomerFormData {
   whatsapp1: string
   whatsapp2: string
   city: string
+  city_id?: string
   address: string
   email: string
   status: string
@@ -705,6 +707,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       whatsapp1: customer.whatsapp1 || "",
       whatsapp2: customer.whatsapp2 || "",
       city: customer.city || "",
+      city_id: (customer as any).city_id ? String((customer as any).city_id) : "",
       address: customer.address || "",
       email: customer.email || "",
       status: customer.status || "نشط",
@@ -1260,6 +1263,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         whatsapp1: customerData.whatsapp1,
         whatsapp2: customerData.whatsapp2,
         city: customerData.city,
+        city_id: customerData.city_id || null,
         address: customerData.address,
         email: customerData.email,
         status: customerData.status,

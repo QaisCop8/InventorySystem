@@ -10,6 +10,7 @@ import {
   ensureCustomerCompatibilityColumns,
   validateCustomerContactFields,
   normalizeCustomerIdNumber,
+  resolveCustomerCity,
   resolveAccountType,
   ensureCustomerAccount,
   resolveRequiredParentAccount,
@@ -314,6 +315,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Creating customer with data:", data)
     const contactError = await validateCustomerContactFields(data, data.type)
     if (contactError) return NextResponse.json({ error: contactError }, { status: 400 })
+    const city = await resolveCustomerCity(data.city_id, data.city)
 
     const accountHierarchy = await resolveRequiredParentAccount(data.type, data.father_id)
     const accountCurrencyId = toNullableInt(data.currency_id) ?? 1
@@ -393,7 +395,8 @@ export async function POST(request: NextRequest) {
     account_id,
     image_url,
     tax_number,
-    id_number
+    id_number,
+    city_id
   ) VALUES (
     ${data.customer_code},
     ${data.customer_name || data.name},
@@ -402,7 +405,7 @@ export async function POST(request: NextRequest) {
     ${data.mobile2 || null},
     ${data.whatsapp1 || null},
     ${data.whatsapp2 || null},
-    ${data.city || null},
+    ${city.name},
     ${data.address || null},
     ${data.email || null},
     ${data.status || 'نشط'},
@@ -423,7 +426,8 @@ export async function POST(request: NextRequest) {
     ${accountId},
     ${data.image_url || null},
     ${String(data.tax_number || "").trim().slice(0, 50) || null},
-    ${normalizeCustomerIdNumber(data.id_number) || null}
+    ${normalizeCustomerIdNumber(data.id_number) || null},
+    ${city.id}
   )
   RETURNING *;
 `;
@@ -489,6 +493,7 @@ export async function PUT(request: NextRequest) {
     }
     const contactError = await validateCustomerContactFields(updateData, updateData.type ?? 1, id)
     if (contactError) return NextResponse.json({ error: contactError }, { status: 400 })
+    const city = await resolveCustomerCity(updateData.city_id, updateData.city)
 
     const accountType = resolveAccountType(updateData.type)
     const accountHierarchy = await resolveRequiredParentAccount(updateData.type, updateData.father_id)
@@ -526,7 +531,8 @@ export async function PUT(request: NextRequest) {
         mobile2 = ${updateData.mobile2 || ""},
         whatsapp1 = ${updateData.whatsapp1 || ""},
         whatsapp2 = ${updateData.whatsapp2 || ""},
-        city = ${updateData.city || ""},
+        city = ${city.name || ""},
+        city_id = ${city.id},
         address = ${updateData.address || ""},
         email = ${updateData.email || ""},
         status = ${updateData.status || "نشط"},

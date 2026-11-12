@@ -1,7 +1,7 @@
 ﻿import { type NextRequest, NextResponse } from "next/server"
 import { generateCustomerNumber, getPrefixFromSettings } from "@/lib/number-generator"
 import sql from "@/lib/database"
-import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount, MissingParentAccountError, toNullableInt, ensureCustomerCompatibilityColumns } from "@/app/api/customers/_lib"
+import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount, MissingParentAccountError, toNullableInt, ensureCustomerCompatibilityColumns, resolveCustomerCity } from "@/app/api/customers/_lib"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { authorizeCustomerType } from "@/app/api/customers/_permissions"
 import { postOpeningBalances, type OpeningBalanceLine } from "@/lib/opening-balances"
@@ -146,6 +146,9 @@ export async function POST(request: NextRequest) {
           accountType,
         })
 
+        // المدينة من Excel بالاسم: تُطابَق مع تعريف المدن أو تُضاف إليه، ويُحفظ رقمها
+        const city = await resolveCustomerCity(item.city_id, item.city)
+
         // Insert into customers table
         const result = await sql`
       INSERT INTO customers (
@@ -156,6 +159,7 @@ export async function POST(request: NextRequest) {
         whatsapp1,
         whatsapp2,
         city,
+        city_id,
         address,
         email,
         status,
@@ -177,7 +181,8 @@ export async function POST(request: NextRequest) {
         ${item.mobile2 || null},
         ${item.whatsapp1 || null},
         ${item.whatsapp2 || null},
-        ${item.city || null},
+        ${city.name},
+        ${city.id},
         ${item.address || null},
         ${item.email || null},
         ${item.status || 'نشط'},
@@ -291,6 +296,8 @@ async function updateImportedCustomers(data: any[]) {
       if (!Object.keys(patch).length) throw new Error("لا توجد قيم للتحديث")
 
       const v = (column: string) => (column in patch ? patch[column] : null)
+      const city = patch.city ? await resolveCustomerCity(null, patch.city) : { id: null, name: null }
+      if (patch.city) patch.city = city.name
       await sql`
         UPDATE customers SET
           name = COALESCE(${v("name")}, name),
@@ -298,6 +305,7 @@ async function updateImportedCustomers(data: any[]) {
           mobile2 = COALESCE(${v("mobile2")}, mobile2),
           whatsapp1 = COALESCE(${v("whatsapp1")}, whatsapp1),
           city = COALESCE(${v("city")}, city),
+          city_id = COALESCE(${city.id}::int, city_id),
           address = COALESCE(${v("address")}, address),
           email = COALESCE(${v("email")}, email),
           classification = COALESCE(${v("classification")}, classification),

@@ -6,6 +6,7 @@ import { authorizeRestaurant, ensureRestaurantTables, errorStatus } from "@/lib/
 import {
   currencyAmounts, ensureRestaurantCustodyTables, evaluated, getOpenRestaurantSession, money2, restaurantSessionDetails,
 } from "@/lib/restaurant-custody"
+import { redactCustodySession } from "@/lib/custody-details"
 
 const fail = (message: string, status = 400) => Object.assign(new Error(message), { status })
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       `,
       getPosCurrencies(Number(location.currency_id)),
     ])
-    return NextResponse.json({ session, pending, active_shift: activeShift[0] || null, currencies })
+    return NextResponse.json({ session: redactCustodySession(session, Boolean(auth.permissions.viewCustodyDetails)), pending, active_shift: activeShift[0] || null, currencies })
   } catch (error) {
     if (errorStatus(error) >= 500) console.error("restaurant custody GET", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تحميل العهدة" }, { status: errorStatus(error) })
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
       await sql`INSERT INTO restaurant_cash_movements_tbl (session_id, movement_type, amount, note, user_id) VALUES (${id}, 'close', ${counted}, ${note}, ${userId})`
       return null
     })
-    return NextResponse.json({ success: true, session: session ? await restaurantSessionDetails(locationId, userId) : null })
+    return NextResponse.json({ success: true, session: session ? redactCustodySession(await restaurantSessionDetails(locationId, userId), Boolean(auth.permissions.viewCustodyDetails)) : null })
   } catch (error) {
     if (errorStatus(error) >= 500) console.error("restaurant custody POST", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تنفيذ عملية العهدة" }, { status: errorStatus(error) })

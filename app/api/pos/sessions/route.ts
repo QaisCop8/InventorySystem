@@ -4,6 +4,7 @@ import {ensureTables as ensureSalesTables} from "@/app/api/sales-vouchers/_lib"
 import {canUsePosCashierPermission, posPermissionDenied,ensurePosTables,getOpenPosSession,getPosPoint,requestUserId} from "../_lib"
 import {getPosCurrencies, type PosCurrency} from "@/lib/pos-currencies"
 import {reconcileCancelledPosPayments} from "../_session-payments"
+import {redactCustodySession} from "@/lib/custody-details"
 
 const amount=(value:unknown)=>Math.round(Number(value||0)*100)/100
 
@@ -47,7 +48,7 @@ export async function GET(request:NextRequest){
     const point=await getPosPoint(pointId,userId)
     if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403})
     if(!await canUsePosCashierPermission(userId,Number(point.branch_id),"access"))return posPermissionDenied("access","لا توجد لديك صلاحية استخدام الكاشير على هذا الفرع")
-    const session=await sessionDetails(pointId,userId)
+    const session=redactCustodySession(await sessionDetails(pointId,userId),await canUsePosCashierPermission(userId,Number(point.branch_id),"viewCustodyDetails"))
     const activeShift=(await sql`SELECT s.id,s.user_id,s.shift_guid,COALESCE(NULLIF(us.full_name,''),NULLIF(us.username,''),s.user_id::text) user_name FROM pos_sessions_tbl s LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='open' ORDER BY s.id DESC LIMIT 1`)[0]||null
     const pending=await sql`SELECT s.*,p.name point_name,c.currency_name,c.currency_code,us.full_name from_user_name,
       COALESCE((SELECT json_agg(json_build_object('currency_id',sc.currency_id,'currency_code',cc.currency_code,'currency_name',cc.currency_name,'amount',sc.handover_amount,'rate_to_point',sc.rate_to_point) ORDER BY sc.currency_id)
@@ -107,7 +108,7 @@ export async function POST(request:NextRequest){
         const logSessionId=Number(session?.id||previousSessionId||0)
         await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${logSessionId||null},${Number(userId)},${action==="handover"?"تسليم عهدة":"استلام عهدة"},${logSessionId?String(logSessionId):null},${String(data.note||"")||null})`
       }
-      return NextResponse.json({success:true,session:session?await sessionDetails(pointId,userId):null})
+      return NextResponse.json({success:true,session:session?redactCustodySession(await sessionDetails(pointId,userId),await canUsePosCashierPermission(userId,Number(point.branch_id),"viewCustodyDetails")):null})
     })
   }catch(error){console.error("POS session error",error);return NextResponse.json({error:error instanceof Error?error.message:"تعذر تنفيذ عملية العهدة"},{status:500})}
 }

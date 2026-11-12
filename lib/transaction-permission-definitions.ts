@@ -103,6 +103,8 @@ export const POS_CASHIER_PERMISSIONS = {
   drafts: "ادخال مسودة فاتورة - كاشير",
   receiveHandover: "استلام عهدة",
   handover: "تسليم عهدة",
+  // بدونها: إيداع/سحب/إغلاق الوردية فقط بلا المبيعات والرصيد المتوقع والفرق وسجل الحركات (lib/custody-details.ts)
+  viewCustodyDetails: "السماح بمشاهدة تفاصيل العهدة",
   editQuantity: "تعديل الكمية - كاشير",
   invoiceDiscount: "ادخال خصم فاتورة - كاشير",
   itemDiscount: "ادخال خصم صنف - كاشير",
@@ -165,6 +167,7 @@ export const RESTAURANT_PERMISSIONS = {
   cancelOrder: "إلغاء طلب الطاولة - مطاعم",
   receiveCustody: "استلام عهدة - مطاعم",
   handoverCustody: "تسليم عهدة - مطاعم",
+  viewCustodyDetails: "السماح بمشاهدة تفاصيل العهدة - مطاعم",
   overrideDiscount: "السماح بتجاوز نسبة الخصم في الاعدادات - مطاعم",
 } as const
 

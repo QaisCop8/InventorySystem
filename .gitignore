@@ -41,3 +41,6 @@ tmp/
 .open-next
 .wrangler
 .dev.vars
+
+# مشغّلات ويندوز المبنية (النسخة المنشورة في public/downloads)
+launchers/windows/dist/

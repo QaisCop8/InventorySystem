@@ -37,9 +37,60 @@ export const ensureCustomerCompatibilityColumns = async () => { return runSchema
       ADD COLUMN IF NOT EXISTS collection_commission NUMERIC(12, 3) DEFAULT 0,
       -- الرقم الضريبي / المشتغل المرخص للعميل (يُطبع في رأس السندات إن فُعّل "طباعة المشتغل المرخص للعميل")
       ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)
+      ADD COLUMN IF NOT EXISTS id_number VARCHAR(20),
+      -- المدينة كرقم من تعريف المدن (cities.id)؛ عمود city يبقى اسمها للتقارير والطباعة القائمة
+      ADD COLUMN IF NOT EXISTS city_id INTEGER
+  `
+  await ensureCitiesTable()
+  // ترحيل لمرة واحدة: كل اسم مدينة نصّي غير معرَّف يُضاف لتعريف المدن، ثم يُربط العميل برقمها
+  await sql`
+    INSERT INTO cities (name)
+    SELECT DISTINCT btrim(c.city) FROM customers c
+    WHERE COALESCE(btrim(c.city), '') <> ''
+      AND NOT EXISTS (SELECT 1 FROM cities ct WHERE lower(btrim(ct.name)) = lower(btrim(c.city)) AND ct.status <> 3)
+  `
+  await sql`
+    UPDATE customers c SET city_id = ct.id
+    FROM cities ct
+    WHERE c.city_id IS NULL AND COALESCE(btrim(c.city), '') <> ''
+      AND lower(btrim(ct.name)) = lower(btrim(c.city)) AND ct.status <> 3
   `
 }) }
+
+const ensureCitiesTable = async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS cities (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      status INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+}
+
+/**
+ * المدينة المحفوظة للعميل: رقم مدينة معرّفة، أو اسم (من الشاشة القديمة أو ملف Excel) يُطابَق بلا حساسية
+ * لحالة الأحرف، وإن لم يوجد في تعريف المدن يُضاف إليه. يُرجع الرقم والاسم معاً (city_id + city).
+ */
+export async function resolveCustomerCity(cityId: unknown, cityName: unknown): Promise<{ id: number | null; name: string | null }> {
+  const id = Number(cityId)
+  if (Number.isInteger(id) && id > 0) {
+    const [row] = await sql`SELECT id, name FROM cities WHERE id = ${id} AND status <> 3`
+    if (row) return { id: Number(row.id), name: String(row.name) }
+  }
+  const name = String(cityName ?? "").trim().slice(0, 100)
+  if (!name) return { id: null, name: null }
+  if (/^\d+$/.test(name)) {
+    const [byId] = await sql`SELECT id, name FROM cities WHERE id = ${Number(name)} AND status <> 3`
+    if (byId) return { id: Number(byId.id), name: String(byId.name) }
+  }
+  await ensureCitiesTable()
+  const [existing] = await sql`SELECT id, name FROM cities WHERE lower(btrim(name)) = lower(${name}) AND status <> 3 ORDER BY id LIMIT 1`
+  if (existing) return { id: Number(existing.id), name: String(existing.name) }
+  const [created] = await sql`INSERT INTO cities (name) VALUES (${name}) RETURNING id, name`
+  return { id: Number(created.id), name: String(created.name) }
+}
 
 // رقم الهوية: فارغ أو أرقام فقط (9 أرقام على الأقل) وغير مكرر بين العملاء/الموردين/المندوبين/المشتركين.
 // الهوية/الهاتف/الإيميل إجبارية للعملاء (type 1) حسب اعدادات النظام:

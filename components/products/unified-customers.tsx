@@ -73,6 +73,8 @@ export interface UnifiedCustomerFormData {
   whatsapp1: string
   whatsapp2: string
   city: string
+  // رقم المدينة من تعريف المدن (city يبقى اسمها للعرض)
+  city_id?: string
   address: string
   email: string
   status: string
@@ -1374,8 +1376,8 @@ export default function UnifiedCustomers({
                   <Label htmlFor="city" className="text-sm font-medium">{tr("المدينة")}</Label>
                   <PrimeDropdown
                     inputId="city"
-                    value={formData.city || null}
-                    options={cities.map((city: any) => ({ label: city.name || city.city_name || city.name_ar || city.name_en || "", value: city.name || city.city_name || city.name_ar || city.name_en || "" }))}
+                    value={formData.city_id || null}
+                    options={cities.map((city: any) => ({ label: city.name || city.city_name || city.name_ar || city.name_en || "", value: String(city.id) }))}
                     optionLabel="label"
                     optionValue="value"
                     placeholder={tr("اختر المدينة")}
@@ -1383,7 +1385,11 @@ export default function UnifiedCustomers({
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
                     filterInputAutoFocus={true}
-                    onChange={(e: any) => updateField("city", e.value || "")}
+                    onChange={(e: any) => {
+                      const selected = cities.find((city: any) => String(city.id) === String(e.value ?? ""))
+                      updateField("city_id" as keyof UnifiedCustomerFormData, (e.value ? String(e.value) : "") as any)
+                      updateField("city", selected ? String(selected.name || "") : "")
+                    }}
                   />
                 </div>
                 

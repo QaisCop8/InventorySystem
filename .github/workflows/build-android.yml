@@ -1,7 +1,8 @@
 name: Build Android APK
 
 # تطبيق أندرويد لـ NoonERP System (android-app/): غلاف Capacitor يفتح النظام من الخادم.
-# الناتج: NoonERP-System-debug.apk (يُثبَّت مباشرة على الجوال)، و NoonERP-System-release.apk
+# ثلاثة تطبيقات (matrix.variant): النظام كاملاً NoonERP-System، والكاشير NoonERP-Cashier، والمطعم NoonERP-Restaurant.
+# الناتج لكل منها: <الاسم>-debug.apk (يُثبَّت مباشرة على الجوال)، و <الاسم>-release.apk
 # الموقَّع إن وُجدت أسرار التوقيع (ANDROID_KEYSTORE_BASE64 ...). يُنزَّل من صفحة التشغيل ← Artifacts.
 # عنوان الخادم: متغير المستودع ANDROID_SERVER_URL أو قيمة الإدخال اليدوي، وإلا capacitor.config.json.
 
@@ -29,11 +30,17 @@ jobs:
   build:
     # صورة 24.04 تحوي Android SDK مثبتاً (ubuntu-latest ينتقل إلى 26 وقد لا يحويه)
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [system, cashier, restaurant]
     defaults:
       run:
         working-directory: android-app
     env:
       SERVER_URL: ${{ github.event.inputs.server_url || vars.ANDROID_SERVER_URL }}
+      APP_VARIANT: ${{ matrix.variant }}
+      APK_BASE: ${{ matrix.variant == 'cashier' && 'NoonERP-Cashier' || matrix.variant == 'restaurant' && 'NoonERP-Restaurant' || 'NoonERP-System' }}
       APP_VERSION_CODE: ${{ github.run_number }}
       APP_VERSION_NAME: 1.0.${{ github.run_number }}
     steps:
@@ -103,7 +110,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/NoonERP-System-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/$APK_BASE-debug.apk"
 
       # خطوتان منفصلتان ليظهر موضع أي فشل من اسم الخطوة نفسها
       - name: Build release APK (when signing secrets exist)
@@ -146,20 +153,20 @@ jobs:
           fi
           unsigned="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
-          if ! "$apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-type "$ks_type" --ks-pass env:KEYSTORE_PASSWORD --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD --out "$GITHUB_WORKSPACE/NoonERP-System-release.apk" "$unsigned"; then
+          if ! "$apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-type "$ks_type" --ks-pass env:KEYSTORE_PASSWORD --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD --out "$GITHUB_WORKSPACE/$APK_BASE-release.apk" "$unsigned"; then
             echo "::error::APK signing failed - check ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD"; exit 1
           fi
-          "$apksigner" verify --print-certs "$GITHUB_WORKSPACE/NoonERP-System-release.apk" > "$RUNNER_TEMP/verify.txt"
+          "$apksigner" verify --print-certs "$GITHUB_WORKSPACE/$APK_BASE-release.apk" > "$RUNNER_TEMP/verify.txt"
           cat "$RUNNER_TEMP/verify.txt"
           rm -f "$RUNNER_TEMP/release.keystore"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NoonERP-System-android-${{ github.run_number }}
+          name: ${{ env.APK_BASE }}-android-${{ github.run_number }}
           path: |
-            NoonERP-System-debug.apk
-            NoonERP-System-release.apk
+            ${{ env.APK_BASE }}-debug.apk
+            ${{ env.APK_BASE }}-release.apk
           if-no-files-found: error
 
       # رابط ثابت لآخر نسخة: releases/download/android-latest/NoonERP-System.apk
@@ -170,11 +177,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          apk=NoonERP-System-release.apk
-          [ -f "$apk" ] || apk=NoonERP-System-debug.apk
-          cp "$apk" NoonERP-System.apk
+          apk="$APK_BASE-release.apk"
+          [ -f "$apk" ] || apk="$APK_BASE-debug.apk"
+          cp "$apk" "$APK_BASE.apk"
+          # الأنواع الثلاثة تُبنى بالتوازي — قد يُنشئ أحدها الإصدار قبل الآخر
           if ! gh release view android-latest > /dev/null 2>&1; then
-            gh release create android-latest --title "NoonERP System — Android" --notes "آخر نسخة من تطبيق أندرويد (تُحدَّث تلقائياً مع كل بناء)" --prerelease --target "$GITHUB_SHA"
+            gh release create android-latest --title "NoonERP System — Android" --notes "آخر نسخة من تطبيق أندرويد (تُحدَّث تلقائياً مع كل بناء)" --prerelease --target "$GITHUB_SHA" || true
           fi
-          gh release upload android-latest NoonERP-System.apk --clobber
+          gh release upload android-latest "$APK_BASE.apk" --clobber
           gh release edit android-latest --notes "آخر نسخة من تطبيق أندرويد — الإصدار 1.0.${{ github.run_number }} ($(date -u +%Y-%m-%d))"
