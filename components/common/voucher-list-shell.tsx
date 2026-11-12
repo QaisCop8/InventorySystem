@@ -35,7 +35,7 @@ export function VoucherListHero({ title, subtitle, addLabel, onNew, icon: Icon =
             {subtitle && <p className="mt-1 text-sm text-emerald-50/85">{subtitle}</p>}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="hero-actions flex flex-wrap items-center gap-2">
         {actions}
         {onNew && <button
           type="button"

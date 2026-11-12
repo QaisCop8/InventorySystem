@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { confirmYesNo, showAlert } from "@/components/ui/confirm-host"
 import { useEffect, useMemo, useState } from "react"
 import { DraftOrderForm } from "./draft-order-form"
@@ -75,10 +76,7 @@ export function DraftOrdersPage() {
   }
 
   return <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <div><h1 className="text-2xl font-bold">{tr("مسودات طلبيات المبيعات")}</h1><p className="mt-1 text-sm text-muted-foreground">{tr("أنشئ المسودات وراجعها قبل تحويلها إلى طلبيات مبيعات فعلية.")}</p></div>
-      <Button data-hotkey-new size="lg" onClick={createNew}><Plus className="me-2 h-5 w-5" />{tr("إنشاء مسودة طلبية ")}<span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span></Button>
-    </div>
+<VoucherListHero title={tr("مسودات طلبيات المبيعات")} subtitle={tr("أنشئ المسودات وراجعها قبل تحويلها إلى طلبيات مبيعات فعلية.")} icon={FileText} category={tr("الطلبيات")} onNew={createNew} addLabel={tr("إنشاء مسودة طلبية")} />
 
     <Card><CardContent className="grid gap-3 pt-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)_auto] md:items-end">
       <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="ps-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم المسودة أو اسم العميل...")} /></div>

@@ -9,6 +9,9 @@ import { runSchemaOnce } from "@/lib/schema-once"
 //   • تعديل التاريخ/الحالة/المبلغ (يشمل الترحيل والإلغاء): التاريخ القديم والجديد معاً داخل الفترة.
 //   • حذف فعلي: تاريخ السند داخل الفترة.
 //   الطباعة (is_printed) وبقية الحقول لا تُفحَص. بلا سنة عمل محفوظة ⇐ لا قيود إطلاقاً.
+// + ملاحظة السند الإجبارية لكل نوع سند (voucher_note_rules في اعدادات عامة: [{vch_type, required, min_length}])
+//   تُفحَص عند الإنشاء والتعديل (لا عند الترحيل/الإلغاء — تغيّر الحالة). السندات الآلية (internal_voucher_id،
+//   نقاط البيع، المطاعم، عمليات الشيكات) مستثناة لأن المستخدم لا يكتب لها ملاحظة.
 
 const preparedDatabases = new Set<string>()
 
@@ -99,6 +102,41 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
   `)
 
   await sql.unsafe(`
+    CREATE OR REPLACE FUNCTION voucher_note_violation(p_row jsonb) RETURNS text AS $fn$
+    DECLARE
+      v_rules_text text;
+      v_rule jsonb;
+      v_min int;
+      v_note text;
+      v_type_name text;
+    BEGIN
+      IF to_regclass('system_settings') IS NULL THEN RETURN NULL; END IF;
+      IF COALESCE(p_row->>'internal_voucher_id', p_row->>'pos_point_id', p_row->>'pos_session_id',
+                  p_row->>'location_id', p_row->>'cheq_operation_id') IS NOT NULL THEN RETURN NULL; END IF;
+      SELECT value INTO v_rules_text FROM system_settings
+        WHERE id::text = 'voucher_note_rules' OR description = 'voucher_note_rules'
+        ORDER BY (id::text = 'voucher_note_rules') DESC LIMIT 1;
+      IF COALESCE(btrim(v_rules_text), '') IN ('', 'null', '[]') THEN RETURN NULL; END IF;
+      BEGIN
+        SELECT r INTO v_rule FROM jsonb_array_elements(v_rules_text::jsonb) r
+          WHERE (r->>'vch_type')::int = (p_row->>'vch_type')::int AND COALESCE((r->>'required')::boolean, false)
+          LIMIT 1;
+      EXCEPTION WHEN others THEN RETURN NULL;
+      END;
+      IF v_rule IS NULL THEN RETURN NULL; END IF;
+      v_min := GREATEST(COALESCE(NULLIF(v_rule->>'min_length', '')::int, 0), 0);
+      v_note := btrim(COALESCE(p_row->>'note', ''));
+      IF v_note <> '' AND char_length(v_note) > v_min THEN RETURN NULL; END IF;
+      SELECT name INTO v_type_name FROM voucher_types_tbl WHERE id = (p_row->>'vch_type')::int;
+      IF v_note = '' THEN
+        RETURN format('ملاحظة السند اجبارية لـ %s (ملاحظة السند)', COALESCE(v_type_name, 'هذا النوع من السندات'));
+      END IF;
+      RETURN format('طول ملاحظة السند يجب أن يزيد عن %s حرفاً لـ %s (ملاحظة السند)', v_min, COALESCE(v_type_name, 'هذا النوع من السندات'));
+    END;
+    $fn$ LANGUAGE plpgsql STABLE
+  `)
+
+  await sql.unsafe(`
     CREATE OR REPLACE FUNCTION check_voucher_working_period() RETURNS trigger AS $fn$
     DECLARE
       v_error text;
@@ -106,6 +144,11 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
       IF TG_OP IN ('INSERT', 'UPDATE') THEN
         v_error := COALESCE(working_period_violation(NEW.vch_date::date), period_lock_violation(NEW.vch_date::date, NEW.branch_id));
         IF v_error IS NOT NULL THEN RAISE EXCEPTION '%', v_error USING ERRCODE = 'P0001'; END IF;
+        -- ملاحظة السند: عند الإنشاء والتعديل فقط (الترحيل/الإلغاء يغيّران الحالة فلا يُفحصان)
+        IF COALESCE(NEW.status, 1) <> 3 AND (TG_OP = 'INSERT' OR COALESCE(OLD.status, 1) = COALESCE(NEW.status, 1)) THEN
+          v_error := voucher_note_violation(to_jsonb(NEW));
+          IF v_error IS NOT NULL THEN RAISE EXCEPTION '%', v_error USING ERRCODE = 'P0001'; END IF;
+        END IF;
       END IF;
       IF TG_OP IN ('UPDATE', 'DELETE') THEN
         v_error := COALESCE(working_period_violation(OLD.vch_date::date), period_lock_violation(OLD.vch_date::date, OLD.branch_id));
@@ -120,7 +163,7 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
   await sql`DROP TRIGGER IF EXISTS voucher_working_period_trigger ON voucher_header_tbl`
   await sql.unsafe(`
     CREATE TRIGGER voucher_working_period_trigger
-    BEFORE INSERT OR UPDATE OF vch_date, status, amount, branch_id OR DELETE ON voucher_header_tbl
+    BEFORE INSERT OR UPDATE OF vch_date, status, amount, branch_id, note OR DELETE ON voucher_header_tbl
     FOR EACH ROW EXECUTE FUNCTION check_voucher_working_period()
   `)
   preparedDatabases.add(databaseName)
@@ -129,5 +172,5 @@ export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/wor
 /** نص الخطأ إن كانت الرسالة صادرة عن فحص فترة العمل (لعرضها كما هي بدل رسالة عامة). */
 export const workingPeriodErrorMessage = (error: unknown): string | null => {
   const message = String((error as any)?.message || "")
-  return message.includes("فترة العمل") || message.includes("سنة العمل") || message.includes("غير مفتوح للعمل") || message.includes("إقفال الفترات") ? message : null
+  return message.includes("فترة العمل") || message.includes("سنة العمل") || message.includes("غير مفتوح للعمل") || message.includes("إقفال الفترات") || message.includes("(ملاحظة السند)") ? message : null
 }

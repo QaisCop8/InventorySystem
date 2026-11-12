@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -218,19 +219,10 @@ export function WhatsAppNotificationSettings() {
   return (
     <div className="space-y-6 p-6 bg-background" dir={appDir()}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <MessageSquare className="h-8 w-8 text-green-600" />
-            {tr("إعدادات إشعارات WhatsApp")}
-          </h1>
-          <p className="text-muted-foreground mt-1">{tr("إدارة إشعارات إعادة الطلب عبر WhatsApp")}</p>
-        </div>
-        <Button onClick={handleSendTestNotifications} disabled={sending || !settings.is_enabled} className="gap-2">
+<VoucherListHero title={tr("إعدادات إشعارات WhatsApp")} subtitle={tr("إدارة إشعارات إعادة الطلب عبر WhatsApp")} icon={MessageSquare} category={tr("المخزون")} actions={<><Button onClick={handleSendTestNotifications} disabled={sending || !settings.is_enabled} className="gap-2">
           <Send className={`h-4 w-4 ${sending ? "animate-pulse" : ""}`} />
           {sending ? tr("جاري الإرسال...") : tr("إرسال الإشعارات الآن")}
-        </Button>
-      </div>
+        </Button></>} />
 
       {/* Messages */}
       {message && (

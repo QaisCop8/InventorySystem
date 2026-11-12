@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
@@ -480,28 +481,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir={appDir()}>
       {/* Header Section */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            {isPurchase ? tr("فواتير المشتريات") : tr("فواتير المبيعات")}
-          </h1>
-          <p className="text-slate-600 mt-2 text-lg">
-            {isPurchase
-              ? tr("إدارة وتتبع جميع فواتير المشتريات بكفاءة عالية")
-              : tr("إدارة وتتبع جميع فواتير المبيعات بكفاءة عالية")}
-          </p>
-        </div>
-        <div className="flex gap-3">
-
-          <Button data-hotkey-new
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-            onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
-          >
-            <Plus className="me-2 h-4 w-4" />
-            {tr("فاتورة جديدة ")}<span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
-          </Button>
-        </div>
-      </div>
+<VoucherListHero title={isPurchase ? tr("فواتير المشتريات") : tr("فواتير المبيعات")} subtitle={isPurchase ? tr("إدارة وتتبع جميع فواتير المشتريات بكفاءة عالية") : tr("إدارة وتتبع جميع فواتير المبيعات بكفاءة عالية")} icon={FileText} category={tr("الحركات")} onNew={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))} addLabel={tr("فاتورة جديدة")} />
 
       {/* Analytics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

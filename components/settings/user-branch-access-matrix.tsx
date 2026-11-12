@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useEffect, useMemo, useState } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -144,21 +145,10 @@ export default function UserBranchAccessMatrix() {
 
   return (
     <div className="w-full space-y-5 p-4 md:p-6" dir={appDir()}>
-      <div className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-l from-primary/10 via-background to-background p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Grid3x3 className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold">{tr("صلاحيات المستخدمين على الفروع")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{tr("حدد الفروع التي يعمل بها كل مستخدم. مستخدم بلا أي فرع محدَّد هنا يصل لكل الفروع دون قيد.")}</p>
-          </div>
-        </div>
-        <Button onClick={() => void save()} disabled={!dirty || saving}>
+<VoucherListHero title={tr("صلاحيات المستخدمين على الفروع")} subtitle={tr("حدد الفروع التي يعمل بها كل مستخدم. مستخدم بلا أي فرع محدَّد هنا يصل لكل الفروع دون قيد.")} icon={Grid3x3} category={tr("الإعدادات")} actions={<><Button onClick={() => void save()} disabled={!dirty || saving}>
           <Save className="me-2 h-4 w-4" />
           {saving ? tr("جاري الحفظ...") : tr("حفظ")}
-        </Button>
-      </div>
+        </Button></>} />
 
       {branches.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.")}</div>

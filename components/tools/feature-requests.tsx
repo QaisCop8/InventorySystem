@@ -9,11 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import Messages from "@/components/common/Messages"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Bug, CalendarClock, FilePlus2, Inbox, Lightbulb, Loader2, Monitor, Paperclip, PencilRuler, RefreshCw, Search, Send, Sparkles, User, X } from "lucide-react"
 
 // أدوات ⇐ بريد الرسائل والتحسينات: إرسال مشكلة/تعديل/تطوير مع الشاشة والمرفقات، ومتابعة حالة طلبات قاعدة البيانات.
 
 type Attachment = { name: string; data?: string }
+const NO_SCREEN = "none"
+
 type RequestRow = { id: number; request_type: string; screen_name: string; details: string; attachments: Attachment[]; status: string; submitted_by_name: string; created_at: string }
 
 const TYPES = [
@@ -42,7 +45,7 @@ const readAttachment = (file: File) => new Promise<Attachment>((resolve, reject)
 export default function FeatureRequests() {
   const [rows, setRows] = useState<RequestRow[]>([])
   const [type, setType] = useState("")
-  const [screen, setScreen] = useState("")
+  const [screen, setScreen] = useState(NO_SCREEN)
   const [details, setDetails] = useState("")
   const [files, setFiles] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +54,8 @@ export default function FeatureRequests() {
   const [statusFilter, setStatusFilter] = useState("")
   const messagesRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const screens = useMemo(() => Object.entries(SECTION_TITLES).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "ar")), [])
+  // أول خيار "بدون" (رسالة عامة لا تخص شاشة) ثم الشاشات مرتبة أبجدياً — القائمة قابلة للبحث
+  const screens = useMemo(() => [{ value: NO_SCREEN, label: tr("بدون") }, ...Object.entries(SECTION_TITLES).map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "ar"))], [])
 
   const show = (severity: "success" | "error", detail: string) => {
     messagesRef.current?.clear?.()
@@ -89,7 +93,7 @@ export default function FeatureRequests() {
       const response = await fetch("/api/feature-requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_type: type, screen_name: screens.find((item) => item.value === screen)?.label || screen, details, attachments: files }) })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || tr("تعذر إرسال الرسالة"))
-      setRows((current) => [data, ...current]); setType(""); setScreen(""); setDetails(""); setFiles([])
+      setRows((current) => [data, ...current]); setType(""); setScreen(NO_SCREEN); setDetails(""); setFiles([])
       show("success", tr("تمت العملية بنجاح — تم إرسال رسالتك"))
     } catch (e: any) { show("error", e.message || tr("تعذر إرسال الرسالة")) }
     finally { setSaving(false) }
@@ -154,10 +158,22 @@ export default function FeatureRequests() {
             <Label htmlFor="request-screen">{tr("الشاشة *")}</Label>
             <div className="relative">
               <Monitor className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <select id="request-screen" value={screen} onChange={(e) => setScreen(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background ps-9 pe-3 text-sm">
-                <option value="">{tr("اختر الشاشة")}</option>
-                {screens.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </select>
+              <PrimeDropdown
+                inputId="request-screen"
+                value={screen}
+                options={screens}
+                optionLabel="label"
+                optionValue="value"
+                filter={true}
+                filterBy="label"
+                filterInputAutoFocus={true}
+                resetFilterOnHide={true}
+                emptyFilterMessage={tr("لا توجد نتائج")}
+                className="invoice-currency-dropdown w-full ps-7"
+                panelClassName="invoice-currency-dropdown-panel"
+                appendTo="self"
+                onChange={(e: any) => setScreen(String(e.value ?? NO_SCREEN))}
+              />
             </div>
           </div>
 

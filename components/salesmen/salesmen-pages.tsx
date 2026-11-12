@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from "react"
 import UnifiedSalesmen, { type SalesmanRecord } from "./unified-salesmen"
 import { FilterBar, Grid, HrPage, ListActions, type Column } from "@/components/hr/hr-shared"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Pencil, Plus, UserCheck, Users } from "lucide-react"
+import { VoucherStats } from "@/components/common/voucher-list-shell"
+import { Pencil, Users } from "lucide-react"
 
 const blank = (parent: Pick<SalesmanRecord, "parent_account_id" | "parent_account_code" | "parent_account_name"> = { parent_account_id: null, parent_account_code: "", parent_account_name: "" }): SalesmanRecord => ({ code: "", name: "", other_name: "", job_title: "", classification: "", region: "", address: "", mobile: "", email: "", ...parent, is_supervisor: false, supervisor_id: null, sales_commission_percent: 0, collection_commission_percent: 0, portal_active: false, login_code: "", portal_password: "", notes: "", is_active: true })
 
@@ -64,8 +64,8 @@ export default function SalesmenPages() {
   const filtered = rows.filter((row) => (status === "all" || row.is_active === (status === "active")) && `${row.code} ${row.name} ${row.job_title || ""} ${row.classification || ""} ${row.region || ""}`.toLowerCase().includes(query.toLowerCase()))
   const columns: Column[] = [{ key: "code", label: tr("الرقم"), width: 130 }, { key: "name", label: tr("اسم المندوب") }, { key: "other_name", label: tr("الاسم بالإنجليزي") }, { key: "job_title", label: tr("الوظيفة") }, { key: "classification", label: tr("التصنيف") }, { key: "region", label: tr("المنطقة") }, { key: "sales_commission_percent", label: tr("عمولة البيع %"), type: "number" }, { key: "collection_commission_percent", label: tr("عمولة التحصيل %"), type: "number" }, { key: "is_active", label: tr("فعال"), width: 80, type: "boolean" }, { key: "edit", label: tr("تعديل"), width: 80, render: (row) => <Button size="icon" variant="outline" className="h-8 w-8 border-indigo-200 text-indigo-600" onClick={(event) => { event.stopPropagation(); void show(row) }}><Pencil className="h-4 w-4" /></Button> }]
 
-  return <HrPage title={tr("المندوبين")} subtitle={tr("ملفات المندوبين والعمولات والإشراف")}>
-    <div className="flex flex-wrap items-center justify-between gap-3"><div className="grid flex-1 gap-3 sm:grid-cols-2"><Card className="border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg"><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-indigo-100">{tr("إجمالي المندوبين")}</p><p className="text-3xl font-bold">{rows.length}</p></div><Users className="h-10 w-10 text-indigo-200" /></CardContent></Card><Card className="border-0 bg-gradient-to-br from-emerald-500 to-green-500 text-white shadow-lg"><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-emerald-100">{tr("المندوبون الفعالون")}</p><p className="text-3xl font-bold">{rows.filter(row => row.is_active).length}</p></div><UserCheck className="h-10 w-10 text-emerald-200" /></CardContent></Card></div><Button className="h-11 bg-gradient-to-r from-indigo-600 to-purple-600 px-5 shadow-lg" onClick={() => void show()}><Plus className="me-2 h-4 w-4" />{tr("إضافة مندوب جديد")}</Button></div>
+  return <HrPage title={tr("المندوبين")} subtitle={tr("ملفات المندوبين والعمولات والإشراف")} category="الملفات" icon={Users} onNew={() => void show()} addLabel={tr("إضافة مندوب جديد")}>
+    <VoucherStats stats={[{ label: tr("إجمالي المندوبين"), value: rows.length }, { label: tr("المندوبون الفعالون"), value: rows.filter(row => row.is_active).length }, { label: tr("المندوبون غير الفعالين"), value: rows.filter(row => !row.is_active).length }]} />
     <ListActions onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => void printReportFrom(document.activeElement as HTMLElement | null)} />
     <FilterBar search={query} onSearch={setQuery} status={status} onStatus={setStatus} count={filtered.length} />
     <Grid rows={filtered} columns={columns} onSelect={setSelected} onDoubleClick={(row) => void show(row)} />

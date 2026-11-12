@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         period.voucher_status, period.account_id, period.account_code, period.account_name,
         period.debit, period.credit, COALESCE(opening.opening_balance,0) opening_balance,
         COALESCE(opening.opening_balance,0) + SUM(period.debit-period.credit)
-          OVER (PARTITION BY period.account_id ORDER BY period.vch_date,period.voucher_id,period.order_no,period.id) balance,
+          OVER (PARTITION BY period.account_id ORDER BY period.vch_date::date,period.voucher_id,period.order_no,period.id) balance,
         period.currency_id, period.currency_code, period.currency_name, period.rate,
         period.note, period.voucher_note, period.branch_id, period.branch_name,
         period.salesman_id, period.salesman_name,
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
           WHERE item.voucher_id=period.voucher_id
         ),'[]'::json) ELSE '[]'::json END invoice_items
       FROM period LEFT JOIN opening ON opening.account_id=period.account_id
-      ORDER BY period.account_code,period.vch_date,period.voucher_id,period.order_no,period.id
+      ORDER BY period.account_code,period.vch_date::date,period.voucher_id,period.order_no,period.id
     `
 
     const openingRows = await sql`

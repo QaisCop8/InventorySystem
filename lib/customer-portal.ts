@@ -110,7 +110,7 @@ const VOUCHER_TYPE_NAME = `CASE vh.vch_type
   WHEN 12 THEN 'فاتورة مبيعات' WHEN 13 THEN 'إرسالية مبيعات' WHEN 16 THEN 'مرتجع مبيعات'
   WHEN 17 THEN 'فاتورة مشتريات' WHEN 19 THEN 'مرتجع مشتريات' ELSE 'قيد' END`
 
-/** كشف حساب العميل بعملة حسابه (أو عملة الأساس) — الحركات المرحلة وغير الملغاة فقط. */
+/** كشف حساب العميل بعملة حسابه (أو عملة الأساس) — كل الحركات غير الملغاة (مثل بيان حساب ذمة)، مرتبة بالتاريخ دون الوقت ثم بترتيب الإدخال. */
 export async function portalStatement(accountId: number, fromInput?: string | null, toInput?: string | null) {
   const today = new Date().toISOString().slice(0, 10)
   const defaultFrom = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10)
@@ -130,16 +130,16 @@ export async function portalStatement(accountId: number, fromInput?: string | nu
   const [openingRow] = await sql`
     SELECT COALESCE(SUM(CASE WHEN vjd.credit_debit=1 THEN ${sql.unsafe(amount)} ELSE -${sql.unsafe(amount)} END),0) opening
     FROM voucher_journal_detail_tbl vjd JOIN voucher_header_tbl vh ON vh.id=vjd.voucher_id
-    WHERE vjd.account_id=${accountId} AND vh.status=2 AND vh.vch_date<${from}::date`
+    WHERE vjd.account_id=${accountId} AND vh.status<>3 AND vh.vch_date<${from}::date`
   const rows = await sql`
     SELECT vh.id voucher_id, vh.vch_code, vh.vch_date::date::text AS vch_date, vh.vch_type, ${sql.unsafe(VOUCHER_TYPE_NAME)} type_name,
       NULLIF(COALESCE(NULLIF(vjd.note,''), vh.note),'') note,
       CASE WHEN vjd.credit_debit=1 THEN ${sql.unsafe(amount)} ELSE 0 END debit,
       CASE WHEN vjd.credit_debit=2 THEN ${sql.unsafe(amount)} ELSE 0 END credit
     FROM voucher_journal_detail_tbl vjd JOIN voucher_header_tbl vh ON vh.id=vjd.voucher_id
-    WHERE vjd.account_id=${accountId} AND vh.status=2
+    WHERE vjd.account_id=${accountId} AND vh.status<>3
       AND vh.vch_date>=${from}::date AND vh.vch_date<(${to}::date + INTERVAL '1 day')
-    ORDER BY vh.vch_date, vh.id, vjd.order_no, vjd.id
+    ORDER BY vh.vch_date::date, vh.id, vjd.order_no, vjd.id
     LIMIT 2000`
   const opening = Number(openingRow?.opening || 0)
   let balance = opening
@@ -152,7 +152,7 @@ export async function portalStatement(accountId: number, fromInput?: string | nu
   const [current] = await sql`
     SELECT COALESCE(SUM(CASE WHEN vjd.credit_debit=1 THEN ${sql.unsafe(amount)} ELSE -${sql.unsafe(amount)} END),0) balance
     FROM voucher_journal_detail_tbl vjd JOIN voucher_header_tbl vh ON vh.id=vjd.voucher_id
-    WHERE vjd.account_id=${accountId} AND vh.status=2`
+    WHERE vjd.account_id=${accountId} AND vh.status<>3`
   return {
     account: { id: Number(account.id), code: String(account.code || ""), name: String(account.name || ""), mobile: account.mobile ? String(account.mobile) : "" },
     currency: { id: targetId, code: String(target?.currency_code || ""), name: String(target?.currency_name || "") },

@@ -7,15 +7,17 @@
 }
 .report-body { display:flex; flex-direction:column; gap:12px; width:100%; min-height:0; height:100%; overflow:hidden; }
 .report-body>* { flex-shrink:0; min-width:0; }
-.report-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 16px; border:1px solid var(--report-border); border-inline-start:4px solid var(--report-accent); border-radius:12px; background:var(--report-surface); box-shadow:0 3px 10px #1d405205; }
+/* رأس موحّد لكل صفحات النظام: تدرّج النظام الأخضر (page-hero) بنص أبيض */
+.report-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px 18px; border:0; border-radius:16px; background:linear-gradient(to left,#047857 0%,#059669 50%,#0d9488 100%); color:#fff; box-shadow:0 8px 24px -12px rgba(5,150,105,.45); }
+.dark .report-header { background:linear-gradient(to left,#064e3b 0%,#065f46 50%,#115e59 100%); box-shadow:none; }
 .report-heading { display:flex; align-items:center; gap:12px; min-width:0; }
-.report-heading-icon { display:grid; place-items:center; flex-shrink:0; width:42px; height:42px; border:1px solid #314c5d; border-radius:11px; background:linear-gradient(145deg,#314e60,#1a3444); color:#b6f2e1; box-shadow:inset 0 1px #ffffff20,0 3px 7px #1e405518; }
-.report-category { display:block; color:var(--report-accent); font-size:9px; font-weight:650; margin-bottom:2px; }
-.report-header h1 { font-size:18px; font-weight:800; line-height:1.5; overflow-wrap:anywhere; }
-.report-header p { color:var(--report-muted); font-size:11px; line-height:1.6; margin-top:2px; }
+.report-heading-icon { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; border:1px solid #ffffff40; border-radius:14px; background:#ffffff26; color:#fff; backdrop-filter:blur(4px); }
+.report-category { display:block; color:#ecfdf5e6; font-size:11px; font-weight:650; margin-bottom:2px; }
+.report-header h1 { color:#fff; font-size:20px; font-weight:900; line-height:1.5; overflow-wrap:anywhere; }
+.report-header p { color:#ecfdf5d9; font-size:12px; line-height:1.6; margin-top:2px; }
 .report-header-actions { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-.report-header-actions>button { height:34px; padding:6px 12px; border:1px solid var(--report-border); border-radius:8px; background:var(--report-surface); color:var(--report-ink); font-size:11px; box-shadow:0 1px 2px #142f4305; }
-.report-header-actions>button:hover:not(:disabled) { background:var(--report-soft); border-color:var(--report-accent); }
+.report-header-actions>button { height:34px; padding:6px 12px; border:1px solid #ffffff59; border-radius:8px; background:#ffffff1f; color:#fff; font-size:11px; box-shadow:none; }
+.report-header-actions>button:hover:not(:disabled) { background:#ffffff38; border-color:#fff; }
 .report-page :is(button,input,select):focus-visible { outline-color:var(--report-accent); }
 .report-page .report-filters { border:1px solid var(--report-border); border-radius:12px; background:var(--report-surface); box-shadow:none; }
 .report-filters-bar { display:flex; align-items:center; gap:8px; padding:4px 12px; }
@@ -57,7 +59,7 @@
 .dark .report-page table tbody tr:not(.text-white):hover { background:#254940; }
 .dark .report-page table tfoot { background:#1f3a3e; }
 @media(max-width:700px) { .report-page { height:auto; min-height:100%; padding:8px; } .report-header { padding:11px; gap:10px; } .report-header h1 { font-size:16px; } .report-header p { font-size:10px; } .report-header-actions { margin-inline-start:auto; } .report-heading-icon { width:36px; height:36px; } .report-page .report-results { min-height:320px; } }
-@media print { .report-page { height:auto!important; min-height:0; overflow:visible!important; padding:0; background:#fff; color:#111; } .report-body { display:block; min-height:0; } .report-header { break-inside:avoid; padding:8px 0; box-shadow:none; border:0; border-bottom:2px solid #233c4c; border-radius:0; margin-bottom:12px; } .report-heading-icon { background:none; box-shadow:none; color:#233c4c; } .report-header-actions,.report-filters { display:none!important; } .report-page .report-results,.report-page .report-table-scroll,.report-page [class*="overflow-auto"] { display:block; height:auto!important; max-height:none!important; overflow:visible!important; box-shadow:none; } .report-page table { min-width:0!important; font-size:9px; } .report-page table thead { position:static; display:table-header-group; background:#edf2f4; color:#111; } .report-page tr { break-inside:avoid; } .report-summary-card { box-shadow:none; break-inside:avoid; } }
+@media print { .report-page { height:auto!important; min-height:0; overflow:visible!important; padding:0; background:#fff; color:#111; } .report-body { display:block; min-height:0; } .report-header { break-inside:avoid; padding:8px 0; box-shadow:none; border:0; background:none!important; color:#111; border-bottom:2px solid #233c4c; border-radius:0; margin-bottom:12px; } .report-heading-icon { background:none; box-shadow:none; border:0; color:#233c4c; } .report-header h1 { color:#111; } .report-header p,.report-category { color:#555; } .report-header-actions,.report-filters { display:none!important; } .report-page .report-results,.report-page .report-table-scroll,.report-page [class*="overflow-auto"] { display:block; height:auto!important; max-height:none!important; overflow:visible!important; box-shadow:none; } .report-page table { min-width:0!important; font-size:9px; } .report-page table thead { position:static; display:table-header-group; background:#edf2f4; color:#111; } .report-page tr { break-inside:avoid; } .report-summary-card { box-shadow:none; break-inside:avoid; } }
 
 .report-loading { position:absolute; inset:0; z-index:40; display:flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--report-surface) 55%, transparent); backdrop-filter:blur(1.5px); cursor:progress; }
 .report-loading-box { display:flex; align-items:center; gap:10px; padding:14px 22px; border:1px solid var(--report-border); border-radius:14px; background:var(--report-surface); color:var(--report-ink); font-weight:700; box-shadow:0 10px 30px #0f2a3a1f; }

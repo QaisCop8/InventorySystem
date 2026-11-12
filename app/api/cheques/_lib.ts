@@ -16,14 +16,15 @@ export type ChequeOperation = {
 }
 
 export const CHEQUE_OPERATIONS: ChequeOperation[] = [
-  { code:"deposit",name:"إيداع الشيك",type:1,allowed:[1,3,5,8],status:4,needsAccount:true,accountKind:"bank",dateField:"pay_date",createsJournal:true,requiresDue:true },
+  // الإيداع للشيك برسم التحصيل فقط: شيك الصندوق (مستحق/مؤجل/راجع) يُحوَّل أولاً إلى حساب التحصيل
+  { code:"deposit",name:"إيداع الشيك",type:1,allowed:[8],status:4,needsAccount:true,accountKind:"bank",dateField:"pay_date",createsJournal:true,requiresDue:true },
   { code:"postpone",name:"تغيير تاريخ الاستحقاق",type:1,allowed:[1,2,3,5,8],status:3,needsDate:true },
   { code:"return_source",name:"إرجاع الشيك للمصدر",type:1,allowed:[1,2,3,5],status:6,dateField:"return_date",createsJournal:true },
   { code:"return_bank",name:"إرجاع الشيك من البنك",type:1,allowed:[4,8],status:5,needsAccount:true,accountKind:"ledger",dateField:"return_date",createsJournal:true },
   { code:"endorse",name:"تحويل / تجيير الشيك",type:1,allowed:[1,2,3,5],status:7,needsAccount:true,accountKind:"ledger",dateField:"trans_date",createsJournal:true },
   { code:"undo_endorse",name:"إرجاع شيك محول أو مجير",type:1,allowed:[7],status:5,needsAccount:true,accountKind:"ledger",dateField:"return_date",createsJournal:true },
   { code:"retrieve_customer",name:"استرجاع الشيك من الزبون",type:1,allowed:[6],status:1,needsAccount:true,accountKind:"ledger",dateField:"return_date",createsJournal:true },
-  { code:"collection",name:"تحويل إلى حساب التحصيل",type:1,allowed:[1,2,3],status:8,needsAccount:true,accountKind:"bank",dateField:"trans_date",createsJournal:true },
+  { code:"collection",name:"تحويل إلى حساب التحصيل",type:1,allowed:[1,2,3,5],status:8,needsAccount:true,accountKind:"bank",dateField:"trans_date",createsJournal:true },
   { code:"cash",name:"سحب شيك الزبون نقداً",type:1,allowed:[1,5],status:4,needsAccount:true,accountKind:"ledger",dateField:"pay_date",createsJournal:true,requiresDue:true },
   { code:"transfer_account",name:"تحويل الشيك إلى حساب آخر",type:1,allowed:[1,2,3,5],status:null,needsAccount:true,accountKind:"ledger",dateField:"trans_date",createsJournal:true },
   { code:"clear_outgoing",name:"إخراج الشيك المستحق من البنك",type:2,allowed:[1,3,5],status:4,dateField:"pay_date",createsJournal:true,requiresDue:true },

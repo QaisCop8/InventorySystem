@@ -112,6 +112,7 @@ interface Customer {
   general_notes: string
   // Added for new fields
   tax_number?: string
+  id_number?: string
   commercial_registration?: string
   credit_limit?: string
   payment_terms?: string
@@ -173,6 +174,7 @@ interface CustomerFormData {
   transaction_notes: string
   general_notes: string
   tax_number: string
+  id_number: string
   commercial_registration: string
   credit_limit: string
   payment_terms: string
@@ -287,6 +289,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     transaction_notes: "",
     general_notes: "",
     tax_number: "",
+    id_number: "",
     commercial_registration: "",
     credit_limit: "",
     payment_terms: "نقدي",
@@ -327,6 +330,22 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const [editingCustomer, setEditingCustomer] = useState(false)
   const editingCustomerRef = useRef(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  // اعدادات النظام ← العملاء: رقم الهوية/الهاتف/الايميل اجباري (الخادم يتحقق منها أيضاً)
+  const [requiredContactFields, setRequiredContactFields] = useState({ idNumber: false, phone: false, email: false })
+  useEffect(() => {
+    fetch("/api/settings/system")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const settings = data?.settings ?? data
+        if (!settings) return
+        setRequiredContactFields({
+          idNumber: Boolean(settings.customer_id_number_required),
+          phone: Boolean(settings.customer_phone_required),
+          email: Boolean(settings.customer_email_required),
+        })
+      })
+      .catch(() => undefined)
+  }, [])
   const [popupMessage, setPopupMessage] = useState<{ severity: "success" | "info" | "warn" | "error"; detail: string } | null>(null)
   const [requestedTab, setRequestedTab] = useState<{ tab: string; nonce: number } | null>(null)
 
@@ -653,6 +672,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     transaction_notes: "",
     general_notes: "",
     tax_number: "",
+    id_number: "",
     commercial_registration: "",
     credit_limit: "",
     payment_terms: "نقدي",
@@ -697,6 +717,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       transaction_notes: customer.transaction_notes || "",
       general_notes: customer.general_notes || "",
       tax_number: (customer as any).tax_number || "",
+      id_number: (customer as any).id_number || "",
       commercial_registration: (customer as any).commercial_registration || "",
       credit_limit: (customer as any).credit_limit || "",
       payment_terms: (customer as any).payment_terms || "نقدي",
@@ -919,6 +940,18 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setPopupMessage({ severity: "error", detail: message })
     }
 
+    // رقم الهوية: فارغ أو أرقام فقط و10 أرقام على الأقل؛ الهوية/الهاتف/الإيميل إجبارية للعملاء حسب اعدادات النظام
+    const idNumber = String(formData.id_number || "").trim()
+    const email = String(formData.email || "").trim()
+    const required = entityTypeCode === 1 ? requiredContactFields : { idNumber: false, phone: false, email: false }
+    if (idNumber && !/^\d{10,20}$/.test(idNumber)) errors.id_number = tr("رقم الهوية يجب أن يكون أرقاماً فقط و10 أرقام على الأقل")
+    else if (required.idNumber && !idNumber) errors.id_number = tr("رقم الهوية اجباري")
+    if (required.phone && !String(formData.mobile1 || "").trim()) errors.mobile1 = tr("رقم الهاتف اجباري")
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = tr("البريد الإلكتروني غير صحيح")
+    else if (required.email && !email) errors.email = tr("البريد الإلكتروني اجباري")
+    const contactError = errors.id_number || errors.mobile1 || errors.email
+    if (contactError) setPopupMessage({ severity: "error", detail: contactError })
+
     /*if (!formData.mobile1.trim()) {
       errors.mobile1 = "رقم الجوال مطلوب"
     } else if (!/^\d{10}$/.test(formData.mobile1.replace(/\s/g, ""))) {
@@ -943,10 +976,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
     setValidationErrors(errors)
     // الحفظ متاح من أي تبويب: عند الخطأ يُعرض التبويب الذي فيه الحقل المطلوب
-    const errorTab = errors.currency_id || errors.father_id ? "financial-tax" : errors.vocherType ? "default-voucher-books" : null
+    const errorTab = errors.currency_id || errors.father_id ? "financial-tax" : contactError ? "address-location" : errors.vocherType ? "default-voucher-books" : null
     if (errorTab) setRequestedTab({ tab: errorTab, nonce: Date.now() })
     return Object.keys(errors).length === 0
-  }, [formData])
+  }, [formData, requiredContactFields, entityTypeCode])
 
   const fetchCustomers = useCallback(
     async (silent = false) => {
@@ -1237,6 +1270,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         movement_notes: customerData.transaction_notes,
         general_notes: customerData.general_notes,
         tax_number: customerData.tax_number,
+        id_number: customerData.id_number,
         commercial_registration: customerData.commercial_registration,
         credit_limit: customerData.credit_limit,
         payment_terms: customerData.payment_terms,
@@ -1939,6 +1973,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               formData={formData}
               updateField={updateField as any}
               validationErrors={validationErrors}
+              requiredContactFields={entityTypeCode === 1 ? requiredContactFields : undefined}
               classifications={classifications}
               pricecategory={pricecategory}
               salesmen={salesmen}

@@ -21,7 +21,8 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { useWorkspace } from "@/contexts/workspace-context"
 import Messages from "@/components/common/Messages"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
-import { Calculator, ImageIcon, Lock, Pencil, Plus, Printer, RefreshCw, Search, Trash2, Unlock, Upload } from "lucide-react"
+import { Calculator, ImageIcon, Lock, Pencil, Plus, Printer, RefreshCw, Search, Trash2, Unlock, Upload, Users, type LucideIcon } from "lucide-react"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 
@@ -33,9 +34,10 @@ export const selectClass = "h-10 w-full rounded-xl border border-slate-200 bg-wh
 export const money = (v: any) => Number(v || 0).toLocaleString("ar-EG-u-nu-latn", amountFractionOptions())
 export const englishMoney = (v: any) => Number(v || 0).toLocaleString("en-US", amountFractionOptions())
 
-export function HrPage({ title, subtitle = "نظام ادارة الموظفين", children, report = false, loading = false }: { title: string; subtitle?: string; children: React.ReactNode; report?: boolean; loading?: boolean }) {
+// رأس موحّد مثل صفحة العملاء (VoucherListHero الأخضر بنص أبيض) + أزرار اختيارية (إضافة F5 / أزرار إضافية)
+export function HrPage({ title, subtitle = "نظام ادارة الموظفين", children, report = false, loading = false, icon = Users, category = "الموظفين والرواتب", onNew, addLabel, actions }: { title: string; subtitle?: string; children: React.ReactNode; report?: boolean; loading?: boolean; icon?: LucideIcon; category?: string; onNew?: () => void; addLabel?: React.ReactNode; actions?: React.ReactNode }) {
   if (report) return <PreventDialogOutsideClose><ReportPage loading={loading}><ReportHeader title={title} description={subtitle} category={tr("تقارير الموظفين والرواتب")} />{children}</ReportPage></PreventDialogOutsideClose>
-  return <PreventDialogOutsideClose><div className="min-h-full space-y-4 bg-slate-50/60 p-3 sm:p-5" dir={appDir()}><header className="border-b border-slate-200 bg-white px-1 pb-4"><h1 className="text-xl font-extrabold text-slate-900 sm:text-2xl">{title}</h1><p className="mt-1 text-sm text-slate-500">{subtitle}</p></header>{children}</div></PreventDialogOutsideClose>
+  return <PreventDialogOutsideClose><div className="voucher-list-page min-h-full w-full space-y-4 p-3 sm:p-5" dir={appDir()}><VoucherListHero title={title} subtitle={subtitle || undefined} icon={icon} category={tr(category)} onNew={onNew} addLabel={addLabel} actions={actions} />{children}</div></PreventDialogOutsideClose>
 }
 export function ListActions({ onNew, onEdit, onRefresh, onPrint }: { onNew?: () => void; onEdit?: () => void; onRefresh?: () => void; onPrint?: () => void }) {
   return <Card className="border-slate-200 shadow-sm"><CardContent className="flex flex-wrap gap-2 p-3">{onNew && <Button onClick={onNew} className="rounded-xl"><Plus className="me-2 h-4 w-4" />{tr("جديد")}</Button>}{onEdit && <Button variant="outline" onClick={onEdit} className="rounded-xl"><Pencil className="me-2 h-4 w-4" />{tr("تعديل")}</Button>}{onRefresh && <Button variant="outline" onClick={onRefresh} className="rounded-xl"><RefreshCw className="me-2 h-4 w-4" />{tr("تحديث")}</Button>}{onPrint && <Button variant="outline" onClick={onPrint} className="rounded-xl"><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>}</CardContent></Card>

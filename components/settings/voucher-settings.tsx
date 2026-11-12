@@ -1,6 +1,8 @@
 "use client";
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { Printer } from "lucide-react"
 import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -261,12 +263,9 @@ export default function VoucherSettings() {
 
     return (
         <div className="p-6 space-y-6" dir={appDir()}>
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold">{tr("إعدادات السندات وطباعتها")}</h1>
-                <Button onClick={handleSave} disabled={loading}>
+<VoucherListHero title={tr("إعدادات السندات وطباعتها")} icon={Printer} category={tr("الإعدادات")} actions={<><Button onClick={handleSave} disabled={loading}>
                     {tr("حفظ")}
-                </Button>
-            </div>
+                </Button></>} />
 
             <Card className="rounded-2xl shadow-sm w-full min-h-[70vh]">
                 <CardContent className="p-6 space-y-6">

@@ -85,6 +85,7 @@ export interface UnifiedCustomerFormData {
   transaction_notes: string
   general_notes: string
   tax_number: string
+  id_number?: string
   commercial_registration: string
   credit_limit: string
   payment_terms: string
@@ -117,6 +118,8 @@ interface UnifiedCustomersProps {
   formData?: UnifiedCustomerFormData
   updateField?: <K extends keyof UnifiedCustomerFormData>(field: K, value: UnifiedCustomerFormData[K]) => void
   validationErrors?: Record<string, string>
+  // اعدادات النظام ← العملاء: حقول إجبارية (تُعلَّم بـ * فقط؛ التحقق في customers.tsx والخادم)
+  requiredContactFields?: { idNumber: boolean; phone: boolean; email: boolean }
   classifications?: Classification[]
   pricecategory?: PriceCategory[]
   salesmen?: Salesman[]
@@ -219,6 +222,7 @@ export default function UnifiedCustomers({
   formData = defaultFormData,
   updateField = () => undefined,
   validationErrors = {},
+  requiredContactFields,
   classifications = [],
   pricecategory = [],
   salesmen = [],
@@ -1387,8 +1391,9 @@ export default function UnifiedCustomers({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="mobile1" className="text-sm font-medium">{tr("الجوال الأول")}</Label>
-                  <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className="text-start" />
+                  <Label htmlFor="mobile1" className="text-sm font-medium">{tr("الجوال الأول")}{requiredContactFields?.phone ? " *" : ""}</Label>
+                  <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className={`text-start ${validationErrors.mobile1 ? "border-red-500" : ""}`} />
+                  {validationErrors.mobile1 && <p className="text-red-500 text-xs mt-1">{validationErrors.mobile1}</p>}
                 </div>
                 <div>
                   <Label htmlFor="mobile2" className="text-sm font-medium">{tr("الجوال الثاني")}</Label>
@@ -1402,9 +1407,22 @@ export default function UnifiedCustomers({
                   <Label htmlFor="whatsapp2" className="text-sm font-medium">{tr("واتساب الثاني")}</Label>
                   <Input id="whatsapp2" value={formData.whatsapp2} onChange={(e) => updateField("whatsapp2", e.target.value)} className="text-start" />
                 </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="email" className="text-sm font-medium">{tr("البريد الإلكتروني")}</Label>
-                  <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className="text-start" />
+                <div>
+                  <Label htmlFor="email" className="text-sm font-medium">{tr("البريد الإلكتروني")}{requiredContactFields?.email ? " *" : ""}</Label>
+                  <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className={`text-start ${validationErrors.email ? "border-red-500" : ""}`} />
+                  {validationErrors.email && <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="id_number" className="text-sm font-medium">{tr("رقم الهوية")}{requiredContactFields?.idNumber ? " *" : ""}</Label>
+                  <Input
+                    id="id_number"
+                    inputMode="numeric"
+                    maxLength={20}
+                    value={formData.id_number || ""}
+                    onChange={(e) => updateField("id_number", e.target.value.replace(/\D/g, ""))}
+                    className={`text-start ${validationErrors.id_number ? "border-red-500" : ""}`}
+                  />
+                  {validationErrors.id_number && <p className="text-red-500 text-xs mt-1">{validationErrors.id_number}</p>}
                 </div>
               </div>
             </CardContent>

@@ -8,6 +8,8 @@ import {
   toInt,
   toBool,
   ensureCustomerCompatibilityColumns,
+  validateCustomerContactFields,
+  normalizeCustomerIdNumber,
   resolveAccountType,
   ensureCustomerAccount,
   resolveRequiredParentAccount,
@@ -310,6 +312,8 @@ export async function POST(request: NextRequest) {
     await ensureCustomerCompatibilityColumns()
     await ensureCustomerBranchesTable()
     console.log("[v0] Creating customer with data:", data)
+    const contactError = await validateCustomerContactFields(data, data.type)
+    if (contactError) return NextResponse.json({ error: contactError }, { status: 400 })
 
     const accountHierarchy = await resolveRequiredParentAccount(data.type, data.father_id)
     const accountCurrencyId = toNullableInt(data.currency_id) ?? 1
@@ -388,7 +392,8 @@ export async function POST(request: NextRequest) {
     priceCategory,
     account_id,
     image_url,
-    tax_number
+    tax_number,
+    id_number
   ) VALUES (
     ${data.customer_code},
     ${data.customer_name || data.name},
@@ -417,7 +422,8 @@ export async function POST(request: NextRequest) {
     ${Number(data.pricecategory) || Number(data.priceCategory) || 1},
     ${accountId},
     ${data.image_url || null},
-    ${String(data.tax_number || "").trim().slice(0, 50) || null}
+    ${String(data.tax_number || "").trim().slice(0, 50) || null},
+    ${normalizeCustomerIdNumber(data.id_number) || null}
   )
   RETURNING *;
 `;
@@ -481,6 +487,8 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Customer ID is required" }, { status: 400 })
     }
+    const contactError = await validateCustomerContactFields(updateData, updateData.type ?? 1)
+    if (contactError) return NextResponse.json({ error: contactError }, { status: 400 })
 
     const accountType = resolveAccountType(updateData.type)
     const accountHierarchy = await resolveRequiredParentAccount(updateData.type, updateData.father_id)
@@ -538,6 +546,7 @@ export async function PUT(request: NextRequest) {
         account_id = ${accountId},
         image_url = ${updateData.image_url || null},
         tax_number = ${String(updateData.tax_number || "").trim().slice(0, 50) || null},
+        id_number = ${normalizeCustomerIdNumber(updateData.id_number) || null},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *

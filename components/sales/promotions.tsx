@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BadgePercent, CalendarRange, Gift, Pause, Pencil, Play, Plus, RefreshCw, Search, Tag, Trash2, Users, X } from "lucide-react"
@@ -136,16 +137,7 @@ export default function Promotions() {
 
   return (
     <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><Gift className="h-6 w-6 text-emerald-600" />{tr("العروض والأسعار الخاصة")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("أسعار خاصة للعملاء، خصومات لفترة، و«اشترِ واحصل مجاناً» — تُطبَّق تلقائياً في فاتورة وإرسالية المبيعات.")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button onClick={() => void openEditor()}><Plus className="me-2 h-4 w-4" />{tr("عرض جديد")}</Button>
-        </div>
-      </div>
+<VoucherListHero title={tr("العروض والأسعار الخاصة")} subtitle={tr("أسعار خاصة للعملاء، خصومات لفترة، و«اشترِ واحصل مجاناً» — تُطبَّق تلقائياً في فاتورة وإرسالية المبيعات.")} icon={Gift} category={tr("المبيعات")} onNew={() => void openEditor()} addLabel={tr("عرض جديد")} actions={<><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button></>} />
 
       <Card><CardContent className="flex flex-col gap-3 pt-5 sm:flex-row sm:items-center">
         <div className="relative flex-1"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="ps-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("بحث برقم العرض أو اسمه...")} /></div>

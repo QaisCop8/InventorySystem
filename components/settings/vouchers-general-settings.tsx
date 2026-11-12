@@ -67,6 +67,9 @@ interface VouchersGeneralSettingsState {
   showThousandsSeparator: boolean
   negativeBalanceSign: string
   itemGroupMandatory: boolean
+  customerIdNumberRequired: boolean
+  customerPhoneRequired: boolean
+  customerEmailRequired: boolean
   stockVoucherItemCostMethod: number | null
   generalItemCostMethod: string
   includePurchaseReturnsInCost: boolean
@@ -84,6 +87,8 @@ interface VouchersGeneralSettingsState {
   priceSource: string
   workingYear: number
   workingMonths: number[]
+  // ملاحظة السند لكل نوع سند (voucher_note_rules) — تُفرَض في Trigger السندات (lib/working-period.ts)
+  voucherNoteRules: Record<number, { required: boolean; minLength: number }>
 }
 
 const defaultSettings: VouchersGeneralSettingsState = {
@@ -96,6 +101,9 @@ const defaultSettings: VouchersGeneralSettingsState = {
   showThousandsSeparator: false,
   negativeBalanceSign: "credit",
   itemGroupMandatory: false,
+  customerIdNumberRequired: false,
+  customerPhoneRequired: false,
+  customerEmailRequired: false,
   stockVoucherItemCostMethod: null,
   generalItemCostMethod: "last_purchase_price",
   includePurchaseReturnsInCost: false,
@@ -113,6 +121,7 @@ const defaultSettings: VouchersGeneralSettingsState = {
   priceSource: "main_relation",
   workingYear: new Date().getFullYear(),
   workingMonths: ALL_WORKING_MONTHS,
+  voucherNoteRules: {},
 }
 
 interface VouchersGeneralSettingsProps {
@@ -129,6 +138,8 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<VouchersGeneralSettingsState>(defaultSettings)
   const [priceCategories, setPriceCategories] = useState<{ id: number; name: string }[]>([])
+  const [voucherTypes, setVoucherTypes] = useState<{ id: number; name: string }[]>([])
+  const [voucherNotesOpen, setVoucherNotesOpen] = useState(true)
   const { toast } = useToast()
 
   // نفس مصدر "فئة السعر" المستخدم فعلياً في سندات المخزون (unified-stock-voucher.tsx) — القيمة
@@ -141,6 +152,10 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
   useEffect(() => {
     void loadSettings()
     void loadPriceCategories()
+    fetch("/api/vouchers/voucher-types")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((rows) => setVoucherTypes(Array.isArray(rows) ? rows.map((row: any) => ({ id: Number(row.id), name: String(row.name || "") })) : []))
+      .catch(() => undefined)
   }, [])
 
   const loadPriceCategories = async () => {
@@ -179,6 +194,9 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         showThousandsSeparator: Boolean(payload.show_thousands_separator ?? prev.showThousandsSeparator),
         negativeBalanceSign: payload.negative_balance_sign || prev.negativeBalanceSign,
         itemGroupMandatory: Boolean(payload.item_group_mandatory ?? prev.itemGroupMandatory),
+        customerIdNumberRequired: Boolean(payload.customer_id_number_required ?? prev.customerIdNumberRequired),
+        customerPhoneRequired: Boolean(payload.customer_phone_required ?? prev.customerPhoneRequired),
+        customerEmailRequired: Boolean(payload.customer_email_required ?? prev.customerEmailRequired),
         stockVoucherItemCostMethod:
           payload.stock_voucher_item_cost_method !== undefined && payload.stock_voucher_item_cost_method !== null && payload.stock_voucher_item_cost_method !== ""
             ? Number(payload.stock_voucher_item_cost_method)
@@ -223,6 +241,13 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
           payload.working_months !== undefined && payload.working_months !== null && payload.working_months !== ""
             ? normalizeWorkingMonths(payload.working_months)
             : prev.workingMonths,
+        voucherNoteRules: Array.isArray(payload.voucher_note_rules)
+          ? Object.fromEntries(
+              payload.voucher_note_rules
+                .filter((rule: any) => Number(rule?.vch_type) > 0)
+                .map((rule: any) => [Number(rule.vch_type), { required: Boolean(rule.required), minLength: Number(rule.min_length) || 0 }]),
+            )
+          : prev.voucherNoteRules,
       }))
     } catch (error) {
       console.error("Failed to load general voucher settings", error)
@@ -240,6 +265,13 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
       toast({ title: tr("خطأ"), description: tr("يجب اختيار شهر عمل واحد على الأقل"), variant: "destructive" })
       return false
     }
+    const invalidNoteType = Object.entries(settings.voucherNoteRules).find(([, rule]) => rule.required && !(rule.minLength > 0))
+    if (invalidNoteType) {
+      const typeName = voucherTypes.find((type) => type.id === Number(invalidNoteType[0]))?.name || invalidNoteType[0]
+      toast({ title: tr("خطأ"), description: tr("طول الملاحظة يجب أن يكون أكبر من صفر لـ {0}", typeName), variant: "destructive" })
+      setVoucherNotesOpen(true)
+      return false
+    }
     setSaving(true)
     try {
       const response = await fetch("/api/settings/system", {
@@ -255,6 +287,12 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
           show_thousands_separator: settings.showThousandsSeparator,
           negative_balance_sign: settings.negativeBalanceSign,
           item_group_mandatory: settings.itemGroupMandatory,
+          voucher_note_rules: Object.entries(settings.voucherNoteRules)
+            .filter(([, rule]) => rule.required)
+            .map(([type, rule]) => ({ vch_type: Number(type), required: true, min_length: rule.minLength })),
+          customer_id_number_required: settings.customerIdNumberRequired,
+          customer_phone_required: settings.customerPhoneRequired,
+          customer_email_required: settings.customerEmailRequired,
           stock_voucher_item_cost_method: settings.stockVoucherItemCostMethod,
           general_item_cost_method: settings.generalItemCostMethod,
           include_purchase_returns_in_cost: settings.includePurchaseReturnsInCost,
@@ -677,6 +715,83 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
               </div>
             </CollapsibleContent>
           </Collapsible>
+        </CardContent>
+      </Card>
+
+      {/* ملاحظة السند لكل نوع سند: اجبارية + طول أدنى (يجب أن يزيد عن) — تُفرَض على كل السندات في قاعدة البيانات */}
+      <Card className="rounded-2xl shadow-sm">
+        <CardContent className="p-4">
+          <Collapsible open={voucherNotesOpen} onOpenChange={setVoucherNotesOpen}>
+            <CollapsibleTrigger className="flex w-full items-center justify-between text-base font-semibold">
+              <span>{tr("ملاحظة السند")}</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${voucherNotesOpen ? "-rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+              <div className="max-h-[420px] overflow-auto rounded-xl border">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-muted/80">
+                    <tr>
+                      <th className="px-3 py-2 text-start font-semibold">{tr("نوع السند")}</th>
+                      <th className="px-3 py-2 text-start font-semibold">{tr("ملاحظة السند اجباري")}</th>
+                      <th className="px-3 py-2 text-start font-semibold">{tr("طول الملاحظة يجب ان يزيد عن")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {voucherTypes.map((type) => {
+                      const rule = settings.voucherNoteRules[type.id] || { required: false, minLength: 0 }
+                      const setRule = (next: Partial<typeof rule>) =>
+                        setSettings((s) => ({ ...s, voucherNoteRules: { ...s.voucherNoteRules, [type.id]: { ...rule, ...next } } }))
+                      const invalid = rule.required && !(rule.minLength > 0)
+                      return (
+                        <tr key={type.id} className="border-t">
+                          <td className="px-3 py-1.5">{type.name}</td>
+                          <td className="px-3 py-1.5">
+                            <Checkbox
+                              checked={rule.required}
+                              onCheckedChange={(checked) => setRule({ required: Boolean(checked), minLength: checked && !rule.minLength ? 1 : rule.minLength })}
+                            />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <Input
+                              type="number"
+                              min={1}
+                              step={1}
+                              disabled={!rule.required}
+                              value={rule.required ? rule.minLength : ""}
+                              onChange={(e) => setRule({ minLength: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })}
+                              className={`h-8 w-28 ${invalid ? "border-red-500" : ""}`}
+                            />
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </CardContent>
+      </Card>
+
+      {/* حقول إجبارية في ملف العملاء — يُتحقَّق منها عند الحفظ والتعديل (الواجهة + /api/customers) */}
+      <Card className="rounded-2xl shadow-sm">
+        <CardContent className="p-4">
+          <div className="text-base font-semibold">{tr("العملاء")}</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-4">
+            {([
+              ["customerIdNumberRequired", "رقم الهوية اجباري"],
+              ["customerPhoneRequired", "رقم الهاتف اجباري"],
+              ["customerEmailRequired", "الايميل اجباري"],
+            ] as const).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={settings[key]}
+                  onCheckedChange={(checked) => setSettings((s) => ({ ...s, [key]: Boolean(checked) }))}
+                />
+                <span>{tr(label)}</span>
+              </label>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -42,3 +42,17 @@
 .dark .voucher-list-page > [data-slot="card"] [data-slot="card-title"] { color: #a7f3d0; }
 .dark .voucher-list-page > [data-slot="card"] [data-slot="card-title"] > svg { background: #064e3b; color: #6ee7b7; }
 .dark .voucher-list-page > [data-slot="card"] [data-slot="card-content"] input:not([type="checkbox"]):not([type="radio"]) { background-color: #0f172a; }
+
+/* أزرار إضافية في رأس الصفحة الموحّد (VoucherListHero actions): زر شفاف بحد أبيض فوق التدرّج الأخضر —
+   أي Button (outline/default) يُمرَّر هناك يأخذ نفس الشكل. زر الإضافة (data-hotkey-new) يبقى أبيض. */
+.hero-actions button:not([data-hotkey-new]), .hero-actions a {
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 35%);
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: none;
+}
+.hero-actions button:not([data-hotkey-new]):hover:not(:disabled), .hero-actions a:hover { background: rgb(255 255 255 / 26%); }
+.hero-actions button:not([data-hotkey-new]):disabled { opacity: .6; }

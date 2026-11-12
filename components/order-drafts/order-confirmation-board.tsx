@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -99,8 +100,7 @@ export function OrderConfirmationBoard() {
   }
 
   return <div dir={appDir()} className="p-4">
-    <h1 className="text-2xl font-bold">{tr("تأكيد الطلبيات")}</h1>
-    <p className="mb-5 text-muted-foreground">{tr("اسحب بطاقة المسودة إلى منطقة التأكيد، أكمل قائمة التحقق، ثم أنشئ الطلبية.")}</p>
+<div className="mb-5"><VoucherListHero title={tr("تأكيد الطلبيات")} subtitle={tr("اسحب بطاقة المسودة إلى منطقة التأكيد، أكمل قائمة التحقق، ثم أنشئ الطلبية.")} icon={CheckCircle2} category={tr("الطلبيات")} /></div>
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="min-h-[500px] rounded-xl border bg-muted/30 p-4"><h2 className="mb-4 font-bold">{tr("المسودات بانتظار المراجعة (")}{drafts.filter((d) => d.status === "draft").length})</h2><div className="grid gap-3 sm:grid-cols-2">{drafts.filter((d) => d.status === "draft").map((draft) => <Card key={draft.id} draggable role="button" tabIndex={0} onClick={() => openDraft(draft)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDraft(draft) } }} onDragStart={(event) => event.dataTransfer.setData("draft", String(draft.id))} className="cursor-pointer transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md"><CardHeader className="pb-2"><CardTitle className="flex items-center justify-between text-base"><span>{draft.draft_number}</span><GripVertical className="h-4 w-4" /></CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><b>{draft.customer_name}</b><div className="flex gap-2"><Calendar className="h-4 w-4" />{tr("التسليم: ")}{draft.requested_delivery_date}</div><div>{draft.items.length}{tr(" أصناف · عربون ")}{Number(draft.deposit_amount).toFixed(2)}</div>{draft.attachments?.length > 0 && <div className="flex gap-1"><Paperclip className="h-4 w-4" />{draft.attachments.length}{tr(" مرفقات")}</div>}<Badge>{draft.priority === "urgent" ? tr("عاجلة") : draft.priority === "high" ? tr("عالية") : tr("عادية")}</Badge></CardContent></Card>)}</div></section>
       <section onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const draft = drafts.find((item) => item.id === Number(event.dataTransfer.getData("draft"))); if (draft) openDraft(draft) }} className="flex min-h-[500px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-6 text-center"><div><CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-emerald-600" /><h2 className="text-xl font-bold">{tr("اسحب الطلبية هنا للتأكيد")}</h2><p className="text-muted-foreground">{tr("سيتم فحص الكميات وجميع الحقول الإلزامية قبل إنشاء الطلبية.")}</p></div></section>

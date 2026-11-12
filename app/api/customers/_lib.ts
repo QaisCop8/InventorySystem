@@ -1,6 +1,7 @@
 import sql from "@/lib/database"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { getSystemSettingValue } from "@/lib/system-settings"
 
 export const toNullableInt = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null
@@ -35,9 +36,32 @@ export const ensureCustomerCompatibilityColumns = async () => { return runSchema
       ADD COLUMN IF NOT EXISTS sales_commission NUMERIC(12, 3) DEFAULT 0,
       ADD COLUMN IF NOT EXISTS collection_commission NUMERIC(12, 3) DEFAULT 0,
       -- الرقم الضريبي / المشتغل المرخص للعميل (يُطبع في رأس السندات إن فُعّل "طباعة المشتغل المرخص للعميل")
-      ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50)
+      ADD COLUMN IF NOT EXISTS tax_number VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)
   `
 }) }
+
+// رقم الهوية: فارغ أو أرقام فقط (10 أرقام على الأقل). الهوية/الهاتف/الإيميل إجبارية للعملاء (type 1)
+// حسب اعدادات النظام: customer_id_number_required / customer_phone_required / customer_email_required
+export const normalizeCustomerIdNumber = (value: unknown) => String(value ?? "").trim()
+
+export async function validateCustomerContactFields(data: any, type: unknown): Promise<string | null> {
+  const idNumber = normalizeCustomerIdNumber(data?.id_number)
+  if (idNumber && !/^\d{10,20}$/.test(idNumber)) return "رقم الهوية يجب أن يكون أرقاماً فقط و10 أرقام على الأقل"
+  const email = String(data?.email ?? "").trim()
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "البريد الإلكتروني غير صحيح"
+  if (Number(type ?? 1) !== 1) return null
+  const [idRequired, phoneRequired, emailRequired] = await Promise.all([
+    getSystemSettingValue<unknown>("customer_id_number_required", false),
+    getSystemSettingValue<unknown>("customer_phone_required", false),
+    getSystemSettingValue<unknown>("customer_email_required", false),
+  ])
+  const on = (value: unknown) => value === true || value === "true" || value === 1 || value === "1"
+  if (on(idRequired) && !idNumber) return "رقم الهوية اجباري"
+  if (on(phoneRequired) && !String(data?.mobile1 ?? "").trim()) return "رقم الهاتف اجباري"
+  if (on(emailRequired) && !email) return "البريد الإلكتروني اجباري"
+  return null
+}
 
 export const resolveAccountHierarchy = async (fatherIdInput: unknown, levelNoInput: unknown) => {
   const fatherId = toNullableInt(fatherIdInput)

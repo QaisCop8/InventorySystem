@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
@@ -83,16 +84,7 @@ export default function BankReconciliation() {
 
   return (
     <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><Banknote className="h-6 w-6 text-emerald-600" />{tr("التسوية البنكية")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("استورد كشف البنك من Excel وطابقه مع سندات حساب البنك تلقائياً، ثم عالج الفروقات وأقفل التسوية.")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void loadList()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button>
-          <Button onClick={() => setCreating(true)}><Plus className="me-2 h-4 w-4" />{tr("تسوية جديدة")}</Button>
-        </div>
-      </div>
+<VoucherListHero title={tr("التسوية البنكية")} subtitle={tr("استورد كشف البنك من Excel وطابقه مع سندات حساب البنك تلقائياً، ثم عالج الفروقات وأقفل التسوية.")} icon={Banknote} category={tr("المحاسبة")} onNew={() => setCreating(true)} addLabel={tr("تسوية جديدة")} actions={<><Button variant="outline" onClick={() => void loadList()} disabled={loading}><RefreshCw className={`me-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />{tr("تحديث")}</Button></>} />
 
       {loading ? (
         <div className="py-16 text-center text-muted-foreground">{tr("جاري التحميل...")}</div>

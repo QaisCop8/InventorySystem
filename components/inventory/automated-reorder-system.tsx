@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -371,16 +372,7 @@ export function AutomatedReorderSystem() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <RefreshCw className="h-8 w-8 text-primary" />
-            {tr("نظام إعادة الطلب التلقائي")}
-          </h1>
-          <p className="text-muted-foreground mt-1">{tr("مراقبة المخزون وإنشاء طلبات الشراء تلقائياً")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setState((prev) => ({ ...prev, showSettingsDialog: true }))}>
+<VoucherListHero title={tr("نظام إعادة الطلب التلقائي")} subtitle={tr("مراقبة المخزون وإنشاء طلبات الشراء تلقائياً")} icon={RefreshCw} category={tr("المخزون")} actions={<><Button variant="outline" onClick={() => setState((prev) => ({ ...prev, showSettingsDialog: true }))}>
             <Settings className="h-4 w-4 me-2" />
             {tr("الإعدادات")}
           </Button>
@@ -391,9 +383,7 @@ export function AutomatedReorderSystem() {
           >
             <RefreshCw className={`h-4 w-4 me-2 ${state.isSubmitting ? "animate-spin" : ""}`} />
             {state.isSubmitting ? tr("جاري الفحص...") : tr("تشغيل الفحص")}
-          </Button>
-        </div>
-      </div>
+          </Button></>} />
 
       {/* System Status */}
       <Card

@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -159,12 +160,7 @@ export function LotStatusManager() {
         </Alert>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">{tr("إدارة حالات الدفعات")}</h1>
-          <p className="text-muted-foreground mt-1">{tr("تغيير حالة الدفعات يدوياً")}</p>
-        </div>
-      </div>
+<VoucherListHero title={tr("إدارة حالات الدفعات")} subtitle={tr("تغيير حالة الدفعات يدوياً")} icon={Package} category={tr("المخزون")} />
 
       {/* Filters */}
       <Card>

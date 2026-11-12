@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -187,13 +188,7 @@ export function LotOpener() {
         </Alert>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">{tr("فتح الدفعات")}</h1>
-          <p className="text-muted-foreground mt-1">{tr("تغيير حالة الدفعات الجديدة إلى قيد الاستخدام")}</p>
-        </div>
-
-        {selectedLots.length > 0 && (
+<VoucherListHero title={tr("فتح الدفعات")} subtitle={tr("تغيير حالة الدفعات الجديدة إلى قيد الاستخدام")} icon={Unlock} category={tr("المخزون")} actions={<>{selectedLots.length > 0 && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-green-600 hover:bg-green-700">
@@ -228,8 +223,7 @@ export function LotOpener() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        )}
-      </div>
+        )}</>} />
 
       {/* Filters */}
       <Card>

@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CheckCircle2, Link2, ListChecks, Loader2, MessageSquareText, Plus, RefreshCw, Save, ScrollText, Send, Settings2, Trash2, Wallet, XCircle } from "lucide-react"
@@ -61,13 +62,7 @@ export default function SmsSettings() {
 
   return (
     <div dir={appDir()} className="space-y-5 p-3 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold"><MessageSquareText className="h-6 w-6 text-sky-600" />{tr("إعدادات الرسائل SMS")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tr("ربط مزوّد الرسائل، قوالب الرسائل، وإرسالها للعملاء من الفواتير والإرساليات والطلبيات وسندات القبض — يدوياً أو تلقائياً عند الإضافة.")}</p>
-        </div>
-        <span className={`self-start rounded-full px-3 py-1 text-xs font-bold ${data.settings.enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{data.settings.enabled ? tr("الخدمة مفعّلة") : tr("الخدمة غير مفعّلة")}</span>
-      </div>
+<VoucherListHero title={tr("إعدادات الرسائل SMS")} subtitle={tr("ربط مزوّد الرسائل، قوالب الرسائل، وإرسالها للعملاء من الفواتير والإرساليات والطلبيات وسندات القبض — يدوياً أو تلقائياً عند الإضافة.")} icon={MessageSquareText} category={tr("الإعدادات")} actions={<><span className={`self-start rounded-full px-3 py-1 text-xs font-bold ${data.settings.enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{data.settings.enabled ? tr("الخدمة مفعّلة") : tr("الخدمة غير مفعّلة")}</span></>} />
 
       <div className="flex gap-1 overflow-x-auto rounded-2xl border bg-sky-50/60 p-1.5">
         {TABS.map(item => (

@@ -1,6 +1,8 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { FileText } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -306,7 +308,7 @@ export default function DocumentSettings() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">{tr("إعدادات السندات")}</h1>
+<VoucherListHero title={tr("إعدادات السندات")} icon={FileText} category={tr("الإعدادات")} />
 
       <Card>
         <CardHeader>

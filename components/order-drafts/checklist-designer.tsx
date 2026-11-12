@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -99,10 +100,7 @@ export function ChecklistDesigner() {
   }
 
   return <div dir={appDir()} className="mx-auto max-w-[1500px] space-y-5 p-4 md:p-6">
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="flex items-center gap-2 text-2xl font-bold"><ClipboardCheck className="h-7 w-7 text-emerald-600" />{tr("مصمم قوائم التحقق")}</h1><p className="mt-1 text-sm text-muted-foreground">{tr("أنشئ حقول التحقق ورتبها بالسحب، ثم اربط القائمة بمسودة الطلبية.")}</p></div>
-      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">{selectedTemplateId && <Button size="lg" variant="outline" onClick={resetDesigner}><Plus className="me-2 h-4 w-4" />{tr("قائمة جديدة")}</Button>}<Button size="lg" onClick={save} disabled={isSaving}><Save className="me-2 h-4 w-4" />{isSaving ? tr("جاري الحفظ...") : selectedTemplateId ? tr("حفظ التعديلات") : tr("حفظ القائمة")}</Button></div>
-    </div>
+<VoucherListHero title={tr("مصمم قوائم التحقق")} subtitle={tr("أنشئ حقول التحقق ورتبها بالسحب، ثم اربط القائمة بمسودة الطلبية.")} icon={ClipboardCheck} category={tr("الطلبيات")} actions={<>{selectedTemplateId && <Button size="lg" variant="outline" onClick={resetDesigner}><Plus className="me-2 h-4 w-4" />{tr("قائمة جديدة")}</Button>}<Button size="lg" onClick={save} disabled={isSaving}><Save className="me-2 h-4 w-4" />{isSaving ? tr("جاري الحفظ...") : selectedTemplateId ? tr("حفظ التعديلات") : tr("حفظ القائمة")}</Button></>} />
     {message && <div role="alert" className={`rounded-xl border p-3 text-sm font-semibold ${messageType === "success" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-700"}`}>{message}</div>}
     <div className="grid min-w-0 items-start gap-5 lg:grid-cols-2 2xl:grid-cols-[280px_minmax(0,1fr)_minmax(320px,.75fr)]">
       <Card className="order-2 min-w-0 lg:order-2 2xl:order-1 2xl:sticky 2xl:top-4"><CardHeader><CardTitle className="text-base">{tr("القوائم المحفوظة")}</CardTitle></CardHeader><CardContent className="max-h-[50vh] space-y-2 overflow-y-auto 2xl:max-h-[70vh]">

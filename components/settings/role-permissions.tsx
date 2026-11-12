@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useEffect, useState } from "react"
 import { BranchPermissionEditor, type PermissionItem } from "./branch-permission-editor"
 import { Badge } from "@/components/ui/badge"
@@ -89,10 +90,7 @@ export default function RolePermissions() {
 
   return (
     <div className="w-full space-y-5 p-4 md:p-6" dir={appDir()}>
-      <div className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-l from-primary/10 via-background to-background p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Shield className="h-6 w-6" /></div><div><h1 className="text-xl font-bold">{tr("صلاحيات الأدوار الوظيفية")}</h1><p className="mt-1 text-sm text-muted-foreground">{tr("حدد صلاحيات كل دور بصورة مستقلة في كل فرع.")}</p></div></div>
-        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void save(true)} disabled={!roleId || !branchId || saving}><RotateCcw className="me-2 h-4 w-4" />{tr("استعادة صلاحيات الدور العامة")}</Button><Button onClick={() => void save(false)} disabled={!roleId || !branchId || permissionsLoading || saving}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button></div>
-      </div>
+<VoucherListHero title={tr("صلاحيات الأدوار الوظيفية")} subtitle={tr("حدد صلاحيات كل دور بصورة مستقلة في كل فرع.")} icon={Shield} category={tr("الإعدادات")} actions={<><Button variant="outline" onClick={() => void save(true)} disabled={!roleId || !branchId || saving}><RotateCcw className="me-2 h-4 w-4" />{tr("استعادة صلاحيات الدور العامة")}</Button><Button onClick={() => void save(false)} disabled={!roleId || !branchId || permissionsLoading || saving}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button></>} />
 
       {roles.length === 0 || branches.length === 0 ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{roles.length === 0 ? tr("لا توجد أدوار وظيفية. أضف دوراً وظيفياً أولاً.") : tr("لا توجد فروع معرفة. أضف فرعاً أولاً.")}</div> : <>
         <Card><CardContent className="grid gap-4 p-4 md:grid-cols-2">

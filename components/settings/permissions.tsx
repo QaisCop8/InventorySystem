@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useEffect, useMemo, useState } from "react"
 import { BranchPermissionEditor, type PermissionItem } from "./branch-permission-editor"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -168,17 +169,9 @@ export default function Permissions() {
 
   return (
     <div className="w-full space-y-5 p-4 md:p-6" dir={appDir()}>
-      <div className="flex flex-col gap-3 rounded-2xl border bg-gradient-to-l from-primary/[0.06] via-background to-background px-4 py-3.5 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><Shield className="h-5 w-5" /></div>
-          <div><h1 className="text-lg font-bold">{tr("صلاحيات المستخدمين")}</h1><p className="mt-0.5 text-xs text-muted-foreground">{tr("خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.")}</p></div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="me-2 h-4 w-4" />{tr("نسخ صلاحيات")}</Button>
+<VoucherListHero title={tr("صلاحيات المستخدمين")} subtitle={tr("خصص وصول كل مستخدم داخل فرع محدد، مع بقاء صلاحيات دوره كأساس.")} icon={Shield} category={tr("الإعدادات")} actions={<><Button variant="outline" onClick={openCopyDialog} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Copy className="me-2 h-4 w-4" />{tr("نسخ صلاحيات")}</Button>
           <Button variant="outline" onClick={() => void save(true)} disabled={!selectedUserId || !selectedBranchId || saving}><RotateCcw className="me-2 h-4 w-4" />{tr("استعادة الموروث")}</Button>
-          <Button onClick={() => void save(false)} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button>
-        </div>
-      </div>
+          <Button onClick={() => void save(false)} disabled={!selectedUserId || !selectedBranchId || permissionsLoading || saving}><Save className="me-2 h-4 w-4" />{saving ? tr("جاري الحفظ...") : tr("حفظ الصلاحيات")}</Button></>} />
 
       {branches.length === 0 ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{tr("لا توجد فروع معرفة. أضف فرعاً من شاشة الفروع أولاً.")}</div> : (
         <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">

@@ -1831,6 +1831,16 @@ export default function UnifiedReceiptVoucher({
           messagesRef.current?.show?.([{ severity: "error", summary: "", detail: validationError, life: 3000 }])
           return
         }
+        // اكتمل مبلغ الشيكات (مجموع الشبكة = مبلغ الشيكات) -> الانتقال مباشرة إلى الملاحظة بدل سطر جديد
+        const enteredTotal = chequesRef.current.reduce((sum, cheque) => sum + Number(cheque.amount || 0), 0)
+        const targetTotal = Number(form.check_amount || 0)
+        if (targetTotal > 0 && Math.abs(enteredTotal - targetTotal) < 0.0005) {
+          control?.finishEditing?.()
+          const noteInput = document.getElementById("vch-note") as HTMLInputElement | null
+          noteInput?.focus()
+          noteInput?.select()
+          return
+        }
         // يوجد أصلاً سطر تحت هذا السطر (فارغ أو معبّأ) — الانتقال إليه بدل إضافة سطر فارغ جديد.
         const nextRow = chequesRef.current[row + 1]
         if (nextRow) {

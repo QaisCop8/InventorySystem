@@ -1,6 +1,7 @@
 "use client"
 
 import { tr } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -230,12 +231,8 @@ export function OrderTrackingDashboard() {
   return (
     <div className="p-6 dir-rtl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-heading font-bold text-primary">{tr("لوحة تحكم متابعة الطلبيات")}</h1>
-          <p className="text-muted-foreground">{tr("متابعة شاملة لجميع الطلبيات ومراحل العمل")}</p>
-        </div>
-        <div className="flex items-center gap-4">
+<VoucherListHero title={tr("لوحة تحكم متابعة الطلبيات")} subtitle={tr("متابعة شاملة لجميع الطلبيات ومراحل العمل")} icon={Package} category={tr("الطلبيات")} />
+      <div className="flex flex-wrap items-center justify-end gap-4">
           <NotificationCenter department={selectedDepartment} />
           <BatchPrintDialog />
           <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
@@ -250,7 +247,6 @@ export function OrderTrackingDashboard() {
               <SelectItem value="المستودعات">{tr("المستودعات")}</SelectItem>
             </SelectContent>
           </Select>
-        </div>
       </div>
 
       {/* إحصائيات سريعة */}

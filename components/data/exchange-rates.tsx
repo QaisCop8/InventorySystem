@@ -51,6 +51,28 @@ interface ExchangeRate {
 const MIN_EXCHANGE_RATE = 0.0001
 const MAX_EXCHANGE_RATE = 10000
 
+// نوافذ العملات: Enter = Tab بين الحقول حتى زر الحفظ (Enter عليه يحفظ)، F3 = حفظ من أي مكان
+function handleDialogKeys(event: React.KeyboardEvent<HTMLElement>, save: () => void) {
+  if (event.key === "F3") {
+    event.preventDefault()
+    event.stopPropagation()
+    save()
+    return
+  }
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey) return
+  const target = event.target as HTMLElement
+  if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
+  const focusable = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), button[data-dialog-save]:not([disabled])',
+    ),
+  ).filter((el) => el.offsetParent !== null)
+  const index = focusable.indexOf(target)
+  if (index === -1) return
+  event.preventDefault()
+  focusable[index + 1]?.focus()
+}
+
 function ExchangeRatesContent() {
   const { rates: exchangeRates, isLoading, isError, refresh, updateRate } = useExchangeRates()
   // صلاحيات أسعار الصرف (اضافة / تعديل / يوم سابق) — الخادم يفرضها، هنا لتعطيل الأزرار فقط
@@ -597,7 +619,7 @@ function ExchangeRatesContent() {
             <DialogTitle className="text-start">{tr("تعديل سعر صرف ")}{selectedRate?.currency_name}</DialogTitle>
           </DialogHeader>
           {selectedRate && (
-            <div className="space-y-4">
+            <div className="space-y-4" onKeyDown={(e) => handleDialogKeys(e, () => { if (!isSubmitting) void handleSaveRateChanges() })}>
               <Messages innerRef={rateDialogMessagesRef} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -657,6 +679,7 @@ function ExchangeRatesContent() {
                 </Button>
                 <Button
                   type="button"
+                  data-dialog-save
                   onClick={handleSaveRateChanges}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                   disabled={isSubmitting}
@@ -683,7 +706,7 @@ function ExchangeRatesContent() {
             <DialogTitle className="text-start">{tr("تعديل بيانات العملة")}</DialogTitle>
           </DialogHeader>
           {currencyEdit && (
-            <form onSubmit={handleSaveCurrencyEdit} className="space-y-4" noValidate>
+            <form onSubmit={handleSaveCurrencyEdit} onKeyDown={(e) => handleDialogKeys(e, () => { if (!isSubmitting) e.currentTarget.requestSubmit() })} className="space-y-4" noValidate>
               <Messages innerRef={currencyEditMessagesRef} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -723,7 +746,7 @@ function ExchangeRatesContent() {
                 <Button type="button" variant="outline" onClick={() => setCurrencyEdit(null)} disabled={isSubmitting}>
                   {tr("إلغاء")}
                 </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
+                <Button type="submit" data-dialog-save className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
                   <Save className="h-4 w-4 ms-2" />
                   {isSubmitting ? tr("جاري الحفظ...") : tr("حفظ التغييرات")}
                 </Button>
@@ -745,7 +768,7 @@ function ExchangeRatesContent() {
           <DialogHeader>
             <DialogTitle className="text-start">{tr("إضافة عملة جديدة")}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveNewCurrency} className="space-y-4" noValidate>
+          <form onSubmit={handleSaveNewCurrency} onKeyDown={(e) => handleDialogKeys(e, () => { if (!isSubmitting) e.currentTarget.requestSubmit() })} className="space-y-4" noValidate>
             <Messages innerRef={newCurrencyMessagesRef} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -860,7 +883,7 @@ function ExchangeRatesContent() {
               >
                 {tr("إلغاء")}
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
+              <Button type="submit" data-dialog-save className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />

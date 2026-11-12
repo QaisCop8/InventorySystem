@@ -1,6 +1,8 @@
 ﻿"use client"
 
 import { tr } from "@/lib/i18n"
+import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { Webhook } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -97,7 +99,7 @@ export default function APISettings() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">{tr("إعدادات API والتكامل")}</h1>
+<VoucherListHero title={tr("إعدادات API والتكامل")} icon={Webhook} category={tr("الإعدادات")} />
 
       {/* API Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

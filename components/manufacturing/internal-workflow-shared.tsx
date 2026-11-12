@@ -1,6 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
+import "@/components/common/voucher-list-theme.css"
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { ArrowLeft, Building2, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, FilePlus2, LayoutDashboard, Lock, PackageCheck, RefreshCw, Send, ShieldCheck, Truck, User, Warehouse } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -150,21 +151,25 @@ export function InternalStepper({ settings, counts, permissions, current, compac
 }
 
 export function InternalPageHeader({ title, description, icon: Icon, sideLabel, branchLabel, actions, children }: { title: string; description: string; icon: ComponentType<{ className?: string }>; sideLabel?: string; branchLabel?: string; actions?: ReactNode; children?: ReactNode }) {
-  return <div className="overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-slate-950">
-    <div className="h-1 bg-gradient-to-l from-emerald-500 via-teal-500 to-sky-500" />
-    <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"><Icon className="h-6 w-6" /></span>
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-tight">{title}</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-          {(sideLabel || branchLabel) && <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {branchLabel && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-700"><Building2 className="h-3.5 w-3.5" />{tr("الفرع النشط: ")}<b>{branchLabel}</b></span>}
-            {sideLabel && <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-sky-800 ring-1 ring-sky-100">{sideLabel}</span>}
-          </div>}
+  // نفس رأس صفحات النظام (page-hero الأخضر بنص أبيض — مثل العملاء)، والمحتوى الإضافي (children) بشريط أبيض تحته
+  return <div className="overflow-hidden rounded-2xl border border-emerald-700/20 bg-white shadow-sm dark:bg-slate-950">
+    <div className="page-hero relative overflow-hidden px-5 py-5 sm:px-7">
+      <div className="pointer-events-none absolute -end-16 -top-24 h-64 w-64 rounded-full bg-white/15 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+      <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur"><Icon className="h-7 w-7" /></span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black text-white drop-shadow-sm sm:text-3xl">{title}</h1>
+            <p className="mt-1 text-sm text-emerald-50/85">{description}</p>
+            {(sideLabel || branchLabel) && <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              {branchLabel && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-white ring-1 ring-white/25"><Building2 className="h-3.5 w-3.5" />{tr("الفرع النشط: ")}<b>{branchLabel}</b></span>}
+              {sideLabel && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-white ring-1 ring-white/25">{sideLabel}</span>}
+            </div>}
+          </div>
         </div>
+        {actions && <div className="hero-actions flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
     {children && <div className="border-t bg-slate-50/70 px-4 py-3 dark:bg-slate-900/40">{children}</div>}
   </div>

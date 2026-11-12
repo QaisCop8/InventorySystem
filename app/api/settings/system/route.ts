@@ -381,6 +381,11 @@ export async function PUT(request: NextRequest) {
       .map(([, value]) => value)
     const leafAccountsError = await validateLeafAccounts(leafAccountIds, "الحسابات الافتراضية")
     if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
+    // ملاحظة السند الإجبارية: طول الملاحظة يجب أن يكون أكبر من صفر لكل نوع سند مفعّل
+    if (Array.isArray(payload.voucher_note_rules)) {
+      const invalid = (payload.voucher_note_rules as any[]).some((rule) => rule?.required && !(Number(rule?.min_length) > 0))
+      if (invalid) return NextResponse.json({ error: "طول ملاحظة السند يجب أن يكون أكبر من صفر لكل نوع سند جُعلت ملاحظته اجبارية" }, { status: 400 })
+    }
     const saved = await saveSettingsPayload(payload, storedSettings)
     await ensureWorkingPeriodGuard().catch((error) => console.error("Failed to install working period guard:", error))
     return NextResponse.json(saved)
