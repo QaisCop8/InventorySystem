@@ -1,4 +1,4 @@
-// يبني مشغّلَي ويندوز: NoonERP-Cashier.exe و NoonERP-Restaurant.exe في launchers/windows/dist، وينسخهما إلى
+// يبني مشغّلَي ويندوز (نافذة WebView2 — مكتبات launchers/windows/sdk من حزمة NuGet Microsoft.Web.WebView2 مضمّنة كموارد): NoonERP-Cashier.exe و NoonERP-Restaurant.exe في launchers/windows/dist، وينسخهما إلى
 // public/downloads ليُنزَّلا من الخادم. يحتاج ويندوز (csc.exe من .NET Framework 4) و sharp لصنع الأيقونة.
 // التشغيل: node launchers/windows/build.mjs
 import { execFileSync } from "node:child_process"
@@ -33,6 +33,12 @@ async function writeIcon(target) {
   writeFileSync(target, Buffer.concat([header, ...images]))
 }
 
+// حزمة WebView2 (NuGet Microsoft.Web.WebView2 1.0.4191.47) مستخرجة في launchers/windows/sdk/pkg
+const sdk = join(here, "sdk", "pkg")
+const core = join(sdk, "lib", "net462", "Microsoft.Web.WebView2.Core.dll")
+const winforms = join(sdk, "lib", "net462", "Microsoft.Web.WebView2.WinForms.dll")
+if (!existsSync(core)) throw new Error("WebView2 SDK مفقود: نزّل microsoft.web.webview2.1.0.4191.47.nupkg من nuget.org واستخرجه إلى launchers/windows/sdk/pkg")
+
 const icon = join(dist, "noonerp.ico")
 await writeIcon(icon)
 
@@ -40,7 +46,12 @@ const downloads = join(root, "public", "downloads")
 mkdirSync(downloads, { recursive: true })
 for (const [name, defines] of [["NoonERP-Cashier.exe", []], ["NoonERP-Restaurant.exe", ["/define:RESTAURANT"]]]) {
   const out = join(dist, name)
-  execFileSync(csc, ["/nologo", "/target:winexe", "/optimize+", "/platform:anycpu", `/win32icon:${icon}`, `/out:${out}`, "/r:System.Windows.Forms.dll", ...defines, join(here, "Launcher.cs")], { stdio: "inherit" })
+  execFileSync(csc, ["/nologo", "/target:winexe", "/optimize+", "/platform:anycpu", `/win32icon:${icon}`, `/out:${out}`,
+    "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", `/r:${core}`, `/r:${winforms}`,
+    `/resource:${core},Microsoft.Web.WebView2.Core.dll`, `/resource:${winforms},Microsoft.Web.WebView2.WinForms.dll`,
+    `/resource:${join(sdk, "runtimes", "win-x64", "native", "WebView2Loader.dll")},WebView2Loader.x64.dll`,
+    `/resource:${join(sdk, "runtimes", "win-x86", "native", "WebView2Loader.dll")},WebView2Loader.x86.dll`,
+    ...defines, join(here, "Launcher.cs")], { stdio: "inherit" })
   copyFileSync(out, join(downloads, name))
   console.log(`built ${out}`)
 }

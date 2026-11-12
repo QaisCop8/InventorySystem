@@ -19,6 +19,7 @@ import { SECTION_TITLES } from "@/components/sidebar"
 import "@/lib/new-tab-handoff"
 import { shouldResumePos } from "@/lib/pos-offline"
 import { appModeSection } from "@/lib/app-mode"
+import { AppModeShell } from "@/components/app-mode-shell"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { WorkspacePane } from "@/components/workspace/workspace-pane"
 import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"
@@ -528,6 +529,9 @@ function HomePageContent() {
   }
   const branchReloadKey = useBranchReloadKey()
   const activeSection = currentSection(focusedPaneId)
+  // وضع التطبيق يُقرأ بعد التركيب فقط (localStorage غير متاح في عرض الخادم)
+  const [appSection, setAppSection] = useState<string | null>(null)
+  useEffect(() => { setAppSection(appModeSection()) }, [])
 
   // يُعمِّر تبويب البداية بالجزء "a" حسب رابط العنوان — استبدال لما كان سابقاً initializer لـ
   // useState (نفّذ مرة واحدة عند أول عرض فقط)، الآن عبر workspace بدل حالة activeSection مباشرة.
@@ -779,6 +783,15 @@ function HomePageContent() {
     const replaced = tabsReplacedByOpen()
     if (replaced.length && !requestGuardedNavigation(navigate, replaced)) return
     navigate()
+  }
+
+  // مشغّل الكاشير/المطعم: شاشته وحدها بلا القائمة والشريط العلوي والتبويبات (components/app-mode-shell.tsx)
+  if (appSection) {
+    return (
+      <ProtectedRoute>
+        <AppModeShell>{resolveSectionNode(appSection, () => undefined)}</AppModeShell>
+      </ProtectedRoute>
+    )
   }
 
   return (

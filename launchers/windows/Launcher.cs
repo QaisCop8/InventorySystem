@@ -1,62 +1,82 @@
 // مشغّل ويندوز لكاشير نقطة البيع / شاشة المطعم في NoonERP.
-// يفتح النظام في نافذة تطبيق كاملة الشاشة (Edge/Chrome بوضع --app: بلا شريط عنوان أو تبويبات) بملف تعريف مستقل
-// لكل مشغّل، فيبقى تسجيل الدخول محفوظاً ويفتح النظام مباشرة على شاشة الكاشير/المطعم (?app=... ← lib/app-mode.ts).
-// الخروج: Alt+F4. عنوان خادم مختلف: ملف launcher.ini بجانب الملف التنفيذي يحوي سطر url=https://...
-// البناء: node launchers/windows/build.mjs (يستخدم csc.exe المرفق مع .NET Framework في ويندوز)، و/define:RESTAURANT لنسخة المطعم.
+// نافذة ويندوز حقيقية (مكبّرة، شريط مهام ويندوز ظاهر) تستضيف محرك Edge (WebView2) وتفتح النظام بـ ?app=... فيظهر بعد
+// الدخول واختيار الشركة شاشة الكاشير/المطعم وحدها (lib/app-mode.ts + components/app-mode-shell.tsx).
+// زر X: يسأل الصفحة أولاً عن تغييرات غير محفوظة (window.__noonAppCloseState في الكاشير) ثم "هل تريد الخروج من البرنامج؟".
+// ملف تعريف مستقل لكل مشغّل في %LOCALAPPDATA%\NoonERP\<mode> فيبقى تسجيل الدخول محفوظاً.
+// عنوان خادم مختلف: launcher.ini بجانب الملف التنفيذي يحوي سطر url=https://...
+// مكتبات WebView2 مضمّنة كموارد داخل الملف التنفيذي (ملف واحد) — البناء: node launchers/windows/build.mjs
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows.Forms;
-using Microsoft.Win32;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.WinForms;
 
 [assembly: AssemblyTitle(NoonLauncher.Title)]
 [assembly: AssemblyProduct("NoonERP")]
 [assembly: AssemblyCompany("Sabbah Soft")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 static class NoonLauncher
 {
 #if RESTAURANT
     public const string Title = "NoonERP Restaurant";
-    const string Mode = "restaurant";
+    public const string Mode = "restaurant";
 #else
     public const string Title = "NoonERP Cashier";
-    const string Mode = "cashier";
+    public const string Mode = "cashier";
 #endif
     const string DefaultServer = "https://noonerp.sabbahsoft.com";
+    const MessageBoxOptions Rtl = MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign;
 
     [STAThread]
-    static int Main()
+    static void Main()
     {
-        string server = ReadServerUrl();
-        string url = server.TrimEnd('/') + "/?app=" + Mode;
-        string browser = FindBrowser();
-        if (browser == null)
+        // مكتبات WebView2 المُدارة تُحمَّل من موارد الملف التنفيذي — يجب ربطها قبل أي استخدام لأنواعها
+        AppDomain.CurrentDomain.AssemblyResolve += ResolveEmbedded;
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Run();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static void Run()
+    {
+        Application.Run(new LauncherForm(ReadServerUrl().TrimEnd('/') + "/?app=" + Mode));
+    }
+
+    static Assembly ResolveEmbedded(object sender, ResolveEventArgs args)
+    {
+        string name = new AssemblyName(args.Name).Name + ".dll";
+        using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(name))
         {
-            // بلا Edge أو Chrome: يُفتح الرابط في المتصفح الافتراضي (نافذة عادية)
-            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); return 0; }
-            catch (Exception error)
+            if (stream == null) return null;
+            byte[] bytes = new byte[stream.Length];
+            stream.Read(bytes, 0, bytes.Length);
+            return Assembly.Load(bytes);
+        }
+    }
+
+    // WebView2Loader.dll (مكتبة أصلية) تُستخرج مرة لكل إصدار إلى %LOCALAPPDATA%\NoonERP\bin\<arch>
+    public static string ExtractLoader()
+    {
+        string arch = Environment.Is64BitProcess ? "x64" : "x86";
+        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NoonERP", "bin", Assembly.GetExecutingAssembly().GetName().Version.ToString(), arch);
+        string target = Path.Combine(folder, "WebView2Loader.dll");
+        if (!File.Exists(target))
+        {
+            Directory.CreateDirectory(folder);
+            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WebView2Loader." + arch + ".dll"))
+            using (FileStream file = File.Create(target))
             {
-                MessageBox.Show("تعذر فتح النظام:\n" + error.Message, Title, MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
-                return 1;
+                stream.CopyTo(file);
             }
         }
-
-        string profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NoonERP", Mode);
-        Directory.CreateDirectory(profile);
-        string args = "--app=\"" + url + "\" --start-fullscreen --user-data-dir=\"" + profile + "\" --no-first-run --no-default-browser-check --disable-features=Translate";
-        try
-        {
-            Process.Start(new ProcessStartInfo(browser, args) { UseShellExecute = false });
-            return 0;
-        }
-        catch (Exception error)
-        {
-            MessageBox.Show("تعذر تشغيل المتصفح:\n" + error.Message, Title, MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
-            return 1;
-        }
+        return folder;
     }
 
     // launcher.ini بجانب الملف: url=https://example.com (اختياري)
@@ -81,34 +101,106 @@ static class NoonLauncher
         return DefaultServer;
     }
 
-    static string FindBrowser()
+    public static void Error(string message)
     {
-        string[] names = { "msedge.exe", "chrome.exe" };
-        foreach (string name in names)
-        {
-            string fromRegistry = AppPath(Registry.LocalMachine, name) ?? AppPath(Registry.CurrentUser, name);
-            if (fromRegistry != null && File.Exists(fromRegistry)) return fromRegistry;
-        }
-        string[] candidates = {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Microsoft\Edge\Application\msedge.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Microsoft\Edge\Application\msedge.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Google\Chrome\Application\chrome.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Google\Chrome\Application\chrome.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Google\Chrome\Application\chrome.exe"),
-        };
-        foreach (string path in candidates) if (File.Exists(path)) return path;
-        return null;
+        MessageBox.Show(message, Title, MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, Rtl);
     }
 
-    static string AppPath(RegistryKey root, string exe)
+    public static DialogResult Ask(IWin32Window owner, string message, MessageBoxButtons buttons, MessageBoxIcon icon)
+    {
+        return MessageBox.Show(owner, message, Title, buttons, icon, MessageBoxDefaultButton.Button2, Rtl);
+    }
+}
+
+class LauncherForm : Form
+{
+    readonly string startUrl;
+    readonly string serverHost;
+    readonly WebView2 web = new WebView2();
+    bool allowClose;
+    bool closing;
+
+    public LauncherForm(string url)
+    {
+        startUrl = url;
+        serverHost = new Uri(url).Host;
+        Text = NoonLauncher.Title;
+        WindowState = FormWindowState.Maximized;
+        StartPosition = FormStartPosition.CenterScreen;
+        MinimumSize = new Size(900, 600);
+        try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+        web.Dock = DockStyle.Fill;
+        Controls.Add(web);
+        Load += async (sender, args) => await InitializeAsync();
+        FormClosing += OnFormClosing;
+    }
+
+    async System.Threading.Tasks.Task InitializeAsync()
     {
         try
         {
-            using (RegistryKey key = root.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + exe))
-            {
-                return key == null ? null : key.GetValue(null) as string;
-            }
+            CoreWebView2Environment.SetLoaderDllFolderPath(NoonLauncher.ExtractLoader());
+            string profile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NoonERP", NoonLauncher.Mode);
+            Directory.CreateDirectory(profile);
+            CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(null, profile);
+            await web.EnsureCoreWebView2Async(environment);
+            web.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            web.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            web.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
+            web.CoreWebView2.Navigate(startUrl);
         }
-        catch { return null; }
+        catch (Exception error)
+        {
+            NoonLauncher.Error("تعذر تشغيل محرك العرض (Microsoft Edge WebView2).\nثبّت WebView2 Runtime من موقع مايكروسوفت ثم أعد المحاولة.\n\n" + error.Message);
+            allowClose = true;
+            Close();
+        }
+    }
+
+    // روابط خارج النظام (واتساب، خرائط...) تُفتح في المتصفح الافتراضي؛ نوافذ النظام نفسه (طباعة...) تبقى داخل المحرك
+    void OnNewWindowRequested(object sender, CoreWebView2NewWindowRequestedEventArgs args)
+    {
+        Uri target;
+        if (!Uri.TryCreate(args.Uri, UriKind.Absolute, out target)) return;
+        if (target.Scheme == "about" || target.Scheme == "blob" || target.Host == serverHost) return;
+        args.Handled = true;
+        try { Process.Start(new ProcessStartInfo(args.Uri) { UseShellExecute = true }); } catch { }
+    }
+
+    async void OnFormClosing(object sender, FormClosingEventArgs args)
+    {
+        if (allowClose || args.CloseReason == CloseReason.WindowsShutDown || args.CloseReason == CloseReason.TaskManagerClosing) return;
+        args.Cancel = true;
+        if (closing) return;
+        closing = true;
+        try
+        {
+            string state = "";
+            if (web.CoreWebView2 != null)
+            {
+                try
+                {
+                    state = await web.CoreWebView2.ExecuteScriptAsync("(function(){try{return window.__noonAppCloseState?String(window.__noonAppCloseState()||''):''}catch(e){return ''}})()");
+                }
+                catch { state = ""; }
+            }
+            if (state.Contains("unsaved"))
+            {
+                NoonLauncher.Ask(this, "يوجد فاتورة غير محفوظة في الكاشير.\nاحفظ الفاتورة أو ألغها قبل الخروج من البرنامج.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (state.Contains("busy"))
+            {
+                NoonLauncher.Ask(this, "يتم الآن حفظ عملية في الكاشير، انتظر حتى تنتهي ثم أعد المحاولة.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (NoonLauncher.Ask(this, "هل تريد الخروج من البرنامج؟", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            allowClose = true;
+            Close();
+        }
+        finally
+        {
+            closing = false;
+        }
     }
 }

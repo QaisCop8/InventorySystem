@@ -389,9 +389,13 @@ export default function PosCashier(){
    event.preventDefault()
    event.returnValue=""
   }
+  // مشغّل ويندوز (launchers/windows): زر X يسأل هنا قبل "هل تريد الخروج من البرنامج؟"
+  const closeState=()=>saving||draftSaving||pricingBusy?"busy":hasUnsavedChanges?"unsaved":""
+  ;(window as any).__noonAppCloseState=closeState
   window.addEventListener("pos-cashier:navigate-request",onNavigationRequest)
   window.addEventListener("beforeunload",onBeforeUnload)
   return()=>{
+   if((window as any).__noonAppCloseState===closeState)delete (window as any).__noonAppCloseState
    window.removeEventListener("pos-cashier:navigate-request",onNavigationRequest)
    window.removeEventListener("beforeunload",onBeforeUnload)
   }
