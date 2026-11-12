@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       const [currencies, bankAccounts, branches] = await Promise.all([
         sql`SELECT id, currency_code AS code, currency_name AS name FROM currency WHERE COALESCE(is_active, true) ORDER BY id`,
         sql`SELECT ba.id, ba.code, ba.name, ba.currency_id FROM bank_accounts ba WHERE COALESCE(ba.status, 1) <> 3 ORDER BY ba.code`,
-        sql`SELECT id, branch_code AS code, branch_name AS name FROM branches ORDER BY branch_name`,
+        sql`SELECT id, branch_code AS code, branch_name AS name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) ORDER BY branch_name`,
       ])
       return NextResponse.json({ currencies, bankAccounts, branches })
     }

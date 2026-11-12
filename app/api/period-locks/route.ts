@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         FROM period_locks_tbl l LEFT JOIN branches b ON b.id = l.branch_id
         ORDER BY l.is_active DESC, l.to_date DESC, l.id DESC
       `,
-      sql`SELECT id, branch_name name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY branch_name`,
+      sql`SELECT id, branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`,
     ])
     return NextResponse.json({ rows, branches })
   } catch (error) {

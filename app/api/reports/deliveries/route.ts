@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active, true) ORDER BY id`,
       effectiveBranches.length
         ? sql`SELECT id, branch_code, branch_name FROM branches WHERE id = ANY(${effectiveBranches}::int[]) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`
-        : sql`SELECT id, branch_code, branch_name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY branch_name`,
+        : sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`,
       sql`SELECT id, warehouse_code code, warehouse_name name FROM warehouses WHERE COALESCE(status, 1) <> 3 ORDER BY warehouse_code`,
       sql`SELECT id, product_code code, product_name name FROM products WHERE COALESCE(deleted, false) = false AND COALESCE(status, 1) <> 3 ORDER BY product_code`,
       kind === "deliveries" ? sql`SELECT id, code, name FROM account_tbl WHERE COALESCE(status, 1) <> 3 AND type IN (2, 3, 5) ORDER BY code` : Promise.resolve([]),

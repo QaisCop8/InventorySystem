@@ -22,7 +22,7 @@ async function nextCode() {
 /** فروع المستخدم (نفس قائمة مبدّل الفرع في رأس الصفحة): عضويات user_branches، وبلا عضويات = كل الفروع */
 async function userBranches(userId: string) {
   const [branches, memberships] = await Promise.all([
-    sql`SELECT id, branch_code, branch_name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY id`,
+    sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY id`,
     sql`SELECT branch_id FROM user_branches WHERE user_id::text = ${String(userId)}`,
   ])
   const allowed = new Set(memberships.map((row: any) => Number(row.branch_id)))

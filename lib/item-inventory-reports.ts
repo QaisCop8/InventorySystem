@@ -17,7 +17,7 @@ export async function inventoryReportMeta(organizationId: number) {
   const [products, warehouses, branches] = await Promise.all([
     getInventoryReportProducts(organizationId, 0, ""),
     sql`SELECT id,warehouse_code code,warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_code`,
-    sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_code`,
+    sql`SELECT id,branch_code code,branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_code`,
   ])
   return { products, warehouses, branches }
 }

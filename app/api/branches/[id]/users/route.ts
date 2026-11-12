@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     return await withTenantTransaction(async () => {
       const users = await loadUsers()
-      const allBranches = ((await sql`SELECT id FROM branches WHERE COALESCE(status, 1) <> 3`) as any[]).map((row) => Number(row.id))
+      const allBranches = ((await sql`SELECT id FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3`) as any[]).map((row) => Number(row.id))
       const blocked: string[] = []
       for (const user of users) {
         const unrestricted = user.branches.length === 0

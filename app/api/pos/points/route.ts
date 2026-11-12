@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ points: visiblePoints })
     }
     const [branches,warehouses,currencies,books,accounts,users,priceCategories]=await Promise.all([
-      sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
+      sql`SELECT id,branch_code code,branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
       sql`SELECT id,warehouse_code code,warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
       sql`SELECT id,currency_code code,currency_name name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       sql`SELECT id,name FROM voucher_books_tbl ORDER BY name`,

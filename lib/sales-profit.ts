@@ -230,7 +230,7 @@ export async function salesProfitMeta() {
     sql`SELECT id, product_code AS code, product_name AS name FROM products WHERE COALESCE(deleted,false)=false AND COALESCE(status,1)<>3 AND COALESCE(type,1)=1 ORDER BY product_code, product_name`,
     sql`SELECT id, group_code AS code, group_name AS name FROM item_groups WHERE COALESCE(status,1)<>3 ORDER BY group_code, group_name`,
     sql`SELECT id, warehouse_code AS code, warehouse_name AS name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_code`,
-    sql`SELECT id, branch_code AS code, branch_name AS name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_code`,
+    sql`SELECT id, branch_code AS code, branch_name AS name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_code`,
     sql`SELECT a.id, a.code, a.name FROM account_tbl a WHERE a.id IN (SELECT DISTINCT account_id FROM voucher_header_tbl WHERE vch_type IN (12,16) AND account_id IS NOT NULL) ORDER BY a.code`,
     sql`SELECT id, code, name FROM salesmen ORDER BY code, name`,
   ])

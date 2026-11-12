@@ -245,7 +245,7 @@ items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إ�
     }
 
     const source = findWarehouse(parsed.source_warehouse) || defaultWarehouse()
-    const branches = await sql`SELECT id,branch_code,branch_name,status FROM branches WHERE COALESCE(status,1) != 3 ORDER BY id` as any[]
+    const branches = await sql`SELECT id,branch_code,branch_name,status FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1) != 3 ORDER BY id` as any[]
     const branchTerm = normalize(parsed.destination_branch)
     const branchPick = branchTerm ? pickBest(branches, branchTerm, (row: any) => row.branch_name, (row: any) => row.branch_code) : null
     const destinationBranch = branchPick && "match" in branchPick ? branchPick.match : null

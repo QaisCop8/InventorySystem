@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       sql`SELECT id,product_code code,product_name name FROM products WHERE COALESCE(deleted,false)=false AND COALESCE(status,1)<>3 ORDER BY product_name LIMIT 5000`,
       sql`SELECT id,group_name name FROM item_groups WHERE COALESCE(status,1)=1 ORDER BY group_name`,
       sql`SELECT id,warehouse_code code,warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
-      sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
+      sql`SELECT id,branch_code code,branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
       sql`SELECT id,currency_code code,currency_name name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       sql`SELECT r.*,s.name salesman_name,c.name customer_name,p.product_name item_name,g.group_name item_group_name,w.warehouse_name,b.branch_name,cu.currency_code
         FROM salesman_commission_rules r LEFT JOIN salesmen s ON s.id=r.salesman_id LEFT JOIN account_tbl c ON c.id=r.customer_id

@@ -417,7 +417,7 @@ export class PermissionDeniedError extends Error {}
 // واحد فقط. يُستخدَم عندما تحتاج شاشة عرض بيانات مُقيَّدة بالفرع (كالأصناف) تجميع النتائج من كل فرع
 // يملك المستخدم صلاحية استعلامه فيه، لا فرعه النشط فقط.
 export async function getGrantedBranchIds(userId: string, accessId: number): Promise<number[]> {
-  if (await isSystemAdmin(userId)) return ((await sql`SELECT id FROM branches`) as any[]).map((r: any) => Number(r.id))
+  if (await isSystemAdmin(userId)) return ((await sql`SELECT id FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false)`) as any[]).map((r: any) => Number(r.id))
   const rows = await sql`
     SELECT b.id
     FROM branches b
@@ -426,7 +426,8 @@ export async function getGrantedBranchIds(userId: string, accessId: number): Pro
     LEFT JOIN user_access ua ON ua.access_id = ${accessId} AND ua.user_id = ${userId}
     LEFT JOIN role_branch_permissions rbp ON rbp.role_id = us.job_role_id AND rbp.branch_id = b.id AND rbp.access_id = ${accessId}
     LEFT JOIN role_permissions rp ON rp.role_id = us.job_role_id AND rp.access_id = ${accessId}
-    WHERE COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) = TRUE
+    WHERE NOT COALESCE((to_jsonb(b)->>'is_bank_branch')::boolean, false)
+      AND COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) = TRUE
   `
   return rows.map((r: any) => Number(r.id))
 }

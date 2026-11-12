@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           WHERE COALESCE(p.deleted, false) = false AND COALESCE(p.status, 1) <> 3 AND COALESCE(p.type, 1) = 1
           ORDER BY p.product_code, p.product_name`,
       sql`SELECT id, warehouse_code code, warehouse_name name FROM warehouses WHERE COALESCE(status, 1) <> 3 ORDER BY warehouse_code`,
-      sql`SELECT id, branch_code code, branch_name name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY branch_code`,
+      sql`SELECT id, branch_code code, branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY branch_code`,
     ])
     if (params.get("meta") === "1") {
       // الفلتر يعرض الأصناف المتتبَّعة بالصلاحية فقط (بقية الأصناف لا صلاحية لها أصلاً)

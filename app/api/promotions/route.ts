@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (request.nextUrl.searchParams.get("lookup") === "1") {
       const [customers, branches, currencies] = await Promise.all([
         sql`SELECT id, code, name FROM account_tbl WHERE type IN (2, 5) AND COALESCE(status, 1) IN (1, 2) ORDER BY code`,
-        sql`SELECT id, branch_name name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY branch_name`,
+        sql`SELECT id, branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`,
         sql`SELECT id, currency_code code, currency_name name FROM currency ORDER BY id`,
       ])
       return NextResponse.json({ customers, branches, currencies })

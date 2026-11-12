@@ -25,7 +25,7 @@ export async function loadLookups(branchIds: number[]) {
       WHERE COALESCE(a.status, 1) <> 3 AND NOT EXISTS (SELECT 1 FROM account_tbl c WHERE c.father_id = a.id)
       ORDER BY a.code
     `,
-    sql`SELECT id, branch_code AS code, branch_name AS name, id = ANY(${branchIds}::int[]) AS current FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY id`,
+    sql`SELECT id, branch_code AS code, branch_name AS name, id = ANY(${branchIds}::int[]) AS current FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY id`,
     sql`SELECT id, name FROM cost_centers WHERE COALESCE(status, 1) <> 3 ORDER BY name`,
     sql`SELECT id, department_code AS code, department_name AS name FROM departments WHERE COALESCE(is_active, TRUE) ORDER BY department_name`,
     sql`SELECT id, currency_code AS code, currency_name AS name FROM currency ORDER BY id`,

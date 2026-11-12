@@ -76,7 +76,7 @@ async function meta(priceClass = 1) {
         ORDER BY CASE WHEN pp.unit_id=pu.unit_id THEN 0 ELSE 1 END,pp.id DESC LIMIT 1) price ON TRUE
       WHERE COALESCE(p.deleted,false)=false AND (p.status IS NULL OR p.status::text IN ('1','نشط','active','ACTIVE')) ORDER BY p.product_name`,
     sql`SELECT id, warehouse_code code, warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
-    sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
+    sql`SELECT id,branch_code code,branch_name name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
     sql`SELECT id,name FROM pricecategory WHERE COALESCE(status,1)=1 ORDER BY id`,
   ])
   return { products, warehouses, branches, priceClasses }

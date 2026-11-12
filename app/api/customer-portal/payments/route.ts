@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const branchIds = memberships.map((row: any) => Number(row.branch_id)).filter((id: number) => Number.isInteger(id) && id > 0)
     const branches = await sql`
       SELECT id, branch_name name FROM branches
-      WHERE COALESCE(status,1)<>3 AND (${branchIds.length === 0} OR id=ANY(${branchIds}::int[])) ORDER BY branch_name`
+      WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 AND (${branchIds.length === 0} OR id=ANY(${branchIds}::int[])) ORDER BY branch_name`
     const requested = request.nextUrl.searchParams.get("status") || "pending"
     const status = ["pending", "approved", "rejected", "all"].includes(requested) ? requested : "pending"
     const rows = await sql`

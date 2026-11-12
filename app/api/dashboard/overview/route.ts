@@ -21,7 +21,7 @@ async function prepareTables() {
 async function allowedBranches(userId: string) {
   const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${userId}`
   if (memberships.length) return memberships.map((row: any) => Number(row.branch_id))
-  return (await sql`SELECT id FROM branches`).map((row: any) => Number(row.id))
+  return (await sql`SELECT id FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false)`).map((row: any) => Number(row.id))
 }
 
 export async function GET(request: NextRequest) {

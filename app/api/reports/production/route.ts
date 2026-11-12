@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     if (params.get("meta") === "1") {
       const [branches, warehouses] = await Promise.all([
-        sql`SELECT id, branch_name AS name FROM branches WHERE COALESCE(status, 1) <> 3 ORDER BY id`,
+        sql`SELECT id, branch_name AS name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY id`,
         sql`SELECT id, warehouse_code AS code, warehouse_name AS name FROM warehouses WHERE COALESCE(status, 1) <> 3 ORDER BY id`,
       ])
       return NextResponse.json({ branches, warehouses })

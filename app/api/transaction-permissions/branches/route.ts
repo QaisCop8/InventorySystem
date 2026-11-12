@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
   const access = (await sql`SELECT id FROM access_list WHERE name = ${permissionName} ORDER BY id LIMIT 1`)[0]
   const memberships = (await isSystemAdmin(user.user_id)) ? [] : await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
   const membershipIds = new Set(memberships.map((row: any) => Number(row.branch_id)))
-  const branches = await sql`SELECT id, branch_code, branch_name FROM branches WHERE COALESCE(status, 1) != 3 ORDER BY branch_name`
+  // فروع الشركة فقط — جدول branches يضم فروع البنوك أيضاً
+  const branches = await sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) != 3 ORDER BY branch_name`
   const allowed = []
   for (const branch of branches) {
     const branchId = Number(branch.id)

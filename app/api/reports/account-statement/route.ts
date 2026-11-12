@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       effectiveBranchIds.length
         ? sql`SELECT id, branch_code, branch_name FROM branches WHERE id=ANY(${effectiveBranchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name`
-        : sql`SELECT id, branch_code, branch_name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
+        : sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
       sql`SELECT id, code, name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
     ])
 

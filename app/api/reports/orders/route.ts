@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       const [parties, salesmen, branches] = await Promise.all([
         sql`SELECT DISTINCT a.id, a.code, a.name FROM orders o JOIN account_tbl a ON a.id = o.customer_id WHERE COALESCE(o.deleted, false) = false ORDER BY a.name`,
         sql`SELECT id, code, name FROM salesmen ORDER BY name`,
-        sql`SELECT id, branch_code AS code, branch_name AS name FROM branches ORDER BY branch_name`,
+        sql`SELECT id, branch_code AS code, branch_name AS name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) ORDER BY branch_name`,
       ])
       return NextResponse.json({ parties, salesmen, branches })
     }
