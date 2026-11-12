@@ -5,6 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ManagementLogin } from "@/components/auth/management-login"
+import { rememberOfflinePassword } from "@/lib/offline-unlock"
 
 export default function ManagementLoginPage() {
   const router = useRouter()
@@ -30,6 +31,8 @@ export default function ManagementLoginPage() {
     if (!response.ok) {
       throw new Error(data.error || tr("حدث خطأ في تسجيل الدخول"))
     }
+    // تطبيق الكاشير/المطعم: فتح القفل لاحقاً دون اتصال بنفس كلمة المرور
+    await rememberOfflinePassword(credentials.username, credentials.password)
 
     // مسؤول المنصة ينتقل إلى لوحة الإدارة؛ بقية المستخدمين يختارون الشركة من "شركاتي".
     router.push(data.user?.is_platform_admin ? "/management/admin" : "/management/companies")

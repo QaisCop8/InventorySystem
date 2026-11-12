@@ -2,18 +2,23 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useState, type ReactNode } from "react"
-import { LogOut } from "lucide-react"
+import { Lock, LogOut, WifiOff } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
+import { hasOfflinePassword, offlineLockActive, releaseOfflineLock, verifyOfflinePassword } from "@/lib/offline-unlock"
 
 // غلاف وضع التطبيق (مشغّل الكاشير/المطعم — lib/app-mode.ts): الشاشة وحدها بلا القائمة الجانبية ولا الشريط العلوي
 // ولا تبويبات الصفحات. يتولّى ما كان الشريط العلوي يفعله في الخلفية: اختيار الفرع النشط (الفرع الافتراضي للمستخدم
 // أو أول فرع مسموح)، ويعرض زر «تسجيل الخروج» فقط (يعود لصفحة الدخول) — يُرفض ما دامت في الكاشير فاتورة غير محفوظة
 // أو عملية حفظ جارية (window.__noonAppCloseState، نفس فحص زر X في المشغّل).
+// تشغيل المشغّل دون اتصال (lib/offline-unlock.ts): الجلسة المحفوظة تُقفل بشاشة كلمة المرور حتى يُدخلها المستخدم.
 export function AppModeShell({ children }: { children: ReactNode }) {
   const { user, logout, activeBranchId, setActiveBranchContext } = useAuth()
   const [retry, setRetry] = useState(0)
   const [loggingOut, setLoggingOut] = useState(false)
   const [blocked, setBlocked] = useState("")
+  const [locked, setLocked] = useState(false)
+
+  useEffect(() => { setLocked(offlineLockActive()) }, [])
 
   useEffect(() => {
     if (!blocked) return
@@ -64,6 +69,10 @@ export function AppModeShell({ children }: { children: ReactNode }) {
     }
   }, [activeBranchId, setActiveBranchContext, user?.branchId, user?.id, retry])
 
+  if (locked && user) {
+    return <OfflineUnlock user={user} onUnlock={() => { releaseOfflineLock(); setLocked(false) }} onSwitchUser={() => logout()} />
+  }
+
   return (
     <div className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-background" dir={appDir()}>
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">{activeBranchId ? children : null}</div>
@@ -79,6 +88,75 @@ export function AppModeShell({ children }: { children: ReactNode }) {
           {loggingOut ? tr("جارٍ تسجيل الخروج...") : tr("تسجيل الخروج")}
         </button>
         {blocked ? <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-900 shadow">{blocked}</span> : null}
+      </div>
+    </div>
+  )
+}
+
+// شاشة فتح الجلسة دون اتصال: كلمة مرور آخر مستخدم دخل متصلاً تُطابَق محلياً. 5 محاولات خاطئة ⇐ انتظار 30 ثانية.
+function OfflineUnlock({ user, onUnlock, onSwitchUser }: { user: { fullName?: string; email?: string; username?: string }; onUnlock: () => void; onSwitchUser: () => void }) {
+  const identities = [user.email, user.username]
+  const canVerify = hasOfflinePassword(identities)
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [checking, setChecking] = useState(false)
+  const [failures, setFailures] = useState(0)
+  const [waitUntil, setWaitUntil] = useState(0)
+  const [online, setOnline] = useState(true)
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine)
+    update()
+    window.addEventListener("online", update)
+    window.addEventListener("offline", update)
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update) }
+  }, [])
+
+  const submit = async () => {
+    if (checking || !password) return
+    const remaining = Math.ceil((waitUntil - Date.now()) / 1000)
+    if (remaining > 0) return setError(tr("محاولات كثيرة — حاول بعد") + ` ${remaining} ` + tr("ثانية"))
+    setChecking(true)
+    const ok = await verifyOfflinePassword(identities, password)
+    setChecking(false)
+    if (ok) return onUnlock()
+    const count = failures + 1
+    setFailures(count >= 5 ? 0 : count)
+    if (count >= 5) setWaitUntil(Date.now() + 30_000)
+    setPassword("")
+    setError(tr("كلمة المرور غير صحيحة"))
+  }
+
+  return (
+    <div className="flex h-dvh items-center justify-center bg-gradient-to-br from-emerald-800 to-emerald-950 p-4" dir={appDir()}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
+        <div className="mb-4 flex flex-col items-center gap-2 text-center">
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Lock className="h-7 w-7" /></div>
+          <h1 className="text-lg font-bold">{tr("تسجيل الدخول")}</h1>
+          <p className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900"><WifiOff className="h-3.5 w-3.5" />{tr("لا يوجد اتصال بالإنترنت — دخول دون اتصال")}</p>
+          <p className="text-sm text-muted-foreground">{user.fullName || user.email || user.username}</p>
+        </div>
+        {canVerify ? (
+          <form onSubmit={(event) => { event.preventDefault(); void submit() }} className="space-y-3">
+            <input
+              type="password"
+              autoFocus
+              value={password}
+              onChange={(event) => { setPassword(event.target.value); setError("") }}
+              placeholder={tr("كلمة المرور")}
+              className="h-11 w-full rounded-lg border px-3 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 dark:bg-slate-800"
+            />
+            {error ? <p className="text-sm font-semibold text-rose-600">{error}</p> : null}
+            <button type="submit" disabled={checking || !password} className="h-11 w-full rounded-lg bg-emerald-700 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-50">
+              {checking ? tr("جارٍ التحقق...") : tr("دخول")}
+            </button>
+          </form>
+        ) : (
+          <p className="rounded-lg bg-rose-50 p-3 text-center text-sm font-semibold text-rose-700">{tr("لم يُحفظ دخول دون اتصال لهذا المستخدم — اتصل بالإنترنت وسجّل الدخول مرة واحدة")}</p>
+        )}
+        {online ? (
+          <button type="button" onClick={onSwitchUser} className="mt-3 w-full text-center text-xs font-semibold text-emerald-700 hover:underline">{tr("تسجيل الدخول بحساب آخر")}</button>
+        ) : null}
       </div>
     </div>
   )

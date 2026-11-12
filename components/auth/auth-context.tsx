@@ -5,6 +5,7 @@ import { ThemeLoader } from "@/components/theme-loader"
 import { beginSaving, isVoucherSaveRequest } from "@/lib/saving-lock"
 import { isEnglish, translatePayload, tr } from "@/lib/i18n"
 import { POS_RESUME_KEY, shouldResumePos } from "@/lib/pos-offline"
+import { rememberOfflinePassword } from "@/lib/offline-unlock"
 interface ModulePermissions {
   add?: boolean
   edit?: boolean
@@ -424,6 +425,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const result = await response.json()
 
       if (result.success && result.user) {
+        void rememberOfflinePassword(credentials.username, credentials.password)
         const sessionData = {
           timestamp: new Date().getTime(),
           rememberMe: credentials.rememberMe,
