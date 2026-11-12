@@ -2,7 +2,8 @@
 // نافذة ويندوز حقيقية (مكبّرة، شريط مهام ويندوز ظاهر) تستضيف محرك Edge (WebView2) وتفتح النظام بـ ?app=... فيظهر بعد
 // الدخول واختيار الشركة شاشة الكاشير/المطعم وحدها (lib/app-mode.ts + components/app-mode-shell.tsx).
 // زر X: يسأل الصفحة أولاً عن تغييرات غير محفوظة (window.__noonAppCloseState في الكاشير) ثم "هل تريد الخروج من البرنامج؟".
-// ملف تعريف مستقل لكل مشغّل في %LOCALAPPDATA%\NoonERP\<mode> فيبقى تسجيل الدخول محفوظاً.
+// ملف تعريف مستقل لكل مشغّل في %LOCALAPPDATA%\NoonERP\<mode>. تسجيل الدخول لا يُحفظ بين مرات التشغيل: عند البدء تُمسح
+// الكوكيز (عدا معرّف الجهاز noon_device ولغة الواجهة app_lang) وتخزين الصفحات، وعند الخروج يُسجَّل خروج المستخدم من الخادم.
 // عنوان خادم مختلف: launcher.ini بجانب الملف التنفيذي يحوي سطر url=https://...
 // مكتبات WebView2 مضمّنة كموارد داخل الملف التنفيذي (ملف واحد) — البناء: node launchers/windows/build.mjs
 using System;
@@ -18,8 +19,8 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyTitle(NoonLauncher.Title)]
 [assembly: AssemblyProduct("NoonERP")]
 [assembly: AssemblyCompany("Sabbah Soft")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 static class NoonLauncher
 {
@@ -119,6 +120,7 @@ class LauncherForm : Form
     readonly WebView2 web = new WebView2();
     bool allowClose;
     bool closing;
+    System.Threading.Tasks.TaskCompletionSource<bool> logoutDone;
 
     public LauncherForm(string url)
     {
@@ -150,6 +152,7 @@ class LauncherForm : Form
             // الطباعة المباشرة من المشغّل نفسه (Printing.cs) — الصفحة تتعرف عليه بـ __noonLauncher (lib/local-print.ts)
             await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.__noonLauncher={print:true,version:'" + typeof(NoonLauncher).Assembly.GetName().Version + "'};");
             web.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+            await ClearLoginAsync();
             web.CoreWebView2.Navigate(startUrl);
         }
         catch (Exception error)
@@ -158,6 +161,38 @@ class LauncherForm : Form
             allowClose = true;
             Close();
         }
+    }
+
+    // كل تشغيل يبدأ بصفحة الدخول: جلسة الشركة/الإدارة في الكوكيز وبيانات المستخدم في localStorage/sessionStorage.
+    // noon_device يبقى (جهاز واحد لكل مستخدم: جلسة قديمة من نفس الجهاز لا تُعدّ "جهازاً آخر") وكذلك لغة الواجهة.
+    async System.Threading.Tasks.Task ClearLoginAsync()
+    {
+        try
+        {
+            CoreWebView2CookieManager manager = web.CoreWebView2.CookieManager;
+            foreach (CoreWebView2Cookie cookie in await manager.GetCookiesAsync(null))
+            {
+                if (cookie.Name == "noon_device" || cookie.Name == "app_lang") continue;
+                manager.DeleteCookie(cookie);
+            }
+        }
+        catch { }
+        try { await web.CoreWebView2.Profile.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.AllDomStorage); }
+        catch { }
+    }
+
+    // إنهاء جلسة المستخدم على الخادم قبل إغلاق البرنامج (حتى يظهر خروجه في سجل الدخول) — بحد أقصى 3 ثوانٍ
+    async System.Threading.Tasks.Task LogoutAsync()
+    {
+        if (web.CoreWebView2 == null) return;
+        try
+        {
+            System.Threading.Tasks.Task request = web.CoreWebView2.ExecuteScriptAsync("(function(){try{fetch('/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',keepalive:true,credentials:'same-origin'}).then(function(){window.chrome.webview.postMessage({type:'noon-logout-done'})},function(){window.chrome.webview.postMessage({type:'noon-logout-done'})})}catch(e){window.chrome.webview.postMessage({type:'noon-logout-done'})}})()");
+            logoutDone = new System.Threading.Tasks.TaskCompletionSource<bool>();
+            await request;
+            await System.Threading.Tasks.Task.WhenAny(logoutDone.Task, System.Threading.Tasks.Task.Delay(3000));
+        }
+        catch { }
     }
 
     // رسالة طباعة من الصفحة: تُنفَّذ في الخلفية ثم يُرسل الرد (نجاح/سبب الفشل) بنفس المعرّف
@@ -169,6 +204,11 @@ class LauncherForm : Form
             message = new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = int.MaxValue }.DeserializeObject(args.WebMessageAsJson) as System.Collections.IDictionary;
         }
         catch { return; }
+        if (message != null && "noon-logout-done".Equals(message["type"]))
+        {
+            if (logoutDone != null) logoutDone.TrySetResult(true);
+            return;
+        }
         if (message == null || !"noon-print".Equals(message["type"])) return;
         object id = message.Contains("id") ? message["id"] : null;
         System.Collections.IList pages = message.Contains("pages") ? message["pages"] as System.Collections.IList : null;
@@ -225,6 +265,8 @@ class LauncherForm : Form
                 return;
             }
             if (NoonLauncher.Ask(this, "هل تريد الخروج من البرنامج؟", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            Enabled = false;
+            await LogoutAsync();
             allowClose = true;
             Close();
         }
