@@ -41,13 +41,25 @@ export const ensureCustomerCompatibilityColumns = async () => { return runSchema
   `
 }) }
 
-// رقم الهوية: فارغ أو أرقام فقط (10 أرقام على الأقل). الهوية/الهاتف/الإيميل إجبارية للعملاء (type 1)
-// حسب اعدادات النظام: customer_id_number_required / customer_phone_required / customer_email_required
+// رقم الهوية: فارغ أو أرقام فقط (9 أرقام على الأقل) وغير مكرر بين العملاء/الموردين/المندوبين/المشتركين.
+// الهوية/الهاتف/الإيميل إجبارية للعملاء (type 1) حسب اعدادات النظام:
+// customer_id_number_required / customer_phone_required / customer_email_required
 export const normalizeCustomerIdNumber = (value: unknown) => String(value ?? "").trim()
 
-export async function validateCustomerContactFields(data: any, type: unknown): Promise<string | null> {
+export async function validateCustomerContactFields(data: any, type: unknown, currentId?: unknown): Promise<string | null> {
   const idNumber = normalizeCustomerIdNumber(data?.id_number)
-  if (idNumber && !/^\d{10,20}$/.test(idNumber)) return "رقم الهوية يجب أن يكون أرقاماً فقط و10 أرقام على الأقل"
+  if (idNumber && !/^\d{9,20}$/.test(idNumber)) return "رقم الهوية يجب أن يكون أرقاماً فقط و9 أرقام على الأقل"
+  if (idNumber) {
+    await ensureCustomerCompatibilityColumns()
+    const [duplicate] = await sql`
+      SELECT name, type FROM customers
+      WHERE btrim(id_number) = ${idNumber} AND COALESCE(isdeleted, false) = false AND id <> ${Number(currentId) || 0}
+      LIMIT 1`
+    if (duplicate) {
+      const kind = Number(duplicate.type) === 2 ? "المورد" : Number(duplicate.type) === 3 ? "المندوب" : Number(duplicate.type) === 4 ? "المشترك" : "العميل"
+      return `رقم الهوية مكرر مع ${kind} ${String(duplicate.name || "").trim()}`
+    }
+  }
   const email = String(data?.email ?? "").trim()
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "البريد الإلكتروني غير صحيح"
   if (Number(type ?? 1) !== 1) return null

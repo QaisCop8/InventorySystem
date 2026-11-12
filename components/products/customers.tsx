@@ -940,11 +940,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setPopupMessage({ severity: "error", detail: message })
     }
 
-    // رقم الهوية: فارغ أو أرقام فقط و10 أرقام على الأقل؛ الهوية/الهاتف/الإيميل إجبارية للعملاء حسب اعدادات النظام
+    // رقم الهوية: فارغ أو أرقام فقط و9 أرقام على الأقل (التكرار يفحصه الخادم)؛ الهوية/الهاتف/الإيميل إجبارية للعملاء حسب اعدادات النظام
     const idNumber = String(formData.id_number || "").trim()
     const email = String(formData.email || "").trim()
     const required = entityTypeCode === 1 ? requiredContactFields : { idNumber: false, phone: false, email: false }
-    if (idNumber && !/^\d{10,20}$/.test(idNumber)) errors.id_number = tr("رقم الهوية يجب أن يكون أرقاماً فقط و10 أرقام على الأقل")
+    if (idNumber && !/^\d{9,20}$/.test(idNumber)) errors.id_number = tr("رقم الهوية يجب أن يكون أرقاماً فقط و9 أرقام على الأقل")
     else if (required.idNumber && !idNumber) errors.id_number = tr("رقم الهوية اجباري")
     if (required.phone && !String(formData.mobile1 || "").trim()) errors.mobile1 = tr("رقم الهاتف اجباري")
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = tr("البريد الإلكتروني غير صحيح")

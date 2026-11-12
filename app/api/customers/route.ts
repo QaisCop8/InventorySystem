@@ -487,7 +487,7 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Customer ID is required" }, { status: 400 })
     }
-    const contactError = await validateCustomerContactFields(updateData, updateData.type ?? 1)
+    const contactError = await validateCustomerContactFields(updateData, updateData.type ?? 1, id)
     if (contactError) return NextResponse.json({ error: contactError }, { status: 400 })
 
     const accountType = resolveAccountType(updateData.type)
