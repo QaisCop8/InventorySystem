@@ -15,6 +15,7 @@ const PRODUCT_TYPE_OPTIONS: ReportOption[] = [
 ];
 import { useTranslation } from 'react-i18next';
 import { Boxes, Package, Plus, RotateCcw, ListFilter } from "lucide-react";
+import { normalizeArabicSearch } from "@/lib/arabic-search";
 import {
   SearchDialogHeader,
   SearchFilterField,
@@ -207,7 +208,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       selected: false,
       selected_unit: p.selected_unit || null,
       _code: String(p.product_code || "").toLowerCase(),
-      _name: String(p.product_name || "").toLowerCase(),
+      _name: normalizeArabicSearch(p.product_name),
       _barcodes: [p.first_barcode, p.barcode].filter(Boolean).join(" ").toLowerCase(),
     }));
     // تحديث تلقائي (عودة من تبويب إضافة/تعديل صنف أو حفظ صنف في تبويب آخر): يتجاوز الذاكرة المؤقتة ويُبقي الفلاتر
@@ -359,12 +360,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   // Filtered products
   // -----------------------
   const searchWordsMatch = (text: string, searchQuery: string) => {
-    const words = searchQuery
+    const words = normalizeArabicSearch(searchQuery)
       .trim()
-      .toLowerCase()
       .split(/\s+/);
 
-    const normalizedText = text.toLowerCase();
+    const normalizedText = normalizeArabicSearch(text);
     return words.every(word => normalizedText.includes(word));
   };
 
@@ -381,7 +381,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const deferredBarcode = useDeferredValue(searchBarcode);
   const filteredProducts = useMemo(() => {
     const code = deferredCode.trim().toLowerCase();
-    const nameWords = deferredName.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const nameWords = normalizeArabicSearch(deferredName).trim().split(/\s+/).filter(Boolean);
     const price = deferredPrice.trim();
     const barcode = deferredBarcode.trim().toLowerCase();
     if (!code && !nameWords.length && !price && !barcode && !templateFilter) return products;
@@ -389,7 +389,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       if (templateFilter && !templateFilter.ids.has(Number(p.id))) return false;
       if (code && !(p._code ?? String(p.product_code || "").toLowerCase()).includes(code)) return false;
       if (nameWords.length) {
-        const name = p._name ?? String(p.product_name || "").toLowerCase();
+        const name = p._name ?? normalizeArabicSearch(p.product_name);
         if (!nameWords.every(word => name.includes(word))) return false;
       }
       if (price && !String(displayPrice(p)).includes(price)) return false;

@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { appDir } from "@/lib/i18n"
 import { useState } from "react"
 import { Check, ChevronDown } from "lucide-react"
@@ -53,7 +54,7 @@ export function SearchableSelect<T extends Record<string, any>>({
         className="z-[3100] w-[var(--radix-popover-trigger-width)] min-w-[220px] rounded-xl p-0 shadow-xl"
       >
         <Command
-          filter={(itemValue, search) => (itemValue.toLocaleLowerCase("ar").includes(search.trim().toLocaleLowerCase("ar")) ? 1 : 0)}
+          filter={(itemValue, search) => (normalizeArabicSearch(itemValue).includes(normalizeArabicSearch(search).trim()) ? 1 : 0)}
         >
           <CommandInput placeholder={searchPlaceholder} className="text-start" />
           <CommandList className="max-h-64">

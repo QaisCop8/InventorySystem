@@ -1,6 +1,7 @@
 "use client"
 
-import { tr, appDir } from "@/lib/i18n"
+import { tr, appDir, currentLanguage } from "@/lib/i18n"
+import { COMPANY_LANGUAGES, countryOptions } from "@/lib/countries"
 import { confirmYesNo } from "@/components/ui/confirm-host"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -132,6 +133,8 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
     phone: "",
     email: "",
     website: "",
+    companyCountry: "",
+    companyLanguage: "ar",
 
     // System Settings
     defaultCurrency: "ILS",
@@ -280,6 +283,8 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
             phone: String(settingsPayload.company_phone ?? ""),
             email: String(settingsPayload.company_email ?? ""),
             website: String(settingsPayload.company_website ?? ""),
+            companyCountry: String(settingsPayload.company_country ?? ""),
+            companyLanguage: String(settingsPayload.company_language || "ar"),
             taxNumber: String(settingsPayload.tax_number ?? ""),
             commercialRegister: String(settingsPayload.commercial_register ?? ""),
             defaultCurrency: settingsPayload.default_currency || prev.defaultCurrency,
@@ -540,6 +545,8 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
           company_phone: settings.phone,
           company_email: settings.email,
           company_website: settings.website,
+          company_country: settings.companyCountry,
+          company_language: settings.companyLanguage,
           tax_number: settings.taxNumber,
           commercial_register: settings.commercialRegister,
           default_currency: settings.defaultCurrency,
@@ -670,6 +677,8 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
         phone: "",
         email: "",
         website: "",
+        companyCountry: "",
+        companyLanguage: "ar",
         defaultCurrency: "ILS",
         dateFormat: "dd/mm/yyyy",
         timeFormat: "24h",
@@ -977,6 +986,33 @@ export function SystemSettings({ initialSection }: { initialSection?: SettingsSe
                     className="text-end"
                     dir="ltr"
                   />
+                </div>
+                <div>
+                  <Label htmlFor="companyCountry" className="text-start block">
+                    {tr("الدولة")}
+                  </Label>
+                  <select
+                    id="companyCountry"
+                    value={settings.companyCountry}
+                    onChange={(e) => setSettings({ ...settings, companyCountry: e.target.value })}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">{tr("اختر الدولة")}</option>
+                    {countryOptions(currentLanguage()).map((country) => <option key={country.value} value={country.value}>{country.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="companyLanguage" className="text-start block">
+                    {tr("اللغة")}
+                  </Label>
+                  <select
+                    id="companyLanguage"
+                    value={settings.companyLanguage}
+                    onChange={(e) => setSettings({ ...settings, companyLanguage: e.target.value })}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    {COMPANY_LANGUAGES.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}
+                  </select>
                 </div>
               </div>
             </CardContent>

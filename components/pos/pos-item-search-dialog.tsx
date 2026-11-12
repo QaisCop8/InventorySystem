@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowRight, PackageOpen, Search } from "lucide-react"
@@ -25,14 +26,7 @@ type SearchableProduct = {
   barcodeOptions: { barcode: string; price: number; unitId: number | null; unitName: string }[]
 }
 
-const normalizeText = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[ً-ْـ]/g, "")
-    .replace(/[أإآ]/g, "ا")
-    .replace(/ى/g, "ي")
-    .replace(/ة/g, "ه")
-    .trim()
+const normalizeText = (value: string) => normalizeArabicSearch(value).trim()
 
 /** وحدات الصنف: أسعار الوحدات + أسماؤها من الباركودات، مع وحدة الصنف الافتراضية دائماً. */
 export function productUnits(product: SearchableProduct): PosSearchUnit[] {

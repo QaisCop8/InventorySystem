@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { CheckCircle2, CornerDownLeft, FolderTree, Search, Target } from "lucide-react"
@@ -57,7 +58,7 @@ export default function SearchCostCenterDialog({ open, onOpenChange, type, costC
     const term = filter.trim().toLowerCase()
     return costCenters
       .filter((center) => center.cost_type_id === type.id && Number(center.status ?? 1) !== 3)
-      .filter((center) => !term || center.name.toLowerCase().includes(term) || String(center.id) === term || String(center.parent_name || "").toLowerCase().includes(term))
+      .filter((center) => !term || normalizeArabicSearch(center.name).includes(normalizeArabicSearch(term)) || String(center.id) === term || normalizeArabicSearch(center.parent_name).includes(normalizeArabicSearch(term)))
       .sort((a, b) => (a.id || 0) - (b.id || 0))
   }, [costCenters, filter, type])
 

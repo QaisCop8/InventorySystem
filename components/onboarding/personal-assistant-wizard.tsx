@@ -1,6 +1,8 @@
 "use client"
 
-import { tr, appDir } from "@/lib/i18n"
+import { tr, appDir, currentLanguage } from "@/lib/i18n"
+import { COMPANY_LANGUAGES, countryOptions } from "@/lib/countries"
+import { suggestTemplateDefaults } from "@/lib/account-template-defaults"
 import { useCallback, useEffect, useState } from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 import { useRouter } from "next/navigation"
@@ -15,6 +17,19 @@ import { AccountsImportDialog } from "@/components/import/accounts-import"
 import { ProductsImportDialog } from "@/components/import/products-import"
 import { PartyImportDialog, type PartyImportKind } from "@/components/import/customers-import"
 import { buildVoucherCode } from "@/lib/voucher-code"
+import dynamic from "next/dynamic"
+import BankAccountsAutoSettings from "@/components/admin/bank-accounts-auto-settings"
+
+// خطوة «حسابات الصناديق والبنوك»: تعريف البنوك وفروعها والحسابات البنكية من البداية السريعة نفسها (نفس شاشات النظام)
+const BanksScreen = dynamic(() => import("@/components/admin/banks"), { ssr: false })
+const BankBranchesScreen = dynamic(() => import("@/components/admin/branches"), { ssr: false })
+const BankAccountsScreen = dynamic(() => import("@/components/admin/bank-accounts"), { ssr: false })
+const BANK_STEP_TABS = [
+  { key: "defaults", label: "حسابات العملات الافتراضية" },
+  { key: "banks", label: "البنوك" },
+  { key: "branches", label: "فروع البنوك" },
+  { key: "accounts", label: "الحسابات البنكية" },
+] as const
 
 const steps = [
   { title: tr("معلومات الشركة"), description: tr("أدخل بيانات الشركة الأساسية"), icon: Building2, color: "from-teal-200 via-cyan-100 to-slate-50" },
@@ -45,6 +60,45 @@ const productAccountFields = [
   ["default_production_account_id", "حساب الإنتاج"], ["default_municipality_service_account_id", "حساب المصاريف البلدية"],
   ["default_lsti3mal_account_id", "حساب المصروف في سند الاستعمال"],
 ] as const
+
+// الحسابات الافتراضية المقترحة من هيكل الحسابات الجاهز (data/accounts.json — عمود default_type): بعد استيراد الهيكل تُعبّأ
+// الحقول الفارغة في «الحسابات الافتراضية» و«حسابات الأصناف» بالحساب المقابل، ويبقى للمستخدم تغييرها قبل الحفظ.
+const TEMPLATE_DEFAULT_TYPES: Record<string, string> = {
+  default_customer_parent_account: "حساب الذمم المدينة",
+  default_sales_tax_account: "حساب ضريبة المبيعات",
+  default_currency_transfer_account: "حساب تحويلات عملة",
+  default_earned_discount_account: "حساب الخصم المكتسب",
+  default_exchange_gain_loss_account: "حساب فرق العملة",
+  default_salesman_parent_account: "حساب اب المندوبين",
+  default_supplier_parent_account: "حساب الذمم الدائنة",
+  default_customer_subscription_account: "حساب المشتركين",
+  default_purchase_tax_account: "حساب ضريبة المشتريات",
+  default_new_employee_account: "حساب الموظفين",
+  default_allowed_discount_account: "حساب الخصم المسموح به",
+  default_selling_account_id: "حساب المبيعات",
+  default_purchase_account_id: "حساب المشتريات",
+  default_selling_returns_account_id: "حساب مردود المبيعات",
+  default_purchase_returns_account_id: "حساب مردود المشتريات",
+  default_stock_end_account_id: "حساب بضاعة اخر المدة",
+  default_stock_start_account_id: "حساب بضاعة أول المدة",
+}
+// حسابات بلا علامة default_type في الهيكل — بالرقم
+const TEMPLATE_DEFAULT_CODES: Record<string, string[]> = {
+  default_production_account_id: ["410999999"],
+}
+
+const TEMPLATE_DEFAULT_RULES = Object.fromEntries([
+  ...Object.entries(TEMPLATE_DEFAULT_TYPES).map(([key, defaultType]) => [key, { defaultType }]),
+  ...Object.entries(TEMPLATE_DEFAULT_CODES).map(([key, codes]) => [key, { codes }]),
+])
+
+// رقم الصنف/الذمة: الحروف (البادئة) ثم الأرقام مكمّلة بأصفار يساراً لعشر خانات — S1 ⇐ S000000001، 1 ⇐ 0000000001
+const padCodeLeft = (raw: string) => {
+  const code = String(raw || "").trim().toUpperCase()
+  const match = /^([A-Z]*)(\d+)$/.exec(code)
+  if (!code || !match || code.length >= 10) return code
+  return match[1] + match[2].padStart(10 - match[1].length, "0")
+}
 
 type Notice = { type: "success" | "error" | "info"; text: string } | null
 // نوع الذمة في "إضافة عميل سريع": يحدد نوع السجل المُضاف يدوياً ونوع سجلات استيراد Excel (نفس أنواع PartyImportDialog)
@@ -141,6 +195,8 @@ export default function PersonalAssistantWizard() {
     phone: "",
     email: "",
     website: "",
+    country: "",
+    language: "ar",
   })
   const [isFirstCurrency, setIsFirstCurrency] = useState(false)
   const [savedCurrencies, setSavedCurrencies] = useState<any[]>([])
@@ -154,6 +210,8 @@ export default function PersonalAssistantWizard() {
   const [currencyDefaultAccounts, setCurrencyDefaultAccounts] = useState<CurrencyDefaultAccountRow[]>([])
   const [defaultAccountsBranchId, setDefaultAccountsBranchId] = useState("")
   const [defaultAccountsBranches, setDefaultAccountsBranches] = useState<any[]>([])
+  const [bankStepTab, setBankStepTab] = useState<(typeof BANK_STEP_TABS)[number]["key"]>("defaults")
+  const [bankAutoSettingsOpen, setBankAutoSettingsOpen] = useState(false)
   const [defaultAccountStructure, setDefaultAccountStructure] = useState("commercial")
   const [financialItems, setFinancialItems] = useState<{ assets: any[]; liabilities: any[]; income: any[] }>({ assets: [], liabilities: [], income: [] })
   const [lookupValues, setLookupValues] = useState<Record<string, string>>({})
@@ -230,6 +288,8 @@ export default function PersonalAssistantWizard() {
         phone: pick(data, "company_phone", "companyPhone", "phone"),
         email: pick(data, "company_email", "companyEmail", "email"),
         website: pick(data, "company_website", "companyWebsite", "website"),
+        country: pick(data, "company_country"),
+        language: pick(data, "company_language") || "ar",
       }))
       .catch(() => undefined)
   }, [open, step])
@@ -253,7 +313,12 @@ export default function PersonalAssistantWizard() {
     if (!open || (step !== 4 && step !== 5)) return
     fetch("/api/settings/system")
       .then((response) => response.ok ? response.json() : {})
-      .then((data: any) => setSystemAccountSettings(Object.fromEntries([...defaultAccountFields, ...productAccountFields].map(([key]) => [key, data?.[key] ? String(data[key]) : ""]))))
+      .then(async (data: any) => {
+        const saved: Record<string, string> = Object.fromEntries([...defaultAccountFields, ...productAccountFields].map(([key]) => [key, data?.[key] ? String(data[key]) : ""]))
+        setSystemAccountSettings(saved)
+        const suggestions = await suggestTemplateDefaults(TEMPLATE_DEFAULT_RULES, saved).catch(() => ({}))
+        if (Object.keys(suggestions).length) setSystemAccountSettings((current) => ({ ...current, ...Object.fromEntries(Object.entries(suggestions).filter(([key]) => !current[key])) }))
+      })
       .catch(() => undefined)
   }, [open, step])
 
@@ -594,6 +659,28 @@ export default function PersonalAssistantWizard() {
     }
   }
 
+  const renameBranch = async (row: any, name: string) => {
+    const definition = lookupDefinitions.find((item) => item.key === "branch")!
+    if ((savedLookups.branch || []).some((other) => other.id !== row.id && normalizeLookup(other.branch_name) === normalizeLookup(name))) {
+      showResult("error", tr("اسم {0} موجود مسبقاً", definition.label))
+      return false
+    }
+    setBusy(true)
+    try {
+      const response = await fetch(definition.endpoint, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...row, branch_name: name, bank_branch: false }) })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || tr("تعذر حفظ اسم الفرع"))
+      await loadLookupRecords(definition)
+      showResult("success", tr("تم حفظ اسم الفرع"))
+      return true
+    } catch (error) {
+      showResult("error", error instanceof Error ? error.message : tr("تعذر حفظ اسم الفرع"))
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const addLookup = async (definition: typeof lookupDefinitions[number]) => {
     const value = String(lookupValues[definition.key] || "").trim()
     if (!value) return
@@ -617,7 +704,7 @@ export default function PersonalAssistantWizard() {
       return
     }
     if (definition.key === "branch" && license && license.usage.branches >= license.limits.branches) {
-      licenseRequest.open("branches", `تم الوصول للحد المرخّص من الفروع (${license.usage.branches} من ${license.limits.branches}).`, license.pending.some((request) => request.resource === "branches"))
+      licenseRequest.open("branches", `تم الوصول للحد المرخّص من الفروع (${license.usage.branches} من ${license.limits.branches}). الفرع الرئيسي معرّف تلقائياً مع الشركة — يمكنك تعديل اسمه من «تعديل الاسم» في الجدول، أو طلب زيادة عدد الفروع.`, license.pending.some((request) => request.resource === "branches"))
       return
     }
     setBusy(true)
@@ -670,6 +757,8 @@ export default function PersonalAssistantWizard() {
           company_phone: company.phone,
           company_email: company.email,
           company_website: company.website,
+          company_country: company.country,
+          company_language: company.language,
         }),
       })
       if (!response.ok) throw new Error(tr("تعذر حفظ معلومات الشركة"))
@@ -737,13 +826,17 @@ export default function PersonalAssistantWizard() {
             {step === -1 && <CompanyInfoStep company={company} onChange={setCompany} />}
 
             {step === 0 && <div className="space-y-5"><section className="grid gap-4 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:grid-cols-3"><Field label={tr("رمز العملة")} value={currency.code} onChange={(value) => setCurrency({ ...currency, code: value.toUpperCase() })} placeholder="USD" maxLength={3} /><Field label={tr("اسم العملة")} value={currency.name} onChange={(value) => setCurrency({ ...currency, name: value })} placeholder={tr("دولار أمريكي")} maxLength={30} /><Field label={isFirstCurrency ? tr("سعر الصرف (العملة الأساسية)") : tr("سعر الصرف")} value={currency.rate} onChange={(value) => setCurrency({ ...currency, rate: value })} placeholder="3.40" type="number" min={0.001} max={100000} step="0.001" disabled={isFirstCurrency} /><AddButton busy={busy} onClick={addCurrent} label={tr("إضافة العملة")} /></section><section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50/70 px-5 py-3"><h4 className="font-black text-emerald-950">{tr("العملات المحفوظة")}</h4><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{savedCurrencies.length}{tr(" عملة")}</span></div>{savedCurrencies.length === 0 ? <div className="px-5 py-8 text-center text-sm text-slate-400">{tr("لم تتم إضافة عملات بعد")}</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-900 text-white"><tr><th className="px-4 py-3 text-start">#</th><th className="px-4 py-3 text-start">{tr("رمز العملة")}</th><th className="px-4 py-3 text-start">{tr("اسم العملة")}</th><th className="px-4 py-3 text-start">{tr("سعر الصرف")}</th></tr></thead><tbody>{savedCurrencies.map((item, index) => <tr key={item.currency_id ?? item.id ?? index} className="border-b border-slate-100 last:border-0 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-800">{item.currency_code}</td><td className="px-4 py-3 text-slate-700">{item.currency_name}</td><td className="px-4 py-3 font-semibold text-emerald-700">{Number(item.exchange_rate || 0).toLocaleString("en-US", { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>}</section></div>}
-            {step === 1 && licenseRequest.element}{step === 1 && <LookupTabs extraFor={{ branch: <LicenseUsageStrip resource="branches" license={license} onRequest={() => licenseRequest.open("branches")} /> }} inlineFor={{ department: <select aria-label={tr("الفرع")} title={tr("الفرع")} value={departmentBranchId || String(savedLookups.branch?.[0]?.id ?? "")} onChange={(event) => setDepartmentBranchId(event.target.value)} className="h-11 w-56 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"><option value="">{savedLookups.branch?.length ? tr("اختر الفرع *") : tr("لا توجد فروع — أضف فرعاً أولاً")}</option>{(savedLookups.branch || []).map((branch: any) => <option key={branch.id} value={String(branch.id)}>{String(branch.branch_name ?? branch.name ?? branch.id)}</option>)}</select> }} activeKey={activeLookupKey} onTabChange={setActiveLookupKey} values={lookupValues} onValueChange={(key, value) => setLookupValues((current) => ({ ...current, [key]: value }))} records={savedLookups} busy={busy} onAdd={addLookup} />}
+            {step === 1 && licenseRequest.element}{step === 1 && <LookupTabs extraFor={{ branch: <LicenseUsageStrip resource="branches" license={license} onRequest={() => licenseRequest.open("branches")} /> }} inlineFor={{ department: <select aria-label={tr("الفرع")} title={tr("الفرع")} value={departmentBranchId || String(savedLookups.branch?.[0]?.id ?? "")} onChange={(event) => setDepartmentBranchId(event.target.value)} className="h-11 w-56 shrink-0 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"><option value="">{savedLookups.branch?.length ? tr("اختر الفرع *") : tr("لا توجد فروع — أضف فرعاً أولاً")}</option>{(savedLookups.branch || []).map((branch: any) => <option key={branch.id} value={String(branch.id)}>{String(branch.branch_name ?? branch.name ?? branch.id)}</option>)}</select> }} activeKey={activeLookupKey} onTabChange={setActiveLookupKey} values={lookupValues} onValueChange={(key, value) => setLookupValues((current) => ({ ...current, [key]: value }))} records={savedLookups} busy={busy} onAdd={addLookup} onRenameBranch={renameBranch} />}
             {step === 2 && <NumberingSettingsStep values={numberingSettings} autoNumbering={autoNumbering} onChange={(key, value) => setNumberingSettings((current) => ({ ...current, [key]: value }))} onAutoNumberingChange={setAutoNumbering} />}
             {step === 3 && <DataStep title={tr("إضافة حساب سريع")} busy={busy} onAdd={addCurrent} onImport={() => openImport("accounts")} fields={<><Field label={tr("رقم الحساب")} value={account.code} onChange={(value) => setAccount({ ...account, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setAccount((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label={tr("اسم الحساب")} value={account.name} onChange={(value) => setAccount({ ...account, name: value })} maxLength={100} /><NativeSelect label={tr("القائمة المالية")} value={account.financialListId} onChange={(value) => setAccount({ ...account, financialListId: value, assetsId: "", liabilitiesId: "", incomeId: "" })} options={[{ value: "1", label: tr("الميزانية العمومية") }, { value: "2", label: tr("قائمة الدخل") }, { value: "3", label: tr("تقييم بضاعة") }]} />{account.financialListId === "1" && <><NativeSelect label={tr("أصول الميزانية")} value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel={tr("عدم الإظهار")} options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label={tr("خصوم الميزانية")} value={account.liabilitiesId} onChange={(value) => setAccount({ ...account, liabilitiesId: value })} emptyLabel={tr("عدم الإظهار")} options={financialItems.liabilities.map((item) => ({ value: String(item.id), label: item.name }))} /></>}{account.financialListId === "2" && <NativeSelect label={tr("بند قائمة الدخل")} value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} />}{account.financialListId === "3" && <><NativeSelect label={tr("أصول الميزانية")} value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel={tr("عدم الإظهار")} options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label={tr("بند قائمة الدخل")} value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} /></>}<NativeSelect label={tr("العملة")} value={account.currencyId} onChange={(value) => setAccount({ ...account, currencyId: value })} options={savedCurrencies.map((item) => ({ value: String(item.currency_id ?? item.id), label: `${item.currency_code} - ${item.currency_name}` }))} /><NativeSelect label={tr("نوع هيكل الحسابات الافتراضي")} value={defaultAccountStructure} onChange={setDefaultAccountStructure} options={[{ value: "commercial", label: tr("مؤسسة تجارية") }, { value: "commercial_continuous_inventory", label: tr("مؤسسة تجارية - جرد مستمر") }, { value: "services", label: tr("خدمات") }]} /><div className="flex items-end"><Button type="button" disabled={busy} onClick={importDefaultAccounts} className="h-11 w-full rounded-xl bg-emerald-600 px-6 hover:bg-emerald-700"><Building2 className="me-2 h-4 w-4" />{tr("استيراد هيكل الحسابات الافتراضي")}</Button></div></>} savedContent={<><SavedAccountsTable accounts={savedAccounts} currencies={savedCurrencies} /></>} />}
             {step === 4 && <AccountSettingsStep title={tr("الحسابات الافتراضية")} fields={defaultAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(defaultAccountFields)} />}
             {step === 5 && <AccountSettingsStep title={tr("حسابات الأصناف")} fields={productAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(productAccountFields)} />}
-            {step === 6 && <><NativeSelect label={tr("الفرع *")} value={defaultAccountsBranchId} onChange={setDefaultAccountsBranchId} options={defaultAccountsBranches.map(branch => ({ value: String(branch.id), label: branch.branch_name }))} /><CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} /></>}
-            {step === 7 && <DataStep title={tr("إضافة صنف سريع")} busy={busy} onAdd={addCurrent} onImport={() => openImport("products")} fields={<><Field label={tr("رقم الصنف")} value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label={tr("اسم الصنف")} value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label={tr("الوحدة")} value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel={tr("اختر الوحدة")} options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">{tr("فئة السعر")}</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || tr("يجب تعريف فئة سعر أولاً")}</div></div><Field label={tr("سعر البيع")} value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label={tr("الباركود")} value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
+            {step === 6 && <div className="mb-4 flex flex-wrap items-center gap-2">{BANK_STEP_TABS.map((tab) => <button key={tab.key} type="button" onClick={() => setBankStepTab(tab.key)} className={`rounded-xl px-4 py-2 text-sm font-bold transition ${bankStepTab === tab.key ? "bg-cyan-700 text-white shadow-md" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-cyan-50"}`}>{tr(tab.label)}</button>)}<Button type="button" variant="outline" onClick={() => setBankAutoSettingsOpen(true)} className="ms-auto rounded-xl">{tr("اعدادات الإنشاء الآلي للحسابات البنكية")}</Button><BankAccountsAutoSettings open={bankAutoSettingsOpen} onOpenChange={setBankAutoSettingsOpen} /></div>}
+            {step === 6 && bankStepTab === "banks" && <div className="min-h-[520px] overflow-hidden rounded-3xl border border-slate-200 bg-white"><BanksScreen /></div>}
+            {step === 6 && bankStepTab === "branches" && <div className="min-h-[520px] overflow-hidden rounded-3xl border border-slate-200 bg-white"><BankBranchesScreen /></div>}
+            {step === 6 && bankStepTab === "accounts" && <div className="min-h-[520px] overflow-hidden rounded-3xl border border-slate-200 bg-white"><BankAccountsScreen /></div>}
+            {step === 6 && bankStepTab === "defaults" && <>{defaultAccountsBranches.length > 1 && <NativeSelect label={tr("الفرع *")} value={defaultAccountsBranchId} onChange={setDefaultAccountsBranchId} options={defaultAccountsBranches.map(branch => ({ value: String(branch.id), label: branch.branch_name }))} />}<CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} /></>}
+            {step === 7 && <DataStep title={tr("إضافة صنف سريع")} busy={busy} onAdd={addCurrent} onImport={() => openImport("products")} fields={<><Field label={tr("رقم الصنف")} value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: padCodeLeft(current.code) }))} maxLength={10} /><Field label={tr("اسم الصنف")} value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label={tr("الوحدة")} value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel={tr("اختر الوحدة")} options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">{tr("فئة السعر")}</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || tr("يجب تعريف فئة سعر أولاً")}</div></div><Field label={tr("سعر البيع")} value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label={tr("الباركود")} value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
             {step === 8 && <PartyRecordsStep kind={partyKind} parties={savedParties} customer={customer} busy={busy} onKindChange={setPartyKind} onCustomerChange={setCustomer} onAdd={addCurrent} onImport={() => { showResult("info", tr("يتم ادخال السجلات حسب نوع الذمة المختار: {0}", partyType.plural)); openImport("customers") }} />}
           </div>
         </main>
@@ -827,7 +920,7 @@ function PartyRecordsStep({ kind, parties, customer, busy, onKindChange, onCusto
       <div className="rounded-2xl border border-cyan-100 bg-cyan-50/40 p-4">
         <h5 className="mb-3 font-black text-slate-800">{tr("إضافة ")}{activeParty.label}{tr(" سريع")}</h5>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label={tr("رقم {0} (اختياري)", activeParty.label)} value={customer.code} onChange={(value) => onCustomerChange({ ...customer, code: value })} />
+          <Field label={tr("رقم {0} (اختياري)", activeParty.label)} value={customer.code} onChange={(value) => onCustomerChange({ ...customer, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => onCustomerChange({ ...customer, code: padCodeLeft(customer.code) })} maxLength={10} />
           <Field label={tr("اسم {0}", activeParty.label)} value={customer.name} onChange={(value) => onCustomerChange({ ...customer, name: value })} />
           <Field label={tr("الجوال")} value={customer.phone} onChange={(value) => onCustomerChange({ ...customer, phone: value })} />
           <AddButton busy={busy} onClick={onAdd} label={tr("إضافة")} />
@@ -841,7 +934,7 @@ function PartyRecordsStep({ kind, parties, customer, busy, onKindChange, onCusto
   </section>
 }
 
-function CompanyInfoStep({ company, onChange }: { company: { companyName: string; companyNameEn: string; licensedWorkerNumber: string; taxNumber: string; commercialRegister: string; address: string; phone: string; email: string; website: string }; onChange: (value: typeof company) => void }) {
+function CompanyInfoStep({ company, onChange }: { company: { companyName: string; companyNameEn: string; licensedWorkerNumber: string; taxNumber: string; commercialRegister: string; address: string; phone: string; email: string; website: string; country: string; language: string }; onChange: (value: typeof company) => void }) {
   const filterValue = (value: string, maxLength: number) => value.replace(/[^A-Za-z0-9]/g, "").slice(0, maxLength)
 
   return (
@@ -865,6 +958,8 @@ function CompanyInfoStep({ company, onChange }: { company: { companyName: string
         <Field label={tr("الهاتف")} value={company.phone} onChange={(value) => onChange({ ...company, phone: value })} />
         <Field label={tr("البريد الإلكتروني")} value={company.email} onChange={(value) => onChange({ ...company, email: value })} type="email" />
         <Field label={tr("الموقع الإلكتروني")} value={company.website} onChange={(value) => onChange({ ...company, website: value })} />
+        <NativeSelect label={tr("الدولة")} value={company.country} onChange={(value) => onChange({ ...company, country: value })} emptyLabel={tr("اختر الدولة")} options={countryOptions(currentLanguage())} />
+        <NativeSelect label={tr("اللغة")} value={company.language} onChange={(value) => onChange({ ...company, language: value })} options={COMPANY_LANGUAGES} />
         <div className="sm:col-span-2">
           <Label className="mb-2 block text-sm font-bold text-slate-700">{tr("العنوان")}</Label>
           <textarea
@@ -879,14 +974,28 @@ function CompanyInfoStep({ company, onChange }: { company: { companyName: string
   )
 }
 
-function LookupTabs({ activeKey, onTabChange, values, onValueChange, records, busy, onAdd, extraFor = {}, inlineFor = {} }: { activeKey: string; onTabChange: (key: string) => void; values: Record<string, string>; onValueChange: (key: string, value: string) => void; records: Record<string, any[]>; busy: boolean; onAdd: (definition: typeof lookupDefinitions[number]) => void; extraFor?: Record<string, React.ReactNode>; inlineFor?: Record<string, React.ReactNode> }) {
+function LookupTabs({ activeKey, onTabChange, values, onValueChange, records, busy, onAdd, extraFor = {}, inlineFor = {}, onRenameBranch }: { activeKey: string; onTabChange: (key: string) => void; values: Record<string, string>; onValueChange: (key: string, value: string) => void; records: Record<string, any[]>; busy: boolean; onAdd: (definition: typeof lookupDefinitions[number]) => void; extraFor?: Record<string, React.ReactNode>; inlineFor?: Record<string, React.ReactNode>; onRenameBranch?: (row: any, name: string) => Promise<boolean> }) {
   const active = lookupDefinitions.find((item) => item.key === activeKey) || lookupDefinitions[0]
   const rows = records[active.key] || []
   const baseName = (row: any) => String(row?.[active.field] ?? row?.name ?? row?.warehouse_name ?? row?.unit_name ?? row?.branch_name ?? row?.department_name ?? row?.label ?? "")
   // الأقسام تُعرض مع فرعها
   const getName = (row: any) => (active.key === "department" && row?.branch_name ? `${baseName(row)} — ${row.branch_name}` : baseName(row))
 
-  return <section className="flex min-h-[500px] w-full flex-1 flex-col overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm md:min-h-0"><div className="flex shrink-0 gap-2 overflow-x-auto border-b border-emerald-100 bg-emerald-50/70 p-3">{lookupDefinitions.map((definition) => <button key={definition.key} type="button" onClick={() => onTabChange(definition.key)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${active.key === definition.key ? "bg-emerald-600 text-white shadow-md" : "bg-white text-slate-600 hover:bg-emerald-100"}`}>{definition.label}<span className={`ms-2 rounded-full px-2 py-0.5 text-[10px] ${active.key === definition.key ? "bg-white/20" : "bg-slate-100"}`}>{(records[definition.key] || []).length}</span></button>)}</div><div className="flex min-h-0 flex-1 flex-col p-3 sm:p-5"><div className="mb-3 shrink-0 rounded-2xl border border-emerald-100 bg-slate-50/70 p-3 sm:mb-5 sm:p-4">{extraFor[active.key] && <div className="mb-3">{extraFor[active.key]}</div>}<Label className="mb-2 block font-bold text-slate-800">{tr("إضافة ")}{active.label}</Label><div className="flex flex-wrap gap-2 sm:flex-nowrap">{inlineFor[active.key]}<Input value={values[active.key] || ""} onChange={(event) => onValueChange(active.key, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void onAdd(active) }} className="h-11 rounded-xl bg-white" placeholder={tr("اسم {0}", active.label)} /><Button disabled={busy || !String(values[active.key] || "").trim()} onClick={() => void onAdd(active)} className="h-11 rounded-xl bg-emerald-600 px-4 font-bold hover:bg-emerald-700 sm:px-6">{tr("إضافة")}</Button></div></div><div className="flex min-h-[230px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 md:min-h-0"><div className="flex shrink-0 items-center justify-between bg-slate-900 px-4 py-3 text-white"><h4 className="font-bold">{tr("السجلات المحفوظة")}</h4><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length}{tr(" سجل")}</span></div>{rows.length === 0 ? <div className="flex flex-1 items-center justify-center px-3 text-center text-sm text-slate-400">{tr("لا توجد سجلات محفوظة في هذا التبويب")}</div> : <div className="min-h-0 flex-1 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-20 px-4 py-3 text-start">#</th><th className="px-4 py-3 text-start">{tr("الاسم")}</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row?.id ?? `${active.key}-${index}`} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-semibold text-slate-800">{getName(row) || "-"}</td></tr>)}</tbody></table></div>}</div></div></section>
+  return <section className="flex min-h-[500px] w-full flex-1 flex-col overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm md:min-h-0"><div className="flex shrink-0 gap-2 overflow-x-auto border-b border-emerald-100 bg-emerald-50/70 p-3">{lookupDefinitions.map((definition) => <button key={definition.key} type="button" onClick={() => onTabChange(definition.key)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${active.key === definition.key ? "bg-emerald-600 text-white shadow-md" : "bg-white text-slate-600 hover:bg-emerald-100"}`}>{definition.label}<span className={`ms-2 rounded-full px-2 py-0.5 text-[10px] ${active.key === definition.key ? "bg-white/20" : "bg-slate-100"}`}>{(records[definition.key] || []).length}</span></button>)}</div><div className="flex min-h-0 flex-1 flex-col p-3 sm:p-5"><div className="mb-3 shrink-0 rounded-2xl border border-emerald-100 bg-slate-50/70 p-3 sm:mb-5 sm:p-4">{extraFor[active.key] && <div className="mb-3">{extraFor[active.key]}</div>}<Label className="mb-2 block font-bold text-slate-800">{tr("إضافة ")}{active.label}</Label><div className="flex flex-wrap gap-2 sm:flex-nowrap">{inlineFor[active.key]}<Input value={values[active.key] || ""} onChange={(event) => onValueChange(active.key, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void onAdd(active) }} className="h-11 rounded-xl bg-white" placeholder={tr("اسم {0}", active.label)} /><Button disabled={busy || !String(values[active.key] || "").trim()} onClick={() => void onAdd(active)} className="h-11 rounded-xl bg-emerald-600 px-4 font-bold hover:bg-emerald-700 sm:px-6">{tr("إضافة")}</Button></div></div><div className="flex min-h-[230px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 md:min-h-0"><div className="flex shrink-0 items-center justify-between bg-slate-900 px-4 py-3 text-white"><h4 className="font-bold">{tr("السجلات المحفوظة")}</h4><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length}{tr(" سجل")}</span></div>{rows.length === 0 ? <div className="flex flex-1 items-center justify-center px-3 text-center text-sm text-slate-400">{tr("لا توجد سجلات محفوظة في هذا التبويب")}</div> : <div className="min-h-0 flex-1 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-20 px-4 py-3 text-start">#</th><th className="px-4 py-3 text-start">{tr("الاسم")}</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row?.id ?? `${active.key}-${index}`} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-semibold text-slate-800">{active.key === "branch" && onRenameBranch ? <RenameCell value={baseName(row)} busy={busy} onSave={(name) => onRenameBranch(row, name)} /> : (getName(row) || "-")}</td></tr>)}</tbody></table></div>}</div></div></section>
+}
+
+// تعديل اسم فرع من البداية السريعة (الفرع الرئيسي يُنشأ تلقائياً مع الشركة — يُعاد تسميته بدل إضافة فرع يتجاوز الترخيص)
+function RenameCell({ value, busy, onSave }: { value: string; busy: boolean; onSave: (name: string) => Promise<boolean> }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  useEffect(() => { if (!editing) setDraft(value) }, [value, editing])
+  const save = async () => {
+    const name = draft.trim()
+    if (!name || name === value) { setEditing(false); return }
+    if (await onSave(name)) setEditing(false)
+  }
+  if (!editing) return <div className="flex items-center justify-between gap-2"><span>{value || "-"}</span><button type="button" onClick={() => setEditing(true)} className="rounded-lg px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50">{tr("تعديل الاسم")}</button></div>
+  return <div className="flex items-center gap-2"><Input autoFocus value={draft} maxLength={100} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void save() } else if (event.key === "Escape") setEditing(false) }} className="h-9 rounded-lg bg-white" /><Button size="sm" disabled={busy || !draft.trim()} onClick={() => void save()} className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700">{tr("حفظ")}</Button><Button size="sm" variant="outline" onClick={() => setEditing(false)} className="h-9 rounded-lg">{tr("إلغاء")}</Button></div>
 }
 
 function Field({ label, value, onChange, onBlur, placeholder, type = "text", maxLength, min, max, step, disabled }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void; placeholder?: string; type?: string; maxLength?: number; min?: number; max?: number; step?: string; disabled?: boolean }) {
@@ -931,8 +1040,21 @@ function CurrencyDefaultAccountsStep({ rows, busy, onChange, onSave }: {
   </section>
 }
 
+// Enter بعد اختيار حساب (المربع لم يُكتب فيه) ينتقل لمربع الحساب التالي — مربع الحساب يمنع الافتراضي (preventDefault) حين
+// يعالج Enter بنفسه (نص مكتوب أو اقتراح مظلَّل) فلا يُتدخَّل حينها
+function moveToNextAccountField(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== "Enter" || event.defaultPrevented || event.shiftKey || event.ctrlKey || event.altKey) return
+  const target = event.target as HTMLElement
+  if (target.tagName !== "INPUT") return
+  const inputs = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>("input:not([disabled]):not([type=hidden])"))
+  const next = inputs[inputs.indexOf(target as HTMLInputElement) + 1]
+  if (!next) return
+  event.preventDefault()
+  next.focus()
+}
+
 function AccountSettingsStep({ title, fields, values, onChange, busy, onSave }: { title: string; fields: readonly (readonly [string, string])[]; values: Record<string, string>; onChange: (key: string, value: string) => void; busy: boolean; onSave: () => void }) {
-  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm"><div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-blue-700 to-indigo-600 px-5 py-4 text-white"><div><h4 className="text-lg font-black">{title}</h4><p className="mt-1 text-xs text-blue-100">{tr("ابحث برقم الحساب أو اسمه ثم اختره لكل حقل")}</p></div></div><div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">{fields.map(([key, label]) => <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"><Label className="mb-2 block text-sm font-bold text-slate-700">{tr(label)}</Label><AutoCompleteAccount label="" value={values[key] || ""} valueMode="id" onValueChange={(value) => onChange(key, String(value || ""))} onAccountSelect={(account) => onChange(key, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly={!/parent_account|credit_account|subscription_account|new_employee_account/.test(String(key))} /></div>)}</div></section>
+  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm"><div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-blue-700 to-indigo-600 px-5 py-4 text-white"><div><h4 className="text-lg font-black">{title}</h4><p className="mt-1 text-xs text-blue-100">{tr("ابحث برقم الحساب أو اسمه ثم اختره لكل حقل")}</p></div></div><div onKeyDown={moveToNextAccountField} className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">{fields.map(([key, label]) => <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"><Label className="mb-2 block text-sm font-bold text-slate-700">{tr(label)}</Label><AutoCompleteAccount label="" value={values[key] || ""} valueMode="id" onValueChange={(value) => onChange(key, String(value || ""))} onAccountSelect={(account) => onChange(key, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly={!/parent_account|credit_account|subscription_account|new_employee_account/.test(String(key))} /></div>)}</div></section>
 }
 
 function SavedProductsTable({ products }: { products: any[] }) {

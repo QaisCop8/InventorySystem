@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr } from "@/lib/i18n"
 import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
@@ -85,7 +86,7 @@ export function InlineProductSearch({
     if (searchTerm.length >= 2) {
       const filtered = products.filter(
         (product) =>
-          product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          normalizeArabicSearch(product.product_name).includes(normalizeArabicSearch(searchTerm)) ||
           product.product_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
           product.barcode.includes(searchTerm),
       )

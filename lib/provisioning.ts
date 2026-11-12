@@ -485,12 +485,13 @@ async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPo
     `INSERT INTO branches (branch_code, branch_name, branch_symbol, is_active, status)
      VALUES ($1, $2, $3, true, 1)
      ON CONFLICT (branch_code) DO UPDATE SET
-       branch_name = EXCLUDED.branch_name,
+       -- اسم الفرع قابل للتعديل (البداية السريعة/الفروع) — لا يُعاد للاسم الافتراضي
+       branch_name = COALESCE(NULLIF(branches.branch_name, ''), EXCLUDED.branch_name),
        branch_symbol = COALESCE(branches.branch_symbol, EXCLUDED.branch_symbol),
        is_active = true,
        status = 1
      RETURNING id`,
-    ["0001", "الرئيسي", "0"],
+    ["0001", "الفرع الرئيسي", "0"],
   )
   const branchId = branchResult[0].id
 

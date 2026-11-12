@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -42,7 +43,7 @@ export default function ItemGroupSearch({ open, onOpenChange, onSelect }: ItemGr
     const q = query.trim().toLowerCase()
     return groups
       .filter((g) => g.status === "نشط")
-      .filter((g) => !q || g.group_name.toLowerCase().includes(q) || g.group_code.toLowerCase().includes(q))
+      .filter((g) => !q || normalizeArabicSearch(g.group_name).includes(normalizeArabicSearch(q)) || g.group_code.toLowerCase().includes(q))
   }, [groups, query])
 
   const handleSelect = (group: ItemGroupRecord) => {

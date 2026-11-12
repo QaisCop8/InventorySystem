@@ -8,6 +8,7 @@ import { useReportAccess } from "@/components/auth/use-report-access"
 import { useFileSectionAccess } from "@/components/auth/use-file-access"
 import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
 import { cn } from "@/lib/utils"
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 
 // بحث النظام بالشريط العلوي: يبحث في كل شاشات القائمة (بنفس صلاحيات الشريط الجانبي — التقارير غير
 // المسموحة تُخفى) ويفتح الشاشة المختارة. مطابقة عربية متسامحة (أ/إ/آ=ا، ة=ه، ى=ي، بلا تشكيل)، تنقّل
@@ -15,15 +16,7 @@ import { cn } from "@/lib/utils"
 
 type SearchEntry = { section: string; title: string; path: string[]; icon: MenuItem["icon"]; haystack: string }
 
-const normalizeArabic = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[ً-ْـ]/g, "")
-    .replace(/[أإآ]/g, "ا")
-    .replace(/ة/g, "ه")
-    .replace(/ى/g, "ي")
-    .replace(/\s+/g, " ")
-    .trim()
+const normalizeArabic = (value: string) => normalizeArabicSearch(value).replace(/\s+/g, " ").trim()
 
 function flatten(items: MenuItem[], path: string[] = []): Omit<SearchEntry, "haystack">[] {
   return items.flatMap((item) => {

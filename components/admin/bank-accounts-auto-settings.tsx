@@ -6,8 +6,18 @@ import { Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import { suggestTemplateDefaults } from "@/lib/account-template-defaults"
 
 type Parent = { kind: string; label: string; account_id: number | null; code: string; name: string }
+
+// الآباء الافتراضيون من هيكل الحسابات الجاهز (عمود default_type) — تُعبّأ بها الحقول الفارغة ويمكن تغييرها قبل الحفظ
+const TEMPLATE_PARENTS = {
+  jary: { defaultType: "حساب محاسبي - الحساب البنكي" },
+  tahsil: { defaultType: "حساب التحصيل - حساب بنكي" },
+  tahsil_commission: { defaultType: "حساب عمولة - حساب بنكي" },
+  payed_checks: { defaultType: "حساب شيكات صادرة - حساب بنكي" },
+  returned_checks: { defaultType: "حساب الشيكات الراجعة" },
+}
 
 /**
  * "اعدادات" الإنشاء الآلي في حسابات البنوك: الحساب الاب لكل حساب من حسابات الحساب البنكي (كما في الشامل:
@@ -30,7 +40,10 @@ export default function BankAccountsAutoSettings({ open, onOpenChange, onSaved }
         if (!response.ok) throw new Error(data?.error || tr("تعذر تحميل الاعدادات"))
         const rows: Parent[] = Array.isArray(data.parents) ? data.parents : []
         setParents(rows)
-        setValues(Object.fromEntries(rows.map((row) => [row.kind, row.account_id ? String(row.account_id) : ""])))
+        const saved: Record<string, string> = Object.fromEntries(rows.map((row) => [row.kind, row.account_id ? String(row.account_id) : ""]))
+        setValues(saved)
+        const suggestions = await suggestTemplateDefaults(TEMPLATE_PARENTS, saved).catch(() => ({}))
+        if (Object.keys(suggestions).length) setValues((current) => ({ ...current, ...Object.fromEntries(Object.entries(suggestions).filter(([key]) => !current[key])) }))
       })
       .catch((err) => setError(err instanceof Error ? err.message : tr("تعذر تحميل الاعدادات")))
       .finally(() => setLoading(false))

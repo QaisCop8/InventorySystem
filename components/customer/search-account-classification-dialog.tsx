@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -50,7 +51,7 @@ export default function SearchAccountClassificationDialog({
     if (!type) return []
     const filtered = classifications
       .filter((item) => item.classification_type_id === type.id)
-      .filter((item) => item.name.toLowerCase().includes(filter.toLowerCase()))
+      .filter((item) => normalizeArabicSearch(item.name).includes(normalizeArabicSearch(filter)))
     filtered.sort((a, b) => (a.id || 0) - (b.id || 0))
     return filtered
   }, [classifications, filter, type])

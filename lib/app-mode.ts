@@ -13,11 +13,11 @@ export const OFFLINE_LAUNCH_KEYS = { launch: "noon_launch", lock: "noon_offline_
 
 /**
  * سكربت يُضمَّن في <body> قبل وحدات التطبيق: يحفظ وضع التطبيق، وفي أول تحميل لكل تشغيل لمشغّل ويندوز (sessionStorage فارغ
- * في كل تشغيل؛ المشغّل يحقن __noonLauncher.online بعد فحص الاتصال بالخادم): متصلاً ⇐ تُمسح بيانات الدخول المحفوظة فيظهر
- * تسجيل الدخول؛ دون اتصال ⇐ تبقى الجلسة وتُقفل بكلمة المرور محلياً (lib/offline-unlock.ts، components/app-mode-shell.tsx).
+ * في كل تشغيل) يُقفل الجلسة المحفوظة فيطلب التطبيق كلمة المرور قبل فتح الكاشير — متصلاً أو دون اتصال
+ * (lib/offline-unlock.ts، components/app-mode-shell.tsx). الجلسة لا تُمسح حتى تبقى مزامنة مبيعات دون الاتصال ممكنة.
  */
 export const APP_MODE_BOOT_SCRIPT = `try{var m=new URLSearchParams(location.search).get("app");if(m==="cashier"||m==="restaurant")localStorage.setItem("${APP_MODE_KEY}",m)}catch(e){}` +
-  `try{var L=window.__noonLauncher;if(L&&!sessionStorage.getItem("${OFFLINE_LAUNCH_KEYS.launch}")){sessionStorage.setItem("${OFFLINE_LAUNCH_KEYS.launch}","1");if(L.online===false){sessionStorage.setItem("${OFFLINE_LAUNCH_KEYS.lock}","1")}else{["erp_user","erp_token","erp_session","pos:resume","active_tenant_db","active_company_id"].forEach(function(k){localStorage.removeItem(k)})}}}catch(e){}`
+  `try{var L=window.__noonLauncher;if(L&&!sessionStorage.getItem("${OFFLINE_LAUNCH_KEYS.launch}")){sessionStorage.setItem("${OFFLINE_LAUNCH_KEYS.launch}","1");sessionStorage.setItem("${OFFLINE_LAUNCH_KEYS.lock}","1")}}catch(e){}`
 
 /** قسم البداية لوضع التطبيق (pos-cashier / restaurant-pos) أو null في النظام العادي */
 export function appModeSection(): string | null {

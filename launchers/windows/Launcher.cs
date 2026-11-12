@@ -2,10 +2,9 @@
 // نافذة ويندوز حقيقية (مكبّرة، شريط مهام ويندوز ظاهر) تستضيف محرك Edge (WebView2) وتفتح النظام بـ ?app=... فيظهر بعد
 // الدخول واختيار الشركة شاشة الكاشير/المطعم وحدها (lib/app-mode.ts + components/app-mode-shell.tsx).
 // زر X: يسأل الصفحة أولاً عن تغييرات غير محفوظة (window.__noonAppCloseState في الكاشير) ثم "هل تريد الخروج من البرنامج؟".
-// ملف تعريف مستقل لكل مشغّل في %LOCALAPPDATA%\NoonERP\<mode>. كل تشغيل يطلب الدخول من جديد: يُفحص الاتصال بالخادم أولاً؛
-// متصلاً ⇐ تُمسح كوكيز الجلسة (عدا معرّف الجهاز noon_device ولغة الواجهة app_lang) وتمسح الصفحة بيانات الدخول المحفوظة؛
-// دون اتصال ⇐ تبقى الجلسة (لمزامنة مبيعات دون اتصال لاحقاً) وتُقفل بكلمة المرور محلياً (lib/offline-unlock.ts).
-// لا يُمسح تخزين الصفحات (IndexedDB فيه مبيعات دون اتصال لم تُرحَّل بعد، وذاكرة عامل الخدمة للعمل دون اتصال).
+// ملف تعريف مستقل لكل مشغّل في %LOCALAPPDATA%\NoonERP\<mode>. كل تشغيل يطلب كلمة المرور من جديد: الصفحة
+// تُقفل الجلسة المحفوظة في أول تحميل (APP_MODE_BOOT_SCRIPT، lib/offline-unlock.ts) وتفتحها البصمة المحلية دون اتصال أو الخادم.
+// لا يُمسح شيء من ملف التعريف: الكوكيز (جلسة الخادم لمزامنة مبيعات دون اتصال) ولا IndexedDB (مبيعات دون اتصال لم تُرحَّل بعد).
 // عنوان خادم مختلف: launcher.ini بجانب الملف التنفيذي يحوي سطر url=https://...
 // مكتبات WebView2 مضمّنة كموارد داخل الملف التنفيذي (ملف واحد) — البناء: node launchers/windows/build.mjs
 using System;
@@ -21,8 +20,8 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyTitle(NoonLauncher.Title)]
 [assembly: AssemblyProduct("NoonERP")]
 [assembly: AssemblyCompany("Sabbah Soft")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
 
 static class NoonLauncher
 {
@@ -151,10 +150,8 @@ class LauncherForm : Form
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
             web.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
             // الطباعة المباشرة من المشغّل نفسه (Printing.cs) — الصفحة تتعرف عليه بـ __noonLauncher (lib/local-print.ts)
-            bool online = await System.Threading.Tasks.Task.Run(() => ServerReachable());
-            await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.__noonLauncher={print:true,online:" + (online ? "true" : "false") + ",version:'" + typeof(NoonLauncher).Assembly.GetName().Version + "'};");
+            await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.__noonLauncher={print:true,version:'" + typeof(NoonLauncher).Assembly.GetName().Version + "'};");
             web.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
-            if (online) await ClearLoginAsync();
             web.CoreWebView2.Navigate(startUrl);
         }
         catch (Exception error)
@@ -162,44 +159,6 @@ class LauncherForm : Form
             NoonLauncher.Error("تعذر تشغيل محرك العرض (Microsoft Edge WebView2).\nثبّت WebView2 Runtime من موقع مايكروسوفت ثم أعد المحاولة.\n\n" + error.Message);
             allowClose = true;
             Close();
-        }
-    }
-
-    // تشغيل متصل يبدأ بصفحة الدخول: كوكيز جلسة الشركة/الإدارة (بيانات المستخدم في localStorage تمسحها الصفحة —
-    // APP_MODE_BOOT_SCRIPT). noon_device يبقى (جهاز واحد لكل مستخدم: جلسة قديمة من نفس الجهاز لا تُعدّ "جهازاً آخر") وكذلك اللغة.
-    async System.Threading.Tasks.Task ClearLoginAsync()
-    {
-        try
-        {
-            CoreWebView2CookieManager manager = web.CoreWebView2.CookieManager;
-            foreach (CoreWebView2Cookie cookie in await manager.GetCookiesAsync(null))
-            {
-                if (cookie.Name == "noon_device" || cookie.Name == "app_lang") continue;
-                manager.DeleteCookie(cookie);
-            }
-        }
-        catch { }
-    }
-
-    // هل الخادم متاح؟ (5 ثوانٍ) — أي استجابة HTTP تعني اتصالاً، فقط فشل الشبكة يعني دون اتصال
-    bool ServerReachable()
-    {
-        try
-        {
-            System.Net.ServicePointManager.SecurityProtocol |= (System.Net.SecurityProtocolType)3072;
-            System.Net.HttpWebRequest request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create(new Uri(new Uri(startUrl), "/manifest.json"));
-            request.Method = "GET";
-            request.Timeout = 5000;
-            request.ReadWriteTimeout = 5000;
-            using (request.GetResponse()) return true;
-        }
-        catch (System.Net.WebException error)
-        {
-            return error.Response != null;
-        }
-        catch
-        {
-            return false;
         }
     }
 

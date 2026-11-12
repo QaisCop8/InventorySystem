@@ -31,6 +31,7 @@ const normalizeSearchText = (value: string): string =>
     .replace(/ى/g, "ي")
     .replace(/ؤ/g, "و")
     .replace(/ئ/g, "ي")
+    .replace(/ة/g, "ه")
     .toLocaleLowerCase("ar")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
@@ -102,6 +103,8 @@ interface AccountSearchDialogProps {
   leafOnly?: boolean
   emptyActionLabel?: string
   emptyActionHref?: string
+  /** النص المكتوب في مربع الحساب قبل فتح النافذة (Enter على نص لا يطابق حساباً واحداً) — يُبحث به مباشرة */
+  initialSearch?: string
 }
 
 /** حساب رئيسي = له حساب فرعي واحد على الأقل (has_children من الخادم، أو father_id لحساب آخر في القائمة) */
@@ -166,6 +169,7 @@ export default function AccountSearchDialog({
   leafOnly = true,
   emptyActionLabel,
   emptyActionHref = "/?section=customers",
+  initialSearch = "",
 }: AccountSearchDialogProps) {
   const { confined: workspaceConfined } = useWorkspaceDialog()
   // الجوال (والتطبيق APK): حجم "مساحة العمل" الثابت (~1000px) يُقصّ من اليسار ويُخفي زرَّي موافق/إلغاء —
@@ -198,6 +202,7 @@ export default function AccountSearchDialog({
   const filterContainerRef = useRef<HTMLDivElement | null>(null)
   const accountNameInputRef = useRef<HTMLInputElement | null>(null)
   const forceRefreshRef = useRef(false)
+  const initialSearchAppliedRef = useRef(false)
 
   const visibleAccounts = useMemo(() => {
     if (!allowedTypeValues || allowedTypeValues.length === 0) {
@@ -278,6 +283,7 @@ export default function AccountSearchDialog({
 
   useEffect(() => {
     if (!open) {
+      initialSearchAppliedRef.current = false
       setSearchResults([])
       setAllAccounts([])
       setCurrencies([])
@@ -297,13 +303,21 @@ export default function AccountSearchDialog({
     let cancelled = false
     const forceRefresh = forceRefreshRef.current
     forceRefreshRef.current = false
+    // أول فتح: النص المكتوب في مربع الحساب يُوضع في فلتر الرقم (أرقام/حروف لاتينية) أو الاسم ويُبحث به فوراً
+    let effectFilters = searchFilters
+    const typed = initialSearch.trim()
+    if (typed && !initialSearchAppliedRef.current) {
+      initialSearchAppliedRef.current = true
+      effectFilters = /^[a-z\d]+$/i.test(typed) ? { ...searchFilters, accountNumber: typed.toUpperCase() } : { ...searchFilters, accountName: typed }
+      setSearchFilters(effectFilters)
+    }
 
     // Show the autocomplete's already-loaded list immediately while a scoped refresh runs.
     const canUseAutocompleteAccounts = deliveryVchTypes.length === 0 && orderType == null && !(Number(branchId) > 0)
     if (canUseAutocompleteAccounts && accounts.length > 0) {
       const seededAccounts = leafOnly ? accounts.filter((account) => !isParentAccount(account, accounts)) : accounts
       setAllAccounts(seededAccounts)
-      applySearchFilters(searchFilters, seededAccounts)
+      applySearchFilters(effectFilters, seededAccounts)
     }
 
     const loadFreshAccounts = async () => {
@@ -350,7 +364,7 @@ export default function AccountSearchDialog({
         // Closing the dialog already resets filters. While it remains open,
         // refreshes (including window-focus refreshes) must preserve what the
         // user checked or unchecked instead of restoring the default-only flag.
-        applySearchFilters(searchFilters, selectableAccounts)
+        applySearchFilters(effectFilters, selectableAccounts)
       } catch (error) {
         if (!cancelled) console.error("Failed to load account search results:", error)
       } finally {

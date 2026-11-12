@@ -213,7 +213,8 @@ export default function UnifiedBranches({
                     {tr("اختر البنك")}
                   </option>
                   {banks.length > 0 ? (
-                    banks.map((bank) => (
+                    // البنوك المتوقفة لا تُختار لفروع جديدة (يبقى البنك الحالي للفرع ظاهراً)
+                    banks.filter((bank) => Number((bank as { status?: number }).status ?? 1) !== 2 || bank.id === form.bank_id).map((bank) => (
                       <option key={bank.id} value={bank.id}>
                         {bank.bank_name}
                       </option>
@@ -227,6 +228,18 @@ export default function UnifiedBranches({
                 {shouldShowBankError && (
                   <p className="text-sm text-destructive">{tr("يجب ادخال رقم البنك")}</p>
                 )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="branch-status">{tr("الحالة")}</Label>
+                <select
+                  id="branch-status"
+                  value={Number(form.status) === 2 ? 2 : 1}
+                  onChange={(e) => onFormChange("status", Number(e.target.value))}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value={1}>{tr("نشط")}</option>
+                  <option value={2}>{tr("متوقف (لا يظهر في الحسابات البنكية والحركات الجديدة)")}</option>
+                </select>
               </div>
               {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             </div>

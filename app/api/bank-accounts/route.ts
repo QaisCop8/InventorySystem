@@ -34,7 +34,20 @@ const ensureTable = async () => { return runSchemaOnce("app/api/bank-accounts/ro
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
+  // رقم الآيبان (IBAN) للحوالات البنكية
+  await sql`ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS iban VARCHAR(34)`
 }) }
+
+// IBAN: رمز الدولة (حرفان) + رقمان للتحقق + حتى 30 حرفاً/رقماً، ويُتحقق منه بخوارزمية mod 97 (ISO 13616)
+function normalizeIban(value: unknown): { iban: string | null; error?: string } {
+  const iban = String(value ?? "").toUpperCase().replace(/\s+/g, "")
+  if (!iban) return { iban: null }
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) return { iban: null, error: "رقم الآيبان (IBAN) غير صحيح — يبدأ برمز الدولة ثم رقمين ثم رقم الحساب" }
+  const digits = (iban.slice(4) + iban.slice(0, 4)).replace(/[A-Z]/g, (letter) => String(letter.charCodeAt(0) - 55))
+  let remainder = 0
+  for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97
+  return remainder === 1 ? { iban } : { iban: null, error: "رقم الآيبان (IBAN) غير صحيح — أرقام التحقق لا تطابق" }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,6 +90,8 @@ export async function POST(request: NextRequest) {
     if (existing.length > 0) {
       return NextResponse.json({ error: "رقم الحساب موجود مسبقاً" }, { status: 400 })
     }
+    const ibanCheck = normalizeIban(data.iban)
+    if (ibanCheck.error) return NextResponse.json({ error: ibanCheck.error }, { status: 400 })
 
     if (autoGenerate) {
       // انشاء آلي: الحسابات المحاسبية تُنشأ مع الحساب البنكي في معاملة واحدة — فشل أي خطوة لا يترك حسابات يتيمة
@@ -113,7 +128,7 @@ async function insertBankAccount(data: any) {
         jary_account_id, tahsil_account_id, tahsil_commission_account_id, payed_checks_account_id,
         returned_checks_account_id, returned_checks_commission, add_returned_check_commision_on_customer,
         tahsil_checks_commission, returned_checks_commission_currency_id, tahsil_checks_commission_currency_id,
-        check_value_period, checks_deposit_period, notes, status
+        check_value_period, checks_deposit_period, notes, status, iban
       )
       VALUES (
         ${data.branch_id || null}, ${nextOrder}, ${data.code}, ${data.actual_bank_code || ""},
@@ -123,7 +138,7 @@ async function insertBankAccount(data: any) {
         ${data.returned_checks_commission ?? null}, ${Boolean(data.add_returned_check_commision_on_customer)},
         ${data.tahsil_checks_commission ?? null}, ${data.returned_checks_commission_currency_id || null},
         ${data.tahsil_checks_commission_currency_id || null}, ${data.check_value_period ?? null},
-        ${data.checks_deposit_period ?? null}, ${data.notes || ""}, ${Number(data.status || 1)}
+        ${data.checks_deposit_period ?? null}, ${data.notes || ""}, ${Number(data.status || 1)}, ${normalizeIban(data.iban).iban}
       )
       RETURNING *
     `
@@ -154,6 +169,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const status = Number(data.status ?? 1)
+    const iban = normalizeIban(data.iban)
+    if (iban.error) return NextResponse.json({ error: iban.error }, { status: 400 })
 
     const result = await sql`
       UPDATE bank_accounts
@@ -178,6 +195,7 @@ export async function PUT(request: NextRequest) {
         checks_deposit_period = ${data.checks_deposit_period ?? null},
         notes = ${data.notes || ""},
         status = ${status},
+        iban = CASE WHEN ${"iban" in data}::boolean THEN ${iban.iban} ELSE iban END,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${data.id}
       RETURNING *

@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import {
@@ -167,7 +168,7 @@ const TransactionSearch = ({
     let filtered = salesOrders
 
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
+      const searchLower = normalizeArabicSearch(debouncedSearchTerm)
       filtered = filtered.filter((order) => {
         const searchableFields = [
           order.order_number,
@@ -181,8 +182,8 @@ const TransactionSearch = ({
           .toLowerCase()
 
         return (
-          searchableFields.includes(searchLower) ||
-          searchLower.split(" ").some((word) => word.length > 1 && searchableFields.includes(word))
+          normalizeArabicSearch(searchableFields).includes(searchLower) ||
+          searchLower.split(" ").some((word) => word.length > 1 && normalizeArabicSearch(searchableFields).includes(word))
         )
       })
     }
@@ -209,7 +210,7 @@ const TransactionSearch = ({
     let filtered = purchaseOrders
 
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
+      const searchLower = normalizeArabicSearch(debouncedSearchTerm)
       filtered = filtered.filter((order) => {
         const searchableFields = [
           order.order_number,
@@ -223,8 +224,8 @@ const TransactionSearch = ({
           .toLowerCase()
 
         return (
-          searchableFields.includes(searchLower) ||
-          searchLower.split(" ").some((word) => word.length > 1 && searchableFields.includes(word))
+          normalizeArabicSearch(searchableFields).includes(searchLower) ||
+          searchLower.split(" ").some((word) => word.length > 1 && normalizeArabicSearch(searchableFields).includes(word))
         )
       })
     }
@@ -251,7 +252,7 @@ const TransactionSearch = ({
     let filtered = movements
 
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
+      const searchLower = normalizeArabicSearch(debouncedSearchTerm)
       filtered = filtered.filter((movement) => {
         const searchableFields = [
           movement.product_name,
@@ -266,8 +267,8 @@ const TransactionSearch = ({
           .toLowerCase()
 
         return (
-          searchableFields.includes(searchLower) ||
-          searchLower.split(" ").some((word) => word.length > 1 && searchableFields.includes(word))
+          normalizeArabicSearch(searchableFields).includes(searchLower) ||
+          searchLower.split(" ").some((word) => word.length > 1 && normalizeArabicSearch(searchableFields).includes(word))
         )
       })
     }

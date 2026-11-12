@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
     switch (navigationType) {
       case "first":
         rows = await sql`
-          SELECT id, bank_code, bank_name, bank_name_en, status
+          SELECT id, bank_code, bank_name, bank_name_en, to_jsonb(banks)->>'swift_code' AS swift_code, status
           FROM banks
           WHERE status != 3
           ORDER BY id ASC
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
         break
       case "last":
         rows = await sql`
-          SELECT id, bank_code, bank_name, bank_name_en, status
+          SELECT id, bank_code, bank_name, bank_name_en, to_jsonb(banks)->>'swift_code' AS swift_code, status
           FROM banks
           WHERE status != 3
           ORDER BY id DESC
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
         break
       case "previous":
         rows = await sql`
-          SELECT id, bank_code, bank_name, bank_name_en, status
+          SELECT id, bank_code, bank_name, bank_name_en, to_jsonb(banks)->>'swift_code' AS swift_code, status
           FROM banks
           WHERE id < ${currentId || 0} AND status != 3
           ORDER BY id DESC
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
         break
       case "next":
         rows = await sql`
-          SELECT id, bank_code, bank_name, bank_name_en, status
+          SELECT id, bank_code, bank_name, bank_name_en, to_jsonb(banks)->>'swift_code' AS swift_code, status
           FROM banks
           WHERE id > ${currentId || 0} AND status != 3
           ORDER BY id ASC

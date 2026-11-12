@@ -13,6 +13,7 @@ interface Bank {
   bank_code: string
   bank_name: string
   bank_name_en?: string
+  swift_code?: string | null
   status: number
 }
 
@@ -25,6 +26,7 @@ interface UnifiedBanksProps {
     bank_code: string
     bank_name: string
     bank_name_en: string
+    swift_code: string
     status: number
   }
   isSaving: boolean
@@ -102,6 +104,7 @@ export default function UnifiedBanks({
           bank_code: record.bank_code,
           bank_name: record.bank_name,
           bank_name_en: record.bank_name_en || "",
+          swift_code: record.swift_code || "",
           status: record.status,
         })
       }
@@ -184,6 +187,32 @@ export default function UnifiedBanks({
                   value={form.bank_name_en}
                   onChange={(e) => onFormChange("bank_name_en", e.target.value)}
                 />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="bank-swift">{tr("رمز السويفت (Swift Code)")}</Label>
+                  <Input
+                    id="bank-swift"
+                    dir="ltr"
+                    maxLength={11}
+                    placeholder="ARABJOAX"
+                    value={form.swift_code || ""}
+                    onChange={(e) => onFormChange("swift_code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  />
+                  {form.swift_code && !/^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(form.swift_code) && <p className="text-sm text-destructive">{tr("رمز السويفت يجب أن يكون 8 أو 11 حرفاً/رقماً")}</p>}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="bank-status">{tr("الحالة")}</Label>
+                  <select
+                    id="bank-status"
+                    value={Number(form.status) === 2 ? 2 : 1}
+                    onChange={(e) => onFormChange("status", Number(e.target.value))}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value={1}>{tr("نشط")}</option>
+                    <option value={2}>{tr("متوقف (لا يظهر في الحسابات البنكية والحركات الجديدة)")}</option>
+                  </select>
+                </div>
               </div>
               {deleteError && (
                 <p className="text-sm text-destructive">{deleteError}</p>

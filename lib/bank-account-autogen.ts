@@ -173,7 +173,8 @@ async function insertAccount(account: PlannedAccount, fatherId: number) {
     ) VALUES (
       ${t.company_id ?? 1}, ${account.code}, 1, ${account.name}, ${account.name_lang2 || null}, ${fatherId}, ${account.level},
       ${t.finanical_list_id ?? null}, ${t.finanical_list_assests_id ?? null}, ${t.finanical_list_liabilities_id ?? null}, ${t.finanical_list_income_id ?? null},
-      ${account.currencyId}, ${t.allow_trans_with_diff_curr ?? 0}, ${t.iscalc_curr_diff_rates ?? false}, ${t.transaction_type ?? 0}, ${t.transaction_type_action ?? 0},
+      -- حساب بعملة محددة (حسابات الحساب البنكي): الحركة بغير عملته ممنوعة (2) — الحسابات البنكية لا تقبل حركة بغير عملتها
+      ${account.currencyId}, ${account.currencyId ? 2 : (t.allow_trans_with_diff_curr ?? 0)}, ${t.iscalc_curr_diff_rates ?? false}, ${t.transaction_type ?? 0}, ${t.transaction_type_action ?? 0},
       ${t.max_transaction_amount ?? 0}, ${t.max_transaction_amount_action ?? 0}, ${t.max_balance_amount ?? 0}, ${t.max_balance_action ?? null},
       ${"أُنشئ آلياً من حسابات البنوك"}, false, 1, CURRENT_DATE, NOW()
     ) RETURNING id

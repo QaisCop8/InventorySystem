@@ -1,6 +1,8 @@
 "use client"
 
-import { tr, appDir } from "@/lib/i18n"
+import { tr, appDir, currentLanguage } from "@/lib/i18n"
+import { currencyCatalog, findCatalogCurrency } from "@/lib/currency-catalog"
+import LiveRatesDialog from "@/components/data/live-rates-dialog"
 import type React from "react"
 import { useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +26,7 @@ import {
   Save,
   AlertCircle,
   Pencil,
+  Globe,
 } from "lucide-react"
 import { useExchangeRates } from "@/hooks/use-swr-data"
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -37,6 +40,8 @@ interface ExchangeRate {
   currency_name: string
   currency_code: string
   currency_symbol?: string
+  sub_currency_name?: string
+  fraction_digits?: number | null
   buy_rate: number
   sell_rate: number
   exchange_rate: number
@@ -96,13 +101,18 @@ function ExchangeRatesContent() {
   const [newCurrencyForm, setNewCurrencyForm] = useState({
     currencyName: "",
     currencyCode: "",
+    currencySymbol: "",
+    subCurrencyName: "",
+    fractionDigits: 2,
     buyRate: 1,
     sellRate: 1,
     exchangeRate: 1,
   })
 
   // تعديل بيانات العملة (الاسم والرمز) — PATCH /api/exchange-rates
-  const [currencyEdit, setCurrencyEdit] = useState<{ currencyId: number; currencyName: string; currencyCode: string } | null>(null)
+  const [currencyEdit, setCurrencyEdit] = useState<{ currencyId: number; currencyName: string; currencyCode: string; currencySymbol: string; subCurrencyName: string; fractionDigits: number } | null>(null)
+  const [liveRatesOpen, setLiveRatesOpen] = useState(false)
+  const catalog = currencyCatalog(currentLanguage())
   const currencyEditMessagesRef = useRef<any>(null)
 
   const handleSaveCurrencyEdit = async (e?: React.FormEvent) => {
@@ -124,6 +134,9 @@ function ExchangeRatesContent() {
           currency_id: currencyEdit.currencyId,
           currency_name: currencyEdit.currencyName.trim(),
           currency_code: currencyEdit.currencyCode.trim(),
+          currency_symbol: currencyEdit.currencySymbol.trim(),
+          sub_currency_name: currencyEdit.subCurrencyName.trim(),
+          fraction_digits: currencyEdit.fractionDigits,
         }),
       })
       if (!response.ok) {
@@ -186,6 +199,9 @@ function ExchangeRatesContent() {
         body: JSON.stringify({
           currency_name: newCurrencyForm.currencyName,
           currency_code: newCurrencyForm.currencyCode,
+          currency_symbol: newCurrencyForm.currencySymbol,
+          sub_currency_name: newCurrencyForm.subCurrencyName,
+          fraction_digits: newCurrencyForm.fractionDigits,
           buy_rate: newCurrencyForm.buyRate,
           sell_rate: newCurrencyForm.sellRate,
           exchange_rate: newCurrencyForm.exchangeRate,
@@ -205,6 +221,9 @@ function ExchangeRatesContent() {
       setNewCurrencyForm({
         currencyName: "",
         currencyCode: "",
+        currencySymbol: "",
+        subCurrencyName: "",
+        fractionDigits: 2,
         buyRate: 1,
         sellRate: 1,
         exchangeRate: 1,
@@ -474,10 +493,22 @@ function ExchangeRatesContent() {
                 {tr("تحديث الأسعار")}
               </Button>
               <Button
+                onClick={() => setLiveRatesOpen(true)}
+                variant="outline"
+                disabled={!rateAccess.add || exchangeRates.length < 2}
+                title={rateAccess.add ? tr("جلب أسعار الصرف الحالية من الإنترنت مقابل عملة الأساس") : tr("لا يوجد لديك صلاحية اضافة سعر الصرف")}
+              >
+                <Globe className="h-4 w-4 ms-2" />
+                {tr("جلب أسعار الصرف")}
+              </Button>
+              <Button
                 onClick={() => {
                   setNewCurrencyForm({
                     currencyName: "",
                     currencyCode: "",
+                    currencySymbol: "",
+                    subCurrencyName: "",
+                    fractionDigits: 2,
                     buyRate: 1,
                     sellRate: 1,
                     exchangeRate: 1,
@@ -577,7 +608,7 @@ function ExchangeRatesContent() {
                           size="sm"
                           variant="outline"
                           className="text-xs"
-                          onClick={() => setCurrencyEdit({ currencyId: Number(rate.currency_id), currencyName: rate.currency_name || "", currencyCode: rate.currency_code || "" })}
+                          onClick={() => { const known = findCatalogCurrency(rate.currency_code || "", currentLanguage()); setCurrencyEdit({ currencyId: Number(rate.currency_id), currencyName: rate.currency_name || "", currencyCode: rate.currency_code || "", currencySymbol: rate.currency_symbol || known?.symbol || "", subCurrencyName: rate.sub_currency_name || known?.subName || "", fractionDigits: rate.fraction_digits ?? known?.fractionDigits ?? 2 }) }}
                           disabled={!rateAccess.edit}
                           title={rateAccess.edit ? tr("تعديل اسم العملة ورمزها") : tr("لا يوجد لديك صلاحية تعديل سعر صرف")}
                         >
@@ -738,6 +769,14 @@ function ExchangeRatesContent() {
                     required
                   />
                 </div>
+                <div>
+                  <Label htmlFor="editCurrencySymbol" className="text-start block">{tr("رمز العملة المختصر")}</Label>
+                  <Input id="editCurrencySymbol" className="text-start" dir={appDir()} maxLength={10} placeholder="₪ $ €" value={currencyEdit.currencySymbol} onChange={(e) => setCurrencyEdit({ ...currencyEdit, currencySymbol: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="editSubCurrency" className="text-start block">{tr("العملة الفرعية")}</Label>
+                  <Input id="editSubCurrency" className="text-start" dir={appDir()} maxLength={50} placeholder={tr("مثال: أغورة، سنت، فلس")} value={currencyEdit.subCurrencyName} onChange={(e) => setCurrencyEdit({ ...currencyEdit, subCurrencyName: e.target.value })} />
+                </div>
               </div>
               <p className="text-xs text-muted-foreground text-start">
                 {tr("السندات السابقة مرتبطة بالعملة نفسها وستظهر بالاسم والرمز الجديدين.")}
@@ -756,6 +795,17 @@ function ExchangeRatesContent() {
         </DialogContent>
       </Dialog>
 
+      <LiveRatesDialog
+        open={liveRatesOpen}
+        onOpenChange={setLiveRatesOpen}
+        currentRates={exchangeRates}
+        saveRate={(currencyId, rate) => updateRate(currencyId, { type: 1, currency_id: currencyId, buy_rate: rate, sell_rate: rate, exchange_rate: rate, is_active: true })}
+        onSaved={(count) => {
+          refresh()
+          messagesRef.current?.show?.([{ severity: "success", summary: "", detail: tr("تم حفظ أسعار الصرف لـ {0} عملة", count), life: 4000 }])
+        }}
+      />
+
       {/* New Currency Dialog */}
       <Dialog
         open={showNewRateDialog}
@@ -770,6 +820,33 @@ function ExchangeRatesContent() {
           </DialogHeader>
           <form onSubmit={handleSaveNewCurrency} onKeyDown={(e) => handleDialogKeys(e, () => { if (!isSubmitting) e.currentTarget.requestSubmit() })} className="space-y-4" noValidate>
             <Messages innerRef={newCurrencyMessagesRef} />
+            <div>
+              <Label htmlFor="currencyCatalog" className="text-start block">{tr("اختر العملة")}</Label>
+              <select
+                id="currencyCatalog"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={catalog.some((item) => item.code === newCurrencyForm.currencyCode) ? newCurrencyForm.currencyCode : ""}
+                onChange={(e) => {
+                  const picked = catalog.find((item) => item.code === e.target.value)
+                  if (!picked) return
+                  // الاسم يبقى قابلاً للتعديل بعد الاختيار
+                  setNewCurrencyForm({ ...newCurrencyForm, currencyCode: picked.code, currencyName: picked.name, currencySymbol: picked.symbol, subCurrencyName: picked.subName, fractionDigits: picked.fractionDigits })
+                }}
+              >
+                <option value="">{tr("— اختر من عملات العالم لتعبئة البيانات تلقائياً —")}</option>
+                {catalog.map((item) => <option key={item.code} value={item.code}>{item.code} — {item.name}{item.symbol && item.symbol !== item.code ? ` (${item.symbol})` : ""}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="newCurrencySymbol" className="text-start block">{tr("رمز العملة المختصر")}</Label>
+                <Input id="newCurrencySymbol" className="text-start" dir={appDir()} maxLength={10} placeholder="₪ $ €" value={newCurrencyForm.currencySymbol} onChange={(e) => setNewCurrencyForm({ ...newCurrencyForm, currencySymbol: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="newSubCurrency" className="text-start block">{tr("العملة الفرعية")}</Label>
+                <Input id="newSubCurrency" className="text-start" dir={appDir()} maxLength={50} placeholder={tr("مثال: أغورة، سنت، فلس")} value={newCurrencyForm.subCurrencyName} onChange={(e) => setNewCurrencyForm({ ...newCurrencyForm, subCurrencyName: e.target.value })} />
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="currencyCode" className="text-start block">

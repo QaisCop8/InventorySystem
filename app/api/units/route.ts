@@ -48,15 +48,17 @@ export async function GET() {
       const existingUnits = await sql`SELECT COUNT(*) as count FROM units`
 
       if (Number(existingUnits[0]?.count || 0) === 0) {
+        // الأكثر استخداماً أولاً: قطعة ثم كرتونة ثم علبة ثم ربطة، ثم البقية
         const defaultUnits = [
           { code: "PCS", name: "قطعة", name_en: "Piece" },
+          { code: "CTN", name: "كرتونة", name_en: "Carton" },
+          { code: "CAN", name: "علبة", name_en: "Can" },
+          { code: "BNDL", name: "ربطة", name_en: "Bundle" },
           { code: "KG", name: "كيلو", name_en: "Kilogram" },
           { code: "G", name: "جرام", name_en: "Gram" },
           { code: "L", name: "لتر", name_en: "Liter" },
           { code: "M", name: "متر", name_en: "Meter" },
           { code: "BOX", name: "صندوق", name_en: "Box" },
-          { code: "CTN", name: "كرتون", name_en: "Carton" },
-          { code: "CAN", name: "علبة", name_en: "Can" },
           { code: "BTL", name: "زجاجة", name_en: "Bottle" },
           { code: "BAG", name: "كيس", name_en: "Bag" },
           { code: "PKT", name: "باكيت", name_en: "Packet" },
@@ -88,7 +90,8 @@ export async function GET() {
         updated_at
       FROM units
       WHERE COALESCE(status, 1) != 3
-      ORDER BY unit_code ASC NULLS LAST, id
+      ORDER BY CASE unit_name WHEN 'قطعة' THEN 1 WHEN 'كرتونة' THEN 2 WHEN 'كرتون' THEN 2 WHEN 'علبة' THEN 3 WHEN 'ربطة' THEN 4 ELSE 5 END,
+        unit_code ASC NULLS LAST, id
     `
 
     return NextResponse.json(units)

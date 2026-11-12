@@ -119,7 +119,8 @@ export default function Accounts() {
       ...item,
       code: item.code || item.account_code || "",
       name: item.name || item.account_name || "",
-      type: Number(item.type || 0),
+      // /api/accounts يعيد النوع باسم classification_type_id — بدونه كان الفلتر (النوع 1) عند فتح الشاشة يُخفي كل الحسابات
+      type: Number(item.type ?? item.classification_type_id ?? 0),
       level_no: Number(item.level_no || 1),
       finanical_list_id: finanicalListId,
       finanical_list_name:

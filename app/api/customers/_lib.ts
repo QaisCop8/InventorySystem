@@ -98,6 +98,13 @@ export async function resolveCustomerCity(cityId: unknown, cityName: unknown): P
 export const normalizeCustomerIdNumber = (value: unknown) => String(value ?? "").trim()
 
 export async function validateCustomerContactFields(data: any, type: unknown, currentId?: unknown): Promise<string | null> {
+  // رقم العميل/المورد/المشترك: أحرف إنجليزية وأرقام فقط (لا حروف عربية)
+  const customerCode = String(data?.customer_code ?? "").trim()
+  if (customerCode && !/^[A-Za-z0-9]+$/.test(customerCode)) {
+    // سجل قديم برقم لم يتغيّر لا يُمنع من التعديل
+    const [stored] = currentId ? await sql`SELECT customer_code FROM customers WHERE id = ${Number(currentId)}` : []
+    if (String(stored?.customer_code ?? "") !== customerCode) return "رقم العميل/المورد/المشترك يجب أن يحتوي أحرفاً إنجليزية وأرقاماً فقط"
+  }
   const idNumber = normalizeCustomerIdNumber(data?.id_number)
   if (idNumber && !/^\d{9,20}$/.test(idNumber)) return "رقم الهوية يجب أن يكون أرقاماً فقط و9 أرقام على الأقل"
   if (idNumber) {

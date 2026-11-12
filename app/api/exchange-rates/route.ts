@@ -5,6 +5,21 @@ import { authorizeExchangeRateChange, ensureExchangeRateAuditColumns, exchangeRa
 import { EXCHANGE_RATE_PERMISSIONS } from "@/lib/transaction-permission-definitions"
 
 const MIN_EXCHANGE_RATE = 0.001
+
+// الرمز المختصر (₪ $) والعملة الفرعية وعدد خاناتها — للتفقيط في الفواتير وكشوف الحساب (lib/currency-catalog.ts)
+let currencyExtrasReady: Promise<void> | null = null
+function ensureCurrencyExtraColumns(client: PoolClient) {
+  currencyExtrasReady ??= client.query(
+    "ALTER TABLE currency ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10), ADD COLUMN IF NOT EXISTS sub_currency_name VARCHAR(50), ADD COLUMN IF NOT EXISTS fraction_digits SMALLINT",
+  ).then(() => undefined).catch((error) => { currencyExtrasReady = null; throw error })
+  return currencyExtrasReady
+}
+function currencyExtras(body: any) {
+  const symbol = String(body?.currency_symbol ?? "").trim().slice(0, 10) || null
+  const subName = String(body?.sub_currency_name ?? "").trim().slice(0, 50) || null
+  const digits = Number(body?.fraction_digits)
+  return { symbol, subName, digits: Number.isInteger(digits) && digits >= 0 && digits <= 4 ? digits : null }
+}
 const MAX_EXCHANGE_RATE = 100000
 
 // ==============================
@@ -98,11 +113,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    await ensureCurrencyExtraColumns(client)
+    const extras = currencyExtras(body)
     const currencyResult = await client.query(
-      `INSERT INTO currency (id, currency_code, currency_name, is_active)
-       VALUES ($1, $2, $3, true)
+      `INSERT INTO currency (id, currency_code, currency_name, is_active, currency_symbol, sub_currency_name, fraction_digits)
+       VALUES ($1, $2, $3, true, $4, $5, $6)
        RETURNING *`,
-      [newId, currencyCode, currencyName],
+      [newId, currencyCode, currencyName, extras.symbol, extras.subName, extras.digits],
     )
     const rateResult = await client.query(
       `
@@ -192,9 +209,16 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "اسم العملة مكرر" }, { status: 400 })
     }
 
+    await ensureCurrencyExtraColumns(client)
+    const extras = currencyExtras(body)
     const updated = await client.query(
-      "UPDATE currency SET currency_name = $1, currency_code = $2 WHERE id = $3 RETURNING *",
-      [currencyName, currencyCode, currencyId],
+      // حقول لم تُرسل تبقى كما هي (مستدعون قدامى يرسلون الاسم والرمز فقط)
+      `UPDATE currency SET currency_name = $1, currency_code = $2,
+         currency_symbol = CASE WHEN $7 THEN $4 ELSE currency_symbol END,
+         sub_currency_name = CASE WHEN $8 THEN $5 ELSE sub_currency_name END,
+         fraction_digits = CASE WHEN $9 THEN $6::smallint ELSE fraction_digits END
+       WHERE id = $3 RETURNING *`,
+      [currencyName, currencyCode, currencyId, extras.symbol, extras.subName, extras.digits, "currency_symbol" in body, "sub_currency_name" in body, "fraction_digits" in body],
     )
 
     const oldCode = String(current.rows[0].currency_code || "").trim()

@@ -24,6 +24,8 @@ export interface BankAccountRecord {
   branch_id: number | null
   code: string
   actual_bank_code: string
+  /** رقم الآيبان — لنماذج الحوالات البنكية */
+  iban?: string | null
   currency_id: number | null
   name: string
   name_lang2: string
@@ -53,13 +55,18 @@ interface BranchOption {
   branch_code: string
   branch_name: string
   bank_id: number | null
+  status?: number
 }
 
 interface BankOption {
   id: number
   bank_code?: string
   bank_name: string
+  status?: number
 }
+
+// بنك/فرع متوقف (الحالة 2) لا يُعرض للاختيار — ما لم يكن هو المختار في السجل الحالي
+const isActiveOption = (option: { status?: number }) => Number(option.status ?? 1) !== 2
 
 interface CurrencyOption {
   currency_id?: number
@@ -186,9 +193,10 @@ export default function UnifiedBankAccounts({
   }, [successMessage])
 
   const filteredBranches = useMemo(
-    () => (bankFilterId ? branches.filter((b) => b.bank_id === bankFilterId) : []),
-    [branches, bankFilterId],
+    () => (bankFilterId ? branches.filter((b) => b.bank_id === bankFilterId && (isActiveOption(b) || b.id === form.branch_id)) : []),
+    [branches, bankFilterId, form.branch_id],
   )
+  const selectableBanks = useMemo(() => banks.filter((bank) => isActiveOption(bank) || bank.id === bankFilterId), [banks, bankFilterId])
 
   // Unsaved-changes tracking: recapture the baseline whenever a (different) record is loaded.
   const initialSnapshotRef = useRef<string>(JSON.stringify(form))
@@ -240,7 +248,7 @@ export default function UnifiedBankAccounts({
     if (form.id > 0 || !dialogOpen) setAutoMode(false)
   }, [form.id, dialogOpen])
 
-  const autoBranches = useMemo(() => (autoBankId ? branches.filter((b) => b.bank_id === autoBankId) : []), [branches, autoBankId])
+  const autoBranches = useMemo(() => (autoBankId ? branches.filter((b) => b.bank_id === autoBankId && isActiveOption(b)) : []), [branches, autoBankId])
 
   const chooseAutoRows = () => {
     const bank = banks.find((b) => b.id === autoBankId)
@@ -466,6 +474,17 @@ export default function UnifiedBankAccounts({
                       className="font-mono"
                     />
                   </div>
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label htmlFor="bank-account-iban">{tr("رقم الآيبان (IBAN)")}</Label>
+                    <Input
+                      id="bank-account-iban"
+                      dir="ltr"
+                      value={form.iban || ""}
+                      onChange={(e) => onFormChange("iban", e.target.value.toUpperCase().replace(/[^A-Z0-9 ]/g, "").slice(0, 42))}
+                      placeholder="PS92 PALS 0000 0000 0400 1234 5678 9"
+                      className="font-mono"
+                    />
+                  </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="bank-account-name">{tr("اسم الحساب (ar) *")}</Label>
                     <Input id="bank-account-name" value={form.name} onChange={(e) => onFormChange("name", e.target.value)} />
@@ -494,7 +513,7 @@ export default function UnifiedBankAccounts({
                         className={SELECT_CLASS}
                       >
                         <option value="">{tr("اختر البنك")}</option>
-                        {banks.map((bank) => (
+                        {selectableBanks.map((bank) => (
                           <option key={bank.id} value={bank.id}>
                             {bank.bank_name}
                           </option>
@@ -686,7 +705,7 @@ export default function UnifiedBankAccounts({
                         className="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       >
                         <option value="">{tr("اختر البنك")}</option>
-                        {banks.map((bank) => <option key={bank.id} value={bank.id}>{bank.bank_name}</option>)}
+                        {banks.filter(isActiveOption).map((bank) => <option key={bank.id} value={bank.id}>{bank.bank_name}</option>)}
                       </select>
                     </div>
                     <div className="grid gap-1.5">

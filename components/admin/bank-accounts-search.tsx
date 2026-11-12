@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -115,8 +116,8 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
       if (codeFilter && !account.code.includes(codeFilter)) return false
       if (
         nameQuery &&
-        !account.name.toLowerCase().includes(nameQuery) &&
-        !account.name_lang2.toLowerCase().includes(nameQuery)
+        !normalizeArabicSearch(account.name).includes(normalizeArabicSearch(nameQuery)) &&
+        !normalizeArabicSearch(account.name_lang2).includes(normalizeArabicSearch(nameQuery))
       ) {
         return false
       }

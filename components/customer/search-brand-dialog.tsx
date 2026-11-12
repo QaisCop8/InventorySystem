@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -45,7 +46,7 @@ export default function SearchBrandDialog({ open, onOpenChange, type, brands, on
     if (!type) return []
     const filtered = brands
       .filter((brand) => brand.brand_type_id === type.id)
-      .filter((brand) => brand.name.toLowerCase().includes(filter.toLowerCase()))
+      .filter((brand) => normalizeArabicSearch(brand.name).includes(normalizeArabicSearch(filter)))
     filtered.sort((a, b) => (a.id || 0) - (b.id || 0))
     return filtered
   }, [brands, filter, type])

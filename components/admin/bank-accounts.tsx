@@ -36,6 +36,7 @@ const initialForm: BankAccountRecord = {
   branch_id: null,
   code: "",
   actual_bank_code: "",
+  iban: "",
   currency_id: null,
   name: "",
   name_lang2: "",

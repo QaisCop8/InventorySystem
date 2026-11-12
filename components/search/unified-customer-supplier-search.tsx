@@ -1,3 +1,4 @@
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 ﻿"use client"
 
 import { tr } from "@/lib/i18n"
@@ -129,7 +130,7 @@ const UnifiedCustomerSupplierSearch = ({
     let filtered = customers
 
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
+      const searchLower = normalizeArabicSearch(debouncedSearchTerm)
       filtered = filtered.filter((customer) => {
         const searchableFields = [
           customer.customer_name,
@@ -145,8 +146,8 @@ const UnifiedCustomerSupplierSearch = ({
           .toLowerCase()
 
         return (
-          searchableFields.includes(searchLower) ||
-          searchLower.split(" ").some((word) => word.length > 1 && searchableFields.includes(word))
+          normalizeArabicSearch(searchableFields).includes(searchLower) ||
+          searchLower.split(" ").some((word) => word.length > 1 && normalizeArabicSearch(searchableFields).includes(word))
         )
       })
     }
@@ -173,7 +174,7 @@ const UnifiedCustomerSupplierSearch = ({
     let filtered = suppliers
 
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
+      const searchLower = normalizeArabicSearch(debouncedSearchTerm)
       filtered = filtered.filter((supplier) => {
         const searchableFields = [
           supplier.supplier_name,
@@ -189,8 +190,8 @@ const UnifiedCustomerSupplierSearch = ({
           .toLowerCase()
 
         return (
-          searchableFields.includes(searchLower) ||
-          searchLower.split(" ").some((word) => word.length > 1 && searchableFields.includes(word))
+          normalizeArabicSearch(searchableFields).includes(searchLower) ||
+          searchLower.split(" ").some((word) => word.length > 1 && normalizeArabicSearch(searchableFields).includes(word))
         )
       })
     }

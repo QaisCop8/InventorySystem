@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr } from "@/lib/i18n"
 import { useState, useEffect, useMemo } from "react"
 import { Search, Filter, X, Package, Barcode, Hash, Eye, ShoppingCart } from "lucide-react"
@@ -81,7 +82,7 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
 
     // Apply text search with fuzzy matching
     if (debouncedSearchTerm) {
-      const searchLower = debouncedSearchTerm.toLowerCase()
+      const searchLower = normalizeArabicSearch(debouncedSearchTerm)
       filtered = filtered.filter((product) => {
         const searchableFields = [
           product.product_name,
@@ -95,11 +96,11 @@ const ProductSearch = ({ onSelect, onClose, isModal = false }: ProductSearchProp
           .toLowerCase()
 
         // Exact match gets highest priority
-        if (searchableFields.includes(searchLower)) return true
+        if (normalizeArabicSearch(searchableFields).includes(searchLower)) return true
 
         // Partial match
         const searchWords = searchLower.split(" ")
-        return searchWords.some((word) => word.length > 1 && searchableFields.includes(word))
+        return searchWords.some((word) => word.length > 1 && normalizeArabicSearch(searchableFields).includes(word))
       })
     }
 

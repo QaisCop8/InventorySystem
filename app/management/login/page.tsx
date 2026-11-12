@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ManagementLogin } from "@/components/auth/management-login"
-import { rememberOfflinePassword } from "@/lib/offline-unlock"
+import { loginOffline, rememberOfflinePassword } from "@/lib/offline-unlock"
 
 export default function ManagementLoginPage() {
   const router = useRouter()
@@ -21,11 +21,20 @@ export default function ManagementLoginPage() {
   }, [router])
 
   const handleLogin = async (credentials: { username: string; password: string; rememberMe: boolean }) => {
-    const response = await fetch("/api/management/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: credentials.username, password: credentials.password }),
-    })
+    let response: Response
+    try {
+      response = await fetch("/api/management/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: credentials.username, password: credentials.password }),
+      })
+    } catch {
+      // دون اتصال (تطبيق الكاشير/المطعم): دخول آخر مستخدم بكلمة مرور مطابقة للبصمة المحفوظة — lib/offline-unlock.ts
+      const offline = await loginOffline(credentials.username, credentials.password)
+      if (!offline.ok) throw new Error(tr(offline.error))
+      window.location.href = "/"
+      return
+    }
 
     const data = await response.json()
     if (!response.ok) {

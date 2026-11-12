@@ -3,6 +3,7 @@
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Search, X, CircleDollarSign } from "lucide-react"
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -183,15 +184,26 @@ export default function AutoCompleteAccount({
 
   const suggestionTypeValues = requiredTypeValues?.length ? requiredTypeValues : searchAllowedTypeValues
   const matchingAccounts = useMemo(() => {
-    const query = displayValue.trim().toLocaleLowerCase()
+    const query = normalizeArabicSearch(displayValue).trim()
     if (!isFocused || !query || selectedAccount) return []
     const words = query.split(/\s+/).filter(Boolean)
     return accounts.filter((account) => {
       if (suggestionTypeValues?.length && !suggestionTypeValues.includes(Number(account.type ?? 0))) return false
-      const searchable = `${account.code} ${account.name} ${account.name_lang2 || ""}`.toLocaleLowerCase()
+      const searchable = normalizeArabicSearch(`${account.code} ${account.name} ${account.name_lang2 || ""}`)
       return words.every((word) => searchable.includes(word))
     }).slice(0, 8)
   }, [accounts, displayValue, isFocused, selectedAccount, suggestionTypeValues])
+
+  // السهمان ↑↓ يتنقلان بين الاقتراحات و Enter يختار المظلَّل (-1 = لا شيء مظلَّل)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const suggestionListRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => { setHighlightedIndex(-1) }, [matchingAccounts])
+  useEffect(() => {
+    if (highlightedIndex < 0) return
+    suggestionListRef.current?.querySelectorAll<HTMLElement>("[role=option]")[highlightedIndex]?.scrollIntoView({ block: "nearest" })
+  }, [highlightedIndex])
+  // النص المكتوب عند فتح نافذة البحث — يُبحث به فيها مباشرة
+  const [searchSeed, setSearchSeed] = useState("")
 
   // يُطبَّق عند اختيار المستخدم حساباً (لا عند تحميل حساب محفوظ مسبقاً)
   const currencyAllows = (account: AccountItem) => {
@@ -335,6 +347,7 @@ export default function AutoCompleteAccount({
   }
 
   const handleOpenSearch = () => {
+    setSearchSeed(typedTextRef.current?.trim() || "")
     searchOpeningRef.current = true
     setSearchDialogOpen(true)
   }
@@ -477,7 +490,26 @@ export default function AutoCompleteAccount({
             setDisplayValue(selectedAccount ? formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly) : value)
           }}
           onKeyDown={(event) => {
+            if ((event.key === "ArrowDown" || event.key === "ArrowUp") && matchingAccounts.length > 0) {
+              event.preventDefault()
+              event.stopPropagation()
+              const last = matchingAccounts.length - 1
+              setHighlightedIndex((index) => event.key === "ArrowDown" ? (index >= last ? 0 : index + 1) : (index <= 0 ? last : index - 1))
+              return
+            }
+            if (event.key === "Escape" && highlightedIndex >= 0) {
+              event.preventDefault()
+              setHighlightedIndex(-1)
+              return
+            }
             if (event.key === "Enter") {
+              const highlighted = highlightedIndex >= 0 ? matchingAccounts[highlightedIndex] : undefined
+              if (highlighted) {
+                event.preventDefault()
+                event.stopPropagation()
+                handleSelectFromSearch(highlighted)
+                return
+              }
               // لا كتابة وحساب مختار ⇐ يُترك Enter للتنقل (Enter كـTab)
               if (typedTextRef.current === null && (selectedAccount || normalizedValue)) return
               event.preventDefault()
@@ -495,14 +527,16 @@ export default function AutoCompleteAccount({
           inputMode="text"
         />
         {matchingAccounts.length > 0 && (
-          <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border bg-white p-1 shadow-lg" role="listbox">
-            {matchingAccounts.map((account) => (
+          <div ref={suggestionListRef} className="absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border bg-white p-1 shadow-lg" role="listbox">
+            {matchingAccounts.map((account, index) => (
               <button
                 key={account.id}
                 type="button"
                 role="option"
-                aria-selected="false"
-                className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-start text-sm hover:bg-slate-100 focus:bg-slate-100"
+                tabIndex={-1}
+                aria-selected={index === highlightedIndex}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                className={`flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-start text-sm hover:bg-slate-100 focus:bg-slate-100 ${index === highlightedIndex ? "bg-blue-100 text-blue-900" : ""}`}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleSelectFromSearch(account)}
               >
@@ -523,7 +557,8 @@ export default function AutoCompleteAccount({
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700"
                 onClick={() => void handleOpenSearch()}
                 disabled={disabled}
-                title={tr("بحث عن الحساب")}
+                tabIndex={-1}
+                title={tr("بحث عن الحساب (F10)")}
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -535,6 +570,7 @@ export default function AutoCompleteAccount({
                 size="sm"
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
                 onClick={handleOpenCostCenters}
+                tabIndex={-1}
                 disabled={disabled || costCenterButtonDisabled || !selectedAccount}
                 title={tr("مراكز الكلفة")}
               >
@@ -549,6 +585,7 @@ export default function AutoCompleteAccount({
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                 onClick={handleClear}
                 disabled={disabled}
+                tabIndex={-1}
                 title={tr("مسح")}
               >
                 <X className="h-4 w-4" />
@@ -564,7 +601,8 @@ export default function AutoCompleteAccount({
             className="h-9 px-3 shrink-0"
             onClick={() => void handleOpenSearch()}
             disabled={disabled}
-            title={tr("بحث عن الحساب")}
+            tabIndex={-1}
+            title={tr("بحث عن الحساب (F10)")}
           >
             <Search className="h-4 w-4" />
           </Button>
@@ -602,6 +640,7 @@ export default function AutoCompleteAccount({
         leafOnly={leafOnly}
         emptyActionLabel={emptyActionLabel}
         emptyActionHref={emptyActionHref}
+        initialSearch={searchSeed}
       />
 
       {showCostCenterDialog && (

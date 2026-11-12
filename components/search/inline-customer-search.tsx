@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
@@ -74,7 +75,7 @@ export function InlineCustomerSearch({
     if (searchTerm.length >= 2) {
       const filtered = customers.filter(
         (customer) =>
-          customer.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          normalizeArabicSearch(customer.customer_name).includes(normalizeArabicSearch(searchTerm)) ||
           customer.customer_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
           customer.customer_mobile.includes(searchTerm),
       )

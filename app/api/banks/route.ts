@@ -5,6 +5,15 @@ import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-
 // الأرقام تُكمَّل لأربع خانات (1 ⇐ 0001)
 const padCode = (value: unknown) => { const code = String(value ?? "").trim(); return /^\d{1,4}$/.test(code) ? code.padStart(4, "0") : code }
 
+// رمز السويفت (SWIFT/BIC) للحوالات البنكية: 8 أو 11 حرفاً/رقماً إنجليزياً
+let swiftColumnReady: Promise<unknown> | null = null
+const ensureSwiftColumn = () => (swiftColumnReady ??= sql`ALTER TABLE banks ADD COLUMN IF NOT EXISTS swift_code VARCHAR(11)`.catch((error: unknown) => { swiftColumnReady = null; throw error }))
+const normalizeSwift = (value: unknown): { swift: string | null; error?: string } => {
+  const swift = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "")
+  if (!swift) return { swift: null }
+  return /^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(swift) ? { swift } : { swift: null, error: "رمز السويفت (Swift Code) يجب أن يكون 8 أو 11 حرفاً/رقماً إنجليزياً" }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authorization = await authorizeFileRead(request, ["banks", "branches", "bank-accounts", "credit-cards"])
@@ -23,8 +32,9 @@ export async function GET(request: NextRequest) {
 
     // رقم البنك 4 خانات: الأرقام الأقصر تُكمَّل بأصفار (ما لم يتعارض مع رقم قائم)
     await sql`UPDATE banks b SET bank_code = LPAD(b.bank_code, 4, '0') WHERE b.bank_code ~ '^[0-9]{1,3}$' AND NOT EXISTS (SELECT 1 FROM banks o WHERE o.bank_code = LPAD(b.bank_code, 4, '0'))`
+    await ensureSwiftColumn()
     const banks = await sql`
-      SELECT id, bank_code, bank_name, bank_name_en, status, created_at, updated_at
+      SELECT id, bank_code, bank_name, bank_name_en, swift_code, status, created_at, updated_at
       FROM banks
       WHERE status != 3
       ORDER BY bank_code ASC NULLS LAST, id
@@ -57,9 +67,12 @@ export async function POST(request: NextRequest) {
     }
 
     const status = Number(data.status ?? 1)
+    const swift = normalizeSwift(data.swift_code)
+    if (swift.error) return NextResponse.json({ error: swift.error }, { status: 400 })
+    await ensureSwiftColumn()
     const result = await sql`
-      INSERT INTO banks (bank_code, bank_name, bank_name_en, status)
-      VALUES (${data.bank_code}, ${data.bank_name}, ${data.bank_name_en || ""}, ${status})
+      INSERT INTO banks (bank_code, bank_name, bank_name_en, swift_code, status)
+      VALUES (${data.bank_code}, ${data.bank_name}, ${data.bank_name_en || ""}, ${swift.swift}, ${status})
       RETURNING *
     `
 
@@ -86,6 +99,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const status = Number(data.status ?? 1)
+    const swift = normalizeSwift(data.swift_code)
+    if (swift.error) return NextResponse.json({ error: swift.error }, { status: 400 })
+    await ensureSwiftColumn()
 
     if (status === 3) {
       await sql`
@@ -123,6 +139,7 @@ export async function PUT(request: NextRequest) {
         bank_code = ${String(data.bank_code).trim()},
         bank_name = ${data.bank_name},
         bank_name_en = ${data.bank_name_en || ""},
+        swift_code = CASE WHEN ${"swift_code" in data}::boolean THEN ${swift.swift} ELSE swift_code END,
         status = ${status},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${data.id}

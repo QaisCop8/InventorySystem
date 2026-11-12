@@ -1943,11 +1943,12 @@ createButtonTemplate = (col) => (ctx) => {
 
 const normalizeArabic = (text) => {
   if (!text) return '';
+  // نفس توحيد البحث في النظام (lib/arabic-search.ts): همزات ⇐ ا، ة ⇐ ه، ى/ئ ⇐ ي، ؤ ⇐ و، بلا تشكيل، أرقام لاتينية
   return text
-    .replace(/(أ|إ|آ|ى)/g, 'ا')
-    .replace(/(ه|ة)/g, 'ا')
-    .replace(/(ؤ|و)/g, 'و')
-    .replace(/(ى|ي|ئ)/g, 'ي')
-    .replace(/[ًٌٍَُِْ]/g, '')
+    .replace(/[ً-ٰٟـ]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/[ىئ]/g, 'ي')
+    .replace(/ؤ/g, 'و')
     .replace(/[٠١٢٣٤٥٦٧٨٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
 };

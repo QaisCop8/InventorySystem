@@ -11,12 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Edit } from "lucide-react"
 import UnifiedBanks from "@/components/admin/unified-banks"
+import { BanksImportDialog } from "@/components/import/banks-import"
+import { FileSpreadsheet } from "lucide-react"
 
 interface Bank {
   id: number
   bank_code: string
   bank_name: string
   bank_name_en?: string
+  swift_code?: string | null
   status: number
 }
 
@@ -25,6 +28,7 @@ const initialForm = {
   bank_code: "",
   bank_name: "",
   bank_name_en: "",
+  swift_code: "",
   status: 1,
 }
 
@@ -39,6 +43,7 @@ export default function Banks() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [searchText, setSearchText] = useState("")
   const [deleteError, setDeleteError] = useState("")
+  const [importOpen, setImportOpen] = useState(false)
 
   const visibleBanks = useMemo(() => banks.filter((bank) => bank.status !== 3), [banks])
 
@@ -97,6 +102,7 @@ export default function Banks() {
       bank_code: bank.bank_code,
       bank_name: bank.bank_name,
       bank_name_en: bank.bank_name_en || "",
+      swift_code: bank.swift_code || "",
       status: bank.status,
     })
     setIsNewMode(false)
@@ -122,6 +128,7 @@ export default function Banks() {
         bank_code: matchedBank.bank_code,
         bank_name: matchedBank.bank_name,
         bank_name_en: matchedBank.bank_name_en || "",
+        swift_code: matchedBank.swift_code || "",
         status: matchedBank.status,
       })
       setIsNewMode(false)
@@ -138,6 +145,7 @@ export default function Banks() {
         bank_code: bank.bank_code,
         bank_name: bank.bank_name,
         bank_name_en: bank.bank_name_en || "",
+        swift_code: bank.swift_code || "",
         status: bank.status,
       })
     }
@@ -224,6 +232,7 @@ export default function Banks() {
           bank_code: nextBank.bank_code,
           bank_name: nextBank.bank_name,
           bank_name_en: nextBank.bank_name_en || "",
+          swift_code: nextBank.swift_code || "",
           status: nextBank.status,
         })
         setCurrentIndex(nextIndex)
@@ -247,6 +256,7 @@ export default function Banks() {
       bank_code: record.bank_code,
       bank_name: record.bank_name,
       bank_name_en: record.bank_name_en || "",
+      swift_code: record.swift_code || "",
       status: record.status,
     })
 
@@ -295,6 +305,10 @@ export default function Banks() {
               <Search className="h-4 w-4" />
               {tr("بحث")}
             </Button>
+            <Button variant="outline" size="sm" disabled={loading} onClick={() => setImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4" />
+              {tr("استيراد البنوك والفروع من Excel")}
+            </Button>
           </div>
         </div>
       </div>
@@ -306,6 +320,7 @@ export default function Banks() {
               <TableHead className="text-start">{tr("رقم البنك")}</TableHead>
               <TableHead className="text-start">{tr("اسم البنك")}</TableHead>
               <TableHead className="text-start">{tr("اسم البنك انجليزي")}</TableHead>
+              <TableHead className="text-start">{tr("رمز السويفت")}</TableHead>
               <TableHead className="text-start">{tr("الحالة")}</TableHead>
               <TableHead className="text-start">{tr("إجراءات")}</TableHead>
             </TableRow>
@@ -320,6 +335,7 @@ export default function Banks() {
                 <TableCell className="text-start">{bank.bank_code}</TableCell>
                 <TableCell className="text-start">{bank.bank_name}</TableCell>
                 <TableCell className="text-start">{bank.bank_name_en}</TableCell>
+                <TableCell className="text-start font-mono">{bank.swift_code || "-"}</TableCell>
                 <TableCell className="text-start">{bank.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                 <TableCell className="text-start">
                   <Button
@@ -365,6 +381,7 @@ export default function Banks() {
         isLastRecord={form.id > 0 ? (filteredBanks.length === 0 ? true : currentIndex >= filteredBanks.length - 1) : filteredBanks.length === 0}
         deleteError={deleteError}
       />
+      <BanksImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => { void fetchBanks(); notifyDefinitionsChanged("banks"); notifyDefinitionsChanged("bank-branches") }} />
     </div>
   )
 }

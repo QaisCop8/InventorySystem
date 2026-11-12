@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -61,7 +62,7 @@ export default function CodeNameSearchDialog<T>({
     return records.filter((row) => {
       const record = toRecord(row)
       if (code && !String(record.code || "").toLowerCase().includes(code)) return false
-      if (name && !record.name.toLowerCase().includes(name)) return false
+      if (name && !normalizeArabicSearch(record.name).includes(normalizeArabicSearch(name))) return false
       return true
     })
   }, [records, toRecord, nameFilter, codeFilter])

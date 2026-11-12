@@ -1,3 +1,4 @@
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 ﻿import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 export async function POST(request: NextRequest) {
@@ -12,6 +13,8 @@ export async function POST(request: NextRequest) {
     }
 
     const searchTerm = `%${query.trim()}%`
+    // بحث عربي متسامح في الأسماء (أ/إ/آ=ا، ة=ه، ى=ي...) — lib/arabic-search.ts
+    const arabicLike = `%${normalizeArabicSearch(query.trim())}%`
     const results = []
 
     console.log("[v0] Searching with term:", searchTerm)
@@ -24,7 +27,7 @@ export async function POST(request: NextRequest) {
                'customer' as type,
                customer_code, email, mobile1, city
         FROM customers 
-        WHERE customer_name ILIKE ${searchTerm} 
+        WHERE translate(lower(COALESCE(customer_name, '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE ${arabicLike} 
            OR customer_code ILIKE ${searchTerm}
            OR email ILIKE ${searchTerm}
            OR mobile1 ILIKE ${searchTerm}
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
                'supplier' as type,
                supplier_code, email, mobile1, city
         FROM suppliers 
-        WHERE supplier_name ILIKE ${searchTerm}
+        WHERE translate(lower(COALESCE(supplier_name, '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE ${arabicLike}
            OR supplier_code ILIKE ${searchTerm}
            OR email ILIKE ${searchTerm}
            OR mobile1 ILIKE ${searchTerm}
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
                'product' as type,
                product_code, category, last_purchase_price, currency
         FROM products 
-        WHERE product_name ILIKE ${searchTerm}
+        WHERE translate(lower(COALESCE(product_name, '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE ${arabicLike}
            OR product_code ILIKE ${searchTerm}
            OR barcode ILIKE ${searchTerm}
            OR description ILIKE ${searchTerm}
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
                customer_name, total_amount, currency_code, order_status
         FROM sales_orders 
         WHERE order_number ILIKE ${searchTerm}
-           OR customer_name ILIKE ${searchTerm}
+           OR translate(lower(COALESCE(customer_name, '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE ${arabicLike}
            OR notes ILIKE ${searchTerm}
         LIMIT 5
       `
@@ -159,7 +162,7 @@ export async function POST(request: NextRequest) {
                supplier_name, total_amount, currency_code, workflow_status
         FROM purchase_orders 
         WHERE order_number ILIKE ${searchTerm}
-           OR supplier_name ILIKE ${searchTerm}
+           OR translate(lower(COALESCE(supplier_name, '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE ${arabicLike}
            OR notes ILIKE ${searchTerm}
         LIMIT 5
       `

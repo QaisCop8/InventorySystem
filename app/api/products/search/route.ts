@@ -1,3 +1,4 @@
+import { normalizeArabicSearch } from "@/lib/arabic-search"
 import { authorizeProductLookupScope } from "@/app/api/inventory/products/_permissions"
 
 import { type NextRequest, NextResponse } from "next/server"
@@ -9,6 +10,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const barcode = searchParams.get("barcode")
     const query = searchParams.get("q")
+    // بحث عربي متسامح (أ/إ/آ=ا، ة=ه، ى=ي...) — lib/arabic-search.ts
+    const arabicLike = `%${normalizeArabicSearch(String(query ?? "").trim())}%`
     const hasBarcode = searchParams.get("has_barcode")
 
     let products
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
         FROM products p
         LEFT JOIN product_stock ps ON p.id = ps.product_id
         WHERE (
-          p.product_name ILIKE ${`%${query}%`} OR
+          translate(lower(COALESCE(p.product_name, '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE ${arabicLike} OR
           p.product_code ILIKE ${`%${query}%`} OR
           p.barcode ILIKE ${`%${query}%`}
         )
