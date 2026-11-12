@@ -76,6 +76,9 @@ export function BanksImportDialog({ open, onOpenChange, onImported }: { open: bo
     importRows: async (rows, ctx, report) => {
       const banks = [...ctx.banks]
       const branches = [...ctx.branches]
+      // المطابقة برقم الفرع لفروع موجودة قبل الاستيراد فقط — فرع أُنشئ الآن قد يأخذ رقماً تلقائياً (رقمه في الملف مستخدم)
+      // يساوي رقم سطر لاحق في الملف، فكان السطر اللاحق يُعدّ موجوداً ويُتخطّى
+      const existedBefore = new Set(ctx.branches.map((branch) => branch.id))
       const send = async (method: "POST" | "PUT", url: string, body: unknown) => {
         const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
         const data = await response.json().catch(() => ({}))
@@ -94,19 +97,21 @@ export function BanksImportDialog({ open, onOpenChange, onImported }: { open: bo
             bank = await send("PUT", "/api/banks", { ...bank, swift_code: swift }) as Bank
             banks.splice(banks.findIndex((item) => item.id === bank!.id), 1, bank)
           }
+          let note: string | undefined
           const branchName = String(row.data.branch_name ?? "").trim()
           if (branchName) {
             const branchCode = padBranchCode(row.data.branch_code)
-            const exists = branches.find((item) => item.bank_id === bank!.id && (same(item.branch_name, branchName) || (branchCode && same(item.branch_code, branchCode))))
+            const exists = branches.find((item) => item.bank_id === bank!.id && (same(item.branch_name, branchName) || (branchCode && existedBefore.has(item.id) && same(item.branch_code, branchCode))))
             if (!exists) {
               const body = { branch_name: branchName, bank_id: bank.id, bank_branch: true, status: 1 }
               // رقم الفرع فريد على مستوى كل الفروع (فروع الشركة والبنوك) — رقم مستخدم ⇐ رقم تلقائي
               const created = await send("POST", "/api/branches", { ...body, branch_code: branchCode, quick: !branchCode })
                 .catch((error) => branchCode ? send("POST", "/api/branches", { ...body, branch_code: "", quick: true }) : Promise.reject(error)) as BankBranch
               branches.push(created)
+              if (branchCode && !same(created.branch_code, branchCode)) note = tr("رقم الفرع {0} مستخدم لفرع آخر — أُعطي الرقم {1}", branchCode, created.branch_code)
             }
           }
-          report(row.id, { ok: true })
+          report(row.id, { ok: true, message: note })
         } catch (error) {
           report(row.id, { ok: false, message: error instanceof Error ? error.message : tr("تعذر الحفظ") })
         }

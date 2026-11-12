@@ -133,6 +133,10 @@ export default function Banks() {
       })
       setIsNewMode(false)
       setCurrentIndex(matchedIndex)
+    } else {
+      // رقم غير موجود ⇐ سجل جديد بهذا الرقم: حقول البنك السابق (عند التعديل) تُفرَّغ، وما كُتب في سجل جديد يبقى
+      setForm((prev) => (prev.id > 0 ? { ...initialForm, bank_code: paddedCode } : { ...prev, bank_code: paddedCode }))
+      setIsNewMode(true)
     }
   }
 

@@ -45,7 +45,7 @@ const initialForm: BranchForm = {
 
 export default function Branches() {
   const [branches, setBranches] = useState<Branch[]>([])
-  const [banks, setBanks] = useState<{ id: number; bank_name: string }[]>([])
+  const [banks, setBanks] = useState<{ id: number; bank_name: string; bank_code?: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isNewMode, setIsNewMode] = useState(false)
@@ -315,7 +315,8 @@ export default function Branches() {
       setIsNewMode(false)
       setDialogOpen(true)
     } else {
-      setForm((f) => ({ ...f, branch_code: padded, id: 0 }))
+      // رقم غير موجود ⇐ سجل جديد بهذا الرقم: حقول السجل السابق (عند التعديل) تُفرَّغ، وما كُتب في سجل جديد يبقى
+      setForm((f) => (f.id > 0 ? { ...initialForm, branch_code: padded } : { ...f, branch_code: padded, id: 0 }))
       setIsNewMode(true)
     }
   }
@@ -374,7 +375,7 @@ export default function Branches() {
                   <TableRow>
                     <TableHead className="text-start">{tr("رقم الفرع")}</TableHead>
                     <TableHead className="text-start">{tr("اسم الفرع")}</TableHead>
-                    <TableHead className="text-start">{tr("رمز الفرع")}</TableHead>
+                    <TableHead className="text-start">{tr("رقم البنك")}</TableHead>
                     <TableHead className="text-start">{tr("البنك")}</TableHead>
                     <TableHead className="text-start">{tr("الحالة")}</TableHead>
                   <TableHead className="text-start">{tr("إجراءات")}</TableHead>
@@ -389,7 +390,7 @@ export default function Branches() {
                     >
                       <TableCell className="text-start">{branch.branch_code}</TableCell>
                       <TableCell className="text-start">{branch.branch_name}</TableCell>
-                      <TableCell className="text-start">{branch.branch_symbol || "-"}</TableCell>
+                      <TableCell className="text-start">{banks.find((bank) => bank.id === branch.bank_id)?.bank_code || "-"}</TableCell>
                       <TableCell className="text-start">{banks.find((bank) => bank.id === branch.bank_id)?.bank_name || "-"}</TableCell>
                       <TableCell className="text-start">{branch.status === 1 ? tr("نشط") : tr("متوقف")}</TableCell>
                       <TableCell className="text-start">
