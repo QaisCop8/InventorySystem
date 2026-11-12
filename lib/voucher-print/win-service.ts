@@ -4,11 +4,11 @@ import { amountFractionOptions } from "@/lib/decimals"
 import { amountInArabicWords, cellText, headerPrintFields, type PrintCell, type PrintColumn, type PrintDocument } from "./document"
 import { copyLabelsFor, visibleColumns, type PrintContext } from "./html"
 import { paperDimensions, type VoucherPrintSettings } from "./settings"
+import { printPagesDirect } from "@/lib/local-print"
 
-// CashService (ws://localhost:32999/cashier) draws GDI+ commands in 1/100 inch with fonts
+// CashService (ws://localhost:32999/cashier) — or the NoonERP Windows launcher itself (lib/local-print.ts) — draws GDI+ commands in 1/100 inch with fonts
 // in points. textFormat is passed as StringFormatFlags: 1 = right-to-left (right aligned), 0 = left
 // aligned; there is no centering, so centered text gets an estimated x. One startPrinting = one page.
-const SERVICE_URL = "ws://localhost:32999/cashier"
 const RTL = 1
 const LTR = 0
 const BLACK = 2
@@ -351,64 +351,14 @@ export function buildCashierServicePages(document: PrintDocument, settings: Vouc
   return copyLabelsFor(settings, document.copyLabel).flatMap((label, copy) => layoutCopy(document, settings, context, label, `voucher-${safeCode}-${Date.now()}-${copy}`))
 }
 
-function openSocket() {
-  return new Promise<WebSocket>((resolve, reject) => {
-    let socket: WebSocket
-    try {
-      socket = new WebSocket(SERVICE_URL)
-    } catch {
-      reject(new Error("تعذر الاتصال بخدمة الطباعة على هذا الجهاز"))
-      return
-    }
-    const timer = window.setTimeout(() => { socket.close(); reject(new Error("لم يتم العثور على خدمة الطباعة في هذا الجهاز")) }, 4000)
-    socket.addEventListener("open", () => { window.clearTimeout(timer); resolve(socket) }, { once: true })
-    socket.addEventListener("error", () => { window.clearTimeout(timer); reject(new Error("تعذر الاتصال بخدمة الطباعة على هذا الجهاز")) }, { once: true })
-  })
-}
-
-function request(socket: WebSocket, type: string, data: Record<string, string | number | boolean>) {
-  return new Promise<void>((resolve, reject) => {
-    const timer = window.setTimeout(() => { socket.removeEventListener("message", onMessage); reject(new Error("انتهت مهلة استجابة خدمة الطباعة")) }, type === "startPrinting" ? 90_000 : 8_000)
-    function onMessage(event: MessageEvent) {
-      try {
-        const envelope = JSON.parse(String(event.data))
-        if (String(envelope.Type || envelope.type || "").toLowerCase() !== type.toLowerCase()) return
-        let response = envelope.Data ?? envelope.data
-        if (typeof response === "string") response = JSON.parse(response)
-        const result = response?.data ?? response
-        window.clearTimeout(timer)
-        socket.removeEventListener("message", onMessage)
-        if (result?.success === false) reject(new Error(String(result.message || "فشلت الطباعة")))
-        else resolve()
-      } catch (error) {
-        if (error instanceof SyntaxError) return
-        window.clearTimeout(timer)
-        socket.removeEventListener("message", onMessage)
-        reject(error)
-      }
-    }
-    socket.addEventListener("message", onMessage)
-    socket.send(JSON.stringify(type === "startPrinting" ? { type, ...data } : { type, data }))
-  })
-}
-
 export async function printWithCashierService(document: PrintDocument, settings: VoucherPrintSettings, context: PrintContext) {
-  const pages = buildCashierServicePages(document, settings, context)
   const paper = paperDimensions(settings)
-  const socket = await openSocket()
-  try {
-    for (const page of pages) {
-      await request(socket, "initialPrinting", {})
-      for (const command of page.commands) await request(socket, "addPrintCommand", command)
-      await request(socket, "startPrinting", {
-        printerName: settings.printer_name,
-        paper: paper.name,
-        paperWidth: mmToUnits(paper.widthMm),
-        paperHeight: page.height,
-        openDrawer: false,
-      })
-    }
-  } finally {
-    socket.close()
-  }
+  await printPagesDirect(buildCashierServicePages(document, settings, context).map((page) => ({
+    commands: page.commands,
+    printerName: settings.printer_name,
+    paper: paper.name,
+    paperWidth: mmToUnits(paper.widthMm),
+    paperHeight: page.height,
+    openDrawer: false,
+  })))
 }

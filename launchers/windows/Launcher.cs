@@ -18,8 +18,8 @@ using Microsoft.Web.WebView2.WinForms;
 [assembly: AssemblyTitle(NoonLauncher.Title)]
 [assembly: AssemblyProduct("NoonERP")]
 [assembly: AssemblyCompany("Sabbah Soft")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 static class NoonLauncher
 {
@@ -147,6 +147,9 @@ class LauncherForm : Form
             web.CoreWebView2.Settings.AreDevToolsEnabled = false;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
             web.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
+            // الطباعة المباشرة من المشغّل نفسه (Printing.cs) — الصفحة تتعرف عليه بـ __noonLauncher (lib/local-print.ts)
+            await web.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync("window.__noonLauncher={print:true,version:'" + typeof(NoonLauncher).Assembly.GetName().Version + "'};");
+            web.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
             web.CoreWebView2.Navigate(startUrl);
         }
         catch (Exception error)
@@ -155,6 +158,33 @@ class LauncherForm : Form
             allowClose = true;
             Close();
         }
+    }
+
+    // رسالة طباعة من الصفحة: تُنفَّذ في الخلفية ثم يُرسل الرد (نجاح/سبب الفشل) بنفس المعرّف
+    void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs args)
+    {
+        System.Collections.IDictionary message;
+        try
+        {
+            message = new System.Web.Script.Serialization.JavaScriptSerializer { MaxJsonLength = int.MaxValue }.DeserializeObject(args.WebMessageAsJson) as System.Collections.IDictionary;
+        }
+        catch { return; }
+        if (message == null || !"noon-print".Equals(message["type"])) return;
+        object id = message.Contains("id") ? message["id"] : null;
+        System.Collections.IList pages = message.Contains("pages") ? message["pages"] as System.Collections.IList : null;
+        System.Threading.Thread worker = new System.Threading.Thread(() =>
+        {
+            string error = null;
+            try { NoonPrinter.PrintPages(pages ?? new System.Collections.ArrayList()); }
+            catch (Exception exception) { error = exception.Message; }
+            string reply = new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(new System.Collections.Generic.Dictionary<string, object> {
+                { "type", "noon-print-result" }, { "id", id }, { "success", error == null }, { "message", error ?? "" },
+            });
+            try { BeginInvoke(new Action(() => { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsJson(reply); })); } catch { }
+        });
+        worker.IsBackground = true;
+        worker.SetApartmentState(System.Threading.ApartmentState.STA);
+        worker.Start();
     }
 
     // روابط خارج النظام (واتساب، خرائط...) تُفتح في المتصفح الافتراضي؛ نوافذ النظام نفسه (طباعة...) تبقى داخل المحرك

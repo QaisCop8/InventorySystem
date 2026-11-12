@@ -2,7 +2,7 @@
 // public/downloads ليُنزَّلا من الخادم. يحتاج ويندوز (csc.exe من .NET Framework 4) و sharp لصنع الأيقونة.
 // التشغيل: node launchers/windows/build.mjs
 import { execFileSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import sharp from "sharp"
@@ -46,12 +46,19 @@ const downloads = join(root, "public", "downloads")
 mkdirSync(downloads, { recursive: true })
 for (const [name, defines] of [["NoonERP-Cashier.exe", []], ["NoonERP-Restaurant.exe", ["/define:RESTAURANT"]]]) {
   const out = join(dist, name)
-  execFileSync(csc, ["/nologo", "/target:winexe", "/optimize+", "/platform:anycpu", `/win32icon:${icon}`, `/out:${out}`,
-    "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", `/r:${core}`, `/r:${winforms}`,
+  // يُبنى في ملف مؤقت: نسخة مفتوحة من المشغّل تقفل الملف، فيُحدَّث ملف التنزيل على الأقل مع تنبيه
+  const built = join(dist, `${name}.new`)
+  execFileSync(csc, ["/nologo", "/target:winexe", "/optimize+", "/platform:anycpu", `/win32icon:${icon}`, `/out:${built}`,
+    "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll", "/r:System.Web.Extensions.dll", `/r:${core}`, `/r:${winforms}`,
     `/resource:${core},Microsoft.Web.WebView2.Core.dll`, `/resource:${winforms},Microsoft.Web.WebView2.WinForms.dll`,
     `/resource:${join(sdk, "runtimes", "win-x64", "native", "WebView2Loader.dll")},WebView2Loader.x64.dll`,
     `/resource:${join(sdk, "runtimes", "win-x86", "native", "WebView2Loader.dll")},WebView2Loader.x86.dll`,
-    ...defines, join(here, "Launcher.cs")], { stdio: "inherit" })
-  copyFileSync(out, join(downloads, name))
-  console.log(`built ${out}`)
+    ...defines, join(here, "Launcher.cs"), join(here, "Printing.cs")], { stdio: "inherit" })
+  copyFileSync(built, join(downloads, name))
+  try {
+    renameSync(built, out)
+    console.log(`built ${out}`)
+  } catch {
+    console.warn(`${out} قيد التشغيل — أغلقه وأعد البناء لتحديثه؛ النسخة الجديدة في ${built} و public/downloads`)
+  }
 }

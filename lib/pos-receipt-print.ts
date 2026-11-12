@@ -1,8 +1,9 @@
 import { logVoucherAudit } from "@/lib/audit-client"
 import { invoiceQrDataUrl, qrReceiptHtml, type QrInvoice } from "@/lib/pos-invoice-qr"
+import { isLauncherPrinting, printPagesDirect } from "@/lib/local-print"
 
-// طباعة فاتورة نقطة البيع — مشتركة بين كاشير نقطة البيع وشاشة المطعم: خدمة الطباعة المحلية (CashService
-// ws://localhost:32999) على الحاسوب، ومعاينة داخل الصفحة على الجوال، وفاتورة QR فقط حسب إعداد invoice_print_mode للنقطة.
+// طباعة فاتورة نقطة البيع — مشتركة بين كاشير نقطة البيع وشاشة المطعم: مشغّل ويندوز NoonERP نفسه أو خدمة الطباعة
+// المحلية (CashService ws://localhost:32999) على الحاسوب (lib/local-print.ts)، ومعاينة داخل الصفحة على الجوال، وفاتورة QR فقط حسب إعداد invoice_print_mode للنقطة.
 
 export type PosReceiptLine = { name: string; code?: string; unitName?: string; quantity: number; price: number; discount: number; campaign_discount?: number; gift?: boolean }
 export type PosReceiptPayment = { method: string; amount: number; reference?: string }
@@ -85,7 +86,6 @@ export async function printPosReceipt(receiptData: PosReceipt, ctx: PosReceiptCo
    ctx.onPreview({title:receiptData.mode==="return"?"مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة بيع",html})
    return
   }
-  const socket=new WebSocket("ws://localhost:32999/cashier")
   const commands:Array<Record<string,string|number>>=[]
   const text=(value:string,x:number,y:number,width:number,height:number,fontSize=9,textFormat=1,fontStyle=0,brush=2)=>commands.push({type:6,text:value,fontFamilyName:"Arial",fontSize,fontStyle,brush,x,y,width,height,textFormat})
   const line=(x1:number,y1:number,x2:number,y2:number,brush=3)=>commands.push({type:5,x:x1,y:y1,width:x2,height:y2,brush})
@@ -214,38 +214,9 @@ export async function printPosReceipt(receiptData: PosReceipt, ctx: PosReceiptCo
   text("شكراً لتسوقكم معنا",left,y,fullWidth,16,8,1,1);y+=19
   }
   try{
-   await new Promise<void>((resolve,reject)=>{
-    const timer=window.setTimeout(()=>reject(new Error("لم يتم العثور على خدمة الطباعة في هذا الجهاز")),5000)
-    socket.addEventListener("open",()=>{window.clearTimeout(timer);resolve()},{once:true})
-    socket.addEventListener("error",()=>{window.clearTimeout(timer);reject(new Error("تعذر الاتصال بخدمة الطباعة على هذا الجهاز"))},{once:true})
-   })
-  const sendRequest=(type:string,data:Record<string,string|number|boolean>)=>new Promise<void>((resolve,reject)=>{
-   const timeoutMs=type==="startPrinting"?60000:5000
-   const timer=window.setTimeout(()=>{socket.removeEventListener("message",onMessage);reject(new Error("انتهت مهلة استجابة خدمة الطباعة"))},timeoutMs)
-    const onMessage=(event:MessageEvent)=>{
-     try{
-      const envelope=JSON.parse(String(event.data))
-      if(String(envelope.Type||envelope.type||"").toLowerCase()!==type.toLowerCase())return
-      let response=envelope.Data??envelope.data
-      if(typeof response==="string")response=JSON.parse(response)
-      const result=response?.data??response
-      if(result?.success===false)throw new Error(String(result.message||"فشلت الطباعة"))
-      window.clearTimeout(timer);socket.removeEventListener("message",onMessage);resolve()
-     }catch(error){
-      if(error instanceof SyntaxError)return
-      window.clearTimeout(timer);socket.removeEventListener("message",onMessage);reject(error)
-     }
-    }
-    socket.addEventListener("message",onMessage)
-    socket.send(JSON.stringify(type==="startPrinting"?{type,...data}:{type,data}))
-   })
-   await sendRequest("initialPrinting",{})
-   for(const command of commands)await sendRequest("addPrintCommand",command)
-   await sendRequest("startPrinting",{printerName:"",paper:"POS 80mm",paperWidth:315,paperHeight:Math.max(220,y+8),openDrawer:false})
+   await printPagesDirect([{commands,printerName:"",paper:"POS 80mm",paperWidth:315,paperHeight:Math.max(220,y+8),openDrawer:false}])
    ctx.onMessage({type:"success",text:"تم إرسال الفاتورة إلى الطابعة الافتراضية"})
   }catch(error){
-   ctx.onMessage({type:"error",text:error instanceof Error?error.message:"تعذرت طباعة الفاتورة. تأكد من تشغيل خدمة الطباعة"})
-  }finally{
-   socket.close()
+   ctx.onMessage({type:"error",text:error instanceof Error?error.message:isLauncherPrinting()?"تعذرت طباعة الفاتورة":"تعذرت طباعة الفاتورة. تأكد من تشغيل خدمة الطباعة"})
   }
 }
