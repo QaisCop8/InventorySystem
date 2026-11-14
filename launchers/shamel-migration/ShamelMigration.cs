@@ -49,11 +49,20 @@ namespace NoonShamelMigration
         readonly bool fixArabic;
         static readonly Encoding Arabic = Encoding.GetEncoding(1256);
 
-        public ShamelReader(string dsn, string user, string password, bool fixArabic)
+        public ShamelReader(string dsn, string user, string password, bool fixArabic, string owner)
         {
             this.fixArabic = fixArabic;
             connection = new OdbcConnection("DSN=" + dsn + ";uid=" + user + ";pwd=" + password);
             connection.Open();
+            // ملفات Btrieve محمية باسم مالك (Owner Name): بدونه يرفض المحرك القراءة بخطأ Btrieve 51
+            if (!string.IsNullOrEmpty(owner))
+            {
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = "SET OWNER = '" + owner.Replace("'", "''") + "'";
+                    command.ExecuteNonQuery();
+                }
+            }
         }
 
         public int Count(string table)
@@ -258,7 +267,7 @@ namespace NoonShamelMigration
                 var steps = Api.StepsFrom(api.Manifest(log));
                 bool fix = Arg(args, "--fix-arabic", Encoding.Default.CodePage != 1256 ? "1" : "0") == "1";
                 int failures = 0;
-                using (var reader = new ShamelReader(Arg(args, "--dsn", ""), Arg(args, "--user", "Shamel"), Arg(args, "--pwd", "IS011197"), fix))
+                using (var reader = new ShamelReader(Arg(args, "--dsn", ""), Arg(args, "--user", "Shamel"), Arg(args, "--pwd", "IS011197"), fix, Arg(args, "--owner", "")))
                 {
                     foreach (var step in steps)
                     {
@@ -291,7 +300,7 @@ namespace NoonShamelMigration
                 var dir = Arg(args, "--export", "export");
                 Directory.CreateDirectory(dir);
                 bool fix = Arg(args, "--fix-arabic", Encoding.Default.CodePage != 1256 ? "1" : "0") == "1";
-                using (var reader = new ShamelReader(Arg(args, "--dsn", ""), Arg(args, "--user", "Shamel"), Arg(args, "--pwd", "IS011197"), fix))
+                using (var reader = new ShamelReader(Arg(args, "--dsn", ""), Arg(args, "--user", "Shamel"), Arg(args, "--pwd", "IS011197"), fix, Arg(args, "--owner", "")))
                 {
                     foreach (var step in Api.StepsFrom(manifest))
                     {
@@ -320,6 +329,8 @@ namespace NoonShamelMigration
         readonly TextBox userBox = new TextBox();
         readonly TextBox passwordBox = new TextBox();
         readonly CheckBox arabicBox = new CheckBox();
+        readonly CheckBox ownerCheck = new CheckBox();
+        readonly TextBox ownerBox = new TextBox();
         readonly Button testButton = new Button();
         readonly Button startButton = new Button();
         readonly Button stopButton = new Button();
@@ -350,6 +361,14 @@ namespace NoonShamelMigration
             AddRow(grid, "مصدر بيانات الشامل (ODBC DSN)", dsnBox);
             AddRow(grid, "مستخدم قاعدة الشامل", userBox);
             AddRow(grid, "كلمة مرور قاعدة الشامل", passwordBox);
+            ownerCheck.Text = "ملفات الشامل محمية باسم مالك (Owner Name)";
+            ownerCheck.AutoSize = true;
+            grid.Controls.Add(new Label(), 0, grid.RowCount);
+            grid.Controls.Add(ownerCheck, 1, grid.RowCount++);
+            AddRow(grid, "اسم المالك (Owner Name)", ownerBox);
+            ownerBox.UseSystemPasswordChar = true;
+            ownerBox.Enabled = false;
+            ownerCheck.CheckedChanged += delegate { ownerBox.Enabled = ownerCheck.Checked; if (ownerCheck.Checked) ownerBox.Focus(); };
             arabicBox.Text = "تحويل ترميز النصوص العربية (Windows-1256) — فعّله إن ظهرت الأسماء رموزاً غريبة";
             arabicBox.AutoSize = true;
             grid.Controls.Add(new Label(), 0, grid.RowCount);
@@ -454,6 +473,7 @@ namespace NoonShamelMigration
                     else if (key == "dsn") dsnBox.Text = value;
                     else if (key == "user" && value.Length > 0) userBox.Text = value;
                     else if (key == "arabic") arabicBox.Checked = value == "1";
+                    else if (key == "owner") ownerCheck.Checked = value == "1";
                 }
             }
             catch { }
@@ -463,7 +483,7 @@ namespace NoonShamelMigration
         {
             try
             {
-                File.WriteAllLines(SettingsPath, new[] { "url=" + serverBox.Text.Trim(), "dsn=" + dsnBox.Text.Trim(), "user=" + userBox.Text.Trim(), "arabic=" + (arabicBox.Checked ? "1" : "0") }, Encoding.UTF8);
+                File.WriteAllLines(SettingsPath, new[] { "url=" + serverBox.Text.Trim(), "dsn=" + dsnBox.Text.Trim(), "user=" + userBox.Text.Trim(), "arabic=" + (arabicBox.Checked ? "1" : "0"), "owner=" + (ownerCheck.Checked ? "1" : "0") }, Encoding.UTF8);
             }
             catch { }
         }
@@ -489,17 +509,18 @@ namespace NoonShamelMigration
             if (InvokeRequired) { BeginInvoke(new Action<bool>(SetRunning), running); return; }
             startButton.Enabled = testButton.Enabled = !running;
             stopButton.Enabled = running;
-            foreach (Control control in new Control[] { serverBox, tokenBox, dsnBox, userBox, passwordBox, arabicBox }) control.Enabled = !running;
+            foreach (Control control in new Control[] { serverBox, tokenBox, dsnBox, userBox, passwordBox, arabicBox, ownerCheck }) control.Enabled = !running;
+            ownerBox.Enabled = !running && ownerCheck.Checked;
         }
 
         void TestConnection()
         {
             try
             {
-                using (var reader = new ShamelReader(dsnBox.Text.Trim(), userBox.Text.Trim(), passwordBox.Text, arabicBox.Checked))
+                using (var reader = new ShamelReader(dsnBox.Text.Trim(), userBox.Text.Trim(), passwordBox.Text, arabicBox.Checked, OwnerName))
                     Log("الاتصال بقاعدة الشامل ناجح — عدد الحسابات: " + reader.Count("accounts") + "، الأصناف: " + reader.Count("stock") + "، السندات: " + reader.Count("cpage"));
             }
-            catch (Exception ex) { Log("فشل الاتصال بقاعدة الشامل: " + ex.Message); }
+            catch (Exception ex) { Log("فشل الاتصال بقاعدة الشامل: " + ex.Message + OwnerHint(ex)); }
             if (tokenBox.Text.Trim().Length == 0) { Log("لم يُدخل رمز الترحيل بعد"); return; }
             try
             {
@@ -522,11 +543,28 @@ namespace NoonShamelMigration
             SetRunning(true);
             string server = serverBox.Text.Trim(), token = tokenBox.Text, dsn = dsnBox.Text.Trim(), user = userBox.Text.Trim(), password = passwordBox.Text;
             bool fix = arabicBox.Checked;
-            worker = new Thread(() => Run(server, token, dsn, user, password, fix)) { IsBackground = true };
+            string owner = OwnerName;
+            if (ownerCheck.Checked && owner.Length == 0)
+            {
+                SetRunning(false);
+                MessageBox.Show(this, "أدخل اسم المالك (Owner Name) أو ألغِ تحديد الخيار", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1, MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
+                return;
+            }
+            worker = new Thread(() => Run(server, token, dsn, user, password, fix, owner)) { IsBackground = true };
             worker.Start();
         }
 
-        void Run(string server, string token, string dsn, string user, string password, bool fixArabic)
+        string OwnerName { get { return ownerCheck.Checked ? ownerBox.Text : ""; } }
+
+        // Btrieve 51 = اسم مالك ملفات الشامل مطلوب أو خاطئ
+        static string OwnerHint(Exception ex)
+        {
+            return ex.Message.IndexOf("Btrieve Error 51", StringComparison.OrdinalIgnoreCase) >= 0 || ex.Message.IndexOf("owner name", StringComparison.OrdinalIgnoreCase) >= 0
+                ? " — ملفات الشامل محمية باسم مالك: فعّل «ملفات الشامل محمية باسم مالك» وأدخل اسم المالك الصحيح"
+                : "";
+        }
+
+        void Run(string server, string token, string dsn, string user, string password, bool fixArabic, string owner)
         {
             var api = new Api(server, token);
             int failures = 0;
@@ -534,7 +572,7 @@ namespace NoonShamelMigration
             {
                 var steps = Api.StepsFrom(api.Manifest(Log));
                 Log("بدء الترحيل — " + steps.Count + " خطوة");
-                using (var reader = new ShamelReader(dsn, user, password, fixArabic))
+                using (var reader = new ShamelReader(dsn, user, password, fixArabic, owner))
                 {
                     for (int index = 0; index < steps.Count; index++)
                     {
@@ -565,7 +603,7 @@ namespace NoonShamelMigration
             }
             catch (Exception ex)
             {
-                Log("توقف الترحيل: " + ex.Message + " — صحّح السبب وابدأ من جديد بنفس الرمز");
+                Log("توقف الترحيل: " + ex.Message + OwnerHint(ex) + " — صحّح السبب وابدأ من جديد بنفس الرمز");
                 SetStep("توقف الترحيل: " + ex.Message, 0, 1);
             }
             finally { SetRunning(false); }
