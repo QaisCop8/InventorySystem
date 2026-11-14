@@ -11,6 +11,7 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth/password-reset",
   "/api/management/",
   "/api/portal/", // بوابة العملاء: رابط برمز مُشفَّر
+  "/api/shamel-migration/agent", // معالج الترحيل من الشامل: رمز تشغيل في ترويسة Authorization
   "/api/whatsapp/webhook",
   "/api/cron/", // سر CRON_SECRET
   "/api/mobile-app",

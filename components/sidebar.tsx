@@ -6,6 +6,7 @@ import { useReportAccess } from "@/components/auth/use-report-access"
 import { useFileSectionAccess } from "@/components/auth/use-file-access"
 import { NoonMark } from "@/components/brand/noon-logo"
 import { useTransactionSectionAccess } from "@/components/auth/transaction-access-gate"
+import { useCompanyModuleAccess } from "@/components/auth/use-company-modules"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -34,6 +35,7 @@ import {
   Lightbulb,
   MailOpen,
   ListChecks,
+  DatabaseZap,
   SendHorizontal,
   Landmark,
   Car,
@@ -590,6 +592,7 @@ export const menuItems: MenuItem[] = [
       { title: tr("ترحيل السندات"), section: "voucher-posting-tools", icon: ClipboardList },
       { title: tr("صلاحيات المستخدمين على الحسابات"), section: "account-access", icon: KeyRound },
       { title: tr("تعديل الأصناف"), section: "bulk-items", icon: ListChecks },
+      { title: tr("ترحيل من الشامل"), section: "data-migration", icon: DatabaseZap },
       { title: tr("استيراد مكونات التصنيع من اكسل"), section: "manufacturing-components-import", icon: FileSpreadsheet },
       { title: tr("التواصل مع الإدارة"), section: "manager-attachments", icon: SendHorizontal },
       { title: tr("بريد رسائل الموظفين"), section: "manager-inbox", icon: MailOpen },
@@ -672,7 +675,9 @@ export function Sidebar({
   const canOpenReport = useReportAccess()
   const canOpenFile = useFileSectionAccess()
   const canOpenTransaction = useTransactionSectionAccess()
-  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, section => canOpenReport(section) && canOpenFile(section) && canOpenTransaction(section)), [canOpenReport, canOpenFile, canOpenTransaction])
+  // شاشات الوحدات الإضافية (ترحيل البيانات...) تظهر فقط إن فعّلتها إدارة المنصة للشركة
+  const canOpenModule = useCompanyModuleAccess()
+  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, section => canOpenModule(section) && canOpenReport(section) && canOpenFile(section) && canOpenTransaction(section)), [canOpenModule, canOpenReport, canOpenFile, canOpenTransaction])
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [companyLogo, setCompanyLogo] = useState("")

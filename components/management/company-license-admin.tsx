@@ -4,9 +4,10 @@ import { tr } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Building2, Check, Edit, Loader2, Monitor, UtensilsCrossed, Save, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { COMPANY_MODULES, type CompanyModule } from "@/lib/company-modules-shared"
 
 type Usage = { users: number; branches: number; pos_points?: number; restaurant_locations?: number } | null | undefined
-export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; number_of_pos_points?: number; number_of_restaurant_locations?: number; usage?: Usage; pending_license_requests?: number; status: string }
+export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; number_of_pos_points?: number; number_of_restaurant_locations?: number; enabled_modules?: string[]; usage?: Usage; pending_license_requests?: number; status: string }
 
 const RESOURCE_LABEL: Record<string, string> = { users: tr("المستخدمين"), branches: tr("الفروع"), pos_points: tr("نقاط البيع"), restaurant_locations: tr("مواقع المطاعم") }
 
@@ -33,14 +34,16 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
   const [branches, setBranches] = useState(String(company.number_of_branches ?? 1))
   const [posPoints, setPosPoints] = useState(String(company.number_of_pos_points ?? 0))
   const [restaurants, setRestaurants] = useState(String(company.number_of_restaurant_locations ?? 0))
+  const [modules, setModules] = useState<string[]>(company.enabled_modules || [])
   const [saving, setSaving] = useState(false)
+  useEffect(() => { setModules(company.enabled_modules || []) }, [company.enabled_modules])
   useEffect(() => { setUsers(String(company.number_of_users ?? 1)); setBranches(String(company.number_of_branches ?? 1)); setPosPoints(String(company.number_of_pos_points ?? 0)); setRestaurants(String(company.number_of_restaurant_locations ?? 0)) }, [company.number_of_users, company.number_of_branches, company.number_of_pos_points, company.number_of_restaurant_locations])
   if (company.status === "pending" || company.status === "rejected") return null
 
   const save = async () => {
     setSaving(true)
     try {
-      const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches), number_of_pos_points: Number(posPoints), number_of_restaurant_locations: Number(restaurants) }) })
+      const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches), number_of_pos_points: Number(posPoints), number_of_restaurant_locations: Number(restaurants), enabled_modules: modules }) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) { onError(data.error || tr("تعذر تحديث الترخيص")); return }
       setEditing(false); onSaved()
@@ -63,6 +66,17 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
           <label className="text-xs text-slate-600">{tr("عدد مواقع المطاعم المرخّص")}
             <input type="number" min={0} value={restaurants} onChange={(event) => setRestaurants(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
+          {/* وحدات إضافية لا تظهر للشركة إلا بعد تفعيلها من هنا */}
+          <div className="text-xs text-slate-600">{tr("الوحدات الإضافية")}
+            <div className="mt-1 flex flex-wrap gap-3">
+              {(Object.keys(COMPANY_MODULES) as CompanyModule[]).map((module) => (
+                <label key={module} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
+                  <input type="checkbox" checked={modules.includes(module)} onChange={(event) => setModules((current) => event.target.checked ? [...current, module] : current.filter((value) => value !== module))} />
+                  {tr(COMPANY_MODULES[module].label)}
+                </label>
+              ))}
+            </div>
+          </div>
           <Button size="sm" className="gap-1" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}{tr("حفظ")}</Button>
           <Button size="sm" variant="outline" disabled={saving} onClick={() => setEditing(false)}>{tr("إلغاء")}</Button>
         </div>
@@ -72,6 +86,9 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
           <Meter icon={Building2} label={tr("الفروع")} used={company.usage?.branches ?? null} limit={Number(company.number_of_branches ?? 1)} />
           <Meter icon={Monitor} label={tr("نقاط البيع")} used={company.usage?.pos_points ?? null} limit={Number(company.number_of_pos_points ?? 0)} />
           <Meter icon={UtensilsCrossed} label={tr("مواقع المطاعم")} used={company.usage?.restaurant_locations ?? null} limit={Number(company.number_of_restaurant_locations ?? 0)} />
+          {(company.enabled_modules || []).filter((module) => module in COMPANY_MODULES).map((module) => (
+            <span key={module} className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">{tr(COMPANY_MODULES[module as CompanyModule].label)}</span>
+          ))}
           {!!company.pending_license_requests && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{company.pending_license_requests}{tr(" طلب زيادة معلق")}</span>}
           <Button size="sm" variant="outline" className="gap-1" onClick={() => setEditing(true)}><Edit className="h-3.5 w-3.5" />{tr("تعديل الترخيص")}</Button>
         </div>

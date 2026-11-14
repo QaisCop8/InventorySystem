@@ -253,6 +253,7 @@ export const USER_ADMIN_PERMISSION_CATEGORY = "الإعدادات"
 export const USER_ADMIN_PERMISSION = "إدارة المستخدمين والصلاحيات"
 export const USER_ADMIN_SECTIONS = [
   "user-settings", "permissions", "job-roles", "role-permissions", "user-default-accounts", "voucher-book-permissions", "user-branch-access-matrix",
+  "data-migration", // ترحيل من الشامل (lib/shamel-migration) — مسؤول النظام فقط مثل /api/shamel-migration
 ] as const
 const ADMIN_ROLE_NAMES = new Set(["admin", "administrator", "مدير", "مدير النظام", "مسؤول النظام"])
 export const isAdminRoleName = (name: unknown) => ADMIN_ROLE_NAMES.has(String(name ?? "").trim().toLowerCase())

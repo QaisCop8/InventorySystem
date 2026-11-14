@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       SELECT c.id, c.name, c.status, c.db_name, c.created_at, c.expiry_date,
              COALESCE(c.number_of_users, 1) AS number_of_users, COALESCE(c.number_of_branches, 1) AS number_of_branches,
              COALESCE(c.number_of_pos_points, 0) AS number_of_pos_points, COALESCE(c.number_of_restaurant_locations, 0) AS number_of_restaurant_locations,
+             COALESCE(c.enabled_modules, '{}') AS enabled_modules,
              u.full_name AS requested_by_name, u.email AS requested_by_email,
              (SELECT COUNT(*)::int FROM company_license_requests r WHERE r.company_id = c.id AND r.status = 'pending') AS pending_license_requests,
              lead.phone AS lead_phone, lead.whatsapp AS lead_whatsapp, lead.notes AS lead_notes, lead.name AS lead_name, lead.created_at AS lead_created_at

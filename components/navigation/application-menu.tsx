@@ -4,6 +4,7 @@ import { tr, appDir } from "@/lib/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { menuItems, type MenuItem } from "@/components/sidebar"
 import { useAuth } from "@/components/auth/auth-context"
+import { useCompanyModuleAccess } from "@/components/auth/use-company-modules"
 import { Button } from "@/components/ui/button"
 import { Check, Grid3X3, Pencil, Search, Star, X } from "lucide-react"
 
@@ -20,6 +21,7 @@ function actionableItems(item: MenuItem): MenuItem[] {
 
 export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
   const { user } = useAuth()
+  const canOpenModule = useCompanyModuleAccess()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [query, setQuery] = useState("")
@@ -35,11 +37,11 @@ export function ApplicationMenu({ onNavigate }: ApplicationMenuProps) {
   useEffect(() => { if (open) void loadFavorites() }, [open, user?.id])
 
   const favoriteSections = new Set(favorites.map((favorite) => favorite.favorite_component))
-  const allLeaves = menuItems.flatMap(actionableItems)
+  const allLeaves = menuItems.flatMap(actionableItems).filter((item) => canOpenModule(item.section))
   const favoriteLeaves = allLeaves.filter((item) => item.section && favoriteSections.has(item.section))
   const visibleGroups = menuItems.map((group) => ({
     ...group,
-    submenu: actionableItems(group).filter((item) => !query || item.title.toLowerCase().includes(query.toLowerCase())),
+    submenu: actionableItems(group).filter((item) => canOpenModule(item.section)).filter((item) => !query || item.title.toLowerCase().includes(query.toLowerCase())),
   })).filter((group) => !query || group.title.toLowerCase().includes(query.toLowerCase()) || group.submenu.length)
 
   const toggleFavorite = async (item: MenuItem) => {

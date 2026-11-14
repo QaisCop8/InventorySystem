@@ -47,6 +47,8 @@ export function ensureLicenseTables() {
       // مواقع المطاعم: مثل نقاط البيع — 0 للشركات الجديدة، والقائمة يُرفع حدها لعدد مواقعها الفعلي عند أول فحص
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS number_of_restaurant_locations INTEGER DEFAULT 0`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS restaurant_license_initialized BOOLEAN DEFAULT false`
+      // الوحدات الإضافية المفعّلة من إدارة المنصة (lib/company-modules-shared.ts)
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS enabled_modules TEXT[] NOT NULL DEFAULT '{}'`
       await managementSql`
         CREATE TABLE IF NOT EXISTS company_license_requests (
           id SERIAL PRIMARY KEY,

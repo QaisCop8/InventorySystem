@@ -196,7 +196,7 @@ async function setSetting(row: { id: unknown } | undefined, value: string | null
  * يفتح مؤقتاً (داخل المعاملة) سنة العمل/الأشهر وأقفال الفترات التي تغطي تواريخ السنة، ينفّذ العملية، ثم يعيدها.
  * keepLocksOpen: أقفال لا تُعاد (قفل الإقفال نفسه عند التراجع).
  */
-async function withYearOpened<T>(year: number, action: () => Promise<T>, options: { finalWorkingYear?: number | null; keepLocksOpen?: number[] } = {}) {
+export async function withYearOpened<T>(year: number, action: () => Promise<T>, options: { finalWorkingYear?: number | null; keepLocksOpen?: number[] } = {}) {
   const { from, to } = yearRange(year)
   const yearSetting = await settingRow("working_year")
   const monthsSetting = await settingRow("working_months")

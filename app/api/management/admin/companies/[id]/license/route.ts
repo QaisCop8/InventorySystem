@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getManagementSession } from "@/lib/management-auth"
 import managementSql from "@/lib/management-db"
 import { countTenantUsage, ensureLicenseTables } from "@/lib/company-license"
+import { isCompanyModule } from "@/lib/company-modules-shared"
 
 // تعديل الترخيص مباشرة من مسؤول المنصة: عدد المستخدمين والفروع ونقاط البيع ومواقع المطاعم المسموح بها للشركة.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     await managementSql`UPDATE companies SET number_of_users = ${users}, number_of_branches = ${branches}, number_of_pos_points = ${posPoints}, number_of_restaurant_locations = ${restaurantLocations},
       license_initialized = true, pos_license_initialized = true, restaurant_license_initialized = true WHERE id = ${companyId}`
+    // الوحدات الإضافية (ترحيل البيانات...) — تُحدَّث فقط إن أُرسلت
+    if (Array.isArray(data.enabled_modules)) {
+      const modules = [...new Set(data.enabled_modules.filter(isCompanyModule))]
+      await managementSql`UPDATE companies SET enabled_modules = ${modules}::text[] WHERE id = ${companyId}`
+    }
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("[management/admin/companies/license] error:", error)
