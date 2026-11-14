@@ -75,8 +75,13 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         ctx.error("", error instanceof Error ? error.message : String(error))
       }
-      await ctx.flush()
-      await addStepProgress(run.id, step.key, ctx.stats, last)
+      // الدفعة عولجت فعلاً: فشل حفظ السجل/التقدم لا يُفشل الطلب (إعادة المعالج للدفعة تُكرِّر الأرصدة المؤقتة)
+      try {
+        await ctx.flush()
+        await addStepProgress(run.id, step.key, ctx.stats, last)
+      } catch (error) {
+        console.error("shamel migration progress update failed:", error)
+      }
       return NextResponse.json({ ok: true, stats: ctx.stats })
     })
   } catch (error) {

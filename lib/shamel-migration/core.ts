@@ -144,12 +144,12 @@ export async function addStepProgress(runId: number, step: string, stats: StepSt
       current_step = ${step},
       last_seen_at = NOW(),
       progress = jsonb_set(progress, ARRAY[${step}]::text[], jsonb_build_object(
-        'received', COALESCE((progress->${step}->>'received')::int, 0) + ${stats.received},
-        'created', COALESCE((progress->${step}->>'created')::int, 0) + ${stats.created},
-        'updated', COALESCE((progress->${step}->>'updated')::int, 0) + ${stats.updated},
-        'skipped', COALESCE((progress->${step}->>'skipped')::int, 0) + ${stats.skipped},
-        'failed', COALESCE((progress->${step}->>'failed')::int, 0) + ${stats.failed},
-        'done', ${done}
+        'received', COALESCE((progress->${step}::text->>'received')::int, 0) + ${stats.received}::int,
+        'created', COALESCE((progress->${step}::text->>'created')::int, 0) + ${stats.created}::int,
+        'updated', COALESCE((progress->${step}::text->>'updated')::int, 0) + ${stats.updated}::int,
+        'skipped', COALESCE((progress->${step}::text->>'skipped')::int, 0) + ${stats.skipped}::int,
+        'failed', COALESCE((progress->${step}::text->>'failed')::int, 0) + ${stats.failed}::int,
+        'done', ${done}::boolean
       ), true)
     WHERE id = ${runId}
   `

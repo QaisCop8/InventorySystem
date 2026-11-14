@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       const level = request.nextUrl.searchParams.get("level")
       const log = await sql`
         SELECT id, step, level, ref, message, created_at FROM shamel_migration_log
-        WHERE run_id = ${runId} AND (${level || ""} = '' OR level = ${level || ""})
+        WHERE run_id = ${runId} AND (${level || ""}::text = '' OR level = ${level || ""}::text)
         ORDER BY id DESC LIMIT 1000`
       return NextResponse.json({ log })
     }
