@@ -1,4 +1,4 @@
-import sql from "@/lib/database"
+import sql, { resolveCurrentDbName } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
 // ترحيل البيانات من الشامل (قاعدة Pervasive على جهاز العميل): برنامج «معالج الترحيل» (launchers/shamel-migration)
@@ -91,6 +91,49 @@ export function toCode10(raw: unknown, numericFill: "end" | "start" = "end") {
   if (prefix) return prefix + digits.padStart(10 - prefix.length, "0")
   if (numericFill === "end" && !digits.startsWith("0")) return digits.padEnd(10, "0")
   return digits.padStart(10, "0")
+}
+
+// ---------- إدراج حسب أعمدة قاعدة الشركة ----------
+// قواعد الشركات تختلف أعمدتها (القديمة ينقصها ما أُضيف لاحقاً، مثل products.last_purchase_date) — يُدرَج فقط ما
+// هو موجود فعلاً بالجدول، والأعمدة الناقصة تُتجاوز بدل إفشال السجل.
+
+const columnCache = new Map<string, Promise<Set<string>>>()
+
+export async function tableColumns(table: string): Promise<Set<string>> {
+  const key = `${await resolveCurrentDbName()}|${table}`
+  if (!columnCache.has(key)) {
+    const load = async () => {
+      const rows = (await sql`SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ${table}`) as any[]
+      return new Set(rows.map((row) => String(row.column_name)))
+    }
+    const promise = load()
+    promise.catch(() => columnCache.delete(key))
+    columnCache.set(key, promise)
+  }
+  return columnCache.get(key)!
+}
+
+/** INSERT ... RETURNING id بالأعمدة الموجودة فقط من values */
+export async function insertRow(table: string, values: Record<string, unknown>): Promise<number> {
+  const columns = await tableColumns(table)
+  const present = Object.entries(values).filter(([column, value]) => columns.has(column) && value !== undefined)
+  if (!present.length) throw new Error(`لا توجد أعمدة صالحة للجدول ${table}`)
+  const rows = await sql.unsafe(
+    `INSERT INTO ${table} (${present.map(([column]) => `"${column}"`).join(", ")}) VALUES (${present.map((_, index) => `$${index + 1}`).join(", ")}) RETURNING id`,
+    present.map(([, value]) => value),
+  )
+  return Number((rows as any[])[0]?.id)
+}
+
+/** UPDATE ... WHERE id بالأعمدة الموجودة فقط */
+export async function updateRow(table: string, id: number, values: Record<string, unknown>) {
+  const columns = await tableColumns(table)
+  const present = Object.entries(values).filter(([column, value]) => columns.has(column) && value !== undefined)
+  if (!present.length) return
+  await sql.unsafe(
+    `UPDATE ${table} SET ${present.map(([column], index) => `"${column}" = $${index + 1}`).join(", ")} WHERE id = $${present.length + 1}`,
+    [...present.map(([, value]) => value), id],
+  )
 }
 
 // ---------- خريطة رموز الشامل ⇐ سجلات النظام ----------

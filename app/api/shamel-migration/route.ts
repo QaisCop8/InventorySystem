@@ -17,12 +17,23 @@ export async function GET(request: NextRequest) {
     await ensureShamelMigrationTables()
     const runId = Number(request.nextUrl.searchParams.get("run_id") || 0)
     if (runId > 0) {
-      const level = request.nextUrl.searchParams.get("level")
+      const level = request.nextUrl.searchParams.get("level") || ""
+      const step = request.nextUrl.searchParams.get("step") || ""
       const log = await sql`
         SELECT id, step, level, ref, message, created_at FROM shamel_migration_log
-        WHERE run_id = ${runId} AND (${level || ""}::text = '' OR level = ${level || ""}::text)
-        ORDER BY id DESC LIMIT 1000`
-      return NextResponse.json({ log })
+        WHERE run_id = ${runId} AND (${level}::text = '' OR level = ${level}::text) AND (${step}::text = '' OR step = ${step}::text)
+        ORDER BY id DESC LIMIT 2000`
+      // ملخص الأسباب: نفس الرسالة (بعد إزالة الأرقام/الرموز منها) مجمّعة بعددها لكل خطوة — سبب واحد شائع لا يغطّي البقية
+      const summary = await sql`
+        SELECT step, level, MIN(message) AS message, COUNT(*)::int AS count, MIN(ref) AS sample_ref
+        FROM shamel_migration_log
+        WHERE run_id = ${runId} AND level <> 'info' AND (${level}::text = '' OR level = ${level}::text) AND (${step}::text = '' OR step = ${step}::text)
+        GROUP BY step, level, regexp_replace(message, '[A-Za-z0-9._-]{3,}', '#', 'g')
+        ORDER BY COUNT(*) DESC LIMIT 100`
+      const [total] = await sql`
+        SELECT COUNT(*)::int AS n FROM shamel_migration_log
+        WHERE run_id = ${runId} AND (${level}::text = '' OR level = ${level}::text) AND (${step}::text = '' OR step = ${step}::text)`
+      return NextResponse.json({ log, summary, total: Number((total as any)?.n || 0) })
     }
     const runs = await sql`SELECT id, mode, voucher_types, from_date::text AS from_date, balance_date::text AS balance_date, status, current_step, progress, message, created_at, last_seen_at, finished_at, expires_at FROM shamel_migration_runs ORDER BY id DESC LIMIT 20`
     const counts = await sql`

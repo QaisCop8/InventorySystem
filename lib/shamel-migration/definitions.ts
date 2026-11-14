@@ -1,6 +1,6 @@
 import sql from "@/lib/database"
 import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount } from "@/app/api/customers/_lib"
-import { StepContext, date, mapGet, mapOne, mapSet, num, text, toCode10 } from "@/lib/shamel-migration/core"
+import { StepContext, date, insertRow, mapGet, mapOne, mapSet, num, text, toCode10, updateRow } from "@/lib/shamel-migration/core"
 
 // معالجات «التعريفات»: كل دالة تستقبل دفعة أسطر كما قرأها معالج الترحيل من الشامل (أسماء الأعمدة = الأسماء
 // المستعارة بـ SQL الخطوة في steps.ts) وتُنشئ/تربط السجل المقابل هنا. سجل موجود بنفس الرقم/الاسم يُربط ولا يُكرَّر.
@@ -139,7 +139,7 @@ export async function processRates(rows: Row[], ctx: StepContext) {
     if (!id || id === baseId || !day || !(rate > 0)) return "skipped"
     const existing = await sql`SELECT 1 FROM exchange_rates WHERE currency_id = ${id} AND rate_date = ${day} LIMIT 1`
     if (existing.length) return "skipped"
-    await sql`INSERT INTO exchange_rates (currency_id, buy_rate, sell_rate, exchange_rate, rate_date, is_active) VALUES (${id}, ${num(r.purchase_rate) || rate}, ${num(r.sale_rate) || rate}, ${rate}, ${day}, true)`
+    await insertRow("exchange_rates", { currency_id: id, buy_rate: num(r.purchase_rate) || rate, sell_rate: num(r.sale_rate) || rate, exchange_rate: rate, rate_date: day, is_active: true })
     return "created"
   })
 }
@@ -156,7 +156,7 @@ export async function processStores(rows: Row[], ctx: StepContext) {
     if (existing) { await mapSet("store", String(pos), Number(existing.id)); return "updated" }
     let code = String(pos + 1)
     if ((await sql`SELECT 1 FROM warehouses WHERE warehouse_code = ${code}`).length) code = `SH${pos + 1}`
-    const id = Number((await sql`INSERT INTO warehouses (warehouse_code, warehouse_name, warehouse_name_en, is_active, status) VALUES (${code}, ${name}, ${text(r.name_lang2) || null}, true, 1) RETURNING id`)[0].id)
+    const id = await insertRow("warehouses", { warehouse_code: code, warehouse_name: name, warehouse_name_en: text(r.name_lang2) || null, is_active: true, status: 1 })
     await mapSet("store", String(pos), id)
     return "created"
   })
@@ -177,7 +177,7 @@ export async function processCostCenters(rows: Row[], ctx: StepContext) {
     const parentId = text(r.father_code) ? await mapOne("costcenter", `${typePos}-${text(r.father_code)}`) : null
     const level = parentId ? Number((await sql`SELECT level FROM cost_centers WHERE id = ${parentId}`)[0]?.level || 0) + 1 : 1
     const name = text(r.name) || text(r.code)
-    const id = Number((await sql`INSERT INTO cost_centers (name, cost_type_id, parent_id, level, status) VALUES (${name}, ${typeId}, ${parentId}, ${level}, ${num(r.stoped) ? 2 : 1}) RETURNING id`)[0].id)
+    const id = await insertRow("cost_centers", { name, cost_type_id: typeId, parent_id: parentId, level, status: num(r.stoped) ? 2 : 1 })
     await mapSet("costcenter", key, id)
     return "created"
   })
@@ -219,22 +219,17 @@ export async function processAccounts(rows: Row[], ctx: StepContext) {
     const listId = FINANCIAL_LIST[num(r.finanical_list_id)] ?? 1
     const curr = await currencyId(r.currency_code)
     const name = text(r.name) || shamelCode
-    const created = (await sql`
-      INSERT INTO account_tbl (
-        company_id, code, type, name, name_lang2, father_id, level_no, finanical_list_id,
-        finanical_list_assests_id, finanical_list_liabilities_id, finanical_list_income_id, currency_id,
-        allow_trans_with_diff_curr, iscalc_curr_diff_rates, transaction_type, transaction_type_action,
-        max_transaction_amount, max_transaction_amount_action, max_balance_amount, notes, show_notes_in_transactions_soa,
-        status, insert_date, last_update_date
-      ) VALUES (
-        ${companyId}, ${code}, 1, ${name}, ${text(r.name_lang2) || null}, ${fatherId}, ${father ? Number(father.level_no) + 1 : 1}, ${father ? Number(father.finanical_list_id) || listId : listId},
-        ${father?.finanical_list_assests_id ?? null}, ${father?.finanical_list_liabilities_id ?? null}, ${father?.finanical_list_income_id ?? null}, ${curr},
-        ${num(r.allow_trans_with_diff_curr) ? 1 : 0}, ${text(r.iscalc_curr_diff_rates_str) === "true"}, 0, 0,
-        0, 0, ${limitAmount(r.max_balance_amount)}, ${`مُرحَّل من الشامل (${shamelCode})`}, false,
-        1, ${date(r.insert_date) || new Date().toISOString().slice(0, 10)}, NOW()
-      ) RETURNING id
-    `)[0] as any
-    await mapSet("account", shamelCode, Number(created.id))
+    const created = await insertRow("account_tbl", {
+      company_id: companyId, code, type: 1, name, name_lang2: text(r.name_lang2) || null, father_id: fatherId,
+      level_no: father ? Number(father.level_no) + 1 : 1, finanical_list_id: father ? Number(father.finanical_list_id) || listId : listId,
+      finanical_list_assests_id: father?.finanical_list_assests_id ?? null, finanical_list_liabilities_id: father?.finanical_list_liabilities_id ?? null,
+      finanical_list_income_id: father?.finanical_list_income_id ?? null, currency_id: curr,
+      allow_trans_with_diff_curr: num(r.allow_trans_with_diff_curr) ? 1 : 0, iscalc_curr_diff_rates: text(r.iscalc_curr_diff_rates_str) === "true",
+      transaction_type: 0, transaction_type_action: 0, max_transaction_amount: 0, max_transaction_amount_action: 0,
+      max_balance_amount: limitAmount(r.max_balance_amount), notes: `مُرحَّل من الشامل (${shamelCode})`, show_notes_in_transactions_soa: false,
+      status: 1, insert_date: date(r.insert_date) || new Date().toISOString().slice(0, 10), last_update_date: new Date(),
+    })
+    await mapSet("account", shamelCode, created)
     return "created"
   })
 }
@@ -255,12 +250,11 @@ export async function processSalesmen(rows: Row[], ctx: StepContext) {
     const name = text(r.name) || code
     const existing = (await sql`SELECT id FROM salesmen WHERE code = ${code} OR TRIM(name) = ${name} LIMIT 1`)[0] as any
     if (existing) { await mapSet("salesman", shamelCode, Number(existing.id)); return "updated" }
-    const id = Number((await sql`
-      INSERT INTO salesmen (code, name, other_name, job_title, address, mobile, sales_commission_percent, collection_commission_percent, notes, is_active)
-      VALUES (${code}, ${name}, ${text(r.name_lang2) || null}, ${text(r.job) || null}, ${text(r.address) || null}, ${text(r.phone) || null},
-        ${num(r.commission1)}, ${num(r.commission2)}, ${[text(r.note1), text(r.note2)].filter(Boolean).join(" ") || null}, true)
-      RETURNING id
-    `)[0].id)
+    const id = await insertRow("salesmen", {
+      code, name, other_name: text(r.name_lang2) || null, job_title: text(r.job) || null, address: text(r.address) || null, mobile: text(r.phone) || null,
+      sales_commission_percent: num(r.commission1), collection_commission_percent: num(r.commission2),
+      notes: [text(r.note1), text(r.note2)].filter(Boolean).join(" ") || null, is_active: true,
+    })
     await mapSet("salesman", shamelCode, id)
     return "created"
   })
@@ -303,7 +297,7 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
         accountType: isEmployee ? 1 : resolveAccountType(type),
         creditLimit: limitAmount(r.debt_max_amount) || null,
       })
-      await sql`UPDATE account_tbl SET name_lang2 = ${text(r.name_lang2) || null}, notes = ${`مُرحَّل من الشامل (${shamelCode})`} WHERE id = ${accountIdValue}`
+      await updateRow("account_tbl", accountIdValue, { name_lang2: text(r.name_lang2) || null, notes: `مُرحَّل من الشامل (${shamelCode})` })
       await mapSet("account", shamelCode, accountIdValue)
     }
     if (isEmployee) return "created" // الموظف: حسابه فقط (بيانات الموظفين تُعرَّف من الموارد البشرية)
@@ -317,17 +311,13 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
     const salesmanId = text(r.salesman_code) ? await mapOne("salesman", text(r.salesman_code)) : null
     const priceCategory = (await mapOne("price_class", String(num(r.priceclass_pos)))) || 1
     const phones = [text(r.phone), text(r.phone2), text(r.phone3)].filter(Boolean)
-    const id = Number((await sql`
-      INSERT INTO customers (
-        customer_code, name, customer_name_en, mobile1, mobile2, city, city_id, address, status, business_nature,
-        salesman, general_notes, registration_date, type, isdeleted, pricecategory, account_id, tax_number, id_number
-      ) VALUES (
-        ${code}, ${name}, ${text(r.name_lang2) || null}, ${phones[0] || null}, ${phones[1] || null}, ${cityName}, ${cityId}, ${text(r.address) || null},
-        ${num(r.stopped) ? "موقوف" : "نشط"}, ${text(r.business_description) || null},
-        ${salesmanId ? salesmanNames.get(salesmanId) || null : null}, ${text(r.displayed_note) || null}, ${date(r.entry_date_) || new Date().toISOString().slice(0, 10)},
-        ${type}, false, ${priceCategory}, ${accountIdValue}, ${text(r.vat_registration_no).slice(0, 50) || null}, ${text(r.id_no) || null}
-      ) RETURNING id
-    `)[0].id)
+    const id = await insertRow("customers", {
+      customer_code: code, name, customer_name_en: text(r.name_lang2) || null, mobile1: phones[0] || null, mobile2: phones[1] || null,
+      city: cityName, city_id: cityId, address: text(r.address) || null, status: num(r.stopped) ? "موقوف" : "نشط", business_nature: text(r.business_description) || null,
+      salesman: salesmanId ? salesmanNames.get(salesmanId) || null : null, general_notes: text(r.displayed_note) || null,
+      registration_date: date(r.entry_date_) || new Date().toISOString().slice(0, 10), type, isdeleted: false, pricecategory: priceCategory,
+      account_id: accountIdValue, tax_number: text(r.vat_registration_no).slice(0, 50) || null, id_number: text(r.id_no) || null,
+    })
     await mapSet("customer", shamelCode, id)
     return "created"
   })
@@ -343,7 +333,7 @@ export async function processBanks(rows: Row[], ctx: StepContext) {
     const name = text(r.name) || shamelCode
     const existing = (await sql`SELECT id FROM banks WHERE bank_code = ${code} OR TRIM(bank_name) = ${name} LIMIT 1`)[0] as any
     if (existing) { await mapSet("bank", shamelCode, Number(existing.id)); return "updated" }
-    const id = Number((await sql`INSERT INTO banks (bank_code, bank_name, bank_name_en, status) VALUES (${code}, ${name}, ${text(r.name_lang2) || null}, 1) RETURNING id`)[0].id)
+    const id = await insertRow("banks", { bank_code: code, bank_name: name, bank_name_en: text(r.name_lang2) || null, status: 1 })
     await mapSet("bank", shamelCode, id)
     return "created"
   })
@@ -360,11 +350,10 @@ export async function processBankBranches(rows: Row[], ctx: StepContext) {
     if (existing) { await mapSet("bank_branch", shamelCode, Number(existing.id)); return "updated" }
     let code = shamelCode
     if ((await sql`SELECT 1 FROM branches WHERE branch_code = ${code}`).length) code = `${shamelCode}B`
-    const id = Number((await sql`
-      INSERT INTO branches (branch_code, branch_name, address, manager, phone, is_active, bank_id, status, is_bank_branch)
-      VALUES (${code}, ${name}, ${text(r.address) || null}, ${text(r.manager_name) || null}, ${text(r.phone) || null}, true, ${bankId}, ${num(r.is_stopped) ? 2 : 1}, true)
-      RETURNING id
-    `)[0].id)
+    const id = await insertRow("branches", {
+      branch_code: code, branch_name: name, address: text(r.address) || null, manager: text(r.manager_name) || null, phone: text(r.phone) || null,
+      is_active: true, bank_id: bankId, status: num(r.is_stopped) ? 2 : 1, is_bank_branch: true,
+    })
     await mapSet("bank_branch", shamelCode, id)
     return "created"
   })
@@ -378,19 +367,16 @@ export async function processBankAccounts(rows: Row[], ctx: StepContext) {
     if (existing) { await mapSet("bank_account", shamelCode, Number(existing.id)); return "updated" }
     const branchId = await mapOne("bank_branch", text(r.branche_code))
     if (!branchId) ctx.warn(shamelCode, `فرع البنك ${text(r.branche_code)} غير موجود`)
-    const id = Number((await sql`
-      INSERT INTO bank_accounts (
-        branch_id, code, actual_bank_code, currency_id, name, name_lang2, jary_account_id, tahsil_account_id,
-        tahsil_commission_account_id, payed_checks_account_id, returned_checks_commission, tahsil_checks_commission,
-        returned_checks_commission_currency_id, tahsil_checks_commission_currency_id, notes, status
-      ) VALUES (
-        ${branchId}, ${shamelCode}, ${text(r.actual_bank_code) || null}, ${await currencyId(r.currency_code)}, ${text(r.name) || shamelCode}, ${text(r.name_lang2) || null},
-        ${await accountId(r.jary_account_code)}, ${await accountId(r.tahsil_account_code)},
-        ${await accountId(r.tahsil_commission_account_code)}, ${await accountId(r.payed_checks_account_code)}, ${num(r.returned_checks_commission)}, ${num(r.tahsil_checks_commission)},
-        ${await currencyId(r.returned_checks_commission_currency_code)}, ${await currencyId(r.tahsil_checks_commission_currency_code)}, ${text(r.notes) || null}, ${num(r.is_stopped) ? 2 : 1}
-      ) RETURNING id
-    `)[0].id)
-    if (text(r.iban)) await sql`UPDATE bank_accounts SET iban = ${text(r.iban).replace(/\s+/g, "").toUpperCase()} WHERE id = ${id}`.catch(() => undefined)
+    const id = await insertRow("bank_accounts", {
+      branch_id: branchId, code: shamelCode, actual_bank_code: text(r.actual_bank_code) || null, currency_id: await currencyId(r.currency_code),
+      name: text(r.name) || shamelCode, name_lang2: text(r.name_lang2) || null,
+      jary_account_id: await accountId(r.jary_account_code), tahsil_account_id: await accountId(r.tahsil_account_code),
+      tahsil_commission_account_id: await accountId(r.tahsil_commission_account_code), payed_checks_account_id: await accountId(r.payed_checks_account_code),
+      returned_checks_commission: num(r.returned_checks_commission), tahsil_checks_commission: num(r.tahsil_checks_commission),
+      returned_checks_commission_currency_id: await currencyId(r.returned_checks_commission_currency_code),
+      tahsil_checks_commission_currency_id: await currencyId(r.tahsil_checks_commission_currency_code),
+      notes: text(r.notes) || null, status: num(r.is_stopped) ? 2 : 1, iban: text(r.iban).replace(/\s+/g, "").toUpperCase() || null,
+    })
     await mapSet("bank_account", shamelCode, id)
     return "created"
   })
@@ -406,10 +392,7 @@ export async function processItemGroups(rows: Row[], ctx: StepContext) {
     const parentId = text(r.father_code) ? await mapOne("item_group", text(r.father_code)) : null
     const existing = (await sql`SELECT id FROM item_groups WHERE group_code = ${shamelCode} LIMIT 1`)[0] as any
     if (existing) { await mapSet("item_group", shamelCode, Number(existing.id)); return "updated" }
-    const id = Number((await sql`
-      INSERT INTO item_groups (group_code, group_name, parent_group_id, parent_id, is_active, status)
-      VALUES (${shamelCode}, ${name}, ${parentId}, ${parentId}, true, 1) RETURNING id
-    `)[0].id)
+    const id = await insertRow("item_groups", { group_code: shamelCode, group_name: name, parent_group_id: parentId, parent_id: parentId, is_active: true, status: 1 })
     await mapSet("item_group", shamelCode, id)
     return "created"
   })
@@ -420,7 +403,7 @@ async function unitIdByName(name: string) {
   const key = name.trim()
   if (unitCache.has(key)) return unitCache.get(key)!
   const existing = (await sql`SELECT id FROM units WHERE TRIM(unit_name) = ${key} LIMIT 1`)[0] as any
-  const id = existing ? Number(existing.id) : Number((await sql`INSERT INTO units (unit_name, is_active, status) VALUES (${key}, true, 1) RETURNING id`)[0].id)
+  const id = existing ? Number(existing.id) : await insertRow("units", { unit_name: key, is_active: true, status: 1 })
   unitCache.set(key, id)
   return id
 }
@@ -445,25 +428,20 @@ export async function processItems(rows: Row[], ctx: StepContext) {
     const name = (text(r.name) || shamelCode).slice(0, 100)
     const groupId = text(r.mainstock_code) ? await mapOne("item_group", text(r.mainstock_code)) : null
     const vat = num(r.vat_rate)
-    const created = (await sql`
-      INSERT INTO products (
-        product_code, product_name, product_name_en, description, main_stock_id, brand, model, factory_number, original_number,
-        last_purchase_price, currency_id, tax_rate, discount_rate, has_expiry_date, serial_tracking, status, type, service_type, product_type,
-        length, width, height, density, notes, barcode,
-        selling_account_id, purchase_account_id, selling_returns_account_id, purchase_returns_account_id,
-        stock_end_account_id, stock_start_account_id, production_account_id, last_purchase_date
-      ) VALUES (
-        ${code}, ${name}, ${text(r.name_lang2) || null}, ${[text(r.note1), text(r.note2)].filter(Boolean).join(" ") || null}, ${groupId},
-        ${text(r.trademark1) || null}, ${text(r.trademark2) || null}, ${text(r.oem) || null}, ${text(r.part_no) || null},
-        ${num(r.last_purchase_price) || num(r.market_purchase_price)}, ${await currencyId(r.cost_purchase_currency_code)}, ${vat}, ${num(r.discount_rate)},
-        ${num(r.has_expiry_) !== 0}, ${num(r.has_serial_) !== 0}, ${num(r.item_availability_status_pos) === 2 ? 2 : 1},
-        ${isService ? 2 : 1}, ${isService ? num(r.service_type) + 1 : 0}, ${String(itemType < 6 ? itemType + 1 : 1)},
-        ${num(r.length)}, ${num(r.width)}, ${num(r.height)}, ${num(r.density)}, ${`مُرحَّل من الشامل (${shamelCode})`}, ${text(r.barcode) || null},
-        ${await accountId(r.selling_account_code)}, ${await accountId(r.purchase_account_code)}, ${await accountId(r.selling_returns_account_code)}, ${await accountId(r.purchase_returns_account_code)},
-        ${await accountId(r.stock_end_account_code)}, ${await accountId(r.stock_start_account_code)}, ${await accountId(r.production_account_code)}, ${date(r.last_purchase_price_date)}
-      ) RETURNING id
-    `)[0] as any
-    const productId = Number(created.id)
+    const productId = await insertRow("products", {
+      product_code: code, product_name: name, product_name_en: text(r.name_lang2) || null,
+      description: [text(r.note1), text(r.note2)].filter(Boolean).join(" ") || null, main_stock_id: groupId,
+      brand: text(r.trademark1) || null, model: text(r.trademark2) || null, factory_number: text(r.oem) || null, original_number: text(r.part_no) || null,
+      last_purchase_price: num(r.last_purchase_price) || num(r.market_purchase_price), currency_id: await currencyId(r.cost_purchase_currency_code),
+      tax_rate: vat, discount_rate: num(r.discount_rate), has_expiry_date: num(r.has_expiry_) !== 0, serial_tracking: num(r.has_serial_) !== 0,
+      status: num(r.item_availability_status_pos) === 2 ? 2 : 1, type: isService ? 2 : 1, service_type: isService ? num(r.service_type) + 1 : 0,
+      product_type: String(itemType < 6 ? itemType + 1 : 1),
+      length: num(r.length), width: num(r.width), height: num(r.height), density: num(r.density), notes: `مُرحَّل من الشامل (${shamelCode})`, barcode: text(r.barcode) || null,
+      selling_account_id: await accountId(r.selling_account_code), purchase_account_id: await accountId(r.purchase_account_code),
+      selling_returns_account_id: await accountId(r.selling_returns_account_code), purchase_returns_account_id: await accountId(r.purchase_returns_account_code),
+      stock_end_account_id: await accountId(r.stock_end_account_code), stock_start_account_id: await accountId(r.stock_start_account_code),
+      production_account_id: await accountId(r.production_account_code), last_purchase_date: date(r.last_purchase_price_date),
+    })
 
     // الوحدات 1..6: الوحدة الأولى أساسية (1)، وCountN = عدد الوحدات الأساسية في الوحدة N
     const units: { pos: number; unitId: number; productUnitId: number }[] = []
@@ -474,12 +452,11 @@ export async function processItems(rows: Row[], ctx: StepContext) {
       if (units.some((unit) => unit.unitId === unitId)) continue
       const factor = pos === 1 ? 1 : num(r[`unit${pos}_relation`]) || 1
       const first = units.length === 0
-      const productUnit = (await sql`
-        INSERT INTO product_units (product_id, unit_id, to_main_qnty, is_stock_count_unit, is_purchase_unit, is_report_unit)
-        VALUES (${productId}, ${unitId}, ${factor}, ${first}, ${first}, ${first})
-        ON CONFLICT (product_id, unit_id) DO UPDATE SET to_main_qnty = EXCLUDED.to_main_qnty RETURNING id
-      `)[0] as any
-      units.push({ pos, unitId, productUnitId: Number(productUnit.id) })
+      const existingUnit = (await sql`SELECT id FROM product_units WHERE product_id = ${productId} AND unit_id = ${unitId} LIMIT 1`)[0] as any
+      const productUnitId = existingUnit ? Number(existingUnit.id) : await insertRow("product_units", {
+        product_id: productId, unit_id: unitId, to_main_qnty: factor, is_stock_count_unit: first, is_purchase_unit: first, is_report_unit: first,
+      })
+      units.push({ pos, unitId, productUnitId })
       await mapSet("item_unit", `${shamelCode}|${pos - 1}`, unitId)
     }
     const barcode = text(r.barcode)
@@ -493,8 +470,8 @@ export async function processItems(rows: Row[], ctx: StepContext) {
       if (!categoryId) continue
       await sql`
         INSERT INTO product_prices (product_id, price_category_id, unit_id, price, currency_id)
-        VALUES (${productId}, ${categoryId}, ${units[0].unitId}, ${price}, ${(await currencyId(r[`sales_price${pos}_curr_code`])) || 1})
-        ON CONFLICT (product_id, price_category_id, unit_id) DO NOTHING`
+        SELECT ${productId}, ${categoryId}, ${units[0].unitId}, ${price}, ${(await currencyId(r[`sales_price${pos}_curr_code`])) || 1}
+        WHERE NOT EXISTS (SELECT 1 FROM product_prices WHERE product_id = ${productId} AND price_category_id = ${categoryId} AND unit_id = ${units[0].unitId})`
     }
     const firstCategory = await priceCategoryFor(0)
     for (const unit of units.slice(1)) {
@@ -502,8 +479,8 @@ export async function processItems(rows: Row[], ctx: StepContext) {
       if (!(price > 0) || !firstCategory) continue
       await sql`
         INSERT INTO product_prices (product_id, price_category_id, unit_id, price, currency_id)
-        VALUES (${productId}, ${firstCategory}, ${unit.unitId}, ${price}, ${(await currencyId(r[`unit${unit.pos}_curr`])) || 1})
-        ON CONFLICT (product_id, price_category_id, unit_id) DO NOTHING`
+        SELECT ${productId}, ${firstCategory}, ${unit.unitId}, ${price}, ${(await currencyId(r[`unit${unit.pos}_curr`])) || 1}
+        WHERE NOT EXISTS (SELECT 1 FROM product_prices WHERE product_id = ${productId} AND price_category_id = ${firstCategory} AND unit_id = ${unit.unitId})`
     }
     await mapSet("item", shamelCode, productId)
     return "created"

@@ -3,7 +3,7 @@ import { ensureOpeningBalanceClearingAccount, type OpeningBalanceLine } from "@/
 import { AutoJournalLine, INTERNAL_VOUCHER, createAutoJournal, getBaseCurrencyId, getRateByDate } from "@/lib/auto-journals"
 import { withYearOpened } from "@/lib/year-end-closing"
 import { STOCK_IN_VCH_TYPE, STOCK_OUT_VCH_TYPE, applyVoucherStockEffect, regenerateVoucherCode, saveVoucherItems } from "@/app/api/stock-vouchers/_lib"
-import { StepContext, mapGet, num, text } from "@/lib/shamel-migration/core"
+import { StepContext, insertRow, mapGet, num, text } from "@/lib/shamel-migration/core"
 import { currencyId } from "@/lib/shamel-migration/definitions"
 
 // الأرصدة الافتتاحية: تُجمَع أسطر كل الدفعات (shamel_migration_stage) وتُقيَّد مرة واحدة مع الدفعة الأخيرة —
@@ -25,9 +25,16 @@ async function takeStaged(runId: number, step: string): Promise<Row[]> {
   return rows.map((row: any) => row.payload as Row)
 }
 
-/** يمنع تكرار القيد عند إعادة تشغيل الترحيل: مفتاح لكل سند أرصدة مُنفَّذ (عملة الحسابات، مستودع واتجاه الكميات) */
-async function alreadyPosted(key: string) {
-  return (await sql`SELECT 1 FROM shamel_migration_map WHERE kind = 'posted' AND shamel_key = ${key} LIMIT 1`).length > 0
+/**
+ * يمنع تكرار القيد عند إعادة تشغيل الترحيل: كل سند أرصدة مُنفَّذ يُسجَّل بمفتاح (عملة الحسابات، أو مستودع واتجاه الكميات)
+ * + رقمه، فإعادة التشغيل تقيّد فقط الأسطر غير الموجودة في سندات سابقة غير ملغاة — سطر فشل سابقاً (حساب/صنف لم يكن
+ * مرحّلاً بعد) يُقيَّد لاحقاً، وما قُيِّد لا يتكرر. المفتاح القديم بلا رقم (prefix) مشمول أيضاً.
+ */
+async function postedVoucherIds(prefix: string): Promise<number[]> {
+  const rows = await sql`
+    SELECT m.web_id FROM shamel_migration_map m JOIN voucher_header_tbl h ON h.id = m.web_id AND COALESCE(h.status, 1) <> 3
+    WHERE m.kind = 'posted' AND (m.shamel_key = ${prefix} OR m.shamel_key LIKE ${prefix + ":%"})`
+  return rows.map((row: any) => Number(row.web_id))
 }
 const markPosted = (key: string, voucherId: number) =>
   sql`INSERT INTO shamel_migration_map (kind, shamel_key, web_id) VALUES ('posted', ${key}, ${voucherId}) ON CONFLICT DO NOTHING`
@@ -62,12 +69,15 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
   const byCurrency = new Map<number, OpeningBalanceLine[]>()
   for (const line of lines) byCurrency.set(line.currencyId, [...(byCurrency.get(line.currencyId) || []), line])
   const vouchers: string[] = []
-  for (const [currency, group] of byCurrency) {
-    const postedKey = `${ctx.step}:${currency}`
-    if (await alreadyPosted(postedKey)) {
-      ctx.warn("", `الأرصدة الافتتاحية بالعملة ${currency} قُيِّدت في ترحيل سابق — لم تُقيَّد مرة أخرى`)
-      ctx.stats.skipped += group.length
-      continue
+  for (let [currency, group] of byCurrency) {
+    const postedPrefix = `${ctx.step}:${currency}`
+    const previous = await postedVoucherIds(postedPrefix)
+    if (previous.length) {
+      const postedAccounts = new Set(((await sql`SELECT DISTINCT account_id FROM voucher_journal_detail_tbl WHERE voucher_id = ANY(${previous}::int[])`) as any[]).map((row) => Number(row.account_id)))
+      const fresh = group.filter((line) => !postedAccounts.has(line.accountId))
+      ctx.stats.skipped += group.length - fresh.length
+      group = fresh
+      if (!group.length) continue
     }
     try {
       const day = ctx.run.balance_date
@@ -86,7 +96,7 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
           note: "الأرصدة الافتتاحية - ترحيل من الشامل", internalVoucherId: INTERNAL_VOUCHER.OPENING_BALANCE, lines: journalLines,
         })
       }))
-      await markPosted(postedKey, journal.id)
+      await markPosted(`${postedPrefix}:${journal.id}`, journal.id)
       vouchers.push(journal.code)
       ctx.stats.created += group.length
     } catch (error) {
@@ -140,15 +150,17 @@ export async function processStockBalances(rows: Row[], ctx: StepContext, last: 
 
   const codes: string[] = []
   for (const [storeId, group] of groups) {
-    for (const [direction, lines] of [["in", group.in], ["out", group.out]] as const) {
-      if (!lines.length) continue
+    for (let [direction, lines] of [["in", group.in], ["out", group.out]] as [("in" | "out"), any[]][]) {
       const vchType = direction === "in" ? STOCK_IN_VCH_TYPE : STOCK_OUT_VCH_TYPE
-      const postedKey = `${ctx.step}:${storeId}:${direction}`
-      if (await alreadyPosted(postedKey)) {
-        ctx.warn("", `كميات أول المدة للمستودع ${storeId} أُدخلت في ترحيل سابق — لم تُدخل مرة أخرى`)
-        ctx.stats.skipped += lines.length
-        continue
+      const postedPrefix = `${ctx.step}:${storeId}:${direction}`
+      const previous = await postedVoucherIds(postedPrefix)
+      if (previous.length) {
+        const postedItems = new Set(((await sql`SELECT DISTINCT item_id FROM voucher_items_tbl WHERE voucher_id = ANY(${previous}::int[])`) as any[]).map((row) => Number(row.item_id)))
+        const fresh = lines.filter((line) => !postedItems.has(Number(line.product_id)))
+        ctx.stats.skipped += lines.length - fresh.length
+        lines = fresh
       }
+      if (!lines.length) continue
       try {
         const bookId = await voucherBookFor(ctx.run.created_by, vchType)
         if (!bookId) throw new Error(`لا يوجد دفتر سندات لـ ${direction === "in" ? "سند ادخال بضاعة" : "سند اخراج بضاعة"} — عرّفه من صلاحيات دفاتر السندات`)
@@ -157,19 +169,14 @@ export async function processStockBalances(rows: Row[], ctx: StepContext, last: 
           const vchCode = await regenerateVoucherCode("", vchType, bookId, ctx.run.branch_id)
           if (!vchCode) throw new Error("تعذر توليد رقم السند")
           const amount = lines.reduce((sum, line) => sum + line.quantity * line.price, 0)
-          const voucher = (await sql`
-            INSERT INTO voucher_header_tbl (
-              vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate, to_store_id, from_store_id,
-              amount, manual_voucher, note, status, vch_status, is_printed
-            ) VALUES (
-              ${vchType}, ${vchCode}, ${ctx.run.balance_date}, ${bookId}, ${ctx.run.branch_id}, ${1}, 1,
-              ${direction === "in" ? storeId : null}, ${direction === "out" ? storeId : null},
-              ${Math.round(amount * 1000) / 1000}, 'SHAMEL', ${"كميات أول المدة - ترحيل من الشامل"}, 2, 2, 0
-            ) RETURNING id
-          `)[0] as any
+          const voucher = { id: await insertRow("voucher_header_tbl", {
+            vch_type: vchType, vch_code: vchCode, vch_date: ctx.run.balance_date, vch_book_id: bookId, branch_id: ctx.run.branch_id, currency_id: 1, rate: 1,
+            to_store_id: direction === "in" ? storeId : null, from_store_id: direction === "out" ? storeId : null,
+            amount: Math.round(amount * 1000) / 1000, manual_voucher: "SHAMEL", note: "كميات أول المدة - ترحيل من الشامل", status: 2, vch_status: 2, is_printed: 0,
+          }) }
           const saved = await saveVoucherItems(Number(voucher.id), lines)
           await applyVoucherStockEffect(vchType, Number(voucher.id), saved, direction === "out" ? storeId : null, direction === "in" ? storeId : null)
-          await markPosted(postedKey, Number(voucher.id))
+          await markPosted(`${postedPrefix}:${voucher.id}`, Number(voucher.id))
           return vchCode
         }))
         codes.push(code)

@@ -1,7 +1,7 @@
 import sql, { withTenantTransaction } from "@/lib/database"
 import { INTERNAL_VOUCHER, getBaseCurrencyId, getRateByDate, JOURNAL_LINE_TYPE } from "@/lib/auto-journals"
 import { applyStockMovement, saveVoucherItems } from "@/app/api/stock-vouchers/_lib"
-import { MigrationRun, StepContext, date, mapGet, mapOne, mapSet, num, text } from "@/lib/shamel-migration/core"
+import { MigrationRun, StepContext, date, insertRow, mapGet, mapOne, mapSet, num, text } from "@/lib/shamel-migration/core"
 import { currencyId } from "@/lib/shamel-migration/definitions"
 import { stageRows, voucherBookFor } from "@/lib/shamel-migration/balances"
 import { withYearOpened } from "@/lib/year-end-closing"
@@ -145,18 +145,16 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
   let vchCode = code
   if ((await sql`SELECT 1 FROM voucher_header_tbl WHERE vch_type = ${type.vchType} AND vch_code = ${vchCode}`).length) vchCode = `S${code}`
 
-  const voucher = (await sql`
-    INSERT INTO voucher_header_tbl (
-      vch_type, vch_code, vch_date, manual_date, vch_book_id, branch_id, currency_id, rate, amount, account_id, customer_name,
-      salesman_id, manual_voucher, note, status, vch_status, is_printed, vat, discount, to_store_id, internal_voucher_id
-    ) VALUES (
-      ${type.vchType}, ${vchCode}, ${vchDate}, ${vchDate}, ${bookId}, ${ctx.run.branch_id}, ${currency}, ${rate}, ${Math.abs(num(header.amount))},
-      ${type.kind === "stock" ? null : partyAccount}, ${text(header.customer_name).slice(0, 150) || null},
-      ${salesmanId}, ${(text(header.manual_vch) || code).slice(0, 50)}, ${[text(header.note), text(header.note1)].filter(Boolean).join(" - ").slice(0, 1000) || null},
-      ${cancelled ? 3 : 2}, ${cancelled ? 3 : 2}, ${(flags & 4) !== 0 ? 1 : 0}, ${num(header.vat) || null}, ${num(header.discount) || null}, ${toStore}, ${currencyDifference ? INTERNAL_VOUCHER.CURRENCY_DIFFERENCE : null}
-    ) RETURNING id
-  `)[0] as any
-  const voucherId = Number(voucher.id)
+  const voucherId = await insertRow("voucher_header_tbl", {
+    vch_type: type.vchType, vch_code: vchCode, vch_date: vchDate, manual_date: vchDate, vch_book_id: bookId, branch_id: ctx.run.branch_id,
+    currency_id: currency, rate, amount: Math.abs(num(header.amount)),
+    account_id: type.kind === "stock" ? null : partyAccount, customer_name: text(header.customer_name).slice(0, 150) || null,
+    salesman_id: salesmanId, manual_voucher: (text(header.manual_vch) || code).slice(0, 50),
+    note: [text(header.note), text(header.note1)].filter(Boolean).join(" - ").slice(0, 1000) || null,
+    status: cancelled ? 3 : 2, vch_status: cancelled ? 3 : 2, is_printed: (flags & 4) !== 0 ? 1 : 0,
+    vat: num(header.vat) || null, discount: num(header.discount) || null, to_store_id: toStore,
+    internal_voucher_id: currencyDifference ? INTERNAL_VOUCHER.CURRENCY_DIFFERENCE : null,
+  })
 
   // أسطر القيد كما قيّدها الشامل (CrDr: 1 مدين، 2 دائن؛ 9/10 = نفسها لسطر آلي)
   const journalLines = lines.filter((line) => text(line.line_account) && Math.abs(num(line.line_amount)) > 0)

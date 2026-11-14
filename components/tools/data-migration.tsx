@@ -21,6 +21,7 @@ type Run = {
 }
 type VoucherType = { prefix: string; title: string; kind: "sales" | "stock" | "finance" }
 type LogRow = { id: number; step: string; level: string; ref: string | null; message: string; created_at: string }
+type SummaryRow = { step: string; level: string; message: string; count: number; sample_ref: string | null }
 
 const WIZARD_URL = "/downloads/NoonERP-ShamelMigration.exe"
 const STEP_TITLES: Record<string, string> = {
@@ -54,6 +55,9 @@ export default function DataMigration() {
   const [error, setError] = useState("")
   const [log, setLog] = useState<LogRow[]>([])
   const [logLevel, setLogLevel] = useState<"error" | "warn" | "">("error")
+  const [logStep, setLogStep] = useState("")
+  const [summary, setSummary] = useState<SummaryRow[]>([])
+  const [logTotal, setLogTotal] = useState(0)
 
   const current = runs[0] || null
   const active = current && (current.status === "pending" || current.status === "running") ? current : null
@@ -73,9 +77,13 @@ export default function DataMigration() {
     }
   }, [])
 
-  const loadLog = useCallback(async (runId: number, level: string) => {
-    const response = await fetch(`/api/shamel-migration?run_id=${runId}&level=${level}`)
-    if (response.ok) setLog((await response.json()).log || [])
+  const loadLog = useCallback(async (runId: number, level: string, step: string) => {
+    const response = await fetch(`/api/shamel-migration?run_id=${runId}&level=${level}&step=${encodeURIComponent(step)}`)
+    if (!response.ok) return
+    const data = await response.json()
+    setLog(data.log || [])
+    setSummary(data.summary || [])
+    setLogTotal(Number(data.total || 0))
   }, [])
 
   useEffect(() => { void load() }, [load])
@@ -85,7 +93,7 @@ export default function DataMigration() {
     const timer = setInterval(() => void load(), 5000)
     return () => clearInterval(timer)
   }, [active, load])
-  useEffect(() => { if (current) void loadLog(current.id, logLevel) }, [current?.id, current?.progress, logLevel, loadLog])
+  useEffect(() => { if (current) void loadLog(current.id, logLevel, logStep) }, [current?.id, current?.progress, logLevel, logStep, loadLog])
   useEffect(() => { setBalanceDate(mode === "full" ? firstOfYear() : today()) }, [mode])
 
   const create = async () => {
@@ -249,7 +257,8 @@ export default function DataMigration() {
                   </thead>
                   <tbody>
                     {Object.entries(current.progress || {}).map(([key, step]) => (
-                      <tr key={key} className="border-t">
+                      <tr key={key} onClick={() => { setLogStep(key); setLogLevel(step.failed ? "error" : "") }} title={tr("عرض سجل هذه الخطوة")}
+                        className={`cursor-pointer border-t hover:bg-muted/50 ${logStep === key ? "bg-emerald-50 dark:bg-emerald-950/30" : ""}`}>
                         <td className="p-2">{tr(STEP_TITLES[key] || key)}</td>
                         <td className="p-2 text-center tabular-nums">{step.received}</td>
                         <td className="p-2 text-center tabular-nums">{step.created}</td>
@@ -270,13 +279,38 @@ export default function DataMigration() {
       {current && (
         <section className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-bold">{tr("سجل الترحيل")}</h2>
-            <div className="flex gap-1">
+            <h2 className="text-base font-bold">
+              {tr("سجل الترحيل")}
+              {logStep && <span className="ms-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">{tr(STEP_TITLES[logStep] || logStep)}</span>}
+              <span className="ms-2 text-xs font-normal text-muted-foreground">({logTotal.toLocaleString("en-US")})</span>
+            </h2>
+            <div className="flex flex-wrap gap-1">
+              <select value={logStep} onChange={(event) => setLogStep(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+                <option value="">{tr("كل الخطوات")}</option>
+                {Object.keys(current.progress || {}).map((key) => <option key={key} value={key}>{tr(STEP_TITLES[key] || key)}</option>)}
+              </select>
               {([["error", "الأخطاء"], ["warn", "التنبيهات"], ["", "الكل"]] as const).map(([value, label]) => (
                 <Button key={value} size="sm" variant={logLevel === value ? "default" : "outline"} onClick={() => setLogLevel(value)}>{tr(label)}</Button>
               ))}
             </div>
           </div>
+          {summary.length > 0 && (
+            <div className="rounded-xl border">
+              <div className="border-b bg-muted/40 px-3 py-2 text-sm font-semibold">{tr("ملخص الأسباب")}</div>
+              <table className="w-full text-sm">
+                <tbody>
+                  {summary.map((row, index) => (
+                    <tr key={index} className="border-t first:border-t-0 align-top">
+                      <td className="whitespace-nowrap p-2 text-muted-foreground">{tr(STEP_TITLES[row.step] || row.step)}</td>
+                      <td className={`p-2 ${row.level === "error" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>{row.message}</td>
+                      <td className="whitespace-nowrap p-2 font-mono text-xs text-muted-foreground" dir="ltr">{row.sample_ref || ""}</td>
+                      <td className="whitespace-nowrap p-2 text-end font-semibold tabular-nums">{row.count.toLocaleString("en-US")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div className="max-h-96 overflow-auto rounded-xl border">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted/70 text-xs text-muted-foreground">
