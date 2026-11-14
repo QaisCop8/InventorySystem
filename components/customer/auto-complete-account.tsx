@@ -32,6 +32,8 @@ interface AutoCompleteAccountProps {
   leafOnly?: boolean
   displayNameFirst?: boolean
   showSearchButton?: boolean
+  /** Enter على مربع فارغ ينقل التركيز لزر البحث (Enter عليه يفتح البحث) بدل فتح نافذة البحث مباشرة */
+  emptyEnterFocusesSearch?: boolean
   showClearButton?: boolean
   requiredTypeValues?: number[]
   searchAllowedTypeValues?: number[]
@@ -139,6 +141,7 @@ export default function AutoCompleteAccount({
   leafOnly = true,
   displayNameFirst = false,
   showSearchButton = true,
+  emptyEnterFocusesSearch = false,
   showClearButton = true,
   requiredTypeValues,
   searchAllowedTypeValues,
@@ -204,6 +207,7 @@ export default function AutoCompleteAccount({
   }, [highlightedIndex])
   // النص المكتوب عند فتح نافذة البحث — يُبحث به فيها مباشرة
   const [searchSeed, setSearchSeed] = useState("")
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null)
 
   // يُطبَّق عند اختيار المستخدم حساباً (لا عند تحميل حساب محفوظ مسبقاً)
   const currencyAllows = (account: AccountItem) => {
@@ -512,6 +516,14 @@ export default function AutoCompleteAccount({
               }
               // لا كتابة وحساب مختار ⇐ يُترك Enter للتنقل (Enter كـTab)
               if (typedTextRef.current === null && (selectedAccount || normalizedValue)) return
+              // المربع فارغ ⇐ التركيز لزر البحث (emptyEnterFocusesSearch)
+              if (emptyEnterFocusesSearch && !String(typedTextRef.current ?? "").trim() && !selectedAccount && searchButtonRef.current && !disabled) {
+                event.preventDefault()
+                event.stopPropagation()
+                if (typedTextRef.current !== null) { typedTextRef.current = null; onValueChange(""); notifySelection(null) }
+                searchButtonRef.current.focus()
+                return
+              }
               event.preventDefault()
               void commitTypedText(true)
             } else if (event.key === "F10" && showSearchButton && !disabled) {
@@ -555,6 +567,7 @@ export default function AutoCompleteAccount({
                 variant="outline"
                 size="sm"
                 className="h-9 px-3 border-slate-200 bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                ref={searchButtonRef}
                 onClick={() => void handleOpenSearch()}
                 disabled={disabled}
                 tabIndex={-1}
@@ -599,6 +612,7 @@ export default function AutoCompleteAccount({
             variant="default"
             size="sm"
             className="h-9 px-3 shrink-0"
+            ref={searchButtonRef}
             onClick={() => void handleOpenSearch()}
             disabled={disabled}
             tabIndex={-1}

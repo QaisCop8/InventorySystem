@@ -1,13 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // الأرقام تُكمَّل لأربع خانات (1 ⇐ 0001)
 const padCode = (value: unknown) => { const code = String(value ?? "").trim(); return /^\d{1,4}$/.test(code) ? code.padStart(4, "0") : code }
 
 // رمز السويفت (SWIFT/BIC) للحوالات البنكية: 8 أو 11 حرفاً/رقماً إنجليزياً
-let swiftColumnReady: Promise<unknown> | null = null
-const ensureSwiftColumn = () => (swiftColumnReady ??= sql`ALTER TABLE banks ADD COLUMN IF NOT EXISTS swift_code VARCHAR(11)`.catch((error: unknown) => { swiftColumnReady = null; throw error }))
+// لكل قاعدة شركة (runSchemaOnce) — علَم واحد على مستوى العملية كان يضيف العمود لأول شركة فقط فتفشل بقية الشركات
+const ensureSwiftColumn = () => runSchemaOnce("app/api/banks/route.ts#ensureSwiftColumn", async () => {
+  await sql`ALTER TABLE banks ADD COLUMN IF NOT EXISTS swift_code VARCHAR(11)`
+})
 const normalizeSwift = (value: unknown): { swift: string | null; error?: string } => {
   const swift = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "")
   if (!swift) return { swift: null }
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(authorization.lookupOnly ? projectFileLookup("banks", banks) : banks)
   } catch (error) {
     console.error("Error fetching banks:", error)
-    return NextResponse.json({ error: "Failed to fetch banks" }, { status: 500 })
+    return NextResponse.json({ error: "تعذر تحميل البنوك" }, { status: 500 })
   }
 }
 
@@ -79,7 +82,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
     console.error("Error creating bank:", error)
-    return NextResponse.json({ error: "Failed to create bank" }, { status: 500 })
+    return NextResponse.json({ error: "تعذر حفظ البنك" }, { status: 500 })
   }
 }
 
@@ -153,7 +156,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("Error updating bank:", error)
-    return NextResponse.json({ error: "Failed to update bank" }, { status: 500 })
+    return NextResponse.json({ error: "تعذر تعديل البنك" }, { status: 500 })
   }
 }
 

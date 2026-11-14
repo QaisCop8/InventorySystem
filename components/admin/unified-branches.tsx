@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 interface Branch {
   id: number
@@ -93,6 +94,27 @@ export default function UnifiedBranches({
 }: UnifiedBranchesProps) {
   const codeInputRef = useRef<HTMLInputElement | null>(null)
 
+  // تغييرات غير محفوظة: الإغلاق/جديد/التنقل بين السجلات/مغادرة الشاشة يسأل «هل تريد الحفظ؟» (نفس حسابات البنوك)
+  const initialSnapshotRef = useRef<string>(JSON.stringify(form))
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
+  const pendingActionRef = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    initialSnapshotRef.current = JSON.stringify(form)
+    // الأساس يُعاد عند تحميل سجل فقط لا مع كل حرف
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, isNewMode])
+  const isDirty = () => JSON.stringify(form) !== initialSnapshotRef.current
+  const guardedAction = (action: () => void) => {
+    if (showUnsavedConfirm) return
+    if (isDirty()) {
+      pendingActionRef.current = action
+      setShowUnsavedConfirm(true)
+    } else {
+      action()
+    }
+  }
+  useNavigationGuard(() => dialogOpen && isDirty(), (continueNavigation) => guardedAction(continueNavigation))
+
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
     try {
       const currentId = form.id > 0 ? form.id : 0
@@ -141,18 +163,24 @@ export default function UnifiedBranches({
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir={appDir()}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
+        <DialogContent
+          className="w-full max-w-5xl p-0 overflow-hidden"
+          dir={appDir()}
+          onPointerDownOutside={(event) => { if (showUnsavedConfirm || showDeleteConfirm) event.preventDefault() }}
+          onInteractOutside={(event) => { if (showUnsavedConfirm || showDeleteConfirm) event.preventDefault() }}
+          onEscapeKeyDown={(event) => { if (showUnsavedConfirm || showDeleteConfirm) event.preventDefault() }}
+        >
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
-            onNew={onNew}
+            onNew={onNew ? () => guardedAction(onNew) : undefined}
             onSave={onSave}
             onDelete={onDelete}
-            onFirst={() => handleNavigate("first")}
-            onPrevious={() => handleNavigate("previous")}
-            onNext={() => handleNavigate("next")}
-            onLast={() => handleNavigate("last")}
+            onFirst={() => guardedAction(() => void handleNavigate("first"))}
+            onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
+            onNext={() => guardedAction(() => void handleNavigate("next"))}
+            onLast={() => guardedAction(() => void handleNavigate("last"))}
             isSaving={isSaving}
             canSave={canSave}
             canDelete={form.id > 0}
@@ -246,6 +274,24 @@ export default function UnifiedBranches({
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialogYesNo useAppDialog
+        visible={showUnsavedConfirm}
+        message={tr("تم تعديل البيانات، هل تريد الحفظ؟")}
+        showBack
+        onConfirm={() => {
+          setShowUnsavedConfirm(false)
+          pendingActionRef.current = null
+          onSave()
+        }}
+        onCancel={() => {
+          setShowUnsavedConfirm(false)
+          const action = pendingActionRef.current
+          pendingActionRef.current = null
+          action?.()
+        }}
+        onBack={() => setShowUnsavedConfirm(false)}
+      />
 
       <ConfirmDialogYesNo useAppDialog
         visible={showDeleteConfirm}

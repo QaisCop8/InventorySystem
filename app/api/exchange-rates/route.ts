@@ -1,18 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type { PoolClient } from "pg"
-import { getCurrenciesWithLatestRate, getOrCreateRatesForDate, getTenantPool, updateExchangeRate } from "@/lib/database"
+import sql, { getCurrenciesWithLatestRate, getOrCreateRatesForDate, getTenantPool, updateExchangeRate } from "@/lib/database"
 import { authorizeExchangeRateChange, ensureExchangeRateAuditColumns, exchangeRatePermissionFor, markExchangeRateEntered, resolveExchangeRateTarget } from "@/lib/exchange-rate-access"
 import { EXCHANGE_RATE_PERMISSIONS } from "@/lib/transaction-permission-definitions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 const MIN_EXCHANGE_RATE = 0.001
 
 // الرمز المختصر (₪ $) والعملة الفرعية وعدد خاناتها — للتفقيط في الفواتير وكشوف الحساب (lib/currency-catalog.ts)
-let currencyExtrasReady: Promise<void> | null = null
-function ensureCurrencyExtraColumns(client: PoolClient) {
-  currencyExtrasReady ??= client.query(
-    "ALTER TABLE currency ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10), ADD COLUMN IF NOT EXISTS sub_currency_name VARCHAR(50), ADD COLUMN IF NOT EXISTS fraction_digits SMALLINT",
-  ).then(() => undefined).catch((error) => { currencyExtrasReady = null; throw error })
-  return currencyExtrasReady
+// لكل قاعدة شركة (runSchemaOnce) — يُنفَّذ قبل فتح معاملة القفل (LOCK TABLE currency)
+function ensureCurrencyExtraColumns() {
+  return runSchemaOnce("app/api/exchange-rates/route.ts#ensureCurrencyExtraColumns", async () => {
+    await sql`ALTER TABLE currency ADD COLUMN IF NOT EXISTS currency_symbol VARCHAR(10), ADD COLUMN IF NOT EXISTS sub_currency_name VARCHAR(50), ADD COLUMN IF NOT EXISTS fraction_digits SMALLINT`
+  })
 }
 function currencyExtras(body: any) {
   const symbol = String(body?.currency_symbol ?? "").trim().slice(0, 10) || null
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    await ensureCurrencyExtraColumns()
     const pool = await getTenantPool()
     client = await pool.connect()
     await client.query("BEGIN")
@@ -113,7 +114,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await ensureCurrencyExtraColumns(client)
     const extras = currencyExtras(body)
     const currencyResult = await client.query(
       `INSERT INTO currency (id, currency_code, currency_name, is_active, currency_symbol, sub_currency_name, fraction_digits)
@@ -182,6 +182,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "رمز العملة يجب أن يكون حروفاً إنجليزية (حتى 10)" }, { status: 400 })
     }
 
+    await ensureCurrencyExtraColumns()
     const pool = await getTenantPool()
     client = await pool.connect()
     await client.query("BEGIN")
@@ -209,7 +210,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "اسم العملة مكرر" }, { status: 400 })
     }
 
-    await ensureCurrencyExtraColumns(client)
     const extras = currencyExtras(body)
     const updated = await client.query(
       // حقول لم تُرسل تبقى كما هي (مستدعون قدامى يرسلون الاسم والرمز فقط)

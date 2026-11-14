@@ -100,6 +100,20 @@ const padCodeLeft = (raw: string) => {
   return match[1] + match[2].padStart(10 - match[1].length, "0")
 }
 
+// صفوف استجابة قائمة (مصفوفة مباشرة أو داخل مفتاح) — null عند الفشل حتى لا تُمسح قائمة محمّلة سابقاً
+async function getRows(url: string, key?: string): Promise<any[] | null> {
+  try {
+    const response = await fetch(url, { cache: "no-store" })
+    if (!response.ok) return null
+    const data = await response.json()
+    if (Array.isArray(data)) return data
+    if (key && Array.isArray(data?.[key])) return data[key]
+    return (Object.values(data || {}).find(Array.isArray) as any[] | undefined) || []
+  } catch {
+    return null
+  }
+}
+
 type Notice = { type: "success" | "error" | "info"; text: string } | null
 // نوع الذمة في "إضافة عميل سريع": يحدد نوع السجل المُضاف يدوياً ونوع سجلات استيراد Excel (نفس أنواع PartyImportDialog)
 const PARTY_TYPES: Array<{ value: PartyImportKind; label: string; plural: string; type: number }> = [
@@ -350,18 +364,33 @@ export default function PersonalAssistantWizard() {
     return () => { cancelled = true }
   }, [open, step, user?.id, defaultAccountsBranchId])
 
+  // التعريفات الأساسية (الفروع، الوحدات، فئات الأسعار) تُحمَّل عند فتح البداية السريعة وعند دخول كل خطوة تستخدمها — كل طلب
+  // مستقل: كان Promise.all يُسقط الكل إن فشل طلب واحد (مثل قائمة الأصناف) فتبقى «فئة السعر» فارغة حتى زيارة تبويب التعريفات
+  const loadCoreDefinitions = useCallback(() => {
+    // نفس القوائم لتبويبات «التعريفات» (العدد بجانب كل تبويب وقائمة فروع الأقسام)
+    void getRows("/api/units").then((units) => { if (units) { setProductDefinitions((current) => ({ ...current, units })); setSavedLookups((current) => ({ ...current, unit: units })) } })
+    void getRows("/api/pricecategory").then((priceCategories) => {
+      if (!priceCategories) return
+      setProductDefinitions((current) => ({ ...current, priceCategories: priceCategories.filter((item: any) => Number(item?.status ?? 1) !== 2) }))
+      setSavedLookups((current) => ({ ...current, price: priceCategories }))
+    })
+    void getRows("/api/branches").then((branches) => {
+      if (!branches) return
+      setSavedLookups((current) => ({ ...current, branch: branches }))
+      setDefaultAccountsBranches(branches)
+      setDefaultAccountsBranchId((current) => current || String(branches[0]?.id ?? ""))
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!open || ![1, 6, 7].includes(step)) return
+    loadCoreDefinitions()
+  }, [open, step, loadCoreDefinitions])
+
   useEffect(() => {
     if (!open || step !== 7) return
-    Promise.all([
-      fetch("/api/units").then((response) => response.ok ? response.json() : []),
-      fetch("/api/pricecategory").then((response) => response.ok ? response.json() : []),
-      fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
-      fetch("/api/inventory/products").then((response) => response.ok ? response.json() : []),
-    ]).then(([units, priceCategories, currenciesData, products]) => {
-      setProductDefinitions({ units: Array.isArray(units) ? units : [], priceCategories: Array.isArray(priceCategories) ? priceCategories : [] })
-      setSavedCurrencies(Array.isArray(currenciesData?.rates) ? currenciesData.rates : Array.isArray(currenciesData) ? currenciesData : [])
-      setSavedProducts(Array.isArray(products) ? products : [])
-    }).catch(() => undefined)
+    void getRows("/api/exchange-rates", "rates").then((rates) => { if (rates) setSavedCurrencies(rates) })
+    void getRows("/api/inventory/products").then((products) => { if (products) setSavedProducts(products) })
   }, [open, step])
 
   const saveCurrencyDefaultAccounts = async () => {
@@ -541,20 +570,6 @@ export default function PersonalAssistantWizard() {
       .catch(() => showResult("error", tr("تعذر تحميل إعدادات الترقيم")))
   }, [open, step])
 
-  useEffect(() => {
-    if (!open || step !== 6) return
-    let cancelled = false
-    fetch("/api/branches")
-      .then((response) => response.ok ? response.json() : [])
-      .then((data) => {
-        if (cancelled) return
-        const branches = Array.isArray(data) ? data : []
-        setDefaultAccountsBranches(branches)
-        setDefaultAccountsBranchId((current) => current || String(branches[0]?.id ?? ""))
-      })
-      .catch(() => undefined)
-    return () => { cancelled = true }
-  }, [open, step])
 
   useEffect(() => {
     if (!open || step !== 8) return
@@ -1054,7 +1069,7 @@ function moveToNextAccountField(event: React.KeyboardEvent<HTMLDivElement>) {
 }
 
 function AccountSettingsStep({ title, fields, values, onChange, busy, onSave }: { title: string; fields: readonly (readonly [string, string])[]; values: Record<string, string>; onChange: (key: string, value: string) => void; busy: boolean; onSave: () => void }) {
-  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm"><div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-blue-700 to-indigo-600 px-5 py-4 text-white"><div><h4 className="text-lg font-black">{title}</h4><p className="mt-1 text-xs text-blue-100">{tr("ابحث برقم الحساب أو اسمه ثم اختره لكل حقل")}</p></div></div><div onKeyDown={moveToNextAccountField} className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">{fields.map(([key, label]) => <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"><Label className="mb-2 block text-sm font-bold text-slate-700">{tr(label)}</Label><AutoCompleteAccount label="" value={values[key] || ""} valueMode="id" onValueChange={(value) => onChange(key, String(value || ""))} onAccountSelect={(account) => onChange(key, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly={!/parent_account|credit_account|subscription_account|new_employee_account/.test(String(key))} /></div>)}</div></section>
+  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-sm"><div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-blue-700 to-indigo-600 px-5 py-4 text-white"><div><h4 className="text-lg font-black">{title}</h4><p className="mt-1 text-xs text-blue-100">{tr("ابحث برقم الحساب أو اسمه ثم اختره لكل حقل")}</p></div></div><div onKeyDown={moveToNextAccountField} className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">{fields.map(([key, label]) => <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3"><Label className="mb-2 block text-sm font-bold text-slate-700">{tr(label)}</Label><AutoCompleteAccount label="" value={values[key] || ""} valueMode="id" onValueChange={(value) => onChange(key, String(value || ""))} onAccountSelect={(account) => onChange(key, account ? String(account.id) : "")} placeholder={tr("ابحث عن الحساب")} className="w-full" showCostCenterButton={false} emptyEnterFocusesSearch requiredTypeValues={[1]} leafOnly={!/parent_account|credit_account|subscription_account|new_employee_account/.test(String(key))} /></div>)}</div></section>
 }
 
 function SavedProductsTable({ products }: { products: any[] }) {

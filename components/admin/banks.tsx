@@ -169,7 +169,9 @@ export default function Banks() {
     !hasDuplicateName
 
   const saveBank = async () => {
+    // سبب منع الحفظ يظهر في النافذة (كان الحفظ يُتجاهل بصمت)
     if (!canSaveForm) {
+      setDeleteError(!form.bank_code.trim() ? tr("رقم البنك مطلوب") : !form.bank_name.trim() ? tr("اسم البنك مطلوب") : hasDuplicateCode ? tr("رقم البنك مستخدم لبنك آخر") : tr("اسم البنك مستخدم لبنك آخر"))
       return
     }
 
@@ -195,6 +197,7 @@ export default function Banks() {
       setCurrentIndex(Math.max(0, (updated?.length || 0) - 1))
     } catch (error) {
       console.error(error)
+      setDeleteError(error instanceof Error ? error.message : tr("فشل في حفظ البنك"))
     } finally {
       setIsSaving(false)
     }
