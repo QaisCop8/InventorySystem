@@ -26,7 +26,6 @@ import {
   Save,
   AlertCircle,
   Pencil,
-  Globe,
 } from "lucide-react"
 import { useExchangeRates } from "@/hooks/use-swr-data"
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -393,10 +392,6 @@ function ExchangeRatesContent() {
     }
   }
 
-  const updateAllRates = () => {
-
-    refresh()
-  }
   function printDiv(divId: string) {
   const printContents = document.getElementById(divId)?.innerHTML;
   const newWindow = window.open("", "_blank", "width=800,height=600");
@@ -488,18 +483,15 @@ function ExchangeRatesContent() {
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={updateAllRates} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <TrendingUp className="h-4 w-4 ms-2" />
-                {tr("تحديث الأسعار")}
-              </Button>
+              {/* «تحديث الأسعار»: جلب أسعار الصرف الحية من الإنترنت للمراجعة ثم حفظها كسعر اليوم (LiveRatesDialog) */}
               <Button
                 onClick={() => setLiveRatesOpen(true)}
-                variant="outline"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={!rateAccess.add || exchangeRates.length < 2}
-                title={rateAccess.add ? tr("جلب أسعار الصرف الحالية من الإنترنت مقابل عملة الأساس") : tr("لا يوجد لديك صلاحية اضافة سعر الصرف")}
+                title={!rateAccess.add ? tr("لا يوجد لديك صلاحية اضافة سعر الصرف") : exchangeRates.length < 2 ? tr("أضف عملة غير عملة الأساس أولاً") : tr("جلب أسعار الصرف الحالية من الإنترنت مقابل عملة الأساس")}
               >
-                <Globe className="h-4 w-4 ms-2" />
-                {tr("جلب أسعار الصرف")}
+                <TrendingUp className="h-4 w-4 ms-2" />
+                {tr("تحديث الأسعار")}
               </Button>
               <Button
                 onClick={() => {
