@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, FileBarChart, Loader2, Network, Printer, RefreshCcw, Search } from "lucide-react"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقارير مراكز التكلفة العشرة بواجهة واحدة — الفلاتر والعرض حسب نوع التقرير (الحساب في
 // app/api/reports/cost-centers/route.ts).
@@ -152,65 +153,32 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
 
   // ── العرض ──
   const renderStatement = (groups: StatementGroup[]) => (
-    <table className="w-full min-w-[1000px] text-sm">
-      <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-        <tr>{["التاريخ", "رقم السند", "نوع السند", "الحساب", "مدين", "دائن", "الرصيد", "مراكز التكلفة", "الملاحظة"].map((label) => <th key={label} className={th}>{label}</th>)}</tr>
-      </thead>
-      <tbody>
-        {groups.map((group) => {
-          const rows = group.rows.filter((row) => matches(row.vch_code, row.account_name, row.cost_centers, row.note))
-          return (
-            <Fragment key={group.title}>
-              <tr className="border-b bg-slate-100/90"><td className="px-3 py-2 font-black" colSpan={6}>{group.title}</td><td className={`${num} font-black`} dir="ltr">{fmt(group.opening)}</td><td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>{tr("رصيد افتتاحي")}</td></tr>
-              {rows.map((row) => (
-                <tr key={row.line_id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-                  <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
-                  <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
-                  <td className="px-3 py-2.5 text-xs">{row.voucher_type_name}</td>
-                  <td className="px-3 py-2.5 text-xs">{row.account_code} - {row.account_name}</td>
-                  <td className={`${num} text-emerald-700`} dir="ltr">{row.debit ? fmt(row.debit) : ""}</td>
-                  <td className={`${num} text-rose-700`} dir="ltr">{row.credit ? fmt(row.credit) : ""}</td>
-                  <td className={`${num} font-bold`} dir="ltr">{fmt(row.balance)}</td>
-                  <td className="px-3 py-2.5 text-xs text-violet-700">{row.cost_centers || "—"}</td>
-                  <td className="max-w-[240px] truncate px-3 py-2.5 text-xs text-slate-500">{row.note}</td>
-                </tr>
-              ))}
-              <tr className="border-b-2 border-slate-300 bg-slate-50 font-bold"><td className="px-3 py-2" colSpan={4}>{tr("إجمالي ")}{group.title}</td><td className={num} dir="ltr">{fmt(group.debit)}</td><td className={num} dir="ltr">{fmt(group.credit)}</td><td className={num} dir="ltr">{fmt(group.closing)}</td><td colSpan={2} /></tr>
-            </Fragment>
-          )
-        })}
-      </tbody>
-    </table>
+    <ReportGrid
+      rows={groups.flatMap((group) => {
+        const rows = group.rows.filter((row) => matches(row.vch_code, row.account_name, row.cost_centers, row.note))
+        return [{ __kind: "group", account: group.title, balance: group.opening, cost_centers: tr("رصيد افتتاحي") }, ...rows.map((row) => ({ ...row, account: `${row.account_code} - ${row.account_name}` })), { __kind: "total", account: `${tr("إجمالي ")}${group.title}`, debit: group.debit, credit: group.credit, balance: group.closing }]
+      })}
+      exportFileName={definition.title} onRowDoubleClick={(row: any) => !row.__kind && openVoucher(row)}
+      rowClassName={(row: any) => row.__kind === "group" ? "report-row-opening" : row.__kind === "total" ? "report-row-subtotal" : undefined}
+      columns={[
+        { key: "vch_date", label: tr("التاريخ"), width: 110 }, { key: "vch_code", label: tr("رقم السند"), width: 130 },
+        { key: "voucher_type_name", label: tr("نوع السند"), width: 130 }, { key: "account", label: tr("الحساب"), width: "*", minWidth: 220 },
+        { key: "debit", label: tr("مدين"), type: "number", width: 130 }, { key: "credit", label: tr("دائن"), type: "number", width: 130 },
+        { key: "balance", label: tr("الرصيد"), type: "number", width: 140 },
+        { key: "cost_centers", label: tr("مراكز التكلفة"), width: 200 }, { key: "note", label: tr("الملاحظة"), width: 180 },
+      ]}/>
   )
 
   const renderLines = (rows: any[]) => {
     const visible = rows.filter((row) => matches(row.vch_code, row.account_code, row.account_name, row.cost_centers, row.note))
     return (
-      <table className="w-full min-w-[1000px] text-sm">
-        <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-          <tr>{["التاريخ", "رقم السند", "نوع السند", "رقم الحساب", "اسم الحساب", "مدين", "دائن", "مراكز التكلفة", "الملاحظة"].map((label) => <th key={label} className={th}>{label}</th>)}</tr>
-        </thead>
-        <tbody>
-          {visible.map((row) => (
-            <tr key={row.line_id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-              <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
-              <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
-              <td className="px-3 py-2.5 text-xs">{row.voucher_type_name}</td>
-              <td className="px-3 py-2.5 font-mono text-xs">{row.account_code}</td>
-              <td className="px-3 py-2.5 text-xs font-semibold">{row.account_name}</td>
-              <td className={`${num} text-emerald-700`} dir="ltr">{row.debit ? fmt(row.debit) : ""}</td>
-              <td className={`${num} text-rose-700`} dir="ltr">{row.credit ? fmt(row.credit) : ""}</td>
-              <td className="px-3 py-2.5 text-xs text-violet-700">{row.cost_centers || "—"}</td>
-              <td className="max-w-[240px] truncate px-3 py-2.5 text-xs text-slate-500">{row.note}</td>
-            </tr>
-          ))}
-        </tbody>
-        {visible.length > 0 && (
-          <tfoot className="sticky bottom-0 bg-slate-100 font-black">
-            <tr><td className="px-3 py-3" colSpan={5}>{tr("الإجمالي")}</td><td className={num} dir="ltr">{fmt(visible.reduce((s, r) => s + r.debit, 0))}</td><td className={num} dir="ltr">{fmt(visible.reduce((s, r) => s + r.credit, 0))}</td><td colSpan={2} /></tr>
-          </tfoot>
-        )}
-      </table>
+      <ReportGrid rows={visible} exportFileName={definition.title} onRowDoubleClick={(row: any) => openVoucher(row)} columns={[
+          { key: "vch_date", label: tr("التاريخ"), width: 110 }, { key: "vch_code", label: tr("رقم السند"), width: 130 },
+          { key: "voucher_type_name", label: tr("نوع السند"), width: 130 }, { key: "account_code", label: tr("رقم الحساب"), width: 120 },
+          { key: "account_name", label: tr("اسم الحساب"), width: 200 },
+          { key: "debit", label: tr("مدين"), type: "number", width: 130, total: true }, { key: "credit", label: tr("دائن"), type: "number", width: 130, total: true },
+          { key: "cost_centers", label: tr("مراكز التكلفة"), width: 200 }, { key: "note", label: tr("الملاحظة"), width: "*", minWidth: 180 },
+        ]}/>
     )
   }
 
@@ -218,94 +186,50 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
     const visible = rows.filter((row) => matches(row.code, row.name) || row.details.some((detail) => matches(detail.code, detail.name)))
     const total = (key: "opening" | "debit" | "credit" | "balance") => visible.reduce((s, r) => s + r[key], 0)
     return (
-      <table className="w-full min-w-[820px] text-sm">
-        <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-          <tr>{[kind === "trial-balance-cc" ? "مركز التكلفة" : "الحساب", "رصيد افتتاحي", "مدين", "دائن", "الرصيد"].map((label) => <th key={label} className={th}>{label}</th>)}</tr>
-        </thead>
-        <tbody>
-          {visible.map((row) => (
-            <Fragment key={row.id}>
-              <tr className={`border-b ${row.details.length ? "bg-slate-50 font-bold" : "hover:bg-teal-50/60"}`}>
-                <td className="px-3 py-2.5">{row.code && <span className="me-2 font-mono text-teal-700">{row.code}</span>}{row.name}</td>
-                <td className={num} dir="ltr">{fmt(row.opening)}</td>
-                <td className={`${num} text-emerald-700`} dir="ltr">{fmt(row.debit)}</td>
-                <td className={`${num} text-rose-700`} dir="ltr">{fmt(row.credit)}</td>
-                <td className={`${num} font-black`} dir="ltr">{fmt(row.balance)}</td>
-              </tr>
-              {row.details.map((detail) => (
-                <tr key={`${row.id}-${detail.id}`} className="border-b text-xs text-slate-600 hover:bg-teal-50/40">
-                  <td className="py-2 pe-3 ps-8">{detail.code && <span className="me-2 font-mono">{detail.code}</span>}{detail.name}</td>
-                  <td className={num} dir="ltr">{fmt(detail.opening)}</td>
-                  <td className={num} dir="ltr">{fmt(detail.debit)}</td>
-                  <td className={num} dir="ltr">{fmt(detail.credit)}</td>
-                  <td className={num} dir="ltr">{fmt(detail.balance)}</td>
-                </tr>
-              ))}
-            </Fragment>
-          ))}
-        </tbody>
-        {visible.length > 0 && (
-          <tfoot className="sticky bottom-0 bg-slate-100 font-black">
-            <tr><td className="px-3 py-3">{tr("الإجمالي")}</td><td className={num} dir="ltr">{fmt(total("opening"))}</td><td className={num} dir="ltr">{fmt(total("debit"))}</td><td className={num} dir="ltr">{fmt(total("credit"))}</td><td className={num} dir="ltr">{fmt(total("balance"))}</td></tr>
-          </tfoot>
-        )}
-      </table>
+      <ReportGrid
+        rows={visible.flatMap((row: any) => [{ ...row, __kind: row.details.length ? "parent" : "row" }, ...row.details.map((detail: any) => ({ ...detail, id: `${row.id}-${detail.id}`, __kind: "detail" }))])}
+        exportFileName={definition.title}
+        rowClassName={(row: any) => row.__kind === "parent" ? "report-row-subtotal" : row.__kind === "detail" ? "report-row-muted" : undefined}
+        columns={[
+          { key: "name", label: kind === "trial-balance-cc" ? tr("مركز التكلفة") : tr("الحساب"), width: "*", minWidth: 240, value: (row: any) => `${row.__kind === "detail" ? "    " : ""}${row.code ? `${row.code} ` : ""}${row.name}` },
+          { key: "opening", label: tr("رصيد افتتاحي"), type: "number", width: 150, total: total("opening") },
+          { key: "debit", label: tr("مدين"), type: "number", width: 150, total: total("debit") },
+          { key: "credit", label: tr("دائن"), type: "number", width: 150, total: total("credit") },
+          { key: "balance", label: tr("الرصيد"), type: "number", width: 150, total: total("balance") },
+        ]}/>
     )
   }
 
   const renderPivot = (columns: { id: number; name: string }[], rows: PivotRow[]) => {
     const visible = rows.filter((row) => matches(row.account_code, row.account_name))
     const sumOf = (list: PivotRow[], id: number | "total") => list.reduce((s, row) => s + (id === "total" ? row.total : row.values[id] || 0), 0)
-    const header = (
-      <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-        <tr><th className={th}>{tr("رقم الحساب")}</th><th className={th}>{tr("اسم الحساب")}</th>{columns.map((column) => <th key={column.id} className={th}>{column.name}</th>)}{columns.length > 1 && <th className={th}>{tr("المجموع")}</th>}</tr>
-      </thead>
-    )
-    // sign = 1 يعرض الصافي (مدين − دائن) كما هو، −1 يعكسه (الإيرادات والخصوم تُعرض موجبة)
-    const bodyRows = (list: PivotRow[], sign: 1 | -1) => list.map((row) => (
-      <tr key={row.id} className="border-b hover:bg-teal-50/60">
-        <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.account_code}</td>
-        <td className="px-3 py-2.5 font-semibold">{row.account_name}</td>
-        {columns.map((column) => <td key={column.id} className={num} dir="ltr">{row.values[column.id] ? fmt(sign * row.values[column.id]) : "—"}</td>)}
-        {columns.length > 1 && <td className={`${num} font-black`} dir="ltr">{fmt(sign * row.total)}</td>}
-      </tr>
-    ))
-    const totalRow = (label: string, list: PivotRow[], sign: 1 | -1, tone = "bg-slate-100") => (
-      <tr className={`border-b font-black ${tone}`}>
-        <td className="px-3 py-2.5" colSpan={2}>{label}</td>
-        {columns.map((column) => <td key={column.id} className={num} dir="ltr">{fmt(sign * sumOf(list, column.id))}</td>)}
-        {columns.length > 1 && <td className={num} dir="ltr">{fmt(sign * sumOf(list, "total"))}</td>}
-      </tr>
-    )
-    const sectionRow = (label: string) => <tr className="bg-white"><td className="px-3 pb-1 pt-4 text-sm font-black text-teal-800" colSpan={columns.length + 3}>{label}</td></tr>
-
+    // صفوف الشبكة: عنوان قسم، حسابات (sign = 1 الصافي كما هو، −1 معكوس للإيرادات والخصوم)، وصف مجموع
+    const out: any[] = []
+    const section = (label: string) => out.push({ __kind: "section", account_name: tr(label) })
+    const body = (list: PivotRow[], sign: 1 | -1) => { for (const row of list) out.push({ __kind: "account", account_code: row.account_code, account_name: row.account_name, ...Object.fromEntries(columns.map((column) => [`c_${column.id}`, row.values[column.id] ? sign * row.values[column.id] : null])), total: sign * row.total }) }
+    const totalLine = (label: string, list: PivotRow[], sign: 1 | -1, kind = "subtotal") => out.push({ __kind: kind, account_name: label, ...Object.fromEntries(columns.map((column) => [`c_${column.id}`, sign * sumOf(list, column.id)])), total: sign * sumOf(list, "total") })
     if (isIncome) {
-      const revenue = visible.filter((row) => row.total < 0)
-      const expenses = visible.filter((row) => row.total >= 0)
-      return (
-        <table className="w-full min-w-[820px] text-sm">{header}<tbody>
-          {sectionRow("الإيرادات")}{bodyRows(revenue, -1)}{totalRow(tr("إجمالي الإيرادات"), revenue, -1)}
-          {sectionRow("المصروفات")}{bodyRows(expenses, 1)}{totalRow(tr("إجمالي المصروفات"), expenses, 1)}
-          {totalRow(tr("صافي الربح / (الخسارة)"), visible, -1, "bg-emerald-100 text-emerald-900")}
-        </tbody></table>
-      )
-    }
-    if (isBalanceSheet) {
+      const revenue = visible.filter((row) => row.total < 0), expenses = visible.filter((row) => row.total >= 0)
+      section("الإيرادات"); body(revenue, -1); totalLine(tr("إجمالي الإيرادات"), revenue, -1)
+      section("المصروفات"); body(expenses, 1); totalLine(tr("إجمالي المصروفات"), expenses, 1)
+      totalLine(tr("صافي الربح / (الخسارة)"), visible, -1, "net")
+    } else if (isBalanceSheet) {
       const assets = visible.filter((row) => row.side === "assets" || (row.side == null && row.total >= 0))
       const liabilities = visible.filter((row) => !assets.includes(row))
-      return (
-        <table className="w-full min-w-[820px] text-sm">{header}<tbody>
-          {sectionRow("الأصول")}{bodyRows(assets, 1)}{totalRow(tr("إجمالي الأصول"), assets, 1)}
-          {sectionRow("الخصوم وحقوق الملكية")}{bodyRows(liabilities, -1)}{totalRow(tr("إجمالي الخصوم وحقوق الملكية"), liabilities, -1)}
-          {totalRow(tr("الفرق (ربح/خسارة الفترة غير المقفلة)"), visible, 1, "bg-amber-50 text-amber-900")}
-        </tbody></table>
-      )
+      section("الأصول"); body(assets, 1); totalLine(tr("إجمالي الأصول"), assets, 1)
+      section("الخصوم وحقوق الملكية"); body(liabilities, -1); totalLine(tr("إجمالي الخصوم وحقوق الملكية"), liabilities, -1)
+      totalLine(tr("الفرق (ربح/خسارة الفترة غير المقفلة)"), visible, 1, "net")
+    } else {
+      body(visible, 1); if (visible.length) totalLine(tr("الإجمالي (مدين − دائن)"), visible, 1, "net")
     }
-    return (
-      <table className="w-full min-w-[820px] text-sm">{header}<tbody>{bodyRows(visible, 1)}</tbody>
-        {visible.length > 0 && <tfoot className="sticky bottom-0">{totalRow(tr("الإجمالي (مدين − دائن)"), visible, 1)}</tfoot>}
-      </table>
-    )
+    return <ReportGrid rows={out} exportFileName={definition.title}
+      rowClassName={(row: any) => row.__kind === "section" ? "report-row-opening" : row.__kind === "subtotal" ? "report-row-subtotal" : row.__kind === "net" ? "report-row-total" : undefined}
+      columns={[
+        { key: "account_code", label: tr("رقم الحساب"), width: 130 },
+        { key: "account_name", label: tr("اسم الحساب"), width: "*", minWidth: 220 },
+        ...columns.map((column): ReportGridColumn => ({ key: `c_${column.id}`, label: column.name, type: "number", width: 140 })),
+        { key: "total", label: tr("المجموع"), type: "number", width: 150, visible: columns.length > 1 },
+      ]}/>
   }
 
   const resultCount = !result ? 0 : result.shape === "statement" ? result.groups.reduce((s, g) => s + g.rows.length, 0) : result.rows.length

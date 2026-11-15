@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 type AuditRow = {
   id: number
@@ -162,27 +163,19 @@ export default function VoucherAuditReport() {
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
 
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead className="bg-indigo-50 text-indigo-950"><tr>
-            <th className="p-3 text-start">{tr("الوقت")}</th><th className="p-3 text-start">{tr("المستخدم")}</th><th className="p-3 text-start">{tr("العملية")}</th>
-            <th className="p-3 text-start">{tr("نوع السند")}</th><th className="p-3 text-start">{tr("رقم السند")}</th><th className="p-3 text-start">{tr("تاريخ السند")}</th>
-            <th className="p-3 text-start">{tr("الفرع")}</th><th className="p-3 text-start">{tr("المبلغ")}</th><th className="p-3 text-start">{tr("ملاحظة")}</th><th className="p-3 text-start print:hidden">{tr("التفاصيل")}</th>
-          </tr></thead>
-          <tbody>{rows.map(row => <tr key={row.id} className="cursor-pointer border-t hover:bg-indigo-50/40" onDoubleClick={() => setSelected(row)}>
-            <td className="p-3 whitespace-nowrap font-mono rtl:text-right" dir="ltr">{dateTime(row.created_at)}</td>
-            <td className="p-3">{row.user_name || row.user_id || "-"}</td>
-            <td className="p-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${toneFor(row.action)}`}>{ACTION_LABELS[row.action] || row.action}</span></td>
-            <td className="p-3">{row.vch_type_name || (row.source === "purchase_order" ? tr("طلبية مشتريات") : row.source === "order" ? tr("طلبية مبيعات") : row.vch_type ?? "-")}</td>
-            <td className="p-3 font-mono font-bold text-indigo-700">{row.vch_code || "-"}</td>
-            <td className="p-3 whitespace-nowrap">{day(row.vch_date)}</td>
-            <td className="p-3">{row.branch_name || "-"}</td>
-            <td className="p-3 font-mono rtl:text-right" dir="ltr">{money(row.amount)}</td>
-            <td className="p-3 text-xs text-muted-foreground">{[row.details?.channel === "pos" ? "نقطة البيع" : row.details?.channel, row.details?.copy_label, row.details?.phone].filter(Boolean).join(" · ") || "-"}</td>
-            <td className="p-3 print:hidden"><Button size="sm" variant="ghost" onClick={() => setSelected(row)}><Eye className="me-1 h-4 w-4" />{tr("عرض")}</Button></td>
-          </tr>)}</tbody>
-        </table>
-      </div>
+      <ReportGrid rows={rows} exportFileName={tr("سجل السندات")} onRowDoubleClick={(row: any) => setSelected(row)}
+          columns={[
+            { key: "created_at", label: tr("الوقت"), width: 160, value: (row: any) => dateTime(row.created_at) },
+            { key: "user", label: tr("المستخدم"), width: 130, value: (row: any) => row.user_name || row.user_id || "" },
+            { key: "action", label: tr("العملية"), width: 120, value: (row: any) => ACTION_LABELS[row.action] || row.action, render: (row: any) => <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${toneFor(row.action)}`}>{ACTION_LABELS[row.action] || row.action}</span> },
+            { key: "vch_type_name", label: tr("نوع السند"), width: 140, value: (row: any) => row.vch_type_name || (row.source === "purchase_order" ? tr("طلبية مشتريات") : row.source === "order" ? tr("طلبية مبيعات") : row.vch_type ?? "") },
+            { key: "vch_code", label: tr("رقم السند"), width: 130 },
+            { key: "vch_date", label: tr("تاريخ السند"), width: 110, value: (row: any) => day(row.vch_date) },
+            { key: "branch_name", label: tr("الفرع"), width: 120 },
+            { key: "amount", label: tr("المبلغ"), type: "number", width: 130 },
+            { key: "note", label: tr("ملاحظة"), width: "*", minWidth: 160, value: (row: any) => [row.details?.channel === "pos" ? "نقطة البيع" : row.details?.channel, row.details?.copy_label, row.details?.phone].filter(Boolean).join(" · ") },
+            { key: "details", label: tr("التفاصيل"), width: 100, render: (row: any) => <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(row)}><Eye className="me-1 h-4 w-4" />{tr("عرض")}</Button> },
+          ]}/>
       {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">{tr("لا توجد عمليات مطابقة للفلاتر")}</div>}
     </div>
 
@@ -293,25 +286,17 @@ function SnapshotView({ title, snapshot, tone, hideHeader = false }: { title: st
     </div>}
     {(snapshot.items || []).length > 0 && <>
       <h4 className="mb-1 text-sm font-bold">{tr("الأصناف (")}{snapshot.items.length})</h4>
-      <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-xs">
-        <thead className="bg-white/70"><tr><th className="p-1.5 text-start">#</th>{itemColumns.map(([, label]) => <th key={label} className="p-1.5 text-start">{label}</th>)}</tr></thead>
-        <tbody>{snapshot.items.map((item, index) => <tr key={item.id ?? index} className="border-t">
-          <td className="p-1.5">{index + 1}</td>
-          {itemColumns.map(([keys, label]) => <td key={label} className="p-1.5">{show(keys[0], pick(item, keys))}</td>)}
-        </tr>)}</tbody>
-      </table></div>
+      <ReportGrid rows={snapshot.items} exportFileName={tr("الأصناف")} height={Math.min(360, 90 + snapshot.items.length * 38)}
+        columns={itemColumns.map(([keys, label]: any, index: number): ReportGridColumn => ({ key: `item_${index}`, label, width: "*", minWidth: 110, value: (item: any) => show(keys[0], pick(item, keys)) }))}/>
     </>}
     {(snapshot.journal || []).length > 0 && <>
       <h4 className="mb-1 mt-3 text-sm font-bold">{tr("القيد المحاسبي")}</h4>
-      <div className="overflow-x-auto"><table className="w-full min-w-[480px] text-xs">
-        <thead className="bg-white/70"><tr><th className="p-1.5 text-start">{tr("الحساب")}</th><th className="p-1.5 text-start">{tr("مدين")}</th><th className="p-1.5 text-start">{tr("دائن")}</th><th className="p-1.5 text-start">{tr("ملاحظة")}</th></tr></thead>
-        <tbody>{(snapshot.journal || []).map((line, index) => <tr key={line.id ?? index} className="border-t">
-          <td className="p-1.5">{[line.account_code, line.account_name].filter(Boolean).join(" - ") || line.account_id}</td>
-          <td className="p-1.5 font-mono rtl:text-right" dir="ltr">{Number(line.credit_debit) === 1 ? money(line.amount) : ""}</td>
-          <td className="p-1.5 font-mono rtl:text-right" dir="ltr">{Number(line.credit_debit) === 2 ? money(line.amount) : ""}</td>
-          <td className="p-1.5">{line.note || ""}</td>
-        </tr>)}</tbody>
-      </table></div>
+      <ReportGrid rows={snapshot.journal || []} exportFileName={tr("القيد المحاسبي")} height={Math.min(320, 90 + (snapshot.journal || []).length * 38)} columns={[
+        { key: "account", label: tr("الحساب"), width: "*", minWidth: 200, value: (line: any) => [line.account_code, line.account_name].filter(Boolean).join(" - ") || line.account_id },
+        { key: "debit", label: tr("مدين"), type: "number", width: 120, total: true, value: (line: any) => Number(line.credit_debit) === 1 ? Number(line.amount) : null },
+        { key: "credit", label: tr("دائن"), type: "number", width: 120, total: true, value: (line: any) => Number(line.credit_debit) === 2 ? Number(line.amount) : null },
+        { key: "note", label: tr("ملاحظة"), width: 160 },
+      ]}/>
     </>}
   </div>
 }

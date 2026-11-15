@@ -641,7 +641,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   useVoucherDeepLink(async id => {
     if (await handleCodeResolved(id)) setDialogOpen(true)
-  }, Boolean(user?.id), voucherType)
+  }, Boolean(user?.id), voucherType, () => { void openNewDialog() })
 
   const handleCodeNotFound = (code: string) => {
     setForm((f) => ({

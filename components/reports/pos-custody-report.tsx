@@ -12,6 +12,7 @@ import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقرير عهد البيع بالتجزئة (app/api/reports/pos-custody): كل الورديات/العهد في الفترة مع النقد والمبيعات وعهدة الدخان.
 type TobaccoRow = { product_code: string; product_name: string; opening: number; sold: number | null; expected: number | null; counted: number | null; difference: number | null }
@@ -109,42 +110,28 @@ export default function PosCustodyReport() {
 
           {/* مثل باقي التقارير: الصفحة بارتفاع ثابت، والجدول وحده يتمرّر عمودياً وأفقياً (كان يُقصّ بلا تمرير) */}
           <section className="report-results">
-          <div className="report-table-scroll">
-            <table className="w-full min-w-[1180px] text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-xs text-slate-500">
-                <tr>
-                  <th className="p-2" />
-                  <th className="p-2 text-start">{tr("الوردية")}</th><th className="p-2 text-start">{tr("النقطة")}</th><th className="p-2 text-start">{tr("الكاشير")}</th>
-                  <th className="p-2 text-start">{tr("الفتح")}</th><th className="p-2 text-start">{tr("الإغلاق/التسليم")}</th><th className="p-2 text-center">{tr("الحالة")}</th>
-                  <th className="p-2 text-end">{tr("الافتتاحي")}</th><th className="p-2 text-end">{tr("صافي المبيعات")}</th><th className="p-2 text-end">{tr("المتوقع")}</th>
-                  <th className="p-2 text-end">{tr("المسلَّم")}</th><th className="p-2 text-end">{tr("الفرق")}</th><th className="p-2 text-center">{tr("الدخان")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? <tr><td colSpan={13} className="p-8 text-center text-muted-foreground">{tr("لا توجد عهد في الفترة المحددة")}</td></tr> : rows.map((row) => {
-                  const open = expanded.has(row.id)
-                  return (
-                    <Fragment key={row.id}>
-                      <tr className="cursor-pointer border-t hover:bg-emerald-50/40" onClick={() => toggle(row.id)}>
-                        <td className="p-2 text-slate-400">{open ? <ChevronDown className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}</td>
-                        <td className="p-2 font-mono">#{row.id}</td>
-                        <td className="p-2">{row.point_name}</td>
-                        <td className="p-2">{row.user_name}</td>
-                        <td className="p-2 font-mono text-xs rtl:text-right" dir="ltr">{when(row.opened_at)}</td>
-                        <td className="p-2 font-mono text-xs rtl:text-right" dir="ltr">{when(row.closed_at)}</td>
-                        <td className="p-2 text-center"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_TONE[row.status] || "bg-slate-100"}`}>{STATUS_LABEL[row.status] || row.status}</span></td>
-                        <td className="p-2 text-end font-mono" dir="ltr">{money(row.opening_cash)}</td>
-                        <td className="p-2 text-end font-mono" dir="ltr">{money(row.net_sales)}</td>
-                        <td className="p-2 text-end font-mono" dir="ltr">{money(row.expected_cash)}</td>
-                        <td className="p-2 text-end font-mono" dir="ltr">{row.counted_cash == null ? "—" : money(row.counted_cash)}</td>
-                        <td className={`p-2 text-end font-mono font-bold ${row.cash_difference == null ? "" : Math.abs(Number(row.cash_difference)) < 0.005 ? "text-emerald-600" : "text-rose-600"}`} dir="ltr">{row.cash_difference == null ? "—" : money(row.cash_difference)}</td>
-                        <td className="p-2 text-center text-xs">{row.tobacco?.length ? (row.tobacco_handed_over ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">{tr("مُسلَّمة")}</span> : <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-700">{tr("مستلمة")}</span>) : "—"}</td>
-                      </tr>
-                      {open && (
-                        <tr className="border-t bg-slate-50/60">
-                          <td />
-                          <td colSpan={12} className="p-3">
-                            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+          <ReportGrid rows={rows} exportFileName={tr("تقرير عهد البيع بالتجزئة")} emptyText={tr("لا توجد عهد في الفترة المحددة")}
+              onRowDoubleClick={(row: any) => toggle(row.id)}
+              rowClassName={(row: any) => expanded.has(row.id) ? "report-row-subtotal" : undefined}
+              columns={[
+                { key: "session", label: tr("الوردية"), width: 90, value: (row: any) => `#${row.id}` },
+                { key: "point_name", label: tr("النقطة"), width: 140 },
+                { key: "user_name", label: tr("الكاشير"), width: 140 },
+                { key: "opened", label: tr("الفتح"), width: 150, value: (row: any) => when(row.opened_at) },
+                { key: "closed", label: tr("الإغلاق/التسليم"), width: 150, value: (row: any) => when(row.closed_at) },
+                { key: "status", label: tr("الحالة"), width: 110, value: (row: any) => STATUS_LABEL[row.status] || row.status, render: (row: any) => <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_TONE[row.status] || "bg-slate-100"}`}>{STATUS_LABEL[row.status] || row.status}</span> },
+                { key: "opening_cash", label: tr("الافتتاحي"), type: "number", width: 120, total: true },
+                { key: "net_sales", label: tr("صافي المبيعات"), type: "number", width: 130, total: true },
+                { key: "expected_cash", label: tr("المتوقع"), type: "number", width: 120, total: true },
+                { key: "counted_cash", label: tr("المسلَّم"), type: "number", width: 120, total: true },
+                { key: "cash_difference", label: tr("الفرق"), type: "number", width: 110, total: true },
+                { key: "tobacco_state", label: tr("الدخان"), width: 100, value: (row: any) => row.tobacco?.length ? (row.tobacco_handed_over ? tr("مُسلَّمة") : tr("مستلمة")) : "" },
+              ]}/>
+            <p className="px-2 pt-2 text-xs text-muted-foreground">{tr("انقر نقراً مزدوجاً على الوردية لعرض تفاصيل النقد والدفعات وعهدة الدخان")}</p>
+            {rows.filter((row) => expanded.has(row.id)).map((row) => (
+              <div key={row.id} className="mt-3 rounded-xl border bg-slate-50/60 p-3">
+                <div className="mb-2 flex items-center justify-between"><b>{tr("الوردية")} #{row.id} — {row.point_name} · {row.user_name}</b><button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => toggle(row.id)}>{tr("إخفاء")}</button></div>
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
                               <div className="space-y-2 rounded-xl border bg-white p-3 text-xs">
                                 <b className="block text-sm">{tr("النقد والحركات")}</b>
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -176,15 +163,8 @@ export default function PosCustodyReport() {
                                 ) : <p className="text-muted-foreground">{tr("لا توجد عهدة دخان لهذه الوردية")}</p>}
                               </div>
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            ))}
           </section>
         </>
       )}

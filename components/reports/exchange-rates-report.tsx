@@ -7,6 +7,7 @@ import { saveAs } from "file-saver"
 import { ArrowDownRight, ArrowUpRight, Coins, Download, Loader2, Minus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { canUseReportAction } from "@/components/auth/use-report-access"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 type RateRow = {
   id: number
@@ -154,45 +155,16 @@ export function ExchangeRatesReport() {
         ) : rows.length === 0 ? (
           <div className="flex min-h-48 items-center justify-center text-sm text-slate-500">{tr("لا توجد أسعار صرف في هذه الفترة")}</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500 dark:bg-slate-800/60">
-                <tr>
-                  <th className="px-4 py-3 text-start font-semibold">{tr("التاريخ")}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{tr("العملة")}</th>
-                  <th className="px-4 py-3 text-center font-semibold">{tr("سعر الشراء")}</th>
-                  <th className="px-4 py-3 text-center font-semibold">{tr("سعر البيع")}</th>
-                  <th className="px-4 py-3 text-center font-semibold">{tr("سعر الصرف")}</th>
-                  <th className="px-4 py-3 text-center font-semibold">{tr("التغيّر")}</th>
-                  <th className="px-4 py-3 text-start font-semibold">{tr("أدخله")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {rows.map((row) => {
-                  const change = row.change == null ? null : Number(row.change)
-                  const tone = change == null || Math.abs(change) < 1e-9 ? "text-slate-400" : change > 0 ? "text-emerald-600" : "text-rose-600"
-                  const Icon = change == null || Math.abs(change) < 1e-9 ? Minus : change > 0 ? ArrowUpRight : ArrowDownRight
-                  return (
-                    <tr key={row.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="px-4 py-2.5 tabular-nums" dir="ltr">{dayText(row.rate_date)}</td>
-                      <td className="px-4 py-2.5"><span className="me-2 rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold dark:bg-slate-800">{row.currency_code}</span>{row.currency_name}</td>
-                      <td className="px-4 py-2.5 text-center font-mono tabular-nums">{fmt(row.buy_rate)}</td>
-                      <td className="px-4 py-2.5 text-center font-mono tabular-nums">{fmt(row.sell_rate)}</td>
-                      <td className="px-4 py-2.5 text-center font-mono font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{fmt(row.exchange_rate)}</td>
-                      <td className={`px-4 py-2.5 text-center font-mono tabular-nums ${tone}`}>
-                        <span className="inline-flex items-center gap-1" dir="ltr"><Icon className="h-3.5 w-3.5" />{change == null ? "—" : fmt(change)}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {row.entered_at
-                          ? <span className="text-slate-700 dark:text-slate-200">{row.entered_by_name || "—"}</span>
-                          : <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{tr("منسوخ تلقائياً")}</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ReportGrid rows={rows} exportFileName={tr("تقرير أسعار الصرف")} height="max(380px, calc(100dvh - 420px))"
+              columns={[
+                { key: "rate_date", label: tr("التاريخ"), width: 120, value: (row: any) => dayText(row.rate_date) },
+                { key: "currency", label: tr("العملة"), width: 180, value: (row: any) => `${row.currency_code} — ${row.currency_name || ""}` },
+                { key: "buy_rate", label: tr("سعر الشراء"), type: "number", width: 130, decimals: 4 },
+                { key: "sell_rate", label: tr("سعر البيع"), type: "number", width: 130, decimals: 4 },
+                { key: "exchange_rate", label: tr("سعر الصرف"), type: "number", width: 130, decimals: 4 },
+                { key: "change", label: tr("التغيّر"), type: "number", width: 120, decimals: 4, render: (row: any) => { const change = row.change == null ? null : Number(row.change); const tone = change == null || Math.abs(change) < 1e-9 ? "text-slate-400" : change > 0 ? "text-emerald-600" : "text-rose-600"; const Icon = change == null || Math.abs(change) < 1e-9 ? Minus : change > 0 ? ArrowUpRight : ArrowDownRight; return <span className={`inline-flex items-center gap-1 font-mono ${tone}`} dir="ltr"><Icon className="h-3.5 w-3.5" />{change == null ? "—" : fmt(change)}</span> } },
+                { key: "entered_by", label: tr("أدخله"), width: "*", minWidth: 150, value: (row: any) => row.entered_at ? row.entered_by_name || "" : tr("منسوخ تلقائياً") },
+              ]}/>
         )}
       </div>
     </div>

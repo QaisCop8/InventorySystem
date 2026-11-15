@@ -12,6 +12,7 @@ import { ReportMultiChoice, type ReportOption } from "@/components/reports/accou
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // ملخص الطلبيات (app/api/reports/orders?view=summary): مؤشرات الطلبيات الفعلية من جدول orders — كانت الشاشة تقرأ
 // جدولاً غير موجود (sales_orders) وتعرض قيماً ثابتة/عشوائية.
@@ -150,35 +151,30 @@ export function OrderReports() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Panel title={tr("أعلى العملاء/الموردين قيمةً")}>
-              <table className="w-full text-sm">
-                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("الاسم")}</th><th className="p-1.5 text-center">{tr("الطلبيات")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th></tr></thead>
-                <tbody>{data.topParties.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5"><Users className="me-1 inline h-3.5 w-3.5 text-slate-400" />{row.party_name || "—"}</td><td className="p-1.5 text-center">{row.orders}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
-              </table>
+              <ReportGrid rows={data.topParties} exportFileName={tr("أعلى العملاء/الموردين قيمةً")} height={360} columns={[
+                { key: "party_name", label: tr("الاسم"), width: "*", minWidth: 160 },
+                { key: "orders", label: tr("الطلبيات"), type: "number", decimals: 0, width: 100 }, { key: "value", label: tr("القيمة"), type: "number", width: 130 },
+              ]}/>
             </Panel>
             <Panel title={tr("أكثر الأصناف طلباً")}>
-              <table className="w-full text-sm">
-                <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("الصنف")}</th><th className="p-1.5 text-end">{tr("الكمية")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th></tr></thead>
-                <tbody>{data.topItems.map((row, index) => <tr key={index} className="border-t"><td className="p-1.5">{row.product_name}<small className="ms-1 font-mono text-slate-400">{row.product_code}</small></td><td className="p-1.5 text-end font-mono" dir="ltr">{qty(row.quantity)}</td><td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td></tr>)}</tbody>
-              </table>
+              <ReportGrid rows={data.topItems} exportFileName={tr("أكثر الأصناف طلباً")} height={360} columns={[
+                { key: "product", label: tr("الصنف"), width: "*", minWidth: 160, value: (row: any) => `${row.product_name} (${row.product_code})` },
+                { key: "quantity", label: tr("الكمية"), type: "number", width: 110 }, { key: "value", label: tr("القيمة"), type: "number", width: 130 },
+              ]}/>
             </Panel>
           </div>
 
           <Panel title={tr("الطلبيات المتأخرة (أقدم 20)")}>
             {data.late.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead className="text-xs text-slate-500"><tr><th className="p-1.5 text-start">{tr("رقم الطلبية")}</th><th className="p-1.5 text-start">{tr("العميل/المورد")}</th><th className="p-1.5 text-start">{tr("التاريخ")}</th><th className="p-1.5 text-start">{tr("تاريخ التسليم")}</th><th className="p-1.5 text-center">{tr("الحالة")}</th><th className="p-1.5 text-end">{tr("القيمة")}</th><th className="p-1.5 text-center">{tr("التأخير")}</th></tr></thead>
-                  <tbody>{data.late.map((row) => (
-                    <tr key={row.id} className="border-t">
-                      <td className="p-1.5 font-mono">{row.order_number}</td><td className="p-1.5">{row.party_name || "—"}</td>
-                      <td className="p-1.5 font-mono text-xs rtl:text-right" dir="ltr">{day(row.order_date)}</td><td className="p-1.5 font-mono text-xs rtl:text-right" dir="ltr">{day(row.delivery_date)}</td>
-                      <td className="p-1.5 text-center text-xs">{STATUS_LABEL[row.order_status] || row.order_status}</td>
-                      <td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td>
-                      <td className="p-1.5 text-center"><span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700"><Timer className="h-3 w-3" />{row.days_late}{tr(" يوم")}</span></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
+              <ReportGrid rows={data.late} exportFileName={tr("الطلبيات المتأخرة")} height={420}
+                  columns={[
+                    { key: "order_number", label: tr("رقم الطلبية"), width: 130 }, { key: "party_name", label: tr("العميل/المورد"), width: "*", minWidth: 160 },
+                    { key: "order_date", label: tr("التاريخ"), width: 110, value: (row: any) => day(row.order_date) },
+                    { key: "delivery_date", label: tr("تاريخ التسليم"), width: 120, value: (row: any) => day(row.delivery_date) },
+                    { key: "status", label: tr("الحالة"), width: 110, value: (row: any) => STATUS_LABEL[row.order_status] || row.order_status },
+                    { key: "value", label: tr("القيمة"), type: "number", width: 130, total: true },
+                    { key: "days_late", label: tr("التأخير"), width: 100, value: (row: any) => `${row.days_late}${tr(" يوم")}` },
+                  ]}/>
             ) : <p className="py-6 text-center text-sm text-emerald-700">{tr("لا توجد طلبيات متأخرة 👍")}</p>}
           </Panel>
         </>

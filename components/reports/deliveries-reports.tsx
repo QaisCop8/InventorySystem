@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, FileBarChart, Loader2, Printer, RefreshCcw, Search, Truck } from "lucide-react"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقارير الإرساليات الثلاثة — الحساب في app/api/reports/deliveries/route.ts.
 
@@ -150,55 +151,29 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
   const head = (labels: string[]) => <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white"><tr>{labels.map((label, i) => <th key={`${label}-${i}`} className={th}>{label}</th>)}</tr></thead>
 
   const renderDeliveries = () => (
-    <table className="w-full min-w-[1300px] text-sm">
-      {head(["التاريخ", "النوع", "رقم السند", "العميل", "المستودع", "المندوب", "السيارة", "السائق", "الكمية", "المفوتر", "المتبقي", "المبلغ", "حالة الفوترة", "الفواتير / المرتجعات", "ملاحظات"])}
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-            <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
-            <td className="px-3 py-2.5 text-xs">{row.type_name}</td>
-            <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
-            <td className="px-3 py-2.5 font-semibold">{row.customer_name || "—"}</td>
-            <td className="px-3 py-2.5 text-xs">{row.warehouses || "—"}</td>
-            <td className="px-3 py-2.5 text-xs">{row.salesman_name || "—"}</td>
-            <td className="px-3 py-2.5 text-xs">{row.car_label || "—"}</td>
-            <td className="px-3 py-2.5 text-xs">{row.driver_name || "—"}</td>
-            <td className={num} dir="ltr">{qty(row.quantity)}</td>
-            <td className={num} dir="ltr">{Number(row.vch_type) === 15 ? "—" : qty(row.invoiced_quantity)}</td>
-            <td className={`${num} font-bold`} dir="ltr">{Number(row.vch_type) === 15 ? "—" : qty(row.remaining_quantity)}</td>
-            <td className={`${num} font-bold`} dir="ltr">{fmt(row.amount)}</td>
-            <td className="px-3 py-2.5">{Number(row.vch_type) === 15 ? "—" : <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${INVOICE_STATES[row.invoice_state]?.tone}`}>{INVOICE_STATES[row.invoice_state]?.label}</span>}</td>
-            <td className="max-w-[240px] px-3 py-2.5 text-xs text-slate-600">{row.invoices || "—"}</td>
-            <td className="max-w-[200px] truncate px-3 py-2.5 text-xs text-slate-500">{row.note}</td>
-          </tr>
-        ))}
-      </tbody>
-      {rows.length > 0 && <tfoot className="sticky bottom-0 bg-slate-100 font-black"><tr><td className="px-3 py-3" colSpan={8}>{tr("الإجمالي")}</td><td className={num} dir="ltr">{qty(sum("quantity"))}</td><td className={num} dir="ltr">{qty(sum("invoiced_quantity"))}</td><td className={num} dir="ltr">{qty(sum("remaining_quantity"))}</td><td className={num} dir="ltr">{fmt(sum("amount"))}</td><td colSpan={3} /></tr></tfoot>}
-    </table>
+    <ReportGrid rows={rows} exportFileName={tr("تقرير الإرساليات")} onRowDoubleClick={(row: any) => openVoucher(row)} columns={[
+      { key: "vch_date", label: tr("التاريخ"), width: 110 }, { key: "type_name", label: tr("النوع"), width: 130 },
+      { key: "vch_code", label: tr("رقم السند"), width: 130 }, { key: "customer_name", label: tr("العميل"), width: 180 },
+      { key: "warehouses", label: tr("المستودع"), width: 130 }, { key: "salesman_name", label: tr("المندوب"), width: 120 },
+      { key: "car_label", label: tr("السيارة"), width: 110 }, { key: "driver_name", label: tr("السائق"), width: 110 },
+      { key: "quantity", label: tr("الكمية"), type: "number", width: 110, total: true },
+      { key: "invoiced_quantity", label: tr("المفوتر"), type: "number", width: 110, total: true, value: (row: any) => Number(row.vch_type) === 15 ? null : row.invoiced_quantity },
+      { key: "remaining_quantity", label: tr("المتبقي"), type: "number", width: 110, total: true, value: (row: any) => Number(row.vch_type) === 15 ? null : row.remaining_quantity },
+      { key: "amount", label: tr("المبلغ"), type: "number", width: 130, total: true },
+      { key: "invoice_state", label: tr("حالة الفوترة"), width: 120, value: (row: any) => Number(row.vch_type) === 15 ? "" : INVOICE_STATES[row.invoice_state]?.label, render: (row: any) => Number(row.vch_type) === 15 ? "—" : <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${INVOICE_STATES[row.invoice_state]?.tone}`}>{INVOICE_STATES[row.invoice_state]?.label}</span> },
+      { key: "invoices", label: tr("الفواتير / المرتجعات"), width: 220 }, { key: "note", label: tr("ملاحظات"), width: "*", minWidth: 160 },
+    ]}/>
   )
 
   const renderInternal = () => (
-    <table className="w-full min-w-[1100px] text-sm">
-      {head(["التاريخ", "رقم السند", "من مستودع", "الى مستودع", "عدد الأسطر", "الكمية", "المبلغ", "السيارة", "السائق", "السند اليدوي", "ملاحظة السند"])}
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-            <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
-            <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
-            <td className="px-3 py-2.5 font-semibold">{row.from_store || "—"}</td>
-            <td className="px-3 py-2.5 font-semibold">{row.to_store || "—"}</td>
-            <td className={num} dir="ltr">{row.lines}</td>
-            <td className={num} dir="ltr">{qty(row.quantity)}</td>
-            <td className={`${num} font-bold`} dir="ltr">{fmt(row.amount)}</td>
-            <td className="px-3 py-2.5 text-xs">{row.car_name || "—"}</td>
-            <td className="px-3 py-2.5 text-xs">{row.driver_name || "—"}</td>
-            <td className="px-3 py-2.5 text-xs">{row.manual_voucher || "—"}</td>
-            <td className="max-w-[220px] truncate px-3 py-2.5 text-xs text-slate-500">{row.note}</td>
-          </tr>
-        ))}
-      </tbody>
-      {rows.length > 0 && <tfoot className="sticky bottom-0 bg-slate-100 font-black"><tr><td className="px-3 py-3" colSpan={4}>{tr("الإجمالي")}</td><td className={num} dir="ltr">{sum("lines")}</td><td className={num} dir="ltr">{qty(sum("quantity"))}</td><td className={num} dir="ltr">{fmt(sum("amount"))}</td><td colSpan={4} /></tr></tfoot>}
-    </table>
+    <ReportGrid rows={rows} exportFileName={tr("الإرساليات الداخلية")} onRowDoubleClick={(row: any) => openVoucher(row)} columns={[
+      { key: "vch_date", label: tr("التاريخ"), width: 110 }, { key: "vch_code", label: tr("رقم السند"), width: 130 },
+      { key: "from_store", label: tr("من مستودع"), width: 140 }, { key: "to_store", label: tr("الى مستودع"), width: 140 },
+      { key: "lines", label: tr("عدد الأسطر"), type: "number", decimals: 0, width: 100, total: true },
+      { key: "quantity", label: tr("الكمية"), type: "number", width: 110, total: true }, { key: "amount", label: tr("المبلغ"), type: "number", width: 130, total: true },
+      { key: "car_name", label: tr("السيارة"), width: 120 }, { key: "driver_name", label: tr("السائق"), width: 120 },
+      { key: "manual_voucher", label: tr("السند اليدوي"), width: 120 }, { key: "note", label: tr("ملاحظة السند"), width: "*", minWidth: 180 },
+    ]}/>
   )
 
   const renderConsignment = () => (
@@ -211,57 +186,28 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
           <p><span className="text-slate-500">{tr("المندوب:")}</span> <b>{result.consignment.salesman_name || "—"}</b></p>
         </div>
       )}
-      <table className="w-full min-w-[1000px] text-sm">
-        {head(["التاريخ", "النوع", "رقم السند", "رقم الحساب", "البيان", "حالة الفاتورة", "المبلغ", "رصيد الزبون", "ملاحظات"])}
-        <tbody>
-          {rows.map((row) => (
-            <Fragment key={row.id}>
-              <tr className={`cursor-pointer border-b hover:bg-teal-50/60 ${Number(row.vch_type) === 15 ? "text-rose-700" : ""} ${row.details?.length ? "bg-slate-50 font-semibold" : ""}`} onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-                <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
-                <td className="px-3 py-2.5 text-xs">{row.type_name}</td>
-                <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
-                <td className="px-3 py-2.5 font-mono text-xs">{row.account_code || "—"}</td>
-                <td className="px-3 py-2.5">{row.account_name || "—"}</td>
-                <td className="px-3 py-2.5 text-xs">{row.status_name}</td>
-                <td className={`${num} font-bold`} dir="ltr">{fmt(row.amount)}</td>
-                <td className={num} dir="ltr">{row.account_balance == null ? "—" : fmt(row.account_balance)}</td>
-                <td className="max-w-[220px] truncate px-3 py-2.5 text-xs text-slate-500">{row.note}</td>
-              </tr>
-              {(row.details || []).map((line: any, index: number) => (
-                <tr key={`${row.id}-${index}`} className="border-b text-xs text-slate-600">
-                  <td colSpan={3} />
-                  <td className="px-3 py-2 font-mono">{line.product_code}</td>
-                  <td className="px-3 py-2">{line.item_name} <span className="text-slate-400">({line.unit_name || tr("وحدة")})</span></td>
-                  <td className="px-3 py-2 rtl:text-right" dir="ltr">{qty(line.quantity)}{line.bonus ? ` + ${qty(line.bonus)}` : ""} × {fmt(line.price)}</td>
-                  <td className={num} dir="ltr">{fmt(line.line_amount)}</td>
-                  <td className="px-3 py-2">{line.discount ? tr("خصم {0}%", line.discount) : ""}</td>
-                  <td />
-                </tr>
-              ))}
-            </Fragment>
-          ))}
-          {!rows.length && <tr><td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">{tr("لا يوجد فواتير لهذه الارسالية")}</td></tr>}
-        </tbody>
-      </table>
+      <ReportGrid
+        rows={rows.flatMap((row: any) => [{ ...row, __kind: "voucher" }, ...(row.details || []).map((line: any) => ({ __kind: "line", account_code: line.product_code, account_name: `${line.item_name} (${line.unit_name || tr("وحدة")})`, status_name: `${qty(line.quantity)}${line.bonus ? ` + ${qty(line.bonus)}` : ""} × ${fmt(line.price)}`, amount: line.line_amount, note: line.discount ? tr("خصم {0}%", line.discount) : "" }))])}
+        exportFileName={tr("فواتير الإرسالية")} emptyText={tr("لا يوجد فواتير لهذه الارسالية")}
+        onRowDoubleClick={(row: any) => row.__kind === "voucher" && openVoucher(row)}
+        rowClassName={(row: any) => row.__kind === "voucher" && row.details?.length ? "report-row-subtotal" : row.__kind === "line" ? "report-row-muted" : undefined}
+        columns={[
+          { key: "vch_date", label: tr("التاريخ"), width: 110 }, { key: "type_name", label: tr("النوع"), width: 130 },
+          { key: "vch_code", label: tr("رقم السند"), width: 130 }, { key: "account_code", label: tr("رقم الحساب"), width: 120 },
+          { key: "account_name", label: tr("البيان"), width: "*", minWidth: 200 }, { key: "status_name", label: tr("حالة الفاتورة"), width: 150 },
+          { key: "amount", label: tr("المبلغ"), type: "number", width: 130 },
+          { key: "account_balance", label: tr("رصيد الزبون"), type: "number", width: 130 },
+          { key: "note", label: tr("ملاحظات"), width: 180 },
+        ]}/>
       {Array.isArray(result?.items) && result.items.length > 0 && (
         <div className="p-4">
           <h3 className="mb-2 text-sm font-black text-teal-800">{tr("أصناف الإرسالية والمتبقي منها")}</h3>
-          <table className="w-full min-w-[700px] text-sm">
-            {head(["رقم الصنف", "اسم الصنف", "الوحدة", "الكمية", "المفوتر", "المرتجع", "المتبقي"])}
-            <tbody>
-              {result.items.map((item: any) => (
-                <tr key={item.id} className="border-b">
-                  <td className="px-3 py-2.5 font-mono text-xs">{item.product_code}</td>
-                  <td className="px-3 py-2.5 font-semibold">{item.item_name}</td>
-                  <td className="px-3 py-2.5 text-xs">{item.unit_name || "—"}</td>
-                  <td className={num} dir="ltr">{qty(item.quantity)}</td>
-                  <td className={num} dir="ltr">{qty(item.invoiced)}</td>
-                  <td className={num} dir="ltr">{qty(item.returned)}</td>
-                  <td className={`${num} font-black ${item.remaining > 0 ? "text-amber-700" : "text-emerald-700"}`} dir="ltr">{qty(item.remaining)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ReportGrid rows={result.items} exportFileName={tr("أصناف الإرسالية")} height={Math.min(420, 100 + result.items.length * 38)} columns={[
+            { key: "product_code", label: tr("رقم الصنف"), width: 130 }, { key: "item_name", label: tr("اسم الصنف"), width: "*", minWidth: 200 },
+            { key: "unit_name", label: tr("الوحدة"), width: 100 },
+            { key: "quantity", label: tr("الكمية"), type: "number", width: 110, total: true }, { key: "invoiced", label: tr("المفوتر"), type: "number", width: 110, total: true },
+            { key: "returned", label: tr("المرتجع"), type: "number", width: 110, total: true }, { key: "remaining", label: tr("المتبقي"), type: "number", width: 110, total: true },
+          ]}/>
         </div>
       )}
     </div>

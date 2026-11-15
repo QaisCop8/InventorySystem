@@ -11,6 +11,7 @@ import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقارير الشيكات: الإجمالي (مجاميع يومية/شهرية حسب الاستحقاق) والتفصيلي (شيك بسطر) — رصيد البنوك ثم الوارد يزيد
 // والصادر ينقص، مع رصيد تراكمي يبيّن السيولة المتوقعة. الخادم: app/api/reports/cheques.
@@ -142,79 +143,30 @@ function ChequesReport({ view }: { view: View }) {
             <ReportSummaryCard label={tr("الرصيد المتوقع في نهاية الفترة")}><span dir="ltr">{money(closing)}</span></ReportSummaryCard>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
-            <table className="w-full min-w-[960px] text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500">
-                {view === "total" ? (
-                  <tr>{["التاريخ", grouping(filters.grouping), "الشيكات الواردة", "# الواردة", "الشيكات الصادرة", "# الصادرة", "الصافي", "الرصيد التراكمي"].map((title) => <th key={title} className="whitespace-nowrap p-2 text-start">{title}</th>)}</tr>
-                ) : (
-                  <tr>{["تاريخ الاستحقاق", "اليوم", "# الشيك", "الحساب", "حساب البنك", "الحالة", "السند", "الفرع", "وارد (مدين)", "صادر (دائن)", "الرصيد"].map((title) => <th key={title} className="whitespace-nowrap p-2 text-start">{title}</th>)}</tr>
-                )}
-              </thead>
-              <tbody>
-                {rows.map((row, index) => {
-                  const special = row.kind === "opening" || row.kind === "previous"
-                  if (view === "total") {
-                    return (
-                      <tr key={index} className={special ? "border-t bg-emerald-50/50 font-semibold" : "border-t hover:bg-emerald-50/40"}>
-                        <td className="p-2 rtl:text-right" dir="ltr">{special ? "" : filters.grouping === "monthly" ? String(row.period).slice(0, 7).split("-").reverse().join("/") : dateText(row.period)}</td>
-                        <td className="p-2">{row.label}</td>
-                        <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_in != null ? money(row.cheque_in) : ""}</td>
-                        <td className="p-2">{row.count_in ?? ""}</td>
-                        <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_out != null ? money(row.cheque_out) : ""}</td>
-                        <td className="p-2">{row.count_out ?? ""}</td>
-                        <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(row.net_balance)}</td>
-                        <td className="p-2 font-mono font-bold rtl:text-right" dir="ltr">{money(row.cumulative_balance)}</td>
-                      </tr>
-                    )
-                  }
-                  return special ? (
-                    <tr key={index} className="border-t bg-emerald-50/50 font-semibold">
-                      <td className="p-2" colSpan={8}>{row.label}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_in != null ? money(row.cheque_in) : ""}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_out != null ? money(row.cheque_out) : ""}</td>
-                      <td className="p-2 font-mono font-bold rtl:text-right" dir="ltr">{money(row.cumulative_balance)}</td>
-                    </tr>
-                  ) : (
-                    <tr key={index} className="border-t hover:bg-emerald-50/40">
-                      <td className="p-2 rtl:text-right" dir="ltr">{dateText(row.due_date)}</td>
-                      <td className="p-2">{row.label}</td>
-                      <td className="p-2 font-mono font-semibold">{row.cheq_num}</td>
-                      <td className="p-2">{[row.account_code, row.account_name].filter(Boolean).join(" - ")}</td>
-                      <td className="p-2">{[row.bank_account_code, row.bank_account_name].filter(Boolean).join(" - ")}</td>
-                      <td className="p-2">{row.status_name}</td>
-                      <td className="p-2 font-mono">{row.vch_code}</td>
-                      <td className="p-2">{row.branch_name}</td>
-                      <td className="p-2 font-mono text-emerald-700 rtl:text-right" dir="ltr">{row.cheque_in ? money(row.cheque_in) : ""}</td>
-                      <td className="p-2 font-mono text-rose-700 rtl:text-right" dir="ltr">{row.cheque_out ? money(row.cheque_out) : ""}</td>
-                      <td className="p-2 font-mono font-bold rtl:text-right" dir="ltr">{money(row.cumulative_balance)}</td>
-                    </tr>
-                  )
-                })}
-                {!body.length && <tr><td colSpan={columns} className="p-8 text-center text-muted-foreground">{tr("لا توجد شيكات قائمة للفترة والفلاتر المحددة")}</td></tr>}
-              </tbody>
-              {body.length > 0 && (
-                <tfoot className="border-t-2 bg-slate-50 font-bold">
-                  {view === "total" ? (
-                    <tr>
-                      <td className="p-2" colSpan={2}>{tr("الإجمالي")}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalIn)}</td><td className="p-2">{countIn}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalOut)}</td><td className="p-2">{countOut}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalIn - totalOut)}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(closing)}</td>
-                    </tr>
-                  ) : (
-                    <tr>
-                      <td className="p-2" colSpan={8}>{tr("الإجمالي (")}{body.length}{tr(" شيك)")}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalIn)}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalOut)}</td>
-                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(closing)}</td>
-                    </tr>
-                  )}
-                </tfoot>
-              )}
-            </table>
-          </div>
+          <ReportGrid rows={rows} exportFileName={tr("تقرير الشيكات")} emptyText={tr("لا توجد شيكات قائمة للفترة والفلاتر المحددة")}
+              rowClassName={(row: any) => row.kind === "opening" || row.kind === "previous" ? "report-row-opening" : undefined}
+              columns={view === "total" ? [
+                { key: "period", label: tr("التاريخ"), width: 120, value: (row: any) => row.kind === "opening" || row.kind === "previous" ? "" : filters.grouping === "monthly" ? String(row.period).slice(0, 7).split("-").reverse().join("/") : dateText(row.period) },
+                { key: "label", label: grouping(filters.grouping), width: "*", minWidth: 160 },
+                { key: "cheque_in", label: tr("الشيكات الواردة"), type: "number", width: 150, total: totalIn },
+                { key: "count_in", label: tr("# الواردة"), type: "number", decimals: 0, width: 100, total: countIn },
+                { key: "cheque_out", label: tr("الشيكات الصادرة"), type: "number", width: 150, total: totalOut },
+                { key: "count_out", label: tr("# الصادرة"), type: "number", decimals: 0, width: 100, total: countOut },
+                { key: "net_balance", label: tr("الصافي"), type: "number", width: 140, total: totalIn - totalOut },
+                { key: "cumulative_balance", label: tr("الرصيد التراكمي"), type: "number", width: 160, total: closing },
+              ] : [
+                { key: "due_date", label: tr("تاريخ الاستحقاق"), width: 120, value: (row: any) => row.kind === "opening" || row.kind === "previous" ? "" : dateText(row.due_date) },
+                { key: "label", label: tr("اليوم"), width: 120 },
+                { key: "cheq_num", label: tr("# الشيك"), width: 110 },
+                { key: "account", label: tr("الحساب"), width: "*", minWidth: 180, value: (row: any) => [row.account_code, row.account_name].filter(Boolean).join(" - ") },
+                { key: "bank_account", label: tr("حساب البنك"), width: 180, value: (row: any) => [row.bank_account_code, row.bank_account_name].filter(Boolean).join(" - ") },
+                { key: "status_name", label: tr("الحالة"), width: 110 },
+                { key: "vch_code", label: tr("السند"), width: 120 },
+                { key: "branch_name", label: tr("الفرع"), width: 120 },
+                { key: "cheque_in", label: tr("وارد (مدين)"), type: "number", width: 140, total: totalIn },
+                { key: "cheque_out", label: tr("صادر (دائن)"), type: "number", width: 140, total: totalOut },
+                { key: "cumulative_balance", label: tr("الرصيد"), type: "number", width: 150, total: closing },
+              ]}/>
         </>
       )}
     </ReportPage>

@@ -11,6 +11,7 @@ import DataGridView from "@/components/common/DataGridView"
 import { ReportMultiChoice } from "@/components/reports/account-statement-report"
 import { VoucherLink } from "@/components/reports/voucher-link"
 import { voucherHref } from "@/lib/voucher-links"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 type Option = { id: number; name: string; code?: string }
 type LogRow = { id?: number; log_id?: number; row_id?: string; vch_type?: number; occurred_at: string; cashier_name: string; movement_type: string; transaction_no: string | null; notes: string | null; point_name?: string | null; shift_name?: string | null; payment_method?: string | null; item_name?: string | null; quantity?: number | null; price?: number | null; discount_percent?: number | null; item_discount_amount?: number | null; campaign_discount?: number | null; line_total?: number | null }
@@ -150,32 +151,27 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
       </div>
     </div></ReportFilters>
     {detail ? (
-      <div className="h-[42vh] min-h-[280px] overflow-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[1500px] border-collapse text-sm" dir={appDir()}>
-          <thead className="sticky top-0 z-10 bg-slate-800 text-white"><tr>
-            {['#', 'التاريخ', 'اسم الكاشير', 'نوع الحركة', 'رقم الحركة', 'نقطة البيع', 'الوردية', 'طريقة الدفع', 'اسم الصنف', 'الكمية', 'السعر', 'خصم الصنف %', 'خصم الصنف من الفاتورة', 'خصم الحملات', 'إجمالي الصنف', 'ملاحظات'].map((header) => <th key={header} className="border border-slate-600 px-3 py-2 text-start">{header}</th>)}
-          </tr></thead>
-          <tbody>{invoiceGroups.flatMap((group, groupIndex) => group.map((row, rowIndex) => {
-            const merged = rowIndex === 0 ? { rowSpan: group.length } : null
-            const cell = (value: unknown) => <td rowSpan={merged?.rowSpan} className="border border-slate-200 px-3 py-2 align-middle">{value || ""}</td>
-            return <tr key={row.row_id || `${groupIndex}-${rowIndex}`} className="hover:bg-slate-50">
-              {rowIndex === 0 && <>{cell(groupIndex + 1)}{cell(formatDateTime(row.occurred_at))}{cell(row.cashier_name)}{cell(row.movement_type)}{cell(enableInvoiceLinks && row.transaction_no && row.id ? <VoucherLink id={Number(row.id)} type={Number(row.vch_type || 12)} code={row.transaction_no} /> : row.transaction_no || "")}{cell(row.point_name)}{cell(row.shift_name)}{cell(row.payment_method)}</>}
-              <td className="border border-slate-200 px-3 py-2">{row.item_name || ""}</td><td className="border border-slate-200 px-3 py-2">{row.quantity ?? ""}</td><td className="border border-slate-200 px-3 py-2">{row.price ?? ""}</td><td className="border border-slate-200 px-3 py-2">{row.discount_percent ?? 0}</td><td className="border border-slate-200 px-3 py-2">{row.item_discount_amount ?? 0}</td><td className="border border-slate-200 px-3 py-2">{row.campaign_discount ?? 0}</td><td className="border border-slate-200 px-3 py-2">{row.line_total ?? ""}</td>
-              {rowIndex === 0 && cell(row.notes)}
-            </tr>
-          }))}</tbody>
-          {showTotals && <tfoot className="sticky bottom-0 z-10 bg-emerald-50 font-semibold text-slate-800 shadow-[0_-2px_6px_rgba(15,23,42,0.12)]"><tr>
-            <td colSpan={9} className="border border-emerald-200 px-3 py-2 text-start">{tr("الإجمالي")}</td>
-            <td className="border border-emerald-200 px-3 py-2">{totals.quantity}</td>
-            <td className="border border-emerald-200 px-3 py-2">{totals.price.toFixed(2)}</td>
-            <td className="border border-emerald-200 px-3 py-2">{totals.discount_percent.toFixed(2)}</td>
-            <td className="border border-emerald-200 px-3 py-2">{totals.item_discount_amount.toFixed(2)}</td>
-            <td className="border border-emerald-200 px-3 py-2">{totals.campaign_discount.toFixed(2)}</td>
-            <td className="border border-emerald-200 px-3 py-2">{totals.line_total.toFixed(2)}</td>
-            <td className="border border-emerald-200 px-3 py-2"></td>
-          </tr></tfoot>}
-        </table>
-      </div>
+      <ReportGrid
+          rows={invoiceGroups.flatMap((group, groupIndex) => group.map((row: any, rowIndex: number) => ({ ...row, __first: rowIndex === 0, __invoice: groupIndex + 1 })))}
+          exportFileName={tr("سجل حركات الكاشير")} height="max(320px, 42vh)" showSerial={false}
+          columns={[
+            { key: "invoice_no", label: "#", width: 60, value: (row: any) => row.__first ? String(row.__invoice) : "" },
+            { key: "occurred_at", label: tr("التاريخ"), width: 160, value: (row: any) => row.__first ? formatDateTime(row.occurred_at) : "" },
+            { key: "cashier_name", label: tr("اسم الكاشير"), width: 140, value: (row: any) => row.__first ? row.cashier_name || "" : "" },
+            { key: "movement_type", label: tr("نوع الحركة"), width: 120, value: (row: any) => row.__first ? row.movement_type || "" : "" },
+            { key: "transaction_no", label: tr("رقم الحركة"), width: 140, value: (row: any) => row.__first ? row.transaction_no || "" : "", render: (row: any) => !row.__first ? "" : enableInvoiceLinks && row.transaction_no && row.id ? <VoucherLink id={Number(row.id)} type={Number(row.vch_type || 12)} code={row.transaction_no} /> : row.transaction_no || "" },
+            { key: "point_name", label: tr("نقطة البيع"), width: 130, value: (row: any) => row.__first ? row.point_name || "" : "" },
+            { key: "shift_name", label: tr("الوردية"), width: 110, value: (row: any) => row.__first ? row.shift_name || "" : "" },
+            { key: "payment_method", label: tr("طريقة الدفع"), width: 120, value: (row: any) => row.__first ? row.payment_method || "" : "" },
+            { key: "item_name", label: tr("اسم الصنف"), width: "*", minWidth: 200 },
+            { key: "quantity", label: tr("الكمية"), type: "number", width: 100, total: showTotals ? totals.quantity : undefined },
+            { key: "price", label: tr("السعر"), type: "number", width: 110, total: showTotals ? totals.price : undefined },
+            { key: "discount_percent", label: tr("خصم الصنف %"), type: "number", width: 110, total: showTotals ? totals.discount_percent : undefined },
+            { key: "item_discount_amount", label: tr("خصم الصنف من الفاتورة"), type: "number", width: 150, total: showTotals ? totals.item_discount_amount : undefined },
+            { key: "campaign_discount", label: tr("خصم الحملات"), type: "number", width: 120, total: showTotals ? totals.campaign_discount : undefined },
+            { key: "line_total", label: tr("إجمالي الصنف"), type: "number", width: 130, total: showTotals ? totals.line_total : undefined },
+            { key: "notes", label: tr("ملاحظات"), width: 180, value: (row: any) => row.__first ? row.notes || "" : "" },
+          ]}/>
     ) : <DataGridView style={{ height: "42vh", minHeight: "280px", overflow: "hidden" }} idProperty="id" scheme={reportScheme} dataSource={displayRows} showContextMenu={false} dontConvertToCards isReport hideSearch allowSorting />}
   </ReportPage>
 }

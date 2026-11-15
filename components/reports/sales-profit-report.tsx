@@ -16,6 +16,7 @@ import { ReportMultiChoice, type ReportOption } from "./account-statement-report
 import { ValuationMethod, valuationMethods } from "./valuation-method"
 import { VoucherLink } from "./voucher-link"
 import { InvoicePickerDialog } from "./invoice-picker-dialog"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 type Mode = "items" | "period" | "itemCost" | "invoice" | "pricing"
 type GroupBy = "item" | "line" | "invoice" | "customer" | "salesman" | "group" | "branch" | "warehouse" | "day" | "month"
@@ -246,16 +247,13 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
         <div><h2 className="font-bold">{tr("نتائج ")}{config.title}</h2><p className="text-xs text-muted-foreground">{rows.length.toLocaleString("en-US")}{tr(" سجل — طريقة التسعير: ")}{valuationMethods.find((method) => method.value === pricingWay)?.label}</p></div>
         <div className="relative w-full sm:w-80"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث داخل النتائج...")} className="rounded-xl bg-muted/40 ps-9" /></div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead className="sticky top-0 bg-gradient-to-l from-indigo-700 via-blue-700 to-violet-700 text-white"><tr><th className="px-3 py-3 text-start text-xs font-semibold">#</th>{columns.map((column) => <th key={column.key} className="whitespace-nowrap px-3 py-3 text-start text-xs font-semibold">{column.label}</th>)}</tr></thead>
-          <tbody>
-            {rows.map((row, index) => <tr key={row.key} className={`border-b hover:bg-indigo-50/70 ${index % 2 ? "bg-slate-50/60" : ""}`}><td className="px-3 py-2.5 text-muted-foreground">{index + 1}</td>{columns.map((column) => <td key={column.key} className="whitespace-nowrap px-3 py-2.5" dir={column.numeric ? "ltr" : undefined}>{column.render(row)}</td>)}</tr>)}
-            {!loading && !rows.length && <tr><td colSpan={columns.length + 1} className="px-4 py-16 text-center"><TrendingUp className="mx-auto mb-3 h-11 w-11 text-slate-300" /><p className="font-semibold">{tr("لا توجد نتائج لعرضها")}</p><p className="mt-1 text-xs text-muted-foreground">{mode === "invoice" ? tr("أدخل رقم الفاتورة ثم اضغط عرض التقرير") : tr("اختر الفلاتر ثم اضغط عرض التقرير")}</p></td></tr>}
-          </tbody>
-          {rows.length > 0 && totals && <tfoot className="sticky bottom-0 border-t-2 bg-slate-100 font-bold dark:bg-slate-900"><tr><td className="px-3 py-3" />{columns.map((column, index) => <td key={column.key} className="whitespace-nowrap px-3 py-3" dir={column.numeric ? "ltr" : undefined}>{column.total ? column.total(totals) : index === 0 ? tr("الإجمالي") : ""}</td>)}</tr></tfoot>}
-        </table>
-      </div>
+      <ReportGrid rows={rows} exportFileName={tr("تقرير الأرباح")}
+          emptyText={loading ? undefined : mode === "invoice" ? tr("أدخل رقم الفاتورة ثم اضغط عرض التقرير") : tr("لا توجد نتائج لعرضها")}
+          columns={columns.map((column): ReportGridColumn => ({
+            key: column.key, label: column.label, width: column.numeric ? 140 : "*", minWidth: column.numeric ? 110 : 160,
+            type: column.numeric ? "number" : "text", render: column.render,
+            total: column.total && totals ? Number((totals as any)[column.key] ?? 0) : undefined,
+          }))}/>
     </section>
   </ReportPage>
 }

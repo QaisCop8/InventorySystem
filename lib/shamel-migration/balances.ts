@@ -49,6 +49,7 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
   const accounts = await mapGet("account", all.map((row) => text(row.code)))
   const parentIds = new Set(((await sql`SELECT DISTINCT father_id FROM account_tbl WHERE father_id IS NOT NULL`) as any[]).map((row) => Number(row.father_id)))
   const lines: OpeningBalanceLine[] = []
+  const shamelRates = new Map<number, number>()
   let key = 0
   for (const row of all) {
     const code = text(row.code)
@@ -61,6 +62,9 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
     const curr = await currencyId(row.balance_currency)
     if (!curr) { ctx.error(code, `عملة الرصيد ${text(row.balance_currency)} غير معرّفة`); continue }
     lines.push({ key: key++, accountId: accountIdValue, amount: -balance, currencyId: curr, date: ctx.run.balance_date, label: code })
+    // سعر الصرف الحالي بجدول الأرصدة بالشامل (Current Rate) — سعر سند قيد الأرصدة لهذه العملة
+    const shamelRate = num(row.current_rate)
+    if (shamelRate > 0 && !shamelRates.has(curr)) shamelRates.set(curr, shamelRate)
   }
   // سند قيد لكل عملة مقابل الحساب الوسيط (نفس lib/opening-balances.ts) — داخل معاملته مع فتح سنة التاريخ
   // مؤقتاً (تاريخ الأرصدة قد يسبق سنة العمل الحالية)
@@ -73,6 +77,8 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
     const postedPrefix = `${ctx.step}:${currency}`
     const previous = await postedVoucherIds(postedPrefix)
     if (previous.length) {
+      // سند رُحِّل بسعر 1 لعملة أجنبية (لا سعر صرف بتاريخ الأرصدة هنا) ⇐ يُصحَّح بسعر الشامل
+      if (currency !== Number(baseCurrencyId) && shamelRates.get(currency)) await fixOpeningJournalRate(previous, shamelRates.get(currency)!, clearing.id, Number(baseCurrencyId), ctx)
       const postedAccounts = new Set(((await sql`SELECT DISTINCT account_id FROM voucher_journal_detail_tbl WHERE voucher_id = ANY(${previous}::int[])`) as any[]).map((row) => Number(row.account_id)))
       const fresh = group.filter((line) => !postedAccounts.has(line.accountId))
       ctx.stats.skipped += group.length - fresh.length
@@ -82,7 +88,7 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
     try {
       const day = ctx.run.balance_date
       const journal = await withTenantTransaction(() => withYearOpened(Number(day.slice(0, 4)), async () => {
-        const rate = currency === Number(baseCurrencyId) ? 1 : (await getRateByDate(currency, day, baseCurrencyId)) ?? 1
+        const rate = currency === Number(baseCurrencyId) ? 1 : shamelRates.get(currency) ?? (await getRateByDate(currency, day, baseCurrencyId)) ?? 1
         // createAutoJournal يقرّب كل سطر لخانتين ويوازن بعملة الأساس سطراً سطراً — مئات الأسطر بعملة أجنبية تتراكم
         // فروق تقريبها، فطرف الحساب الوسيط بعملة الأساس = فرق نفس القيم المقرّبة (بالقروش، بلا فروق كسور)
         const journalLines: AutoJournalLine[] = group.map((line) => ({
@@ -105,6 +111,32 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
     }
   }
   if (vouchers.length) ctx.info(`سندات قيد الأرصدة الافتتاحية: ${vouchers.join("، ")}`)
+}
+
+/** تصحيح سعر سند قيد أرصدة افتتاحية رُحِّل بسعر 1: سعر الرأس والأسطر بعملته، مبلغ عملة الأساس، وطرف الحساب الوسيط */
+async function fixOpeningJournalRate(voucherIds: number[], rate: number, clearingId: number, baseCurrencyId: number, ctx: StepContext) {
+  const wrong = ((await sql`SELECT id FROM voucher_header_tbl WHERE id = ANY(${voucherIds}::int[]) AND COALESCE(rate, 1) = 1`) as any[]).map((row) => Number(row.id))
+  for (const voucherId of wrong) {
+    await withTenantTransaction(async () => {
+      const day = String(((await sql`SELECT vch_date::date::text AS d FROM voucher_header_tbl WHERE id = ${voucherId}`)[0] as any)?.d || "")
+      await withYearOpened(Number(day.slice(0, 4)) || new Date().getFullYear(), async () => {
+        await sql`UPDATE voucher_header_tbl SET rate = ${rate} WHERE id = ${voucherId}`
+        await sql`
+          UPDATE voucher_journal_detail_tbl SET rate = ${rate}, base_curr_amount = ROUND((amount * ${rate})::numeric, 2),
+            account_rate = CASE WHEN account_currency_id = currency_id THEN ${rate} ELSE account_rate END
+          WHERE voucher_id = ${voucherId} AND account_id <> ${clearingId}`
+        const [net] = (await sql`
+          SELECT COALESCE(SUM(CASE WHEN credit_debit = 1 THEN base_curr_amount ELSE -base_curr_amount END), 0) AS net
+          FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId} AND account_id <> ${clearingId}`) as any[]
+        const netBase = Math.round(Number(net?.net || 0) * 100) / 100
+        await sql`
+          UPDATE voucher_journal_detail_tbl SET credit_debit = ${netBase > 0 ? 2 : 1}, amount = ${Math.abs(netBase)}, base_curr_amount = ${Math.abs(netBase)},
+            account_amount = ${Math.abs(netBase)}, currency_id = ${baseCurrencyId}, rate = 1, account_rate = 1
+          WHERE voucher_id = ${voucherId} AND account_id = ${clearingId}`
+      })
+    })
+    ctx.info(`سند قيد الأرصدة الافتتاحية ${voucherId}: صُحِّح سعر الصرف إلى ${rate}`)
+  }
 }
 
 /** دفتر سندات للنوع: الافتراضي لمنشئ الترحيل، وإلا أول دفتر مسموح له، وإلا أول دفتر مرتبط بالنوع لأي مستخدم */

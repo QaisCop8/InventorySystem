@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CalendarClock, Download, FileBarChart, Loader2, Printer, Search } from "lucide-react"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقرير أرصدة الأصناف حسب تاريخ الصلاحية — صف لكل (صنف، مستودع، صلاحية، رقم تشغيلي) برصيده حتى التاريخ،
 // مع الأيام المتبقية وحالة الصلاحية. الحساب في app/api/reports/expiry-balances/route.ts.
@@ -193,31 +194,21 @@ export function ExpiryBalancesReport() {
           </div>
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث بالصنف أو الرقم التشغيلي أو المستودع...")} className="w-full rounded-xl sm:w-80" />
         </div>
-        <div className="report-table-scroll">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-              <tr>{["رقم الصنف", "اسم الصنف", "المستودع", "تاريخ الصلاحية", "الرقم التشغيلي", "الرصيد", "المتبقي", "الحالة"].map((label) => <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs">{label}</th>)}</tr>
-            </thead>
-            <tbody>
-              {groupByProduct
-                ? groups.map((group) => (
-                    <Fragment key={`group-${group.product.product_id}`}>
-                      <tr className="border-b bg-slate-100/80">
-                        <td className="px-3 py-2 font-mono font-bold text-teal-800">{group.product.product_code}</td>
-                        <td className="px-3 py-2 font-black" colSpan={4}>{group.product.product_name}</td>
-                        <td className="px-3 py-2 font-black tabular-nums rtl:text-right" dir="ltr">{qty(group.total)} <span className="text-xs font-normal text-slate-500">{group.product.main_unit}</span></td>
-                        <td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>{group.rows.length}{tr(" دفعة")}</td>
-                      </tr>
-                      {group.rows.map((row, index) => renderRow(row, index, true))}
-                    </Fragment>
-                  ))
-                : visibleRows.map((row, index) => renderRow(row, index))}
-              {!loading && !visibleRows.length && (
-                <tr><td colSpan={8} className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{hasRun ? tr("لا توجد أرصدة مطابقة") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <ReportGrid
+            rows={groupByProduct ? groups.flatMap((group) => [{ __group: true, product_code: group.product.product_code, product_name: group.product.product_name, quantity: group.total, main_unit: group.product.main_unit, __count: group.rows.length }, ...group.rows.map((row) => ({ ...row, __nested: true }))]) : visibleRows}
+            exportFileName={tr("أرصدة الصلاحيات")} emptyText={loading ? undefined : hasRun ? tr("لا توجد أرصدة مطابقة") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}
+            rowClassName={(row: any) => row.__group ? "report-row-subtotal" : undefined}
+            columns={[
+              { key: "product_code", label: tr("رقم الصنف"), width: 130, value: (row: any) => row.__nested ? "" : row.product_code },
+              { key: "product_name", label: tr("اسم الصنف"), width: "*", minWidth: 200, value: (row: any) => row.__nested ? "" : row.product_name },
+              { key: "warehouse_name", label: tr("المستودع"), width: 140 },
+              { key: "expiry_date", label: tr("تاريخ الصلاحية"), width: 120 },
+              { key: "batch_no", label: tr("الرقم التشغيلي"), width: 130 },
+              { key: "quantity", label: tr("الرصيد"), type: "number", width: 120, decimals: 3 },
+              { key: "main_unit", label: tr("الوحدة"), width: 90 },
+              { key: "remaining", label: tr("المتبقي"), width: 130, value: (row: any) => row.__group ? `${row.__count}${tr(" دفعة")}` : daysText(row) },
+              { key: "status", label: tr("الحالة"), width: 120, value: (row: any) => row.__group ? "" : STATUS[row.status as keyof typeof STATUS]?.label, render: (row: any) => row.__group ? null : <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${STATUS[row.status as keyof typeof STATUS].tone}`}>{STATUS[row.status as keyof typeof STATUS].label}</span> },
+            ]}/>
       </section>
     </ReportPage>
   )

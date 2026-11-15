@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CalendarRange, Clock3, Download, FileBarChart, Loader2, Plus, Printer, RefreshCcw, Search, Settings2, Trash2 } from "lucide-react"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقرير تعمير الذمم بالأرصدة (نقل من ShamelWeb CustomersCreditHistoryReport): رصيد كل ذمة موزّعاً على
 // فترات عمر الدين (1-30، 31-60 ... فأكثر) — الحساب في app/api/reports/receivables-aging/route.ts.
@@ -281,58 +282,17 @@ export function ReceivablesAgingReport() {
           </div>
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr("ابحث برقم أو اسم الذمة أو المندوب...")} className="w-full rounded-xl sm:w-80" />
         </div>
-        <div className="report-table-scroll">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-              <tr>
-                {["#", "رقم الحساب", "اسم الحساب", "المندوب", "الرصيد", ...(showCheques ? ["الشيكات", "رصيد التعمير"] : [])].map((label) => (
-                  <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs">{label}</th>
-                ))}
-                {labels.map((label) => <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs" dir="ltr">{label}</th>)}
-                <th className="whitespace-nowrap px-3 py-3 text-start text-xs">{tr("آخر حركة")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((row, index) => (
-                <tr key={row.id} className={`border-b hover:bg-teal-50/70 ${index % 2 ? "bg-slate-50/60" : ""}`}>
-                  <td className="px-3 py-2.5 text-xs text-slate-400">{index + 1}</td>
-                  <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.account_code}</td>
-                  <td className="px-3 py-2.5 font-semibold">
-                    {row.account_name}
-                    {row.credit_limit != null && Math.abs(row.aging_balance) > row.credit_limit && (
-                      <span className="ms-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700" title={tr("سقف الرصيد {0}", money.format(row.credit_limit))}>{tr("تجاوز السقف")}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-slate-600">{row.salesman_name || "—"}</td>
-                  <td className="px-3 py-2.5 font-black tabular-nums rtl:text-right" dir="ltr">{money.format(row.balance)}</td>
-                  {showCheques && <td className="px-3 py-2.5 tabular-nums text-slate-600 rtl:text-right" dir="ltr">{money.format(row.cheques)}</td>}
-                  {showCheques && <td className="px-3 py-2.5 font-bold tabular-nums rtl:text-right" dir="ltr">{money.format(row.aging_balance)}</td>}
-                  {row.buckets.map((value, bucket) => (
-                    <td key={bucket} className={`px-3 py-2.5 tabular-nums ${Math.abs(value) > 0 ? `${toneFor(bucket, labels.length)} font-bold` : "text-slate-300"}`} dir="ltr">
-                      {Math.abs(value) > 0 ? money.format(value) : "—"}
-                    </td>
-                  ))}
-                  <td className="px-3 py-2.5 text-xs text-slate-500">{row.last_vch_date ? <><span className="font-mono">{row.last_vch_code}</span><br />{row.last_vch_date}</> : "—"}</td>
-                </tr>
-              ))}
-              {!running && !visibleRows.length && (
-                <tr><td colSpan={7 + labels.length} className="px-4 py-16 text-center text-muted-foreground"><FileBarChart className="mx-auto mb-3 h-10 w-10 text-slate-300" />{hasRun ? tr("لا توجد أرصدة") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}</td></tr>
-              )}
-            </tbody>
-            {visibleRows.length > 0 && (
-              <tfoot className="sticky bottom-0 bg-slate-100 font-black">
-                <tr>
-                  <td className="px-3 py-3" colSpan={4}>{tr("الإجمالي")}</td>
-                  <td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.balance, 0))}</td>
-                  {showCheques && <td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.cheques, 0))}</td>}
-                  {showCheques && <td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(totalBalance)}</td>}
-                  {bucketTotals.map((value, index) => <td key={index} className="px-3 py-3 tabular-nums" dir="ltr">{money.format(value)}</td>)}
-                  <td />
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
+        <ReportGrid rows={visibleRows} exportFileName={tr("أعمار الذمم")} emptyText={running ? undefined : hasRun ? tr("لا توجد أرصدة") : tr("اختر الفلاتر ثم اضغط عرض النتائج")}
+            columns={[
+              { key: "account_code", label: tr("رقم الحساب"), width: 130 },
+              { key: "account_name", label: tr("اسم الحساب"), width: "*", minWidth: 220, render: (row: any) => <>{row.account_name}{row.credit_limit != null && Math.abs(row.aging_balance) > row.credit_limit && <span className="ms-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700" title={tr("سقف الرصيد {0}", money.format(row.credit_limit))}>{tr("تجاوز السقف")}</span>}</> },
+              { key: "salesman_name", label: tr("المندوب"), width: 140 },
+              { key: "balance", label: tr("الرصيد"), type: "number", width: 140, total: true },
+              { key: "cheques", label: tr("الشيكات"), type: "number", width: 130, total: true, visible: showCheques },
+              { key: "aging_balance", label: tr("رصيد التعمير"), type: "number", width: 140, total: true, visible: showCheques },
+              ...labels.map((label, bucket): ReportGridColumn => ({ key: `bucket_${bucket}`, label, type: "number", width: 120, value: (row: any) => row.buckets[bucket] || 0, total: bucketTotals[bucket] })),
+              { key: "last_vch", label: tr("آخر حركة"), width: 170, value: (row: any) => row.last_vch_date ? `${row.last_vch_code} · ${row.last_vch_date}` : "" },
+            ]}/>
       </section>
 
       <Dialog open={periodsOpen} onOpenChange={setPeriodsOpen}>

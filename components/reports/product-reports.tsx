@@ -30,6 +30,7 @@ import {
   BarChart3,
 } from "lucide-react"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 const inventorySummary = [
   {
@@ -353,44 +354,17 @@ export function ProductReports() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="erp-table">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("التاريخ")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("نوع الحركة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("رقم السند")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية الداخلة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية الخارجة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الرصيد")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("السعر")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الإجمالي")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الملاحظات")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {productMovement.map((movement, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-3">{movement.date}</td>
-                        <td className="p-3">
-                          <Badge variant={movement.type === "رصيد افتتاحي" ? "secondary" : "default"}>
-                            {movement.type}
-                          </Badge>
-                        </td>
-                        <td className="p-3 font-medium">{movement.document}</td>
-                        <td className="p-3">{movement.warehouse}</td>
-                        <td className="p-3 text-green-600 font-semibold">{movement.inQty}</td>
-                        <td className="p-3 text-red-600 font-semibold">{movement.outQty}</td>
-                        <td className="p-3 font-bold text-blue-600">{movement.balance}</td>
-                        <td className="p-3">{movement.price}</td>
-                        <td className="p-3 font-semibold">{movement.total}</td>
-                        <td className="p-3 text-gray-600">{movement.notes}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ReportGrid rows={productMovement} exportFileName={tr("حركة الصنف")}
+                  columns={[
+                    { key: "date", label: tr("التاريخ"), width: 110 }, { key: "type", label: tr("نوع الحركة"), width: 130 },
+                    { key: "document", label: tr("رقم السند"), width: 130 }, { key: "warehouse", label: tr("المستودع"), width: 130 },
+                    { key: "inQty", label: tr("الكمية الداخلة"), type: "number", width: 120, total: true },
+                    { key: "outQty", label: tr("الكمية الخارجة"), type: "number", width: 120, total: true },
+                    { key: "balance", label: tr("الرصيد"), type: "number", width: 120 },
+                    { key: "price", label: tr("السعر"), type: "number", width: 110 },
+                    { key: "total", label: tr("الإجمالي"), type: "number", width: 130, total: true },
+                    { key: "notes", label: tr("الملاحظات"), width: "*", minWidth: 160 },
+                  ]}/>
             </CardContent>
           </Card>
 
@@ -415,57 +389,19 @@ export function ProductReports() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="erp-table">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("رقم الصنف")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الباركود")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("اسم الصنف")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("المجموعة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("المستودع")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية المتاحة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الكمية المحجوزة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الرصيد الفعلي")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الحد الأدنى")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("الحد الأقصى")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("متوسط التكلفة")}</th>
-                      <th className="text-start p-3 font-semibold text-gray-700">{tr("القيمة")}</th>
-                      <th className="text-center p-3 font-semibold text-gray-700">{tr("الحالة")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {productBalance.map((product) => (
-                      <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="font-medium p-3 text-blue-600">{product.id}</td>
-                        <td className="p-3 font-mono text-sm">{product.barcode}</td>
-                        <td className="p-3 font-medium">{product.name}</td>
-                        <td className="p-3">{product.category}</td>
-                        <td className="p-3">{product.warehouse}</td>
-                        <td className="p-3 text-green-600 font-semibold">{product.available}</td>
-                        <td className="p-3 text-orange-600 font-semibold">{product.reserved}</td>
-                        <td className="p-3 font-bold text-blue-600">{product.actual}</td>
-                        <td className="p-3">{product.minLevel}</td>
-                        <td className="p-3">{product.maxLevel}</td>
-                        <td className="p-3">{product.avgCost.toLocaleString("en-US")}</td>
-                        <td className="p-3 font-semibold">{product.value.toLocaleString("en-US")}</td>
-                        <td className="p-3 text-center">
-                          <Badge
-                            variant={product.status === "متوفر" ? "default" : "destructive"}
-                            className={
-                              product.status === "متوفر"
-                                ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                : "bg-red-100 text-red-800 hover:bg-red-200"
-                            }
-                          >
-                            {product.status}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ReportGrid rows={productBalance} exportFileName={tr("أرصدة الأصناف")}
+                  columns={[
+                    { key: "id", label: tr("رقم الصنف"), width: 110 }, { key: "barcode", label: tr("الباركود"), width: 130 },
+                    { key: "name", label: tr("اسم الصنف"), width: "*", minWidth: 180 }, { key: "category", label: tr("المجموعة"), width: 130 },
+                    { key: "warehouse", label: tr("المستودع"), width: 130 },
+                    { key: "available", label: tr("الكمية المتاحة"), type: "number", width: 120, total: true },
+                    { key: "reserved", label: tr("الكمية المحجوزة"), type: "number", width: 120, total: true },
+                    { key: "actual", label: tr("الرصيد الفعلي"), type: "number", width: 120, total: true },
+                    { key: "minLevel", label: tr("الحد الأدنى"), type: "number", width: 100 }, { key: "maxLevel", label: tr("الحد الأقصى"), type: "number", width: 100 },
+                    { key: "avgCost", label: tr("متوسط التكلفة"), type: "number", width: 120 },
+                    { key: "value", label: tr("القيمة"), type: "number", width: 130, total: true },
+                    { key: "status", label: tr("الحالة"), width: 100 },
+                  ]}/>
             </CardContent>
           </Card>
 

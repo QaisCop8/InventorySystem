@@ -12,6 +12,7 @@ import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // تقارير المطاعم (app/api/reports/restaurant): مكوّن واحد بعدة أنواع — كل نوع شاشة وصلاحية مستقلة.
 type View = "tables" | "orders" | "items" | "waiters" | "locations" | "hours"
@@ -207,33 +208,16 @@ export function RestaurantReport({ view }: { view: View }) {
             {average !== null && <ReportSummaryCard label={tr("متوسط الطلب")}>{money(average)}</ReportSummaryCard>}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500">
-                <tr>{config.columns.map((column) => <th key={column.key} className={`whitespace-nowrap p-2 ${alignClass(column.align)}`}>{column.label}</th>)}</tr>
-              </thead>
-              <tbody>
-                {rows.length === 0
-                  ? <tr><td colSpan={config.columns.length} className="p-8 text-center text-muted-foreground">{tr("لا توجد بيانات للفترة والفلاتر المحددة")}</td></tr>
-                  : rows.map((row, index) => (
-                    <tr key={index} className="border-t hover:bg-emerald-50/40">
-                      {config.columns.map((column) => <td key={column.key} className={`p-2 ${alignClass(column.align)}`}>{cell(column, row, maxRevenue)}</td>)}
-                    </tr>
-                  ))}
-              </tbody>
-              {rows.length > 0 && (
-                <tfoot className="border-t-2 bg-slate-50 font-bold">
-                  <tr>
-                    {config.columns.map((column, index) => (
-                      <td key={column.key} className={`p-2 ${alignClass(column.align)}`}>
-                        {index === 0 ? tr("الإجمالي") : column.sum ? (column.format === "money" ? <span dir="ltr" className="font-mono">{money(totals[column.key])}</span> : column.format === "int" ? totals[column.key] : <span dir="ltr" className="font-mono">{qty(totals[column.key])}</span>) : ""}
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+          <ReportGrid rows={rows} exportFileName={config.title} emptyText={tr("لا توجد بيانات للفترة والفلاتر المحددة")}
+              columns={config.columns.map((column): ReportGridColumn => {
+                const numeric = column.format === "money" || column.format === "qty" || column.format === "int"
+                return {
+                  key: column.key, label: column.label, width: numeric ? 130 : "*", minWidth: numeric ? 110 : 130,
+                  type: numeric ? "number" : "text", decimals: column.format === "int" ? 0 : column.format === "qty" ? 3 : undefined,
+                  total: column.sum ? Number(totals[column.key] || 0) : undefined,
+                  render: numeric ? undefined : (row: any) => cell(column, row, maxRevenue),
+                }
+              })}/>
         </>
       )}
     </ReportPage>

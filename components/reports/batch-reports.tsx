@@ -17,6 +17,7 @@ import { SearchButton } from "@/components/search/search-button"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { Download, Filter, TrendingUp, Package, AlertTriangle, CheckCircle, DollarSign, Search } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 interface BatchSummary {
   statistics: {
@@ -371,51 +372,16 @@ export function BatchReports() {
                   <CardTitle>{tr("تفصيل حسب المنتج")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="text-start p-4 font-semibold">{tr("المنتج")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("إجمالي الدفعات")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("جديد")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("قيد الاستخدام")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("منتهي")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("تالف")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("الكمية المتاحة")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {summary.product_breakdown.map((product) => (
-                          <tr key={product.product_id} className="border-b hover:bg-gray-50">
-                            <td className="p-4">
-                              <div>
-                                <div className="font-medium">{product.product_name}</div>
-                                <div className="text-sm text-gray-500">{product.product_code}</div>
-                              </div>
-                            </td>
-                            <td className="p-4 font-medium">{product.total_lots}</td>
-                            <td className="p-4">
-                              <Badge className="bg-blue-100 text-blue-800">{product.new_lots}</Badge>
-                            </td>
-                            <td className="p-4">
-                              <Badge className="bg-green-100 text-green-800">{product.in_use_lots}</Badge>
-                            </td>
-                            <td className="p-4">
-                              <Badge className="bg-gray-100 text-gray-800">{product.finished_lots}</Badge>
-                            </td>
-                            <td className="p-4">
-                              <Badge className="bg-red-100 text-red-800">{product.damaged_lots}</Badge>
-                            </td>
-                            <td className="p-4 font-medium text-green-600">
-                              {product.available_quantity.toLocaleString("en-US")}
-                            </td>
-                            <td className="p-4 font-medium">${product.total_value.toLocaleString("en-US")}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <ReportGrid rows={summary.product_breakdown} exportFileName={tr("تفصيل حسب المنتج")} height={420} columns={[
+                      { key: "product", label: tr("المنتج"), width: "*", minWidth: 180, value: (p: any) => `${p.product_name} (${p.product_code})` },
+                      { key: "total_lots", label: tr("إجمالي الدفعات"), type: "number", decimals: 0, width: 110, total: true },
+                      { key: "new_lots", label: tr("جديد"), type: "number", decimals: 0, width: 90, total: true },
+                      { key: "in_use_lots", label: tr("قيد الاستخدام"), type: "number", decimals: 0, width: 110, total: true },
+                      { key: "finished_lots", label: tr("منتهي"), type: "number", decimals: 0, width: 90, total: true },
+                      { key: "damaged_lots", label: tr("تالف"), type: "number", decimals: 0, width: 90, total: true },
+                      { key: "available_quantity", label: tr("الكمية المتاحة"), type: "number", width: 130, total: true },
+                      { key: "total_value", label: tr("القيمة الإجمالية"), type: "number", width: 140, total: true },
+                    ]}/>
                 </CardContent>
               </Card>
             </>
@@ -508,55 +474,17 @@ export function BatchReports() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-start p-4 font-semibold">{tr("التاريخ")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("المنتج")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("رقم الدفعة")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("نوع الحركة")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("الكمية")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("سعر الوحدة")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("المرجع")}</th>
-                      <th className="text-start p-4 font-semibold">{tr("المستخدم")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movements.map((movement) => (
-                      <tr key={movement.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4">{formatDateToBritish(movement.created_at)}</td>
-                        <td className="p-4">
-                          <div>
-                            <div className="font-medium">{movement.product_name}</div>
-                            <div className="text-sm text-gray-500">{movement.product_code}</div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="outline">{movement.lot_number}</Badge>
-                        </td>
-                        <td className="p-4">
-                          <Badge className="bg-blue-100 text-blue-800">
-                            {getMovementTypeDisplay(movement.transaction_type)}
-                          </Badge>
-                        </td>
-                        <td className="p-4 font-medium">{movement.quantity?.toLocaleString("en-US") || "-"}</td>
-                        <td className="p-4">${movement.unit_cost?.toLocaleString("en-US") || "-"}</td>
-                        <td className="p-4 font-medium text-green-600">
-                          ${movement.total_value?.toLocaleString("en-US") || "-"}
-                        </td>
-                        <td className="p-4">
-                          {movement.reference_type && movement.reference_id
-                            ? `${movement.reference_type} #${movement.reference_id}`
-                            : "-"}
-                        </td>
-                        <td className="p-4">{movement.created_by || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ReportGrid rows={movements} exportFileName={tr("حركات الدفعات")} columns={[
+                  { key: "created_at", label: tr("التاريخ"), width: 110, value: (m: any) => formatDateToBritish(m.created_at) },
+                  { key: "product", label: tr("المنتج"), width: "*", minWidth: 180, value: (m: any) => `${m.product_name} (${m.product_code})` },
+                  { key: "lot_number", label: tr("رقم الدفعة"), width: 130 },
+                  { key: "transaction_type", label: tr("نوع الحركة"), width: 130, value: (m: any) => getMovementTypeDisplay(m.transaction_type) },
+                  { key: "quantity", label: tr("الكمية"), type: "number", width: 110, total: true },
+                  { key: "unit_cost", label: tr("سعر الوحدة"), type: "number", width: 120 },
+                  { key: "total_value", label: tr("القيمة الإجمالية"), type: "number", width: 140, total: true },
+                  { key: "reference", label: tr("المرجع"), width: 150, value: (m: any) => m.reference_type && m.reference_id ? `${m.reference_type} #${m.reference_id}` : "" },
+                  { key: "created_by", label: tr("المستخدم"), width: 120 },
+                ]}/>
             </CardContent>
           </Card>
         </TabsContent>
@@ -596,57 +524,13 @@ export function BatchReports() {
                   <CardTitle>{tr("تفاصيل حالة الصلاحية")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="text-start p-4 font-semibold">{tr("حالة الصلاحية")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("عدد الدفعات")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("إجمالي الكمية")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("القيمة الإجمالية")}</th>
-                          <th className="text-start p-4 font-semibold">{tr("النسبة المئوية")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {summary.expiry_breakdown.map((item) => {
-                          const totalLots = summary.expiry_breakdown.reduce((sum, i) => sum + i.lot_count, 0)
-                          const percentage = totalLots > 0 ? ((item.lot_count / totalLots) * 100).toFixed(1) : "0"
-
-                          return (
-                            <tr key={item.expiry_status} className="border-b hover:bg-gray-50">
-                              <td className="p-4">
-                                <Badge
-                                  style={{
-                                    backgroundColor: `${getExpiryColor(item.expiry_status)}20`,
-                                    color: getExpiryColor(item.expiry_status),
-                                  }}
-                                >
-                                  {getExpiryStatusDisplay(item.expiry_status)}
-                                </Badge>
-                              </td>
-                              <td className="p-4 font-medium">{item.lot_count.toLocaleString("en-US")}</td>
-                              <td className="p-4">{item.total_quantity.toLocaleString("en-US")}</td>
-                              <td className="p-4 font-medium">${item.total_value.toLocaleString("en-US")}</td>
-                              <td className="p-4">
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div
-                                      className="h-2 rounded-full"
-                                      style={{
-                                        width: `${percentage}%`,
-                                        backgroundColor: getExpiryColor(item.expiry_status),
-                                      }}
-                                    />
-                                  </div>
-                                  <span className="text-sm font-medium">{percentage}%</span>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <ReportGrid rows={summary.expiry_breakdown} exportFileName={tr("تفاصيل حالة الصلاحية")} height={360} columns={[
+                      { key: "expiry_status", label: tr("حالة الصلاحية"), width: "*", minWidth: 160, value: (item: any) => getExpiryStatusDisplay(item.expiry_status) },
+                      { key: "lot_count", label: tr("عدد الدفعات"), type: "number", decimals: 0, width: 120, total: true },
+                      { key: "total_quantity", label: tr("إجمالي الكمية"), type: "number", width: 130, total: true },
+                      { key: "total_value", label: tr("القيمة الإجمالية"), type: "number", width: 140, total: true },
+                      { key: "percentage", label: tr("النسبة المئوية"), type: "number", decimals: 1, width: 120, value: (item: any) => { const totalLots = summary.expiry_breakdown.reduce((sum: number, i: any) => sum + i.lot_count, 0); return totalLots > 0 ? (item.lot_count / totalLots) * 100 : 0 } },
+                    ]}/>
                 </CardContent>
               </Card>
             </>

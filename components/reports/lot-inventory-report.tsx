@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Package, Search, Filter, Download, AlertTriangle, CheckCircle, Clock, RefreshCw } from "lucide-react"
 import { BatchPrintDialog } from "@/components/inventory/batch-print-dialog"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 interface LotInventoryItem {
   lot_id: number
@@ -404,47 +405,20 @@ export function LotInventoryReport() {
               <p className="text-muted-foreground">{tr("لم يتم العثور على أي دفعات تطابق معايير البحث")}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-start p-3 font-semibold">{tr("رقم الدفعة")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("المنتج")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("المورد")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("حالة الدفعة")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("تاريخ الإنتاج")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("تاريخ الانتهاء")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("حالة الصلاحية")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("الكمية الحالية")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("الكمية المتاحة")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("تكلفة الوحدة")}</th>
-                    <th className="text-start p-3 font-semibold">{tr("إجمالي القيمة")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.map((item) => (
-                    <tr key={item.lot_id} className="border-b hover:bg-muted/50">
-                      <td className="p-3 font-medium">{item.lot_number}</td>
-                      <td className="p-3">
-                        <div>
-                          <div className="font-medium">{item.product_name}</div>
-                          <div className="text-sm text-muted-foreground">{item.product_code}</div>
-                        </div>
-                      </td>
-                      <td className="p-3">{item.supplier_name || tr("غير محدد")}</td>
-                      <td className="p-3">{getLotStatusBadge(item.status)}</td>
-                      <td className="p-3">{item.manufacturing_date || tr("غير محدد")}</td>
-                      <td className="p-3">{item.expiry_date || tr("غير محدد")}</td>
-                      <td className="p-3">{getExpiryStatusBadge(item.expiry_status)}</td>
-                      <td className="p-3 font-medium">{item.current_quantity.toLocaleString("en-US")}</td>
-                      <td className="p-3 font-medium text-green-600">{item.available_quantity.toLocaleString("en-US")}</td>
-                      <td className="p-3">{item.unit_cost.toFixed(2)}{tr(" ريال")}</td>
-                      <td className="p-3 font-medium">{item.total_value.toLocaleString("en-US")}{tr(" ريال")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ReportGrid rows={reportData} exportFileName={tr("تقرير المخزون حسب الدفعات")}
+                columns={[
+                  { key: "lot_number", label: tr("رقم الدفعة"), width: 130 },
+                  { key: "product", label: tr("المنتج"), width: "*", minWidth: 200, value: (item: any) => `${item.product_name} (${item.product_code})` },
+                  { key: "supplier_name", label: tr("المورد"), width: 150, value: (item: any) => item.supplier_name || tr("غير محدد") },
+                  { key: "status", label: tr("حالة الدفعة"), width: 120, render: (item: any) => getLotStatusBadge(item.status) },
+                  { key: "manufacturing_date", label: tr("تاريخ الإنتاج"), width: 120 },
+                  { key: "expiry_date", label: tr("تاريخ الانتهاء"), width: 120 },
+                  { key: "expiry_status", label: tr("حالة الصلاحية"), width: 130, render: (item: any) => getExpiryStatusBadge(item.expiry_status) },
+                  { key: "current_quantity", label: tr("الكمية الحالية"), type: "number", width: 120, total: true },
+                  { key: "available_quantity", label: tr("الكمية المتاحة"), type: "number", width: 120, total: true },
+                  { key: "unit_cost", label: tr("تكلفة الوحدة"), type: "number", width: 120 },
+                  { key: "total_value", label: tr("إجمالي القيمة"), type: "number", width: 140, total: true },
+                ]}/>
           )}
         </CardContent>
       </Card>

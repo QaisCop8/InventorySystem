@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Download, FileBarChart, Loader2, Printer, Receipt, RefreshCcw, Search } from "lucide-react"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // حالات السندات في فلتر "حالة السندات" (الملغاة مستثناة دائماً)
 const VOUCHER_STATUS_OPTIONS: ReportOption[] = [{ id: 2, name: "معتمد" }, { id: 1, name: "غير معتمد" }]
@@ -161,20 +162,8 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
 
   const renderCalculation = (data: Extract<Result, { shape: "calculation" }>) => (
     <div className="mx-auto max-w-3xl space-y-3 p-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white"><tr><th className={th}>#</th><th className={th}>{tr("البيان")}</th><th className={th}>{tr("القيمة")}</th></tr></thead>
-          <tbody>
-            {data.lines.map((line, index) => (
-              <tr key={line.key} className={`border-b ${index % 2 ? "bg-slate-50/60" : ""}`}>
-                <td className="px-3 py-3 text-xs text-slate-400">{index + 1}</td>
-                <td className="px-3 py-3 font-semibold">{line.label}</td>
-                <td className={`${num} font-black`} dir="ltr">{fmt(line.value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ReportGrid rows={data.lines} exportFileName={definition.title} height={Math.min(600, 90 + data.lines.length * 38)}
+          columns={[{ key: "label", label: tr("البيان"), width: "*", minWidth: 260 }, { key: "value", label: tr("القيمة"), type: "number", width: 180 }]}/>
       <div className={`flex items-center justify-between rounded-2xl px-5 py-4 ${data.net >= 0 ? "bg-rose-50 text-rose-900 ring-1 ring-rose-200" : "bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200"}`}>
         <div>
           <p className="text-lg font-black">{data.net_label}</p>
@@ -201,27 +190,20 @@ export function TaxReport({ kind }: { kind: TaxReportKind }) {
           </div>
         </div>
       )}
-      <table className="w-full min-w-[1100px] text-sm">
-        <thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white">
-          <tr>{columns.map((column, index) => <th key={`${column.key}-${index}`} className={th}>{column.label}</th>)}</tr>
-        </thead>
-        <tbody>
-          {visibleRows.map((row: any) => (
-            <tr key={`${row.id}-${row.vch_type}`} className={`cursor-pointer border-b hover:bg-teal-50/60 ${Number(row.total) < 0 || Number(row.vat) < 0 ? "text-rose-700" : ""}`} onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-              {columns.map((column, index) => {
-                const value = column.render ? column.render(row) : column.money ? fmt(row[column.key]) : row[column.key]
-                const isMoney = column.money || column.key === "vat"
-                return <td key={`${column.key}-${index}`} className={isMoney ? num : `px-3 py-2.5 ${column.key === "note" ? "max-w-[220px] truncate text-xs text-slate-500" : ""} ${column.key === "vch_code" || column.key === "voucher_number" ? "font-mono font-bold text-teal-700" : ""}`} dir={isMoney ? "ltr" : undefined}>{value === "" || value == null ? "—" : value}</td>
-              })}
-            </tr>
-          ))}
-        </tbody>
-        {visibleRows.length > 0 && (
-          <tfoot className="sticky bottom-0 bg-slate-100 font-black">
-            <tr>{columns.map((column, index) => <td key={`${column.key}-${index}`} className={num} dir="ltr">{index === 0 ? tr("الإجمالي") : footerValue(column)}</td>)}</tr>
-          </tfoot>
-        )}
-      </table>
+      <ReportGrid rows={visibleRows} exportFileName={definition.title} onRowDoubleClick={(row: any) => openVoucher(row)}
+        rowClassName={(row: any) => Number(row.total) < 0 || Number(row.vat) < 0 ? "report-row-muted" : undefined}
+        columns={columns.map((column, index): ReportGridColumn => {
+          const isMoney = Boolean(column.money) || column.key === "vat"
+          const footer = footerValue(column)
+          const footerNumber = footer === "" || footer == null ? undefined : Number(String(footer).replace(/,/g, ""))
+          return {
+            key: `${column.key}${index ? `_${index}` : ""}`, label: column.label, width: isMoney ? 130 : column.key === "note" ? 220 : "*", minWidth: isMoney ? 110 : 120,
+            type: isMoney ? "number" : "text",
+            value: (row: any) => column.render && !isMoney ? column.render(row) as any : row[column.key],
+            render: column.render && isMoney ? (row: any) => column.render!(row) : undefined,
+            total: isMoney && footerNumber !== undefined && Number.isFinite(footerNumber) ? footerNumber : undefined,
+          }
+        })}/>
     </>
   )
 

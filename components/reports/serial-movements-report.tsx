@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { voucherHref } from "@/lib/voucher-links"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 type SerialRow = {
   id: number
@@ -192,77 +193,18 @@ export function SerialMovementsReport() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
 
       <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-emerald-100 text-emerald-950">
-              <tr>
-                <th className="p-4 text-start">{tr("رقم الصنف")}</th>
-                <th className="p-4 text-start">{tr("اسم الصنف")}</th>
-                <th className="p-4 text-start">{tr("الرقم التسلسلي")}</th>
-                <th className="p-4 text-start">{tr("الحالة")}</th>
-                <th className="p-4 text-start">{tr("المستودع")}</th>
-                <th className="p-4 text-start">{tr("آخر حركة")}</th>
-                <th className="p-4 text-start">{tr("تاريخ آخر حركة")}</th>
-                <th className="p-4 text-center">{tr("عدد الحركات")}</th>
-                <th className="p-4 text-center">{tr("الحركات")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const state = serialState(row)
-                return (
-                  <tr key={row.id} className="cursor-pointer border-t hover:bg-emerald-50/40" onDoubleClick={() => void showMovements(row)}>
-                    <td className="p-4 font-mono text-xs text-slate-600">{row.product_code}</td>
-                    <td className="p-4 font-semibold">{row.product_name}</td>
-                    <td className="p-4 font-mono font-bold text-emerald-700 rtl:text-right" dir="ltr">
-                      {row.serial}
-                    </td>
-                    <td className="p-4">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${state.className}`}>{state.label}</span>
-                    </td>
-                    <td className="p-4">{row.last_voucher_id != null && row.in_stock ? row.store_name || "-" : "-"}</td>
-                    <td className="p-4">
-                      {row.last_voucher_id ? (
-                        <button
-                          className="text-start"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            openVoucher(row.last_voucher_id, row.last_vch_type)
-                          }}
-                        >
-                          <span className="block text-xs text-muted-foreground">{row.last_vch_type_name || "-"}</span>
-                          <span className="font-mono font-bold text-blue-700 underline">{row.last_vch_code}</span>
-                        </button>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="p-4 whitespace-nowrap font-mono rtl:text-right" dir="ltr">
-                      {dateOnly(row.last_vch_date)}
-                    </td>
-                    <td className="p-4 text-center">
-                      <Badge variant={row.movements_count > 0 ? "default" : "secondary"}>{row.movements_count}</Badge>
-                    </td>
-                    <td className="p-4 text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          void showMovements(row)
-                        }}
-                      >
-                        <History className="h-3.5 w-3.5" />
-                        {tr("الحركات")}
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <ReportGrid rows={rows} exportFileName={tr("تقرير الأرقام التسلسلية")} onRowDoubleClick={(row: any) => void showMovements(row)}
+            columns={[
+              { key: "product_code", label: tr("رقم الصنف"), width: 130 },
+              { key: "product_name", label: tr("اسم الصنف"), width: "*", minWidth: 200 },
+              { key: "serial", label: tr("الرقم التسلسلي"), width: 170 },
+              { key: "state", label: tr("الحالة"), width: 120, value: (row: any) => serialState(row).label, render: (row: any) => { const state = serialState(row); return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${state.className}`}>{state.label}</span> } },
+              { key: "store", label: tr("المستودع"), width: 130, value: (row: any) => row.last_voucher_id != null && row.in_stock ? row.store_name || "" : "" },
+              { key: "last_vch", label: tr("آخر حركة"), width: 170, value: (row: any) => row.last_voucher_id ? `${row.last_vch_type_name || ""} ${row.last_vch_code}` : "", render: (row: any) => row.last_voucher_id ? <button className="text-start" onClick={(event) => { event.stopPropagation(); openVoucher(row.last_voucher_id, row.last_vch_type) }}><span className="text-xs text-muted-foreground">{row.last_vch_type_name || "-"} </span><span className="font-mono font-bold text-blue-700 underline">{row.last_vch_code}</span></button> : "-" },
+              { key: "last_vch_date", label: tr("تاريخ آخر حركة"), width: 120, value: (row: any) => dateOnly(row.last_vch_date) },
+              { key: "movements_count", label: tr("عدد الحركات"), type: "number", decimals: 0, width: 100 },
+              { key: "actions", label: tr("الحركات"), width: 110, render: (row: any) => <Button size="sm" variant="outline" className="h-7 gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={(event) => { event.stopPropagation(); void showMovements(row) }}><History className="h-3.5 w-3.5" />{tr("الحركات")}</Button> },
+            ]}/>
         {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">{tr("لا توجد أرقام تسلسلية مطابقة للفلاتر")}</div>}
         {rows.length >= 2000 && <div className="border-t bg-amber-50 py-2 text-center text-xs text-amber-800">{tr("يُعرض أول 2000 رقم فقط — ضيّق البحث")}</div>}
       </div>
@@ -294,72 +236,19 @@ export function SerialMovementsReport() {
               {movementsError && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{movementsError}</div>}
 
               <div className="overflow-hidden rounded-xl border">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-600">
-                    <tr>
-                      <th className="p-3 text-start">#</th>
-                      <th className="p-3 text-start">{tr("نوع السند")}</th>
-                      <th className="p-3 text-start">{tr("رقم السند")}</th>
-                      <th className="p-3 text-start">{tr("التاريخ")}</th>
-                      <th className="p-3 text-start">{tr("الحركة")}</th>
-                      <th className="p-3 text-start">{tr("المستودع")}</th>
-                      <th className="p-3 text-start">{tr("الحساب / العميل")}</th>
-                      <th className="p-3 text-start">{tr("المستخدم")}</th>
-                      <th className="p-3 text-start">{tr("حالة السند")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movements.map((movement, index) => {
-                      const cancelled = Number(movement.status) === 3
-                      return (
-                        <tr
-                          key={movement.id}
-                          className={`cursor-pointer border-t hover:bg-emerald-50/40 ${cancelled ? "text-slate-400 line-through decoration-slate-300" : ""}`}
-                          onDoubleClick={() => openVoucher(movement.voucher_id, movement.vch_type)}
-                          title={tr("نقر مزدوج لفتح السند")}
-                        >
-                          <td className="p-3 text-slate-400">{index + 1}</td>
-                          <td className="p-3">{movement.vch_type_name || movement.vch_type}</td>
-                          <td className="p-3">
-                            <button
-                              className="font-mono font-bold text-blue-700 underline"
-                              onClick={() => openVoucher(movement.voucher_id, movement.vch_type)}
-                            >
-                              {movement.vch_code}
-                            </button>
-                          </td>
-                          <td className="p-3 whitespace-nowrap font-mono rtl:text-right" dir="ltr">
-                            {dateOnly(movement.vch_date)}
-                          </td>
-                          <td className="p-3">
-                            {movement.in_stock ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                                <ArrowDownToLine className="h-3 w-3" />
-                                {tr("دخول")}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-                                <ArrowUpFromLine className="h-3 w-3" />
-                                {tr("خروج")}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3">{movement.store_name || "-"}</td>
-                          <td className="p-3">{movement.party_name || "-"}</td>
-                          <td className="p-3">
-                            <span className="block">{movement.user_name || "-"}</span>
-                            <span className="block font-mono text-[11px] text-muted-foreground" dir="ltr">
-                              {dateTime(movement.insert_date)}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <Badge variant={cancelled ? "destructive" : Number(movement.status) === 2 ? "default" : "secondary"}>{statusName(Number(movement.status))}</Badge>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                <ReportGrid rows={movements} exportFileName={tr("حركات الرقم التسلسلي")} height={360}
+                  onRowDoubleClick={(movement: any) => openVoucher(movement.voucher_id, movement.vch_type)}
+                  rowClassName={(movement: any) => Number(movement.status) === 3 ? "report-row-muted" : undefined}
+                  columns={[
+                    { key: "vch_type_name", label: tr("نوع السند"), width: 140, value: (m: any) => m.vch_type_name || m.vch_type },
+                    { key: "vch_code", label: tr("رقم السند"), width: 130, render: (m: any) => <button className="font-mono font-bold text-blue-700 underline" onClick={() => openVoucher(m.voucher_id, m.vch_type)}>{m.vch_code}</button> },
+                    { key: "vch_date", label: tr("التاريخ"), width: 110, value: (m: any) => dateOnly(m.vch_date) },
+                    { key: "direction", label: tr("الحركة"), width: 90, value: (m: any) => m.in_stock ? tr("دخول") : tr("خروج") },
+                    { key: "store_name", label: tr("المستودع"), width: 130 },
+                    { key: "party_name", label: tr("الحساب / العميل"), width: "*", minWidth: 160 },
+                    { key: "user", label: tr("المستخدم"), width: 180, value: (m: any) => `${m.user_name || "-"} · ${dateTime(m.insert_date)}` },
+                    { key: "status", label: tr("حالة السند"), width: 110, value: (m: any) => statusName(Number(m.status)) },
+                  ]}/>
                 {movementsLoading && <div className="py-10 text-center text-sm text-muted-foreground">{tr("جاري تحميل الحركات...")}</div>}
                 {!movementsLoading && !movementsError && movements.length === 0 && (
                   <div className="py-10 text-center text-sm text-muted-foreground">{tr("لا توجد حركات على هذا الرقم")}</div>

@@ -3106,3 +3106,12 @@ td {
   :where(input[type="tel"], input[type="number"], input[type="email"], input[type="url"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { direction: ltr; }
   :where([dir="rtl"]) :where(input[type="tel"], input[type="number"], input[inputmode="tel"], input[inputmode="numeric"], input[inputmode="decimal"]) { text-align: start; }
 }
+
+/* ReportGrid (components/reports/report-grid.tsx): صفوف خاصة بشبكات التقارير */
+.report-grid .wj-cell.report-row-opening { background: #eef2ff !important; color: #312e81 !important; font-weight: 700; }
+.report-grid .wj-cell.report-row-subtotal { background: #f1f5f9 !important; font-weight: 700; }
+.report-grid .wj-cell.report-row-total { background: #ecfdf5 !important; color: #065f46 !important; font-weight: 800; }
+.report-grid .wj-cell.report-row-muted { color: #94a3b8 !important; }
+.dark .report-grid .wj-cell.report-row-opening { background: #1e1b4b !important; color: #c7d2fe !important; }
+.dark .report-grid .wj-cell.report-row-subtotal { background: #1e293b !important; }
+.dark .report-grid .wj-cell.report-row-total { background: #022c22 !important; color: #a7f3d0 !important; }

@@ -22,6 +22,7 @@ import { VoucherLink } from "@/components/reports/voucher-link"
 import { Switch } from "@/components/ui/switch"
 import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
 import { Activity, ArrowDownLeft, ArrowUpRight, BarChart3, BookOpen, CalendarRange, Download, FileBarChart, FileText, Landmark, Loader2, Printer, RefreshCcw, Search, Scale, SlidersHorizontal } from "lucide-react"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 export type FinancialReportType = "vouchers" | "transactions" | "trial-balance" | "balance-sheet" | "income-statement"
 type Meta = { accounts: ReportOption[]; currencies: ReportOption[]; branches: ReportOption[]; salesmen: ReportOption[]; voucher_types: ReportOption[]; shifts: ReportShift[] }
@@ -90,14 +91,42 @@ export function FinancialReport({type}:{type:FinancialReportType}) {
 
 const Th=({children}:{children:any})=><th className="whitespace-nowrap px-3 py-3 text-start text-xs font-semibold">{children}</th>
 const Td=({children,className="",dir}:{children?:any;className?:string;dir?:"ltr"|"rtl"|"auto"})=><td className={`px-3 py-3 ${className}`}>{dir?<span dir={dir}>{children}</span>:children}</td>
-function VoucherTable({rows}:{rows:Row[]}){if(!rows.length)return null;return <table className="w-full min-w-[1200px] text-sm"><thead className="sticky top-0 bg-gradient-to-l from-cyan-700 via-sky-700 to-indigo-700 text-white print:static"><tr>{["التاريخ","رقم السند","النوع","المبلغ","مدين","دائن","العملة","الفرع","المندوب","الحالة","الملاحظة"].map(x=><Th key={x}>{x}</Th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id} className={`border-b hover:bg-cyan-50/70 dark:hover:bg-cyan-950/20 ${i%2?"bg-slate-50/60 dark:bg-slate-900/30":""}`}><Td>{String(r.vch_date||"").slice(0,10)}</Td><Td className="font-mono font-bold text-cyan-700">{<VoucherLink id={r.voucher_id || r.id} type={r.vch_type} code={r.vch_code}/>}</Td><Td><Badge>{r.voucher_type_name}</Badge></Td><Td className="font-bold" dir="ltr">{formatter.format(nv(r.amount))}</Td><Td className="text-emerald-700" dir="ltr">{formatter.format(nv(r.debit))}</Td><Td className="text-rose-700" dir="ltr">{formatter.format(nv(r.credit))}</Td><Td>{r.currency_code||r.currency_name||"—"}</Td><Td>{r.branch_name||"—"}</Td><Td>{r.salesman_name||"—"}</Td><Td><Badge variant={r.voucher_status===2?"default":"secondary"}>{r.voucher_status===2?tr("معتمد"):tr("مسودة")}</Badge></Td><Td className="max-w-60 whitespace-normal text-muted-foreground">{r.note||"—"}</Td></tr>)}</tbody></table>}
-function TransactionTable({rows,counter}:{rows:Row[];counter:boolean}){if(!rows.length)return null;return <table className="w-full min-w-[1150px] text-sm"><thead className="sticky top-0 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white print:static"><tr>{["التاريخ","السند","الحركة","رقم الحساب","اسم الحساب","مدين","دائن","العملة","الفرع",...(counter?["الحساب المقابل"]:[]),"الملاحظة"].map(x=><Th key={x}>{x}</Th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id} className={`border-b hover:bg-teal-50/70 dark:hover:bg-teal-950/20 ${i%2?"bg-slate-50/60 dark:bg-slate-900/30":""}`}><Td>{String(r.vch_date||"").slice(0,10)}</Td><Td className="font-mono font-bold text-teal-700">{<VoucherLink id={r.voucher_id || r.id} type={r.vch_type} code={r.vch_code}/>}</Td><Td>{r.voucher_type_name}</Td><Td>{r.account_code}</Td><Td className="font-semibold">{r.account_name}</Td><Td className="font-bold text-emerald-700" dir="ltr">{r.debit?formatter.format(nv(r.debit)):"—"}</Td><Td className="font-bold text-rose-700" dir="ltr">{r.credit?formatter.format(nv(r.credit)):"—"}</Td><Td>{r.currency_code||r.currency_name||"—"}</Td><Td>{r.branch_name||"—"}</Td>{counter&&<Td className="max-w-72 whitespace-normal text-xs">{r.counter_accounts||"—"}</Td>}<Td className="max-w-64 whitespace-normal text-muted-foreground">{r.note||"—"}</Td></tr>)}</tbody></table>}
+function VoucherTable({rows}:{rows:Row[]}){if(!rows.length)return null;return <ReportGrid rows={rows} exportFileName={tr("تقرير السندات")} columns={[
+  { key: "vch_date", label: tr("التاريخ"), width: 110, value: (r: any) => String(r.vch_date || "").slice(0, 10) },
+  { key: "vch_code", label: tr("رقم السند"), width: 130, render: (r: any) => <VoucherLink id={r.voucher_id || r.id} type={r.vch_type} code={r.vch_code}/> },
+  { key: "voucher_type_name", label: tr("النوع"), width: 130, render: (r: any) => <Badge>{r.voucher_type_name}</Badge> },
+  { key: "amount", label: tr("المبلغ"), type: "number", width: 130, total: true },
+  { key: "debit", label: tr("مدين"), type: "number", width: 130, total: true }, { key: "credit", label: tr("دائن"), type: "number", width: 130, total: true },
+  { key: "currency", label: tr("العملة"), width: 90, value: (r: any) => r.currency_code || r.currency_name || "" }, { key: "branch_name", label: tr("الفرع"), width: 120 },
+  { key: "salesman_name", label: tr("المندوب"), width: 120 },
+  { key: "status", label: tr("الحالة"), width: 100, value: (r: any) => r.voucher_status === 2 ? tr("معتمد") : tr("مسودة") },
+  { key: "note", label: tr("الملاحظة"), width: "*", minWidth: 200 },
+]}/>}
+function TransactionTable({rows,counter}:{rows:Row[];counter:boolean}){if(!rows.length)return null;return <ReportGrid rows={rows} exportFileName={tr("تقرير الحركات")} columns={[
+  { key: "vch_date", label: tr("التاريخ"), width: 110, value: (r: any) => String(r.vch_date || "").slice(0, 10) },
+  { key: "vch_code", label: tr("السند"), width: 130, render: (r: any) => <VoucherLink id={r.voucher_id || r.id} type={r.vch_type} code={r.vch_code}/> },
+  { key: "voucher_type_name", label: tr("الحركة"), width: 130 }, { key: "account_code", label: tr("رقم الحساب"), width: 120 },
+  { key: "account_name", label: tr("اسم الحساب"), width: 200 },
+  { key: "debit", label: tr("مدين"), type: "number", width: 130, total: true }, { key: "credit", label: tr("دائن"), type: "number", width: 130, total: true },
+  { key: "currency", label: tr("العملة"), width: 90, value: (r: any) => r.currency_code || r.currency_name || "" }, { key: "branch_name", label: tr("الفرع"), width: 120 },
+  { key: "counter_accounts", label: tr("الحساب المقابل"), width: 220, visible: counter }, { key: "note", label: tr("الملاحظة"), width: "*", minWidth: 200 },
+]}/>}
 function BalanceTable({rows,type}:{rows:Row[];type:FinancialReportType}){if(!rows.length)return null;if(type==="trial-balance"){
   const amount=(value:number)=>Math.abs(value)>0.00001?formatter.format(value):"—"
   const values=(r:Row)=>[Math.max(nv(r.opening_balance),0),Math.max(-nv(r.opening_balance),0),nv(r.debit),nv(r.credit),nv(r.debit)-nv(r.credit),Math.max(nv(r.balance),0),Math.max(-nv(r.balance),0)]
   const totals:number[]=rows.reduce<number[]>((sum,r)=>values(r).map((value:number,i:number)=>value+sum[i]),[0,0,0,0,0,0,0])
-  return <table className="w-full min-w-[1300px] border-collapse text-sm"><thead className="sticky top-0 bg-gradient-to-l from-indigo-700 via-blue-700 to-sky-700 text-white print:static"><tr>{["##","رقم الحساب","اسم الحساب","رصيد سابق مدين","رصيد سابق دائن","مجموع الحركات مدين","مجموع الحركات دائن","مجموع الحركات","الرصيد الحالي مدين","الرصيد الحالي دائن"].map(x=><Th key={x}>{x}</Th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id} className={`border-b hover:bg-indigo-50/70 dark:hover:bg-indigo-950/20 ${i%2?"bg-slate-50/60 dark:bg-slate-900/30":""}`}><Td>{i+1}</Td><Td className="font-mono font-bold text-teal-700">{r.account_code}</Td><Td className="min-w-52 font-semibold">{r.account_name}</Td>{values(r).map((value,j)=><Td key={j} dir="ltr" className="tabular-nums">{amount(value)}</Td>)}</tr>)}</tbody><tfoot className="sticky bottom-0 bg-slate-100 font-bold dark:bg-slate-900 print:static"><tr><Td>{rows.length}</Td><Td>{tr("الإجمالي")}</Td><Td/>{totals.map((value,i)=><Td key={i} dir="ltr" className="tabular-nums">{amount(value)}</Td>)}</tr></tfoot></table>
-}return <table className="w-full min-w-[900px] text-sm"><thead className="sticky top-0 bg-gradient-to-l from-indigo-700 via-blue-700 to-sky-700 text-white print:static"><tr>{["رقم الحساب","اسم الحساب","بند القائمة","المستوى","الرصيد السابق","مدين الفترة","دائن الفترة","الرصيد النهائي"].map(x=><Th key={x}>{x}</Th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r.id} className={`border-b hover:bg-indigo-50/70 dark:hover:bg-indigo-950/20 ${i%2?"bg-slate-50/60 dark:bg-slate-900/30":""}`}><Td className="font-mono font-bold text-teal-700">{r.account_code}</Td><Td className="font-semibold">{r.account_name}</Td><Td><Badge variant="secondary">{r.statement_item}</Badge></Td><Td>{r.level_no}</Td><Td dir="ltr">{formatter.format(nv(r.opening_balance))}</Td><Td className="text-emerald-700" dir="ltr">{formatter.format(nv(r.debit))}</Td><Td className="text-rose-700" dir="ltr">{formatter.format(nv(r.credit))}</Td><Td className={`font-black ${nv(r.balance)<0?"text-rose-700":""}`} dir="ltr">{formatter.format(nv(r.balance))}</Td></tr>)}</tbody></table>}
+  return <ReportGrid rows={rows} exportFileName={tr("ميزان المراجعة")} columns={[
+  { key: "account_code", label: tr("رقم الحساب"), width: 130 }, { key: "account_name", label: tr("اسم الحساب"), width: "*", minWidth: 220 },
+  ...["رصيد سابق مدين","رصيد سابق دائن","مجموع الحركات مدين","مجموع الحركات دائن","مجموع الحركات","الرصيد الحالي مدين","الرصيد الحالي دائن"].map((label, index): ReportGridColumn => ({ key: `tb_${index}`, label: tr(label), type: "number", width: 140, value: (r: any) => values(r)[index], total: totals[index] })),
+]}/>
+}return <ReportGrid rows={rows} exportFileName={tr("تقرير الحسابات")} columns={[
+  { key: "account_code", label: tr("رقم الحساب"), width: 130 }, { key: "account_name", label: tr("اسم الحساب"), width: "*", minWidth: 220 },
+  { key: "statement_item", label: tr("بند القائمة"), width: 160 }, { key: "level_no", label: tr("المستوى"), width: 80 },
+  { key: "opening_balance", label: tr("الرصيد السابق"), type: "number", width: 140, total: true },
+  { key: "debit", label: tr("مدين الفترة"), type: "number", width: 140, total: true },
+  { key: "credit", label: tr("دائن الفترة"), type: "number", width: 140, total: true },
+  { key: "balance", label: tr("الرصيد النهائي"), type: "number", width: 150, total: true },
+]}/>}
 const nv=(value:any)=>Number(value||0)
 
 export const VouchersReport=()=> <FinancialReport type="vouchers"/>

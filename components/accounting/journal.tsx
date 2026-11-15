@@ -336,7 +336,7 @@ export default function Journal() {
 
   useVoucherDeepLink(async id => {
     if (await handleCodeResolved(id)) setDialogOpen(true)
-  }, Boolean(user?.id))
+  }, Boolean(user?.id), 0, () => { void openNewDialog() })
 
   const handleCodeNotFound = (code: string) => {
     setForm((f) => ({

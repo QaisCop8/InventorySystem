@@ -164,7 +164,7 @@ const STEPS: MigrationStep[] = [
   },
   {
     key: "account_balances", title: "الأرصدة الافتتاحية للحسابات (سند قيد)", group: "balances", batchSize: 2000,
-    sql: () => `select "Code" as code, "Currency" as balance_currency, "Start Balance" as start_balance, "Current Balance" as current_balance
+    sql: () => `select "Code" as code, "Currency" as balance_currency, "Start Balance" as start_balance, "Current Balance" as current_balance, "Current Rate" as current_rate
       from "balances" where "Start Balance"<>0 or "Current Balance"<>0`,
     process: (rows, ctx, last) => processAccountBalances(rows, ctx, last),
   },

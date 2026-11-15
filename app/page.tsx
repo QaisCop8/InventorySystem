@@ -697,7 +697,10 @@ function HomePageContent() {
         pendingRoots = []
         frameId = null
         observer.disconnect()
-        roots.forEach(removeLicenseNodes)
+        // التبويب بالخلفية لا يشغّل requestAnimationFrame فتتراكم آلاف العُقد (تحديثات الإشعارات/المحادثة) ثم تُعالَج
+        // دفعة واحدة عند العودة فتتجمد الصفحة — العقد المفصولة أو المكررة أو الداخلة ضمن عقدة أخرى بالقائمة تُتجاوز
+        const unique = [...new Set(roots)].filter((root) => root.isConnected)
+        unique.filter((root) => !unique.some((other) => other !== root && other.contains(root))).forEach(removeLicenseNodes)
         observer.observe(document.body, { childList: true, subtree: true })
       })
     })

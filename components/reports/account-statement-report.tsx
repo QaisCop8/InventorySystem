@@ -12,6 +12,7 @@ import { ReportCurrencyFilter, OtherCurrenciesFilter } from "@/components/report
 import { VoucherLink } from "@/components/reports/voucher-link"
 import { STATEMENT_PREFILL_EVENT, clearReceivablesStatementPrefill, takeReceivablesStatementPrefill } from "@/lib/statement-prefill"
 import { ReportSummaryCard } from "@/components/reports/report-summary-card"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -193,6 +194,35 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     return true
   })
 
+
+  // شبكة التقرير (ReportGrid/DataGridView): الرصيد السابق، الحركات، وأسطر الشيكات/أصناف الفواتير كصفوف تفصيلية
+  const gridRows = useMemo(() => {
+    const list: any[] = []
+    if (filters.showOpening && (rows.length > 0 || summary.opening_balance !== 0)) list.push({
+      __kind: "opening", vch_date: filters.fromDate, voucher_type_name: tr("الرصيد السابق للفترة"),
+      debit: summary.opening_balance > 0 ? summary.opening_balance : null, credit: summary.opening_balance < 0 ? Math.abs(summary.opening_balance) : null, balance: summary.opening_balance,
+    })
+    for (const row of visibleRows) {
+      list.push({ ...row, __kind: "row" })
+      if (filters.showCheques) for (const cheque of rowCheques(row)) list.push({ __kind: "detail", note: `${tr("شيك #")}${cheque.number} · ${money.format(Number(cheque.amount || 0))} · ${cheque.due_date?.slice(0, 10) || tr("بلا استحقاق")}${cheque.bank_account ? ` · ${cheque.bank_account}` : ""}${cheque.owner ? ` · ${cheque.owner}` : ""}${cheque.status ? ` · ${cheque.status}` : ""}` })
+      if (filters.showInvoiceDetails) for (const item of row.invoice_items || []) list.push({ __kind: "detail", note: `${item.code || tr("صنف")} · ${item.name}${tr(" · الكمية ")}${item.quantity} ${item.unit || ""}${tr(" · السعر ")}${money.format(Number(item.unit_price || 0))}${tr(" · الخصم ")}${item.discount_percent || 0}${tr("% · الإجمالي ")}${money.format(Number(item.total_price || 0))}` })
+    }
+    return list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleRows, filters.showOpening, filters.showCheques, filters.showInvoiceDetails, filters.fromDate, summary])
+  const gridColumns = useMemo((): ReportGridColumn[] => [
+    { key: "vch_date", label: tr("التاريخ"), width: 110, value: (row) => String(row.vch_date || "").slice(0, 10) },
+    { key: "vch_code", label: tr("السند"), width: 130, render: (row) => row.__kind === "row" ? <VoucherLink id={row.voucher_id} type={row.vch_type} code={row.vch_code}/> : null },
+    { key: "voucher_type_name", label: tr("الحركة"), width: 150, render: (row) => row.__kind === "row" ? <Badge variant={row.voucher_status === 2 ? "default" : "secondary"}>{row.voucher_type_name}</Badge> : <b>{row.voucher_type_name}</b> },
+    { key: "account_name", label: tr("الحساب"), width: 200, value: (row) => row.account_name ? `${row.account_name} (${row.account_code})` : "" },
+    { key: "debit", label: tr("مدين"), type: "number", width: 130, total: summary.total_debit },
+    { key: "credit", label: tr("دائن"), type: "number", width: 130, total: summary.total_credit },
+    { key: "balance", label: tr("الرصيد"), type: "number", width: 150, total: summary.final_balance },
+    { key: "currency", label: tr("العملة"), width: 90, visible: filters.showTransactionCurrency, value: (row) => row.__kind === "row" ? row.currency_code || row.currency_name || "" : "" },
+    { key: "note", label: tr("الملاحظة"), width: "*", minWidth: 220, value: (row) => row.note || row.voucher_note || "" },
+    { key: "counter_accounts", label: tr("الحساب المقابل"), width: 240, visible: filters.showCounterAccounts },
+  ], [summary, filters.showTransactionCurrency, filters.showCounterAccounts])
+
   const exportCsv = () => {
     const header = [tr("التاريخ"),tr("رقم السند"),tr("نوع الحركة"),tr("رقم الحساب"),tr("اسم الحساب"),tr("مدين"),tr("دائن"),tr("الرصيد"),tr("العملة"),tr("الملاحظة")]
     const csvRows = visibleRows.map(row => [row.vch_date?.slice(0,10),row.vch_code,row.voucher_type_name,row.account_code,row.account_name,row.debit,row.credit,row.balance,row.currency_code || row.currency_name || "",row.note || row.voucher_note || ""].map(value => `"${String(value ?? "").replace(/"/g,'""')}"`).join(","))
@@ -241,14 +271,16 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
         </aside>}
         <section className="report-results">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b p-4 print:hidden"><div><h2 className="font-bold">{tr("حركات الحساب")}{activeAccount ? ` — ${activeAccount.name || activeAccount.account_name}` : ""}</h2><p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")}{tr(" حركة ضمن الفترة المحددة")}</p></div><div className="relative w-full sm:w-80"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("ابحث في النتائج...")} className="rounded-xl bg-muted/40 ps-9"/></div></div>
-        <div className="min-h-[350px] flex-1 overflow-auto overscroll-contain print:max-h-none print:overflow-visible"><table className="w-full min-w-[1100px] border-collapse text-sm"><thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white print:static"><tr>{["التاريخ","السند","الحركة","الحساب","مدين","دائن","الرصيد",...(filters.showTransactionCurrency?["العملة"]:[]),"الملاحظة",...(filters.showCounterAccounts?["الحساب المقابل"]:[])].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-start text-xs font-semibold">{label}</th>)}</tr></thead>
-          <tbody>{filters.showOpening && (rows.length > 0 || summary.opening_balance !== 0) && <tr className="bg-indigo-50 font-bold text-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200"><td className="px-3 py-3">{filters.fromDate}</td><td colSpan={3}>{tr("الرصيد السابق للفترة")}</td><td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{summary.opening_balance>0?money.format(summary.opening_balance):"—"}</td><td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{summary.opening_balance<0?money.format(Math.abs(summary.opening_balance)):"—"}</td><td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(summary.opening_balance)}</td><td colSpan={6}/></tr>}
-          {visibleRows.map((row,index) => <Fragment key={row.id}><tr className={`border-b transition hover:bg-teal-50/70 dark:hover:bg-teal-950/20 ${index%2 ? "bg-slate-50/60 dark:bg-slate-900/30" : ""}`}><td className="whitespace-nowrap px-3 py-3">{row.vch_date?.slice(0,10)}</td><td className="px-3 py-3 font-mono font-semibold text-teal-700 dark:text-teal-300"><VoucherLink id={row.voucher_id} type={row.vch_type} code={row.vch_code}/></td><td className="px-3 py-3"><Badge variant={row.voucher_status===2?"default":"secondary"}>{row.voucher_type_name}</Badge></td><td className="px-3 py-3"><div className="font-semibold">{row.account_name}</div><div className="text-xs text-muted-foreground">{row.account_code}</div></td><td className="px-3 py-3 font-semibold text-emerald-700 rtl:text-right" dir="ltr">{row.debit?money.format(row.debit):"—"}</td><td className="px-3 py-3 font-semibold text-rose-700 rtl:text-right" dir="ltr">{row.credit?money.format(row.credit):"—"}</td><td className={`px-3 py-3 font-black ${row.balance<0?"text-rose-700":"text-slate-900 dark:text-white"}`} dir="ltr">{money.format(row.balance)}</td>{filters.showTransactionCurrency&&<td className="px-3 py-3">{row.currency_code||row.currency_name||"—"}</td>}<td className="max-w-64 whitespace-normal px-3 py-3 text-muted-foreground">{row.note||row.voucher_note||"—"}</td>{filters.showCounterAccounts&&<td className="max-w-72 whitespace-normal px-3 py-3 text-xs">{row.counter_accounts||"—"}</td>}</tr>
-            {filters.showCheques&&rowCheques(row).map((cheque,i)=><tr key={`cheque-${i}`} className="border-b bg-amber-50/70 text-xs dark:bg-amber-950/20"><td colSpan={7+(filters.showTransactionCurrency?1:0)+(filters.showCounterAccounts?1:0)} className="px-5 py-2"><b>{tr("شيك #")}{cheque.number}</b> · {money.format(Number(cheque.amount||0))} · {cheque.due_date?.slice(0,10)||tr("بلا استحقاق")}{cheque.bank_account&&` · ${cheque.bank_account}`}{cheque.owner&&` · ${cheque.owner}`}{cheque.status&&` · ${cheque.status}`}</td></tr>)}
-            {filters.showInvoiceDetails&&row.invoice_items?.map((item,i)=><tr key={`invoice-${i}`} className="border-b bg-sky-50/70 text-xs dark:bg-sky-950/20"><td colSpan={7+(filters.showTransactionCurrency?1:0)+(filters.showCounterAccounts?1:0)} className="px-5 py-2"><b>{item.code||tr("صنف")} · {item.name}</b>{tr(" · الكمية ")}{item.quantity} {item.unit||""}{tr(" · السعر ")}{money.format(Number(item.unit_price||0))}{tr(" · الخصم ")}{item.discount_percent||0}{tr("% · الإجمالي ")}{money.format(Number(item.total_price||0))}</td></tr>)}</Fragment>)}
-          {!loading && !visibleRows.length && <tr><td colSpan={13} className="px-4 py-16 text-center"><UsersRound className="mx-auto mb-3 h-10 w-10 text-slate-300"/><p className="font-semibold">{tr("لا توجد حركات لعرضها")}</p><p className="mt-1 text-xs text-muted-foreground">{tr("غيّر الفترة أو الحسابات ثم اعرض النتائج")}</p></td></tr>}</tbody>
-          {visibleRows.length>0&&<tfoot className="sticky bottom-0 bg-slate-100 font-black dark:bg-slate-900 print:static"><tr><td colSpan={4} className="px-3 py-3">{tr("الإجمالي")}</td><td className="px-3 py-3 text-emerald-700 rtl:text-right" dir="ltr">{money.format(summary.total_debit)}</td><td className="px-3 py-3 text-rose-700 rtl:text-right" dir="ltr">{money.format(summary.total_credit)}</td><td className="px-3 py-3 rtl:text-right" dir="ltr">{money.format(summary.final_balance)}</td><td colSpan={6}/></tr></tfoot>}
-        </table></div>
+        <div className="min-h-[350px] flex-1 p-2">
+          <ReportGrid
+            rows={gridRows}
+            columns={gridColumns}
+            rowClassName={(row: any) => row.__kind === "opening" ? "report-row-opening" : row.__kind === "detail" ? "report-row-muted" : undefined}
+            exportFileName={isReceivables ? tr("بيان حساب الذمة") : tr("بيان حساب محاسبي")}
+            emptyText={loading ? undefined : tr("لا توجد حركات لعرضها")}
+            height="max(420px, calc(100dvh - 330px))"
+          />
+        </div>
         </section>
       </section>
 

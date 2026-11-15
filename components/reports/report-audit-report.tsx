@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 type Row = {
   id: number
@@ -112,25 +113,16 @@ export default function ReportAuditReport() {
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
 
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1000px] text-sm">
-          <thead className="bg-teal-50 text-teal-950"><tr>
-            <th className="p-3 text-start">{tr("الوقت")}</th><th className="p-3 text-start">{tr("المستخدم")}</th><th className="p-3 text-start">{tr("التقرير")}</th>
-            <th className="p-3 text-start">{tr("العملية")}</th><th className="p-3 text-start">{tr("الفلاتر")}</th><th className="p-3 text-start">{tr("الفرع")}</th><th className="p-3 text-start">{tr("إرسال إلى")}</th>
-          </tr></thead>
-          <tbody>{rows.map(row => <tr key={row.id} className="border-t align-top hover:bg-teal-50/40">
-            <td className="p-3 whitespace-nowrap font-mono rtl:text-right" dir="ltr">{dateTime(row.created_at)}</td>
-            <td className="p-3">{row.user_name || row.user_id || "-"}</td>
-            <td className="p-3 font-semibold">{row.report_title || row.report_key || "-"}</td>
-            <td className="p-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_TONES[row.action] || ""}`}>{ACTION_LABELS[row.action] || row.action}</span></td>
-            <td className="p-3">{row.filters?.length
-              ? <div className="flex max-w-[520px] flex-wrap gap-1">{row.filters.map((filter, index) => <span key={index} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs"><span className="text-muted-foreground">{filter.label}:</span> <b>{filter.value}</b></span>)}</div>
-              : <span className="text-muted-foreground">-</span>}</td>
-            <td className="p-3">{row.branch_name || "-"}</td>
-            <td className="p-3 text-xs">{[row.details?.recipient, row.details?.phone && <span key="p" dir="ltr">{row.details.phone}</span>, row.details?.channel && CHANNELS[row.details.channel]].filter(Boolean).map((part, index) => <div key={index}>{part}</div>)}</td>
-          </tr>)}</tbody>
-        </table>
-      </div>
+      <ReportGrid rows={rows} exportFileName={tr("سجل التقارير")}
+          columns={[
+            { key: "created_at", label: tr("الوقت"), width: 170, value: (row: any) => dateTime(row.created_at) },
+            { key: "user", label: tr("المستخدم"), width: 150, value: (row: any) => row.user_name || row.user_id || "" },
+            { key: "report", label: tr("التقرير"), width: 200, value: (row: any) => row.report_title || row.report_key || "" },
+            { key: "action", label: tr("العملية"), width: 120, value: (row: any) => ACTION_LABELS[row.action] || row.action, render: (row: any) => <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_TONES[row.action] || ""}`}>{ACTION_LABELS[row.action] || row.action}</span> },
+            { key: "filters", label: tr("الفلاتر"), width: "*", minWidth: 320, value: (row: any) => (row.filters || []).map((filter: any) => `${filter.label}: ${filter.value}`).join(" · ") },
+            { key: "branch_name", label: tr("الفرع"), width: 140 },
+            { key: "sent_to", label: tr("إرسال إلى"), width: 200, value: (row: any) => [row.details?.recipient, row.details?.phone, row.details?.channel && CHANNELS[row.details.channel]].filter(Boolean).join(" · ") },
+          ]}/>
       {!loading && !rows.length && <div className="py-16 text-center text-muted-foreground">{tr("لا توجد عمليات مطابقة للفلاتر")}</div>}
     </div>
   </ReportPage>

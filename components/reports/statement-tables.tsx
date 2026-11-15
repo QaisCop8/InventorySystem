@@ -1,6 +1,8 @@
 "use client"
-import { tr, appDir } from "@/lib/i18n"
-import { amountNumberFormat } from "@/lib/decimals"
+import { tr } from "@/lib/i18n"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
+
+// قائمة الدخل والميزانية عبر شبكة التقارير (ReportGrid/DataGridView): رأس كل بند، حساباته، ومجموعه كصفوف ملوّنة
 
 type Row = {
   id: number
@@ -11,9 +13,10 @@ type Row = {
   balance?: number | string
 }
 
-const money = amountNumberFormat("en-US")
+type GridRow = { __kind: "section" | "account" | "subtotal" | "net"; label: string; account_code?: string; debit?: number | null; credit?: number | null; amount?: number | null }
+
 const value = (row: Row) => Number(row.balance || 0)
-const formatted = (amount: number) => Math.abs(amount) < 0.00001 ? "" : money.format(amount)
+const nonZero = (amount: number) => (Math.abs(amount) < 0.00001 ? null : amount)
 
 function groups(rows: Row[]) {
   const result = new Map<string, Row[]>()
@@ -25,46 +28,43 @@ function groups(rows: Row[]) {
   return [...result]
 }
 
-function Amount({ amount, className = "" }: { amount: number; className?: string }) {
-  return <td dir="ltr" className={`border border-slate-300 px-3 py-2 text-start tabular-nums dark:border-slate-700 ${className}`}>{formatted(amount)}</td>
-}
+const rowClass = (row: GridRow) => row.__kind === "section" ? "report-row-opening" : row.__kind === "subtotal" ? "report-row-subtotal" : row.__kind === "net" ? "report-row-total" : undefined
 
 export function IncomeStatementTable({ rows }: { rows: Row[] }) {
-  const sections = groups(rows)
   const total = rows.reduce((sum, row) => sum + value(row), 0)
   const debits = rows.reduce((sum, row) => sum + Math.max(value(row), 0), 0)
   const credits = rows.reduce((sum, row) => sum + Math.max(-value(row), 0), 0)
-  return <table dir={appDir()} className="w-full min-w-[700px] border-collapse text-sm">
-    <thead className="sticky top-0 z-10 bg-white dark:bg-slate-950 print:static"><tr>{["#", "رقم الحساب", "اسم الحساب", "مدين", "دائن"].map(label => <th key={label} className="border border-slate-300 px-3 py-2 text-start dark:border-slate-700">{label}</th>)}</tr></thead>
-    <tbody>{sections.map(([name, accounts], sectionIndex) => {
-      const subtotal = accounts.reduce((sum, row) => sum + value(row), 0)
-      return <FragmentSection key={name} name={name} sectionIndex={sectionIndex} accounts={accounts} subtotal={subtotal} income />
-    })}
-      <tr className="bg-slate-100 font-bold dark:bg-slate-900"><td colSpan={3} className="border border-slate-300 px-3 py-2 dark:border-slate-700">{tr("صافي ")}{total <= 0 ? tr("الربح") : tr("الخسارة")}</td><Amount amount={Math.max(-total, 0)} /><Amount amount={Math.max(total, 0)} /></tr>
-    </tbody>
-    <tfoot className="sticky bottom-0 bg-slate-100 font-bold dark:bg-slate-900 print:static"><tr><td colSpan={3} className="border border-slate-300 px-3 py-2 dark:border-slate-700">{tr("الإجمالي")}</td><Amount amount={debits + Math.max(-total, 0)} /><Amount amount={credits + Math.max(total, 0)} /></tr></tfoot>
-  </table>
-}
-
-function FragmentSection({ name, sectionIndex, accounts, subtotal, income = false }: { name: string; sectionIndex: number; accounts: Row[]; subtotal: number; income?: boolean }) {
-  return <>
-    <tr className="bg-sky-700 font-bold text-white"><td className="border border-sky-800 px-3 py-2">{sectionIndex + 1}</td><td className="border border-sky-800"/><td className="border border-sky-800 px-3 py-2">{name}</td><td className="border border-sky-800"/><td className="border border-sky-800"/></tr>
-    {accounts.map((row, index) => <tr key={row.id} className="even:bg-slate-50 dark:even:bg-slate-900/40"><td className="border border-slate-300 px-3 py-2 dark:border-slate-700">{index + 1}</td><td className="border border-slate-300 px-3 py-2 font-mono dark:border-slate-700">{row.account_code}</td><td className="border border-slate-300 px-3 py-2 dark:border-slate-700">{row.account_name}</td><Amount amount={income ? Math.max(value(row), 0) : value(row)} /><Amount amount={income ? Math.max(-value(row), 0) : 0} /></tr>)}
-    <tr className="bg-slate-50 font-semibold dark:bg-slate-900"><td colSpan={3} className="border border-slate-300 px-3 py-2 dark:border-slate-700">{tr("مجموع ")}{name}</td><Amount amount={Math.max(subtotal, 0)} /><Amount amount={Math.max(-subtotal, 0)} /></tr>
-  </>
+  const gridRows: GridRow[] = []
+  groups(rows).forEach(([name, accounts], sectionIndex) => {
+    gridRows.push({ __kind: "section", label: `${sectionIndex + 1}. ${name}` })
+    for (const row of accounts) gridRows.push({ __kind: "account", label: row.account_name || "", account_code: row.account_code, debit: nonZero(Math.max(value(row), 0)), credit: nonZero(Math.max(-value(row), 0)) })
+    const subtotal = accounts.reduce((sum, row) => sum + value(row), 0)
+    gridRows.push({ __kind: "subtotal", label: `${tr("مجموع ")}${name}`, debit: nonZero(Math.max(subtotal, 0)), credit: nonZero(Math.max(-subtotal, 0)) })
+  })
+  gridRows.push({ __kind: "net", label: `${tr("صافي ")}${total <= 0 ? tr("الربح") : tr("الخسارة")}`, debit: nonZero(Math.max(-total, 0)), credit: nonZero(Math.max(total, 0)) })
+  const columns: ReportGridColumn<GridRow>[] = [
+    { key: "account_code", label: tr("رقم الحساب"), width: 130 },
+    { key: "label", label: tr("اسم الحساب"), width: "*", minWidth: 260 },
+    { key: "debit", label: tr("مدين"), type: "number", width: 160, total: debits + Math.max(-total, 0) },
+    { key: "credit", label: tr("دائن"), type: "number", width: 160, total: credits + Math.max(total, 0) },
+  ]
+  return <ReportGrid rows={gridRows} columns={columns} rowClassName={rowClass} exportFileName={tr("قائمة الدخل")} />
 }
 
 function BalanceSide({ title, rows, number }: { title: string; rows: Row[]; number: number }) {
   const total = rows.reduce((sum, row) => sum + value(row), 0)
-  return <div className="min-w-0 flex-1"><table dir={appDir()} className="w-full min-w-[420px] border-collapse text-sm"><thead className="sticky top-0 z-10 bg-white dark:bg-slate-950 print:static"><tr><th className="w-12 border border-slate-300 px-2 py-2 dark:border-slate-700">#</th><th className="border border-slate-300 px-3 py-2 text-start dark:border-slate-700">{title}</th><th className="w-36 border border-slate-300 px-3 py-2 text-start dark:border-slate-700">{tr("المبلغ")}</th></tr></thead><tbody>
-    {groups(rows).map(([name, accounts], sectionIndex) => <Group key={name} name={name} accounts={accounts} number={number + sectionIndex} />)}
-  </tbody><tfoot className="sticky bottom-0 bg-slate-100 font-bold dark:bg-slate-900 print:static"><tr><td className="border border-slate-300 dark:border-slate-700"/><td className="border border-slate-300 px-3 py-2 dark:border-slate-700">{tr("مجموع ")}{title}</td><Amount amount={total} /></tr></tfoot></table></div>
-}
-
-function Group({ name, accounts, number }: { name: string; accounts: Row[]; number: number }) {
-  return <><tr className="bg-sky-700 font-bold text-white"><td className="border border-sky-800 px-2 py-2">{number}</td><td className="border border-sky-800 px-3 py-2">{name}</td><td className="border border-sky-800"/></tr>
-    {accounts.map(row => <tr key={row.id} className="even:bg-slate-50 dark:even:bg-slate-900/40"><td className="border border-slate-300 dark:border-slate-700"/><td className="border border-slate-300 px-3 py-2 dark:border-slate-700"><span className="font-mono text-xs text-muted-foreground">{row.account_code} </span>{row.account_name}</td><Amount amount={value(row)} /></tr>)}
-    <tr className="bg-slate-50 font-semibold dark:bg-slate-900"><td className="border border-slate-300 dark:border-slate-700"/><td className="border border-slate-300 px-3 py-2 dark:border-slate-700">{tr("مجموع ")}{name}</td><Amount amount={accounts.reduce((sum, row) => sum + value(row), 0)} /></tr></>
+  const gridRows: GridRow[] = []
+  groups(rows).forEach(([name, accounts], sectionIndex) => {
+    gridRows.push({ __kind: "section", label: `${number + sectionIndex}. ${name}` })
+    for (const row of accounts) gridRows.push({ __kind: "account", label: row.account_name || "", account_code: row.account_code, amount: nonZero(value(row)) })
+    gridRows.push({ __kind: "subtotal", label: `${tr("مجموع ")}${name}`, amount: accounts.reduce((sum, row) => sum + value(row), 0) })
+  })
+  const columns: ReportGridColumn<GridRow>[] = [
+    { key: "account_code", label: tr("رقم الحساب"), width: 110 },
+    { key: "label", label: title, width: "*", minWidth: 200 },
+    { key: "amount", label: tr("المبلغ"), type: "number", width: 150, total },
+  ]
+  return <div className="min-w-0 flex-1"><ReportGrid rows={gridRows} columns={columns} rowClassName={rowClass} exportFileName={title} totalLabel={`${tr("مجموع ")}${title}`} /></div>
 }
 
 export function BalanceSheetTable({ rows }: { rows: Row[] }) {

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RESTAURANT_MONITOR_ACTIONS, RESTAURANT_MONITOR_LABEL, RESTAURANT_MONITOR_TONE } from "@/lib/restaurant-monitor"
+import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 
 // مراقبة المطعم (app/api/reports/restaurant-monitor): كل حركات المستخدمين في شاشة المطعم — العهدة والطلبات والأصناف.
 type Row = {
@@ -116,37 +117,21 @@ export default function RestaurantMonitorReport() {
             <ReportSummaryCard label={tr("حركات العهدة")}>{String(summary.custody)}</ReportSummaryCard>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
-            <table className="w-full min-w-[1300px] text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500">
-                <tr>
-                  {["#", "التاريخ والوقت", "المستخدم", "الحركة", "الموقع", "رقم الطلب", "الطاولة", "الصنف", "الكمية", "المبلغ", "الوردية", "التفاصيل"].map((label) => (
-                    <th key={label} className={`whitespace-nowrap p-2 ${label === "الكمية" || label === "المبلغ" ? "text-end" : "text-start"}`}>{label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0
-                  ? <tr><td colSpan={12} className="p-8 text-center text-muted-foreground">{tr("لا توجد حركات للفترة والفلاتر المحددة")}</td></tr>
-                  : rows.map((row, index) => (
-                    <tr key={row.row_id} className={`border-t hover:bg-emerald-50/40 ${DELETE_ACTIONS.has(row.action) || row.action === "cancel" ? "bg-rose-50/40" : ""}`}>
-                      <td className="p-2 font-mono text-xs text-slate-400">{index + 1}</td>
-                      <td className="whitespace-nowrap p-2"><span dir="ltr" className="font-mono text-xs">{dateTime(row.occurred_at)}</span></td>
-                      <td className="whitespace-nowrap p-2 font-semibold">{row.user_name || "—"}</td>
-                      <td className="p-2"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${TONE_CLASS[RESTAURANT_MONITOR_TONE[row.action]] || TONE_CLASS.neutral}`}>{RESTAURANT_MONITOR_LABEL[row.action] || row.action}</span></td>
-                      <td className="whitespace-nowrap p-2">{row.location_name || "—"}</td>
-                      <td className="whitespace-nowrap p-2 font-mono">{row.order_no || "—"}</td>
-                      <td className="p-2">{row.place || "—"}</td>
-                      <td className="p-2">{row.item_name || "—"}</td>
-                      <td className="p-2 text-end">{row.quantity === null ? "—" : <span dir="ltr" className="font-mono">{qty(row.quantity)}</span>}</td>
-                      <td className="p-2 text-end">{row.amount === null ? "—" : <span dir="ltr" className="font-mono">{money(row.amount)}</span>}</td>
-                      <td className="whitespace-nowrap p-2 text-xs text-slate-500">{row.shift_name || "—"}</td>
-                      <td className="min-w-[220px] p-2 text-xs text-slate-600">{row.description || "—"}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+          <ReportGrid rows={rows} exportFileName={tr("مراقبة المطعم")} emptyText={tr("لا توجد حركات للفترة والفلاتر المحددة")}
+              rowClassName={(row: any) => DELETE_ACTIONS.has(row.action) || row.action === "cancel" ? "report-row-muted" : undefined}
+              columns={[
+                { key: "occurred_at", label: tr("التاريخ والوقت"), width: 160, value: (row: any) => dateTime(row.occurred_at) },
+                { key: "user_name", label: tr("المستخدم"), width: 130 },
+                { key: "action", label: tr("الحركة"), width: 150, value: (row: any) => RESTAURANT_MONITOR_LABEL[row.action] || row.action, render: (row: any) => <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${TONE_CLASS[RESTAURANT_MONITOR_TONE[row.action]] || TONE_CLASS.neutral}`}>{RESTAURANT_MONITOR_LABEL[row.action] || row.action}</span> },
+                { key: "location_name", label: tr("الموقع"), width: 130 },
+                { key: "order_no", label: tr("رقم الطلب"), width: 110 },
+                { key: "place", label: tr("الطاولة"), width: 100 },
+                { key: "item_name", label: tr("الصنف"), width: 180 },
+                { key: "quantity", label: tr("الكمية"), type: "number", width: 100 },
+                { key: "amount", label: tr("المبلغ"), type: "number", width: 120 },
+                { key: "shift_name", label: tr("الوردية"), width: 120 },
+                { key: "description", label: tr("التفاصيل"), width: "*", minWidth: 220 },
+              ]}/>
         </>
       )}
     </ReportPage>
