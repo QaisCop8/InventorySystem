@@ -125,7 +125,7 @@ export async function tableColumns(table: string): Promise<Map<string, number | 
 }
 
 /** الأعمدة الموجودة فقط، والنص الأطول من حد العمود يُقصّ (اسم/ملاحظة أطول من عمود قاعدة قديمة لا يُفشل السجل) */
-async function presentValues(table: string, values: Record<string, unknown>) {
+export async function presentValues(table: string, values: Record<string, unknown>) {
   const columns = await tableColumns(table)
   return Object.entries(values)
     .filter(([column, value]) => columns.has(column) && value !== undefined)

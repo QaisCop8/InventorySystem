@@ -16,6 +16,7 @@ import { ListBox } from '@grapecity/wijmo.react.input';
 import { hidePopup, saveFile, Tooltip, PopupPosition } from '@grapecity/wijmo';
 import FlexGridContextMenu from './FlexGridContextMenu';
 import { gridStrings } from './grid-strings';
+import { applyGridFilterCulture } from './grid-filter-culture';
 import { Selector } from '@grapecity/wijmo.grid.selector';
 import * as schemeHelper from './SchemeHelper';
 import Input from './Input';
@@ -43,6 +44,8 @@ if (wijmoLicenseKey) {
 
 // نصوص الشبكة: جدول عربي مترجَم حسب اللغة (components/common/grid-strings.js) — كانت معظم المفاتيح غير معرّفة
 const $ = { strings: gridStrings };
+// نافذة فلتر الأعمدة بالعربية (قبل إنشاء أي FlexGridFilter)
+applyGridFilterCulture();
 
 export default class DataGridView extends React.Component {
   constructor(props) {

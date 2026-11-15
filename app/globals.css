@@ -3115,3 +3115,12 @@ td {
 .dark .report-grid .wj-cell.report-row-opening { background: #1e1b4b !important; color: #c7d2fe !important; }
 .dark .report-grid .wj-cell.report-row-subtotal { background: #1e293b !important; }
 .dark .report-grid .wj-cell.report-row-total { background: #022c22 !important; color: #a7f3d0 !important; }
+/* شريط تمرير ظاهر لشبكات التقارير (أسطر كثيرة: مقبض واضح بدل شريط شفاف/مخفي) */
+.report-grid .wj-flexgrid [wj-part="root"] { scrollbar-width: auto; scrollbar-color: #94a3b8 #f1f5f9; }
+.report-grid .wj-flexgrid [wj-part="root"]::-webkit-scrollbar { width: 12px; height: 12px; }
+.report-grid .wj-flexgrid [wj-part="root"]::-webkit-scrollbar-track { background: #f1f5f9; }
+.report-grid .wj-flexgrid [wj-part="root"]::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #f1f5f9; min-height: 40px; }
+.report-grid .wj-flexgrid [wj-part="root"]::-webkit-scrollbar-thumb:hover { background: #64748b; }
+.dark .report-grid .wj-flexgrid [wj-part="root"] { scrollbar-color: #64748b #0f172a; }
+.dark .report-grid .wj-flexgrid [wj-part="root"]::-webkit-scrollbar-track { background: #0f172a; }
+.dark .report-grid .wj-flexgrid [wj-part="root"]::-webkit-scrollbar-thumb { background: #64748b; border-color: #0f172a; }

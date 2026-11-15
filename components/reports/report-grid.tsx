@@ -44,7 +44,7 @@ type Props<T> = {
 const ROW_CLASS = "__reportRowClass"
 
 export function ReportGrid<T extends Record<string, any>>({
-  rows, columns, height = "max(420px, calc(100dvh - 360px))", onRowDoubleClick, exportFileName, rowClassName,
+  rows, columns, height, onRowDoubleClick, exportFileName, rowClassName,
   totalLabel = tr("الإجمالي"), showSerial = true, emptyText, className,
 }: Props<T>) {
   const gridRef = useRef<any>(null)
@@ -128,7 +128,10 @@ export function ReportGrid<T extends Record<string, any>>({
   }, [rowClassName])
 
   return (
-    <div className={`report-grid relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white ${className || ""}`} style={{ height }} dir={appDir()}>
+    // بلا ارتفاع صريح: الشبكة تملأ المساحة المتبقية في حاويتها (flex) — الارتفاع المحسوب من الشاشة كان أطول من المساحة
+    // فيُقصّ أسفلها مع شريط التمرير العمودي (يختفي مقبضه)
+    <div className={`report-grid relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white ${className || ""}`}
+      style={height !== undefined ? { height } : { flex: "1 1 0", minHeight: 360, height: "100%" }} dir={appDir()}>
       <DataGridView
         innerRef={gridRef}
         scheme={scheme}

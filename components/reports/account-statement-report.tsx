@@ -271,14 +271,13 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
         </aside>}
         <section className="report-results">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b p-4 print:hidden"><div><h2 className="font-bold">{tr("حركات الحساب")}{activeAccount ? ` — ${activeAccount.name || activeAccount.account_name}` : ""}</h2><p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")}{tr(" حركة ضمن الفترة المحددة")}</p></div><div className="relative w-full sm:w-80"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("ابحث في النتائج...")} className="rounded-xl bg-muted/40 ps-9"/></div></div>
-        <div className="min-h-[350px] flex-1 p-2">
+        <div className="flex min-h-[350px] flex-1 flex-col p-2">
           <ReportGrid
             rows={gridRows}
             columns={gridColumns}
             rowClassName={(row: any) => row.__kind === "opening" ? "report-row-opening" : row.__kind === "detail" ? "report-row-muted" : undefined}
             exportFileName={isReceivables ? tr("بيان حساب الذمة") : tr("بيان حساب محاسبي")}
             emptyText={loading ? undefined : tr("لا توجد حركات لعرضها")}
-            height="max(420px, calc(100dvh - 330px))"
           />
         </div>
         </section>

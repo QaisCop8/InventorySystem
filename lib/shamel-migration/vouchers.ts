@@ -2,7 +2,7 @@ import sql, { withTenantTransaction } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { INTERNAL_VOUCHER, getBaseCurrencyId, getRateByDate, JOURNAL_LINE_TYPE } from "@/lib/auto-journals"
 import { NO_EXPIRY_SENTINEL_DATE, applyStockMovement } from "@/app/api/stock-vouchers/_lib"
-import { MigrationRun, StepContext, date, insertRow, mapGet, mapSet, num, text, toCode10 } from "@/lib/shamel-migration/core"
+import { MigrationRun, StepContext, date, mapGet, mapSet, num, presentValues, tableColumns, text, toCode10 } from "@/lib/shamel-migration/core"
 import { stageRows, voucherBookFor } from "@/lib/shamel-migration/balances"
 import { withYearOpened } from "@/lib/year-end-closing"
 import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
@@ -203,6 +203,33 @@ async function recordItemLinks(shamelCode: string, vchType: number, meta: { row:
   }
 }
 
+/** recordItemLinks لعدة سندات بأمرين فقط */
+async function recordItemLinksBulk(list: { code: string; vchType: number; meta: { row: Row; link: ItemLink | null }[]; ids: number[] }[]) {
+  const links: { id: number; link: ItemLink }[] = []
+  const mapKeys: string[] = [], mapIds: number[] = []
+  for (const entry of list) {
+    entry.meta.forEach((meta, index) => {
+      const id = entry.ids[index]
+      if (!id) return
+      if (meta.link) links.push({ id, link: meta.link })
+      if (LINK_SOURCE_TYPES.has(entry.vchType)) { mapKeys.push(`${entry.code}|${num(meta.row.pos)}`); mapIds.push(id) }
+    })
+  }
+  if (links.length) {
+    await sql`
+      INSERT INTO shamel_migration_links (item_id, link_kind, src_code, src_pos)
+      SELECT * FROM unnest(${links.map((entry) => entry.id)}::int[], ${links.map((entry) => entry.link.kind)}::text[],
+        ${links.map((entry) => entry.link.code)}::text[], ${links.map((entry) => entry.link.pos)}::int[])
+      ON CONFLICT (item_id) DO NOTHING`
+  }
+  if (mapKeys.length) {
+    await sql`
+      INSERT INTO shamel_migration_map (kind, shamel_key, web_id)
+      SELECT 'voucher_item', k, id FROM unnest(${mapKeys}::text[], ${mapIds}::int[]) AS s(k, id)
+      ON CONFLICT (kind, shamel_key) DO UPDATE SET web_id = EXCLUDED.web_id`
+  }
+}
+
 /**
  * يحل روابط الأسطر المعلّقة: سطر فاتورة ⇐ سطر إرساليته (delivery_item_id) أو سطر طلبيته (order_item_id)، ثم تُحدَّث
  * حالة تنفيذ الطلبيات المرتبطة. يُستدعى بنهاية كل ترحيل (والرابط الذي لم يُرحَّل مصدره بعد يبقى لترحيل لاحق).
@@ -235,9 +262,17 @@ export async function resolveMigratedLinks() {
 /** INSERT متعدد الأسطر بأمر واحد */
 async function insertMany(table: string, columns: string[], rows: unknown[][], returning = "") {
   if (!rows.length) return [] as any[]
-  const params: unknown[] = []
-  const values = rows.map((row) => `(${row.map((value) => { params.push(value); return `$${params.length}` }).join(", ")})`)
-  return (await sql.unsafe(`INSERT INTO ${table} (${columns.join(", ")}) VALUES ${values.join(", ")}${returning ? ` RETURNING ${returning}` : ""}`, params)) as any[]
+  // حد معاملات Postgres 65535 لكل أمر ⇐ دفعات
+  const perChunk = Math.max(1, Math.floor(60000 / Math.max(1, columns.length)))
+  const result: any[] = []
+  for (let offset = 0; offset < rows.length; offset += perChunk) {
+    const chunk = rows.slice(offset, offset + perChunk)
+    const params: unknown[] = []
+    const values = chunk.map((row) => `(${row.map((value) => { params.push(value); return `$${params.length}` }).join(", ")})`)
+    const out = (await sql.unsafe(`INSERT INTO ${table} (${columns.join(", ")}) VALUES ${values.join(", ")}${returning ? ` RETURNING ${returning}` : ""}`, params)) as any[]
+    if (returning) result.push(...out)
+  }
+  return result
 }
 
 export async function processVoucherLines(rows: Row[], ctx: StepContext, last: boolean) {
@@ -283,16 +318,37 @@ export async function processVoucherLines(rows: Row[], ctx: StepContext, last: b
     }
     for (const [year, yearCodes] of byYear) {
       let created = 0
+      // التحضير بالذاكرة (خطأ التحقق يُسقط السند وحده)، ثم كتابة السنة كلها بأوامر مجمّعة؛ إن فشلت الكتابة المجمّعة
+      // (قيد بالقاعدة مثلاً) تُعاد السندات واحداً واحداً داخل SAVEPOINT فيفشل السند المعطوب وحده كما كان
+      const ready: PreparedVoucher[] = []
+      for (const code of yearCodes) {
+        try { ready.push(await prepareVoucher(code, pending.get(code)!, items.get(code) || [], ctx, lookups)) }
+        catch (error) { ctx.error(code, error instanceof Error ? error.message : String(error)) }
+      }
+      await ensureShamelLinkTables()
       await withTenantTransaction(() => withYearOpened(year, async () => {
         const saved: [string, number][] = []
-        for (const code of yearCodes) {
+        let bulkDone = false
+        if (ready.length > 1) {
+          await sql`SAVEPOINT shamel_bulk`
+          try {
+            const written = await writeVouchers(ready)
+            for (const voucher of ready) saved.push([voucher.code, written.get(voucher.code)!])
+            await sql`RELEASE SAVEPOINT shamel_bulk`
+            bulkDone = true
+          } catch {
+            await sql`ROLLBACK TO SAVEPOINT shamel_bulk`
+            saved.length = 0
+          }
+        }
+        if (!bulkDone) for (const voucher of ready) {
           await sql`SAVEPOINT shamel_voucher`
           try {
-            saved.push([code, await saveVoucher(code, pending.get(code)!, items.get(code) || [], ctx, lookups)])
+            saved.push([voucher.code, (await writeVouchers([voucher])).get(voucher.code)!])
             await sql`RELEASE SAVEPOINT shamel_voucher`
           } catch (error) {
             await sql`ROLLBACK TO SAVEPOINT shamel_voucher`
-            ctx.error(code, error instanceof Error ? error.message : String(error))
+            ctx.error(voucher.code, error instanceof Error ? error.message : String(error))
           }
         }
         if (saved.length) {
@@ -379,7 +435,22 @@ function receiptLineTypes(vchType: number, lines: Row[], partyCode: string, cheq
   return types
 }
 
-async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: StepContext, lookups: BatchLookups): Promise<number> {
+type PreparedVoucher = {
+  code: string
+  type: (typeof SHAMEL_VOUCHER_TYPES)[number]
+  header: Record<string, unknown>
+  /** أسطر القيد بلا voucher_id (يُضاف عند الكتابة) */
+  journal: unknown[][]
+  costCenters: [number, number][]
+  items: unknown[][]
+  itemMeta: { row: Row; link: ItemLink | null }[]
+  moving: { product_id: number; quantity: number; store_id: number | null }[]
+  toStore: number | null
+  cancelled: boolean
+}
+
+/** يبني السند بالذاكرة (أخطاء التحقق تُرمى هنا فيفشل السند وحده) — الكتابة لاحقاً دفعة واحدة لعدة سندات */
+async function prepareVoucher(code: string, lines: Row[], itemRows: Row[], ctx: StepContext, lookups: BatchLookups): Promise<PreparedVoucher> {
   const header = lines[0]
   const type = typeByPrefix.get(code.charAt(0).toUpperCase())
   if (!type) throw new Error("نوع السند غير مدعوم")
@@ -402,23 +473,12 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
   // أرقام السندات بنون 10 خانات: JG007100 ⇐ JG00007100 (رقم الشامل الأصلي يبقى في manual_voucher)
   const vchCode = lookups.takenCodes.has(`${type.vchType}|${toCode10(code)}`) ? toCode10(`S${code}`) : toCode10(code)
 
-  const voucherId = await insertRow("voucher_header_tbl", {
-    vch_type: type.vchType, vch_code: vchCode, vch_date: vchDate, manual_date: vchDate, vch_book_id: bookId, branch_id: ctx.run.branch_id,
-    currency_id: currency, rate, amount: Math.round(Math.abs(num(header.amount)) * 1000) / 1000,
-    account_id: type.kind === "stock" ? null : partyAccount, customer_name: text(header.customer_name).slice(0, 150) || null,
-    salesman_id: salesmanId, manual_voucher: (text(header.manual_vch) || code).slice(0, 50),
-    note: [text(header.note), text(header.note1)].filter(Boolean).join(" - ").slice(0, 1000) || null,
-    status: cancelled ? 3 : 2, vch_status: cancelled ? 3 : 2, is_printed: (flags & 4) !== 0 ? 1 : 0,
-    vat: num(header.vat) || null, discount: num(header.discount) || null, to_store_id: toStore,
-    internal_voucher_id: currencyDifference ? INTERNAL_VOUCHER.CURRENCY_DIFFERENCE : null,
-  })
-
-  // أسطر القيد كما قيّدها الشامل (CrDr: 1 مدين، 2 دائن؛ 9/10 = نفسها لسطر آلي) — أمر INSERT واحد لكل الأسطر
+  // أسطر القيد كما قيّدها الشامل (CrDr: 1 مدين، 2 دائن؛ 9/10 = نفسها لسطر آلي)
   const journalLines = lines.filter((line) => text(line.line_account) && Math.abs(num(line.line_amount)) > 0)
   const lineTypes = receiptLineTypes(type.vchType, journalLines, text(header.customer_code), num(header.cheq_total))
   const rateFor = (currencyIdValue: number) => currencyIdValue === currency ? rate : rateOn(lookups, currencyIdValue, vchDate)
-  const journalRows: unknown[][] = []
-  const costCenterLinks: [number, number][] = []
+  const journal: unknown[][] = []
+  const costCenters: [number, number][] = []
   for (const line of journalLines) {
     const accountIdValue = lookups.accounts.get(text(line.line_account))
     if (!accountIdValue) throw new Error(`الحساب ${text(line.line_account)} غير موجود`)
@@ -432,37 +492,26 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
     const accountCurrency = lookups.accountCurrency.get(accountIdValue) ?? lineCurrency
     const accountRate = accountCurrency === lineCurrency ? lineRate : await rateFor(accountCurrency)
     const accountAmount = currencyDifference ? 0 : accountCurrency === lineCurrency ? amount : Math.round((base / accountRate) * 1000) / 1000
-    const orderNo = journalRows.length + 1
-    journalRows.push([voucherId, orderNo, lineTypes.get(line) ?? JOURNAL_LINE_TYPE, accountIdValue, crdr, amount, lineCurrency, lineRate, base, accountCurrency, accountRate, accountAmount, text(line.line_note).slice(0, 70) || null])
+    const orderNo = journal.length + 1
+    journal.push([orderNo, lineTypes.get(line) ?? JOURNAL_LINE_TYPE, accountIdValue, crdr, amount, lineCurrency, lineRate, base, accountCurrency, accountRate, accountAmount, text(line.line_note).slice(0, 70) || null])
     // مراكز التكلفة: الحقل n بالشامل = نوع مركز التكلفة n-1
     for (let typePos = 0; typePos < 6; typePos++) {
       const costCode = text(line[`cc${typePos + 1}`])
       const costCenterId = costCode ? lookups.costCenters.get(`${typePos}-${costCode}`) : null
-      if (costCenterId) costCenterLinks.push([orderNo, costCenterId])
+      if (costCenterId) costCenters.push([orderNo, costCenterId])
     }
   }
-  const inserted = await insertMany(
-    "voucher_journal_detail_tbl",
-    ["voucher_id", "order_no", "journal_type_id", "account_id", "credit_debit", "amount", "currency_id", "rate", "base_curr_amount", "account_currency_id", "account_rate", "account_amount", "note"],
-    journalRows,
-    "id, order_no",
-  )
   // رصيد السند بالشامل (Balance) صفر لسندات القيد: المبلغ = مجموع المدين بعملة السند
-  if (!(Math.abs(num(header.amount)) > 0) && journalRows.length) {
-    const debitBase = journalRows.reduce((sum, row) => sum + (row[4] === 1 ? Number(row[8]) || 0 : 0), 0)
-    const headerAmount = Math.round((debitBase / (rate || 1)) * 1000) / 1000
-    if (headerAmount > 0) await sql`UPDATE voucher_header_tbl SET amount = ${headerAmount} WHERE id = ${voucherId}`
-  }
-  if (costCenterLinks.length) {
-    const lineIds = new Map(inserted.map((row) => [Number(row.order_no), Number(row.id)]))
-    await insertMany("voucher_costcenter_tbl", ["voucher_journal_id", "cost_center_id"], costCenterLinks.map(([orderNo, costCenterId]) => [lineIds.get(orderNo), costCenterId]))
+  let amount = Math.round(Math.abs(num(header.amount)) * 1000) / 1000
+  if (!(amount > 0) && journal.length) {
+    const debitBase = journal.reduce((sum, row) => sum + (row[3] === 1 ? Number(row[7]) || 0 : 0), 0)
+    amount = Math.round((debitBase / (rate || 1)) * 1000) / 1000
   }
 
-  // أسطر الأصناف وحركة المخزون
+  const items: unknown[][] = []
+  const itemMeta: { row: Row; link: ItemLink | null }[] = []
+  const moving: { product_id: number; quantity: number; store_id: number | null }[] = []
   if (itemRows.length && type.kind !== "finance") {
-    const moving: { product_id: number; quantity: number; store_id: number | null }[] = []
-    const itemValues: unknown[][] = []
-    const itemMeta: { row: Row; link: ItemLink | null }[] = []
     for (const row of itemRows) {
       const productId = lookups.items.get(text(row.item_code))
       // أصل ثابت (نوع 7 بالشامل) أو صنف محذوف: القيد يُرحَّل كما هو بلا سطر الصنف
@@ -471,35 +520,104 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
       if (!(qty > 0)) continue
       const storeId = lookups.stores.get(String(num(row.store))) ?? null
       const bonus = num(row.bonus)
-      itemValues.push([
-        voucherId, productId, "", lookups.units.get(`${text(row.item_code)}|${num(row.unit_pos)}`) ?? null, qty, bonus, num(row.discount),
+      items.push([
+        productId, "", lookups.units.get(`${text(row.item_code)}|${num(row.unit_pos)}`) ?? null, qty, bonus, num(row.discount),
         num(row.vat), num(row.price), text(row.note).slice(0, 200), 0, "",
         lookups.hasExpiry.get(productId) ? date(row.expiry_date) : NO_EXPIRY_SENTINEL_DATE, storeId,
       ])
-      // سطر فاتورة منقول من إرسالية: البضاعة تحركت مع الإرسالية نفسها. سطر من طلبية يُخرج البضاعة (كان يُتجاوز لأن
-      // "Del Code" فيه رقم الطلبية — فبقيت كميات فواتير الطلبيات بالمخزون)
+      // سطر فاتورة منقول من إرسالية: البضاعة تحركت مع الإرسالية نفسها. سطر من طلبية يُخرج البضاعة
       const link = linkOf(row)
       itemMeta.push({ row, link })
       if (link?.kind !== "delivery") moving.push({ product_id: productId, quantity: qty + bonus, store_id: storeId })
     }
-    const insertedItems = await insertMany(
-      "voucher_items_tbl",
-      ["voucher_id", "item_id", "item_name", "unit_id", "qnty", "bonus", "discount", "vat_amount", "price", "note", "cost_price", "barcode", "expiry_date", "store_id"],
-      itemValues,
-      "id",
-    )
-    await recordItemLinks(code, type.vchType, itemMeta, insertedItems.map((row) => Number(row.id)))
-    if (!cancelled) {
-      const referenceType = type.kind === "sales" ? "sales_voucher" : "stock_voucher"
-      if (type.stock === "transfer") {
-        await applyStockMovement(moving, "out", voucherId, null, 1, referenceType)
-        if (toStore) await applyStockMovement(moving, "in", voucherId, toStore, 1, referenceType)
-      } else if (type.stock) {
-        await applyStockMovement(moving, type.stock, voucherId, null, 1, referenceType)
-      }
-    }
   }
-  return voucherId
+
+  return {
+    code, type, journal, costCenters, items, itemMeta, moving, toStore, cancelled,
+    header: {
+      vch_type: type.vchType, vch_code: vchCode, vch_date: vchDate, manual_date: vchDate, vch_book_id: bookId, branch_id: ctx.run.branch_id,
+      currency_id: currency, rate, amount,
+      account_id: type.kind === "stock" ? null : partyAccount, customer_name: text(header.customer_name).slice(0, 150) || null,
+      salesman_id: salesmanId, manual_voucher: (text(header.manual_vch) || code).slice(0, 50),
+      note: [text(header.note), text(header.note1)].filter(Boolean).join(" - ").slice(0, 1000) || null,
+      status: cancelled ? 3 : 2, vch_status: cancelled ? 3 : 2, is_printed: (flags & 4) !== 0 ? 1 : 0,
+      vat: num(header.vat) || null, discount: num(header.discount) || null, to_store_id: toStore,
+      internal_voucher_id: currencyDifference ? INTERNAL_VOUCHER.CURRENCY_DIFFERENCE : null,
+    },
+  }
+}
+
+const JOURNAL_COLUMNS = ["voucher_id", "order_no", "journal_type_id", "account_id", "credit_debit", "amount", "currency_id", "rate", "base_curr_amount", "account_currency_id", "account_rate", "account_amount", "note"]
+const ITEM_COLUMNS = ["voucher_id", "item_id", "item_name", "unit_id", "qnty", "bonus", "discount", "vat_amount", "price", "note", "cost_price", "barcode", "expiry_date", "store_id"]
+
+/**
+ * يكتب عدة سندات مُعدّة بأوامر مجمّعة: رؤوس، قيود، مراكز تكلفة، أصناف، روابط، وحركة مخزون — بضعة أوامر للدفعة كلها بدل
+ * ~12 رحلة للقاعدة لكل سند (البطء الرئيسي مع قاعدة بعيدة). يُرجع رقم كل سند حسب رمز الشامل.
+ */
+async function writeVouchers(prepared: PreparedVoucher[]): Promise<Map<string, number>> {
+  const ids = new Map<string, number>()
+  if (!prepared.length) return ids
+  // الرؤوس: نفس الأعمدة لكل السندات (الموجودة بقاعدة الشركة فقط)
+  const headerColumnMax = await tableColumns("voucher_header_tbl")
+  const present = (await presentValues("voucher_header_tbl", prepared[0].header)).map(([column]) => column)
+  const headerRows = prepared.map((voucher) => present.map((column) => {
+    const value = voucher.header[column]
+    return typeof value === "string" && headerColumnMax.get(column) != null && value.length > headerColumnMax.get(column)! ? value.slice(0, headerColumnMax.get(column)!) : value
+  }))
+  const inserted = await insertMany("voucher_header_tbl", present.map((column) => `"${column}"`), headerRows, "id, vch_type, vch_code")
+  const byKey = new Map(inserted.map((row: any) => [`${row.vch_type}|${row.vch_code}`, Number(row.id)]))
+  for (const voucher of prepared) {
+    const id = byKey.get(`${voucher.header.vch_type}|${voucher.header.vch_code}`)
+    if (!id) throw new Error(`تعذر قراءة رقم السند ${voucher.code}`)
+    ids.set(voucher.code, id)
+  }
+
+  // أسطر القيد ومراكز تكلفتها
+  const journalRows = prepared.flatMap((voucher) => voucher.journal.map((row) => [ids.get(voucher.code), ...row]))
+  const journalIds = await insertMany("voucher_journal_detail_tbl", JOURNAL_COLUMNS, journalRows, "id, voucher_id, order_no")
+  const lineId = new Map(journalIds.map((row: any) => [`${row.voucher_id}|${row.order_no}`, Number(row.id)]))
+  const costRows = prepared.flatMap((voucher) => voucher.costCenters.map(([orderNo, costCenterId]) => [lineId.get(`${ids.get(voucher.code)}|${orderNo}`), costCenterId]))
+  await insertMany("voucher_costcenter_tbl", ["voucher_journal_id", "cost_center_id"], costRows)
+
+  // أسطر الأصناف — أرقامها تصاعدية بترتيب الإدراج داخل كل سند فتطابق ترتيب itemMeta
+  const withItems = prepared.filter((voucher) => voucher.items.length)
+  const itemRows = withItems.flatMap((voucher) => voucher.items.map((row) => [ids.get(voucher.code), ...row]))
+  const itemIds = await insertMany("voucher_items_tbl", ITEM_COLUMNS, itemRows, "id, voucher_id")
+  const idsByVoucher = new Map<number, number[]>()
+  for (const row of itemIds as any[]) idsByVoucher.set(Number(row.voucher_id), [...(idsByVoucher.get(Number(row.voucher_id)) || []), Number(row.id)])
+  for (const list of idsByVoucher.values()) list.sort((a, b) => a - b)
+  await recordItemLinksBulk(withItems.map((voucher) => ({ code: voucher.code, vchType: voucher.type.vchType, meta: voucher.itemMeta, ids: idsByVoucher.get(ids.get(voucher.code)!) || [] })))
+
+  // حركة المخزون: رصيد كل صنف بأمر واحد، وسجل الحركات بأمر واحد (نفس applyStockMovement لكل السندات معاً)
+  const movements: { productId: number; warehouseId: number | null; direction: "in" | "out"; quantity: number; referenceType: string; referenceId: number }[] = []
+  for (const voucher of prepared) {
+    if (voucher.cancelled || !voucher.type.stock || !voucher.moving.length) continue
+    const referenceType = voucher.type.kind === "sales" ? "sales_voucher" : "stock_voucher"
+    const voucherId = ids.get(voucher.code)!
+    const push = (direction: "in" | "out", override: number | null) => {
+      for (const item of voucher.moving) if (item.product_id && item.quantity > 0) movements.push({ productId: item.product_id, warehouseId: override ?? item.store_id ?? null, direction, quantity: item.quantity, referenceType, referenceId: voucherId })
+    }
+    if (voucher.type.stock === "transfer") { push("out", null); if (voucher.toStore) push("in", voucher.toStore) }
+    else push(voucher.type.stock, null)
+  }
+  if (movements.length) {
+    await sql`
+      INSERT INTO product_stock (product_id, organization_id, current_stock)
+      SELECT s.product_id, 1, SUM(s.quantity)
+      FROM unnest(${movements.map((m) => m.productId)}::int[], ${movements.map((m) => (m.direction === "in" ? 1 : -1) * m.quantity)}::numeric[]) AS s(product_id, quantity)
+      GROUP BY s.product_id
+      ORDER BY s.product_id
+      ON CONFLICT (product_id)
+      DO UPDATE SET current_stock = product_stock.current_stock + EXCLUDED.current_stock, last_updated = CURRENT_TIMESTAMP`
+    await sql`
+      INSERT INTO inventory_transactions (product_id, warehouse_id, transaction_type, quantity, reference_type, reference_id, organization_id)
+      SELECT m.product_id, m.warehouse_id, m.direction, m.quantity, m.reference_type, m.reference_id, 1
+      FROM unnest(${movements.map((m) => m.productId)}::int[], ${movements.map((m) => m.warehouseId)}::int[], ${movements.map((m) => m.direction)}::text[],
+        ${movements.map((m) => m.quantity)}::numeric[], ${movements.map((m) => m.referenceType)}::text[], ${movements.map((m) => m.referenceId)}::int[])
+        WITH ORDINALITY AS m(product_id, warehouse_id, direction, quantity, reference_type, reference_id, ord)
+      ORDER BY m.ord`
+  }
+  return ids
 }
 
 // إصلاح السندات المرحّلة سابقاً: رقم السند إلى 10 خانات (JG007100 ⇐ JG00007100) إن لم يكن الرقم الجديد مستخدماً،
