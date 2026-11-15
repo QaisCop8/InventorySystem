@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
 import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount } from "@/app/api/customers/_lib"
 import { StepContext, date, fitCode, insertRow, mapGet, mapOne, mapSet, num, text, toCode10, updateRow } from "@/lib/shamel-migration/core"
 
@@ -593,6 +594,7 @@ export async function processDefaultAccounts(rows: Row[], ctx: StepContext) {
   const cards = byOffset.get(USER_SETTING_OFFSETS.cards) ?? null
   const mainCash = byOffset.get(USER_SETTING_OFFSETS.cash) ?? null
   if (!mainCash && !received && !returned && !cards && !cashByCurrency.size) return
+  await ensureUsersCurrenciesDefaultTable()
   const users = (await sql`SELECT id FROM user_settings`.catch(() => [])) as any[]
   const currencies = (await sql`SELECT id FROM currency`) as any[]
   for (const user of users) {
@@ -609,4 +611,33 @@ export async function processDefaultAccounts(rows: Row[], ctx: StepContext) {
       if (inserted.length) ctx.stats.created++
     }
   }
+}
+
+// ---------- أنواع البطاقات (CardType) ----------
+// نفس MigrateCreditCardsF بالشامل API: CardType 0 ⇐ بطاقة صراف (2) وإلا ائتمان (1)، FeeType 0 ⇐ نسبة (1) وإلا مبلغ
+// مقطوع (2)، Post_acc حساب البطاقة، Com_acc حساب العمولة، CustomerCode الحساب الوسيط، Holiday بتات أيام العطل (0..6 ⇐ 1..7).
+export async function processCreditCards(rows: Row[], ctx: StepContext) {
+  const { ensureTables: ensureCreditCardTables, saveHolidays } = await import("@/app/api/credit-cards/_lib")
+  await ensureCreditCardTables()
+  await eachRow(rows, ctx, (r) => `بطاقة ${num(r.cc_id)}`, async (r) => {
+    const key = String(num(r.cc_id))
+    if (await mapOne("credit_card", key)) return "skipped"
+    const name = text(r.name).slice(0, 70) || `بطاقة ${key}`
+    const existing = (await sql`SELECT id FROM credit_cards_types_tbl WHERE name = ${name} AND COALESCE(status, 1) <> 3 LIMIT 1`)[0] as any
+    if (existing) { await mapSet("credit_card", key, Number(existing.id)); return "updated" }
+    const machine = num(r.machine_id)
+    const id = await insertRow("credit_cards_types_tbl", {
+      name, name_lang2: name, status: 1, insert_date: new Date().toISOString().slice(0, 10),
+      main_type: num(r.card_type) === 0 ? 2 : 1, commission_type_id: num(r.fee_type) === 0 ? 1 : 2,
+      commission_value: num(r.ratio), commission_max_amount: num(r.max_amount_com) || null,
+      currency_id: await currencyId(r.currency_code), bank_id: await mapOne("bank", text(r.bank_code)),
+      financial_account_id: await accountId(r.post_account_code), commission_account_id: await accountId(r.com_account_code),
+      waseet_account_id: await accountId(r.customer_code),
+      link_bank_machine: num(r.integ_with_machine) !== 0, pinpad_machine_id: num(r.integ_with_machine) !== 0 && machine > 0 ? machine : null,
+    })
+    const holiday = num(r.holiday)
+    await saveHolidays(id, [0, 1, 2, 3, 4, 5, 6].filter((bit) => (holiday & (1 << bit)) !== 0).map((bit) => bit + 1))
+    await mapSet("credit_card", key, id)
+    return "created"
+  })
 }

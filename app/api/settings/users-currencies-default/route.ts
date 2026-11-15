@@ -3,6 +3,7 @@ import sql, { getTenantPool } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccounts } from "@/lib/leaf-accounts"
 import { authorizeUserAdmin } from "@/lib/user-admin-access"
+import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
 
 const ensureTables = async () => { return runSchemaOnce("app/api/settings/users-currencies-default/route.ts#ensureTables", async () => {
   await sql`
@@ -46,7 +47,7 @@ const resolveUserKeys = async (rawUserId: unknown) => {
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureTables()
+    await ensureTables(); await ensureUsersCurrenciesDefaultTable()
     const { searchParams } = new URL(request.url)
     const branchId = searchParams.get("branch_id") ? Number(searchParams.get("branch_id")) : null
     if (branchId !== null && (!Number.isSafeInteger(branchId) || branchId <= 0)) return NextResponse.json({ error: "يجب تحديد الفرع" }, { status: 400 })
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     const leafAccountsError = await validateLeafAccounts(rows.flatMap((row: any) => accountFields.map((field) => row[field])))
     if (leafAccountsError) return NextResponse.json({ error: leafAccountsError }, { status: 400 })
 
-    await ensureTables()
+    await ensureTables(); await ensureUsersCurrenciesDefaultTable()
     const { primaryId } = await resolveUserKeys(user_id)
     if (!primaryId) return NextResponse.json({ error: "user_id invalid" }, { status: 400 })
     const pool = await getTenantPool()

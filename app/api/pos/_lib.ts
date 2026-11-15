@@ -1,3 +1,4 @@
+import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
 import { NextResponse } from "next/server"
 import { resolvePosAccounts } from "@/lib/pos-accounts"
 import sql from "@/lib/database"
@@ -9,10 +10,7 @@ import { runSchemaOnce } from "@/lib/schema-once"
 export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card", "aid_voucher"] as const
 
 export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib.ts#ensurePosTables", async () => {
-  await sql`CREATE TABLE IF NOT EXISTS users_currencies_default_account_tbl (
-    id SERIAL PRIMARY KEY, user_id INTEGER, currency_id INTEGER, account_id INTEGER,
-    received_cheqs_account_id INTEGER, returned_cheqs_account_id INTEGER, cards_account_id INTEGER
-  )`
+  await ensureUsersCurrenciesDefaultTable()
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_points_tbl (

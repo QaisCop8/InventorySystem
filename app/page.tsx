@@ -661,6 +661,9 @@ function HomePageContent() {
     let pendingRoots: HTMLElement[] = []
 
     const removeLicenseNodes = (root: ParentNode) => {
+      // مسار سريع: كل عنصر يُضاف للصفحة (قائمة منسدلة، أسطر تقرير...) كان يُمسح عنصراً عنصراً مع نصوص أبنائه
+      // (تربيعي) فتتأخر فتحة القوائم والتقارير الكبيرة — نص الترخيص يحوي "Wijmo" دائماً
+      if (!(root as Node).textContent?.includes("Wijmo")) return
       if (root instanceof HTMLElement && root.parentElement === document.body) {
         const rootText = root.textContent || ""
         if (rootText.includes("Wijmo License") || rootText.includes("The Wijmo license")) {

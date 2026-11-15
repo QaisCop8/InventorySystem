@@ -47,10 +47,31 @@ async function productsHasInitialPrice() {
   return pending
 }
 
+// أعمدة خصم/ضريبة الرأس قد لا توجد في قواعد الشركات القديمة — كانت تُقرأ بـ to_jsonb(الرأس) (بطيء جداً لآلاف السندات):
+// تُفحص مرة لكل قاعدة وتُقرأ مباشرة، والعمود الغائب قيمة ثابتة
+const headerColumnsByDb = new Map<string, Promise<Set<string>>>()
+async function costHeaderSelect() {
+  const databaseName = await resolveCurrentDbName()
+  let pending = headerColumnsByDb.get(databaseName)
+  if (!pending) {
+    pending = (async () => new Set(((await sql`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'voucher_header_tbl' AND column_name IN ('vat_included','discount_type','discount_value','discount')`) as any[]).map((row) => String(row.column_name))))()
+    pending.catch(() => headerColumnsByDb.delete(databaseName))
+    headerColumnsByDb.set(databaseName, pending)
+  }
+  const has = await pending
+  return [
+    has.has("vat_included") ? "COALESCE(h.vat_included::text::boolean,false)" : "false",
+    has.has("discount_type") ? "h.discount_type::text" : "NULL::text",
+    has.has("discount_value") ? "COALESCE(h.discount_value::numeric,0)" : "0::numeric",
+    has.has("discount") ? "COALESCE(h.discount::numeric,0)" : "0::numeric",
+  ].map((expr, index) => `${expr} AS ${["vat_included", "discount_type", "discount_value", "discount"][index]}`).join(", ")
+}
+
 export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
   const { productIds = [], excludeProductIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
   await ensureLandedCostSchema()
   const initialPriceExpr = (await productsHasInitialPrice()) ? "COALESCE(p.initial_price::numeric,0)" : "0::numeric"
+  const headerSelect = await costHeaderSelect()
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
   const [products, lines, includePurchaseReturns] = await Promise.all([
@@ -74,16 +95,33 @@ export async function getProductBalances(_organizationId: number, toDate: string
       WITH landed AS MATERIALIZED (
         SELECT voucher_item_id, SUM(amount) AS amount FROM landed_cost_lines_v
         WHERE doc_date<=${toDate}::date GROUP BY voucher_item_id
+      ),
+      -- حقول خصم/ضريبة رأس السند ومجموع أسطره تُحسب مرة لكل سند — كانت تُحسب لكل سطر صنف (to_jsonb للرأس لكل سطر
+      -- من أسطر السند) فاستغرق التقرير دقيقة مع ~60 ألف سطر
+      cost_headers AS MATERIALIZED (
+        SELECT h.id, ${sql.unsafe(headerSelect)}
+        FROM voucher_header_tbl h WHERE h.vch_type IN (8,9,10,11,12,13,14,15,16,17,18,19)
+      ),
+      -- معامل الوحدة: أول سطر لكل صنف+وحدة (نفس ORDER BY id LIMIT 1 السابق) مرة واحدة بدل بحث لكل سطر
+      unit_factors AS MATERIALIZED (
+        SELECT DISTINCT ON (product_id, unit_id) product_id, unit_id, to_main_qnty FROM product_units ORDER BY product_id, unit_id, id
+      ),
+      cost_totals AS MATERIALIZED (
+        SELECT line.voucher_id, SUM(COALESCE(line.qnty,0)*COALESCE(line.price,0)
+          / CASE WHEN ch.vat_included THEN NULLIF(1+COALESCE(line.vat_ratio,0)/100,0) ELSE 1 END
+          * (1-COALESCE(line.discount,0)/100)) AS subtotal
+        FROM voucher_items_tbl line JOIN cost_headers ch ON ch.id=line.voucher_id
+        GROUP BY line.voucher_id
       )
       SELECT vi.id,vh.id AS voucher_id,vi.item_id AS product_id,vh.vch_type,vh.vch_date::date::text AS movement_date,
              vh.from_store_id,vh.to_store_id,vi.store_id,
              vi.qnty,vi.bonus,vi.delivery_item_id,COALESCE(NULLIF(pu.to_main_qnty,0),1) AS unit_factor,
              cost_item.qnty AS cost_qnty,cost_item.bonus AS cost_bonus,cost_item.price AS cost_price,
              cost_item.discount AS cost_discount,cost_item.vat_ratio AS cost_vat_ratio,
-             COALESCE((to_jsonb(cost_header)->>'vat_included')::boolean,false) AS cost_vat_included,
-             to_jsonb(cost_header)->>'discount_type' AS cost_discount_type,
-             COALESCE((to_jsonb(cost_header)->>'discount_value')::numeric,0) AS cost_discount_value,
-             COALESCE((to_jsonb(cost_header)->>'discount')::numeric,0) AS cost_header_discount,
+             COALESCE(ch.vat_included,false) AS cost_vat_included,
+             ch.discount_type AS cost_discount_type,
+             COALESCE(ch.discount_value,0) AS cost_discount_value,
+             COALESCE(ch.discount,0) AS cost_header_discount,
              COALESCE(NULLIF(cost_unit.to_main_qnty,0),1) AS cost_unit_factor,
              cost_totals.subtotal AS cost_subtotal,COALESCE(landed.amount,0) AS cost_landed,
              CASE WHEN cost_header.currency_id=p.currency_id THEN 1
@@ -92,10 +130,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
       FROM voucher_items_tbl vi
       JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
       JOIN products p ON p.id=vi.item_id
-      LEFT JOIN LATERAL (
-        SELECT to_main_qnty FROM product_units
-        WHERE product_id=vi.item_id AND unit_id=vi.unit_id ORDER BY id LIMIT 1
-      ) pu ON TRUE
+      LEFT JOIN unit_factors pu ON pu.product_id=vi.item_id AND pu.unit_id=vi.unit_id
       -- A purchase delivery owns the quantity; its posted invoice supplies the
       -- final purchase price, only if that invoice existed by the report date.
       LEFT JOIN LATERAL (
@@ -109,18 +144,10 @@ export async function getProductBalances(_organizationId: number, toDate: string
       ) linked_invoice ON TRUE
       JOIN voucher_items_tbl cost_item ON cost_item.id=COALESCE(linked_invoice.id,vi.id)
       JOIN voucher_header_tbl cost_header ON cost_header.id=cost_item.voucher_id
-      LEFT JOIN LATERAL (
-        SELECT to_main_qnty FROM product_units
-        WHERE product_id=cost_item.item_id AND unit_id=cost_item.unit_id ORDER BY id LIMIT 1
-      ) cost_unit ON TRUE
+      LEFT JOIN unit_factors cost_unit ON cost_unit.product_id=cost_item.item_id AND cost_unit.unit_id=cost_item.unit_id
       LEFT JOIN landed ON landed.voucher_item_id=cost_item.id
-      LEFT JOIN LATERAL (
-        SELECT SUM(COALESCE(line.qnty,0)*COALESCE(line.price,0)
-          / CASE WHEN COALESCE((to_jsonb(cost_header)->>'vat_included')::boolean,false)
-              THEN NULLIF(1+COALESCE(line.vat_ratio,0)/100,0) ELSE 1 END
-          * (1-COALESCE(line.discount,0)/100)) AS subtotal
-        FROM voucher_items_tbl line WHERE line.voucher_id=cost_header.id
-      ) cost_totals ON TRUE
+      LEFT JOIN cost_headers ch ON ch.id=cost_header.id
+      LEFT JOIN cost_totals ON cost_totals.voucher_id=cost_header.id
       LEFT JOIN LATERAL (
         SELECT er.exchange_rate FROM exchange_rates er
         WHERE er.currency_id=p.currency_id AND COALESCE(er.is_active,true)

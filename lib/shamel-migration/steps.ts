@@ -120,6 +120,14 @@ const STEPS: MigrationStep[] = [
     process: (rows, ctx) => defs.processDefaultAccounts(rows, ctx),
   },
   {
+    key: "credit_cards", title: "أنواع البطاقات", group: "definitions", batchSize: 200,
+    sql: () => `select ct."id" as cc_id, ct."Name" as name, ct."ratio" as ratio, ct."Curr" as currency_code, ct."Integwithmachine" as integ_with_machine,
+      ct."machineId" as machine_id, ct."Post_acc" as post_account_code, ct."Com_acc" as com_account_code, ct."Bank" as bank_code,
+      ct."CardType" as card_type, ct."FeeType" as fee_type, ct."Holiday" as holiday, ct."CustomerCode" as customer_code, ct."max_amount_com" as max_amount_com
+      from "CardType" ct order by ct."id"`,
+    process: (rows, ctx) => defs.processCreditCards(rows, ctx),
+  },
+  {
     key: "item_groups", title: "مجموعات الأصناف", group: "definitions", batchSize: 500,
     sql: () => `select ms."M.Stock ID" as code, ms."Father" as father_code, ms."Name" as name, ms."Level" as level_no from "mstock" ms order by ms."Level", ms."M.Stock ID"`,
     process: (rows, ctx) => defs.processItemGroups(rows, ctx),

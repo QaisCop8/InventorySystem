@@ -49,7 +49,9 @@ async function loadSalesLines(filters: ProfitFilters) {
   add(filters.branchIds, "vh.branch_id"); add(filters.customerIds, "vh.account_id"); add(filters.salesmanIds, "vh.salesman_id")
   if (filters.voucherCode) { values.push(filters.voucherCode); where.push(`vh.vch_code = $${values.length}`) }
   const pool = await getTenantPool()
-  return (await pool.query(`
+  // مجموع السند (لتوزيع خصمه) وحقول رأسه الاختيارية تُقرأ باستعلام ثانٍ مرة لكل سند ثم تُدمج — كانت تُحسب لكل سطر بيع
+  // (to_jsonb لكل أسطر السند مع كل سطر) فاستغرق التقرير قرابة دقيقة مع آلاف الفواتير
+  const lines = (await pool.query(`
     SELECT vi.id AS line_id, vh.id AS voucher_id, vh.vch_type, vh.vch_code, vh.vch_date::date::text AS vch_date,
       vi.item_id AS product_id, p.product_code, COALESCE(p.product_name, vi.item_name) AS product_name,
       u.unit_name, COALESCE(g.id, mg.id) AS group_id, COALESCE(NULLIF(g.group_name, ''), mg.group_name) AS group_name,
@@ -61,10 +63,9 @@ async function loadSalesLines(filters: ProfitFilters) {
       COALESCE(vi.vat_ratio, 0) AS vat_ratio, COALESCE(vi.delivery_item_id, 0) AS delivery_item_id,
       COALESCE(NULLIF(pu.to_main_qnty, 0), 1) AS unit_factor,
       COALESCE(NULLIF(vh.rate, 0), 1) AS voucher_rate,
-      COALESCE((to_jsonb(vh)->>'vat_included')::boolean, false) AS vat_included,
-      COALESCE((to_jsonb(vh)->>'vat_percent')::numeric, 0) AS vat_percent,
+
       COALESCE(vh.discount_type, 'percentage') AS discount_type, COALESCE(vh.discount_value, 0) AS discount_value,
-      totals.subtotal, COALESCE(product_rate.exchange_rate, 1) AS product_rate
+      p.currency_id AS product_currency_id
     FROM voucher_items_tbl vi
     JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
     JOIN products p ON p.id = vi.item_id
@@ -77,19 +78,46 @@ async function loadSalesLines(filters: ProfitFilters) {
     LEFT JOIN warehouses w ON w.id = vi.store_id
     LEFT JOIN LATERAL (SELECT to_main_qnty FROM product_units WHERE product_id = vi.item_id AND unit_id = vi.unit_id ORDER BY id LIMIT 1) pu ON TRUE
     -- خصم السند يوزَّع على الأسطر بنسبة صافي كل سطر من مجموع السند كاملاً (لا الأسطر المفلترة فقط).
-    LEFT JOIN LATERAL (
-      SELECT SUM(GREATEST(0, COALESCE(line.qnty, 0) * COALESCE(line.price, 0)
-        * (1 - COALESCE((to_jsonb(line)->>'pos_discount_percent')::numeric, line.discount, 0) / 100)
-        - COALESCE((to_jsonb(line)->>'campaign_discount')::numeric, 0))) AS subtotal
-      FROM voucher_items_tbl line WHERE line.voucher_id = vh.id
-    ) totals ON TRUE
-    LEFT JOIN LATERAL (
-      SELECT er.exchange_rate FROM exchange_rates er
-      WHERE er.currency_id = p.currency_id AND COALESCE(er.is_active, true) AND er.rate_date::date <= vh.vch_date::date
-      ORDER BY er.rate_date DESC, er.id DESC LIMIT 1
-    ) product_rate ON TRUE
     WHERE ${where.join(" AND ")}
     ORDER BY vh.vch_date, vh.id, vi.id`, values)).rows
+  if (!lines.length) return lines
+  const voucherIds = [...new Set(lines.map((line: any) => Number(line.voucher_id)))]
+  const info = (await pool.query(`
+    WITH totals AS (
+      SELECT line.voucher_id, SUM(GREATEST(0, COALESCE(line.qnty, 0) * COALESCE(line.price, 0)
+        * (1 - COALESCE((to_jsonb(line)->>'pos_discount_percent')::numeric, line.discount, 0) / 100)
+        - COALESCE((to_jsonb(line)->>'campaign_discount')::numeric, 0))) AS subtotal
+      FROM voucher_items_tbl line WHERE line.voucher_id = ANY($1::int[])
+      GROUP BY line.voucher_id
+    )
+    SELECT h.id, totals.subtotal,
+      COALESCE((to_jsonb(h)->>'vat_included')::boolean, false) AS vat_included,
+      COALESCE((to_jsonb(h)->>'vat_percent')::numeric, 0) AS vat_percent
+    FROM voucher_header_tbl h LEFT JOIN totals ON totals.voucher_id = h.id
+    WHERE h.id = ANY($1::int[])`, [voucherIds])).rows
+  const byVoucher = new Map(info.map((row: any) => [Number(row.id), row]))
+  // سعر صرف عملة الصنف بتاريخ السند (آخر سعر نشط حتى تاريخه، نفس ORDER BY rate_date DESC, id DESC) — جدول صغير
+  // يُقرأ مرة ويُبحث فيه ثنائياً بدل استعلام فرعي لكل سطر
+  const rateRows = (await pool.query(`SELECT currency_id, rate_date::date::text AS day, exchange_rate FROM exchange_rates
+    WHERE COALESCE(is_active, true) ORDER BY currency_id, rate_date, id`)).rows
+  const ratesByCurrency = new Map<number, { day: string; rate: number }[]>()
+  for (const row of rateRows) {
+    const list = ratesByCurrency.get(Number(row.currency_id)) || []
+    list.push({ day: String(row.day), rate: Number(row.exchange_rate) })
+    ratesByCurrency.set(Number(row.currency_id), list)
+  }
+  const rateOn = (currencyId: number, day: string) => {
+    const list = ratesByCurrency.get(currencyId)
+    if (!list?.length) return 1
+    let low = 0, high = list.length - 1, found = -1
+    while (low <= high) { const mid = (low + high) >> 1; if (list[mid].day <= day) { found = mid; low = mid + 1 } else high = mid - 1 }
+    return found < 0 ? 1 : (list[found].rate || 1)
+  }
+  return lines.map((line: any) => {
+    const row: any = byVoucher.get(Number(line.voucher_id))
+    return { ...line, vat_included: row?.vat_included ?? false, vat_percent: row?.vat_percent ?? 0, subtotal: row?.subtotal ?? null,
+      product_rate: rateOn(Number(line.product_currency_id), String(line.vch_date).slice(0, 10)) }
+  })
 }
 
 /** صافي قيمة السطر بعملة الأساس بعد خصم السطر والحملة وحصته من خصم السند ودون الضريبة. */

@@ -4,6 +4,7 @@ import { NO_EXPIRY_SENTINEL_DATE, applyStockMovement } from "@/app/api/stock-vou
 import { MigrationRun, StepContext, date, insertRow, mapGet, num, text, toCode10 } from "@/lib/shamel-migration/core"
 import { stageRows, voucherBookFor } from "@/lib/shamel-migration/balances"
 import { withYearOpened } from "@/lib/year-end-closing"
+import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
 import { JOURNAL_TYPE_CASH, JOURNAL_TYPE_CHEQUE, PAYMENT_VCH_TYPE, RECEIPT_VCH_TYPE } from "@/app/api/receipts/_lib"
 
 // السندات: بادئة رقم السند بالشامل تحدد نوعه (voucher_types_tbl بالشامل ويب) ⇐ نوعه هنا. يُنقل كل سند مرحّلاً كما هو:
@@ -373,6 +374,7 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
 // إصلاح السندات المرحّلة سابقاً: رقم السند إلى 10 خانات (JG007100 ⇐ JG00007100) إن لم يكن الرقم الجديد مستخدماً،
 // والمبلغ الصفري (سندات القيد) = مجموع المدين بعملة الأساس ÷ سعر السند
 export async function fixMigratedVouchers() {
+  await ensureUsersCurrenciesDefaultTable()
   await sql`
     WITH target AS (
       SELECT h.id, h.vch_type,
