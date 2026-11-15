@@ -99,7 +99,7 @@ function DetailsDialog({ cheque, open, onOpenChange }: { cheque: Cheque | null; 
         {loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : <div className="space-y-2">
           {logs.map(log => {
             const voucherType = Number(log.voucher_type)
-            const voucherLabel = voucherType === 21 ? tr("سند صرف شيكات") : voucherType === 3 ? tr("سند القيد") : tr("السند")
+            const voucherLabel = voucherType === 21 ? tr("سند صرف شيكات") : voucherType === 3 ? tr("سند القيد") : voucherType === 4 ? tr("سند قبض") : voucherType === 5 ? tr("سند صرف") : tr("السند")
             return <div key={log.id} className="rounded-xl border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2"><b>{log.operation_name}</b><span className="text-xs text-muted-foreground" dir="ltr">{String(log.operation_date).slice(0, 16).replace("T", " ")}</span></div>
               <div className="mt-1 text-xs text-muted-foreground">{log.previous_status_name || "—"} <ChevronLeft className="inline h-3 w-3" /> {log.new_status_name || "—"}{log.account_name && ` · ${log.account_code} - ${log.account_name}`}{log.user_name && ` · ${log.user_name}`}</div>

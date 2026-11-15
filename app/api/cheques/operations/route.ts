@@ -111,6 +111,29 @@ export async function GET(request: NextRequest) {
       LEFT JOIN voucher_header_tbl vh ON vh.id=l.voucher_id
       LEFT JOIN user_settings u ON u.user_id=l.user_id
       WHERE l.cheque_id=${chequeId} AND COALESCE(l.status,1)<>9 ORDER BY l.operation_date DESC,l.id DESC`
+    // أول عملية بسجل الشيك = سند القبض/الصرف الذي أدخله (سند المصدر) — أقدم عملية فتُضاف آخر القائمة (الترتيب تنازلي)
+    const origin = (await sql`
+      SELECT vh.id voucher_id,vh.vch_code,vh.vch_type,COALESCE(to_jsonb(vh)->>'insert_date',vh.vch_date::text) operation_date,
+        a.code account_code,a.name account_name,cs.name status_name,
+        COALESCE(NULLIF(u.full_name,''),NULLIF(u.username,''),to_jsonb(vh)->>'insert_user') user_name
+      FROM cheques_tbl c
+      JOIN voucher_header_tbl vh ON vh.id=c.voucher_id
+      LEFT JOIN account_tbl a ON a.id=vh.account_id
+      LEFT JOIN cheque_status_tbl cs ON cs.id=c.status_id
+      LEFT JOIN user_settings u ON u.user_id::text=to_jsonb(vh)->>'insert_user'
+      WHERE c.id=${chequeId}`.catch(() => []))[0] as any
+    if (origin) {
+      const vchType = Number(origin.vch_type)
+      const oldest: any = logs.length ? logs[logs.length - 1] : null
+      logs.push({
+        id: `origin-${origin.voucher_id}`, cheque_id: chequeId, voucher_id: origin.voucher_id, voucher_type: vchType,
+        operation_name: vchType === 4 ? "سند قبض" : vchType === 5 ? "سند صرف" : vchType === 21 ? "سند صرف شيكات" : "السند المصدر",
+        operation_date: origin.operation_date, previous_status_name: null,
+        new_status_name: oldest?.previous_status_name || origin.status_name,
+        account_code: origin.account_code, account_name: origin.account_name, user_name: origin.user_name,
+        journal_voucher_code: origin.vch_code, note: null,
+      } as any)
+    }
     const currentCheque = (await sql`SELECT c.id,c.cheq_type,c.status_id,c.due_date::date::text due_date,cs.name status_name,
       EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9) has_operations,
       CURRENT_DATE::text business_date
