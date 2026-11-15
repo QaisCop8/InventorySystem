@@ -157,27 +157,27 @@ function ChequesReport({ view }: { view: View }) {
                   if (view === "total") {
                     return (
                       <tr key={index} className={special ? "border-t bg-emerald-50/50 font-semibold" : "border-t hover:bg-emerald-50/40"}>
-                        <td className="p-2" dir="ltr">{special ? "" : filters.grouping === "monthly" ? String(row.period).slice(0, 7).split("-").reverse().join("/") : dateText(row.period)}</td>
+                        <td className="p-2 rtl:text-right" dir="ltr">{special ? "" : filters.grouping === "monthly" ? String(row.period).slice(0, 7).split("-").reverse().join("/") : dateText(row.period)}</td>
                         <td className="p-2">{row.label}</td>
-                        <td className="p-2 font-mono" dir="ltr">{row.cheque_in != null ? money(row.cheque_in) : ""}</td>
+                        <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_in != null ? money(row.cheque_in) : ""}</td>
                         <td className="p-2">{row.count_in ?? ""}</td>
-                        <td className="p-2 font-mono" dir="ltr">{row.cheque_out != null ? money(row.cheque_out) : ""}</td>
+                        <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_out != null ? money(row.cheque_out) : ""}</td>
                         <td className="p-2">{row.count_out ?? ""}</td>
-                        <td className="p-2 font-mono" dir="ltr">{money(row.net_balance)}</td>
-                        <td className="p-2 font-mono font-bold" dir="ltr">{money(row.cumulative_balance)}</td>
+                        <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(row.net_balance)}</td>
+                        <td className="p-2 font-mono font-bold rtl:text-right" dir="ltr">{money(row.cumulative_balance)}</td>
                       </tr>
                     )
                   }
                   return special ? (
                     <tr key={index} className="border-t bg-emerald-50/50 font-semibold">
                       <td className="p-2" colSpan={8}>{row.label}</td>
-                      <td className="p-2 font-mono" dir="ltr">{row.cheque_in != null ? money(row.cheque_in) : ""}</td>
-                      <td className="p-2 font-mono" dir="ltr">{row.cheque_out != null ? money(row.cheque_out) : ""}</td>
-                      <td className="p-2 font-mono font-bold" dir="ltr">{money(row.cumulative_balance)}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_in != null ? money(row.cheque_in) : ""}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{row.cheque_out != null ? money(row.cheque_out) : ""}</td>
+                      <td className="p-2 font-mono font-bold rtl:text-right" dir="ltr">{money(row.cumulative_balance)}</td>
                     </tr>
                   ) : (
                     <tr key={index} className="border-t hover:bg-emerald-50/40">
-                      <td className="p-2" dir="ltr">{dateText(row.due_date)}</td>
+                      <td className="p-2 rtl:text-right" dir="ltr">{dateText(row.due_date)}</td>
                       <td className="p-2">{row.label}</td>
                       <td className="p-2 font-mono font-semibold">{row.cheq_num}</td>
                       <td className="p-2">{[row.account_code, row.account_name].filter(Boolean).join(" - ")}</td>
@@ -185,9 +185,9 @@ function ChequesReport({ view }: { view: View }) {
                       <td className="p-2">{row.status_name}</td>
                       <td className="p-2 font-mono">{row.vch_code}</td>
                       <td className="p-2">{row.branch_name}</td>
-                      <td className="p-2 font-mono text-emerald-700" dir="ltr">{row.cheque_in ? money(row.cheque_in) : ""}</td>
-                      <td className="p-2 font-mono text-rose-700" dir="ltr">{row.cheque_out ? money(row.cheque_out) : ""}</td>
-                      <td className="p-2 font-mono font-bold" dir="ltr">{money(row.cumulative_balance)}</td>
+                      <td className="p-2 font-mono text-emerald-700 rtl:text-right" dir="ltr">{row.cheque_in ? money(row.cheque_in) : ""}</td>
+                      <td className="p-2 font-mono text-rose-700 rtl:text-right" dir="ltr">{row.cheque_out ? money(row.cheque_out) : ""}</td>
+                      <td className="p-2 font-mono font-bold rtl:text-right" dir="ltr">{money(row.cumulative_balance)}</td>
                     </tr>
                   )
                 })}
@@ -198,17 +198,17 @@ function ChequesReport({ view }: { view: View }) {
                   {view === "total" ? (
                     <tr>
                       <td className="p-2" colSpan={2}>{tr("الإجمالي")}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(totalIn)}</td><td className="p-2">{countIn}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(totalOut)}</td><td className="p-2">{countOut}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(totalIn - totalOut)}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(closing)}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalIn)}</td><td className="p-2">{countIn}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalOut)}</td><td className="p-2">{countOut}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalIn - totalOut)}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(closing)}</td>
                     </tr>
                   ) : (
                     <tr>
                       <td className="p-2" colSpan={8}>{tr("الإجمالي (")}{body.length}{tr(" شيك)")}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(totalIn)}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(totalOut)}</td>
-                      <td className="p-2 font-mono" dir="ltr">{money(closing)}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalIn)}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(totalOut)}</td>
+                      <td className="p-2 font-mono rtl:text-right" dir="ltr">{money(closing)}</td>
                     </tr>
                   )}
                 </tfoot>

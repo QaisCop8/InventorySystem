@@ -15,7 +15,7 @@ import UnifiedSalesOrder from "./unified-sales-order"
 import { DraftOrderForm } from "@/components/order-drafts/draft-order-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchButton } from "@/components/search/search-button"
-import { VoucherListTable, VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
+import { VoucherListTable, VoucherSearchButton, listToday, listYearStart, searchOnEnter } from "@/components/common/voucher-list-table"
 import {
   Plus,
   Search,
@@ -146,8 +146,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       status: "0",
       financial_status: "0",
       salesman: "all",
-      dateFrom: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-      dateTo: new Date().toISOString().split("T")[0],
+      dateFrom: listYearStart(),
+      dateTo: listToday(),
       customer: "all",
       workflow_status: "0",
       order_source: "0",
@@ -258,10 +258,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       .toISOString()
       .split("T")[0];
 
-    setState((prev) => ({
-      ...prev,
-      filters: { ...prev.filters, dateFrom: firstDate },
-    }))
+    // الفترة الافتراضية من 1/1 للسنة الحالية حتى اليوم (كانت تُستبدل بتاريخ أقدم طلبية)
+    void firstDate
   }, [state.salesOrders]);
 
 
@@ -502,8 +500,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         status: "0",
         financial_status: "0",
         salesman: "all",
-        dateFrom: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
-        dateTo: new Date().toISOString().split("T")[0],
+        dateFrom: listYearStart(),
+        dateTo: listToday(),
         customer: "all",
         workflow_status: "0",
         order_source: "0",

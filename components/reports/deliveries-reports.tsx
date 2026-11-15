@@ -155,7 +155,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
       <tbody>
         {rows.map((row) => (
           <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-            <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
+            <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
             <td className="px-3 py-2.5 text-xs">{row.type_name}</td>
             <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
             <td className="px-3 py-2.5 font-semibold">{row.customer_name || "—"}</td>
@@ -183,7 +183,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
       <tbody>
         {rows.map((row) => (
           <tr key={row.id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-            <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
+            <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
             <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
             <td className="px-3 py-2.5 font-semibold">{row.from_store || "—"}</td>
             <td className="px-3 py-2.5 font-semibold">{row.to_store || "—"}</td>
@@ -217,7 +217,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
           {rows.map((row) => (
             <Fragment key={row.id}>
               <tr className={`cursor-pointer border-b hover:bg-teal-50/60 ${Number(row.vch_type) === 15 ? "text-rose-700" : ""} ${row.details?.length ? "bg-slate-50 font-semibold" : ""}`} onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-                <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
+                <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
                 <td className="px-3 py-2.5 text-xs">{row.type_name}</td>
                 <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
                 <td className="px-3 py-2.5 font-mono text-xs">{row.account_code || "—"}</td>
@@ -232,7 +232,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
                   <td colSpan={3} />
                   <td className="px-3 py-2 font-mono">{line.product_code}</td>
                   <td className="px-3 py-2">{line.item_name} <span className="text-slate-400">({line.unit_name || tr("وحدة")})</span></td>
-                  <td className="px-3 py-2" dir="ltr">{qty(line.quantity)}{line.bonus ? ` + ${qty(line.bonus)}` : ""} × {fmt(line.price)}</td>
+                  <td className="px-3 py-2 rtl:text-right" dir="ltr">{qty(line.quantity)}{line.bonus ? ` + ${qty(line.bonus)}` : ""} × {fmt(line.price)}</td>
                   <td className={num} dir="ltr">{fmt(line.line_amount)}</td>
                   <td className="px-3 py-2">{line.discount ? tr("خصم {0}%", line.discount) : ""}</td>
                   <td />

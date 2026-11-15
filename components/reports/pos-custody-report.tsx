@@ -130,8 +130,8 @@ export default function PosCustodyReport() {
                         <td className="p-2 font-mono">#{row.id}</td>
                         <td className="p-2">{row.point_name}</td>
                         <td className="p-2">{row.user_name}</td>
-                        <td className="p-2 font-mono text-xs" dir="ltr">{when(row.opened_at)}</td>
-                        <td className="p-2 font-mono text-xs" dir="ltr">{when(row.closed_at)}</td>
+                        <td className="p-2 font-mono text-xs rtl:text-right" dir="ltr">{when(row.opened_at)}</td>
+                        <td className="p-2 font-mono text-xs rtl:text-right" dir="ltr">{when(row.closed_at)}</td>
                         <td className="p-2 text-center"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_TONE[row.status] || "bg-slate-100"}`}>{STATUS_LABEL[row.status] || row.status}</span></td>
                         <td className="p-2 text-end font-mono" dir="ltr">{money(row.opening_cash)}</td>
                         <td className="p-2 text-end font-mono" dir="ltr">{money(row.net_sales)}</td>

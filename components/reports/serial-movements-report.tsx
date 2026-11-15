@@ -214,7 +214,7 @@ export function SerialMovementsReport() {
                   <tr key={row.id} className="cursor-pointer border-t hover:bg-emerald-50/40" onDoubleClick={() => void showMovements(row)}>
                     <td className="p-4 font-mono text-xs text-slate-600">{row.product_code}</td>
                     <td className="p-4 font-semibold">{row.product_name}</td>
-                    <td className="p-4 font-mono font-bold text-emerald-700" dir="ltr">
+                    <td className="p-4 font-mono font-bold text-emerald-700 rtl:text-right" dir="ltr">
                       {row.serial}
                     </td>
                     <td className="p-4">
@@ -237,7 +237,7 @@ export function SerialMovementsReport() {
                         "-"
                       )}
                     </td>
-                    <td className="p-4 whitespace-nowrap font-mono" dir="ltr">
+                    <td className="p-4 whitespace-nowrap font-mono rtl:text-right" dir="ltr">
                       {dateOnly(row.last_vch_date)}
                     </td>
                     <td className="p-4 text-center">
@@ -328,7 +328,7 @@ export function SerialMovementsReport() {
                               {movement.vch_code}
                             </button>
                           </td>
-                          <td className="p-3 whitespace-nowrap font-mono" dir="ltr">
+                          <td className="p-3 whitespace-nowrap font-mono rtl:text-right" dir="ltr">
                             {dateOnly(movement.vch_date)}
                           </td>
                           <td className="p-3">

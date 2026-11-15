@@ -1,6 +1,7 @@
 import type { MigrationRun, StepContext } from "@/lib/shamel-migration/core"
 import * as defs from "@/lib/shamel-migration/definitions"
 import { processAccountBalances, processStockBalances } from "@/lib/shamel-migration/balances"
+import { ordersSql, processOrders, runOrderPrefixes } from "@/lib/shamel-migration/orders"
 import { previousChequesSql, processPreviousCheques } from "@/lib/shamel-migration/cheques"
 import { SHAMEL_VOUCHER_TYPES, processVoucherItems, processVoucherLines, voucherItemsSql, voucherLinesSql } from "@/lib/shamel-migration/vouchers"
 
@@ -179,6 +180,11 @@ const STEPS: MigrationStep[] = [
     process: (rows, ctx, last) => processStockBalances(rows, ctx, last),
   },
   {
+    key: "orders", title: "الطلبيات (المبيعات والمشتريات)", group: "vouchers", batchSize: 1500,
+    sql: (run) => ordersSql(run),
+    process: (rows, ctx, last) => processOrders(rows, ctx, last),
+  },
+  {
     key: "voucher_items", title: "أسطر أصناف السندات (قراءة)", group: "vouchers", batchSize: 2000,
     sql: (run) => voucherItemsSql(run),
     process: (rows, ctx) => processVoucherItems(rows, ctx),
@@ -190,9 +196,14 @@ const STEPS: MigrationStep[] = [
   },
 ]
 
+const hasVoucherSteps = (run: MigrationRun) => run.voucher_types.some((prefix) => !runOrderPrefixes(run).includes(prefix))
+const stepApplies = (step: MigrationStep, run: MigrationRun) =>
+  step.key === "orders" ? runOrderPrefixes(run).length > 0 : step.group !== "vouchers" || hasVoucherSteps(run)
+
 export function stepsForRun(run: MigrationRun): MigrationStep[] {
-  if (run.mode === "transactions") return STEPS.filter((step) => step.group === "vouchers")
-  return STEPS.filter((step) => step.group !== "vouchers" || (run.mode === "full" && run.voucher_types.length > 0))
+  if (run.mode === "transactions") return STEPS.filter((step) => step.group === "vouchers" && stepApplies(step, run))
+  if (run.mode !== "full") return STEPS.filter((step) => step.group !== "vouchers")
+  return STEPS.filter((step) => stepApplies(step, run))
 }
 
 export const findStep = (key: string) => STEPS.find((step) => step.key === key) || null

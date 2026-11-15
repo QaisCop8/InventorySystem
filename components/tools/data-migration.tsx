@@ -21,7 +21,7 @@ type Run = {
 }
 type Mode = "definitions" | "full" | "transactions"
 const MODE_TITLES: Record<Mode, string> = { definitions: "التعريفات فقط", full: "التعريفات والسندات", transactions: "السندات فقط" }
-type VoucherType = { prefix: string; title: string; kind: "sales" | "stock" | "finance" }
+type VoucherType = { prefix: string; title: string; kind: "sales" | "stock" | "finance" | "orders" }
 type LogRow = { id: number; step: string; level: string; ref: string | null; message: string; created_at: string }
 type SummaryRow = { step: string; level: string; message: string; count: number; sample_ref: string | null }
 
@@ -31,7 +31,7 @@ const STEP_TITLES: Record<string, string> = {
   lookups: "القوائم المساعدة", currencies: "العملات", rates: "أسعار الصرف", stores: "المستودعات", cost_centers: "مراكز التكلفة",
   accounts: "دليل الحسابات", salesmen: "المندوبون", customers: "العملاء والموردون", banks: "البنوك", bank_branches: "فروع البنوك",
   bank_accounts: "الحسابات البنكية", default_accounts: "الحسابات الافتراضية", credit_cards: "أنواع البطاقات", item_groups: "مجموعات الأصناف", items: "الأصناف", item_barcodes: "باركودات الوحدات",
-  account_balances: "الأرصدة الافتتاحية", prev_cheques: "شيكات السنوات السابقة", stock_balances: "كميات أول المدة", voucher_items: "أسطر أصناف السندات", vouchers: "السندات",
+  account_balances: "الأرصدة الافتتاحية", prev_cheques: "شيكات السنوات السابقة", stock_balances: "كميات أول المدة", orders: "الطلبيات", voucher_items: "أسطر أصناف السندات", vouchers: "السندات",
 }
 const STATUS: Record<string, { label: string; className: string }> = {
   pending: { label: "بانتظار تشغيل المعالج", className: "bg-amber-100 text-amber-800" },
@@ -40,7 +40,7 @@ const STATUS: Record<string, { label: string; className: string }> = {
   failed: { label: "توقف", className: "bg-red-100 text-red-800" },
   cancelled: { label: "ملغى", className: "bg-muted text-muted-foreground" },
 }
-const KIND_TITLES: Record<VoucherType["kind"], string> = { sales: "المبيعات والمشتريات", stock: "حركات المخزون", finance: "السندات المالية والقيود" }
+const KIND_TITLES: Record<VoucherType["kind"], string> = { sales: "المبيعات والمشتريات", stock: "حركات المخزون", finance: "السندات المالية والقيود", orders: "الطلبيات (تُربط بها الفواتير والإرساليات)" }
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
 const today = () => new Date().toISOString().slice(0, 10)
 const formatTime = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "—")
@@ -149,7 +149,7 @@ export default function DataMigration() {
     }
   }, [current])
 
-  const kinds = (["finance", "sales", "stock"] as const).map((kind) => ({ kind, types: voucherTypes.filter((type) => type.kind === kind) }))
+  const kinds = (["finance", "sales", "stock", "orders"] as const).map((kind) => ({ kind, types: voucherTypes.filter((type) => type.kind === kind) }))
 
   return (
     <div className="space-y-5 p-4" dir={appDir()}>

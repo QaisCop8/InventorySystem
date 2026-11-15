@@ -6,6 +6,7 @@ import { newPortalSecret, portalToken, sha256Hex } from "@/lib/customer-portal"
 import { ensureShamelMigrationResetColumns } from "@/lib/shamel-migration/core"
 import { SHAMEL_VOUCHER_TYPES, cleanVoucherTypes, fixMigratedVouchers } from "@/lib/shamel-migration/vouchers"
 import { runSchemaOnce } from "@/lib/schema-once"
+import { SHAMEL_ORDER_TYPES } from "@/lib/shamel-migration/orders"
 
 // شاشة «ترحيل من الشامل» (مسؤول النظام فقط): إنشاء رمز تشغيل لمعالج الترحيل، متابعة التقدم، وسجل الأخطاء.
 
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     const countByRun = new Map(counts.map((row: any) => [Number(row.run_id), row]))
     return NextResponse.json({
       runs: runs.map((run: any) => ({ ...run, errors: Number((countByRun.get(Number(run.id)) as any)?.errors || 0), warnings: Number((countByRun.get(Number(run.id)) as any)?.warnings || 0) })),
-      voucherTypes: SHAMEL_VOUCHER_TYPES.map(({ prefix, title, kind }) => ({ prefix, title, kind })),
+      voucherTypes: [...SHAMEL_VOUCHER_TYPES.map(({ prefix, title, kind }) => ({ prefix, title, kind })), ...SHAMEL_ORDER_TYPES],
     })
   } catch (error) {
     console.error("shamel migration GET failed:", error)

@@ -119,7 +119,7 @@ export default function ReportAuditReport() {
             <th className="p-3 text-start">{tr("العملية")}</th><th className="p-3 text-start">{tr("الفلاتر")}</th><th className="p-3 text-start">{tr("الفرع")}</th><th className="p-3 text-start">{tr("إرسال إلى")}</th>
           </tr></thead>
           <tbody>{rows.map(row => <tr key={row.id} className="border-t align-top hover:bg-teal-50/40">
-            <td className="p-3 whitespace-nowrap font-mono" dir="ltr">{dateTime(row.created_at)}</td>
+            <td className="p-3 whitespace-nowrap font-mono rtl:text-right" dir="ltr">{dateTime(row.created_at)}</td>
             <td className="p-3">{row.user_name || row.user_id || "-"}</td>
             <td className="p-3 font-semibold">{row.report_title || row.report_key || "-"}</td>
             <td className="p-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${ACTION_TONES[row.action] || ""}`}>{ACTION_LABELS[row.action] || row.action}</span></td>

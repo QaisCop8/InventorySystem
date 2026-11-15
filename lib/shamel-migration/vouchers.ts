@@ -1,10 +1,12 @@
 import sql, { withTenantTransaction } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 import { INTERNAL_VOUCHER, getBaseCurrencyId, getRateByDate, JOURNAL_LINE_TYPE } from "@/lib/auto-journals"
 import { NO_EXPIRY_SENTINEL_DATE, applyStockMovement } from "@/app/api/stock-vouchers/_lib"
-import { MigrationRun, StepContext, date, insertRow, mapGet, num, text, toCode10 } from "@/lib/shamel-migration/core"
+import { MigrationRun, StepContext, date, insertRow, mapGet, mapSet, num, text, toCode10 } from "@/lib/shamel-migration/core"
 import { stageRows, voucherBookFor } from "@/lib/shamel-migration/balances"
 import { withYearOpened } from "@/lib/year-end-closing"
 import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
+import { SHAMEL_ORDER_TYPES } from "@/lib/shamel-migration/orders"
 import { JOURNAL_TYPE_CASH, JOURNAL_TYPE_CHEQUE, PAYMENT_VCH_TYPE, RECEIPT_VCH_TYPE } from "@/app/api/receipts/_lib"
 
 // السندات: بادئة رقم السند بالشامل تحدد نوعه (voucher_types_tbl بالشامل ويب) ⇐ نوعه هنا. يُنقل كل سند مرحّلاً كما هو:
@@ -38,18 +40,20 @@ const typeByPrefix = new Map(SHAMEL_VOUCHER_TYPES.map((type) => [type.prefix, ty
 
 /** أنواع التشغيل بعد التنقية — حروف بادئة معروفة فقط (تدخل نص الاستعلام) */
 export const cleanVoucherTypes = (types: unknown): string[] =>
-  (Array.isArray(types) ? types : []).map((value) => text(value).toUpperCase()).filter((prefix) => typeByPrefix.has(prefix))
+  (Array.isArray(types) ? types : []).map((value) => text(value).toUpperCase()).filter((prefix) => typeByPrefix.has(prefix) || SHAMEL_ORDER_TYPES.some((type) => type.prefix === prefix))
 
 const prefixFilter = (run: MigrationRun, column: string) => {
-  const prefixes = cleanVoucherTypes(run.voucher_types)
+  // بادئات الطلبيات (O/T) ليست سندات cpage — خطوة الطلبيات المستقلة (orders.ts)
+  const prefixes = cleanVoucherTypes(run.voucher_types).filter((prefix) => typeByPrefix.has(prefix))
   return prefixes.length ? `left(${column},1) in (${prefixes.map((prefix) => `'${prefix}'`).join(",")})` : "1=0"
 }
 
 export const voucherItemsSql = (run: MigrationRun) => `select st."Voucher ID" as vch_code, st."Pos" as pos, st."SCode" as item_code, st."UnitNum" as unit_pos,
   st."Store" as store, st."Qnty" as qnty, st."Price" as price, st."Bonus" as bonus, st."Discount" as discount, st."Vat" as vat,
-  st."Note" as note, st."Del Code" as delivery_code,
+  st."Note" as note, st."Del Code" as delivery_code, st."Stat" as strans_status, sp."Stat" as spage_status,
   case when st."Expiry date">'1990-01-01' then st."Expiry date" else '1990-01-01' end as expiry_date
-  from "strans" st where st."Pos">=0 and ${prefixFilter(run, `st."Voucher ID"`)} order by st."Voucher ID", st."Pos"`
+  from "strans" st left join "spage" sp on sp."Voucher ID"=st."Voucher ID"
+  where st."Pos">=0 and ${prefixFilter(run, `st."Voucher ID"`)} order by st."Voucher ID", st."Pos"`
 
 export const voucherLinesSql = (run: MigrationRun) => `select cp."VoucherID" as vch_code, cp."Date" as vch_date, cp."CS_code" as customer_code, cp."Name" as customer_name,
   cp."Curr" as currency_code, cp."Rate" as rate, cp."Balance" as amount, cp."SMan" as salesman_code, cp."ManualVch" as manual_vch, cp."Note" as note, cp."Printed" as printed, cp."Intern" as internal_status,
@@ -150,6 +154,84 @@ async function rateOn(lookups: BatchLookups, currency: number, day: string) {
 
 const currencyOf = (lookups: BatchLookups, code: unknown) => lookups.currencies.get(text(code).toUpperCase()) ?? null
 
+// ربط الأسطر بمصدرها (نفس MigrateLinkVouchersF بالشامل API): spage.Stat حالة الصفحة — 11/14/15 فاتورة من إرسالية
+// (مبيعات/مشتريات/إرسالية سيارة)، 12/13/21/22 فاتورة أو إرسالية من طلبية. strans."Del Code" رقم المصدر و strans.Stat
+// موقع السطر فيه (≥ 1000 = غير مرتبط). المصدر قد يُرحَّل بعد الفاتورة (ترتيب الأرقام) فيُحفظ الرابط ويُحلّ بنهاية الترحيل.
+const DELIVERY_SOURCED = new Set([11, 14, 15])
+const ORDER_SOURCED = new Set([12, 13, 21, 22])
+/** سندات تكون مصدراً لأسطر فواتير: إرساليات المبيعات/برسم البيع/المشتريات */
+const LINK_SOURCE_TYPES = new Set([13, 14, 18])
+type ItemLink = { kind: "delivery" | "order"; code: string; pos: number }
+function linkOf(row: Row): ItemLink | null {
+  const code = text(row.delivery_code)
+  const pos = num(row.strans_status)
+  if (!code || pos < 0 || pos >= 1000) return null
+  const status = num(row.spage_status)
+  if (DELIVERY_SOURCED.has(status)) return { kind: "delivery", code, pos }
+  if (ORDER_SOURCED.has(status)) return { kind: "order", code, pos }
+  return null
+}
+
+export const ensureShamelLinkTables = () => runSchemaOnce("lib/shamel-migration/vouchers.ts#ensureShamelLinkTables", async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS shamel_migration_links (
+      item_id INTEGER PRIMARY KEY,
+      link_kind VARCHAR(10) NOT NULL,
+      src_code VARCHAR(40) NOT NULL,
+      src_pos INTEGER NOT NULL
+    )`
+})
+
+/** يحفظ روابط أسطر السند (للحل لاحقاً) وخريطة أسطر الإرساليات (موقع السطر بالشامل ⇐ رقم السطر هنا) */
+async function recordItemLinks(shamelCode: string, vchType: number, meta: { row: Row; link: ItemLink | null }[], ids: number[]) {
+  if (!ids.length) return
+  await ensureShamelLinkTables()
+  const links = meta.map((entry, index) => ({ ...entry, id: ids[index] })).filter((entry) => entry.link && entry.id)
+  if (links.length) {
+    await sql`
+      INSERT INTO shamel_migration_links (item_id, link_kind, src_code, src_pos)
+      SELECT * FROM unnest(${links.map((entry) => entry.id)}::int[], ${links.map((entry) => entry.link!.kind)}::text[],
+        ${links.map((entry) => entry.link!.code)}::text[], ${links.map((entry) => entry.link!.pos)}::int[])
+      ON CONFLICT (item_id) DO NOTHING`
+  }
+  if (LINK_SOURCE_TYPES.has(vchType)) {
+    const keys = meta.map((entry) => `${shamelCode}|${num(entry.row.pos)}`)
+    await sql`
+      INSERT INTO shamel_migration_map (kind, shamel_key, web_id)
+      SELECT 'voucher_item', k, id FROM unnest(${keys}::text[], ${ids}::int[]) AS s(k, id)
+      ON CONFLICT (kind, shamel_key) DO UPDATE SET web_id = EXCLUDED.web_id`
+  }
+}
+
+/**
+ * يحل روابط الأسطر المعلّقة: سطر فاتورة ⇐ سطر إرساليته (delivery_item_id) أو سطر طلبيته (order_item_id)، ثم تُحدَّث
+ * حالة تنفيذ الطلبيات المرتبطة. يُستدعى بنهاية كل ترحيل (والرابط الذي لم يُرحَّل مصدره بعد يبقى لترحيل لاحق).
+ */
+export async function resolveMigratedLinks() {
+  await ensureShamelLinkTables()
+  const delivered = await sql`
+    UPDATE voucher_items_tbl vi SET delivery_item_id = m.web_id
+    FROM shamel_migration_links l
+    JOIN shamel_migration_map m ON m.kind = 'voucher_item' AND m.shamel_key = l.src_code || '|' || l.src_pos
+    WHERE l.link_kind = 'delivery' AND vi.id = l.item_id
+    RETURNING vi.id` as any[]
+  const ordered = await sql`
+    UPDATE voucher_items_tbl vi SET order_item_id = m.web_id
+    FROM shamel_migration_links l
+    JOIN shamel_migration_map m ON m.kind = 'order_item' AND m.shamel_key = l.src_code || '|' || l.src_pos
+    WHERE l.link_kind = 'order' AND vi.id = l.item_id
+    RETURNING vi.id, vi.order_item_id` as any[]
+  const done = [...delivered, ...ordered].map((row) => Number(row.id))
+  if (done.length) await sql`DELETE FROM shamel_migration_links WHERE item_id = ANY(${done}::int[])`
+  const orderItemIds = [...new Set(ordered.map((row) => Number(row.order_item_id)))]
+  if (orderItemIds.length) {
+    const orderIds = ((await sql`SELECT DISTINCT order_id FROM order_items WHERE id = ANY(${orderItemIds}::int[])`) as any[]).map((row) => Number(row.order_id))
+    const { refreshSalesOrderFulfillment } = await import("@/app/api/sales-vouchers/_lib")
+    await refreshSalesOrderFulfillment(orderIds)
+  }
+  return { delivery: delivered.length, order: ordered.length }
+}
+
 /** INSERT متعدد الأسطر بأمر واحد */
 async function insertMany(table: string, columns: string[], rows: unknown[][], returning = "") {
   if (!rows.length) return [] as any[]
@@ -188,6 +270,7 @@ export async function processVoucherLines(rows: Row[], ctx: StepContext, last: b
     if (existing.has(code)) ctx.stats.skipped++
     else pending.set(code, groups.get(code)!)
   }
+  await repairExistingVouchers(existing, groups, ctx)
   if (pending.size) {
     const items = await stagedItems(ctx.run.id, [...pending.keys()])
     const lookups = await loadLookups(pending, items)
@@ -224,6 +307,48 @@ export async function processVoucherLines(rows: Row[], ctx: StepContext, last: b
     }
   }
   if (last) await sql`DELETE FROM shamel_migration_stage WHERE run_id = ${ctx.run.id} AND step IN ('voucher_items', 'vouchers_carry')`.catch(() => undefined)
+}
+
+// سند رُحِّل قبل ربط الأسطر: يُسجَّل ربط أسطره وخريطة أسطر الإرساليات، ويُضاف إخراج المخزون لأسطر فواتير الطلبيات
+// الذي لم يُسجَّل حينها — مرة واحدة لكل سند (map voucher_relinked). الأسطر المرحّلة تطابق أسطر الشامل بالترتيب نفسه
+// (نفس شروط التجاوز: صنف غير موجود أو كمية صفر).
+async function repairExistingVouchers(existing: Map<string, number>, groups: Map<string, Row[]>, ctx: StepContext) {
+  if (!existing.size) return
+  const done = await mapGet("voucher_relinked", [...existing.keys()])
+  const todo = [...existing.keys()].filter((code) => !done.has(code))
+  if (!todo.length) return
+  const items = await stagedItems(ctx.run.id, todo)
+  const itemIds = await mapGet("item", [...items.values()].flat().map((row) => text(row.item_code)))
+  const stores = await mapGet("store", [...items.values()].flat().map((row) => String(num(row.store))))
+  for (const code of todo) {
+    const type = typeByPrefix.get(code.charAt(0).toUpperCase())
+    const voucherId = existing.get(code)!
+    try {
+      await withTenantTransaction(async () => {
+        if (type && type.kind !== "finance") {
+          const rows = (items.get(code) || []).filter((row) => itemIds.get(text(row.item_code)) && Math.abs(num(row.qnty)) > 0)
+          const saved = ((await sql`SELECT id FROM voucher_items_tbl WHERE voucher_id = ${voucherId} ORDER BY id`) as any[]).map((row) => Number(row.id))
+          if (rows.length === saved.length) {
+            const meta = rows.map((row) => ({ row, link: linkOf(row) }))
+            await recordItemLinks(code, type.vchType, meta, saved)
+            const header = (await sql`SELECT status, to_store_id FROM voucher_header_tbl WHERE id = ${voucherId}`)[0] as any
+            const missed = meta.filter((entry) => text(entry.row.delivery_code) && entry.link?.kind !== "delivery")
+              .map((entry) => ({ product_id: itemIds.get(text(entry.row.item_code))!, quantity: Math.abs(num(entry.row.qnty)) + num(entry.row.bonus), store_id: stores.get(String(num(entry.row.store))) ?? null }))
+            if (missed.length && type.stock && type.stock !== "transfer" && Number(header?.status) !== 3) {
+              await applyStockMovement(missed, type.stock, voucherId, null, 1, type.kind === "sales" ? "sales_voucher" : "stock_voucher")
+              ctx.info(`${code}: أُضيفت حركة مخزون ${missed.length} سطر من طلبية`)
+            }
+          } else if (rows.length) {
+            ctx.warn(code, `تعذر ربط أسطر السند المرحّل سابقاً: ${saved.length} سطر مقابل ${rows.length} بالشامل`)
+          }
+        }
+        await mapSet("voucher_relinked", code, voucherId)
+      })
+      ctx.stats.updated++
+    } catch (error) {
+      ctx.error(code, error instanceof Error ? error.message : String(error))
+    }
+  }
 }
 
 // سند قبض/صرف: شاشة السند تعرض طرف الدفع (مدين القبض / دائن الصرف) كحقول نقدي/شيكات وليس كأسطر «الحسابات» —
@@ -337,6 +462,7 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
   if (itemRows.length && type.kind !== "finance") {
     const moving: { product_id: number; quantity: number; store_id: number | null }[] = []
     const itemValues: unknown[][] = []
+    const itemMeta: { row: Row; link: ItemLink | null }[] = []
     for (const row of itemRows) {
       const productId = lookups.items.get(text(row.item_code))
       // أصل ثابت (نوع 7 بالشامل) أو صنف محذوف: القيد يُرحَّل كما هو بلا سطر الصنف
@@ -350,14 +476,19 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
         num(row.vat), num(row.price), text(row.note).slice(0, 200), 0, "",
         lookups.hasExpiry.get(productId) ? date(row.expiry_date) : NO_EXPIRY_SENTINEL_DATE, storeId,
       ])
-      // سطر فاتورة منقول من إرسالية: البضاعة تحركت مع الإرسالية نفسها
-      if (!text(row.delivery_code)) moving.push({ product_id: productId, quantity: qty + bonus, store_id: storeId })
+      // سطر فاتورة منقول من إرسالية: البضاعة تحركت مع الإرسالية نفسها. سطر من طلبية يُخرج البضاعة (كان يُتجاوز لأن
+      // "Del Code" فيه رقم الطلبية — فبقيت كميات فواتير الطلبيات بالمخزون)
+      const link = linkOf(row)
+      itemMeta.push({ row, link })
+      if (link?.kind !== "delivery") moving.push({ product_id: productId, quantity: qty + bonus, store_id: storeId })
     }
-    await insertMany(
+    const insertedItems = await insertMany(
       "voucher_items_tbl",
       ["voucher_id", "item_id", "item_name", "unit_id", "qnty", "bonus", "discount", "vat_amount", "price", "note", "cost_price", "barcode", "expiry_date", "store_id"],
       itemValues,
+      "id",
     )
+    await recordItemLinks(code, type.vchType, itemMeta, insertedItems.map((row) => Number(row.id)))
     if (!cancelled) {
       const referenceType = type.kind === "sales" ? "sales_voucher" : "stock_voucher"
       if (type.stock === "transfer") {

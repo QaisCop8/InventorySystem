@@ -8,9 +8,19 @@ import { cn } from "@/lib/utils"
 
 // بحث قوائم السندات: الحقول تُعدِّل مسودة فقط، وزر «بحث» (أو Enter داخل الحقول) يعيد جلب القائمة من الخادم
 // ثم يطبّق المسودة — مع حالة تحميل تُعرض في الجدول («جاري تحميل البيانات...»).
+const localDay = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+/** افتراضي فترة قوائم السندات: من 1/1 للسنة الحالية حتى اليوم (بالتوقيت المحلي — toISOString كان يعطي 31/12 للسنة السابقة) */
+export const listYearStart = () => `${new Date().getFullYear()}-01-01`
+export const listToday = () => localDay(new Date())
+const withDefaultPeriod = <F extends Record<string, string>>(initial: F): F => ({
+  ...initial,
+  ...("dateFrom" in initial && !initial.dateFrom ? { dateFrom: listYearStart() } : {}),
+  ...("dateTo" in initial && !initial.dateTo ? { dateTo: listToday() } : {}),
+})
+
 export function useVoucherListSearch<F extends Record<string, string>>(initial: F) {
-  const [draft, setDraft] = useState<F>(initial)
-  const [filters, setFilters] = useState<F>(initial)
+  const [draft, setDraft] = useState<F>(() => withDefaultPeriod(initial))
+  const [filters, setFilters] = useState<F>(() => withDefaultPeriod(initial))
   const [loading, setLoading] = useState(false)
   const load = useCallback(async (fetchList: () => Promise<unknown>, apply?: F) => {
     setLoading(true)

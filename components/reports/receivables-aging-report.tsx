@@ -304,9 +304,9 @@ export function ReceivablesAgingReport() {
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-slate-600">{row.salesman_name || "—"}</td>
-                  <td className="px-3 py-2.5 font-black tabular-nums" dir="ltr">{money.format(row.balance)}</td>
-                  {showCheques && <td className="px-3 py-2.5 tabular-nums text-slate-600" dir="ltr">{money.format(row.cheques)}</td>}
-                  {showCheques && <td className="px-3 py-2.5 font-bold tabular-nums" dir="ltr">{money.format(row.aging_balance)}</td>}
+                  <td className="px-3 py-2.5 font-black tabular-nums rtl:text-right" dir="ltr">{money.format(row.balance)}</td>
+                  {showCheques && <td className="px-3 py-2.5 tabular-nums text-slate-600 rtl:text-right" dir="ltr">{money.format(row.cheques)}</td>}
+                  {showCheques && <td className="px-3 py-2.5 font-bold tabular-nums rtl:text-right" dir="ltr">{money.format(row.aging_balance)}</td>}
                   {row.buckets.map((value, bucket) => (
                     <td key={bucket} className={`px-3 py-2.5 tabular-nums ${Math.abs(value) > 0 ? `${toneFor(bucket, labels.length)} font-bold` : "text-slate-300"}`} dir="ltr">
                       {Math.abs(value) > 0 ? money.format(value) : "—"}
@@ -323,9 +323,9 @@ export function ReceivablesAgingReport() {
               <tfoot className="sticky bottom-0 bg-slate-100 font-black">
                 <tr>
                   <td className="px-3 py-3" colSpan={4}>{tr("الإجمالي")}</td>
-                  <td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.balance, 0))}</td>
-                  {showCheques && <td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.cheques, 0))}</td>}
-                  {showCheques && <td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(totalBalance)}</td>}
+                  <td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.balance, 0))}</td>
+                  {showCheques && <td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(visibleRows.reduce((sum, row) => sum + row.cheques, 0))}</td>}
+                  {showCheques && <td className="px-3 py-3 tabular-nums rtl:text-right" dir="ltr">{money.format(totalBalance)}</td>}
                   {bucketTotals.map((value, index) => <td key={index} className="px-3 py-3 tabular-nums" dir="ltr">{money.format(value)}</td>)}
                   <td />
                 </tr>

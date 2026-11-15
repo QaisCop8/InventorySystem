@@ -59,21 +59,25 @@ export async function GET(request: NextRequest) {
       ? branchIds.filter((id) => permittedBranchIds.length === 0 || permittedBranchIds.includes(id))
       : permittedBranchIds
 
+    // القوائم (الحسابات/الفروع/المندوبون) تُحمَّل مرة مع meta=1 عند فتح الشاشة — طلب البيانات لا يعيدها (كانت تُرسل مع
+    // كل عرض: آلاف الحسابات)، ويكفيه العملات لعملة التقرير
+    const wantsMeta = params.get("meta") === "1" || accountIds.length === 0
+    const none = Promise.resolve([] as any[])
     const [accounts, currencies, branches, salesmen] = await Promise.all([
-      sql`SELECT a.id, a.code, a.name, a.type, a.currency_id, c.currency_code, c.currency_name
+      !wantsMeta ? none : sql`SELECT a.id, a.code, a.name, a.type, a.currency_id, c.currency_code, c.currency_name
           FROM account_tbl a LEFT JOIN currency c ON c.id=a.currency_id
           WHERE COALESCE(a.status,1)<>3 AND (${kind === "accounting"} OR a.type IN (2,3,5))
           ORDER BY a.code`,
       sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
-      effectiveBranchIds.length
+      !wantsMeta ? none : effectiveBranchIds.length
         ? sql`SELECT id, branch_code, branch_name FROM branches WHERE id=ANY(${effectiveBranchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name`
         : sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
-      sql`SELECT id, code, name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
+      !wantsMeta ? none : sql`SELECT id, code, name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
     ])
 
     // صلاحيات المستخدمين على الحسابات: الممنوع لا يظهر بالخيارات ولا يُستعلم عنه
-    const visibleAccounts = await filterAccessibleAccounts(request, accounts as any[])
-    if (params.get("meta") === "1" || accountIds.length === 0) {
+    if (wantsMeta) {
+      const visibleAccounts = await filterAccessibleAccounts(request, accounts as any[])
       return NextResponse.json({ meta: { accounts: visibleAccounts, currencies, branches, salesmen } })
     }
     const accessError = await accountAccessError(request, accountIds)
@@ -93,7 +97,8 @@ export async function GET(request: NextRequest) {
         UNION
         SELECT child.id FROM account_tbl child JOIN selected_accounts parent ON child.father_id=parent.id
       ), scoped AS (
-        SELECT vjd.*, vh.vch_code, vh.vch_date, vh.vch_type, vh.status voucher_status,
+        -- أعمدة سطر القيد المستخدمة فقط (vjd.* كان يضخّم الرد لعشرات الميغابايت مع الحسابات الكثيرة الحركة)
+        SELECT vjd.id, vjd.voucher_id, vjd.account_id, vjd.credit_debit, vjd.currency_id, vjd.rate, vjd.note, vjd.order_no, vh.vch_code, vh.vch_date, vh.vch_type, vh.status voucher_status,
                vh.note voucher_note, vh.branch_id, vh.salesman_id,
                a.code account_code, a.name account_name,
                c.currency_code, c.currency_name,
@@ -189,7 +194,6 @@ export async function GET(request: NextRequest) {
     const openingBalance = visibleOpeningRows.reduce((sum: number, row: any) => sum + number(row.opening_balance), 0)
 
     return NextResponse.json({
-      meta: { accounts, currencies, branches, salesmen },
       rows: visibleRows.map((row:any) => ({...row, transaction_currency_id:row.currency_id, transaction_currency_code:row.currency_code, transaction_currency_name:row.currency_name, currency_id:targetId, currency_code:targetCurrency.currency_code, currency_name:targetCurrency.currency_name})),
       opening: visibleOpeningRows,
       summary: { opening_balance: openingBalance, total_debit: totalDebit, total_credit: totalCredit, final_balance: openingBalance + totalDebit - totalCredit },

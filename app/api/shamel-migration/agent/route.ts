@@ -6,7 +6,7 @@ import { parsePortalToken, sha256Hex } from "@/lib/customer-portal"
 import { StepContext, addStepProgress, ensureShamelMigrationResetColumns, runFromRow, type MigrationRun } from "@/lib/shamel-migration/core"
 import { resetLookups } from "@/lib/shamel-migration/reset"
 import { findStep, stepsForRun } from "@/lib/shamel-migration/steps"
-import { fixMigratedVouchers } from "@/lib/shamel-migration/vouchers"
+import { fixMigratedVouchers, resolveMigratedLinks } from "@/lib/shamel-migration/vouchers"
 import { enabledModulesForDb } from "@/lib/company-modules"
 
 // واجهة معالج الترحيل (برنامج ويندوز على جهاز العميل) — بلا جلسة: رمز التشغيل في ترويسة Authorization
@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
         await ensureVoucherIndexes().catch(() => undefined)
         await assignDefaultUnitRoles().catch(() => undefined)
         await fixMigratedVouchers().catch(() => undefined)
+        // روابط الفواتير بالإرساليات والطلبيات (المصدر قد يُرحَّل بعد الفاتورة) + حالة تنفيذ الطلبيات
+        await resolveMigratedLinks().catch((error) => console.error("shamel links resolve failed:", error))
         await analyzeVoucherTables().catch(() => undefined)
         const failed = body.status === "failed"
         await sql`

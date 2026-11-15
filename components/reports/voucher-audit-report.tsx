@@ -170,14 +170,14 @@ export default function VoucherAuditReport() {
             <th className="p-3 text-start">{tr("الفرع")}</th><th className="p-3 text-start">{tr("المبلغ")}</th><th className="p-3 text-start">{tr("ملاحظة")}</th><th className="p-3 text-start print:hidden">{tr("التفاصيل")}</th>
           </tr></thead>
           <tbody>{rows.map(row => <tr key={row.id} className="cursor-pointer border-t hover:bg-indigo-50/40" onDoubleClick={() => setSelected(row)}>
-            <td className="p-3 whitespace-nowrap font-mono" dir="ltr">{dateTime(row.created_at)}</td>
+            <td className="p-3 whitespace-nowrap font-mono rtl:text-right" dir="ltr">{dateTime(row.created_at)}</td>
             <td className="p-3">{row.user_name || row.user_id || "-"}</td>
             <td className="p-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${toneFor(row.action)}`}>{ACTION_LABELS[row.action] || row.action}</span></td>
             <td className="p-3">{row.vch_type_name || (row.source === "purchase_order" ? tr("طلبية مشتريات") : row.source === "order" ? tr("طلبية مبيعات") : row.vch_type ?? "-")}</td>
             <td className="p-3 font-mono font-bold text-indigo-700">{row.vch_code || "-"}</td>
             <td className="p-3 whitespace-nowrap">{day(row.vch_date)}</td>
             <td className="p-3">{row.branch_name || "-"}</td>
-            <td className="p-3 font-mono" dir="ltr">{money(row.amount)}</td>
+            <td className="p-3 font-mono rtl:text-right" dir="ltr">{money(row.amount)}</td>
             <td className="p-3 text-xs text-muted-foreground">{[row.details?.channel === "pos" ? "نقطة البيع" : row.details?.channel, row.details?.copy_label, row.details?.phone].filter(Boolean).join(" · ") || "-"}</td>
             <td className="p-3 print:hidden"><Button size="sm" variant="ghost" onClick={() => setSelected(row)}><Eye className="me-1 h-4 w-4" />{tr("عرض")}</Button></td>
           </tr>)}</tbody>
@@ -307,8 +307,8 @@ function SnapshotView({ title, snapshot, tone, hideHeader = false }: { title: st
         <thead className="bg-white/70"><tr><th className="p-1.5 text-start">{tr("الحساب")}</th><th className="p-1.5 text-start">{tr("مدين")}</th><th className="p-1.5 text-start">{tr("دائن")}</th><th className="p-1.5 text-start">{tr("ملاحظة")}</th></tr></thead>
         <tbody>{(snapshot.journal || []).map((line, index) => <tr key={line.id ?? index} className="border-t">
           <td className="p-1.5">{[line.account_code, line.account_name].filter(Boolean).join(" - ") || line.account_id}</td>
-          <td className="p-1.5 font-mono" dir="ltr">{Number(line.credit_debit) === 1 ? money(line.amount) : ""}</td>
-          <td className="p-1.5 font-mono" dir="ltr">{Number(line.credit_debit) === 2 ? money(line.amount) : ""}</td>
+          <td className="p-1.5 font-mono rtl:text-right" dir="ltr">{Number(line.credit_debit) === 1 ? money(line.amount) : ""}</td>
+          <td className="p-1.5 font-mono rtl:text-right" dir="ltr">{Number(line.credit_debit) === 2 ? money(line.amount) : ""}</td>
           <td className="p-1.5">{line.note || ""}</td>
         </tr>)}</tbody>
       </table></div>

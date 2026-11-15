@@ -164,7 +164,7 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
               <tr className="border-b bg-slate-100/90"><td className="px-3 py-2 font-black" colSpan={6}>{group.title}</td><td className={`${num} font-black`} dir="ltr">{fmt(group.opening)}</td><td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>{tr("رصيد افتتاحي")}</td></tr>
               {rows.map((row) => (
                 <tr key={row.line_id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-                  <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
                   <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
                   <td className="px-3 py-2.5 text-xs">{row.voucher_type_name}</td>
                   <td className="px-3 py-2.5 text-xs">{row.account_code} - {row.account_name}</td>
@@ -193,7 +193,7 @@ export function CostCenterReport({ kind }: { kind: CostCenterReportKind }) {
         <tbody>
           {visible.map((row) => (
             <tr key={row.line_id} className="cursor-pointer border-b hover:bg-teal-50/60" onDoubleClick={() => openVoucher(row)} title={tr("انقر نقراً مزدوجاً لفتح السند")}>
-              <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.vch_date}</td>
+              <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.vch_date}</td>
               <td className="px-3 py-2.5 font-mono font-bold text-teal-700">{row.vch_code}</td>
               <td className="px-3 py-2.5 text-xs">{row.voucher_type_name}</td>
               <td className="px-3 py-2.5 font-mono text-xs">{row.account_code}</td>

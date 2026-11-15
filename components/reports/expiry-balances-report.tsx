@@ -124,9 +124,9 @@ export function ExpiryBalancesReport() {
       {!nested && <td className="px-3 py-2.5 font-semibold">{row.product_name}</td>}
       {nested && <td className="px-3 py-2.5" colSpan={2} />}
       <td className="px-3 py-2.5">{row.warehouse_name}</td>
-      <td className="px-3 py-2.5 font-mono font-bold" dir="ltr">{row.expiry_date || "—"}</td>
-      <td className="px-3 py-2.5 font-mono text-xs" dir="ltr">{row.batch_no || "—"}</td>
-      <td className="px-3 py-2.5 font-black tabular-nums" dir="ltr">{qty(row.quantity)} <span className="text-xs font-normal text-slate-500">{row.main_unit}</span></td>
+      <td className="px-3 py-2.5 font-mono font-bold rtl:text-right" dir="ltr">{row.expiry_date || "—"}</td>
+      <td className="px-3 py-2.5 font-mono text-xs rtl:text-right" dir="ltr">{row.batch_no || "—"}</td>
+      <td className="px-3 py-2.5 font-black tabular-nums rtl:text-right" dir="ltr">{qty(row.quantity)} <span className="text-xs font-normal text-slate-500">{row.main_unit}</span></td>
       <td className="px-3 py-2.5 text-xs font-semibold">{daysText(row)}</td>
       <td className="px-3 py-2.5"><span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${STATUS[row.status].tone}`}>{STATUS[row.status].label}</span></td>
     </tr>
@@ -205,7 +205,7 @@ export function ExpiryBalancesReport() {
                       <tr className="border-b bg-slate-100/80">
                         <td className="px-3 py-2 font-mono font-bold text-teal-800">{group.product.product_code}</td>
                         <td className="px-3 py-2 font-black" colSpan={4}>{group.product.product_name}</td>
-                        <td className="px-3 py-2 font-black tabular-nums" dir="ltr">{qty(group.total)} <span className="text-xs font-normal text-slate-500">{group.product.main_unit}</span></td>
+                        <td className="px-3 py-2 font-black tabular-nums rtl:text-right" dir="ltr">{qty(group.total)} <span className="text-xs font-normal text-slate-500">{group.product.main_unit}</span></td>
                         <td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>{group.rows.length}{tr(" دفعة")}</td>
                       </tr>
                       {group.rows.map((row, index) => renderRow(row, index, true))}

@@ -171,7 +171,7 @@ export function OrderReports() {
                   <tbody>{data.late.map((row) => (
                     <tr key={row.id} className="border-t">
                       <td className="p-1.5 font-mono">{row.order_number}</td><td className="p-1.5">{row.party_name || "—"}</td>
-                      <td className="p-1.5 font-mono text-xs" dir="ltr">{day(row.order_date)}</td><td className="p-1.5 font-mono text-xs" dir="ltr">{day(row.delivery_date)}</td>
+                      <td className="p-1.5 font-mono text-xs rtl:text-right" dir="ltr">{day(row.order_date)}</td><td className="p-1.5 font-mono text-xs rtl:text-right" dir="ltr">{day(row.delivery_date)}</td>
                       <td className="p-1.5 text-center text-xs">{STATUS_LABEL[row.order_status] || row.order_status}</td>
                       <td className="p-1.5 text-end font-mono" dir="ltr">{money(row.value)}</td>
                       <td className="p-1.5 text-center"><span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700"><Timer className="h-3 w-3" />{row.days_late}{tr(" يوم")}</span></td>

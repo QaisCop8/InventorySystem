@@ -78,12 +78,12 @@ export function InvoicePickerDialog({ open, onOpenChange, onSelect, initialSearc
                 {rows.map((row, index) => (
                   <tr key={row.id} id={`invoice-picker-row-${index}`} onClick={() => setActive(index)} onDoubleClick={() => choose(row)} className={`cursor-pointer border-b ${index === active ? "bg-indigo-100" : "hover:bg-slate-50"}`}>
                     <td className="px-3 py-2 font-mono font-bold text-indigo-700">{row.vch_code}</td>
-                    <td className="px-3 py-2" dir="ltr">{row.vch_date}</td>
+                    <td className="px-3 py-2 rtl:text-right" dir="ltr">{row.vch_date}</td>
                     <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${Number(row.vch_type) === SALES_RETURN ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{Number(row.vch_type) === SALES_RETURN ? tr("مرتجع") : tr("مبيعات")}</span></td>
                     <td className="px-3 py-2">{row.customer_name ? `${row.customer_code ? `${row.customer_code} - ` : ""}${row.customer_name}` : "-"}</td>
                     <td className="px-3 py-2">{row.branch_name || "-"}</td>
                     <td className="px-3 py-2 text-center">{row.lines}</td>
-                    <td className="px-3 py-2 font-semibold" dir="ltr">{fmt(row.amount)}</td>
+                    <td className="px-3 py-2 font-semibold rtl:text-right" dir="ltr">{fmt(row.amount)}</td>
                     <td className="px-3 py-2 text-xs">{Number(row.status) === 2 ? tr("معتمد") : tr("غير معتمد")}</td>
                   </tr>
                 ))}
