@@ -66,17 +66,20 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const NAMED_MAX_WIDTHS: Record<string, string> = { xs: "20rem", sm: "24rem", md: "28rem", lg: "32rem", xl: "36rem", "2xl": "42rem", "3xl": "48rem", "4xl": "56rem", "5xl": "64rem", "6xl": "72rem", "7xl": "80rem" }
 const classMaxWidth = (className: unknown) => {
   if (typeof className !== "string") return null
+  const widthOf = (value: string) =>
+    NAMED_MAX_WIDTHS[value] || (/^\[[0-9.]+(px|rem|vw|%)\]$/.test(value) ? value.slice(1, -1) : null)
   let found: string | null = null
+  // «max-w-full sm:max-w-6xl» (ملء شاشة الجوال، حدّ على الحاسوب): مساحة الشاشة على الحاسوب دائماً فالحد sm/md/lg هو المقصود
+  let responsive: string | null = null
   for (const token of className.split(/\s+/)) {
-    if (token.includes(":")) continue // sm:max-w-... وأمثالها: نترك السلوك الحالي
+    const prefixed = /^(?:sm|md|lg):!?max-w-(.+)$/.exec(token)
+    if (prefixed) { responsive = widthOf(prefixed[1]); continue }
+    if (token.includes(":")) continue
     const match = /^!?max-w-(.+)$/.exec(token)
     if (!match) continue
-    const value = match[1]
-    if (NAMED_MAX_WIDTHS[value]) found = NAMED_MAX_WIDTHS[value]
-    else if (/^\[[0-9.]+(px|rem|vw|%)\]$/.test(value)) found = value.slice(1, -1)
-    else found = null // max-w-none / max-w-full / غيرها: عرض المساحة كما كان
+    found = widthOf(match[1]) // max-w-none / max-w-full / غيرها: عرض المساحة كما كان
   }
-  return found
+  return found || responsive
 }
 
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {

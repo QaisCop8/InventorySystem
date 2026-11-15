@@ -4,7 +4,8 @@ import { authorizeUserAdmin } from "@/lib/user-admin-access"
 import { moduleDeniedResponse } from "@/lib/company-modules"
 import { newPortalSecret, portalToken, sha256Hex } from "@/lib/customer-portal"
 import { ensureShamelMigrationResetColumns } from "@/lib/shamel-migration/core"
-import { SHAMEL_VOUCHER_TYPES, cleanVoucherTypes } from "@/lib/shamel-migration/vouchers"
+import { SHAMEL_VOUCHER_TYPES, cleanVoucherTypes, fixMigratedVouchers } from "@/lib/shamel-migration/vouchers"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // شاشة «ترحيل من الشامل» (مسؤول النظام فقط): إنشاء رمز تشغيل لمعالج الترحيل، متابعة التقدم، وسجل الأخطاء.
 
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest) {
   if (denied) return denied
   try {
     await ensureShamelMigrationResetColumns()
+    // مرة واحدة لكل قاعدة: سندات قيد رُحّلت قبل إصلاح المبلغ
+    await runSchemaOnce("app/api/shamel-migration#fixMigratedVouchers", fixMigratedVouchers).catch(() => undefined)
     const runId = Number(request.nextUrl.searchParams.get("run_id") || 0)
     if (runId > 0) {
       const level = request.nextUrl.searchParams.get("level") || ""

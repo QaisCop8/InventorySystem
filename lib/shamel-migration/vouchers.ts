@@ -1,7 +1,7 @@
 import sql, { withTenantTransaction } from "@/lib/database"
 import { INTERNAL_VOUCHER, getBaseCurrencyId, getRateByDate, JOURNAL_LINE_TYPE } from "@/lib/auto-journals"
 import { NO_EXPIRY_SENTINEL_DATE, applyStockMovement } from "@/app/api/stock-vouchers/_lib"
-import { MigrationRun, StepContext, date, insertRow, mapGet, num, text } from "@/lib/shamel-migration/core"
+import { MigrationRun, StepContext, date, insertRow, mapGet, num, text, toCode10 } from "@/lib/shamel-migration/core"
 import { stageRows, voucherBookFor } from "@/lib/shamel-migration/balances"
 import { withYearOpened } from "@/lib/year-end-closing"
 
@@ -119,7 +119,7 @@ async function loadLookups(groups: Map<string, Row[]>, items: Map<string, Row[]>
   )
   const codes = [...groups.keys()]
   const taken = new Set<string>(
-    ((await sql`SELECT vch_type, vch_code FROM voucher_header_tbl WHERE vch_code = ANY(${codes}::text[])`) as any[]).map((row) => `${row.vch_type}|${row.vch_code}`),
+    ((await sql`SELECT vch_type, vch_code FROM voucher_header_tbl WHERE vch_code = ANY(${codes.flatMap((code) => [toCode10(code), toCode10(`S${code}`)])}::text[])`) as any[]).map((row) => `${row.vch_type}|${row.vch_code}`),
   )
   return {
     baseCurrencyId: await getBaseCurrencyId(),
@@ -243,7 +243,8 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
   const cancelled = (flags & 8) !== 0
   // Intern 180 = قيد فرق عملة: يغيّر قيمة الرصيد بعملة الأساس فقط (مبلغ الحساب بعملته 0) — نفس قيود فرق العملة هنا
   const currencyDifference = num(header.internal_status) === 180
-  const vchCode = lookups.takenCodes.has(`${type.vchType}|${code}`) ? `S${code}` : code
+  // أرقام السندات بنون 10 خانات: JG007100 ⇐ JG00007100 (رقم الشامل الأصلي يبقى في manual_voucher)
+  const vchCode = lookups.takenCodes.has(`${type.vchType}|${toCode10(code)}`) ? toCode10(`S${code}`) : toCode10(code)
 
   const voucherId = await insertRow("voucher_header_tbl", {
     vch_type: type.vchType, vch_code: vchCode, vch_date: vchDate, manual_date: vchDate, vch_book_id: bookId, branch_id: ctx.run.branch_id,
@@ -289,6 +290,12 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
     journalRows,
     "id, order_no",
   )
+  // رصيد السند بالشامل (Balance) صفر لسندات القيد: المبلغ = مجموع المدين بعملة السند
+  if (!(Math.abs(num(header.amount)) > 0) && journalRows.length) {
+    const debitBase = journalRows.reduce((sum, row) => sum + (row[4] === 1 ? Number(row[8]) || 0 : 0), 0)
+    const headerAmount = Math.round((debitBase / (rate || 1)) * 1000) / 1000
+    if (headerAmount > 0) await sql`UPDATE voucher_header_tbl SET amount = ${headerAmount} WHERE id = ${voucherId}`
+  }
   if (costCenterLinks.length) {
     const lineIds = new Map(inserted.map((row) => [Number(row.order_no), Number(row.id)]))
     await insertMany("voucher_costcenter_tbl", ["voucher_journal_id", "cost_center_id"], costCenterLinks.map(([orderNo, costCenterId]) => [lineIds.get(orderNo), costCenterId]))
@@ -330,4 +337,30 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
     }
   }
   return voucherId
+}
+
+// إصلاح السندات المرحّلة سابقاً: رقم السند إلى 10 خانات (JG007100 ⇐ JG00007100) إن لم يكن الرقم الجديد مستخدماً،
+// والمبلغ الصفري (سندات القيد) = مجموع المدين بعملة الأساس ÷ سعر السند
+export async function fixMigratedVouchers() {
+  await sql`
+    WITH target AS (
+      SELECT h.id, h.vch_type,
+        substring(h.vch_code from '^[A-Z]+') || lpad(substring(h.vch_code from '[0-9]+$'), 10 - length(substring(h.vch_code from '^[A-Z]+')), '0') AS new_code
+      FROM voucher_header_tbl h
+      WHERE h.id IN (SELECT web_id FROM shamel_migration_map WHERE kind = 'voucher')
+        AND h.vch_code ~ '^[A-Z]{1,9}[0-9]+$' AND length(h.vch_code) < 10
+    )
+    UPDATE voucher_header_tbl h SET vch_code = t.new_code
+    FROM target t
+    WHERE h.id = t.id
+      AND NOT EXISTS (SELECT 1 FROM voucher_header_tbl o WHERE o.vch_type = t.vch_type AND o.vch_code = t.new_code AND o.id <> t.id)`
+  await sql`
+    UPDATE voucher_header_tbl h SET amount = ROUND((d.debit_base / COALESCE(NULLIF(h.rate, 0), 1))::numeric, 3)
+    FROM (
+      SELECT j.voucher_id, SUM(j.base_curr_amount) AS debit_base
+      FROM voucher_journal_detail_tbl j
+      WHERE j.credit_debit = 1 AND j.voucher_id IN (SELECT web_id FROM shamel_migration_map WHERE kind = 'voucher')
+      GROUP BY j.voucher_id
+    ) d
+    WHERE h.id = d.voucher_id AND COALESCE(h.amount, 0) = 0 AND d.debit_base > 0`
 }

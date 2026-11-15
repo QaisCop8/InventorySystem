@@ -6,6 +6,7 @@ import { parsePortalToken, sha256Hex } from "@/lib/customer-portal"
 import { StepContext, addStepProgress, ensureShamelMigrationResetColumns, runFromRow, type MigrationRun } from "@/lib/shamel-migration/core"
 import { resetLookups } from "@/lib/shamel-migration/reset"
 import { findStep, stepsForRun } from "@/lib/shamel-migration/steps"
+import { fixMigratedVouchers } from "@/lib/shamel-migration/vouchers"
 import { enabledModulesForDb } from "@/lib/company-modules"
 
 // واجهة معالج الترحيل (برنامج ويندوز على جهاز العميل) — بلا جلسة: رمز التشغيل في ترويسة Authorization
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
         // بعد ترحيل آلاف السندات والأصناف: فهارس فتح السندات وكشوف الحسابات
         await ensureVoucherIndexes().catch(() => undefined)
         await assignDefaultUnitRoles().catch(() => undefined)
+        await fixMigratedVouchers().catch(() => undefined)
         const failed = body.status === "failed"
         await sql`
           UPDATE shamel_migration_runs SET status = ${failed ? "failed" : "done"}, message = ${String(body.message || "").slice(0, 2000) || null},
