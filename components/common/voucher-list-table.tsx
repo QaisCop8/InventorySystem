@@ -1,7 +1,7 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
-import { useCallback, useState, type KeyboardEvent } from "react"
+import { useCallback, useState, type KeyboardEvent, type ReactNode } from "react"
 import { Eye, Loader2, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -39,7 +39,9 @@ export const searchOnEnter = (run: () => void) => (event: KeyboardEvent<HTMLElem
 // فوق، نقر مزدوج أو Enter على الصف أو زر "عرض" ⇐ يفتح السند. الأعمدة بنفس تعريف scheme السابق
 // (header/name/width) فيبقى محتوى كل قائمة كما هو.
 
-export type VoucherListColumn = { header: string; name: string; width?: number | string; minWidth?: number; /** من تعريف DataGridView السابق — لا أثر له بالجدول */ isReadOnly?: boolean }
+export type VoucherListColumn = { header: string; name: string; width?: number | string; minWidth?: number; /** من تعريف DataGridView السابق — لا أثر له بالجدول */ isReadOnly?: boolean
+  /** محتوى خاص للخلية (شارة حالة، زر...) بدل النص */
+  render?: (row: any) => ReactNode }
 
 const STATUS_BADGES: Record<number, string> = {
   1: "bg-amber-50 text-amber-700 ring-amber-200",
@@ -73,6 +75,7 @@ export function VoucherListTable<T extends Record<string, any>>({
     ? [...baseColumns, { header: tr("حالة السند"), name: "voucher_status", width: 120 }]
     : baseColumns
   const cellValue = (row: T, column: VoucherListColumn) => {
+    if (column.render) return column.render(row)
     const value = column.name === "voucher_status" ? voucherStatusLabel(row.status) : row[column.name]
     if (STATUS_COLUMNS.has(column.name)) {
       if (value == null || value === "") return "—"

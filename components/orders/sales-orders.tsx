@@ -15,7 +15,7 @@ import UnifiedSalesOrder from "./unified-sales-order"
 import { DraftOrderForm } from "@/components/order-drafts/draft-order-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchButton } from "@/components/search/search-button"
-import { VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
+import { VoucherListTable, VoucherSearchButton, searchOnEnter } from "@/components/common/voucher-list-table"
 import {
   Plus,
   Search,
@@ -35,7 +35,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
-import { VoucherListHero } from "@/components/common/voucher-list-shell"
+import { VoucherListHero, VoucherStats } from "@/components/common/voucher-list-shell"
 import Util from "../common/Util"
 interface OrdersProps {
   isPurchase?: boolean;
@@ -549,7 +549,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   }
 
   return (
-    <div className="w-full max-w-full space-y-6" dir={appDir()}>
+    <div className="voucher-list-page w-full max-w-full space-y-6" dir={appDir()}>
       {state.error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
       {/* Header Section — نفس ترويسة شاشات الحركات (VoucherListHero) */}
       <VoucherListHero
@@ -561,137 +561,48 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         onNew={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
       />
 
-      {/* Analytics Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium">{tr("إجمالي الطلبيات")}</p>
-                <p className="text-3xl font-bold text-blue-900">{analytics.totalOrders}</p>
-                <div className="flex items-center mt-2">
-                  <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                  <span className="text-blue-600 text-xs">+{analytics.weeklyGrowth}{tr("% هذا الأسبوع")}</span>
-                </div>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-blue-200 flex items-center justify-center">
-                <ShoppingCart className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <VoucherStats stats={[
+        { label: tr("إجمالي الطلبيات"), value: analytics.totalOrders },
+        { label: tr("قيد التنفيذ"), value: analytics.pendingOrders },
+        { label: tr("مكتملة"), value: analytics.completedOrders },
+        { label: tr("إجمالي القيمة"), value: analytics.totalValue.toLocaleString("en-US") },
+      ]} />
 
-        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-amber-700 text-sm font-medium">{tr("قيد التنفيذ")}</p>
-                <p className="text-3xl font-bold text-amber-900">{analytics.pendingOrders}</p>
-                <div className="flex items-center mt-2">
-                  <Clock className="h-4 w-4 text-amber-500" />
-                  <span className="text-amber-600 text-xs">{tr("يحتاج متابعة")}</span>
-                </div>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-amber-200 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-emerald-700 text-sm font-medium">{tr("مكتملة")}</p>
-                <p className="text-3xl font-bold text-emerald-900">{analytics.completedOrders}</p>
-                <div className="flex items-center mt-2">
-                  <CheckCircle className="h-4 w-4 text-emerald-500" />
-                  <span className="text-emerald-600 text-xs">
-                    {tr("معدل الإنجاز ")}{analytics.totalOrders ? Math.round((analytics.completedOrders / analytics.totalOrders) * 100) : 0}%
-                  </span>
-                </div>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-emerald-200 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-emerald-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-700 text-sm font-medium">{tr("إجمالي القيمة")}</p>
-                <p className="text-3xl font-bold text-purple-900">{analytics.totalValue.toLocaleString("en-US")}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className="h-4 w-4 text-purple-500" />
-                  <span className="text-purple-600 text-xs">{tr("متوسط ")}{analytics.avgOrderValue.toLocaleString("en-US")} </span>
-                </div>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-purple-200 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Advanced Filters */}
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-slate-800">
-            <Filter className="h-5 w-5" />
-            {tr("البحث والتصفية المتقدمة")}
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            {tr("البحث")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4" onKeyDown={searchOnEnter(() => void runSearch())}>
-            <div className="lg:col-span-2">
-              <Label className="text-slate-700 font-medium">{tr("البحث الذكي")}</Label>
-              <div className="relative">
-                <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder={tr("رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة...")}
-                  value={filterDraft.search}
-                  onChange={(e) => setDraftFilter({ search: e.target.value })}
-                  className="ps-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]" onKeyDown={searchOnEnter(() => void runSearch())}>
             <div>
-              <Label className="text-slate-700 font-medium">{tr("حالة الطلبية")}</Label>
-              <Select
-                value={filterDraft.status}
-                onValueChange={(value) => setDraftFilter({ status: value })}
-              >
-                <SelectTrigger className="bg-white border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
+              <Label htmlFor="orders-search">{tr("البحث الذكي")}</Label>
+              <Input
+                id="orders-search"
+                placeholder={tr("رقم الطلبية، اسم العميل، السند اليدوي , استلمت بواسطة...")}
+                value={filterDraft.search}
+                onChange={(e) => setDraftFilter({ search: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>{tr("حالة الطلبية")}</Label>
+              <Select value={filterDraft.status} onValueChange={(value) => setDraftFilter({ status: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
                   <SelectItem value="1">{tr("غير جاهزة")}</SelectItem>
                   <SelectItem value="2">{tr("جاهزة")}</SelectItem>
                   <SelectItem value="3">{tr("مرسلة جزئيا")}</SelectItem>
                   <SelectItem value="4">{tr("مرسلة كليا")}</SelectItem>
-
                 </SelectContent>
               </Select>
             </div>
-
-
-
             <div>
-              <Label className="text-slate-700 font-medium">{tr("قرار الإدارة")}</Label>
-              <Select
-                value={filterDraft.order_source}
-                onValueChange={(value) => setDraftFilter({ order_source: value })}
-              >
-                <SelectTrigger className="bg-white border-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
+              <Label>{tr("قرار الإدارة")}</Label>
+              <Select value={filterDraft.order_source} onValueChange={(value) => setDraftFilter({ order_source: value })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">{tr("جميع الحالات")}</SelectItem>
                   <SelectItem value="1">{tr("مقبول")}</SelectItem>
@@ -702,358 +613,51 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 </SelectContent>
               </Select>
             </div>
-
             <div>
-              <Label className="text-slate-700 font-medium">{tr("من تاريخ")}</Label>
-              <Input
-                type="date"
-                value={filterDraft.dateFrom}
-                onChange={(e) => setDraftFilter({ dateFrom: e.target.value })}
-                className="bg-white border-slate-200"
-              />
+              <Label htmlFor="orders-date-from">{tr("من تاريخ")}</Label>
+              <Input id="orders-date-from" type="date" value={filterDraft.dateFrom} onChange={(e) => setDraftFilter({ dateFrom: e.target.value })} />
             </div>
-
             <div>
-              <Label className="text-slate-700 font-medium">{tr("إلى تاريخ")}</Label>
-              <Input
-                type="date"
-                value={filterDraft.dateTo}
-                onChange={(e) => setDraftFilter({ dateTo: e.target.value })}
-                className="bg-white border-slate-200"
-              />
+              <Label htmlFor="orders-date-to">{tr("إلى تاريخ")}</Label>
+              <Input id="orders-date-to" type="date" value={filterDraft.dateTo} onChange={(e) => setDraftFilter({ dateTo: e.target.value })} />
             </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200">
             <div className="flex gap-2">
-              <Button
-                variant={state.currentView === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleViewChange("grid")}
-              >
-                {tr("شبكة")}
-              </Button>
-              <Button
-                variant={state.currentView === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleViewChange("list")}
-              >
-                {tr("قائمة")}
-              </Button>
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={resetFilters} className="bg-white">
-                {tr("إعادة تعيين")}
-              </Button>
+              <Button type="button" variant="outline" className="h-10" onClick={resetFilters}>{tr("إعادة تعيين")}</Button>
               <VoucherSearchButton onClick={() => void runSearch()} loading={searching} />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Orders Display */}
-      <Card className="relative shadow-sm" aria-busy={state.loading}>
-        {state.loading && (
-          <div role="status" aria-live="polite" className="absolute inset-0 z-[2] flex items-start justify-center rounded-[inherit] bg-white/70 pt-24 backdrop-blur-[1px] dark:bg-slate-900/70">
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-              {tr("جاري تحميل البيانات...")}
-            </div>
-          </div>
-        )}
+      <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="text-slate-800">{tr("قائمة الطلبيات")}</CardTitle>
-              <CardDescription className="text-slate-600">
-                {tr("عرض ")}{filteredOrders.length}{tr(" من أصل ")}{state.salesOrders.length}{tr(" طلبية")}
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Select
-                value={`${state.sortBy}-${state.sortOrder}`}
-                onValueChange={(value) => {
-                  const [sortBy, sortOrder] = value.split("-")
-                  setState((prev) => ({ ...prev, sortBy, sortOrder: sortOrder as "asc" | "desc" }))
-                }}
-              >
-                <SelectTrigger className="w-48 bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="created_at-desc">{tr("الأحدث أولاً")}</SelectItem>
-                  <SelectItem value="created_at-asc">{tr("الأقدم أولاً")}</SelectItem>
-                  <SelectItem value="total_amount-desc">{tr("الأعلى قيمة")}</SelectItem>
-                  <SelectItem value="total_amount-asc">{tr("الأقل قيمة")}</SelectItem>
-                  <SelectItem value="customer_name-asc">{tr("اسم العميل أ-ي")}</SelectItem>
-                  <SelectItem value="customer_name-desc">{tr("اسم العميل ي-أ")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <CardTitle>{`${isPurchase ? tr("طلبيات المشتريات") : tr("طلبيات المبيعات")} (${filteredOrders.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="mx-auto h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                <ShoppingCart className="h-12 w-12 text-slate-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">{tr("لا توجد طلبيات")}</h3>
-              <p className="text-slate-600 mb-6">
-                {tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}
-              </p>
-              <Button
-                className="flex items-center gap-2"
-                onClick={() =>
-                  setState((prev) => ({
-                    ...prev,
-                    showNewOrderDialog: true,
-                    selectedOrder: null,
-                    fromSearch: false,
-                  }))
-                }
-              >
-                <Plus className="me-2 h-4 w-4" />
-                {tr("إنشاء طلبية جديدة")}
-              </Button>
-            </div>
-          ) : state.currentView === "grid" ? (
-            <>
-              {/* GRID VIEW */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {paginatedOrders.map((order) => (
-                  <Card
-                    key={order.id}
-                    className="border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-md"
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="font-bold text-slate-800 text-lg">
-                            {order.order_number}
-                          </h3>
-                          <p className="text-slate-600 text-sm">
-                            {formatDateToBritish(order.order_date)}
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          {getStatusBadge(String(order.order_status))}
-                          {order.financial_status &&
-                            getFinancialStatusBadge(order.financial_status)}
-                          {order.workflow_status &&
-                            getWorkflowStatusBadge(order.workflow_status)}
-                          {order.priority_level &&
-                            getPriorityBadge(order.priority_level)}
-                          {order.order_source &&
-                            getOrderSourceBadge(order.order_source)}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-slate-500" />
-                          <span className="text-slate-700 font-medium">
-                            {order.customer_name}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-slate-500" />
-                          <span
-                            className={`font-bold text-lg ${getPriorityColor(
-                              order.total_amount
-                            )}`}
-                          >
-                            {order.total_amount?.toLocaleString("en-US")}{" "}
-                            {order.currency_code || ""}
-                          </span>
-                        </div>
-
-                        {order.salesman && (
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
-                                {order.salesman.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-slate-600 text-sm">
-                              {order.salesman}
-                            </span>
-                          </div>
-                        )}
-
-                        {order.delivery_datetime && (
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-slate-500" />
-                            <span className="text-slate-600 text-sm">
-                              {tr("تسليم: ")}{formatDateToBritish(order.delivery_datetime)}
-                            </span>
-                          </div>
-                        )}
-
-                        {order.current_stage && (
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-slate-500" />
-                            <span className="text-slate-600 text-sm">
-                              {tr("المرحلة: ")}{order.current_stage}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
-                        <div className="flex gap-2">
-                          {order.source_draft_id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                              disabled={draftLoading}
-                              onClick={() => void openSourceDraft(order)}
-                            >
-                              <FileText className="me-1 h-4 w-4" />
-                              {tr("فتح المسودة")}
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white"
-                            onClick={() => handleSearchOrder(order)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white"
-                            onClick={() => handleSearchOrder(order)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* LIST VIEW */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="text-start p-4">##</th>
-                      <th className="text-start p-4">{tr("رقم الطلبية")}</th>
-                      <th className="text-start p-4">{tr("التاريخ")}</th>
-                      <th className="text-start p-4">{tr("العميل")}</th>
-                      <th className="text-start p-4">{tr("الحالة")}</th>
-                      <th className="text-start p-4">{tr("السند اليدوي")}</th>
-                      <th className="text-start p-4">{tr("رقم طلبية العميل")}</th>
-                      <th className="text-start p-4">{tr("المبلغ")}</th>
-                      <th className="text-start p-4">{tr("استلمت بواسطة")}</th>
-                      <th className="text-center p-4">{tr("الإجراءات")}</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {paginatedOrders.map((order) => (
-                      <tr
-                        key={order.id}
-                        className="border-b border-slate-100 hover:bg-slate-50/50"
-                      >
-                        <td className="p-4">{order.ser}</td>
-                        <td className="p-4">{order.order_number}</td>
-                        <td className="p-4">
-                          {formatDateToBritish(order.order_date)}
-                        </td>
-                        <td className="p-4">{order.customer_name}</td>
-                        <td className="p-4">
-                          {getStatusBadge(String(order.order_status))}
-                        </td>
-                        <td className="p-4">{order.reference_number}</td>
-                        <td className="p-4">{order.customer_order_no}</td>
-                        <td className="p-4">
-                          <span
-                            className={`font-bold ${getPriorityColor(
-                              order.total_amount
-                            )}`}
-                          >
-                            {order.total_amount?.toLocaleString("en-US")}{" "}
-                            {order.currency_code || ""}
-                          </span>
-                        </td>
-                        <td className="p-4">{order.received_by}</td>
-
-                        <td className="p-4">
-                          <div className="flex justify-center gap-2">
-                            {order.source_draft_id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                disabled={draftLoading}
-                                onClick={() => void openSourceDraft(order)}
-                              >
-                                <FileText className="me-1 h-4 w-4" />
-                                {tr("فتح المسودة")}
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSearchOrder(order)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSearchOrder(order)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-
-          {/* PAGINATION CONTROLS */}
-          {filteredOrders.length > pageSize && (
-            <div className="flex justify-center items-center gap-3 mt-6">
-              <Button
-                variant="outline"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                {tr("السابق")}
-              </Button>
-
-              <div className="text-sm text-slate-600">
-                {tr("صفحة ")}{currentPage}{tr(" من ")}{totalPages}
-              </div>
-
-              <Button
-                variant="outline"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                {tr("التالي")}
-              </Button>
-            </div>
-          )}
+          {/* نفس جدول قوائم السندات: نقر مزدوج أو Enter أو «عرض» يفتح الطلبية */}
+          <VoucherListTable
+            loading={state.loading || searching}
+            rows={filteredOrders}
+            statusColumn={false}
+            emptyText={tr("لم يتم العثور على أي طلبات تطابق معايير البحث")}
+            onOpen={(order: any) => handleSearchOrder(order)}
+            columns={[
+              { header: tr("رقم الطلبية"), name: "order_number", width: 150, render: (order) => <span className="font-mono font-bold text-emerald-700">{order.order_number}</span> },
+              { header: tr("التاريخ"), name: "order_date", width: 120, render: (order) => formatDateToBritish(order.order_date) },
+              { header: tr("العميل"), name: "customer_name", width: "*" },
+              { header: tr("الحالة"), name: "order_status", width: 130, render: (order) => getStatusBadge(String(order.order_status)) },
+              { header: tr("السند اليدوي"), name: "reference_number", width: 130 },
+              { header: tr("رقم طلبية العميل"), name: "customer_order_no", width: 130 },
+              { header: tr("المبلغ"), name: "total_amount", width: 140, render: (order) => <span className="font-semibold tabular-nums" dir="ltr">{Number(order.total_amount || 0).toLocaleString("en-US")} {order.currency_code || ""}</span> },
+              { header: tr("استلمت بواسطة"), name: "received_by", width: 140 },
+              { header: tr("المسودة"), name: "source_draft_id", width: 130, render: (order) => order.source_draft_id ? (
+                <Button type="button" variant="outline" size="sm" className="h-8 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" disabled={draftLoading}
+                  onClick={(event) => { event.stopPropagation(); void openSourceDraft(order) }}>
+                  <FileText className="me-1 h-4 w-4" />{tr("فتح المسودة")}
+                </Button>
+              ) : "—" },
+            ]}
+          />
         </CardContent>
       </Card>
 
