@@ -58,9 +58,15 @@ export async function POST(request: NextRequest) {
   try {
     await ensureShamelMigrationResetColumns()
     const body = await request.json().catch(() => ({}))
-    const mode = body?.mode === "full" ? "full" : "definitions"
-    const voucherTypes = mode === "full" ? cleanVoucherTypes(body?.voucher_types) : []
-    if (mode === "full" && !voucherTypes.length) return NextResponse.json({ error: "اختر نوع سند واحداً على الأقل" }, { status: 400 })
+    const mode = body?.mode === "full" || body?.mode === "transactions" ? body.mode : "definitions"
+    const voucherTypes = mode !== "definitions" ? cleanVoucherTypes(body?.voucher_types) : []
+    if (mode !== "definitions" && !voucherTypes.length) return NextResponse.json({ error: "اختر نوع سند واحداً على الأقل" }, { status: 400 })
+    if (mode === "transactions") {
+      // السندات تربط الحسابات والأصناف والمستودعات عبر shamel_migration_map — لا بد من ترحيل التعريفات قبلها
+      const [mapped] = await sql`SELECT COUNT(*) FILTER (WHERE kind = 'account')::int AS accounts FROM shamel_migration_map`.catch(() => [null]) as any[]
+      if (!Number(mapped?.accounts || 0)) return NextResponse.json({ error: "لم تُرحَّل التعريفات من الشامل بعد — رحّل التعريفات أولاً ثم السندات فقط" }, { status: 400 })
+    }
+    const resetLookupsFlag = mode !== "transactions" && body?.reset_lookups !== false
     const balanceDate = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.balance_date || "")) ? String(body.balance_date) : new Date().toISOString().slice(0, 10)
     const branch = (await sql`SELECT id FROM branches WHERE COALESCE(is_bank_branch, false) = false ORDER BY id LIMIT 1`)[0] as any
     if (!branch) return NextResponse.json({ error: "لا يوجد فرع للشركة — عرّف الفرع الرئيسي أولاً" }, { status: 400 })
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
     const secret = newPortalSecret()
     const [run] = await sql`
       INSERT INTO shamel_migration_runs (token_hash, mode, voucher_types, balance_date, branch_id, created_by, expires_at, reset_lookups)
-      VALUES (${await sha256Hex(secret)}, ${mode}, ${voucherTypes}::text[], ${balanceDate}, ${Number(branch.id)}, ${admin.userId}, NOW() + INTERVAL '3 days', ${body?.reset_lookups !== false})
+      VALUES (${await sha256Hex(secret)}, ${mode}, ${voucherTypes}::text[], ${balanceDate}, ${Number(branch.id)}, ${admin.userId}, NOW() + INTERVAL '3 days', ${resetLookupsFlag})
       RETURNING id, mode, voucher_types, from_date::text AS from_date, balance_date::text AS balance_date, status, current_step, progress, message, created_at, last_seen_at, finished_at, expires_at, reset_lookups`
     return NextResponse.json({ run, token: portalToken(await resolveCurrentDbName(), secret) }, { status: 201 })
   } catch (error) {

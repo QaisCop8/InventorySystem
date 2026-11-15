@@ -15,10 +15,12 @@ import { confirmYesNo } from "@/components/ui/confirm-host"
 
 type StepProgress = { received: number; created: number; updated: number; skipped: number; failed: number; done: boolean }
 type Run = {
-  id: number; mode: "definitions" | "full"; voucher_types: string[]; balance_date: string; status: string; current_step: string | null
+  id: number; mode: Mode; voucher_types: string[]; balance_date: string; status: string; current_step: string | null
   progress: Record<string, StepProgress>; message: string | null; created_at: string; last_seen_at: string | null; finished_at: string | null
   errors: number; warnings: number
 }
+type Mode = "definitions" | "full" | "transactions"
+const MODE_TITLES: Record<Mode, string> = { definitions: "التعريفات فقط", full: "التعريفات والسندات", transactions: "السندات فقط" }
 type VoucherType = { prefix: string; title: string; kind: "sales" | "stock" | "finance" }
 type LogRow = { id: number; step: string; level: string; ref: string | null; message: string; created_at: string }
 type SummaryRow = { step: string; level: string; message: string; count: number; sample_ref: string | null }
@@ -46,7 +48,7 @@ const formatTime = (value: string | null) => (value ? new Date(value).toLocaleSt
 export default function DataMigration() {
   const [runs, setRuns] = useState<Run[]>([])
   const [voucherTypes, setVoucherTypes] = useState<VoucherType[]>([])
-  const [mode, setMode] = useState<"definitions" | "full">("definitions")
+  const [mode, setMode] = useState<Mode>("definitions")
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
   const [balanceDate, setBalanceDate] = useState(today())
   const [resetLookups, setResetLookups] = useState(true)
@@ -99,7 +101,7 @@ export default function DataMigration() {
   useEffect(() => { setBalanceDate(mode === "full" ? firstOfYear() : today()) }, [mode])
 
   const create = async () => {
-    if (mode === "full" && selectedTypes.size === 0) { setError(tr("اختر نوع سند واحداً على الأقل")); return }
+    if (mode !== "definitions" && selectedTypes.size === 0) { setError(tr("اختر نوع سند واحداً على الأقل")); return }
     if (active && !(await confirmYesNo(tr("يوجد ترحيل غير مكتمل — إنشاء رمز جديد يلغي الرمز السابق. هل تريد المتابعة؟")))) return
     setCreating(true)
     setError("")
@@ -107,7 +109,7 @@ export default function DataMigration() {
       const response = await fetch("/api/shamel-migration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, voucher_types: [...selectedTypes], balance_date: balanceDate, reset_lookups: resetLookups }),
+        body: JSON.stringify({ mode, voucher_types: [...selectedTypes], balance_date: balanceDate, reset_lookups: mode !== "transactions" && resetLookups }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || tr("تعذر إنشاء رمز الترحيل"))
@@ -171,17 +173,17 @@ export default function DataMigration() {
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-bold"><KeyRound className="h-5 w-5 text-emerald-600" />{tr("1) إعداد الترحيل وإنشاء الرمز")}</h2>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {([["definitions", "التعريفات فقط", "الحسابات والعملاء والأصناف والقوائم + الأرصدة والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات والسندات", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"]] as const).map(([value, title, hint]) => (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + الأرصدة والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً، بلا أرصدة افتتاحية ولا حذف تعريفات"]] as const).map(([value, hint]) => (
               <button key={value} type="button" onClick={() => setMode(value)}
                 className={`rounded-xl border p-3 text-start transition ${mode === value ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900" : "hover:border-emerald-300"}`}>
-                <div className="font-semibold">{tr(title)}</div>
+                <div className="font-semibold">{tr(MODE_TITLES[value])}</div>
                 <div className="mt-1 text-xs text-muted-foreground">{tr(hint)}</div>
               </button>
             ))}
           </div>
 
-          {mode === "full" && (
+          {mode !== "definitions" && (
             <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
               <div className="flex items-center justify-between">
                 <Label className="font-semibold">{tr("السندات المطلوب ترحيلها")}</Label>
@@ -204,10 +206,13 @@ export default function DataMigration() {
                   </div>
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">{tr("الأرصدة الحالية تساوي رصيد أول المدة + السندات المرحّلة — نوع سند غير مختار لن يظهر أثره في الأرصدة والكميات.")}</p>
+              <p className="text-xs text-muted-foreground">{tr(mode === "transactions"
+                ? "تُربط السندات بالحسابات والأصناف والمستودعات المرحّلة سابقاً من الشامل، والسند المرحّل من قبل لا يتكرر. انتبه: إن رُحّلت التعريفات بوضع «التعريفات فقط» فالأرصدة الافتتاحية هي الأرصدة الحالية، وترحيل السندات فوقها يضاعف أثرها."
+                : "الأرصدة الحالية تساوي رصيد أول المدة + السندات المرحّلة — نوع سند غير مختار لن يظهر أثره في الأرصدة والكميات.")}</p>
             </div>
           )}
 
+          {mode !== "transactions" && <>
           <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor="shamel-balance-date">{tr(mode === "full" ? "تاريخ رصيد أول المدة" : "تاريخ الأرصدة الافتتاحية")}</Label>
             <Input id="shamel-balance-date" type="date" value={balanceDate} onChange={(event) => setBalanceDate(event.target.value)} />
@@ -220,6 +225,7 @@ export default function DataMigration() {
               <span className="mt-1 block text-xs text-muted-foreground">{tr("المستودعات، الوحدات، فئات الأسعار، المدن، تصنيفات العملاء، مراكز التكلفة وأنواعها، مجموعات الأصناف، المندوبون، البنوك وفروعها — تحل محلها تعريفات الشامل. السجل المستخدم في حركات أو أصناف أو إعدادات لا يُحذف.")}</span>
             </span>
           </label>
+          </>}
 
           <div className="rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             {tr("يُفضّل الترحيل إلى شركة جديدة فارغة. سجل موجود بنفس الرقم (حساب، عميل، صنف...) يُربط ولا يُكرَّر، وإعادة تشغيل الترحيل تكمل من حيث توقف دون تكرار. حدّد الحسابات الافتراضية (حساب الأب للعملاء والموردين) ودفاتر السندات قبل البدء.")}
@@ -256,7 +262,7 @@ export default function DataMigration() {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[current.status]?.className || ""}`}>{tr(STATUS[current.status]?.label || current.status)}</span>
-                <span className="text-muted-foreground">{tr(current.mode === "full" ? "التعريفات والسندات" : "التعريفات فقط")}</span>
+                <span className="text-muted-foreground">{tr(MODE_TITLES[current.mode] || current.mode)}</span>
                 <span className="text-muted-foreground">· {tr("آخر اتصال")}: {formatTime(current.last_seen_at)}</span>
               </div>
               {current.message && <div className="text-xs text-muted-foreground">{current.message}</div>}

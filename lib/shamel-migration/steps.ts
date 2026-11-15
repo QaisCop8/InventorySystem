@@ -177,6 +177,7 @@ const STEPS: MigrationStep[] = [
 ]
 
 export function stepsForRun(run: MigrationRun): MigrationStep[] {
+  if (run.mode === "transactions") return STEPS.filter((step) => step.group === "vouchers")
   return STEPS.filter((step) => step.group !== "vouchers" || (run.mode === "full" && run.voucher_types.length > 0))
 }
 
