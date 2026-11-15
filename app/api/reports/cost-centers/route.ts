@@ -38,7 +38,8 @@ const voucherNames: Record<number, string> = { 3: "سند قيد", 4: "سند ق
 type Line = { line_id: number; account_id: number; credit_debit: number; amount: number; vch_date: string; voucher_id: number; vch_code: string; vch_type: number; note: string; centers: number[] }
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

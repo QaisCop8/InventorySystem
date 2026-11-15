@@ -15,6 +15,7 @@ import * as gridXlsx from '@grapecity/wijmo.grid.xlsx';
 import { ListBox } from '@grapecity/wijmo.react.input';
 import { hidePopup, saveFile, Tooltip, PopupPosition } from '@grapecity/wijmo';
 import FlexGridContextMenu from './FlexGridContextMenu';
+import { gridStrings } from './grid-strings';
 import { Selector } from '@grapecity/wijmo.grid.selector';
 import * as schemeHelper from './SchemeHelper';
 import Input from './Input';
@@ -40,15 +41,8 @@ if (wijmoLicenseKey) {
 }
 // import './DataGridView.css';
 
-const defaultStrings = {
-  active: 'نشط',
-  inactive: 'موقوف',
-  status: 'الحالة',
-  postVouchers: { canceled: 'محذوف' },
-};
-
-const $ = typeof window !== 'undefined' ? window.$ || { strings: defaultStrings } : { strings: defaultStrings };
-$.strings = $.strings || defaultStrings;
+// نصوص الشبكة: جدول عربي مترجَم حسب اللغة (components/common/grid-strings.js) — كانت معظم المفاتيح غير معرّفة
+const $ = { strings: gridStrings };
 
 export default class DataGridView extends React.Component {
   constructor(props) {
@@ -388,7 +382,7 @@ createButtonsColumns = () => {
                   this.txtFilter = e;
                 }}
                 onInput={this.filter.bind(this)}
-                placeholder={'$.strings.globalFilter'}
+                placeholder={$.strings.globalFilter}
                 autoFocus={ this.props.focusFilter ===undefined ? true:this.props.focusFilter}
                 value={this.state.filterTextValue}
                 onKeyDown={this.onKeyDown}
@@ -472,7 +466,31 @@ createButtonsColumns = () => {
           }
         </FlexGrid>
         
-        {/* <ListBox initialized={this.initializedPicker.bind(this)} className={`${'column-picker'} ${styles.columnPicker}`} /> */}
+        {this.state.columnChooserVisible && (
+          // اختيار الأعمدة (قائمة الزر الأيمن): إظهار/إخفاء أعمدة الشبكة
+          <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/30" dir={$.strings.dir} onMouseDown={(e) => { if (e.target === e.currentTarget) this.onCloseColumnPicker() }}>
+            <div className="w-80 max-w-[calc(100vw-2rem)] rounded-xl border bg-background p-4 shadow-2xl">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-bold">{$.strings.columnsChooser}</span>
+                <button type="button" className="text-muted-foreground hover:text-foreground" onClick={this.onCloseColumnPicker}>✕</button>
+              </div>
+              <input autoFocus value={this.state.searchText} onChange={(e) => this.setState({ searchText: e.target.value })}
+                placeholder={$.strings.globalFilter} className="mb-2 w-full rounded-md border px-2 py-1 text-sm" />
+              <div className="mb-2 flex gap-3 text-xs">
+                <button type="button" className="text-emerald-700 hover:underline" onClick={() => { filteredItems.forEach((col) => { col.visible = true }); this.forceUpdate() }}>{$.strings.showAll}</button>
+                <button type="button" className="text-muted-foreground hover:underline" onClick={() => { filteredItems.forEach((col) => { col.visible = false }); this.forceUpdate() }}>{$.strings.hideAll}</button>
+              </div>
+              <div className="max-h-80 space-y-1 overflow-auto">
+                {filteredItems.map((col) => (
+                  <label key={col.binding || col.name || col.header} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-muted">
+                    <input type="checkbox" checked={col.visible !== false} onChange={() => { col.visible = !col.visible; this.forceUpdate() }} />
+                    <span>{col.header}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         
       </div>
     );
@@ -1295,8 +1313,8 @@ createButtonTemplate = (col) => (ctx) => {
           this.props.exportFileName,
           this.saveGridState,
           Util.checkUserAccess(833) ? this.props.allowExcelExport : false,
-          this.onOpenDesigner,
-          this.onOpenSearchDesigner,
+          null, // تصميم التقرير غير متوفر هنا
+          null,
           this.props.exportHiddenColumns,
         );
       } else if (this.props.copyItemStoreDown  !== false && !narrow) {
@@ -1307,8 +1325,8 @@ createButtonTemplate = (col) => (ctx) => {
           this.props.exportFileName,
           this.saveGridState,
           Util.checkUserAccess(833) ? this.props.allowExcelExport : false,
-          this.onOpenDesigner,
-          this.onOpenSearchDesigner,
+          null, // تصميم التقرير غير متوفر هنا
+          null,
           this.props.exportHiddenColumns,
           this.props.copyItemStoreDown,
         );

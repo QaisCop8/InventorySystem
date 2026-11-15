@@ -35,7 +35,8 @@ function orderActionKey(action: string, details: any) {
 }
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const denied = await reportAccessDenied(request, [SECTION])
     if (denied) return denied

@@ -29,7 +29,8 @@ const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d
 const round = (value: number, digits = 2) => Math.round((Number(value) || 0) * 10 ** digits) / 10 ** digits
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

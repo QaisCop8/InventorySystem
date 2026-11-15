@@ -10,7 +10,7 @@ import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await ensureVoucherIndexes()
+    void ensureVoucherIndexes().catch(() => undefined)
     const id = Number(params.id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })

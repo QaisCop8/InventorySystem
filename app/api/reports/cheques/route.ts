@@ -21,7 +21,8 @@ const DAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأر
 const MONTH_NAMES = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"]
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "total") as View

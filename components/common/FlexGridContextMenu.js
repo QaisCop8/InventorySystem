@@ -9,7 +9,11 @@ import * as wjGrid from '@grapecity/wijmo.grid';
 import Util from './Util';
 import './FlexGridContextMenu.css';
 
-const $ = typeof window !== 'undefined' ? window.$ : { strings: {} };
+import { appDir } from '@/lib/i18n';
+import { gridStrings } from './grid-strings';
+
+// النصوص من جدول عربي يُترجَم حسب لغة الواجهة (كانت "$.strings.x" حرفياً فتظهر المفاتيح بدل النصوص)
+const $ = { strings: gridStrings };
 
 export default class FlexGridContextMenu {
   constructor(
@@ -60,18 +64,21 @@ export default class FlexGridContextMenu {
       menu = this._buildMenu(grid, showColumnPicker, fileName, openDesigner, onOpenSearchDesigner, exportHiddenColumns);
       if (allowExcelExport !== false) {
         let exportItems = {
-          header: '$.strings.gridExport',
-          items: [{ header: '$.strings.excelFileExport', cmd: 'X_XLSX' }],
+          header: $.strings.gridExport,
+          items: [
+            { header: $.strings.excelFileExport, cmd: 'X_XLSX' },
+            { header: $.strings.csvFileExport, cmd: 'X_CSV' },
+          ],
         };
         menu.itemsSource.push(exportItems);
       }
 
       if (openDesigner) {
         let designItems = {
-          header: '$.strings.reportsDesigner.title',
+          header: $.strings.reportsDesigner.title,
           items: [
-            { header: '$.strings.reportsDesigner.saveDesign', cmd: 'save_design' },
-            { header: '$.strings.reportsDesigner.searchDesign', cmd: 'search_design' },
+            { header: $.strings.reportsDesigner.saveDesign, cmd: 'save_design' },
+            { header: $.strings.reportsDesigner.searchDesign, cmd: 'search_design' },
           ],
         };
         menu.itemsSource.push(designItems);
@@ -119,7 +126,7 @@ export default class FlexGridContextMenu {
   }
   _buildMenu(grid, showColumnPicker, fileName, openDesigner, onOpenSearchDesigner, exportHiddenColumns) {
     let div = document.createElement('div');
-    div.dir = 'rtl';
+    div.dir = appDir();
     let menu = new Menu(div, {
       owner: grid.hostElement,
       displayMemberPath: 'header',
@@ -130,24 +137,24 @@ export default class FlexGridContextMenu {
       closeOnLeave: false,
       itemsSource: [
         {
-          header: '$.strings.sort',
+          header: $.strings.sort,
           items: [
-            { header: '$.strings.ascending', cmd: 'SRT_ASC' },
-            { header: '$.strings.descending', cmd: 'SRT_DESC' },
-            { header: '$.strings.noSort', cmd: 'SRT_NONE' },
+            { header: $.strings.ascending, cmd: 'SRT_ASC' },
+            { header: $.strings.descending, cmd: 'SRT_DESC' },
+            { header: $.strings.noSort, cmd: 'SRT_NONE' },
             { header: '-' },
-            { header: '$.strings.clearAllSort', cmd: 'SRT_CLR' },
+            { header: $.strings.clearAllSort, cmd: 'SRT_CLR' },
           ],
         },
         { header: '-' },
-        { header: '$.strings.pinUnpin', cmd: 'PIN' },
+        { header: $.strings.pinUnpin, cmd: 'PIN' },
         { header: '-' },
-        { header: '$.strings.autoSize', cmd: 'ASZ' },
-        { header: '$.strings.autoSizeAll', cmd: 'ASZ_ALL' },
-        { header: '$.strings.columnsChooser', cmd: 'Col_CHOOSER' },
+        { header: $.strings.autoSize, cmd: 'ASZ' },
+        { header: $.strings.autoSizeAll, cmd: 'ASZ_ALL' },
+        { header: $.strings.columnsChooser, cmd: 'Col_CHOOSER' },
         { header: '-' },
-        { header: '$.strings.groupUnGroup', cmd: 'GRP' },
-        { header: '$.strings.clearAllGroups', cmd: 'GRP_CLR' },
+        { header: $.strings.groupUnGroup, cmd: 'GRP' },
+        { header: $.strings.clearAllGroups, cmd: 'GRP_CLR' },
         { header: '-' },
       ],
       command: {
@@ -339,7 +346,7 @@ export default class FlexGridContextMenu {
   }
   _buildMenuFromInvoice(grid) {
     let div = document.createElement('div');
-    div.dir = 'rtl';
+    div.dir = appDir();
     let menu = new Menu(div, {
       owner: grid.hostElement,
       displayMemberPath: 'header',
@@ -415,12 +422,12 @@ export default class FlexGridContextMenu {
     else if (p.cellType === wjGrid.CellType.Cell && p._cols[col].dataType === 3) {
           // boolean
           let data = grid.getCellData(row, col);
-          if (data) xlsxCell.value = '$.strings.yes';
-          else xlsxCell.value = '$.strings.no';
+          if (data) xlsxCell.value = $.strings.yes;
+          else xlsxCell.value = $.strings.no;
           if(p._cols[col].name.toLowerCase() === 'is_granted')
           {
-            if (data) xlsxCell.value = '$.strings.PermissionsUsersAccess.active';
-            else xlsxCell.value = '$.strings.PermissionsUsersAccess.inactive';
+            if (data) xlsxCell.value = $.strings.PermissionsUsersAccess.active;
+            else xlsxCell.value = $.strings.PermissionsUsersAccess.inactive;
           }
         }
   };

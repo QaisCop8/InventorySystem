@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     await ensureTables()
     const id = Number((await params).id)
-    await ensureVoucherIndexes()
+    void ensureVoucherIndexes().catch(() => undefined)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }

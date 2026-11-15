@@ -18,7 +18,8 @@ const ids = (value: string | null) => [...new Set(String(value || "").split(",")
 const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback)
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "detailed") as View

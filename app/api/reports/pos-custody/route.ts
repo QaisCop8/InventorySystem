@@ -12,7 +12,8 @@ const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d
 const STATUSES = ["open", "handover_pending", "handed_over", "closed"]
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const denied = await reportAccessDenied(request, ["pos-custody-report"])
     if (denied) return denied

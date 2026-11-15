@@ -3,7 +3,8 @@ import { NextResponse } from "next/server"
 import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 export async function GET() {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const salesData = await sql`
       SELECT 

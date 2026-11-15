@@ -37,9 +37,12 @@ export async function ensureVoucherIndexes() { return runSchemaOnce("lib/voucher
     const [exists] = await sql`SELECT to_regclass(${table}) IS NOT NULL AS ok`
     if (!(exists as any)?.ok) continue
     try {
-      await sql.unsafe(`CREATE INDEX IF NOT EXISTS ${name} ON ${table} (${columns})`)
+      // CONCURRENTLY: لا يقفل الكتابة على جدول كبير أثناء البناء (حفظ السندات يستمر)
+      await sql.unsafe(`CREATE INDEX CONCURRENTLY IF NOT EXISTS ${name} ON ${table} (${columns})`)
     } catch (error) {
       console.error(`[voucher-indexes] ${name} failed:`, error)
+      // بناء متزامن فاشل يترك فهرساً INVALID يمنع IF NOT EXISTS لاحقاً — يُحذف لتُعاد المحاولة في تشغيل قادم
+      await sql.unsafe(`DROP INDEX CONCURRENTLY IF EXISTS ${name}`).catch(() => undefined)
     }
   }
   await analyzeVoucherTables()

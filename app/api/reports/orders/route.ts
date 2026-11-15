@@ -66,7 +66,8 @@ async function orderSummary(where: string, values: unknown[]) {
 }
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "detailed") as View

@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
     if (!authorization.ok) return authorization.response
 
     // آلاف السندات (بعد الترحيل): فهارس voucher_items_tbl.delivery_item_id و(vch_type, id) مرة واحدة لكل قاعدة
-    await ensureVoucherIndexes().catch(() => undefined)
+    // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
     // «صدرت عنها فاتورة» تخص الإرساليات فقط — الفواتير والمرتجعات لا تُفحص (كان فحصاً متداخلاً لكل سند)
     const checkLinkedInvoice = (DELIVERY_VOUCHER_TYPES as readonly number[]).includes(vchType)
     // (لا نُضمِّن جزء sql بمعاملات داخل آخر — المساعد لا يعيد ترقيم $n)

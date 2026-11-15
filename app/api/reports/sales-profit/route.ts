@@ -23,7 +23,8 @@ function readFilters(params: URLSearchParams): ProfitFilters {
 }
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
@@ -51,7 +52,8 @@ export async function GET(request: NextRequest) {
 
 // تسعير الإخراجات: حفظ الكلفة المحسوبة على أسطر سندات المبيعات والمرتجعات ضمن نفس الفلاتر.
 export async function POST(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

@@ -1,0 +1,24 @@
+Ascending
+Descending
+No sort
+Clear all sorting
+Pin / unpin column
+Auto-size column
+Auto-size all columns
+Choose columns
+Group / ungroup by column
+Clear all groups
+Excel file
+CSV file
+PDF file
+Report design
+Save design
+Saved designs
+Search all columns...
+Drag a column header here to group by it
+Records order
+Enter search text
+Enabled
+Disabled
+Show all
+Hide all

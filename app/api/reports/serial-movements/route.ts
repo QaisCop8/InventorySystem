@@ -9,7 +9,8 @@ import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 //   GET ?serial_id=N                            ⇐ كل السندات التي حرّكت هذا الرقم بالترتيب
 // ترتيب الحركات حسب رقم السند (voucher_id) لا رقم سطر الربط — انظر lastMoves في lib/item-serials.ts.
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const denied = await reportAccessDenied(request, ["serial-movements-report"])
     if (denied) return denied

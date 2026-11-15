@@ -23,7 +23,8 @@ const STATUSES = ["open", "paid", "cancelled"]
 const TYPES = ["dine_in", "takeaway"]
 
 export async function GET(request: NextRequest) {
-  await ensureVoucherIndexes().catch(() => undefined)
+  // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
+  void ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "tables") as View
