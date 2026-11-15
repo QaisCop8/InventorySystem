@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { applyReportUnits } from "@/lib/report-units"
 import { getInventoryReportProducts, getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

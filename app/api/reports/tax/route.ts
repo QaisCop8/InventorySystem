@@ -6,6 +6,7 @@ import { reportAmountSql } from "@/lib/report-currency"
 import { getSystemSettings } from "@/lib/system-settings"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { INVOICE_TYPES, MAQASA_CODES, TAX_REPORTS, VAT_CLASSIFICATIONS, type TaxReportKind } from "@/lib/tax-reports"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // التقارير الضريبية (ضريبة القيمة المضافة) — منقولة من ShamelAPI: TaxSalesStatement، CalclationTaxReport،
@@ -30,6 +31,7 @@ type Voucher = {
 }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

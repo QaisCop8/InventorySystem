@@ -544,3 +544,69 @@ export async function processItemBarcodes(rows: Row[], ctx: StepContext) {
     return "created"
   })
 }
+
+// ---------- الحسابات الافتراضية ----------
+// نفس MigrateSettingsF/MigrateCurrenciesF بالشامل API: multifl.Typefile 48، الموقع 480 + n = حساب افتراضي، و currency.AccCode
+// = صندوق العملة. إعدادات النظام تُعبّأ إن كانت فارغة فقط (لا تُستبدل إعدادات حدّدها المستخدم)، وحسابات المستخدمين
+// الافتراضية (صندوق/شيكات واردة/مرتجعة/بطاقات) لكل مستخدم في فرع التشغيل ولكل عملة لا يملك لها سطراً.
+const SHAMEL_SYSTEM_SETTING_BY_OFFSET: Record<number, string> = {
+  2: "default_sales_tax_account", 3: "default_purchase_tax_account",
+  4: "default_customer_parent_account", 5: "default_supplier_parent_account", 6: "default_salesman_parent_account",
+  7: "default_selling_account_id", 8: "default_purchase_account_id", 9: "default_production_account_id",
+  10: "default_selling_returns_account_id", 11: "default_purchase_returns_account_id",
+  12: "default_stock_end_account_id", 13: "default_stock_start_account_id",
+  14: "default_currency_transfer_account", 15: "default_earned_discount_account", 16: "default_allowed_discount_account",
+  17: "default_customer_subscription_account", 21: "default_exchange_gain_loss_account",
+}
+const USER_SETTING_OFFSETS = { cash: 0, receivedCheques: 1, returnedCheques: 20, cards: 22 } as const
+
+export async function processDefaultAccounts(rows: Row[], ctx: StepContext) {
+  const byOffset = new Map<number, number>()
+  const cashByCurrency = new Map<number, number>()
+  for (const r of rows) {
+    ctx.stats.received++
+    const code = text(r.account_code)
+    const account = await accountId(code)
+    if (!account) { ctx.stats.skipped++; ctx.warn(code, `الحساب الافتراضي ${code} غير موجود`); continue }
+    const pos = num(r.pos)
+    if (pos >= 480) byOffset.set(pos - 480, account)
+    else {
+      const currency = await currencyId(r.currency_code)
+      if (currency) cashByCurrency.set(currency, account)
+    }
+  }
+
+  const { loadStoredSettings, saveSettingsPayload } = await import("@/app/api/settings/system/route")
+  const stored = await loadStoredSettings()
+  const payload: Record<string, unknown> = {}
+  for (const [offset, key] of Object.entries(SHAMEL_SYSTEM_SETTING_BY_OFFSET)) {
+    const account = byOffset.get(Number(offset))
+    if (account && !(Number(stored[key]) > 0)) payload[key] = account
+  }
+  if (Object.keys(payload).length) {
+    await saveSettingsPayload(payload, stored)
+    ctx.stats.updated += Object.keys(payload).length
+  }
+
+  const received = byOffset.get(USER_SETTING_OFFSETS.receivedCheques) ?? null
+  const returned = byOffset.get(USER_SETTING_OFFSETS.returnedCheques) ?? null
+  const cards = byOffset.get(USER_SETTING_OFFSETS.cards) ?? null
+  const mainCash = byOffset.get(USER_SETTING_OFFSETS.cash) ?? null
+  if (!mainCash && !received && !returned && !cards && !cashByCurrency.size) return
+  const users = (await sql`SELECT id FROM user_settings`.catch(() => [])) as any[]
+  const currencies = (await sql`SELECT id FROM currency`) as any[]
+  for (const user of users) {
+    for (const currency of currencies) {
+      const currencyIdValue = Number(currency.id)
+      const cash = cashByCurrency.get(currencyIdValue) ?? mainCash
+      const inserted = await sql`
+        INSERT INTO users_currencies_default_account_tbl (user_id, currency_id, branch_id, account_id, received_cheqs_account_id, returned_cheqs_account_id, cards_account_id)
+        SELECT ${Number(user.id)}, ${currencyIdValue}, ${ctx.run.branch_id}, ${cash}, ${received}, ${returned}, ${cards}
+        WHERE NOT EXISTS (
+          SELECT 1 FROM users_currencies_default_account_tbl
+          WHERE user_id = ${Number(user.id)} AND currency_id = ${currencyIdValue} AND branch_id IS NOT DISTINCT FROM ${ctx.run.branch_id}::int)
+        RETURNING id`
+      if (inserted.length) ctx.stats.created++
+    }
+  }
+}

@@ -6,6 +6,7 @@ import { accountAccessError, filterAccessibleAccounts } from "@/lib/account-acce
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 const parseIds = (value: string | null) => String(value || "")
   .split(",")
@@ -26,6 +27,7 @@ const voucherTypeName = `CASE period.vch_type
   ELSE 'سند قيد' END`
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import { reportDate } from "@/lib/item-inventory-reports"
 import { lotBalances } from "@/lib/stock-lots"
 import { applyReportUnits } from "@/lib/report-units"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // تقرير أرصدة الأصناف حسب تاريخ الصلاحية: رصيد كل صنف مفصَّلاً حسب (المستودع، تاريخ الصلاحية، الرقم
@@ -17,6 +18,7 @@ const parseIds = (value: string | null) => String(value || "").split(",").map(Nu
 const round = (value: number) => Math.round(value * 1000) / 1000
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

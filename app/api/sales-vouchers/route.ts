@@ -38,6 +38,7 @@ import {
   refreshSalesOrderFulfillment,
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion, consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
@@ -68,20 +69,29 @@ export async function GET(request: NextRequest) {
     const authorization = await authorizeTransaction(request, family, "view", searchParams.get("branch_id"))
     if (!authorization.ok) return authorization.response
 
-    const rows = await sql`
-      SELECT vh.*, EXISTS(
-        SELECT 1
-        FROM voucher_items_tbl inv_item
-        JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
-        WHERE COALESCE(inv.status,1) <> 3 AND inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-          AND inv_item.delivery_item_id IN (
-            SELECT id FROM voucher_items_tbl WHERE voucher_id = vh.id
-          )
-      ) AS has_linked_invoice
-      FROM voucher_header_tbl vh
-      WHERE vh.vch_type = ${vchType} AND vh.status != 3 AND vh.branch_id = ANY(${authorization.branchIds}::int[])
-      ORDER BY vh.id DESC
-    `
+    // آلاف السندات (بعد الترحيل): فهارس voucher_items_tbl.delivery_item_id و(vch_type, id) مرة واحدة لكل قاعدة
+    await ensureVoucherIndexes().catch(() => undefined)
+    // «صدرت عنها فاتورة» تخص الإرساليات فقط — الفواتير والمرتجعات لا تُفحص (كان فحصاً متداخلاً لكل سند)
+    const checkLinkedInvoice = (DELIVERY_VOUCHER_TYPES as readonly number[]).includes(vchType)
+    // (لا نُضمِّن جزء sql بمعاملات داخل آخر — المساعد لا يعيد ترقيم $n)
+    const rows = checkLinkedInvoice
+      ? await sql`
+        SELECT vh.*, EXISTS(
+          SELECT 1
+          FROM voucher_items_tbl src_item
+          JOIN voucher_items_tbl inv_item ON inv_item.delivery_item_id = src_item.id
+          JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
+          WHERE src_item.voucher_id = vh.id
+            AND COALESCE(inv.status,1) <> 3 AND inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+        ) AS has_linked_invoice
+        FROM voucher_header_tbl vh
+        WHERE vh.vch_type = ${vchType} AND vh.status != 3 AND vh.branch_id = ANY(${authorization.branchIds}::int[])
+        ORDER BY vh.id DESC`
+      : await sql`
+        SELECT vh.*, false AS has_linked_invoice
+        FROM voucher_header_tbl vh
+        WHERE vh.vch_type = ${vchType} AND vh.status != 3 AND vh.branch_id = ANY(${authorization.branchIds}::int[])
+        ORDER BY vh.id DESC`
 
     return NextResponse.json(rows)
   } catch (error) {

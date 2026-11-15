@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { reportAmountSql } from "@/lib/report-currency"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // تقارير الإرساليات (منقولة من ShamelAPI: DeliveryReport، InternalDeliveryReport، InvoicesFromConsignmentReport)
@@ -28,6 +29,7 @@ const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d
 const round = (value: number, digits = 2) => Math.round((Number(value) || 0) * 10 ** digits) / 10 ** digits
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

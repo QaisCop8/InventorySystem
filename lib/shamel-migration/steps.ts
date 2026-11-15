@@ -114,6 +114,12 @@ const STEPS: MigrationStep[] = [
     process: (rows, ctx) => defs.processBankAccounts(rows, ctx),
   },
   {
+    key: "default_accounts", title: "الحسابات الافتراضية (الضريبة، الآباء، صناديق المستخدمين والشيكات)", group: "definitions", batchSize: 500,
+    sql: () => `select "Pos" as pos, "Names" as account_code, convert(null, SQL_CHAR) as currency_code from "multifl" where "Typefile"=48 and "Pos" between 480 and 502 and ltrim("Names")<>''
+      union all select -1, "AccCode", "Curr" from "currency" where ltrim("AccCode")<>''`,
+    process: (rows, ctx) => defs.processDefaultAccounts(rows, ctx),
+  },
+  {
     key: "item_groups", title: "مجموعات الأصناف", group: "definitions", batchSize: 500,
     sql: () => `select ms."M.Stock ID" as code, ms."Father" as father_code, ms."Name" as name, ms."Level" as level_no from "mstock" ms order by ms."Level", ms."M.Stock ID"`,
     process: (rows, ctx) => defs.processItemGroups(rows, ctx),

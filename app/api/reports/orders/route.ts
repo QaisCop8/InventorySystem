@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { reportAccessDenied } from "@/lib/report-permissions"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // تقارير الطلبيات (components/reports/orders-report.tsx) — طلبيات المبيعات (order_type 1) والمشتريات (2) من orders/order_items.
 // view: detailed تفصيلي بالأسطر، total إجمالي لكل طلبية، by-item حسب الصنف، by-party حسب العميل/المورد،
@@ -65,6 +66,7 @@ async function orderSummary(where: string, values: unknown[]) {
 }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "detailed") as View

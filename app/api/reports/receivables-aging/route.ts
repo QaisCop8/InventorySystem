@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { reportAmountSql } from "@/lib/report-currency"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // تقرير تعمير الذمم بالأرصدة — منقول من ShamelAPI (CustomersCreditHistoryReportM.CalculateAging):
@@ -79,6 +80,7 @@ function ageBalance(balance: number, movements: Movement[], toDate: string, peri
 }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

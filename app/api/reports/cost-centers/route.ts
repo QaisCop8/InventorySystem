@@ -6,6 +6,7 @@ import { reportAmountSql } from "@/lib/report-currency"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { COST_CENTER_REPORTS, type CostCenterReportKind } from "@/lib/cost-center-reports"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // تقارير مراكز التكلفة (منقولة من ShamelWeb/ShamelAPI — AccountsTransactionCostCenterReport،
@@ -37,6 +38,7 @@ const voucherNames: Record<number, string> = { 3: "سند قيد", 4: "سند ق
 type Line = { line_id: number; account_id: number; credit_debit: number; amount: number; vch_date: string; voucher_id: number; vch_code: string; vch_type: number; note: string; centers: number[] }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

@@ -13,11 +13,14 @@ const RECORD_URL = /^\/api\/[a-z0-9-]+(?:\/[a-z0-9-]+)?\/\d+(?:\?|$)/i
 // طلبات خلفية دورية لا علاقة لها بفتح سجل
 const BACKGROUND_URL = /^\/api\/(chat|notifications|messaging|customer-notifications|work-alerts|briefing|license|company-status)\b/i
 const SHOW_AFTER_MS = 250
+export const BACKGROUND_FETCH_HEADER = "x-background-fetch"
 const GIVE_UP_MS = 60_000
 
 function recordPath(input: RequestInfo | URL, init?: RequestInit): string | null {
   const method = String(init?.method || (typeof input === "object" && "method" in input ? input.method : "GET")).toUpperCase()
   if (method !== "GET") return null
+  // جلب خلفي لسجل (حساب افتراضي عند تهيئة شاشة...) لا يفتح سجلاً: الترويسة BACKGROUND_FETCH_HEADER تستثنيه من النافذة
+  if (init?.headers && new Headers(init.headers).has(BACKGROUND_FETCH_HEADER)) return null
   const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
   let path = raw
   try {

@@ -1267,8 +1267,13 @@ export const fetchDetails = async (voucherId: number) => {
     cashCheckCardCostCenters.set(row.journal_type_id, costCentersByJournalId.get(row.id) || [])
   }
 
+  // عدة أسطر من النوع نفسه (سند مرحّل من الشامل: سطر لكل شيك) ⇐ المبلغ مجموعها وحساب أولها
   const paymentRowByType = new Map<number, any>()
-  for (const row of cashCheckCardRows) paymentRowByType.set(Number(row.journal_type_id), row)
+  for (const row of cashCheckCardRows) {
+    const type = Number(row.journal_type_id)
+    const previous = paymentRowByType.get(type)
+    paymentRowByType.set(type, previous ? { ...previous, amount: Number(previous.amount || 0) + Number(row.amount || 0) } : row)
+  }
   const cashRow = paymentRowByType.get(JOURNAL_TYPE_CASH)
   const chequeRow = paymentRowByType.get(JOURNAL_TYPE_CHEQUE)
   const cardRow = paymentRowByType.get(JOURNAL_TYPE_CARD)

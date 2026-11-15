@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import sql from "@/lib/database"
 import { accountAccessError, filterAccessibleAccounts } from "@/lib/account-access"
@@ -14,6 +15,7 @@ const validDate = (value: string | null, fallback: string) => {
 }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

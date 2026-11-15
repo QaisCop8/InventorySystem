@@ -10,6 +10,7 @@ import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib
 import { ensurePosTables } from "@/app/api/pos/_lib"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { INTERNAL_VOUCHER } from "@/lib/auto-journals"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 const TYPES = ["vouchers", "transactions", "trial-balance", "balance-sheet", "income-statement"] as const
 type ReportType = (typeof TYPES)[number]
@@ -25,6 +26,7 @@ async function ensureFinancialDefinitions() { return runSchemaOnce("app/api/repo
 }) }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

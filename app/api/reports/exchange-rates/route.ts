@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 import { requirePermissionByName } from "@/lib/tenant-auth"
 import { reportPermissionNameFor } from "@/lib/report-permission-definitions"
 import { ensureExchangeRateAuditColumns, EXCHANGE_RATE_TIME_ZONE } from "@/lib/exchange-rate-access"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // «تقرير اسعار الصرف»: سعر كل عملة بكل يوم في الفترة، مع التغيّر عن اليوم السابق ومن أدخله (أو منسوخ تلقائياً من آخر سعر).
 // العملة الرئيسية (أصغر معرّف، ثابتة عند 1) مستثناة.
@@ -10,6 +11,7 @@ import { ensureExchangeRateAuditColumns, EXCHANGE_RATE_TIME_ZONE } from "@/lib/e
 const validDate = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null)
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const auth = await requirePermissionByName(request, reportPermissionNameFor("exchange-rates-report") || "تقرير اسعار الصرف")
     if (!auth.ok) return auth.response

@@ -1,7 +1,9 @@
 import sql from "@/lib/database"
 import { NextResponse } from "next/server"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 export async function GET() {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const [salesData, purchaseData, productsData, customersData] = await Promise.all([
       sql`SELECT COUNT(*) as count, SUM(total_amount) as total FROM sales_orders`,

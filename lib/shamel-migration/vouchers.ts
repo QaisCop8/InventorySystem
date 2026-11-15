@@ -4,6 +4,7 @@ import { NO_EXPIRY_SENTINEL_DATE, applyStockMovement } from "@/app/api/stock-vou
 import { MigrationRun, StepContext, date, insertRow, mapGet, num, text, toCode10 } from "@/lib/shamel-migration/core"
 import { stageRows, voucherBookFor } from "@/lib/shamel-migration/balances"
 import { withYearOpened } from "@/lib/year-end-closing"
+import { JOURNAL_TYPE_CASH, JOURNAL_TYPE_CHEQUE, PAYMENT_VCH_TYPE, RECEIPT_VCH_TYPE } from "@/app/api/receipts/_lib"
 
 // السندات: بادئة رقم السند بالشامل تحدد نوعه (voucher_types_tbl بالشامل ويب) ⇐ نوعه هنا. يُنقل كل سند مرحّلاً كما هو:
 // الرأس (cpage/spage) + أسطر القيد (ctrans) كما قيّدها الشامل + أسطر الأصناف (strans) وحركة المخزون.
@@ -55,7 +56,8 @@ export const voucherLinesSql = (run: MigrationRun) => `select cp."VoucherID" as 
   ct."Pos" as line_pos, ct."Code" as line_account, ct."Curr" as line_currency, ct."Amount" as line_amount, ct."CrDr" as line_crdr,
   ct."Cost cent." as cc1, ct."CostCent21" as cc2, ct."CostCent22" as cc3, ct."CostCent23" as cc4, ct."CostCent24" as cc5, ct."CostCent25" as cc6,
   (select jn2.note from "jornotes" jn2 where jn2."vch. id"=cp."VoucherID" and jn2.pos=ct."Pos") as line_note,
-  (select jn.note from "jornotes" jn where jn."vch. id"=cp."VoucherID" and jn.pos=-1) as note1
+  (select jn.note from "jornotes" jn where jn."vch. id"=cp."VoucherID" and jn.pos=-1) as note1,
+  (select sum(cq."Amount") from "cheques" cq where cq."Voucher ID"=cp."VoucherID") as cheq_total
   from "cpage" cp
   left join "spage" sp on sp."Voucher ID"=cp."VoucherID"
   left join "ctrans" ct on ct."Vch. ID"=cp."VoucherID" and ct."Pos">=0
@@ -223,6 +225,34 @@ export async function processVoucherLines(rows: Row[], ctx: StepContext, last: b
   if (last) await sql`DELETE FROM shamel_migration_stage WHERE run_id = ${ctx.run.id} AND step IN ('voucher_items', 'vouchers_carry')`.catch(() => undefined)
 }
 
+// سند قبض/صرف: شاشة السند تعرض طرف الدفع (مدين القبض / دائن الصرف) كحقول نقدي/شيكات وليس كأسطر «الحسابات» —
+// أسطر القيد بالشامل كلها سواء، فيُصنَّف طرف الدفع: حساب مجموع أسطره = مجموع شيكات السند بالشامل ⇐ شيكات،
+// والحساب الآخر ⇐ نقدي. حساب العميل/المورد (رأس السند) يبقى حساباً مقابلاً.
+const crdrOf = (line: Row) => { const value = num(line.line_crdr); return value === 9 || value === 10 ? value - 8 : value }
+function receiptLineTypes(vchType: number, lines: Row[], partyCode: string, chequeTotal: number) {
+  const types = new Map<Row, number>()
+  if (vchType !== RECEIPT_VCH_TYPE && vchType !== PAYMENT_VCH_TYPE) return types
+  const paymentSide = vchType === RECEIPT_VCH_TYPE ? 1 : 2
+  const byAccount = new Map<string, Row[]>()
+  for (const line of lines) {
+    const account = text(line.line_account)
+    if (crdrOf(line) !== paymentSide || account === partyCode) continue
+    byAccount.set(account, [...(byAccount.get(account) || []), line])
+  }
+  const sumOf = (rows: Row[]) => rows.reduce((sum, line) => sum + Math.abs(num(line.line_amount)), 0)
+  let chequeAccount: string | null = null
+  if (Math.abs(chequeTotal) > 0) {
+    for (const [account, rows] of byAccount) if (Math.abs(sumOf(rows) - Math.abs(chequeTotal)) < 0.01) { chequeAccount = account; break }
+  }
+  let cashAccount: string | null = null
+  for (const account of byAccount.keys()) if (account !== chequeAccount) { cashAccount = account; break }
+  for (const [account, rows] of byAccount) {
+    const journalType = account === chequeAccount ? JOURNAL_TYPE_CHEQUE : account === cashAccount ? JOURNAL_TYPE_CASH : null
+    if (journalType) for (const line of rows) types.set(line, journalType)
+  }
+  return types
+}
+
 async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: StepContext, lookups: BatchLookups): Promise<number> {
   const header = lines[0]
   const type = typeByPrefix.get(code.charAt(0).toUpperCase())
@@ -248,7 +278,7 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
 
   const voucherId = await insertRow("voucher_header_tbl", {
     vch_type: type.vchType, vch_code: vchCode, vch_date: vchDate, manual_date: vchDate, vch_book_id: bookId, branch_id: ctx.run.branch_id,
-    currency_id: currency, rate, amount: Math.abs(num(header.amount)),
+    currency_id: currency, rate, amount: Math.round(Math.abs(num(header.amount)) * 1000) / 1000,
     account_id: type.kind === "stock" ? null : partyAccount, customer_name: text(header.customer_name).slice(0, 150) || null,
     salesman_id: salesmanId, manual_voucher: (text(header.manual_vch) || code).slice(0, 50),
     note: [text(header.note), text(header.note1)].filter(Boolean).join(" - ").slice(0, 1000) || null,
@@ -259,6 +289,7 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
 
   // أسطر القيد كما قيّدها الشامل (CrDr: 1 مدين، 2 دائن؛ 9/10 = نفسها لسطر آلي) — أمر INSERT واحد لكل الأسطر
   const journalLines = lines.filter((line) => text(line.line_account) && Math.abs(num(line.line_amount)) > 0)
+  const lineTypes = receiptLineTypes(type.vchType, journalLines, text(header.customer_code), num(header.cheq_total))
   const rateFor = (currencyIdValue: number) => currencyIdValue === currency ? rate : rateOn(lookups, currencyIdValue, vchDate)
   const journalRows: unknown[][] = []
   const costCenterLinks: [number, number][] = []
@@ -276,7 +307,7 @@ async function saveVoucher(code: string, lines: Row[], itemRows: Row[], ctx: Ste
     const accountRate = accountCurrency === lineCurrency ? lineRate : await rateFor(accountCurrency)
     const accountAmount = currencyDifference ? 0 : accountCurrency === lineCurrency ? amount : Math.round((base / accountRate) * 1000) / 1000
     const orderNo = journalRows.length + 1
-    journalRows.push([voucherId, orderNo, JOURNAL_LINE_TYPE, accountIdValue, crdr, amount, lineCurrency, lineRate, base, accountCurrency, accountRate, accountAmount, text(line.line_note).slice(0, 70) || null])
+    journalRows.push([voucherId, orderNo, lineTypes.get(line) ?? JOURNAL_LINE_TYPE, accountIdValue, crdr, amount, lineCurrency, lineRate, base, accountCurrency, accountRate, accountAmount, text(line.line_note).slice(0, 70) || null])
     // مراكز التكلفة: الحقل n بالشامل = نوع مركز التكلفة n-1
     for (let typePos = 0; typePos < 6; typePos++) {
       const costCode = text(line[`cc${typePos + 1}`])
@@ -354,6 +385,38 @@ export async function fixMigratedVouchers() {
     FROM target t
     WHERE h.id = t.id
       AND NOT EXISTS (SELECT 1 FROM voucher_header_tbl o WHERE o.vch_type = t.vch_type AND o.vch_code = t.new_code AND o.id <> t.id)`
+  // قبض/صرف مرحّل قبل تصنيف طرف الدفع (كل أسطره «حسابات»): بيانات شيكات الشامل غير متاحة هنا، فحساب الشيكات
+  // = حساب الشيكات الواردة بإعدادات المستخدمين (قبض) أو حساب الشيكات المدفوعة لحساب بنكي (صرف)، وغيره نقدي
+  await sql`
+    WITH migrated AS (
+      SELECT h.id, h.vch_type, h.account_id AS party_id, CASE WHEN h.vch_type = ${RECEIPT_VCH_TYPE} THEN 1 ELSE 2 END AS payment_side
+      FROM voucher_header_tbl h
+      WHERE h.vch_type IN (${RECEIPT_VCH_TYPE}, ${PAYMENT_VCH_TYPE})
+        AND h.id IN (SELECT web_id FROM shamel_migration_map WHERE kind = 'voucher')
+        AND NOT EXISTS (SELECT 1 FROM voucher_journal_detail_tbl t WHERE t.voucher_id = h.id AND t.journal_type_id IN (${JOURNAL_TYPE_CASH}, ${JOURNAL_TYPE_CHEQUE}))
+    ),
+    cheque_accounts AS (
+      SELECT received_cheqs_account_id AS account_id, ${RECEIPT_VCH_TYPE}::int AS vch_type FROM users_currencies_default_account_tbl WHERE received_cheqs_account_id IS NOT NULL
+      UNION SELECT payed_checks_account_id, ${PAYMENT_VCH_TYPE}::int FROM bank_accounts WHERE payed_checks_account_id IS NOT NULL
+    ),
+    payment_lines AS (
+      SELECT j.id, j.voucher_id, j.account_id,
+        EXISTS (SELECT 1 FROM cheque_accounts ca WHERE ca.account_id = j.account_id AND ca.vch_type = m.vch_type) AS is_cheque
+      FROM voucher_journal_detail_tbl j JOIN migrated m ON m.id = j.voucher_id
+      WHERE j.credit_debit = m.payment_side AND j.account_id IS DISTINCT FROM m.party_id
+    ),
+    cash_account AS (
+      SELECT DISTINCT ON (voucher_id) voucher_id, account_id FROM payment_lines WHERE NOT is_cheque ORDER BY voucher_id, id
+    )
+    UPDATE voucher_journal_detail_tbl j
+    SET journal_type_id = CASE WHEN p.is_cheque THEN ${JOURNAL_TYPE_CHEQUE} ELSE ${JOURNAL_TYPE_CASH} END
+    FROM payment_lines p
+    LEFT JOIN cash_account c ON c.voucher_id = p.voucher_id
+    WHERE j.id = p.id AND (p.is_cheque OR c.account_id = p.account_id)`.catch((error: unknown) => console.error("[shamel-migration] receipt line repair failed:", error))
+  // مبلغ الرأس من الشامل عدد عشري طويل (36414.690650146375) ⇐ 3 خانات
+  await sql`
+    UPDATE voucher_header_tbl SET amount = ROUND(amount::numeric, 3)
+    WHERE id IN (SELECT web_id FROM shamel_migration_map WHERE kind = 'voucher') AND amount IS NOT NULL AND amount::numeric <> ROUND(amount::numeric, 3)`
   await sql`
     UPDATE voucher_header_tbl h SET amount = ROUND((d.debit_base / COALESCE(NULLIF(h.rate, 0), 1))::numeric, 3)
     FROM (

@@ -4,6 +4,7 @@ import { reportAccessDenied } from "@/lib/report-permissions"
 import { ensureRestaurantTables } from "@/lib/restaurant"
 import { ensureRestaurantCustodyTables } from "@/lib/restaurant-custody"
 import { RESTAURANT_MONITOR_LABEL } from "@/lib/restaurant-monitor"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // مراقبة المطعم: كل ما يفعله المستخدم في شاشة المطعم — حركات الطلبات (restaurant_order_log_tbl) وحركات العهدة
 // (restaurant_cash_movements_tbl، عدا 'sale' لأن الدفع ظاهر من سجل الطلب). نوع الحركة يُشتق في JS من action + details
@@ -34,6 +35,7 @@ function orderActionKey(action: string, details: any) {
 }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const denied = await reportAccessDenied(request, [SECTION])
     if (denied) return denied

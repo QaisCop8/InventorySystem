@@ -302,7 +302,7 @@ async function loadStoredSettingsFromDb(): Promise<Record<string, unknown>> {
   return settings
 }
 
-async function saveSettingsPayload(payload: Record<string, unknown>, stored?: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function saveSettingsPayload(payload: Record<string, unknown>, stored?: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (!sql) return {}
 
   await ensureSettingsTable()

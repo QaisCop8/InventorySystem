@@ -3,6 +3,7 @@ import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { reportDate, reportIds } from "@/lib/item-inventory-reports"
 import { PROFIT_GROUP_BY, SALES_INVOICE, SALES_RETURN, computeSalesProfitLines, groupSalesProfit, salesProfitMeta, saveSalesCostPrices, searchProfitVouchers, soldItemsInPeriod, type PricingWay, type ProfitFilters, type ProfitGroupBy } from "@/lib/sales-profit"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 function readFilters(params: URLSearchParams): ProfitFilters {
   const today = new Date().toISOString().slice(0, 10)
@@ -22,6 +23,7 @@ function readFilters(params: URLSearchParams): ProfitFilters {
 }
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
@@ -49,6 +51,7 @@ export async function GET(request: NextRequest) {
 
 // تسعير الإخراجات: حفظ الكلفة المحسوبة على أسطر سندات المبيعات والمرتجعات ضمن نفس الفلاتر.
 export async function POST(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

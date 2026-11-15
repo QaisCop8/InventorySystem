@@ -38,6 +38,7 @@ import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 import { VoucherListTable, VoucherSearchButton, searchOnEnter, useVoucherListSearch } from "@/components/common/voucher-list-table"
+import { BACKGROUND_FETCH_HEADER } from "@/components/common/record-loading-indicator"
 import { logVoucherAudit } from "@/lib/audit-client"
 import { useAnnounceTransactionSaved } from "@/lib/transaction-success"
 
@@ -414,7 +415,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         const taxAccountId = Number(isSalesDirection ? data?.default_sales_tax_account : data?.default_purchase_tax_account) || null
         if (taxAccountId) {
           try {
-            const accountRes = await fetch(`/api/accounts/${taxAccountId}`)
+            const accountRes = await fetch(`/api/accounts/${taxAccountId}`, { headers: { [BACKGROUND_FETCH_HEADER]: "1" } })
             if (accountRes.ok) {
               const account = await accountRes.json()
               defaultTaxAccountRef.current = { id: taxAccountId, code: account?.code || "", name: account?.name || "" }
@@ -589,7 +590,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     setDialogOpen(true)
     setIsLoading(true)
     try {
-      const defaults = await fetchDefaults()
+      // الدفاتر والعملات حُمّلت عند فتح الشاشة (fetchLookups) — لا تُعاد مع كل سند جديد، فقط توليد الرقم
+      const defaults = voucherBooks.length && currencies.length && cachedBookId != null
+        ? { bookId: cachedBookId, currencyId: cachedCurrencyId }
+        : await fetchDefaults()
       const code = await generateCode(defaults.bookId, "", buildInitialForm().branch_id)
       const cashAccount = resolveCashAccountForCurrency(defaults.currencyId)
       setForm({

@@ -5,10 +5,12 @@ import { getInventoryReportProducts, reportDate } from "@/lib/item-inventory-rep
 import { buildItemCard, type ItemCardLine } from "@/lib/item-card-ledger"
 import sql from "@/lib/database"
 import { ensureProductionTables } from "@/lib/production-vouchers"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 const ids = (value: string | null) => String(value || "").split(",").map(Number).filter(id => Number.isSafeInteger(id) && id > 0)
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { reportAccessDenied } from "@/lib/report-permissions"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // تقارير الشيكات (منقولة من ShamelAPI TotalCheckTotalsReport / DetailedCheckGroupsReport):
 //   view=total    — مجاميع الشيكات حسب تاريخ الاستحقاق يومياً أو شهرياً (وارد/صادر/صافي/تراكمي)
@@ -20,6 +21,7 @@ const DAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأر
 const MONTH_NAMES = ["كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران", "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول"]
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "total") as View

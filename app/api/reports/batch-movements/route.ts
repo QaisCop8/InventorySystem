@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import sql from "@/lib/database"
 import * as XLSX from "xlsx"
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const { searchParams } = new URL(request.url)
     const isExport = searchParams.get("export") === "true"

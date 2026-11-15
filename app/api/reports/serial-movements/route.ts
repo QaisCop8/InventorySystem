@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { ensureItemSerialTables } from "@/lib/item-serials"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // تقرير حركات السيريال:
 //   GET ?search=&status=all|in_stock|out|none  ⇐ الأرقام التسلسلية مع حالتها الحالية (آخر حركة فعّالة)
 //   GET ?serial_id=N                            ⇐ كل السندات التي حرّكت هذا الرقم بالترتيب
 // ترتيب الحركات حسب رقم السند (voucher_id) لا رقم سطر الربط — انظر lastMoves في lib/item-serials.ts.
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const denied = await reportAccessDenied(request, ["serial-movements-report"])
     if (denied) return denied

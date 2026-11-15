@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { ensureRestaurantTables } from "@/lib/restaurant"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // تقارير المطاعم (view): الطاولات، الطلبات تفصيلي، الأصناف المباعة، حسب النادل، حسب الموقع، أوقات الذروة.
 // الإيراد = مبالغ فواتير الدفع (restaurant_order_payments_tbl) — الدفعات الجزئية محسوبة. الطلبات المدموجة (merged)
@@ -22,6 +23,7 @@ const STATUSES = ["open", "paid", "cancelled"]
 const TYPES = ["dine_in", "takeaway"]
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "tables") as View

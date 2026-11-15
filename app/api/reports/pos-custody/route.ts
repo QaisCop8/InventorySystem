@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
 import { ensurePosTables } from "@/app/api/pos/_lib"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // تقرير عهد البيع بالتجزئة: كل وردية (عهدة) في الفترة — النقطة والكاشير والأوقات والحالة، النقد (افتتاحي/متوقع/مسلَّم/فرق)،
 // الاستلام من/التسليم إلى، المبيعات والدفعات حسب الطريقة، الإيداع/السحب، وعهدة الدخان (كميات) لكل صنف.
@@ -11,6 +12,7 @@ const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d
 const STATUSES = ["open", "handover_pending", "handed_over", "closed"]
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const denied = await reportAccessDenied(request, ["pos-custody-report"])
     if (denied) return denied

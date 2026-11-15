@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { ensureProductionTables } from "@/lib/production-vouchers"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 // تقارير الانتاج (view): تفصيلي (سطر لكل صنف بكل سند) · المواد المنتجة حسب الصنف · استهلاك المواد الخام حسب الصنف
 // · تكلفة كل سند (قيمة المنتَج مقابل الخام). الافتراضي السندات المعتمدة فقط.
@@ -17,6 +18,7 @@ const ids = (value: string | null) => [...new Set(String(value || "").split(",")
 const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback)
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const params = request.nextUrl.searchParams
     const view = (params.get("view") || "detailed") as View

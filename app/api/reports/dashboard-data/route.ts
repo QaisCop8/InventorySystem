@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import sql from "@/lib/database"
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const { searchParams } = new URL(request.url)
     const fromDate =

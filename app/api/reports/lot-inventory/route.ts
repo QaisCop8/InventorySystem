@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getLotInventoryReport } from "@/lib/lot-management"
+import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 
 export async function GET(request: NextRequest) {
+  await ensureVoucherIndexes().catch(() => undefined)
   try {
     const { searchParams } = new URL(request.url)
 
