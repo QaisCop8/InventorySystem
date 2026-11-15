@@ -167,6 +167,8 @@ export async function GET(request: NextRequest) {
           statement_item:target.statement_item || item || sourceDefinition.statement_item,
           opening_balance:0,debit:0,credit:0,balance:0,
           __asset_item:itemsSource?.asset_item || null,__liability_item:itemsSource?.liability_item || null,
+          // ترتيب بند قائمة الدخل (ترتيب البنود بالشامل) — الأقسام تُعرض بترتيب البنود لا بترتيب أرقام الحسابات
+          statement_item_order:Number([target, ...ancestors].find((item:any) => item.finanical_list_income_id)?.finanical_list_income_id) || 9999,
         })
         const result = grouped.get(targetId)
         for (const key of ["opening_balance","debit","credit","balance"] as const) result[key] += Number(row[key] || 0)
@@ -207,13 +209,16 @@ export async function GET(request: NextRequest) {
           if (!sourceRate || sourceRate <= 0) throw new Error(`لا يوجد سعر صرف صالح لعملة الصنف ${row.product_code}`)
           return total + quantity * unitCost * sourceRate / targetRate
         },0)
+        const incomeItems = (await sql`SELECT id,name FROM income_statement_items WHERE COALESCE(status,1)<>3 ORDER BY id`.catch(() => [])) as any[]
+        const costItem = incomeItems[1] ? { name:String(incomeItems[1].name), order:Number(incomeItems[1].id) } : { name:"تكلفة المبيعات", order:9998 }
         const closingValue = valueOf(closingBalances as any[])
         const openingValue = valueOf(openingBalances as any[])
         const valuationRows = reportType === "balance-sheet"
           ? [{id:-1,account_code:"",account_name:"تقييم بضاعة آخر المدة",statement_item:"المخزون",statement_side:"assets",balance:closingValue}]
           : [
-              {id:-1,account_code:"",account_name:"تقييم بضاعة أول المدة",statement_item:"تكلفة المبيعات",statement_side:"unclassified",balance:openingValue},
-              {id:-2,account_code:"",account_name:"تقييم بضاعة آخر المدة",statement_item:"تكلفة المبيعات",statement_side:"unclassified",balance:-closingValue},
+              // الشامل: تقييم البضاعة يُدرج بالبند الثاني من قائمة الدخل (تكلفة المبيعات) — أول المدة قبل حساباته وآخر المدة بعدها
+              {id:-1,account_code:"",account_name:"تقييم بضاعة أول المدة",statement_item:costItem.name,statement_item_order:costItem.order,statement_side:"unclassified",balance:openingValue},
+              {id:-2,account_code:"",account_name:"تقييم بضاعة آخر المدة",statement_item:costItem.name,statement_item_order:costItem.order,statement_side:"unclassified",balance:-closingValue},
             ]
         rows.push(...valuationRows.filter(row => Math.abs(row.balance) > 0.00001))
       }

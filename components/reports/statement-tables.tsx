@@ -10,6 +10,7 @@ type Row = {
   account_name?: string
   statement_item?: string
   statement_side?: string
+  statement_item_order?: number
   balance?: number | string
 }
 
@@ -35,11 +36,18 @@ export function IncomeStatementTable({ rows }: { rows: Row[] }) {
   const debits = rows.reduce((sum, row) => sum + Math.max(value(row), 0), 0)
   const credits = rows.reduce((sum, row) => sum + Math.max(-value(row), 0), 0)
   const gridRows: GridRow[] = []
-  groups(rows).forEach(([name, accounts], sectionIndex) => {
+  // نفس الشامل: الأقسام بترتيب بنود قائمة الدخل، تقييم بضاعة أول المدة أول القسم وآخر المدة آخره، و«مجمل الربح/الخسارة» بعد القسم الثاني
+  const order = (accounts: Row[]) => Math.min(...accounts.map((row) => Number(row.statement_item_order) || 9999))
+  const sections = groups(rows).sort((left, right) => order(left[1]) - order(right[1]))
+  let running = 0
+  sections.forEach(([name, accounts], sectionIndex) => {
     gridRows.push({ __kind: "section", label: `${sectionIndex + 1}. ${name}` })
-    for (const row of accounts) gridRows.push({ __kind: "account", label: row.account_name || "", account_code: row.account_code, debit: nonZero(Math.max(value(row), 0)), credit: nonZero(Math.max(-value(row), 0)) })
+    const ordered = [...accounts.filter((row) => row.id === -1), ...accounts.filter((row) => row.id !== -1 && row.id !== -2), ...accounts.filter((row) => row.id === -2)]
+    for (const row of ordered) gridRows.push({ __kind: "account", label: row.account_name || "", account_code: row.account_code, debit: nonZero(Math.max(value(row), 0)), credit: nonZero(Math.max(-value(row), 0)) })
     const subtotal = accounts.reduce((sum, row) => sum + value(row), 0)
+    running += subtotal
     gridRows.push({ __kind: "subtotal", label: `${tr("مجموع ")}${name}`, debit: nonZero(Math.max(subtotal, 0)), credit: nonZero(Math.max(-subtotal, 0)) })
+    if (sectionIndex === 1 && sections.length > 2) gridRows.push({ __kind: "net", label: running <= 0 ? tr("مجمل الربح") : tr("مجمل الخسارة"), credit: nonZero(Math.max(-running, 0)), debit: nonZero(Math.max(running, 0)) })
   })
   gridRows.push({ __kind: "net", label: `${tr("صافي ")}${total <= 0 ? tr("الربح") : tr("الخسارة")}`, debit: nonZero(Math.max(-total, 0)), credit: nonZero(Math.max(total, 0)) })
   const columns: ReportGridColumn<GridRow>[] = [
