@@ -87,6 +87,7 @@ const STEPS: MigrationStep[] = [
       case when c."Date">'1990-01-01' then c."Date" else '1990-01-01' end as entry_date_,
       ci."Cr_limit" as debt_max_amount,
       acc."AccountFather" as father_code, acc."AccountName" as account_name, acc."Curr" as currency_code,
+      acc."finlist" as finanical_list_id, acc."asset" as asset_pos, acc."Liab" as liab_pos,
       acc."allowforigncurr" as allow_trans_with_diff_curr, acc."CurrDeff" as iscalc_curr_diff_rates_asint,
       (select name from "enamefl" where type=0 and backup=0 and code=c."Code") as name_lang2,
       substring(concat(rtrim(c."Street1"),concat(' ',rtrim(c."Street2"))),1,70) as address,

@@ -255,13 +255,9 @@ export async function processAccounts(rows: Row[], ctx: StepContext) {
     if (!shamelCode) return "skipped"
     const mapped = await mapOne("account", shamelCode)
     if (mapped) {
-      // حساب رُحِّل سابقاً بلا تصنيف قوائم مالية (كان يُرث من الأب فقط) ⇐ يُحدَّث من الشامل
-      const classification = await accountClassification(r)
-      if (classification.finanical_list_assests_id || classification.finanical_list_liabilities_id || classification.finanical_list_income_id) {
-        await updateRow("account_tbl", mapped, classification)
-        return "updated"
-      }
-      return "skipped"
+      // إعادة الترحيل: القائمة المالية وبنود الأصول/الخصوم/قائمة الدخل تُحدَّث دائماً من الشامل (حساب بلا بند يرث من أبيه بالتقرير)
+      await updateRow("account_tbl", mapped, await accountClassification(r))
+      return "updated"
     }
     const code = await accountCodeFor(shamelCode)
     const existing = (await sql`SELECT id FROM account_tbl WHERE code = ${code} LIMIT 1`)[0] as any
@@ -359,6 +355,8 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
       await updateRow("account_tbl", accountIdValue, { name_lang2: text(r.name_lang2) || null, notes: `مُرحَّل من الشامل (${shamelCode})` })
       await mapSet("account", shamelCode, accountIdValue)
     }
+    // القائمة المالية وبنود الميزانية/الدخل من حساب الشامل (عند الإنشاء وإعادة الترحيل) — صف بلا حساب بالشامل يبقى كما هو
+    if (r.finanical_list_id != null && text(r.finanical_list_id) !== "") await updateRow("account_tbl", accountIdValue, await accountClassification(r))
     if (isEmployee) return "created" // الموظف: حسابه فقط (بيانات الموظفين تُعرَّف من الموارد البشرية)
 
     const existing = (await sql`SELECT id FROM customers WHERE customer_code = ${code} OR account_id = ${accountIdValue} LIMIT 1`)[0] as any
