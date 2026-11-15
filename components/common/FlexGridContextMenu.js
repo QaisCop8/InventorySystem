@@ -15,6 +15,37 @@ import { gridStrings } from './grid-strings';
 // النصوص من جدول عربي يُترجَم حسب لغة الواجهة (كانت "$.strings.x" حرفياً فتظهر المفاتيح بدل النصوص)
 const $ = { strings: gridStrings };
 
+const SAMPLE_ROWS = 300;
+let measureContext = null;
+function fastAutoSize(grid, columns) {
+  if (!columns.length) return;
+  if (!measureContext) measureContext = document.createElement('canvas').getContext('2d');
+  const style = window.getComputedStyle(grid.hostElement);
+  const font = `${style.fontWeight || 'normal'} ${style.fontSize || '13px'} ${style.fontFamily || 'sans-serif'}`;
+  const headerFont = `bold ${style.fontSize || '13px'} ${style.fontFamily || 'sans-serif'}`;
+  // عيّنة: الصفوف الظاهرة مع ما حولها، ثم أول الجدول — تكفي لتقدير العرض دون المرور على كل الأسطر
+  const total = grid.rows.length;
+  const view = grid.viewRange;
+  const rows = new Set();
+  const from = Math.max(0, (view && view.row >= 0 ? view.row : 0) - 50);
+  for (let r = from; r < Math.min(total, from + SAMPLE_ROWS); r++) rows.add(r);
+  for (let r = 0; r < Math.min(total, 50); r++) rows.add(r);
+  const padding = 24;
+  grid.deferUpdate(() => {
+    columns.forEach((column) => {
+      measureContext.font = headerFont;
+      let width = measureContext.measureText(String(column.header || '')).width;
+      measureContext.font = font;
+      rows.forEach((r) => {
+        let text = '';
+        try { text = grid.getCellData(r, column.index, true); } catch { text = ''; }
+        if (text != null && text !== '') width = Math.max(width, measureContext.measureText(String(text)).width);
+      });
+      column.width = Math.min(Math.max(Math.ceil(width + padding), column.minWidth || 40), 600);
+    });
+  });
+}
+
 export default class FlexGridContextMenu {
   constructor(
     grid,
@@ -228,11 +259,13 @@ export default class FlexGridContextMenu {
               }
               break;
             }
+            // ملاءمة العرض: autoSizeColumn(s) من Wijmo ترسم كل خلية بكل الصفوف لتقيسها — سند بآلاف الأسطر (أول المدة)
+            // كان يجمّد الصفحة. القياس هنا نصّي على canvas لرأس العمود وعيّنة من الصفوف (الظاهرة ومحيطها)
             case 'ASZ':
-              grid.autoSizeColumn(col.index);
+              fastAutoSize(grid, [col]);
               break;
             case 'ASZ_ALL':
-              grid.autoSizeColumns(0, grid.columns.length - 1);
+              fastAutoSize(grid, grid.columns.filter((column) => column.visible));
               break;
             case 'Col_CHOOSER': {
               if (showColumnPicker) {
