@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const [accounts, currencies, branches] = await Promise.all([
       sql`SELECT a.id,a.code,a.name,a.type,a.currency_id,c.currency_code,c.currency_name FROM account_tbl a LEFT JOIN currency c ON c.id=a.currency_id WHERE COALESCE(a.status,1)<>3 AND (${kind === "receivables"} OR NOT EXISTS (SELECT 1 FROM account_tbl child WHERE child.father_id=a.id AND COALESCE(child.status,1)<>3)) AND (${kind === "accounting"} OR a.type IN (2,3,5)) ORDER BY a.code`,
       sql`SELECT id,currency_code,currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
-      effectiveBranchIds.length ? sql`SELECT id,branch_code,branch_name FROM branches WHERE id=ANY(${effectiveBranchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name` : sql`SELECT id,branch_code,branch_name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
+      effectiveBranchIds.length ? sql`SELECT id,branch_code,branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND id=ANY(${effectiveBranchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name` : sql`SELECT id,branch_code,branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
     ])
     // صلاحيات المستخدمين على الحسابات: الممنوع لا يظهر بالخيارات ولا يُستعلم عنه
     const meta = { accounts: await filterAccessibleAccounts(request, accounts as any[]), currencies, branches }

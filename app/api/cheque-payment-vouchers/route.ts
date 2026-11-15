@@ -45,7 +45,7 @@ export async function GET(request:NextRequest){
         WHERE vh.vch_type=${CHEQUE_PAYMENT_VCH_TYPE} AND vh.status<>3 AND vh.branch_id=ANY(${authorization.branchIds}::int[]) ORDER BY vh.id DESC`,
       sql`SELECT id,code,name,type,level_no,currency_id,allow_trans_with_diff_curr,status FROM account_tbl WHERE COALESCE(status,1)<>3 ORDER BY code`,
       sql`SELECT id,currency_code,currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
-      sql`SELECT id,branch_code,branch_name FROM branches WHERE id=ANY(${authorization.branchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
+      sql`SELECT id,branch_code,branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND id=ANY(${authorization.branchIds}::int[]) AND COALESCE(status,1)<>3 ORDER BY branch_name`,
     ])
     return NextResponse.json({rows,meta:{accounts,currencies,branches}})
   }catch(error){console.error("Cheque payment voucher GET error:",error);return NextResponse.json({error:"تعذر تحميل سندات صرف الشيكات"},{status:500})}

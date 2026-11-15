@@ -441,6 +441,8 @@ export const menuItems: MenuItem[] = [
           { title: tr("تقرير أرصدة الحسابات بتاريخ معين"), section: "accounting-balances-report", icon: BarChart3 },
           { title: tr("تقرير اسعار الصرف"), section: "exchange-rates-report", icon: DollarSign },
           { title: tr("تقرير تعمير الذمم"), section: "receivables-aging-report", icon: Clock3 },
+          { title: tr("كشف المقبوضات"), section: "receipts-report", icon: HandCoins },
+          { title: tr("كشف المصروفات"), section: "expenses-report", icon: MinusCircle },
           { title: tr("تقرير السندات"), section: "vouchers-report", icon: FileText },
           { title: tr("تقرير الحركات"), section: "transactions-report", icon: TrendingUp },
           { title: tr("تقرير ارشفة السندات"), section: "voucher-audit-report", icon: Archive },

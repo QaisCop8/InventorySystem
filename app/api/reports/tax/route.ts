@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const [currencies, branches] = await Promise.all([
       sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active, true) ORDER BY id`,
       effectiveBranches.length
-        ? sql`SELECT id, branch_code, branch_name FROM branches WHERE id = ANY(${effectiveBranches}::int[]) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`
+        ? sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND id = ANY(${effectiveBranches}::int[]) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`
         : sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`,
     ])
     const meta = { currencies, branches }

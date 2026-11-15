@@ -124,7 +124,7 @@ export async function loadOverview(branchIds: number[], all: boolean, canSwitch:
     ])
 
     const k = kpiRows[0] ?? {}
-    const branches = await sql`SELECT id, branch_name AS name FROM branches WHERE id = ANY(${branchIds}::int[]) ORDER BY id`
+    const branches = await sql`SELECT id, branch_name AS name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND id = ANY(${branchIds}::int[]) ORDER BY id`
     const mapNumbers = (rows: any[], keys: string[]) => rows.map(row => ({ ...row, ...Object.fromEntries(keys.map(key => [key, round2(num(row[key]))])) }))
 
     return {

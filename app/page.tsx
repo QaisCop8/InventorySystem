@@ -76,6 +76,8 @@ const ManufacturingComponentsImport = lazyDefault(() => import("@/components/too
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
 const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
+const ReceiptsReport = lazyNamed(() => import("@/components/reports/receipts-expenses-report"), "ReceiptsReport")
+const ExpensesReport = lazyNamed(() => import("@/components/reports/receipts-expenses-report"), "ExpensesReport")
 const ReceivablesAgingReport = lazyNamed(() => import("@/components/reports/receivables-aging-report"), "ReceivablesAgingReport")
 const AccountingBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "AccountingBalancesReport")
 const VouchersReport = lazyNamed(() => import("@/components/reports/financial-report"), "VouchersReport")
@@ -275,6 +277,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "receivables-balances-report": ReceivablesBalancesReport,
   "accounting-balances-report": AccountingBalancesReport,
   "receivables-aging-report": ReceivablesAgingReport,
+  "receipts-report": ReceiptsReport,
+  "expenses-report": ExpensesReport,
   "vouchers-report": VouchersReport,
   "transactions-report": TransactionsReport,
   "trial-balance-report": TrialBalanceReport,

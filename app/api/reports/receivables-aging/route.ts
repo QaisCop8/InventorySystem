@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
           WHERE COALESCE(a.status, 1) <> 3 AND a.type = ANY(${RECEIVABLE_TYPES}::int[]) ORDER BY a.code`,
       sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active, true) ORDER BY id`,
       effectiveBranchIds.length
-        ? sql`SELECT id, branch_code, branch_name FROM branches WHERE id = ANY(${effectiveBranchIds}::int[]) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`
+        ? sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND id = ANY(${effectiveBranchIds}::int[]) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`
         : sql`SELECT id, branch_code, branch_name FROM branches WHERE NOT COALESCE((to_jsonb(branches)->>'is_bank_branch')::boolean, false) AND COALESCE(status, 1) <> 3 ORDER BY branch_name`,
       sql`SELECT id, name FROM salesmen WHERE COALESCE(is_active, true) ORDER BY name`.catch(() => []),
       loadPeriods(),

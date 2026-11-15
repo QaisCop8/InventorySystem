@@ -21,6 +21,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "accounting-balances-report", title: "تقرير أرصدة الحسابات بتاريخ معين" },
   { section: "exchange-rates-report", title: "تقرير اسعار الصرف" },
   { section: "receivables-aging-report", title: "تقرير تعمير الذمم" },
+  { section: "receipts-report", title: "كشف المقبوضات" },
+  { section: "expenses-report", title: "كشف المصروفات" },
   { section: "vouchers-report", title: "تقرير السندات" },
   { section: "transactions-report", title: "تقرير الحركات" },
   { section: "trial-balance-report", title: "ميزان المراجعة" },
