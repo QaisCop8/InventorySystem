@@ -51,6 +51,13 @@ export function ReportMultiChoice({ label, options, selected, onChange, placehol
 }) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
+  // قيمة الفلتر المقروءة (للطباعة/أرشفة التقارير): أسماء المختار أو «جميع …» عند اختيار الكل/لا شيء
+  const filterSummary = useMemo(() => {
+    if (!selected.length || selected.length >= options.length) return placeholder
+    const chosen = new Set(selected.map(Number))
+    const names = options.filter((option) => chosen.has(Number(option.id))).map((option) => option.name || option.account_name || option.branch_name || option.currency_name || option.code || option.account_code || String(option.id))
+    return names.length > 3 ? `${names.slice(0, 3).join("، ")} +${names.length - 3}` : names.join("، ")
+  }, [selected, options, placeholder])
   // القائمة تُفتح فوراً والخيارات تُرسم بالإطار التالي — الفتح لا ينتظر رسم مئات الأزرار
   const [listReady, setListReady] = useState(false)
   useEffect(() => {
@@ -76,7 +83,7 @@ export function ReportMultiChoice({ label, options, selected, onChange, placehol
     <Label htmlFor={triggerId}>{label}</Label>
     <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>
-    <button id={triggerId} type="button" className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm transition hover:border-teal-400 dark:border-slate-700 dark:bg-slate-950">
+    <button id={triggerId} type="button" data-filter-value={filterSummary} className="flex h-10 w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm transition hover:border-teal-400 dark:border-slate-700 dark:bg-slate-950">
       <span className="truncate">{selected.length ? tr("تم اختيار {0}", selected.length) : placeholder}</span><ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`}/>
     </button>
     </PopoverTrigger>

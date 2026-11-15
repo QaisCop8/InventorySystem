@@ -42,12 +42,54 @@ type Props<T> = {
 }
 
 const ROW_CLASS = "__reportRowClass"
+const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] as string)
+const BOLD_ROW = /report-row-(opening|subtotal|total)/
+
+/**
+ * جدول HTML كامل للطباعة من الشبكة الحيّة: كل الأسطر (لا الظاهرة فقط — Wijmo يرسم الظاهر فقط)، بترتيب/فلترة/تجميع
+ * المستخدم وأعمدته الظاهرة بترتيبها الحالي، والقيم منسّقة كما تظهر، وصف المجاميع.
+ * يُعلَّق على عنصر .report-grid ويستدعيه lib/voucher-print/report-print.ts (captureTables).
+ */
+function gridPrintTable(grid: any, footers: Record<string, unknown>, totalLabel: string): { html: string; width: number } | null {
+  if (!grid?.columns || !grid?.rows) return null
+  const columns: any[] = []
+  for (let c = 0; c < grid.columns.length; c++) if (grid.columns[c].visible) columns.push({ index: c, column: grid.columns[c] })
+  if (!columns.length) return null
+  const isNumber = (column: any) => column.dataType === 2 // wijmo DataType.Number
+  const head = columns.map(({ column }) => `<th${isNumber(column) ? ' class="n"' : ""}>${escapeHtml(column.binding === "__ser" ? "#" : String(column.header ?? "").trim())}</th>`).join("")
+  const body: string[] = []
+  for (let r = 0; r < grid.rows.length; r++) {
+    const row = grid.rows[r]
+    if (!row.visible) continue
+    const item = row.dataItem
+    if (row.hasChildren !== undefined && item && item.groupDescription) {
+      // صف مجموعة (تجميع من قائمة الزر الأيمن)
+      body.push(`<tr><td colspan="${columns.length}" style="font-weight:700;background:#e2e8f0">${escapeHtml(item.name ?? "")} (${item.items?.length ?? 0})</td></tr>`)
+      continue
+    }
+    const bold = BOLD_ROW.test(String(item?.[ROW_CLASS] || ""))
+    const style = bold ? ' style="font-weight:700;background:#f1f5f9"' : ""
+    body.push(`<tr>${columns.map(({ index, column }) => {
+      const text = grid.getCellData(r, index, true)
+      return `<td${isNumber(column) ? ' class="n"' : ""}${style}>${escapeHtml(text)}</td>`
+    }).join("")}</tr>`)
+  }
+  const hasFooter = Object.keys(footers).length > 0
+  const format = (value: unknown, column: any) => typeof value === "number" ? value.toLocaleString("en-US", { minimumFractionDigits: Number(String(column.format || "n2").slice(1)) || 0, maximumFractionDigits: Number(String(column.format || "n2").slice(1)) || 0 }) : String(value ?? "")
+  const foot = hasFooter ? `<tfoot><tr>${columns.map(({ column }) => {
+    const value = column.binding === "__ser" ? totalLabel : footers[column.binding]
+    return `<td${isNumber(column) ? ' class="n"' : ""}>${escapeHtml(value === undefined ? "" : format(value, column))}</td>`
+  }).join("")}</tr></tfoot>` : ""
+  const width = columns.reduce((sum, { column }) => sum + (Number(column.renderWidth) || 100), 0)
+  return { html: `<table><thead><tr>${head}</tr></thead><tbody>${body.join("")}</tbody>${foot}</table>`, width }
+}
 
 export function ReportGrid<T extends Record<string, any>>({
   rows, columns, height, onRowDoubleClick, exportFileName, rowClassName,
   totalLabel = tr("الإجمالي"), showSerial = true, emptyText, className,
 }: Props<T>) {
   const gridRef = useRef<any>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const visibleColumns = columns.filter((column) => column.visible !== false)
   const hasTotals = visibleColumns.some((column) => column.total !== undefined && column.total !== false)
 
@@ -103,6 +145,20 @@ export function ReportGrid<T extends Record<string, any>>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columns, showSerial, hasTotals, totalLabel, sums])
 
+  // الطباعة: report-print يستدعي هذه الدالة من عنصر الشبكة (الجدول الكامل بدل المرسوم على الشاشة فقط)
+  useEffect(() => {
+    const element = wrapperRef.current as any
+    if (!element) return
+    const footers: Record<string, unknown> = {}
+    for (const column of visibleColumns) {
+      if (column.total === undefined || column.total === false) continue
+      footers[column.value ? `__${column.key}` : column.key] = column.total === true ? sums[column.key] ?? 0 : column.total
+    }
+    element.__reportPrintTable = () => gridPrintTable(gridRef.current?.control, footers, totalLabel)
+    return () => { delete element.__reportPrintTable }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns, sums, totalLabel])
+
   // تلوين الصفوف الخاصة (رصيد سابق/مجموع فرعي) بصنف CSS من rowClassName
   useEffect(() => {
     if (!rowClassName) return
@@ -130,7 +186,7 @@ export function ReportGrid<T extends Record<string, any>>({
   return (
     // بلا ارتفاع صريح: الشبكة تملأ المساحة المتبقية في حاويتها (flex) — الارتفاع المحسوب من الشاشة كان أطول من المساحة
     // فيُقصّ أسفلها مع شريط التمرير العمودي (يختفي مقبضه)
-    <div className={`report-grid relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white ${className || ""}`}
+    <div ref={wrapperRef} className={`report-grid relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white ${className || ""}`}
       style={height !== undefined ? { height } : { flex: "1 1 0", minHeight: 360, height: "100%" }} dir={appDir()}>
       <DataGridView
         innerRef={gridRef}

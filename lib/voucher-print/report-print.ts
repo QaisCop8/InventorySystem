@@ -145,10 +145,19 @@ function alignNumericHeaders(table: HTMLTableElement) {
 // Copies the visible report tables (without buttons, inputs and screen styling) so the print is
 // rendered only with the report print settings.
 function captureTables(root: HTMLElement) {
-  const tables = Array.from(root.querySelectorAll<HTMLTableElement>("table")).filter(table =>
-    table.offsetParent !== null && !table.closest("aside, [role=dialog], .print\\:hidden, .wj-flexgrid"))
+  // جداول HTML + شبكات التقارير (ReportGrid/Wijmo ترسم الأسطر الظاهرة فقط ⇐ تبني جدولها الكامل بنفسها) بترتيب الصفحة
+  const nodes = Array.from(root.querySelectorAll<HTMLElement>("table, .report-grid")).filter(node =>
+    node.offsetParent !== null && !node.closest("aside, [role=dialog], .print\\:hidden") &&
+    (node.classList.contains("report-grid") ? typeof (node as any).__reportPrintTable === "function" : !node.closest(".wj-flexgrid, .report-grid")))
   let widest = 0
-  const html = tables.map(table => {
+  const html = nodes.map(node => {
+    if (node.classList.contains("report-grid")) {
+      const built = (node as any).__reportPrintTable() as { html: string; width: number } | null
+      if (!built) return ""
+      widest = Math.max(widest, built.width)
+      return built.html
+    }
+    const table = node as HTMLTableElement
     widest = Math.max(widest, table.scrollWidth)
     const clone = table.cloneNode(true) as HTMLTableElement
     const originals = Array.from(table.querySelectorAll<HTMLTableCellElement>("th, td"))
@@ -164,7 +173,7 @@ function captureTables(root: HTMLElement) {
     clone.removeAttribute("class")
     clone.removeAttribute("style")
     return clone.outerHTML
-  })
+  }).filter(Boolean)
   return { html, widest }
 }
 
@@ -172,7 +181,7 @@ function findReportRoot(from: HTMLElement | null) {
   const page = from?.closest<HTMLElement>(".report-page")
   if (page) return page
   let node = from
-  while (node && !node.querySelector("table")) node = node.parentElement
+  while (node && !node.querySelector("table, .report-grid")) node = node.parentElement
   return node ?? document.querySelector<HTMLElement>(".report-page") ?? document.body
 }
 

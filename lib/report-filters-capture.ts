@@ -27,6 +27,7 @@ function labelFor(element: HTMLElement, root: HTMLElement): string {
 }
 
 function valueOf(element: HTMLElement): string {
+  if (element.dataset.filterValue !== undefined) return clean(element.dataset.filterValue)
   if (element instanceof HTMLInputElement) {
     if (element.type === "checkbox" || element.type === "radio") return element.checked ? "✓" : ""
     return clean(element.value)
@@ -44,8 +45,19 @@ const PLACEHOLDER_VALUES = new Set(["empty", "اختر", "اختر...", "الك�
 export function collectReportFilters(root: HTMLElement | null): ReportFilterValue[] {
   if (!root || typeof document === "undefined") return []
   const scope = (root.querySelector(".report-filters") as HTMLElement | null) || root
+  // لوحة الفلاتر تُطوى بعد «عرض النتائج» (hidden) ⇐ تُفتح لحظياً للقراءة ثم تُعاد (متزامن — لا يظهر للمستخدم)
+  const collapsed = Array.from(root.querySelectorAll<HTMLElement>(".report-filters-body[hidden]"))
+  collapsed.forEach((body) => { body.hidden = false })
+  try {
+    return readFilters(scope)
+  } finally {
+    collapsed.forEach((body) => { body.hidden = true })
+  }
+}
+
+function readFilters(scope: HTMLElement): ReportFilterValue[] {
   const fields = Array.from(scope.querySelectorAll<HTMLElement>(
-    "input, select, textarea, .p-dropdown, .p-multiselect, button[role=combobox], button[role=checkbox]",
+    "input, select, textarea, .p-dropdown, .p-multiselect, button[role=combobox], button[role=checkbox], [data-filter-value]",
   )).filter(isShown)
   const result: ReportFilterValue[] = []
   const seen = new Set<string>()
