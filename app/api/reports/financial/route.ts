@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const [accounts,currencies,branches,salesmen] = await Promise.all([
       sql`SELECT a.id,a.code,a.name,a.type,a.level_no,a.currency_id,a.father_id,a.finanical_list_id,a.finanical_list_assests_id,a.finanical_list_liabilities_id,a.finanical_list_income_id,
-          COALESCE(ai.name,li.name,ii.name) statement_item
+          COALESCE(ai.name,li.name,ii.name) statement_item,ai.name asset_item,li.name liability_item
           FROM account_tbl a LEFT JOIN balance_sheet_assets_items ai ON ai.id=a.finanical_list_assests_id
           LEFT JOIN balance_sheet_liabilities_items li ON li.id=a.finanical_list_liabilities_id
           LEFT JOIN income_statement_items ii ON ii.id=a.finanical_list_income_id
@@ -158,17 +158,30 @@ export async function GET(request: NextRequest) {
         const sourceDefinition:any = definitionById.get(Number(classification?.id)) || row
         const item = ancestors.find(item => item.statement_item)?.statement_item
         const side = ancestors.find(item => item.finanical_list_assests_id || item.finanical_list_liabilities_id)
+        // بندا الميزانية (أصول/خصوم) للحساب أو أقرب أب مصنَّف — الجانب يُحدَّد لاحقاً بإشارة الرصيد (نفس الشامل)
+        const itemsSource:any = [target, ...ancestors].find((item:any) => item.finanical_list_assests_id || item.finanical_list_liabilities_id)
         const existing = grouped.get(targetId)
         if (!existing) grouped.set(targetId, {
           ...row,id:targetId,account_code:target.code,account_name:target.name,level_no:target.level_no,
           statement_side:targetDefinition?.statement_side && targetDefinition.statement_side !== "unclassified" ? targetDefinition.statement_side : side?.finanical_list_assests_id ? "assets" : side?.finanical_list_liabilities_id ? "liabilities" : sourceDefinition.statement_side,
           statement_item:target.statement_item || item || sourceDefinition.statement_item,
           opening_balance:0,debit:0,credit:0,balance:0,
+          __asset_item:itemsSource?.asset_item || null,__liability_item:itemsSource?.liability_item || null,
         })
         const result = grouped.get(targetId)
         for (const key of ["opening_balance","debit","credit","balance"] as const) result[key] += Number(row[key] || 0)
       }
       rows = [...grouped.values()].sort((left,right) => String(left.account_code).localeCompare(String(right.account_code),"en",{numeric:true}))
+      if (reportType === "balance-sheet") {
+        // الشامل: حساب له بندا أصول وخصوم يظهر بجانب الأصول إن كان رصيده مديناً وبجانب الخصوم إن كان دائناً؛ بند واحد ⇐ جانبه
+        rows = rows.map((row:any) => {
+          const { __asset_item:assetItem, __liability_item:liabilityItem, ...rest } = row
+          if (assetItem && liabilityItem) return Number(row.balance) >= 0 ? { ...rest, statement_side:"assets", statement_item:assetItem } : { ...rest, statement_side:"liabilities", statement_item:liabilityItem }
+          if (assetItem) return { ...rest, statement_side:"assets", statement_item:assetItem }
+          if (liabilityItem) return { ...rest, statement_side:"liabilities", statement_item:liabilityItem }
+          return rest
+        })
+      } else rows = rows.map(({ __asset_item, __liability_item, ...rest }:any) => rest)
       if (evaluateInventory) {
         const organizationId = Number((user as any).organization_id || 1)
         const openingDate = new Date(`${fromDate}T00:00:00Z`)

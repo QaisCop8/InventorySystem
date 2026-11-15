@@ -56,9 +56,15 @@ const STEPS: MigrationStep[] = [
     process: (rows, ctx) => defs.processCostCenters(rows, ctx),
   },
   {
+    // بنود القوائم المالية (multifl): 57 بنود أصول الميزانية، 66 بنود خصوم الميزانية، 58 بنود قائمة الدخل
+    key: "financial_items", title: "بنود القوائم المالية (أصول/خصوم الميزانية وقائمة الدخل)", group: "definitions", batchSize: 500,
+    sql: () => `select "Typefile" as typefile, "Pos" as pos, "Names" as names from "multifl" where "Typefile" in (57,58,66) and "Pos" >= 0 and "Pos" < 99 and ltrim("Names")<>'' order by 1,2`,
+    process: (rows, ctx) => defs.processFinancialItems(rows, ctx),
+  },
+  {
     key: "accounts", title: "دليل الحسابات", group: "definitions", batchSize: 300,
     sql: () => `select a."AccountNumber" as code, a."AccountFather" as father_code, a."AccountName" as name, a."level" as level_no,
-      a."finlist" as finanical_list_id, a."Curr" as currency_code, a."Users" as max_balance_amount, a."allowforigncurr" as allow_trans_with_diff_curr,
+      a."finlist" as finanical_list_id, a."asset" as asset_pos, a."Liab" as liab_pos, a."Curr" as currency_code, a."Users" as max_balance_amount, a."allowforigncurr" as allow_trans_with_diff_curr,
       (if(a."CurrDeff"=1,'true','false')) as iscalc_curr_diff_rates_str, a."date" as insert_date,
       (select name from "enamefl" where type=4 and backup=0 and code=a."AccountNumber") as name_lang2
       from "accounts" a where a.attr=1 order by a."level", a."AccountNumber"`,

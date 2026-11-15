@@ -29,7 +29,7 @@ const WIZARD_URL = "/downloads/NoonERP-ShamelMigration.exe"
 const STEP_TITLES: Record<string, string> = {
   reset: "حذف التعريفات المساعدة",
   lookups: "القوائم المساعدة", currencies: "العملات", rates: "أسعار الصرف", stores: "المستودعات", cost_centers: "مراكز التكلفة",
-  accounts: "دليل الحسابات", salesmen: "المندوبون", customers: "العملاء والموردون", banks: "البنوك", bank_branches: "فروع البنوك",
+  financial_items: "بنود القوائم المالية", accounts: "دليل الحسابات", salesmen: "المندوبون", customers: "العملاء والموردون", banks: "البنوك", bank_branches: "فروع البنوك",
   bank_accounts: "الحسابات البنكية", default_accounts: "الحسابات الافتراضية", credit_cards: "أنواع البطاقات", item_groups: "مجموعات الأصناف", items: "الأصناف", item_barcodes: "باركودات الوحدات",
   account_balances: "الأرصدة الافتتاحية", prev_cheques: "شيكات السنوات السابقة", stock_balances: "كميات أول المدة", orders: "الطلبيات", voucher_items: "أسطر أصناف السندات", vouchers: "السندات",
 }

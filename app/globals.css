@@ -3129,3 +3129,9 @@ td {
   overflow: hidden !important; display: flex; flex-direction: column; min-height: 0;
 }
 .report-page :is(.report-table-scroll, [class*="overflow-auto"], [class*="overflow-x-auto"], [class*="overflow-y-auto"]) > .report-grid:only-child { flex: 1 1 0; min-height: 360px; }
+/* الميزانية: شبكتا الأصول والخصوم جنباً إلى جنب تملآن المساحة (تمرير كل شبكة وحدها) */
+.report-page :is(.report-table-scroll, [class*="overflow-auto"], [class*="overflow-x-auto"], [class*="overflow-y-auto"]):has(> .balance-sheet-grids:only-child) {
+  overflow: hidden !important; display: flex; flex-direction: column; min-height: 0;
+}
+.balance-sheet-grids { min-height: 420px; }
+.balance-sheet-grids > div { min-height: 0; }

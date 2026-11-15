@@ -51,24 +51,26 @@ export function IncomeStatementTable({ rows }: { rows: Row[] }) {
   return <ReportGrid rows={gridRows} columns={columns} rowClassName={rowClass} exportFileName={tr("قائمة الدخل")} />
 }
 
-function BalanceSide({ title, rows, number }: { title: string; rows: Row[]; number: number }) {
-  const total = rows.reduce((sum, row) => sum + value(row), 0)
+function BalanceSide({ title, rows, number, sign = 1 }: { title: string; rows: Row[]; number: number; sign?: 1 | -1 }) {
+  // الخصوم أرصدة دائنة (سالبة) ⇐ تُعرض موجبة كالشامل
+  const amountOf = (row: Row) => sign * value(row)
+  const total = rows.reduce((sum, row) => sum + amountOf(row), 0)
   const gridRows: GridRow[] = []
   groups(rows).forEach(([name, accounts], sectionIndex) => {
     gridRows.push({ __kind: "section", label: `${number + sectionIndex}. ${name}` })
-    for (const row of accounts) gridRows.push({ __kind: "account", label: row.account_name || "", account_code: row.account_code, amount: nonZero(value(row)) })
-    gridRows.push({ __kind: "subtotal", label: `${tr("مجموع ")}${name}`, amount: accounts.reduce((sum, row) => sum + value(row), 0) })
+    for (const row of accounts) gridRows.push({ __kind: "account", label: row.account_name || "", account_code: row.account_code, amount: nonZero(amountOf(row)) })
+    gridRows.push({ __kind: "subtotal", label: `${tr("مجموع ")}${name}`, amount: accounts.reduce((sum, row) => sum + amountOf(row), 0) })
   })
   const columns: ReportGridColumn<GridRow>[] = [
-    { key: "account_code", label: tr("رقم الحساب"), width: 110 },
-    { key: "label", label: title, width: "*", minWidth: 200 },
+    { key: "account_code", label: tr("رقم الحساب"), width: 105, minWidth: 90 },
+    { key: "label", label: title, width: "*", minWidth: 240 },
     { key: "amount", label: tr("المبلغ"), type: "number", width: 150, total },
   ]
-  return <div className="min-w-0 flex-1"><ReportGrid rows={gridRows} columns={columns} rowClassName={rowClass} exportFileName={title} totalLabel={`${tr("مجموع ")}${title}`} /></div>
+  return <div className="flex min-w-0 flex-1 flex-col"><ReportGrid rows={gridRows} columns={columns} rowClassName={rowClass} exportFileName={title} /></div>
 }
 
 export function BalanceSheetTable({ rows }: { rows: Row[] }) {
   const assets = rows.filter(row => row.statement_side === "assets")
   const liabilities = rows.filter(row => row.statement_side !== "assets")
-  return <div className="flex min-w-[900px] items-start gap-2"><BalanceSide title={tr("أصول الميزانية")} rows={assets} number={1} /><BalanceSide title={tr("خصوم الميزانية وحقوق الملكية")} rows={liabilities} number={assets.length + 1} /></div>
+  return <div className="balance-sheet-grids flex min-h-0 min-w-[900px] flex-1 items-stretch gap-2"><BalanceSide title={tr("أصول الميزانية")} rows={assets} number={1} /><BalanceSide title={tr("خصوم الميزانية وحقوق الملكية")} rows={liabilities} number={groups(assets).length + 1} sign={-1} /></div>
 }

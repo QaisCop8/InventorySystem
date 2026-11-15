@@ -206,26 +206,83 @@ async function accountCodeFor(shamelCode: string) {
   return fitCode("account_tbl", "code", owner && text(owner.shamel_key) !== shamelCode ? text(shamelCode).toUpperCase() : converted, shamelCode)
 }
 
+// ---------- بنود القوائم المالية ----------
+const FINANCIAL_ITEM_TABLES: Record<number, { table: string; kind: string }> = {
+  57: { table: "balance_sheet_assets_items", kind: "fi_asset" },
+  66: { table: "balance_sheet_liabilities_items", kind: "fi_liab" },
+  58: { table: "income_statement_items", kind: "fi_income" },
+}
+export async function ensureFinancialItemTables() {
+  for (const { table } of Object.values(FINANCIAL_ITEM_TABLES)) {
+    await sql.unsafe(`CREATE TABLE IF NOT EXISTS ${table} (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, status INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`)
+  }
+}
+export async function processFinancialItems(rows: Row[], ctx: StepContext) {
+  await ensureFinancialItemTables()
+  await eachRow(rows, ctx, (r) => `${num(r.typefile)}-${num(r.pos)}`, async (r) => {
+    const target = FINANCIAL_ITEM_TABLES[num(r.typefile)]
+    const name = text(r.names).slice(0, 100)
+    if (!target || !name) return "skipped"
+    const key = String(num(r.pos))
+    if (await mapOne(target.kind, key)) return "skipped"
+    const existing = ((await sql.unsafe(`SELECT id FROM ${target.table} WHERE TRIM(name) = $1 AND COALESCE(status, 1) <> 3 ORDER BY id LIMIT 1`, [name])) as any[])[0]
+    const id = existing ? Number(existing.id) : await insertRow(target.table, { name, status: 1 })
+    await mapSet(target.kind, key, id)
+    return existing ? "updated" : "created"
+  })
+}
+
+/**
+ * تصنيف الحساب بالقوائم المالية من الشامل (نفس MigrateAccountsF): finlist 0 دخل ⇐ 2، 1 ميزانية ⇐ 1، 2 تقييم بضاعة ⇐ 3.
+ * ميزانية: asset بند الأصول وLiab بند الخصوم (99 = لا شيء) — الجانب بإشارة الرصيد؛ دخل: asset بند الدخل؛ تقييم بضاعة: asset بند أصول + Liab بند دخل.
+ */
+async function accountClassification(r: Row) {
+  const listId = FINANCIAL_LIST[num(r.finanical_list_id)] ?? 1
+  const assetPos = num(r.asset_pos), liabPos = num(r.liab_pos)
+  const item = async (kind: string, pos: number) => (pos >= 0 && pos !== 99 ? mapOne(kind, String(pos)) : null)
+  if (listId === 1) {
+    // الشامل: الحساب المدين يظهر ببند الأصول والدائن ببند الخصوم (99 = لا يظهر بذلك الجانب) — يُحفظ البندان ويحدد التقرير الجانب بإشارة الرصيد
+    return { finanical_list_id: 1, finanical_list_assests_id: await item("fi_asset", assetPos), finanical_list_liabilities_id: await item("fi_liab", liabPos), finanical_list_income_id: null }
+  }
+  if (listId === 2) return { finanical_list_id: 2, finanical_list_assests_id: null, finanical_list_liabilities_id: null, finanical_list_income_id: await item("fi_income", assetPos) }
+  return { finanical_list_id: 3, finanical_list_assests_id: await item("fi_asset", assetPos), finanical_list_liabilities_id: null, finanical_list_income_id: await item("fi_income", liabPos) }
+}
+
 export async function processAccounts(rows: Row[], ctx: StepContext) {
   const companyId = await companyIdTemplate()
   await eachRow(rows, ctx, (r) => r.code, async (r) => {
     const shamelCode = text(r.code)
     if (!shamelCode) return "skipped"
-    if (await mapOne("account", shamelCode)) return "skipped"
+    const mapped = await mapOne("account", shamelCode)
+    if (mapped) {
+      // حساب رُحِّل سابقاً بلا تصنيف قوائم مالية (كان يُرث من الأب فقط) ⇐ يُحدَّث من الشامل
+      const classification = await accountClassification(r)
+      if (classification.finanical_list_assests_id || classification.finanical_list_liabilities_id || classification.finanical_list_income_id) {
+        await updateRow("account_tbl", mapped, classification)
+        return "updated"
+      }
+      return "skipped"
+    }
     const code = await accountCodeFor(shamelCode)
     const existing = (await sql`SELECT id FROM account_tbl WHERE code = ${code} LIMIT 1`)[0] as any
     if (existing) { await mapSet("account", shamelCode, Number(existing.id)); return "updated" }
     const fatherId = text(r.father_code) ? await mapOne("account", text(r.father_code)) : null
     if (text(r.father_code) && !fatherId) ctx.warn(shamelCode, `الحساب الأب ${text(r.father_code)} غير موجود — أُضيف كحساب رئيسي`)
     const father = fatherId ? ((await sql`SELECT level_no, finanical_list_id, finanical_list_assests_id, finanical_list_liabilities_id, finanical_list_income_id FROM account_tbl WHERE id = ${fatherId}`)[0] as any) : null
-    const listId = FINANCIAL_LIST[num(r.finanical_list_id)] ?? 1
+    const own = await accountClassification(r)
+    const hasOwn = Boolean(own.finanical_list_assests_id || own.finanical_list_liabilities_id || own.finanical_list_income_id)
     const curr = await currencyId(r.currency_code)
     const name = text(r.name) || shamelCode
     const created = await insertRow("account_tbl", {
       company_id: companyId, code, type: 1, name, name_lang2: text(r.name_lang2) || null, father_id: fatherId,
-      level_no: father ? Number(father.level_no) + 1 : 1, finanical_list_id: father ? Number(father.finanical_list_id) || listId : listId,
-      finanical_list_assests_id: father?.finanical_list_assests_id ?? null, finanical_list_liabilities_id: father?.finanical_list_liabilities_id ?? null,
-      finanical_list_income_id: father?.finanical_list_income_id ?? null, currency_id: curr,
+      // تصنيف الحساب من الشامل نفسه، وإلا يُرث من الأب
+      level_no: father ? Number(father.level_no) + 1 : 1,
+      ...(hasOwn || !father ? own : {
+        finanical_list_id: Number(father.finanical_list_id) || own.finanical_list_id,
+        finanical_list_assests_id: father.finanical_list_assests_id ?? null, finanical_list_liabilities_id: father.finanical_list_liabilities_id ?? null,
+        finanical_list_income_id: father.finanical_list_income_id ?? null,
+      }),
+      currency_id: curr,
       allow_trans_with_diff_curr: num(r.allow_trans_with_diff_curr) ? 1 : 0, iscalc_curr_diff_rates: text(r.iscalc_curr_diff_rates_str) === "true",
       transaction_type: 0, transaction_type_action: 0, max_transaction_amount: 0, max_transaction_amount_action: 0,
       max_balance_amount: limitAmount(r.max_balance_amount), notes: `مُرحَّل من الشامل (${shamelCode})`, show_notes_in_transactions_soa: false,
