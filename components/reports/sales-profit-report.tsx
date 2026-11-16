@@ -170,8 +170,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
   const totals = data?.totals
   // تذييل الجدول (2026-11-16): مجموع كل الأعمدة الرقمية للصفوف الظاهرة (يتبع البحث داخل النتائج)؛
   // النسب والمعدلات تُحسب من المجاميع لا بجمعها.
-  const footer = useMemo<Record<string, number> | null>(() => {
-    if (!rows.length) return null
+  const footer = useMemo<Record<string, number>>(() => {
     const sum = (key: string) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0)
     const result: Record<string, number> = {}
     for (const key of ["quantity", "bonus", "lines", "sale_total", "cost_total", "bonus_cost", "profit", "sale_share", "profit_share"]) result[key] = sum(key)
@@ -271,7 +270,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
           columns={columns.map((column): ReportGridColumn => ({
             key: column.key, label: column.label, width: column.numeric ? 140 : "*", minWidth: column.numeric ? 110 : 160,
             type: column.numeric ? "number" : "text", render: column.render,
-            total: column.numeric && footer && footer[column.key] !== undefined ? footer[column.key] : undefined,
+            total: column.numeric && footer[column.key] !== undefined ? footer[column.key] : undefined,
           }))}/>
     </section>
   </ReportPage>

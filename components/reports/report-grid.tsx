@@ -189,6 +189,9 @@ export function ReportGrid<T extends Record<string, any>>({
     <div ref={wrapperRef} className={`report-grid relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white ${className || ""}`}
       style={height !== undefined ? { height } : { flex: "1 1 0", minHeight: 360, height: "100%" }} dir={appDir()}>
       <DataGridView
+        // DataGridView يضيف صف التذييل مرة واحدة عند التهيئة (initialized) — تقرير يبدأ بلا مجاميع (قبل جلب البيانات)
+        // ثم تظهر مجاميعه كان يبقى بلا تذييل؛ تغيّر وجود المجاميع يعيد إنشاء الشبكة (2026-11-16)
+        key={hasTotals ? "with-footer" : "no-footer"}
         innerRef={gridRef}
         scheme={scheme}
         dataSource={dataSource}
