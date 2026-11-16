@@ -468,7 +468,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 11
+const PERMISSION_SYNC_VERSION = 12
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -1216,6 +1216,15 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       )
     }
   }
+
+  // أول مستخدم بالشركة (منشئها) بلا دور ⇐ دور "مدير" (صلاحياته ممنوحة صراحةً بالدور — لا «كل الصلاحيات» ضمنياً).
+  // بدونه كان يبقى بصلاحيات "الكل" القليلة (شاشات الكاشير/المطعم) فيبدو كأنه كاشير أو نادل.
+  await client.query(
+    `UPDATE user_settings SET job_role_id = (SELECT id FROM job_roles WHERE LOWER(BTRIM(name)) = 'مدير' ORDER BY id LIMIT 1)
+     WHERE job_role_id IS NULL AND user_id = (SELECT MIN(user_id) FROM user_settings)
+       AND EXISTS (SELECT 1 FROM job_roles WHERE LOWER(BTRIM(name)) = 'مدير')`,
+    [],
+  )
 
   // دور "كاشير" افتراضياً: شاشات الكاشير والمطاعم فقط، وكل صلاحية أخرى ممنوعة صراحةً (بلا قرار = مسموح في القوائم).
   // يملأ فقط ما لا قرار له للدور (ON CONFLICT DO NOTHING) — فما عدّله المسؤول يبقى، والصلاحيات الجديدة لاحقاً ممنوعة له.
