@@ -80,10 +80,10 @@ const STEPS: MigrationStep[] = [
     process: (rows, ctx) => defs.processSalesmen(rows, ctx),
   },
   {
-    key: "customers", title: "العملاء والموردون والمشتركون (وحسابات الموظفين)", group: "definitions", batchSize: 200,
+    key: "customers", title: "العملاء والموردون والمشتركون والموظفون", group: "definitions", batchSize: 200,
     sql: () => `select c."Code" as code, c."Com_name" as name, c."Phone1" as phone, c."Phone2" as phone2, c."Phone3" as phone3,
       c."ID_Number" as id_no, c."ToWork" as business_description, c."Sl_code" as salesman_code, c."City" as city_pos,
-      c."Price Class" as priceclass_pos, c."VAT_reg" as vat_registration_no, c."Attr" as type_pos, c."stopped" as stopped,
+      c."Price Class" as priceclass_pos, c."VAT_reg" as vat_registration_no, c."Attr" as type_pos, c."stopped" as stopped, c."Membership" as subscription_amount,
       case when c."Date">'1990-01-01' then c."Date" else '1990-01-01' end as entry_date_,
       ci."Cr_limit" as debt_max_amount,
       acc."AccountFather" as father_code, acc."AccountName" as account_name, acc."Curr" as currency_code,

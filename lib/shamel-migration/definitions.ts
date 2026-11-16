@@ -1,4 +1,4 @@
-import sql from "@/lib/database"
+import sql, { resolveCurrentDbName } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 import { ensureUsersCurrenciesDefaultTable } from "@/lib/users-currencies-default"
 import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount } from "@/app/api/customers/_lib"
@@ -357,7 +357,7 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
     }
     // القائمة المالية وبنود الميزانية/الدخل من حساب الشامل (عند الإنشاء وإعادة الترحيل) — صف بلا حساب بالشامل يبقى كما هو
     if (r.finanical_list_id != null && text(r.finanical_list_id) !== "") await updateRow("account_tbl", accountIdValue, await accountClassification(r))
-    if (isEmployee) return "created" // الموظف: حسابه فقط (بيانات الموظفين تُعرَّف من الموارد البشرية)
+    if (isEmployee) return migrateEmployee(r, shamelCode, code, name, accountIdValue, fatherId)
 
     const existing = (await sql`SELECT id FROM customers WHERE customer_code = ${code} OR account_id = ${accountIdValue} LIMIT 1`)[0] as any
     if (existing) { await mapSet("customer", shamelCode, Number(existing.id)); return "updated" }
@@ -378,6 +378,83 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
     await mapSet("customer", shamelCode, id)
     return "created"
   })
+}
+
+// ---------- الموظفون (Attr 524288) ----------
+// كما في ShamelAPI (MigrateCustomersF): حساب الشامل يصبح حساب صرف راتب الموظف، وتُملأ بيانات شاشة الموظفين
+// الإلزامية بقيم افتراضية حين لا يوجد ما يقابلها بالشامل: قسم/وظيفة/قانون ضريبة/بند «الراتب الأساسي» (أول موجود أو يُنشأ)،
+// عملة الحساب أو الأساس، راتب شهري، عقد دائم، ذكر، أعزب، خاضع للضريبة. الراتب = «Membership» (قيمة الاشتراك) بالشامل.
+// الموقوف بالشامل ⇐ منتهي الخدمة (status 2).
+type EmployeeDefaults = { departmentId: number; jobId: number; taxLawId: number; salaryItemId: number; baseCurrencyId: number }
+// لكل قاعدة (تعدد الشركات) ولدقيقتين — تُحسب مرة لكل دفعة لا لكل موظف، ولا تبقى قديمة إن حُذف القسم الافتراضي
+const employeeDefaultsCache = new Map<string, { at: number; value: Promise<EmployeeDefaults> }>()
+async function employeeDefaults() {
+  const db = await resolveCurrentDbName().catch(() => "")
+  const hit = employeeDefaultsCache.get(db)
+  if (hit && Date.now() - hit.at < 120_000) return hit.value
+  const value = loadEmployeeDefaults()
+  employeeDefaultsCache.set(db, { at: Date.now(), value })
+  value.catch(() => employeeDefaultsCache.delete(db))
+  return value
+}
+
+async function firstOrCreate(select: () => Promise<any[]>, create: () => Promise<number>) {
+  const row = (await select())[0]
+  return row ? Number(row.id) : create()
+}
+
+async function loadEmployeeDefaults(): Promise<EmployeeDefaults> {
+  const { ensureHrSchema } = await import("@/lib/hr-schema")
+  await sql`CREATE TABLE IF NOT EXISTS departments (id SERIAL PRIMARY KEY, department_code VARCHAR(20) UNIQUE NOT NULL, department_name VARCHAR(100) NOT NULL,
+    branch_id INTEGER, manager VARCHAR(100), employee_count INTEGER DEFAULT 0, is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
+  await ensureHrSchema()
+  const departmentId = await firstOrCreate(() => sql`SELECT id FROM departments WHERE COALESCE(is_active, true) OR department_code = 'GEN' ORDER BY COALESCE(is_active, true) DESC, id LIMIT 1`,
+    () => insertRow("departments", { department_code: "GEN", department_name: "عام", is_active: true }))
+  const jobId = await firstOrCreate(() => sql`SELECT id FROM employee_jobs_tbl WHERE COALESCE(is_active, true) OR code = 'GEN' ORDER BY COALESCE(is_active, true) DESC, id LIMIT 1`,
+    () => insertRow("employee_jobs_tbl", { code: "GEN", name: "موظف", is_active: true }))
+  const taxLawId = await firstOrCreate(() => sql`SELECT id FROM tax_laws_tbl WHERE COALESCE(is_active, true) ORDER BY id LIMIT 1`,
+    () => insertRow("tax_laws_tbl", { name: "قانون ضريبة الدخل", other_name: "Income tax law", is_active: true }))
+  const salaryItemId = await firstOrCreate(
+    () => sql`SELECT id FROM salary_items_tbl WHERE COALESCE(is_active, true) OR code = 'BASIC' ORDER BY COALESCE(is_active, true) DESC, CASE WHEN item_type = 'basic_salary' THEN 0 ELSE 1 END, id LIMIT 1`,
+    () => insertRow("salary_items_tbl", {
+      code: "BASIC", name: "الراتب الأساسي", other_name: "Basic salary", item_type: "basic_salary", calculation_type: "fixed", calculation_method: "fixed",
+      amount_period: "monthly", add_to_total_salary: true, default_amount: 0, taxable: true, is_active: true,
+    }))
+  const baseCurrencyId = Number((await sql`SELECT id FROM currency ORDER BY id LIMIT 1`)[0]?.id || 1)
+  return { departmentId, jobId, taxLawId, salaryItemId, baseCurrencyId }
+}
+
+async function migrateEmployee(r: Row, shamelCode: string, code: string, name: string, accountId: number, fatherId: number | null) {
+  const mapped = await mapOne("employee", shamelCode)
+  if (mapped) return "skipped"
+  const existing = (await sql`SELECT id FROM employees_tbl WHERE employee_code = ${code} OR salary_account = ${accountId} LIMIT 1`.catch(() => []))[0] as any
+  if (existing) { await mapSet("employee", shamelCode, Number(existing.id)); return "updated" }
+
+  const defaults = await employeeDefaults()
+  const currency = (await currencyId(r.currency_code)) || defaults.baseCurrencyId
+  const account = (await sql`SELECT father_id FROM account_tbl WHERE id = ${accountId}`)[0] as any
+  const parentId = fatherId || (account?.father_id ? Number(account.father_id) : null)
+  const parentCode = parentId ? text((await sql`SELECT code FROM account_tbl WHERE id = ${parentId}`)[0]?.code) || null : null
+  const cityPos = num(r.city_pos)
+  const cityId = cityPos > 0 ? await mapOne("city", String(cityPos)) : null
+  const region = cityId ? text((await sql`SELECT name FROM cities WHERE id = ${cityId}`)[0]?.name) || null : null
+  const phones = [text(r.phone), text(r.phone2), text(r.phone3)].filter(Boolean)
+  const salary = num(r.subscription_amount)
+  const id = await insertRow("employees_tbl", {
+    employee_code: code, full_name: name, other_name: text(r.name_lang2) || null, national_id: text(r.id_no) || null,
+    gender: "male", hire_date: date(r.entry_date_) || "1990-01-01", department_id: defaults.departmentId, job_id: defaults.jobId,
+    salary_type: "monthly", basic_salary: salary, salary_currency: String(currency), contract_type: "permanent",
+    salary_account: accountId, father_account: parentId, father_account_code: parentCode, account_currency: String(currency),
+    allow_different_currency: num(r.allow_trans_with_diff_curr) === 1, currency_difference: num(r.iscalc_curr_diff_rates_asint) === 1,
+    phone: phones[0] || null, address: text(r.address) || null, permanent_address: text(r.address) || null, region,
+    tax_law_id: defaults.taxLawId, is_taxed: true, social_status: "single", status: num(r.stopped) ? 2 : 1,
+    notes: [text(r.displayed_note), `مُرحَّل من الشامل (${shamelCode})`].filter(Boolean).join(" — "),
+  })
+  await sql`INSERT INTO employee_salary_items_tbl (employee_id, salary_item_id, amount, percentage) VALUES (${id}, ${defaults.salaryItemId}, ${salary}, 0)
+    ON CONFLICT (employee_id, salary_item_id) DO NOTHING`
+  await mapSet("employee", shamelCode, id)
+  return "created"
 }
 
 // ---------- البنوك وفروعها والحسابات البنكية ----------

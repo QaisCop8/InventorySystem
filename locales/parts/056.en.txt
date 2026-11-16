@@ -3,3 +3,4 @@ Unexpected server response — please retry
 Could not calculate profit
 Calculating cost...
 Before tax
+Customers, suppliers, subscribers and employees
