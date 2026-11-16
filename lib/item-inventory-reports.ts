@@ -67,6 +67,25 @@ async function costHeaderSelect() {
   ].map((expr, index) => `${expr} AS ${["vat_included", "discount_type", "discount_value", "discount"][index]}`).join(", ")
 }
 
+/** آخر سعر صرف نشط للعملة حتى اليوم المعطى (نفس ORDER BY rate_date DESC, id DESC)، أو 0 إن لم يوجد. */
+async function exchangeRateLookup() {
+  const rows = await sql`SELECT currency_id, rate_date::date::text AS day, exchange_rate FROM exchange_rates
+    WHERE COALESCE(is_active,true) ORDER BY currency_id, rate_date, id` as any[]
+  const byCurrency = new Map<number, { day: string; rate: number }[]>()
+  for (const row of rows) {
+    const list = byCurrency.get(Number(row.currency_id)) || []
+    list.push({ day: String(row.day), rate: Number(row.exchange_rate) || 0 })
+    byCurrency.set(Number(row.currency_id), list)
+  }
+  return (currencyId: number, day: string) => {
+    const list = byCurrency.get(currencyId)
+    if (!list?.length) return 0
+    let low = 0, high = list.length - 1, found = -1
+    while (low <= high) { const mid = (low + high) >> 1; if (list[mid].day <= day) { found = mid; low = mid + 1 } else high = mid - 1 }
+    return found < 0 ? 0 : list[found].rate
+  }
+}
+
 export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
   const { productIds = [], excludeProductIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
   await ensureLandedCostSchema()
@@ -124,9 +143,9 @@ export async function getProductBalances(_organizationId: number, toDate: string
              COALESCE(ch.discount,0) AS cost_header_discount,
              COALESCE(NULLIF(cost_unit.to_main_qnty,0),1) AS cost_unit_factor,
              cost_totals.subtotal AS cost_subtotal,COALESCE(landed.amount,0) AS cost_landed,
-             CASE WHEN cost_header.currency_id=p.currency_id THEN 1
-                  ELSE COALESCE(NULLIF(cost_header.rate,0),1)/COALESCE(NULLIF(product_rate.exchange_rate,0),1)
-             END AS currency_conversion
+             -- تحويل العملة يُحسب في JS (rateOn) بدل LATERAL على exchange_rates لكل سطر
+             cost_header.currency_id AS cost_currency_id,p.currency_id AS product_currency_id,
+             COALESCE(NULLIF(cost_header.rate,0),1) AS cost_rate,cost_header.vch_date::date::text AS cost_date
       FROM voucher_items_tbl vi
       JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
       JOIN products p ON p.id=vi.item_id
@@ -148,12 +167,6 @@ export async function getProductBalances(_organizationId: number, toDate: string
       LEFT JOIN landed ON landed.voucher_item_id=cost_item.id
       LEFT JOIN cost_headers ch ON ch.id=cost_header.id
       LEFT JOIN cost_totals ON cost_totals.voucher_id=cost_header.id
-      LEFT JOIN LATERAL (
-        SELECT er.exchange_rate FROM exchange_rates er
-        WHERE er.currency_id=p.currency_id AND COALESCE(er.is_active,true)
-          AND er.rate_date::date<=cost_header.vch_date::date
-        ORDER BY er.rate_date DESC,er.id DESC LIMIT 1
-      ) product_rate ON TRUE
       WHERE (${includeUnposted} OR vh.vch_status=2) AND COALESCE(vh.status,1)<>3 AND vh.vch_date::date<=${toDate}::date
         AND vh.vch_type IN (8,9,10,11,12,13,14,15,16,17,18,19)
         AND (${branchIds.length}=0 OR vh.branch_id=ANY(${branchIds}::int[]))
@@ -168,6 +181,13 @@ export async function getProductBalances(_organizationId: number, toDate: string
     `,
     getSystemSettingValue("include_purchase_returns_in_cost", false),
   ])
+  // سعر صرف عملة الصنف بتاريخ سند الكلفة: آخر سعر نشط حتى تاريخه (rate_date DESC, id DESC) — جدول صغير يُقرأ مرة
+  // ويُبحث فيه ثنائياً؛ كان LATERAL لكل سطر حركة (~0.7 ثانية مع 60 ألف سطر) — 2026-11-16
+  const rateOn = await exchangeRateLookup()
+  for (const line of lines as any[]) {
+    line.currency_conversion = Number(line.cost_currency_id) === Number(line.product_currency_id) && line.cost_currency_id != null ? 1
+      : Number(line.cost_rate) / (rateOn(Number(line.product_currency_id), String(line.cost_date)) || 1)
+  }
   const warehouses = new Set(warehouseIds)
   const scopedLines = lines.flatMap((line: any) => {
     if (Number(line.vch_type) !== 10) return [line]

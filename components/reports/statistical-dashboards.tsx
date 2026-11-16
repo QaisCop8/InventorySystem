@@ -1,5 +1,6 @@
 "use client"
 import { tr, appDir } from "@/lib/i18n"
+import { readJsonResponse } from "@/lib/read-json-response"
 import { amountNumberFormat } from "@/lib/decimals"
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
@@ -113,15 +114,6 @@ const TITLES: Record<Kind, { title: string; description: string; icon: any }> = 
   receivables: { title: "لوحة الذمم والتحصيل", description: "أرصدة الذمم وأعمارها، أكبر المدينين مقابل سقف الدين، والمبيعات الآجلة مقابل التحصيلات", icon: Users2 },
 }
 
-/** يقرأ ردّ الخادم كـ JSON بأمان: صفحة HTML (مهلة البوابة/إعادة تشغيل الخادم) تصبح رسالة مفهومة لا "Unexpected token <". */
-async function readJson(response: Response) {
-  const text = await response.text()
-  try { return JSON.parse(text) } catch {
-    throw new Error(response.status === 504 || response.status === 502 || response.status === 503
-      ? tr("استغرق الخادم وقتاً طويلاً — جرّب فترة أقصر أو أعد المحاولة")
-      : tr("استجابة غير متوقعة من الخادم — أعد المحاولة"))
-  }
-}
 
 type Aux = { data: any; loading: boolean; error: string }
 
@@ -146,7 +138,7 @@ function DashboardShell({ kind, auxKind, children }: { kind: Kind; auxKind?: str
     if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
     try {
       const response = await fetch(`/api/reports/dashboards?${params}${withMeta ? "&meta=1" : ""}`, { cache: "no-store", signal: current.signal })
-      const body = await readJson(response)
+      const body = await readJsonResponse(response)
       if (!response.ok) throw new Error(body.error || tr("تعذر تحميل اللوحة"))
       if (body.meta?.branches) setBranches(body.meta.branches)
       setData(body)
@@ -163,7 +155,7 @@ function DashboardShell({ kind, auxKind, children }: { kind: Kind; auxKind?: str
     try {
       params.set("kind", auxKind)
       const response = await fetch(`/api/reports/dashboards?${params}`, { cache: "no-store", signal: current.signal })
-      const body = await readJson(response)
+      const body = await readJsonResponse(response)
       if (!response.ok) throw new Error(body.error || tr("تعذر حساب الربح"))
       if (!current.signal.aborted) setAux({ data: body, loading: false, error: "" })
     } catch (reason) {

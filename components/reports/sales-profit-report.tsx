@@ -1,6 +1,7 @@
 "use client"
 
 import { tr } from "@/lib/i18n"
+import { readJsonResponse } from "@/lib/read-json-response"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, Calculator, CheckCircle2, ChevronLeft, ChevronRight, Download, Loader2, Printer, Search, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -69,14 +70,14 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     if (!singleItem || fromDate > toDate) return
     const controller = new AbortController()
     fetch(`/api/reports/sales-profit?sold_items=1&from_date=${fromDate}&to_date=${toDate}`, { signal: controller.signal })
-      .then((response) => response.json()).then((body) => { if (Array.isArray(body)) setSoldItems(body) }).catch(() => undefined)
+      .then((response) => readJsonResponse(response)).then((body) => { if (Array.isArray(body)) setSoldItems(body) }).catch(() => undefined)
     return () => controller.abort()
   }, [singleItem, fromDate, toDate])
 
   useEffect(() => {
     const controller = new AbortController()
     fetch("/api/reports/sales-profit?meta=1", { signal: controller.signal }).then(async (response) => {
-      const body = await response.json()
+      const body = await readJsonResponse(response)
       if (!response.ok) throw new Error(body.error || tr("تعذر تحميل الفلاتر"))
       setMeta(body)
     }).catch((cause) => { if (!controller.signal.aborted) setError(cause.message) }).finally(() => { if (!controller.signal.aborted) setLoadingMeta(false) })
@@ -108,7 +109,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     setLoading(true); setError(""); if (!keepNotice) setNotice("")
     try {
       const response = await fetch(`/api/reports/sales-profit?${query()}`, { cache: "no-store" })
-      const body = await response.json()
+      const body = await readJsonResponse(response)
       if (!response.ok) throw new Error(body.error || tr("تعذر تحميل تقرير الأرباح"))
       setData(body)
     } catch (cause) {
@@ -123,7 +124,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     setPricing(true); setError(""); setNotice("")
     try {
       const response = await fetch(`/api/reports/sales-profit?${query()}`, { method: "POST" })
-      const body = await response.json()
+      const body = await readJsonResponse(response)
       if (!response.ok) throw new Error(body.error || tr("تعذر تنفيذ تسعير الإخراجات"))
       const message = tr("تم تسعير {0} سطر بطريقة \"{1}\"{2}", fmt(body.updated, 0), valuationMethods.find((method) => method.value === pricingWay)?.label, body.unpriced ? ` — ${fmt(body.unpriced, 0)} سطر بلا كلفة معروفة` : "")
       await loadReport(true)

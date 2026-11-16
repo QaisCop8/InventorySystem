@@ -49,6 +49,15 @@ async function loadSalesLines(filters: ProfitFilters) {
   add(filters.branchIds, "vh.branch_id"); add(filters.customerIds, "vh.account_id"); add(filters.salesmanIds, "vh.salesman_id")
   if (filters.voucherCode) { values.push(filters.voucherCode); where.push(`vh.vch_code = $${values.length}`) }
   const pool = await getTenantPool()
+  // أعمدة اختيارية تُفحص مرة من information_schema بدل to_jsonb(row)->>'col' لكل سطر — كان to_jsonb يحوّل كل سطر
+  // كاملاً إلى JSON فاستغرق كل من الاستعلامين ~6 ثوانٍ مع ~60 ألف سطر (2026-11-16)
+  const optional = new Set((await pool.query(`SELECT table_name || '.' || column_name AS col FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name IN ('voucher_items_tbl', 'voucher_header_tbl')
+      AND column_name IN ('pos_discount_percent', 'campaign_discount', 'vat_included', 'vat_percent')`)).rows.map((row: any) => String(row.col)))
+  const itemCol = (alias: string, column: string, cast: string, fallback: string) =>
+    optional.has(`voucher_items_tbl.${column}`) ? `COALESCE(${alias}.${column}::${cast}, ${fallback})` : fallback
+  const headCol = (column: string, cast: string, fallback: string) =>
+    optional.has(`voucher_header_tbl.${column}`) ? `COALESCE(h.${column}::${cast}, ${fallback})` : fallback
   // مجموع السند (لتوزيع خصمه) وحقول رأسه الاختيارية تُقرأ باستعلام ثانٍ مرة لكل سند ثم تُدمج — كانت تُحسب لكل سطر بيع
   // (to_jsonb لكل أسطر السند مع كل سطر) فاستغرق التقرير قرابة دقيقة مع آلاف الفواتير
   const lines = (await pool.query(`
@@ -58,8 +67,8 @@ async function loadSalesLines(filters: ProfitFilters) {
       vh.account_id AS customer_id, acc.name AS customer_name, vh.salesman_id, sm.name AS salesman_name,
       vh.branch_id, b.branch_name, vi.store_id AS warehouse_id, w.warehouse_name,
       COALESCE(vi.qnty, 0) AS qnty, COALESCE(vi.bonus, 0) AS bonus, COALESCE(vi.price, 0) AS price,
-      COALESCE((to_jsonb(vi)->>'pos_discount_percent')::numeric, vi.discount, 0) AS discount_percent,
-      COALESCE((to_jsonb(vi)->>'campaign_discount')::numeric, 0) AS campaign_discount,
+      ${itemCol("vi", "pos_discount_percent", "numeric", "COALESCE(vi.discount, 0)")} AS discount_percent,
+      ${itemCol("vi", "campaign_discount", "numeric", "0")} AS campaign_discount,
       COALESCE(vi.vat_ratio, 0) AS vat_ratio, COALESCE(vi.delivery_item_id, 0) AS delivery_item_id,
       COALESCE(NULLIF(pu.to_main_qnty, 0), 1) AS unit_factor,
       COALESCE(NULLIF(vh.rate, 0), 1) AS voucher_rate,
@@ -76,7 +85,8 @@ async function loadSalesLines(filters: ProfitFilters) {
     LEFT JOIN salesmen sm ON sm.id = vh.salesman_id
     LEFT JOIN branches b ON b.id = vh.branch_id
     LEFT JOIN warehouses w ON w.id = vi.store_id
-    LEFT JOIN LATERAL (SELECT to_main_qnty FROM product_units WHERE product_id = vi.item_id AND unit_id = vi.unit_id ORDER BY id LIMIT 1) pu ON TRUE
+    LEFT JOIN (SELECT DISTINCT ON (product_id, unit_id) product_id, unit_id, to_main_qnty FROM product_units ORDER BY product_id, unit_id, id) pu
+      ON pu.product_id = vi.item_id AND pu.unit_id = vi.unit_id
     -- خصم السند يوزَّع على الأسطر بنسبة صافي كل سطر من مجموع السند كاملاً (لا الأسطر المفلترة فقط).
     WHERE ${where.join(" AND ")}
     ORDER BY vh.vch_date, vh.id, vi.id`, values)).rows
@@ -85,14 +95,14 @@ async function loadSalesLines(filters: ProfitFilters) {
   const info = (await pool.query(`
     WITH totals AS (
       SELECT line.voucher_id, SUM(GREATEST(0, COALESCE(line.qnty, 0) * COALESCE(line.price, 0)
-        * (1 - COALESCE((to_jsonb(line)->>'pos_discount_percent')::numeric, line.discount, 0) / 100)
-        - COALESCE((to_jsonb(line)->>'campaign_discount')::numeric, 0))) AS subtotal
+        * (1 - ${itemCol("line", "pos_discount_percent", "numeric", "COALESCE(line.discount, 0)")} / 100)
+        - ${itemCol("line", "campaign_discount", "numeric", "0")})) AS subtotal
       FROM voucher_items_tbl line WHERE line.voucher_id = ANY($1::int[])
       GROUP BY line.voucher_id
     )
     SELECT h.id, totals.subtotal,
-      COALESCE((to_jsonb(h)->>'vat_included')::boolean, false) AS vat_included,
-      COALESCE((to_jsonb(h)->>'vat_percent')::numeric, 0) AS vat_percent
+      ${headCol("vat_included", "boolean", "false")} AS vat_included,
+      ${headCol("vat_percent", "numeric", "0")} AS vat_percent
     FROM voucher_header_tbl h LEFT JOIN totals ON totals.voucher_id = h.id
     WHERE h.id = ANY($1::int[])`, [voucherIds])).rows
   const byVoucher = new Map(info.map((row: any) => [Number(row.id), row]))
@@ -131,12 +141,15 @@ function netSaleAmount(line: any) {
 }
 
 export async function computeSalesProfitLines(filters: ProfitFilters): Promise<ProfitLine[]> {
-  const sales = await loadSalesLines(filters)
-  if (!sales.length) return []
   // كلفة كل سطر حركة لحظة خروجه — تُحسب على كل المستودعات والفروع (كلفة الصنف على مستوى الشركة).
   const lineCosts = new Map<number, LineCost>()
-  const productIds = [...new Set(sales.map((line: any) => Number(line.product_id)))]
-  const balances = await getProductBalances(0, filters.to, 0, "", { productIds, includeUnposted: true }, (line, cost) => { lineCosts.set(Number(line.id), cost) })
+  const replay = (productIds: number[]) => getProductBalances(0, filters.to, 0, "", { productIds, includeUnposted: true }, (line, cost) => { lineCosts.set(Number(line.id), cost) })
+  // فاتورة واحدة أو مجموعة أصناف: الأصناف المباعة قليلة، فتُعاد حركة مخزونها فقط بعد قراءة المبيعات.
+  // غير ذلك تُعاد حركة الأصناف المختارة (أو الكل) بالتوازي مع قراءة المبيعات — كانت متتالية (2026-11-16)
+  const narrow = Boolean(filters.voucherCode) || filters.groupIds.length > 0
+  const [sales, parallelBalances] = await Promise.all([loadSalesLines(filters), narrow ? Promise.resolve(null) : replay(filters.productIds)])
+  if (!sales.length) return []
+  const balances = parallelBalances ?? await replay([...new Set(sales.map((line: any) => Number(line.product_id)))])
   const finalCosts = new Map<number, LineCost>(balances.map((row: any) => [Number(row.id), { average: num(row.average_cost), last: num(row.last_incoming_cost), fifo: num(row.fifo_cost) }]))
   return sales.map((line: any) => {
     const type = Number(line.vch_type)
