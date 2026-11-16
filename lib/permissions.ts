@@ -293,7 +293,8 @@ export async function isSystemAdmin(userId: string | number | null | undefined):
 }
 
 export async function hasEffectivePermission(userId: string, accessId: number, branchId?: number | null): Promise<boolean> {
-  if (await isSystemAdmin(userId)) return true
+  // لا «كل الصلاحيات» لأحد (قرار المستخدم 2026-11-09 ثم 2026-11-16): مسؤول النظام كغيره — صلاحياته الممنوحة فعلاً فقط.
+  // isSystemAdmin يبقى لرؤية كل الفروع ولشاشات المستخدمين والصلاحيات (lib/user-admin-access.ts) كي لا يُقفل النظام.
   const requestedBranchId = Number.isInteger(branchId) && Number(branchId) > 0 ? Number(branchId) : null
   const rows = await sql`
     SELECT COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) AS is_granted

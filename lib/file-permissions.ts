@@ -47,7 +47,8 @@ async function accessContext(request: NextRequest, options: { branchSwitcher?: b
     LEFT JOIN role_branch_permissions rbp ON rbp.role_id=us.job_role_id AND rbp.branch_id=${branchId} AND rbp.access_id=al.id
     LEFT JOIN role_permissions rp ON rp.role_id=us.job_role_id AND rp.access_id=al.id
   `
-  return { userId: user.user_id, branchId, entries: admin ? entries.map((entry: any) => ({ ...entry, is_granted: true })) : entries }
+  // مسؤول النظام: كل الفروع فقط — صلاحيات الملفات كما مُنحت له (لا «كل الصلاحيات»)
+  return { userId: user.user_id, branchId, entries }
 }
 
 function denial(family: FileFamily, action: FileAction): Denied {

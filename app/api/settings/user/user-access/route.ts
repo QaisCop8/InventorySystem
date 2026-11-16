@@ -63,8 +63,7 @@ export async function GET(req: NextRequest) {
 
         // Normalize rows to plain JS objects
         const data = Array.isArray(rows) ? rows : rows?.rows || []
-        // مسؤول النظام (المستخدم 0/أول مستخدم/الدور الوظيفي مدير): كل الصلاحيات ممنوحة في كل فرع
-        if (await isSystemAdmin(userId)) return NextResponse.json(data.map((row: any) => ({ ...row, is_granted: true, permission_source: "admin" })))
+        // لا «كل الصلاحيات» لمسؤول النظام — يُعرض ويُطبَّق ما مُنح له فعلاً (كغيره)
 
         return NextResponse.json(data)
     } catch (err) {
