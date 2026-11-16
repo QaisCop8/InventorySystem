@@ -723,6 +723,15 @@ export async function provisionCompanyDatabase(
     await migrationClient.end()
   }
 
+  // الصلاحيات والأدوار الوظيفية فوراً عند إنشاء الشركة (لا عند أول دخول): user_settings.job_role_id والأدوار الافتراضية،
+  // ومنشئ الشركة (أول مستخدم) بدور "مدير". فشلها لا يُفشل الإنشاء — تُعاد مع أول دخول.
+  try {
+    const { syncPermissionDefinitions } = await import("./permissions")
+    await syncPermissionDefinitions(dbName)
+  } catch (error) {
+    console.error("[provisioning] permission sync failed (will retry on first login):", error)
+  }
+
   // اشتراك بمدة expiryDays (سنة واحدة افتراضياً) من تاريخ الاعتماد الفعلي، ونطاق مستخدمين افتراضي
   // = 1 (محجوز لاستخدام مستقبلي — لا فرض/تحقق فعلي لعدد المستخدمين مقابل هذا الحد بعد).
   const expiryDays = options.expiryDays ?? 365

@@ -16,7 +16,7 @@ import { notifyProductsChanged } from "@/lib/products-changed"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy, FileSpreadsheet } from "lucide-react"
+import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy, FileSpreadsheet, Boxes, Tag, Landmark, Sparkles, BadgeCheck, Ruler, Calculator, Network, StickyNote, Paperclip, Link2, Factory } from "lucide-react"
 import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
@@ -2784,22 +2784,20 @@ export function CompactProductForm({
       <ProgressSpinner loading={loading} />
       <div ref={formRootRef} className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 ${isService ? "compact-service-form-scroll" : ""}`}>
         <div className={`mx-auto w-full max-w-full ${isService ? "space-y-2 p-2 pb-3 sm:space-y-3 sm:p-3" : "space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12"}`}>
-          {/* Header */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
-                <Package className="h-7 w-7 text-primary" />
-                {isService ? (editingProduct ? tr("تعديل خدمة") : tr("خدمة جديدة")) : (editingProduct ? tr("تعديل صنف") : tr("صنف جديد"))}
-              </h1>
+          {/* رأس الشاشة (2026-11-16): ملخص مختصر للصنف — الأيقونة، حالة السجل، الاسم والرقم */}
+          <div className={`flex items-center gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-l from-emerald-50 to-white shadow-sm dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-slate-950 ${isService ? "p-2" : "p-3 sm:p-4"}`}>
+            <span className={`grid shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow ${isService ? "h-9 w-9" : "h-11 w-11"}`}><Package className="h-5 w-5" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{isService ? (editingProduct ? tr("تعديل خدمة") : tr("خدمة جديدة")) : (editingProduct ? tr("تعديل صنف") : tr("صنف جديد"))}</div>
+              <div className={`truncate font-bold text-foreground ${isService ? "text-sm" : "text-lg"}`}>{formData.product_name || (isService ? tr("خدمة بدون اسم") : tr("صنف بدون اسم"))}</div>
             </div>
+            {formData.product_code ? <span className="shrink-0 rounded-lg border bg-white px-2.5 py-1 font-mono text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300" dir="ltr">{formData.product_code}</span> : null}
           </div>
 
-          <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-6"}>
-            <div className={isService ? "mb-1" : "mb-4"}>
-              <h2 className={isService ? "text-sm font-semibold text-foreground" : "text-lg font-semibold text-foreground sm:text-xl"}>{tr("المعلومات الأساسية والتعريف")}</h2>
-            </div>
-            <Card>
-              <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-4 p-4 sm:p-6"}>
+          <form onSubmit={handleSubmit} className={isService ? "space-y-2" : "space-y-4"}>
+            <Card className="rounded-2xl border-slate-200 shadow-sm dark:border-slate-800">
+              <CardContent className={isService ? "space-y-2 p-2 sm:p-3" : "space-y-4 p-4 sm:p-5"}>
+                <div className={`flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200 ${isService ? "text-xs" : "text-sm"}`}><Info className="h-4 w-4 text-emerald-600" />{tr("المعلومات الأساسية والتعريف")}</div>
                 {/* نفس تصميم components/products/unified-customers.tsx: الصورة يساراً، وأكواد
                     التعريف (الرقم/الاسم العربي/الاسم الإنجليزي) يميناً — الرقم في سطره الخاص،
                     ثم كل اسم بسطر كامل العرض تحته. */}
@@ -3010,27 +3008,50 @@ export function CompactProductForm({
               </CardContent>
             </Card>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} className="min-w-0">
-              <TabsList className={`flex h-auto w-full min-w-0 flex-nowrap justify-start overflow-x-auto rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 shadow-md backdrop-blur-sm ${isService ? "gap-1 p-1" : "gap-2 p-2"}`} style={{ direction: appDir() }}>
-                <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("الوحدات")}</TabsTrigger>
-                <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("اسعار البيع")}</TabsTrigger>
-                <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? tr("الحسابات المحاسبية") : tr("الحسابات")}</TabsTrigger>
-                {isService ? null : (
-                  <>
-                    <TabsTrigger value="attributes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("المتغيرات والخصائص")}</TabsTrigger>
-                    <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("العلامة التجارية")}</TabsTrigger>
-                    <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("القياسات")}</TabsTrigger>
-                    <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("سعر الشراء والضريبة")}</TabsTrigger>
-                    <TabsTrigger value="additional" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("معلومات إضافية")}</TabsTrigger>
-                    <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("تفاصيل المستودعات")}</TabsTrigger>
-                    <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("مراكز التكلفة")}</TabsTrigger>
-                    <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("ملاحظات")}</TabsTrigger>
-                    <TabsTrigger value="attachments" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("المرفقات")}</TabsTrigger>
-                    <TabsTrigger value="related" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("الأصناف التابعة")}</TabsTrigger>
-                    <TabsTrigger value="manufacturing-components" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{tr("مكونات التصنيع")}</TabsTrigger>
-                  </>
-                )}
+            {/* أقسام الصنف (2026-11-16): قائمة جانبية مجمّعة بأيقونات بدل 15 تبويباً في سطر واحد؛ على الجوال شريط أفقي.
+                الخدمات (3 أقسام فقط) تبقى شريطاً أفقياً بسيطاً. */}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir={appDir()} orientation={isService ? "horizontal" : "vertical"}
+              className={isService ? "min-w-0" : "grid min-w-0 gap-4 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start"}>
+              <TabsList className={isService
+                ? "flex h-auto w-full min-w-0 flex-nowrap justify-start gap-1 overflow-x-auto rounded-xl border bg-card p-1 shadow-sm"
+                : "flex h-auto w-full min-w-0 flex-nowrap items-stretch justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-card p-2 shadow-sm dark:border-slate-800 lg:sticky lg:top-2 lg:flex-col lg:overflow-visible"}
+                style={{ direction: appDir() }}>
+                {([
+                  { group: "البيانات الأساسية", items: [
+                    { value: "units", label: "الوحدات", icon: Boxes },
+                    { value: "prices", label: "اسعار البيع", icon: Tag },
+                    { value: "accounts", label: isService ? "الحسابات المحاسبية" : "الحسابات", icon: Landmark },
+                  ] },
+                  ...(isService ? [] : [
+                    { group: "المخزون والتسعير", items: [
+                      { value: "pricing", label: "سعر الشراء والضريبة", icon: Calculator },
+                      { value: "stores", label: "تفاصيل المستودعات", icon: Warehouse },
+                      { value: "measurements", label: "القياسات", icon: Ruler },
+                    ] },
+                    { group: "إضافي", items: [
+                      { value: "attributes", label: "المتغيرات والخصائص", icon: Sparkles },
+                      { value: "brand", label: "العلامة التجارية", icon: BadgeCheck },
+                      { value: "related", label: "الأصناف التابعة", icon: Link2 },
+                      { value: "manufacturing-components", label: "مكونات التصنيع", icon: Factory },
+                      { value: "costcenters", label: "مراكز التكلفة", icon: Network },
+                      { value: "additional", label: "معلومات إضافية", icon: SlidersHorizontal },
+                      { value: "notes", label: "ملاحظات", icon: StickyNote },
+                      { value: "attachments", label: "المرفقات", icon: Paperclip },
+                    ] },
+                  ]),
+                ]).map((section) => (
+                  <div key={section.group} className={isService ? "contents" : "contents lg:block"}>
+                    {!isService && <div className="hidden px-3 pb-1 pt-3 text-[11px] font-bold text-slate-400 first:pt-1 lg:block">{tr(section.group)}</div>}
+                    {section.items.map(({ value, label, icon: Icon }) => (
+                      <TabsTrigger key={value} value={value}
+                        className={`flex-none justify-start gap-2.5 whitespace-nowrap rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-sm dark:text-slate-300 dark:hover:bg-slate-800 ${isService ? "px-3 py-1.5 text-xs" : "px-3 py-2.5 text-sm font-medium lg:w-full"}`}>
+                        <Icon className="h-4 w-4 shrink-0" />{tr(label)}
+                      </TabsTrigger>
+                    ))}
+                  </div>
+                ))}
               </TabsList>
+              <div className="min-w-0">
 
               <TabsContent value="units">
                 <Card>
@@ -3765,6 +3786,7 @@ export function CompactProductForm({
                   </TabsContent>}
                 </>
               )}
+              </div>
             </Tabs>
           </form>
         </div>

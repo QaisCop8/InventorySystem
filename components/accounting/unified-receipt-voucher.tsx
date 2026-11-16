@@ -445,7 +445,7 @@ export default function UnifiedReceiptVoucher({
   // رسالة SMS للعميل (lib/sms.ts)
   const [smsOpen, setSmsOpen] = useState(false)
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState("main")
+  const [activeTab, setActiveTab] = useState("cheques")
   const [renderChequeGrid, setRenderChequeGrid] = useState(false)
   const [navLoading, setNavLoading] = useState(false)
   const [accountsList, setAccountsList] = useState<AccountItem[]>([])
@@ -612,9 +612,9 @@ export default function UnifiedReceiptVoucher({
     const snapshotTimer = window.setTimeout(() => {
       initialFormHashRef.current = hashForm(latestFormRef.current)
     }, 350)
-    // سند القبض يفتح على تبويب الشيكات (طلب المستخدم)، وسند الصرف على الرئيسية.
+    // سند القبض وسند الصرف يفتحان على تبويب الشيكات (طلب المستخدم)
     detachGridItemsSource(journalGridRef)
-    setActiveTab(isReceipt ? "cheques" : "main")
+    setActiveTab("cheques")
     return () => window.clearTimeout(snapshotTimer)
     // لا تعتمد على form.vch_code هنا: كل حرف يكتبه المستخدم كان يعيد ضبط لقطة التغييرات غير
     // المحفوظة ويعيد التبويب إلى الرئيسية، فيُعامَل تعديل رقم السند كأنه لم يحدث.

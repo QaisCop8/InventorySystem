@@ -8,6 +8,7 @@ import { resetLookups } from "@/lib/shamel-migration/reset"
 import { findStep, stepsForRun } from "@/lib/shamel-migration/steps"
 import { fixMigratedVouchers, resolveMigratedLinks } from "@/lib/shamel-migration/vouchers"
 import { enabledModulesForDb } from "@/lib/company-modules"
+import { forgetSchemaOnce, runSchemaOnce } from "@/lib/schema-once"
 
 // واجهة معالج الترحيل (برنامج ويندوز على جهاز العميل) — بلا جلسة: رمز التشغيل في ترويسة Authorization
 // (مسار عام في middleware.ts). GET = قائمة الخطوات واستعلاماتها، POST = دفعة أسطر لخطوة أو إنهاء التشغيل.
@@ -31,9 +32,26 @@ async function withRun<T>(request: NextRequest, fn: (run: MigrationRun) => Promi
       WHERE token_hash = ${await sha256Hex(parsed.secret)} AND status IN ('pending', 'running') AND expires_at > NOW()
     `)[0]
     if (!row) throw new AgentError("رمز الترحيل غير صالح أو انتهى أو أُلغي — أنشئ رمزاً جديداً من شاشة «ترحيل من الشامل»", 401)
+    await ensureMigrationTargetTables()
     return fn(runFromRow(row))
   })
 }
+
+// شركة جديدة لم تُفتح فيها شاشات السندات بعد: أعمدة جداول السندات (مثل voucher_header_tbl.branch_id) تُضاف عادةً عند فتح
+// تلك الشاشات — الترحيل يسبقها فكان يفشل بـ"column vh.branch_id does not exist". تُهيَّأ مرة لكل قاعدة قبل أي خطوة.
+const VOUCHER_SCHEMA_KEYS = ["app/api/receipts/_lib.ts#ensureTables", "app/api/stock-vouchers/_lib.ts#ensureTables", "app/api/sales-vouchers/_lib.ts#ensureTables"]
+const ensureMigrationTargetTables = () => runSchemaOnce("app/api/shamel-migration/agent#targetTables", async () => {
+  const run = async () => {
+    const [receipts, stock, sales] = await Promise.all([import("@/app/api/receipts/_lib"), import("@/app/api/stock-vouchers/_lib"), import("@/app/api/sales-vouchers/_lib")])
+    await receipts.ensureTables()
+    await stock.ensureTables()
+    await sales.ensureTables()
+  }
+  await run()
+  // سُجِّل التطبيق سابقاً بينما العمود ناقص فعلاً ⇐ تُنسى السجلات وتُعاد التهيئة مرة
+  const [column] = await sql`SELECT 1 AS ok FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'voucher_header_tbl' AND column_name = 'branch_id'`
+  if (!column) { await forgetSchemaOnce(VOUCHER_SCHEMA_KEYS); await run() }
+})
 
 const failure = (error: unknown) => {
   if (error instanceof AgentError) return NextResponse.json({ error: error.message }, { status: error.status })
