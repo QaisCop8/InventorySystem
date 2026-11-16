@@ -38,6 +38,7 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     // السند الذي أخذ منه «آخر سعر» (للمطابقة مع الشامل)
     last_incoming_voucher_id: null as number | null,
     last_incoming_date: null as string | null,
+    last_cost_voucher_id: null as number | null,
   }]))
   const layers = new Map<number, { quantity: number; cost: number }[]>()
   const lastLayerCosts = new Map<number, number>()
@@ -81,6 +82,8 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
         result.last_incoming_cost = unitCost
         result.last_incoming_voucher_id = number(line.voucher_id) || null
         result.last_incoming_date = line.movement_date
+        // سند الكلفة الفعلي: الفاتورة الصادرة عن الإرسالية إن وجدت، وإلا السند نفسه
+        result.last_cost_voucher_id = number(line.cost_voucher_id) || null
       }
     }
 

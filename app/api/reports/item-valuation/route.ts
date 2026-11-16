@@ -30,11 +30,12 @@ export async function GET(request: NextRequest) {
     })
     // آخر سعر: رقم السند الذي أُخذ منه السعر وتاريخه — للمطابقة مع تقييم الشامل
     if (priceWay === "last") {
-      const ids = [...new Set(rows.map((row: any) => Number(row.last_incoming_voucher_id)).filter((id: number) => id > 0))]
+      const ids = [...new Set(rows.flatMap((row: any) => [Number(row.last_incoming_voucher_id), Number(row.last_cost_voucher_id)]).filter((id: number) => id > 0))]
       const codes = new Map<number, string>(ids.length ? ((await sql`SELECT id, vch_code FROM voucher_header_tbl WHERE id = ANY(${ids}::int[])`) as any[]).map((row) => [Number(row.id), String(row.vch_code || "")]) : [])
       for (const row of rows as any[]) {
         const code = codes.get(Number(row.last_incoming_voucher_id))
-        row.last_price_source = code ? `${code} — ${row.last_incoming_date}` : "سعر أول المدة"
+        const costCode = Number(row.last_cost_voucher_id) && Number(row.last_cost_voucher_id) !== Number(row.last_incoming_voucher_id) ? codes.get(Number(row.last_cost_voucher_id)) : null
+        row.last_price_source = code ? `${code} — ${row.last_incoming_date}${costCode ? ` (السعر من فاتورة ${costCode})` : ""}` : "سعر أول المدة"
       }
     }
     // الكمية وسعر التقييم بوحدة التقارير (قيمة التقييم لا تتغير)

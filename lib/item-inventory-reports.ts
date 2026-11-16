@@ -128,13 +128,14 @@ export async function getProductBalances(_organizationId: number, toDate: string
       ),
       -- آخر فاتورة شراء مرتبطة بكل سطر إرسالية شراء (نفس ORDER BY السابق) — مرة واحدة بدل LATERAL لكل سطر حركة
       linked_invoices AS MATERIALIZED (
-        SELECT DISTINCT ON (invoice_item.delivery_item_id) invoice_item.delivery_item_id, invoice_item.id
+        -- الصنف نفسه فقط: ربط خاطئ (موقع سطر مختلف) كان يأخذ سعر صنف آخر من الفاتورة (2026-11-16)
+        SELECT DISTINCT ON (invoice_item.delivery_item_id, invoice_item.item_id) invoice_item.delivery_item_id, invoice_item.item_id, invoice_item.id
         FROM voucher_items_tbl invoice_item
         JOIN voucher_header_tbl invoice ON invoice.id=invoice_item.voucher_id
         WHERE invoice_item.delivery_item_id>0
           AND invoice.vch_type=17 AND (${includeUnposted} OR invoice.vch_status=2) AND COALESCE(invoice.status,1)<>3
           AND invoice.vch_date::date<=${toDate}::date
-        ORDER BY invoice_item.delivery_item_id,invoice.vch_date DESC,invoice_item.id DESC
+        ORDER BY invoice_item.delivery_item_id,invoice_item.item_id,invoice.vch_date DESC,invoice_item.id DESC
       ),
       cost_totals AS MATERIALIZED (
         SELECT line.voucher_id, SUM(COALESCE(line.qnty,0)*COALESCE(line.price,0)
@@ -156,14 +157,15 @@ export async function getProductBalances(_organizationId: number, toDate: string
              cost_totals.subtotal AS cost_subtotal,COALESCE(landed.amount,0) AS cost_landed,
              -- تحويل العملة يُحسب في JS (rateOn) بدل LATERAL على exchange_rates لكل سطر
              cost_header.currency_id AS cost_currency_id,p.currency_id AS product_currency_id,
-             COALESCE(NULLIF(cost_header.rate,0),1) AS cost_rate,cost_header.vch_date::date::text AS cost_date
+             COALESCE(NULLIF(cost_header.rate,0),1) AS cost_rate,cost_header.vch_date::date::text AS cost_date,
+             cost_header.id AS cost_voucher_id
       FROM voucher_items_tbl vi
       JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
       JOIN products p ON p.id=vi.item_id
       LEFT JOIN unit_factors pu ON pu.product_id=vi.item_id AND pu.unit_id=vi.unit_id
       -- A purchase delivery owns the quantity; its posted invoice supplies the
       -- final purchase price, only if that invoice existed by the report date.
-      LEFT JOIN linked_invoices linked_invoice ON vh.vch_type=18 AND linked_invoice.delivery_item_id=vi.id
+      LEFT JOIN linked_invoices linked_invoice ON vh.vch_type=18 AND linked_invoice.delivery_item_id=vi.id AND linked_invoice.item_id=vi.item_id
       -- كلفة السطر تُستخدم فقط للمشتريات (8,17,18) ومرتجعها (19، حسب الإعداد) — summarizeVoucherInventory؛
       -- باقي الحركات (مبيعات/تحويل/إخراج) لا تحتاج هذه الانضمامات الخمسة فتبقى أعمدتها فارغة (2026-11-16)
       LEFT JOIN voucher_items_tbl cost_item ON vh.vch_type IN (8,17,18,19) AND cost_item.id=COALESCE(linked_invoice.id,vi.id)
