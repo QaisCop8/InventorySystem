@@ -2,7 +2,7 @@
 
 import { tr, appDir } from "@/lib/i18n"
 import { memo, useEffect, useRef, useState } from "react"
-import { ArrowRight, ChefHat, TextSearch as ListSearchIcon, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, Search, Send, ShoppingBag, Sparkles, Users, X } from "lucide-react"
+import { ArrowRight, ChefHat, TextSearch as ListSearchIcon, Clock, CreditCard, Link2, Link2Off, Loader2, Minus, Pencil, Plus, ReceiptText, Search, Send, ShoppingBag, Sparkles, UserRound, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
@@ -16,6 +16,7 @@ export type Order = {
   tables: { table_id: number; is_primary: boolean; name: string; seats: number; location_id: number; location_name: string }[]
   items: OrderItem[]; payments: { id: number; vch_code: string; amount: number; created_at: string }[]
   totals: { gross: number; remaining: number; paid: number }
+  waiter_id?: string | null; waiter_name?: string | null; bill_requested_at?: string | null
 }
 export type Product = {
   id: number; code: string; name: string; price: number; unitId: number | null; unitName: string; category: string
@@ -44,6 +45,8 @@ type Props = {
   onPendingAddons: (key: string) => void; onItemAddons: (item: OrderItem) => void
   onSend: () => void; onPay: () => void; onDiscount: () => void; onGuests: (delta: number) => void
   onUnmerge: (tableId: number, name: string) => void; onRenameTakeaway: () => void
+  /** النادل (بلا صلاحية الدفع): الزر الرئيسي «طلب الحساب» بدل «دفع الحساب» */
+  billMode?: boolean; onRequestBill?: () => void
 }
 
 const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("")
@@ -178,6 +181,7 @@ export function RestaurantOrder(p: Props) {
             </span>
           ))}
           <span className="hidden text-xs text-rose-50 sm:inline">{order.location_name} · {order.order_no} · <Clock className="inline h-3 w-3" /> {elapsed(order.opened_at, p.now)}</span>
+          {order.waiter_name && <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-xs font-bold"><UserRound className="h-3.5 w-3.5" />{order.waiter_name}</span>}
         </div>
         {!isTakeaway && (
           <div className="flex items-center gap-1 rounded-full bg-white/15 p-1">
@@ -291,6 +295,10 @@ export function RestaurantOrder(p: Props) {
             {pending.length > 0 ? (
               <Button className="h-12 w-full bg-rose-600 text-base font-extrabold hover:bg-rose-700" disabled={p.busy} onClick={p.onSend}>
                 {p.busy ? <Loader2 className="me-1 h-5 w-5 animate-spin" /> : <Send className="me-1 h-5 w-5" />}{tr("إرسال للمطبخ (")}{pending.length})
+              </Button>
+            ) : p.billMode ? (
+              <Button className={`h-12 w-full text-base font-extrabold ${order.bill_requested_at ? "bg-indigo-500 hover:bg-indigo-600" : "bg-indigo-600 hover:bg-indigo-700"}`} disabled={p.busy || !hasRemaining} onClick={p.onRequestBill}>
+                <ReceiptText className="me-1 h-5 w-5" />{order.bill_requested_at ? tr("طلب الحساب مجدداً") : tr("طلب الحساب")}
               </Button>
             ) : (
               <Button className="h-12 w-full bg-emerald-600 text-base font-extrabold hover:bg-emerald-700" disabled={p.busy || !hasRemaining || !can("pay")} onClick={p.onPay}>

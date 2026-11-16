@@ -169,6 +169,7 @@ export async function GET(request: NextRequest) {
         case "merge": description = `الطاولات: ${(Array.isArray(details.table_ids) ? details.table_ids : []).map(table).join(" + ")}`; break
         case "merged_into": description = `إلى الطلب #${num(details.order_id)}`; break
         case "unmerge": description = `فك ${table(details.table_id)}`; break
+        case "assign_waiter": description = `من ${details.from_name || "—"} إلى ${details.to_name || "—"}`; break
         case "split": {
           const lines = Array.isArray(details.lines) ? details.lines : []
           quantity = lines.reduce((sum: number, line: any) => sum + num(line.quantity), 0)

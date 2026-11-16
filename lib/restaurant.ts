@@ -6,6 +6,7 @@ import { ensureNamedPermission, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions
 import { getSessionUser } from "@/lib/tenant-auth"
 import { resolvePosAccounts } from "@/lib/pos-accounts"
 import { getPosCurrencies } from "@/lib/pos-currencies"
+import { actingWaiter, ensureWaiterTables, WAITER_HEADER } from "@/lib/restaurant-waiters"
 import {
   RESTAURANT_PERMISSION_CATEGORY,
   RESTAURANT_PERMISSIONS,
@@ -155,11 +156,14 @@ export async function ensureRestaurantTables() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `
+    // النادل: ملكية الطاولة، طلب الحساب، رمز PIN وتبديل المستخدم، طابور المطبخ (lib/restaurant-waiters.ts)
+    await ensureWaiterTables()
   })
 }
 
 type Denied = { ok: false; response: NextResponse }
-export type RestaurantAuth = { ok: true; userId: string; branchId: number; permissions: Record<RestaurantPermission, boolean> }
+/** userId = منفّذ العملية (النادل المبدَّل إليه برمز PIN على هذا الجهاز، وإلا مستخدم الجهاز)؛ deviceUserId = المسجَّل على الجهاز */
+export type RestaurantAuth = { ok: true; userId: string; deviceUserId: string; branchId: number; permissions: Record<RestaurantPermission, boolean> }
 
 const deny = (error: string, status: number): Denied => ({ ok: false, response: NextResponse.json({ error }, { status }) })
 
@@ -191,14 +195,19 @@ export async function authorizeRestaurant(
   required: RestaurantPermission[],
   branchValue?: unknown,
 ): Promise<RestaurantAuth | Denied> {
-  const user = await getSessionUser(request)
-  if (!user) return deny("يجب تسجيل الدخول", 401)
+  const sessionUser = await getSessionUser(request)
+  if (!sessionUser) return deny("يجب تسجيل الدخول", 401)
   await ensureRestaurantTables()
-  const userRow = (await sql`SELECT branch_id FROM user_settings WHERE user_id = ${user.user_id} LIMIT 1`)[0]
+  // جهاز مشترك: نادل بدّل إليه برمز PIN ⇐ تُفحص صلاحياته وفروعه هو وتُسجَّل العمليات باسمه
+  const waiterToken = request.headers.get(WAITER_HEADER)
+  const actingId = waiterToken ? await actingWaiter(waiterToken, String(sessionUser.user_id)) : null
+  if (waiterToken && !actingId) return { ok: false, response: NextResponse.json({ error: "انتهت جلسة النادل — أدخل رمز PIN من جديد", code: "waiter_session_ended" }, { status: 401 }) }
+  const user = { user_id: actingId || String(sessionUser.user_id) }
+  const userRow = (await sql`SELECT branch_id FROM user_settings WHERE user_id::text = ${user.user_id} LIMIT 1`)[0]
   const requested = Number(branchValue ?? request.headers.get("x-branch-id"))
   const branchId = Number.isInteger(requested) && requested > 0 ? requested : Number(userRow?.branch_id)
   if (!Number.isInteger(branchId) || branchId <= 0) return deny("يجب تحديد الفرع", 400)
-  const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
+  const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id::text = ${user.user_id}`
   if (memberships.length && !memberships.some((row: any) => Number(row.branch_id) === branchId)) {
     return deny("المستخدم غير مخول للعمل على هذا الفرع", 403)
   }
@@ -206,10 +215,12 @@ export async function authorizeRestaurant(
   // غير ممنوحة ⇐ موافقة لمرة برمز تفعيل من مدير النظام/المسؤول (lib/permission-approvals.ts)، وإلا رفض يحمل permission_required
   for (const key of ["access", ...required] as RestaurantPermission[]) {
     if (permissions[key]) continue
-    if (await hasPermissionApproval(user.user_id, "restaurant", key, request.headers.get(APPROVAL_HEADER))) { permissions[key] = true; continue }
+    // الموافقة تُطلب بجلسة الجهاز ⇐ تُقبل للنادل المبدَّل إليه أو لمستخدم الجهاز
+    if (await hasPermissionApproval(user.user_id, "restaurant", key, request.headers.get(APPROVAL_HEADER))
+      || (actingId && await hasPermissionApproval(String(sessionUser.user_id), "restaurant", key, request.headers.get(APPROVAL_HEADER)))) { permissions[key] = true; continue }
     return { ok: false, response: NextResponse.json(permissionRequiredBody("restaurant", key, `لا توجد لديك صلاحية ${RESTAURANT_PERMISSIONS[key]} على هذا الفرع`), { status: 403 }) }
   }
-  return { ok: true, userId: user.user_id, branchId, permissions }
+  return { ok: true, userId: user.user_id, deviceUserId: String(sessionUser.user_id), branchId, permissions }
 }
 
 export async function logRestaurant(orderId: number | null, action: string, details: unknown, userId: string) {
@@ -231,11 +242,13 @@ export function lineNet(price: number, quantity: number, discount: number) {
 export async function loadOrder(orderId: number) {
   const order = (await sql`
     SELECT o.*, l.name AS location_name, l.pos_point_id, b.branch_name,
-           COALESCE(a.name, '') AS customer_name
+           COALESCE(a.name, '') AS customer_name,
+           COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name
     FROM restaurant_orders_tbl o
     JOIN restaurant_locations_tbl l ON l.id = o.location_id
     LEFT JOIN branches b ON b.id = o.branch_id
     LEFT JOIN account_tbl a ON a.id = o.customer_id
+    LEFT JOIN user_settings wu ON wu.user_id::text = o.waiter_id
     WHERE o.id = ${orderId}
     LIMIT 1
   `)[0]

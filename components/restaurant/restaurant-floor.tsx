@@ -1,11 +1,13 @@
 "use client"
 
 import { tr, appDir } from "@/lib/i18n"
-import { Clock, Combine, LayoutGrid, Loader2, Plus, RefreshCw, ShoppingBag, Users, UtensilsCrossed, Wallet } from "lucide-react"
+import type { ReactNode } from "react"
+import { AlertTriangle, Clock, Combine, LayoutGrid, Loader2, Plus, ReceiptText, RefreshCw, ShoppingBag, UserRound, Users, UtensilsCrossed, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { money, type FloorLocation, type FloorTable } from "./restaurant-dialogs"
 
-export type Takeaway = { order_id: number; order_no: string; takeaway_name: string | null; location_id: number; opened_at: string; opened_by_name: string | null; remaining: number; items_count: number; paid_amount: number }
+export type Takeaway = { order_id: number; order_no: string; takeaway_name: string | null; location_id: number; opened_at: string; opened_by_name: string | null; remaining: number; items_count: number; paid_amount: number; waiter_id?: string | null; waiter_name?: string | null; bill_requested_at?: string | null }
+export type FloorStatusFilter = "all" | "free" | "busy" | "mine"
 
 export const elapsed = (from: string | null, now: number) => {
   if (!from) return ""
@@ -16,7 +18,11 @@ export const elapsed = (from: string | null, now: number) => {
 type Props = {
   locations: FloorLocation[]; tables: FloorTable[]; takeaways: Takeaway[]; now: number; loading: boolean; busy: boolean; error: string
   locationFilter: number | "all"; onLocationFilter: (value: number | "all") => void
-  statusFilter: "all" | "free" | "busy"; onStatusFilter: (value: "all" | "free" | "busy") => void
+  statusFilter: FloorStatusFilter; onStatusFilter: (value: FloorStatusFilter) => void
+  /** المستخدم الفعلي (النادل) — طاولاته مميّزة، وفلتر «طاولاتي» */
+  meId: string; headerExtra?: ReactNode
+  /** قسائم مطبخ لم تُطبع (لا جهاز كاشير يطبع طابور الجوالات) */
+  kitchenStuck: number
   canTakeaway: boolean; canCustody: boolean
   onRefresh: () => void; onCustody: () => void; onNewTakeaway: () => void; onTable: (table: FloorTable) => void; onOrder: (orderId: number) => void
 }
@@ -57,9 +63,11 @@ function Stat({ label, value, tone, icon: Icon }: { label: string; value: string
 
 export function RestaurantFloor(p: Props) {
   const { locations, tables, takeaways, now } = p
+  const mine = (waiterId?: string | null) => Boolean(p.meId && waiterId && String(waiterId) === String(p.meId))
   const visible = tables.filter((table) =>
     (p.locationFilter === "all" || table.location_id === p.locationFilter) &&
-    (p.statusFilter === "all" || (p.statusFilter === "busy" ? table.order_id : !table.order_id)))
+    (p.statusFilter === "all" || (p.statusFilter === "busy" ? table.order_id : p.statusFilter === "mine" ? table.order_id && mine(table.waiter_id) : !table.order_id)))
+  const shownTakeaways = p.statusFilter === "mine" ? takeaways.filter((row) => mine(row.waiter_id)) : takeaways
   const busyCount = tables.filter((table) => table.order_id).length
   const openTotal = tables.filter((table) => table.order_id && table.is_primary).reduce((sum, table) => sum + table.remaining, 0) + takeaways.reduce((sum, row) => sum + row.remaining, 0)
   const groups = locations
@@ -79,7 +87,8 @@ export function RestaurantFloor(p: Props) {
             <p className="text-xs text-muted-foreground">{tr("اختر طاولة لفتحها أو متابعة طلبها")}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {p.headerExtra}
           {p.canTakeaway && locations.length > 0 && <Button className="h-10 bg-violet-600 hover:bg-violet-700" disabled={p.busy} onClick={p.onNewTakeaway}><ShoppingBag className="me-1 h-4 w-4" />{tr("سفري جديد")}</Button>}
           {p.canCustody && locations.length > 0 && <Button variant="outline" className="h-10" onClick={p.onCustody}><Wallet className="me-1 h-4 w-4" />{tr("العهدة")}</Button>}
           <Button variant="outline" size="icon" className="h-10 w-10" onClick={p.onRefresh} disabled={p.loading} title={tr("تحديث")}><RefreshCw className={`h-4 w-4 ${p.loading ? "animate-spin" : ""}`} /></Button>
@@ -109,8 +118,8 @@ export function RestaurantFloor(p: Props) {
               )
             })}
           </div>
-          <div className="grid grid-cols-3 gap-1 rounded-full bg-muted p-1 text-sm md:w-72">
-            {([["all", "الكل"], ["free", "فارغة"], ["busy", "مشغولة"]] as const).map(([key, label]) => (
+          <div className="grid grid-cols-4 gap-1 rounded-full bg-muted p-1 text-sm md:w-96">
+            {([["all", "الكل"], ["free", "فارغة"], ["busy", "مشغولة"], ["mine", "طاولاتي"]] as const).map(([key, label]) => (
               <button key={key} type="button" onClick={() => p.onStatusFilter(key)}
                 className={`h-8 rounded-full font-bold ${p.statusFilter === key ? "bg-background shadow" : "text-muted-foreground"}`}>{label}</button>
             ))}
@@ -118,19 +127,25 @@ export function RestaurantFloor(p: Props) {
         </div>
 
         {p.error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{p.error}</div>}
+        {p.kitchenStuck > 0 && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{tr("{0} قسيمة مطبخ/حساب من جوالات النوادل لم تُطبع بعد — افتح شاشة المطعم على جهاز الكاشير (مع خدمة الطباعة) ليطبعها.", p.kitchenStuck)}</span>
+          </div>
+        )}
         {unconfigured.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             {tr("إعدادات البيع غير مكتملة للموقع: ")}{unconfigured.map((l) => l.name).join("، ")}{tr(" — أكملها من شاشة المواقع لتظهر الأصناف ويمكن الدفع.")}
           </div>
         )}
 
-        {takeaways.length > 0 && (
+        {shownTakeaways.length > 0 && (
           <section>
             <h2 className="mb-2 flex items-center gap-2 text-sm font-extrabold text-violet-700"><ShoppingBag className="h-4 w-4" />{tr("طلبات سفري مفتوحة")}</h2>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              {takeaways.map((row) => (
+              {shownTakeaways.map((row) => (
                 <button key={row.order_id} type="button" disabled={p.busy} onClick={() => p.onOrder(row.order_id)}
-                  className="rounded-2xl border-2 border-violet-200 bg-card p-3 text-start shadow-sm transition hover:border-violet-400 active:scale-[0.98]">
+                  className={`rounded-2xl border-2 border-violet-200 bg-card p-3 text-start shadow-sm transition hover:border-violet-400 active:scale-[0.98] ${mine(row.waiter_id) ? "ring-2 ring-rose-500 ring-offset-1" : ""}`}>
                   <div className="flex items-center justify-between gap-1">
                     <span className="truncate font-extrabold">{row.takeaway_name || tr("سفري")}</span>
                     <span className="shrink-0 text-[11px] text-muted-foreground"><Clock className="me-0.5 inline h-3 w-3" />{elapsed(row.opened_at, now)}</span>
@@ -138,6 +153,8 @@ export function RestaurantFloor(p: Props) {
                   <div className="text-xs text-muted-foreground">{row.order_no} · {row.items_count}{tr(" صنف")}</div>
                   <div className="mt-1 text-base font-black text-violet-700 dark:text-violet-300">{money(row.remaining)}</div>
                   {row.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(row.paid_amount)}</div>}
+                  {row.waiter_name && <div className="truncate text-[11px] text-muted-foreground"><UserRound className="me-0.5 inline h-3 w-3" />{row.waiter_name}</div>}
+                  {row.bill_requested_at && <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"><ReceiptText className="h-3 w-3" />{tr("طُلب الحساب")}</div>}
                 </button>
               ))}
             </div>
@@ -158,9 +175,10 @@ export function RestaurantFloor(p: Props) {
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
                 {list.map((table) => {
                   const occupied = Boolean(table.order_id)
+                  const billRequested = occupied && Boolean(table.bill_requested_at)
                   return (
                     <button key={table.id} type="button" disabled={p.busy} onClick={() => p.onTable(table)}
-                      className={`flex flex-col rounded-2xl border-2 bg-card p-2 text-center shadow-sm transition active:scale-[0.97] ${occupied ? "border-amber-300 hover:border-amber-500" : "border-transparent hover:border-emerald-400"}`}>
+                      className={`flex flex-col rounded-2xl border-2 bg-card p-2 text-center shadow-sm transition active:scale-[0.97] ${billRequested ? "border-indigo-400 hover:border-indigo-600" : occupied ? "border-amber-300 hover:border-amber-500" : "border-transparent hover:border-emerald-400"} ${occupied && mine(table.waiter_id) ? "ring-2 ring-rose-500 ring-offset-1" : ""}`}>
                       <TableShape table={table} occupied={occupied} />
                       {occupied ? (
                         <div className="space-y-0.5">
@@ -171,6 +189,8 @@ export function RestaurantFloor(p: Props) {
                           </div>
                           {table.merged_with && <div className="truncate text-[11px] font-semibold text-blue-700"><Combine className="me-0.5 inline h-3 w-3" />{tr("مع ")}{table.merged_with}</div>}
                           {table.paid_amount > 0 && <div className="text-[11px] text-emerald-700">{tr("مدفوع ")}{money(table.paid_amount)}</div>}
+                          {table.waiter_name && <div className={`truncate text-[11px] ${mine(table.waiter_id) ? "font-bold text-rose-700" : "text-muted-foreground"}`}><UserRound className="me-0.5 inline h-3 w-3" />{table.waiter_name}</div>}
+                          {billRequested && <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"><ReceiptText className="h-3 w-3" />{tr("طُلب الحساب")}</div>}
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-1 text-sm font-bold text-emerald-700"><Plus className="h-4 w-4" />{tr("فتح · ")}{table.seats}{tr(" مقاعد")}</div>

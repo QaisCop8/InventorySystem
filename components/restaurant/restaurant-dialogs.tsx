@@ -15,6 +15,7 @@ export type FloorTable = {
   id: number; name: string; seats: number; shape: string; location_id: number
   order_id: number | null; order_no: string | null; guests: number | null; opened_at: string | null; revision: number | null
   is_primary: boolean | null; opened_by_name: string | null; remaining: number; items_count: number; paid_amount: number; merged_with: string | null
+  waiter_id?: string | null; waiter_name?: string | null; bill_requested_at?: string | null
 }
 export type OrderItem = {
   id: number; product_id: number; product_code: string; product_name: string; unit_id: number | null; unit_name: string | null

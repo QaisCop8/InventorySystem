@@ -169,7 +169,14 @@ export const RESTAURANT_PERMISSIONS = {
   handoverCustody: "تسليم عهدة - مطاعم",
   viewCustodyDetails: "السماح بمشاهدة تفاصيل العهدة - مطاعم",
   overrideDiscount: "السماح بتجاوز نسبة الخصم في الاعدادات - مطاعم",
+  // ملكية الطاولات (2026-11-16): الطاولة تخص من فتحها (النادل). بدون هذه الصلاحية يعمل المستخدم على طاولاته فقط
+  // (يرى الكل). منحها لمرة لكل من لديه الدخول لشاشة المطعم وقت إضافتها (ترحيل في lib/restaurant-waiters.ts)
+  manageAllTables: "العمل على طاولات النوادل الآخرين - مطاعم",
+  assignWaiter: "تحويل الطاولة لنادل آخر - مطاعم",
 } as const
+
+/** دور «نادل» الافتراضي: يفتح الطاولات ويرسل الطلبات للمطبخ ويطلب الحساب — بلا دفع ولا عهدة ولا خصم ولا حذف بعد الإرسال */
+export const RESTAURANT_WAITER_PERMISSIONS = ["access", "openTable", "takeaway", "addItems", "printBill"] as const
 
 export type RestaurantPermission = keyof typeof RESTAURANT_PERMISSIONS
 export const RESTAURANT_SCREEN_SECTION = "restaurant-pos"

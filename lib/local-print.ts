@@ -32,6 +32,27 @@ function launcherWebView(): LauncherWebView | null {
 /** هل الطباعة المباشرة تتم عبر مشغّل ويندوز (لا تحتاج CashService) */
 export const isLauncherPrinting = () => Boolean(launcherWebView())
 
+/**
+ * هل يستطيع هذا الجهاز الطباعة المباشرة (مشغّل ويندوز أو خدمة CashService تجيب خلال 1.5 ث)؟ — جوال النادل لا يستطيع،
+ * فيرسل قسائم المطبخ لطابور الخادم ويطبعها جهاز الكاشير. النتيجة تُحفظ دقيقة.
+ */
+let localPrintCache: { at: number; value: Promise<boolean> } | null = null
+export function localPrintAvailable(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false)
+  if (launcherWebView()) return Promise.resolve(true)
+  if (localPrintCache && Date.now() - localPrintCache.at < 60_000) return localPrintCache.value
+  const value = new Promise<boolean>((resolve) => {
+    let socket: WebSocket
+    try { socket = new WebSocket(SERVICE_URL) } catch { resolve(false); return }
+    const finish = (ok: boolean) => { window.clearTimeout(timer); try { socket.close() } catch { /* مغلق */ } resolve(ok) }
+    const timer = window.setTimeout(() => finish(false), 1500)
+    socket.addEventListener("open", () => finish(true), { once: true })
+    socket.addEventListener("error", () => finish(false), { once: true })
+  })
+  localPrintCache = { at: Date.now(), value }
+  return value
+}
+
 function printThroughLauncher(webview: LauncherWebView, pages: PrintPage[]) {
   return new Promise<void>((resolve, reject) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`

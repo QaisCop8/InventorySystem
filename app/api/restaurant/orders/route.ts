@@ -18,7 +18,9 @@ import {
   tableServiceLine,
   tableWithState,
   touchOrder,
+  restaurantPermissionsFor,
 } from "@/lib/restaurant"
+import { enqueueTickets, ownsOrder, waiterName, type QueuedTicket } from "@/lib/restaurant-waiters"
 import type { RestaurantPermission } from "@/lib/transaction-permission-definitions"
 import { savePosSaleCore } from "@/app/api/pos/_sale-core"
 import { ensureRestaurantCustodyTables, getOpenRestaurantSession, recordRestaurantSaleCash } from "@/lib/restaurant-custody"
@@ -63,6 +65,23 @@ const ACTION_PERMISSIONS: Record<string, RestaurantPermission[]> = {
   close: ["pay"],
   pay: ["pay"],
   print: ["printBill"],
+  assign_waiter: ["assignWaiter"],
+}
+
+// إجراءات تخص صاحب الطاولة (النادل): بلا «العمل على طاولات النوادل الآخرين» تُرفض على طاولة نادل آخر.
+// الدفع والإغلاق للكاشير على أي طاولة؛ تحويل الطاولة لنادل آخر بصلاحيته المستقلة.
+const OWNED_ACTIONS = new Set(["update_order", "add_items", "update_item", "remove_item", "transfer", "merge", "unmerge", "split", "cancel", "print"])
+
+async function assertOwns(ctx: Ctx, order: any) {
+  if (ownsOrder(order, ctx.userId, ctx.permissions.manageAllTables)) return
+  throw permissionFail("manageAllTables", `الطاولة تخص النادل ${await waiterName(order.waiter_id)} — لا توجد لديك صلاحية العمل على طاولات النوادل الآخرين`)
+}
+
+/** قسائم مطبخ/حساب أرسلها جهاز بلا طباعة محلية (جوال النادل) ⇐ طابور يطبعه جهاز الكاشير */
+async function queueTickets(ctx: Ctx, order: any, kind: "kitchen" | "bill") {
+  const tickets = Array.isArray(ctx.data.queue_tickets) ? (ctx.data.queue_tickets as QueuedTicket[]) : []
+  if (!tickets.length) return 0
+  return enqueueTickets({ orderId: Number(order.id), locationId: Number(order.location_id), branchId: Number(order.branch_id), kind, tickets, userId: ctx.userId })
 }
 
 export async function GET(request: NextRequest) {
@@ -101,10 +120,10 @@ async function targetTable(tableId: number, branchId: number) {
   return table
 }
 
-async function createOrder(table: any, ctx: Ctx, guests: number, note: string | null) {
+async function createOrder(table: any, ctx: Ctx, guests: number, note: string | null, waiterId: string = ctx.userId) {
   const order = (await sql`
-    INSERT INTO restaurant_orders_tbl (branch_id, location_id, guests, note, opened_by)
-    VALUES (${Number(table.branch_id)}, ${Number(table.location_id)}, ${guests}, ${note}, ${ctx.userId})
+    INSERT INTO restaurant_orders_tbl (branch_id, location_id, guests, note, opened_by, waiter_id)
+    VALUES (${Number(table.branch_id)}, ${Number(table.location_id)}, ${guests}, ${note}, ${ctx.userId}, ${waiterId})
     RETURNING id
   `)[0]
   const id = Number(order.id)
@@ -141,8 +160,8 @@ async function handleOpenTakeaway(ctx: Ctx) {
   if (!location || Number(location.branch_id) !== ctx.branchId) throw fail("اختر موقعاً نشطاً في هذا الفرع")
   const name = String(ctx.data.name || "").trim().slice(0, 100) || null
   const order = (await sql`
-    INSERT INTO restaurant_orders_tbl (branch_id, location_id, order_type, takeaway_name, guests, note, opened_by)
-    VALUES (${ctx.branchId}, ${Number(location.id)}, 'takeaway', ${name}, 1, ${String(ctx.data.note || "").trim().slice(0, 500) || null}, ${ctx.userId})
+    INSERT INTO restaurant_orders_tbl (branch_id, location_id, order_type, takeaway_name, guests, note, opened_by, waiter_id)
+    VALUES (${ctx.branchId}, ${Number(location.id)}, 'takeaway', ${name}, 1, ${String(ctx.data.note || "").trim().slice(0, 500) || null}, ${ctx.userId}, ${ctx.userId})
     RETURNING id
   `)[0]
   const id = Number(order.id)
@@ -198,7 +217,10 @@ async function handleAddItems(ctx: Ctx, order: any) {
               ${String(item.note || "").trim().slice(0, 300) || null}, ${JSON.stringify(cleanAddons(item.addons))}::jsonb, ${ctx.userId})
     `
   }
-  await logRestaurant(Number(order.id), "add_items", { count: items.length, items: items.map((item: any) => ({ product_id: positiveId(item.product_id), name: String(item.product_name || byId.get(positiveId(item.product_id))?.product_name || ""), quantity: qty(item.quantity), price: num(item.price) })) }, ctx.userId)
+  // أصناف جديدة بعد طلب الحساب ⇐ يُلغى «طلب الحساب» (الحساب المطبوع لم يعد صحيحاً)
+  await sql`UPDATE restaurant_orders_tbl SET bill_requested_at = NULL, bill_requested_by = NULL WHERE id = ${Number(order.id)}`
+  const queued = await queueTickets(ctx, order, "kitchen")
+  await logRestaurant(Number(order.id), "add_items", { count: items.length, ...(queued ? { queued_tickets: queued } : {}), items: items.map((item: any) => ({ product_id: positiveId(item.product_id), name: String(item.product_name || byId.get(positiveId(item.product_id))?.product_name || ""), quantity: qty(item.quantity), price: num(item.price) })) }, ctx.userId)
 }
 
 async function orderItem(orderId: number, itemId: number) {
@@ -282,6 +304,7 @@ async function handleMerge(ctx: Ctx, order: any) {
     }
     // طاولة مشغولة: ينتقل طلبها كاملاً (أصنافه، دفعاته وطاولاته) إلى الطلب الحالي
     const source = await lockOpenOrder(sourceId)
+    await assertOwns(ctx, source)
     const sourceTables = await activeTables(sourceId)
     await sql`UPDATE restaurant_order_items_tbl SET order_id = ${Number(order.id)}, updated_at = NOW() WHERE order_id = ${sourceId}`
     await sql`UPDATE restaurant_order_payments_tbl SET order_id = ${Number(order.id)} WHERE order_id = ${sourceId}`
@@ -324,8 +347,8 @@ async function handleSplit(ctx: Ctx, order: any) {
   const target = await targetTable(positiveId(ctx.data.to_table_id), ctx.branchId)
   if (Number(target.order_id) === Number(order.id)) throw fail("اختر طاولة غير طاولات الطلب الحالي")
   let targetOrderId = Number(target.order_id) || 0
-  if (targetOrderId) await lockOpenOrder(targetOrderId)
-  else targetOrderId = await createOrder(target, ctx, 1, null)
+  if (targetOrderId) await assertOwns(ctx, await lockOpenOrder(targetOrderId))
+  else targetOrderId = await createOrder(target, ctx, 1, null, String(order.waiter_id || ctx.userId))
   for (const line of lines) {
     const item = await orderItem(Number(order.id), line.itemId)
     const remaining = remainingQuantity(item)
@@ -373,7 +396,25 @@ async function handleClose(ctx: Ctx, order: any) {
 }
 
 async function handlePrint(ctx: Ctx, order: any) {
-  await logRestaurant(Number(order.id), "print", {}, ctx.userId)
+  // طباعة الحساب = «طلب الحساب»: تظهر الطاولة للكاشير بانتظار الدفع؛ من جوال النادل تُرسل القسيمة لطابور جهاز الكاشير
+  await sql`UPDATE restaurant_orders_tbl SET bill_requested_at = NOW(), bill_requested_by = ${ctx.userId} WHERE id = ${Number(order.id)}`
+  const queued = await queueTickets(ctx, order, "bill")
+  await logRestaurant(Number(order.id), "print", queued ? { queued_tickets: queued } : {}, ctx.userId)
+  return { queued }
+}
+
+/** تحويل الطاولة لنادل آخر (مدير/مشرف): الهدف مستخدم فعّال لديه الدخول لشاشة المطعم على فرع الطلب */
+async function handleAssignWaiter(ctx: Ctx, order: any) {
+  const waiterId = String(ctx.data.waiter_id || "").trim()
+  if (!waiterId) throw fail("اختر النادل")
+  if (waiterId === String(order.waiter_id || "")) return
+  const user = (await sql`SELECT user_id::text AS user_id FROM user_settings WHERE user_id::text = ${waiterId} AND COALESCE(is_active, true) LIMIT 1`)[0]
+  if (!user) throw fail("المستخدم غير موجود أو موقوف")
+  const membership = await sql`SELECT branch_id FROM user_branches WHERE user_id::text = ${waiterId}`
+  if (membership.length && !membership.some((row: any) => Number(row.branch_id) === Number(order.branch_id))) throw fail("المستخدم لا يعمل على فرع هذه الطاولة")
+  if (!(await restaurantPermissionsFor(waiterId, Number(order.branch_id))).access) throw fail("المستخدم لا يملك الدخول لشاشة المطعم")
+  await sql`UPDATE restaurant_orders_tbl SET waiter_id = ${waiterId} WHERE id = ${Number(order.id)}`
+  await logRestaurant(Number(order.id), "assign_waiter", { from: order.waiter_id || null, to: waiterId, from_name: await waiterName(order.waiter_id), to_name: await waiterName(waiterId) }, ctx.userId)
 }
 
 /**
@@ -512,6 +553,7 @@ const HANDLERS: Record<string, (ctx: Ctx, order: any) => Promise<any>> = {
   close: handleClose,
   pay: handlePay,
   print: handlePrint,
+  assign_waiter: handleAssignWaiter,
 }
 
 export async function POST(request: NextRequest) {
@@ -554,6 +596,7 @@ export async function POST(request: NextRequest) {
       if (action === "open") return handleOpen(ctx)
       if (action === "open_takeaway") return handleOpenTakeaway(ctx)
       const order = await lockOpenOrder(positiveId(data.order_id))
+      if (OWNED_ACTIONS.has(action)) await assertOwns(ctx, order)
       const extra = await HANDLERS[action](ctx, order)
       if (action !== "print") await touchOrder(Number(order.id))
       return { order_id: Number(order.id), ...(extra || {}) }

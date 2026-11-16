@@ -76,9 +76,40 @@ export async function GET(request: NextRequest) {
       WHERE (${behavior === "debit"} AND b.debit-b.credit>0) OR (${behavior === "credit"} AND b.debit-b.credit<0) OR (${behavior === "zero"} AND b.debit-b.credit=0) OR (${behavior === "all"})
       ORDER BY b.account_code
     `
-    const totalDebit = rows.reduce((sum: number, row: any) => sum + Number(row.debit || 0), 0)
-    const totalCredit = rows.reduce((sum: number, row: any) => sum + Number(row.credit || 0), 0)
-    return NextResponse.json({ meta, rows: rows.map((row: any) => ({ ...row, currency_id: selectedCurrency, currency_code: targetCurrency.currency_code, currency_name: targetCurrency.currency_name })), summary: { total_debit: totalDebit, total_credit: totalCredit, balance: totalDebit - totalCredit }, filters: { kind, to_date: date, report_currency_id: selectedCurrency } })
+    // كالشامل: الرصيد في عمود واحد — مدين إن كان موجباً، دائن إن كان سالباً (لا مجموع الحركات في العمودين)
+    const ids = rows.map((row: any) => Number(row.account_id))
+    // الشيكات (اختياري): بالصندوق/برسم التحصيل (مستحق، غير مستحق، مؤجل، برسم التحصيل) والراجعة، حسب حساب الطرف
+    // في سند القبض/الصرف. الواردة موجبة والصادرة سالبة، محوّلة لعملة التقرير بنفس قاعدة الحركات (حتى تاريخ التقرير)
+    const cheques = params.get("cheques") === "1" && ids.length ? await sql`
+      SELECT vh.account_id,
+        COALESCE(SUM(CASE WHEN vjd.status_id IN (1, 2, 3, 8) THEN (CASE WHEN vjd.cheq_type = 2 THEN -1 ELSE 1 END) * ${sql.unsafe(amountSql)} END), 0)::float AS cheques,
+        COALESCE(SUM(CASE WHEN vjd.status_id = 5 THEN (CASE WHEN vjd.cheq_type = 2 THEN -1 ELSE 1 END) * ${sql.unsafe(amountSql)} END), 0)::float AS returned_cheques
+      FROM cheques_tbl vjd JOIN voucher_header_tbl vh ON vh.id = vjd.voucher_id AND vh.status <> 3 AND vh.vch_date <= ${toDate}::timestamp
+        AND (${effectiveBranchIds.length === 0} OR vh.branch_id = ANY(${effectiveBranchIds}::int[]))
+      WHERE vh.account_id = ANY(${ids}::int[]) AND (${currencyIds.length === 0} OR vjd.currency_id = ANY(${currencyIds}::int[]))
+      GROUP BY vh.account_id
+    ` : []
+    const chequesBy = new Map<number, any>((cheques as any[]).map((row) => [Number(row.account_id), row]))
+    // هاتف الذمة من بطاقة العميل/المورد
+    const phones = kind === "receivables" && ids.length
+      ? new Map<number, string>(((await sql`SELECT DISTINCT ON (account_id) account_id, COALESCE(NULLIF(mobile1, ''), NULLIF(mobile2, '')) AS phone FROM customers WHERE account_id = ANY(${ids}::int[]) ORDER BY account_id, id`.catch(() => [])) as any[]).map((row) => [Number(row.account_id), String(row.phone || "")]))
+      : new Map<number, string>()
+    const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
+    const output = rows.map((row: any) => {
+      const balance = round(Number(row.debit || 0) - Number(row.credit || 0))
+      const cheque = chequesBy.get(Number(row.account_id))
+      const chequeAmount = round(Number(cheque?.cheques || 0)), returnedAmount = round(Number(cheque?.returned_cheques || 0))
+      return {
+        ...row, balance, debit: balance > 0 ? balance : 0, credit: balance < 0 ? -balance : 0,
+        movement_debit: Number(row.debit || 0), movement_credit: Number(row.credit || 0), phone: phones.get(Number(row.account_id)) || "",
+        cheques: chequeAmount, returned_cheques: returnedAmount,
+        balance_with_cheques: round(balance + chequeAmount), balance_with_returned: round(balance + returnedAmount),
+        currency_id: selectedCurrency, currency_code: targetCurrency.currency_code, currency_name: targetCurrency.currency_name,
+      }
+    })
+    const totalDebit = output.reduce((sum: number, row: any) => sum + row.debit, 0)
+    const totalCredit = output.reduce((sum: number, row: any) => sum + row.credit, 0)
+    return NextResponse.json({ meta, rows: output, summary: { total_debit: totalDebit, total_credit: totalCredit, balance: totalDebit - totalCredit }, filters: { kind, to_date: date, report_currency_id: selectedCurrency } })
   } catch (error) {
     if ((error as { code?: string })?.code === "22012") {
       return NextResponse.json({ error: "لا يوجد سعر صرف صالح لعملة التقرير بتاريخ إحدى الحركات. يرجى تعريف سعر الصرف وإعادة عرض التقرير." }, { status: 400 })

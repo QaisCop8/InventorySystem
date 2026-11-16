@@ -28,6 +28,7 @@ import {
   EXCHANGE_RATE_PERMISSION_CATEGORY,
   EXCHANGE_RATE_PERMISSIONS,
   RESTAURANT_PERMISSIONS,
+  RESTAURANT_WAITER_PERMISSIONS,
   CHEQUE_OPERATION_PERMISSION_CATEGORY,
   CHEQUE_OPERATION_PERMISSIONS,
   ALL_VOUCHER_PRICING_PERMISSION_NAMES,
@@ -57,6 +58,7 @@ export const DEFAULT_JOB_ROLES = [
   { name: "مدير", grantAll: true },
   { name: "محاسب", grantAll: false },
   { name: "كاشير", grantAll: false },
+  { name: "نادل", grantAll: false },
 ] as const
 
 // Legacy full-access users still inherit access when no explicit user/role
@@ -1208,5 +1210,17 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
      WHERE LOWER(BTRIM(r.name)) = 'كاشير'
      ON CONFLICT (role_id, access_id) DO NOTHING`,
     [cashierAllowed],
+  )
+
+  // دور "نادل" (2026-11-16): شاشة المطعم لفتح الطاولات وإرسال الطلبات للمطبخ وطلب الحساب فقط — بلا دفع ولا عهدة ولا خصم
+  // ولا حذف/تعديل بعد الإرسال ولا طاولات النوادل الآخرين. نفس قاعدة الكاشير: يملأ ما لا قرار له فقط.
+  const waiterAllowed = RESTAURANT_WAITER_PERMISSIONS.map((key) => RESTAURANT_PERMISSIONS[key])
+  await client.query(
+    `INSERT INTO role_permissions (role_id, access_id, is_granted)
+     SELECT r.id, a.id, LOWER(BTRIM(a.name)) = ANY(SELECT LOWER(BTRIM(n)) FROM unnest($1::text[]) n)
+     FROM job_roles r CROSS JOIN access_list a
+     WHERE LOWER(BTRIM(r.name)) = 'نادل'
+     ON CONFLICT (role_id, access_id) DO NOTHING`,
+    [waiterAllowed],
   )
 }

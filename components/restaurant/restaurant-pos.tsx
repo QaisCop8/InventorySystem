@@ -3,7 +3,7 @@
 import { tr, appDir } from "@/lib/i18n"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { currentPosTenantKey, loadPosCatalog, savePosCatalog } from "@/lib/pos-offline"
-import { ArrowRightLeft, Ban, Combine, Loader2, Lock, Minus, Plus, Printer, Split, Wallet } from "lucide-react"
+import { ArrowRightLeft, Ban, Combine, Loader2, Lock, Minus, Plus, Printer, Split, UserCog, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,17 +29,38 @@ import {
   AddonsDialog, addonsText, ValueDialog, ItemEditDialog, LineQuantities, money, PayScopeDialog, qtyText, round2, round4, TablePickerDialog,
   type Addon, type EditableLine, type FloorLocation, type FloorTable, type OrderItem,
 } from "./restaurant-dialogs"
-import { RestaurantFloor, type Takeaway } from "./restaurant-floor"
+import { RestaurantFloor, type FloorStatusFilter, type Takeaway } from "./restaurant-floor"
+import { AssignWaiterDialog, SetPinDialog, SwitchWaiterDialog, WaiterHeaderControls, WaiterLockScreen } from "./restaurant-waiter"
+import { localPrintAvailable } from "@/lib/local-print"
+import { getWaiterSession, installWaiterFetch, setWaiterSession, WAITER_ENDED_EVENT, type WaiterSession } from "@/lib/restaurant-waiter-client"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { RestaurantOrder, type Order, type OrderAction, type Pending, type Product } from "./restaurant-order"
 
 type Perms = Record<RestaurantPermission, boolean>
-type Floor = { branch_id: number; permissions: Perms; locations: FloorLocation[]; tables: FloorTable[]; takeaways: Takeaway[]; server_time: string }
+type Floor = {
+  branch_id: number; permissions: Perms; locations: FloorLocation[]; tables: FloorTable[]; takeaways: Takeaway[]; server_time: string
+  me?: { id: string; name: string; switched: boolean }; kitchen_stuck?: number
+}
 type Catalog = {
   point: any; taxRate: number; products: Product[]; customers: LookupOption[]; currencies: CurrencyOption[]; banks: LookupOption[]; bankBranches: LookupOption[]
   cardTypes: LookupOption[]; campaigns: PosCampaign[]; campaignUsage: PosCampaignUsage; session: any; canPay: boolean; receiptSettings: Record<string, string>
 }
 type Line = { item: OrderItem; quantity: number }
+
+// قسيمة المطبخ (80مم، بلا أسعار/شعار) وورقة الحساب — من إعدادات طباعة فاتورة المبيعات على الجهاز الذي يطبع
+const kitchenSlip = (settings: any) => ({ ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, print_method: "service" as const, copies: 1, copy_labels: "", show_logo: false, show_company_info: false, header_text: "", show_fields: true, show_row_numbers: true, hidden_columns: [], show_totals: false, show_amount_in_words: false, show_notes: false, show_barcode: false, show_signatures: false, show_footer: false, show_page_numbers: false })
+const billSlip = (settings: any) => ({ ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, show_totals: true, show_signatures: false, show_amount_in_words: false })
+type KitchenTicket = { printer: string; title: string; document: PrintDocument }
+// الجهاز المشترك (تابلت للنوادل): يُقفل بعد دقيقتين بلا استخدام ويطلب رمز PIN
+const SHARED_KEY = "restaurant-shared-device"
+const IDLE_LOCK_MS = 2 * 60_000
+const deviceKey = () => {
+  try {
+    let key = localStorage.getItem("restaurant-device-key")
+    if (!key) { key = `dev-${crypto.randomUUID?.() || Math.random().toString(36).slice(2) + Date.now().toString(36)}`; localStorage.setItem("restaurant-device-key", key) }
+    return key
+  } catch { return "dev-volatile-device" }
+}
 
 // بحث عربي متسامح: بلا تشكيل، وتوحيد الألف/الياء/التاء المربوطة
 const searchKey = (value: string) => value.toLocaleLowerCase("ar").replace(/[ً-ٟـ]/g, "").replace(/[إأآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
@@ -86,7 +107,7 @@ export default function RestaurantPos() {
   const [denied, setDenied] = useState(false)
   const [loadingFloor, setLoadingFloor] = useState(true)
   const [locationFilter, setLocationFilter] = useState<number | "all">("all")
-  const [statusFilter, setStatusFilter] = useState<"all" | "free" | "busy">("all")
+  const [statusFilter, setStatusFilter] = useState<FloorStatusFilter>("all")
   const [now, setNow] = useState(() => Date.now())
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
@@ -100,6 +121,21 @@ export default function RestaurantPos() {
   const [category, setCategory] = useState("all")
   const [mobileTab, setMobileTab] = useState<"menu" | "ticket">("menu")
   const [busy, setBusy] = useState(false)
+
+  // ---------------- النادل: جلسة PIN لهذا التبويب، الجهاز المشترك، الطباعة المحلية أو طابور المطبخ ----------------
+  installWaiterFetch()
+  const [waiter, setWaiter] = useState<WaiterSession | null>(() => (typeof window === "undefined" ? null : getWaiterSession()))
+  const [sharedDevice, setSharedDevice] = useState(() => { try { return localStorage.getItem(SHARED_KEY) === "1" } catch { return false } })
+  const [pinDialog, setPinDialog] = useState<null | "switch" | "set">(null)
+  const [pinBusy, setPinBusy] = useState(false)
+  const [pinError, setPinError] = useState("")
+  const [hasPin, setHasPin] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [waiters, setWaiters] = useState<{ id: string; name: string; role_name?: string | null }[]>([])
+  const [waitersLoading, setWaitersLoading] = useState(false)
+  // null = لم يُفحص بعد؛ true = جهاز كاشير بخدمة الطباعة (يطبع مباشرة + يطبع طابور الجوالات)؛ false = جوال/تابلت (طابور)
+  const [canPrintHere, setCanPrintHere] = useState<boolean | null>(null)
+  const lastActivity = useRef(Date.now())
 
   const [openTable, setOpenTable] = useState<FloorTable | null>(null)
   const [guests, setGuests] = useState(2)
@@ -164,6 +200,59 @@ export default function RestaurantPos() {
   }, [])
 
   useEffect(() => { void loadFloor() }, [loadFloor])
+  useEffect(() => { void localPrintAvailable().then(setCanPrintHere) }, [])
+  // انتهاء جلسة النادل على الخادم (انتهت صلاحيتها/أُوقف الحساب) ⇐ قفل
+  useEffect(() => {
+    const onEnded = () => { setWaiter(null); setOrder(null); setPending([]); setMessage({ type: "error", text: tr("انتهت جلسة النادل — أدخل رمز PIN من جديد") }); void loadFloor(true) }
+    window.addEventListener(WAITER_ENDED_EVENT, onEnded)
+    return () => window.removeEventListener(WAITER_ENDED_EVENT, onEnded)
+  }, [loadFloor])
+  // الجهاز المشترك: قفل تلقائي بعد دقيقتين بلا لمس/كتابة
+  useEffect(() => {
+    if (!sharedDevice || !waiter) return
+    const touch = () => { lastActivity.current = Date.now() }
+    touch()
+    window.addEventListener("pointerdown", touch); window.addEventListener("keydown", touch)
+    const timer = window.setInterval(() => { if (Date.now() - lastActivity.current > IDLE_LOCK_MS) void lockWaiter(true) }, 10_000)
+    return () => { window.removeEventListener("pointerdown", touch); window.removeEventListener("keydown", touch); window.clearInterval(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedDevice, waiter])
+  // جهاز الكاشير (خدمة الطباعة متاحة) وشاشة المطعم مفتوحة: يطبع قسائم المطبخ/الحساب التي أرسلتها جوالات النوادل
+  useEffect(() => {
+    if (!canPrintHere) return
+    let stopped = false, running = false
+    const device = deviceKey()
+    const post = (body: Record<string, unknown>) => fetch("/api/restaurant/kitchen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ device, ...body }) })
+    const tick = async () => {
+      if (running || stopped || document.visibilityState !== "visible") return
+      running = true
+      try {
+        const response = await post({ action: "claim" })
+        if (!response.ok) return
+        const tickets: { id: number; kind: string; printer: string | null; title: string | null; document: PrintDocument }[] = (await response.json()).tickets || []
+        if (!tickets.length) return
+        const { settings, company } = await loadVoucherPrintSettings(12)
+        const printed: number[] = [], failed: { id: number; error: string }[] = []
+        for (const ticket of tickets) {
+          try {
+            if (ticket.kind === "bill") await printVoucherWithSettings(ticket.document, billSlip(settings), company)
+            else await printVoucherWithSettings(ticket.document, { ...kitchenSlip(settings), printer_name: ticket.printer || settings.printer_name }, company)
+            printed.push(ticket.id)
+          } catch (error) {
+            failed.push({ id: ticket.id, error: error instanceof Error ? error.message : "تعذرت الطباعة" })
+          }
+        }
+        await post({ action: "ack", printed, failed })
+        if (failed.length) setMessage({ type: "error", text: tr("تعذرت طباعة {0} من قسائم النوادل: {1}", failed.length, failed[0].error) })
+        void loadFloor(true)
+      } catch { /* يُعاد في الدورة التالية */ } finally {
+        running = false
+      }
+    }
+    const timer = window.setInterval(() => void tick(), 4000)
+    void tick()
+    return () => { stopped = true; window.clearInterval(timer) }
+  }, [canPrintHere, loadFloor])
   // تحديث لوحة الطاولات دورياً (مستخدمون آخرون يفتحون/يدفعون طاولات) والوقت المنقضي
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -339,7 +428,9 @@ export default function RestaurantPos() {
     }
   }
   // زر العهدة ظاهر دائماً؛ بلا صلاحية تظهر نافذة رمز التفعيل قبل نافذة العهدة (openCustody)
-  const canCustody = true
+  // النادل (بلا دفع ولا استلام/تسليم عهدة): لا تظهر له العهدة؛ غيره تُفحص صلاحيته عند النقر (رمز التفعيل)
+  const waiterMode = Boolean(perms) && !can("pay") && !can("receiveCustody") && !can("handoverCustody")
+  const canCustody = !waiterMode
   // الموقع الحالي (الطلب المفتوح، ثم العهدة، ثم فلتر الموقع أو الموقع الوحيد) — إليه يُرسل رمز تفعيل الصلاحية
   const approvalLocationRef = useRef<number | null>(null)
   approvalLocationRef.current = order?.location_id ?? custodyLocation ?? (locationFilter !== "all" ? locationFilter : floor?.locations.length === 1 ? floor.locations[0].id : null)
@@ -488,7 +579,7 @@ export default function RestaurantPos() {
 
   // قسائم المطبخ: ورقة بالأصناف والكميات والملاحظات (بلا أسعار) — كما في كاشير نقطة البيع. الأولوية لطابعة الصنف
   // (الطابعة الافتراضية في ملف الصنف): أصنافها تُجمع على ورقة واحدة لكل طابعة؛ وإلا حسب مجموعة الصنف وطابعتها.
-  const printKitchen = async (lines: Pending[]) => {
+  const kitchenTickets = (lines: Pending[]): KitchenTicket[] => {
     const groups = new Map<string, { name: string; printer: string; lines: Pending[] }>()
     const products = new Map((catalog?.products || []).map((product) => [product.id, product]))
     for (const line of lines) {
@@ -502,20 +593,27 @@ export default function RestaurantPos() {
       group.lines.push(line); groups.set(key, group)
     }
     // نفس شرط الكاشير: إعداد نقطة البيع "طباعة حسب مجموعة الصنف"
-    if (!groups.size || !order || !catalog?.point?.print_by_item_group) return
+    if (!groups.size || !order || !catalog?.point?.print_by_item_group) return []
+    return [...groups.values()].map((group) => ({
+      printer: group.printer, title: group.name,
+      document: {
+        noAudit: true, voucherTypeId: 12, title: tr("{0} — {1}{2}", group.name, isTakeaway ? "" : "طاولة ", tableNames), code: order.order_no, date: nowText(),
+        fields: [{ label: tr("الموقع"), value: order.location_name }, { label: tr("الطاولة"), value: tableNames }, ...(order.waiter_name ? [{ label: tr("النادل"), value: order.waiter_name }] : [])],
+        columns: [{ key: "name", label: tr("الصنف"), weight: 3.2 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }],
+        rows: group.lines.map((line) => ({ name: `${line.name}${line.unitName ? ` (${line.unitName})` : ""}${line.addons.length ? ` + ${addonsText(line.addons)}` : ""}${line.note ? ` — ${line.note}` : ""}`, quantity: qtyText(line.quantity) })),
+      } as PrintDocument,
+    }))
+  }
+
+  const printKitchen = async (lines: Pending[]) => {
+    const tickets = kitchenTickets(lines)
+    if (!tickets.length) return
     try {
       const { settings, company } = await loadVoucherPrintSettings(12)
-      const slip = { ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, print_method: "service" as const, copies: 1, copy_labels: "", show_logo: false, show_company_info: false, header_text: "", show_fields: true, show_row_numbers: true, hidden_columns: [], show_totals: false, show_amount_in_words: false, show_notes: false, show_barcode: false, show_signatures: false, show_footer: false, show_page_numbers: false }
       const failures: string[] = []
-      for (const group of groups.values()) {
-        const document: PrintDocument = {
-          noAudit: true, voucherTypeId: 12, title: tr("{0} — {1}{2}", group.name, isTakeaway ? "" : "طاولة ", tableNames), code: order.order_no, date: nowText(),
-          fields: [{ label: tr("الموقع"), value: order.location_name }, { label: tr("الطاولة"), value: tableNames }],
-          columns: [{ key: "name", label: tr("الصنف"), weight: 3.2 }, { key: "quantity", label: tr("الكمية"), align: "center", weight: 1 }],
-          rows: group.lines.map((line) => ({ name: `${line.name}${line.unitName ? ` (${line.unitName})` : ""}${line.addons.length ? ` + ${addonsText(line.addons)}` : ""}${line.note ? ` — ${line.note}` : ""}`, quantity: qtyText(line.quantity) })),
-        }
-        try { await printVoucherWithSettings(document, { ...slip, printer_name: group.printer }, company) }
-        catch (error) { failures.push(`${group.name}: ${error instanceof Error ? error.message : "تعذرت الطباعة"}`) }
+      for (const ticket of tickets) {
+        try { await printVoucherWithSettings(ticket.document, { ...kitchenSlip(settings), printer_name: ticket.printer }, company) }
+        catch (error) { failures.push(`${ticket.title}: ${error instanceof Error ? error.message : "تعذرت الطباعة"}`) }
       }
       if (failures.length) setMessage({ type: "error", text: tr("أُرسلت الأصناف لكن تعذرت طباعة المطبخ: {0}", failures.join(" — ")) })
     } catch (error) {
@@ -538,12 +636,21 @@ export default function RestaurantPos() {
       return
     }
     const lines = pending
+    // جهاز بلا طباعة محلية (جوال/تابلت النادل): القسائم تُرسل مع الأصناف لطابور يطبعه جهاز الكاشير
+    const local = canPrintHere ?? await localPrintAvailable()
+    let queue: KitchenTicket[] = []
+    if (!local) {
+      const wanted = !catalog?.point?.kitchen_print_confirm || await confirmYesNo(tr("هل تريد طباعة قسائم المطبخ لهذا الطلب؟"))
+      if (wanted) queue = kitchenTickets(lines)
+    }
     const data = await act("add_items", {
       order_id: order.id,
       items: lines.map((line) => ({ product_id: line.productId, product_name: line.name, unit_id: line.unitId, unit_name: line.unitName, price: line.price, quantity: line.quantity, discount: line.discount, note: line.note, addons: line.addons })),
-    }, tr("تم إرسال الأصناف للطاولة"))
+      ...(queue.length ? { queue_tickets: queue } : {}),
+    }, queue.length ? tr("أُرسل الطلب للمطبخ — يُطبع على جهاز الكاشير") : tr("تم إرسال الأصناف للطاولة"))
     if (!data) return
     setPending([])
+    if (!local) return
     // خيار الموقع "اظهار رسالة طباعة عند ارسال الطلب الى المطبخ": يسأل قبل طباعة القسائم (لا = إرسال بلا طباعة)
     if (catalog?.point?.kitchen_print_confirm && !(await confirmYesNo(tr("تم إرسال الطلب إلى المطبخ. هل تريد طباعة قسائم المطبخ؟")))) return
     void printKitchen(lines)
@@ -674,7 +781,6 @@ export default function RestaurantPos() {
   const printBill = async () => {
     if (!order) return
     try {
-      const { settings, company } = await loadVoucherPrintSettings(12)
       const lines = order.items.filter((item) => item.remaining_quantity > 0)
       const document: PrintDocument = {
         noAudit: true, voucherTypeId: 12, title: tr("حساب طاولة"), code: order.order_no, date: nowText(),
@@ -688,7 +794,13 @@ export default function RestaurantPos() {
         ],
         amount: remainingTotal,
       }
-      await printVoucherWithSettings(document, { ...settings, paper_size: "Receipt80" as const, orientation: "portrait" as const, show_totals: true, show_signatures: false, show_amount_in_words: false }, company)
+      // «طلب الحساب» من جوال النادل: الورقة تُطبع على جهاز الكاشير، والطاولة تظهر «الحساب مطلوب»
+      if (!(canPrintHere ?? await localPrintAvailable())) {
+        await act("print", { order_id: order.id, queue_tickets: [{ printer: "", title: tr("حساب طاولة"), document }] }, tr("تم طلب الحساب — يُطبع على جهاز الكاشير"))
+        return
+      }
+      const { settings, company } = await loadVoucherPrintSettings(12)
+      await printVoucherWithSettings(document, billSlip(settings), company)
       void act("print", { order_id: order.id })
     } catch (error) {
       setMessage({ type: "error", text: error instanceof Error ? error.message : tr("تعذرت الطباعة") })
@@ -826,13 +938,89 @@ export default function RestaurantPos() {
     </>
   )
 
+  // ---------------- النادل: تبديل برمز PIN، الرمز الشخصي، القفل، تحويل الطاولة ----------------
+  async function lockWaiter(silent = false) {
+    if (waiter) await fetch("/api/restaurant/waiter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end" }) }).catch(() => undefined)
+    setWaiterSession(null); setWaiter(null); setOrder(null); setPending([])
+    if (!silent) setMessage({ type: "success", text: tr("تم قفل الجلسة") })
+    void loadFloor(true)
+  }
+  const switchWaiter = async (pin: string) => {
+    if (pending.length && !(await confirmYesNo(tr("توجد أصناف لم تُرسل بعد وستُتجاهل. هل تريد تبديل النادل؟")))) return
+    setPinBusy(true); setPinError("")
+    try {
+      if (waiter) { await fetch("/api/restaurant/waiter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end" }) }).catch(() => undefined); setWaiterSession(null) }
+      const response = await fetch("/api/restaurant/waiter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "switch", pin }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) { setWaiter(null); throw new Error(String(data?.error || tr("رمز PIN غير صحيح"))) }
+      setWaiterSession(data); setWaiter(data); setPinDialog(null); setOrder(null); setPending([])
+      lastActivity.current = Date.now()
+      setMessage({ type: "success", text: tr("مرحباً {0}", data.user?.name || "") })
+      await loadFloor(true)
+    } catch (error) {
+      setPinError(error instanceof Error ? error.message : tr("تعذر التبديل"))
+    } finally {
+      setPinBusy(false)
+    }
+  }
+  const openSetPin = async () => {
+    setPinError(""); setPinDialog("set")
+    const data = await fetch("/api/restaurant/waiter", { cache: "no-store" }).then((response) => (response.ok ? response.json() : null)).catch(() => null)
+    setHasPin(Boolean(data?.has_pin))
+  }
+  const savePin = async (pin: string) => {
+    setPinBusy(true); setPinError("")
+    try {
+      const response = await fetch("/api/restaurant/waiter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set_pin", pin }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(String(data?.error || tr("تعذر حفظ الرمز")))
+      setPinDialog(null); setMessage({ type: "success", text: pin ? tr("تم حفظ رمز PIN") : tr("تم حذف رمز PIN") })
+    } catch (error) {
+      setPinError(error instanceof Error ? error.message : tr("تعذر حفظ الرمز"))
+    } finally {
+      setPinBusy(false)
+    }
+  }
+  const toggleShared = () => {
+    const next = !sharedDevice
+    try { localStorage.setItem(SHARED_KEY, next ? "1" : "0") } catch { /* بلا تخزين */ }
+    setSharedDevice(next)
+    if (next && !waiter) setMessage({ type: "success", text: tr("وضع الجهاز المشترك: أدخل رمز PIN للعمل") })
+  }
+  const openAssign = async () => {
+    setAssignOpen(true); setWaitersLoading(true)
+    try {
+      const data = await fetch("/api/restaurant/waiter?list=waiters", { cache: "no-store" }).then((response) => response.json())
+      setWaiters(Array.isArray(data?.waiters) ? data.waiters : [])
+    } catch { setWaiters([]) } finally { setWaitersLoading(false) }
+  }
+  const headerExtra = (
+    <WaiterHeaderControls name={waiter?.user.name || floor?.me?.name || ""} switched={Boolean(waiter)} shared={sharedDevice}
+      onSwitch={() => { setPinError(""); setPinDialog("switch") }} onSetPin={() => void openSetPin()} onLock={() => void lockWaiter()} onToggleShared={toggleShared} />
+  )
+  const waiterDialogs = (
+    <>
+      <SwitchWaiterDialog open={pinDialog === "switch"} onOpenChange={(value) => { if (!value) setPinDialog(null) }} busy={pinBusy} error={pinError} onPin={(pin) => void switchWaiter(pin)} />
+      <SetPinDialog open={pinDialog === "set"} onOpenChange={(value) => { if (!value) setPinDialog(null) }} hasPin={hasPin} busy={pinBusy} error={pinError} onSave={(pin) => void savePin(pin)} />
+    </>
+  )
+
+  if (sharedDevice && !waiter) {
+    return (
+      <>
+        <WaiterLockScreen busy={pinBusy} error={pinError} onPin={(pin) => void switchWaiter(pin)} onLeaveShared={toggleShared} />
+        {toast}
+      </>
+    )
+  }
+
   if (!order) {
     return (
       <>
         <RestaurantFloor
           locations={locations} tables={tables} takeaways={floor?.takeaways || []} now={now} loading={loadingFloor} busy={busy} error={floorError}
           locationFilter={locationFilter} onLocationFilter={setLocationFilter} statusFilter={statusFilter} onStatusFilter={setStatusFilter}
-          canTakeaway canCustody={canCustody}
+          canTakeaway canCustody={canCustody} meId={waiter?.user.id || floor?.me?.id || ""} headerExtra={headerExtra} kitchenStuck={Number(floor?.kitchen_stuck || 0)}
           onRefresh={() => void loadFloor()} onCustody={() => void openCustody()} onNewTakeaway={startTakeaway}
           onTable={clickTable} onOrder={(orderId) => void showOrder(orderId)} />
 
@@ -877,6 +1065,7 @@ export default function RestaurantPos() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {waiterDialogs}
         {shared}
       </>
     )
@@ -892,6 +1081,7 @@ export default function RestaurantPos() {
     { key: "cancel", label: order.payments.length ? tr("إغلاق") : tr("إلغاء"), icon: Ban, show: order.payments.length ? !hasRemaining : true, tone: "text-red-600",
       onClick: gated(order.payments.length ? "pay" : "cancelOrder", () => { if (order.payments.length) void act("close", { order_id: order.id }, tr("تم إغلاق الطاولة")); else { setCancelReason(""); setCancelOpen(true) } }, order.location_id) },
     { key: "custody", label: tr("العهدة"), icon: Wallet, show: canCustody, onClick: () => void openCustody(order.location_id) },
+    { key: "waiter", label: tr("النادل"), icon: UserCog, show: can("assignWaiter"), onClick: () => void openAssign() },
   ]
 
   return (
@@ -918,7 +1108,12 @@ export default function RestaurantPos() {
           setScopeOpen(true)
         }, order.location_id)} onDiscount={gated("discount", () => setValueDialog("discount"), order.location_id)} onGuests={(delta) => void changeGuests(delta)}
         onUnmerge={(tableId, name) => gated("split", () => void confirmYesNo(tr("فك الطاولة {0} من الطلب؟", name)).then((ok) => { if (ok) void act("unmerge", { order_id: order.id, table_id: tableId }, tr("تم فك الطاولة {0}", name)) }), order.location_id)()}
-        onRenameTakeaway={gated("takeaway", () => setValueDialog("takeaway_name"), order.location_id)} />
+        onRenameTakeaway={gated("takeaway", () => setValueDialog("takeaway_name"), order.location_id)}
+        billMode={waiterMode} onRequestBill={gated("printBill", () => void printBill(), order.location_id)} />
+
+      <AssignWaiterDialog open={assignOpen} onOpenChange={setAssignOpen} waiters={waiters} currentId={order.waiter_id} loading={waitersLoading} busy={busy}
+        onPick={(id) => void act("assign_waiter", { order_id: order.id, waiter_id: id }, tr("تم تحويل الطاولة")).then((data) => { if (data) setAssignOpen(false) })} />
+      {waiterDialogs}
 
       <ValueDialog open={valueDialog !== null} onOpenChange={(value) => { if (!value) setValueDialog(null) }} busy={busy} onConfirm={(value) => void saveValueDialog(value)}
         {...(valueDialog === "discount"

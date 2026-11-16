@@ -1,0 +1,61 @@
+Invalid device ID
+Choose the waiter
+The user does not work at this table's branch
+The user has no access to the restaurant screen
+{0}: no access to the restaurant screen at this branch
+PIN must be 4 to 6 digits
+This PIN is used by another employee — choose a different one
+Too many wrong attempts — try again in {0} minutes
+Incorrect PIN
+The employee account is disabled
+The slip is too large
+Waiter session ended — enter your PIN again
+{0} kitchen/bill slips from waiters' phones are not printed yet — open the restaurant screen on the cashier PC (with the print service) to print them.
+Request bill again
+Request bill
+Could not print {0} waiter slips: {1}
+Print kitchen slips for this order?
+Order sent to the kitchen — printing on the cashier PC
+Bill requested — printing on the cashier PC
+Session locked
+There are unsent items that will be discarded. Switch waiter?
+Welcome {0}
+Could not switch
+Could not save the PIN
+PIN saved
+PIN removed
+Shared device mode: enter a PIN to work
+Table reassigned
+Restaurant screen locked
+Enter your PIN to continue
+Turn off shared device mode on this device
+Switch waiter by PIN
+Switch
+End waiter session
+Lock
+My PIN
+Shared device: locks after 2 idle minutes and asks for a waiter PIN
+Shared device ✓
+Shared device
+Switch waiter
+Enter the waiter's PIN — actions run under their name and permissions on this device
+My PIN
+A 4–6 digit code for quick sign-in on shared restaurant devices. Don't share it.
+New PIN
+Confirm PIN
+The PINs don't match
+Remove PIN
+Move table to another waiter
+No users have restaurant screen access at this branch
+Current
+Bill requested
+My tables
+Waiter
+Work on other waiters' tables - Restaurants
+Move table to another waiter - Restaurants
+Print invoice / request bill
+Show cheques
+Phone
+Returned cheques
+Balance incl. cheques
+Balance incl. returned cheques

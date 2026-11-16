@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { authorizeRestaurant, errorStatus } from "@/lib/restaurant"
+import { stuckTicketCount, waiterName } from "@/lib/restaurant-waiters"
 
 // لوحة الطاولات للفرع النشط: المواقع النشطة وطاولاتها وحالة كل طاولة (الطلب المفتوح، المتبقي، الطاولات المدموجة)
 // + صلاحيات المطعم الفعّالة للمستخدم على هذا الفرع (لإظهار/إخفاء الأزرار؛ الخادم يفرضها في api/restaurant/orders)
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
         SELECT t.id, t.name, t.seats, t.shape, t.location_id,
                o.id AS order_id, o.order_no, o.guests, o.opened_at, o.revision, ot.is_primary,
                COALESCE(us.full_name, us.username, o.opened_by) AS opened_by_name,
+               o.waiter_id, COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name, o.bill_requested_at,
                COALESCE(totals.remaining, 0) AS remaining, COALESCE(totals.items, 0) AS items_count,
                COALESCE(paid.amount, 0) AS paid_amount,
                mates.names AS merged_with
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN restaurant_order_tables_tbl ot ON ot.table_id = t.id AND ot.active
         LEFT JOIN restaurant_orders_tbl o ON o.id = ot.order_id AND o.status = 'open'
         LEFT JOIN user_settings us ON us.user_id::text = o.opened_by
+        LEFT JOIN user_settings wu ON wu.user_id::text = o.waiter_id
         LEFT JOIN LATERAL (
           SELECT ROUND(SUM(GREATEST(i.quantity - i.paid_quantity, 0) * i.price * (1 - i.discount / 100)), 2) AS remaining,
                  COUNT(*) FILTER (WHERE i.quantity - i.paid_quantity > 0) AS items
@@ -46,10 +49,12 @@ export async function GET(request: NextRequest) {
       sql`
         SELECT o.id AS order_id, o.order_no, o.takeaway_name, o.location_id, o.opened_at, o.revision,
                COALESCE(us.full_name, us.username, o.opened_by) AS opened_by_name,
+               o.waiter_id, COALESCE(NULLIF(wu.full_name, ''), wu.username, o.waiter_id) AS waiter_name, o.bill_requested_at,
                COALESCE(totals.remaining, 0) AS remaining, COALESCE(totals.items, 0) AS items_count,
                COALESCE(paid.amount, 0) AS paid_amount
         FROM restaurant_orders_tbl o
         LEFT JOIN user_settings us ON us.user_id::text = o.opened_by
+        LEFT JOIN user_settings wu ON wu.user_id::text = o.waiter_id
         LEFT JOIN LATERAL (
           SELECT ROUND(SUM(GREATEST(i.quantity - i.paid_quantity, 0) * i.price * (1 - i.discount / 100)), 2) AS remaining,
                  COUNT(*) FILTER (WHERE i.quantity - i.paid_quantity > 0) AS items
@@ -63,6 +68,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       branch_id: auth.branchId,
       permissions: auth.permissions,
+      // المستخدم الفعلي (النادل المبدَّل إليه برمز PIN أو مستخدم الجهاز) — لتمييز طاولاته على اللوحة
+      me: { id: auth.userId, name: await waiterName(auth.userId), switched: auth.userId !== auth.deviceUserId },
+      kitchen_stuck: await stuckTicketCount(auth.branchId).catch(() => 0),
       locations,
       tables: tables.map((row: any) => ({
         ...row,
