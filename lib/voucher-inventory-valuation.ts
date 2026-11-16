@@ -1,6 +1,15 @@
 const incomingTypes = new Set([8, 15, 16, 17, 18])
 const outgoingTypes = new Set([9, 11, 12, 13, 14, 19])
 const purchaseTypes = new Set([8, 17, 18])
+// مطابقة الشامل (ShamelAPI ItemsAndServicesM.GetItemPriceByPricingWay، 2026-11-16):
+// - آخر سعر = آخر فاتورة/إرسالية مشتريات فقط (لا سند الإدخال)
+const lastPriceTypes = new Set([17, 18])
+// - FIFO يتجاهل إرسالية برسم البيع ومرتجعها (14/15)، وسند الإدخال لا يغيّر "آخر سعر" الطابور
+const fifoIgnoredTypes = new Set([14, 15])
+// - ترتيب حركات اليوم الواحد حسب voucher_types_tbl.sort بالشامل: الإدخالات قبل الإخراجات
+//   (مشتريات، إرسالية مشتريات، إدخال، مرتجع مبيعات، مرتجع برسم البيع، ثم المبيعات والإخراجات، مرتجع المشتريات، الداخلية)
+const SAME_DAY_ORDER: Record<number, number> = { 17: 1, 18: 2, 8: 3, 16: 4, 15: 5, 12: 9, 13: 10, 14: 11, 9: 12, 11: 13, 19: 14, 10: 16 }
+const dayOrder = (type: unknown) => SAME_DAY_ORDER[number(type)] ?? 50
 
 const number = (value: unknown, fallback = 0) => {
   const parsed = value == null ? fallback : Number(value)
@@ -21,7 +30,8 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     ...product,
     balance: 0, received_quantity: 0, issued_quantity: 0,
     received_value: 0, cost_quantity: 0,
-    last_incoming_cost: number(product.last_purchase_price),
+    // بلا مشتريات: سعر أول المدة ثم آخر سعر شراء (الشامل: initial_price وإلا كلفة الشراء/الإنتاج)
+    last_incoming_cost: number(product.initial_price) || number(product.last_purchase_price),
     average_cost: number(product.initial_price) || number(product.last_purchase_price),
     fifo_cost: number(product.initial_price) || number(product.last_purchase_price),
     last_movement_at: null as string | null,
@@ -31,7 +41,7 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
 
   // The query orders lines by voucher date and line id, so the last acquisition
   // is deterministic even when several vouchers share a date.
-  for (const line of [...lines].sort((a, b) => String(a.movement_date).localeCompare(String(b.movement_date)) || number(a.voucher_id) - number(b.voucher_id) || number(a.id) - number(b.id))) {
+  for (const line of [...lines].sort((a, b) => String(a.movement_date).localeCompare(String(b.movement_date)) || dayOrder(a.vch_type) - dayOrder(b.vch_type) || number(a.voucher_id) - number(b.voucher_id) || number(a.id) - number(b.id))) {
     const result = balances.get(Number(line.product_id))
     const type = number(line.vch_type)
     if (!result || (!incomingTypes.has(type) && !outgoingTypes.has(type))) continue
@@ -64,7 +74,7 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     if (purchaseTypes.has(type) && quantity > 0) {
       result.received_value += unitCost * quantity
       result.cost_quantity += quantity
-      result.last_incoming_cost = unitCost
+      if (lastPriceTypes.has(type)) result.last_incoming_cost = unitCost
     }
 
     // Shamel's average is a moving weighted average of the stock still on hand,
@@ -82,12 +92,13 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     const queue = layers.get(productId) || []
     let lastCost = lastLayerCosts.get(productId) ?? result.fifo_cost
     let fifoLineCost = lastCost
-    if (incomingTypes.has(type) && quantity > 0) {
+    if (fifoIgnoredTypes.has(type)) {
+      // الشامل لا يُدخل إرساليات برسم البيع ومرتجعها في طابور FIFO
+    } else if (incomingTypes.has(type) && quantity > 0) {
       const receiptCost = purchaseTypes.has(type) ? unitCost : lastCost
-      // Receipts cover any previous shortage before creating a remaining layer.
-      const remaining = Math.max(0, quantity + Math.min(before, 0))
-      if (remaining > 0) queue.push({ quantity: remaining, cost: receiptCost })
-      lastCost = receiptCost
+      // مثل الشامل: الإدخال يُضاف كاملاً للطابور (العجز السابق لا يُغطّى)، وسند الإدخال لا يغيّر آخر سعر
+      queue.push({ quantity, cost: receiptCost })
+      if (type !== 8) lastCost = receiptCost
     } else if (outgoingTypes.has(type)) {
       let remaining = quantity, consumedValue = 0
       while (remaining > 0 && queue.length) {

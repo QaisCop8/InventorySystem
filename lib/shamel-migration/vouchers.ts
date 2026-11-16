@@ -679,4 +679,50 @@ export async function fixMigratedVouchers() {
       GROUP BY j.voucher_id
     ) d
     WHERE h.id = d.voucher_id AND COALESCE(h.amount, 0) = 0 AND d.debit_base > 0`
+  await convertMigratedPricesToGross().catch((error: unknown) => console.error("[shamel-migration] gross price repair failed:", error))
+}
+
+/**
+ * سعر سطر الشامل (strans.Price) صافٍ بعد خصم السطر وخصم الفاتورة (ShamelAPI MigrateVouchersF يعكسهما:
+ * price / (1 - Discount) × Balance / (Balance - Discount)، والخصم كسر ×100). كان يُرحَّل الصافي مع بقاء الخصم
+ * (خصم الرأس مبلغاً وخصم السطر كسراً) فتُطرح الخصومات مرة ثانية في كلفة الأصناف وتقييم المخزون. هنا يُعاد السعر
+ * للإجمالي قبل الخصومات ويصبح خصم السطر نسبة مئوية وخصم الرأس مبلغاً (discount_type='amount')، فتعطي معادلات
+ * النظام الصافي نفسه. مرة واحدة لكل سند (علامة voucher_gross بالخريطة) — 2026-11-16.
+ */
+async function convertMigratedPricesToGross() {
+  const headerColumns = new Set(((await sql`SELECT column_name FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'voucher_header_tbl' AND column_name IN ('discount_type', 'discount_value')`) as any[]).map((row) => String(row.column_name)))
+  const headerUpdate = headerColumns.size === 2
+    ? `, upd_head AS (
+        UPDATE voucher_header_tbl h SET discount_type = 'amount', discount_value = f.hd
+        FROM factors f WHERE h.id = f.id AND f.hd > 0 RETURNING h.id
+      )`
+    : ""
+  await sql.unsafe(`
+    WITH targets AS (
+      SELECT h.id, GREATEST(COALESCE(h.discount, 0)::float8, 0) AS hd
+      FROM voucher_header_tbl h
+      WHERE h.id IN (SELECT web_id FROM shamel_migration_map WHERE kind = 'voucher')
+        AND NOT EXISTS (SELECT 1 FROM shamel_migration_map g WHERE g.kind = 'voucher_gross' AND g.shamel_key = h.id::text)
+    ),
+    lines AS (
+      SELECT i.id, i.voucher_id, COALESCE(i.price, 0)::float8 AS price, COALESCE(i.qnty, 0)::float8 AS qnty,
+        CASE WHEN COALESCE(i.discount, 0) > 0 AND i.discount < 1 THEN i.discount::float8 ELSE 0 END AS d
+      FROM voucher_items_tbl i JOIN targets t ON t.id = i.voucher_id
+    ),
+    net AS (SELECT voucher_id, SUM(qnty * price) AS n FROM lines GROUP BY voucher_id),
+    factors AS (
+      SELECT t.id, t.hd, CASE WHEN net.n > 0 AND t.hd > 0 THEN (net.n + t.hd) / net.n ELSE 1 END AS k
+      FROM targets t LEFT JOIN net ON net.voucher_id = t.id
+    ),
+    upd_items AS (
+      UPDATE voucher_items_tbl vi
+      SET price = l.price / (1 - l.d) * f.k, discount = CASE WHEN l.d > 0 THEN l.d * 100 ELSE vi.discount END
+      FROM lines l JOIN factors f ON f.id = l.voucher_id
+      WHERE vi.id = l.id AND (l.d > 0 OR f.k <> 1)
+      RETURNING vi.id
+    )${headerUpdate}
+    INSERT INTO shamel_migration_map (kind, shamel_key, web_id)
+    SELECT 'voucher_gross', t.id::text, t.id FROM targets t
+    ON CONFLICT (kind, shamel_key) DO NOTHING`)
 }
