@@ -129,6 +129,7 @@ const ACCOUNT_TYPE_OPTIONS = [
   { label: tr("مورد"), value: "3" },
   { label: tr("مندوب"), value: "4" },
   { label: tr("مشترك"), value: "5" },
+  { label: tr("موظف"), value: "6" },
 ]
 
 const getAccountTypeId = (account: Pick<AccountItem, "type" | "classification_type_id">) =>
@@ -147,6 +148,7 @@ const getAccountTypeLabel = (
   if (typeId === 3) return tr("مورد")
   if (typeId === 4) return tr("مندوب")
   if (typeId === 5) return tr("مشترك")
+  if (typeId === 6) return tr("موظف")
   return tr("أخرى")
 }
 

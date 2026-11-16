@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic"
 // الجدول يحفظ المنع فقط (lib/account-access.ts) — branch_id 0 = كل الفروع.
 
 const ACCOUNT_TYPE_OPTIONS = [{ id: 1, name: "حساب محاسبي" }, { id: 2, name: "عملاء" }, { id: 3, name: "موردين" }, { id: 5, name: "مشتركين" }]
-const PARTY_TYPES = [2, 3, 5]
+const PARTY_TYPES = [2, 3, 5, 6] // 6 = حساب موظف
 
 const ids = (value: unknown) => [...new Set((Array.isArray(value) ? value : []).map(Number).filter((id) => Number.isInteger(id) && id > 0))]
 

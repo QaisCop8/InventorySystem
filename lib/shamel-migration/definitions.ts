@@ -319,6 +319,8 @@ export async function processSalesmen(rows: Row[], ctx: StepContext) {
 
 const CUSTOMER_TYPE: Record<number, number> = { 4: 1, 8: 2, 64: 3, 16: 4 } // Attr بالشامل ⇐ customers.type
 const EMPLOYEE_ATTR = 524288
+// نوع حساب الموظف (كـ ShamelAPI: type 6 «حساب موظف») — يظهر بتقارير الذمم (كشف/أرصدة/تعمير) مع العملاء والموردين
+const EMPLOYEE_ACCOUNT_TYPE = 6
 
 export async function processCustomers(rows: Row[], ctx: StepContext) {
   const salesmanNames = new Map<number, string>(((await sql`SELECT id, name FROM salesmen`) as any[]).map((row) => [Number(row.id), text(row.name)]))
@@ -349,7 +351,7 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
         currencyId: (await currencyId(r.currency_code)) || 1,
         allowTransWithDiffCurr: num(r.allow_trans_with_diff_curr) ? 1 : 0,
         isCalcCurrDiffRates: num(r.iscalc_curr_diff_rates_asint) === 1,
-        accountType: isEmployee ? 1 : resolveAccountType(type),
+        accountType: isEmployee ? EMPLOYEE_ACCOUNT_TYPE : resolveAccountType(type),
         creditLimit: limitAmount(r.debt_max_amount) || null,
       })
       await updateRow("account_tbl", accountIdValue, { name_lang2: text(r.name_lang2) || null, notes: `مُرحَّل من الشامل (${shamelCode})` })
@@ -357,6 +359,8 @@ export async function processCustomers(rows: Row[], ctx: StepContext) {
     }
     // القائمة المالية وبنود الميزانية/الدخل من حساب الشامل (عند الإنشاء وإعادة الترحيل) — صف بلا حساب بالشامل يبقى كما هو
     if (r.finanical_list_id != null && text(r.finanical_list_id) !== "") await updateRow("account_tbl", accountIdValue, await accountClassification(r))
+    // إعادة الترحيل تصحّح نوع حسابات موظفين رُحّلت سابقاً كحساب محاسبي (1)
+    if (isEmployee) await sql`UPDATE account_tbl SET type = ${EMPLOYEE_ACCOUNT_TYPE} WHERE id = ${accountIdValue} AND COALESCE(type, 1) = 1`
     if (isEmployee) return migrateEmployee(r, shamelCode, code, name, accountIdValue, fatherId)
 
     const existing = (await sql`SELECT id FROM customers WHERE customer_code = ${code} OR account_id = ${accountIdValue} LIMIT 1`)[0] as any

@@ -17,7 +17,7 @@ import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 // الاستلام قبل التحصيل الفعلي)، والصادرة غير المصروفة تُطرح منه.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-const RECEIVABLE_TYPES = [2, 3, 5]
+const RECEIVABLE_TYPES = [2, 3, 5, 6] // 6 = حساب موظف
 const DEFAULT_PERIODS = [30, 60, 90, 120]
 
 const parseIds = (value: string | null) => String(value || "").split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0)

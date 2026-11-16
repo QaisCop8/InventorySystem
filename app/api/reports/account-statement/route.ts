@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const [accounts, currencies, branches, salesmen] = await Promise.all([
       !wantsMeta ? none : sql`SELECT a.id, a.code, a.name, a.type, a.currency_id, c.currency_code, c.currency_name
           FROM account_tbl a LEFT JOIN currency c ON c.id=a.currency_id
-          WHERE COALESCE(a.status,1)<>3 AND (${kind === "accounting"} OR a.type IN (2,3,5))
+          WHERE COALESCE(a.status,1)<>3 AND (${kind === "accounting"} OR a.type IN (2,3,5,6))
           ORDER BY a.code`,
       sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       !wantsMeta ? none : effectiveBranchIds.length

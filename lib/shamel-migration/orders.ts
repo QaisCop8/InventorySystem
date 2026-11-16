@@ -69,6 +69,24 @@ export async function processOrders(rows: Row[], ctx: StepContext, last: boolean
     ctx.stats.received++
     if (existing.has(code)) { ctx.stats.skipped++; continue }
     const header = lines[0]
+    // طلبية بنفس الرقم موجودة لكن غير مربوطة بالخريطة (ترحيل سابق انقطع/خريطة مفقودة): رقم الشامل بعد toCode10
+    // فريد، فهي نفس الطلبية ⇐ تُتبنّى وتُربط أسطرها بالترتيب بدل الإدراج (كان: duplicate key sales_orders_order_number_key)
+    const adopted = (await sql`SELECT o.id FROM orders o WHERE o.order_number = ${toCode10(code)}
+      AND NOT EXISTS (SELECT 1 FROM shamel_migration_map m WHERE m.kind = 'order' AND m.web_id = o.id) LIMIT 1`)[0] as any
+    if (adopted) {
+      const orderId = Number(adopted.id)
+      const itemIds = ((await sql`SELECT id FROM order_items WHERE order_id = ${orderId} ORDER BY id`) as any[]).map((row) => Number(row.id))
+      const linePositions = lines.filter((line) => line.pos != null && items.get(text(line.item_code))).map((line) => `${code}|${num(line.pos)}`)
+      if (itemIds.length === linePositions.length && itemIds.length) {
+        await sql`
+          INSERT INTO shamel_migration_map (kind, shamel_key, web_id)
+          SELECT 'order_item', k, id FROM unnest(${linePositions}::text[], ${itemIds}::int[]) AS s(k, id)
+          ON CONFLICT (kind, shamel_key) DO UPDATE SET web_id = EXCLUDED.web_id`
+      } else if (linePositions.length) ctx.warn(code, "الطلبية موجودة مسبقاً بعدد أسطر مختلف — رُبطت دون أسطرها")
+      await mapSet("order", code, orderId)
+      ctx.stats.updated++
+      continue
+    }
     try {
       await withTenantTransaction(async () => {
       const customerId = accounts.get(text(header.customer_code)) ?? null

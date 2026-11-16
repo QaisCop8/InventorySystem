@@ -21,7 +21,7 @@ const ensurePosLinkColumns = () => runSchemaOnce("app/api/reports/receipts-expen
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 const SALES = 12, SALES_RETURN = 16, PURCHASE = 17, PURCHASE_RETURN = 19, RECEIPT = 4, PAYMENT = 5, CHEQUE_PAYMENT = 21
-const RECEIVABLE_TYPES = [2, 3, 5]
+const RECEIVABLE_TYPES = [2, 3, 5, 6] // 6 = حساب موظف
 const SECTIONS: Record<string, string> = { cash: "cash-flow-dashboard", sales: "sales-dashboard", "sales-profit": "sales-dashboard", receivables: "receivables-dashboard" }
 
 const num = (value: unknown) => (Number.isFinite(Number(value)) ? Number(value) : 0)
