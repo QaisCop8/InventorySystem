@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button"
 import { COMPANY_MODULES, type CompanyModule } from "@/lib/company-modules-shared"
 
 type Usage = { users: number; branches: number; pos_points?: number; restaurant_locations?: number } | null | undefined
-export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; number_of_pos_points?: number; number_of_restaurant_locations?: number; enabled_modules?: string[]; usage?: Usage; pending_license_requests?: number; status: string }
+export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; number_of_pos_points?: number; number_of_restaurant_locations?: number; enabled_modules?: string[]; expiry_date?: string | null; usage?: Usage; pending_license_requests?: number; status: string }
+
+// تاريخ الانتهاء محلياً بصيغة YYYY-MM-DD لحقل التاريخ
+const toDateInput = (value?: string | null) => {
+  if (!value) return ""
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "" : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
 
 const RESOURCE_LABEL: Record<string, string> = { users: tr("المستخدمين"), branches: tr("الفروع"), pos_points: tr("نقاط البيع"), restaurant_locations: tr("مواقع المطاعم") }
 
@@ -35,7 +42,9 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
   const [posPoints, setPosPoints] = useState(String(company.number_of_pos_points ?? 0))
   const [restaurants, setRestaurants] = useState(String(company.number_of_restaurant_locations ?? 0))
   const [modules, setModules] = useState<string[]>(company.enabled_modules || [])
+  const [expiry, setExpiry] = useState(toDateInput(company.expiry_date))
   const [saving, setSaving] = useState(false)
+  useEffect(() => { setExpiry(toDateInput(company.expiry_date)) }, [company.expiry_date])
   useEffect(() => { setModules(company.enabled_modules || []) }, [company.enabled_modules])
   useEffect(() => { setUsers(String(company.number_of_users ?? 1)); setBranches(String(company.number_of_branches ?? 1)); setPosPoints(String(company.number_of_pos_points ?? 0)); setRestaurants(String(company.number_of_restaurant_locations ?? 0)) }, [company.number_of_users, company.number_of_branches, company.number_of_pos_points, company.number_of_restaurant_locations])
   if (company.status === "pending" || company.status === "rejected") return null
@@ -43,7 +52,7 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
   const save = async () => {
     setSaving(true)
     try {
-      const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches), number_of_pos_points: Number(posPoints), number_of_restaurant_locations: Number(restaurants), enabled_modules: modules }) })
+      const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches), number_of_pos_points: Number(posPoints), number_of_restaurant_locations: Number(restaurants), enabled_modules: modules, ...(expiry ? { expiry_date: expiry } : {}) }) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) { onError(data.error || tr("تعذر تحديث الترخيص")); return }
       setEditing(false); onSaved()
@@ -66,6 +75,10 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
           <label className="text-xs text-slate-600">{tr("عدد مواقع المطاعم المرخّص")}
             <input type="number" min={0} value={restaurants} onChange={(event) => setRestaurants(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
+          {/* تاريخ انتهاء الاشتراك: تمديده يعيد تفعيل الشركة المنتهية تلقائياً (الانتهاء محسوب من التاريخ) */}
+          <label className="text-xs text-slate-600">{tr("تاريخ انتهاء الاشتراك")}
+            <input type="date" value={expiry} onChange={(event) => setExpiry(event.target.value)} className="mt-1 block w-40 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+          </label>
           {/* وحدات إضافية لا تظهر للشركة إلا بعد تفعيلها من هنا */}
           <div className="text-xs text-slate-600">{tr("الوحدات الإضافية")}
             <div className="mt-1 flex flex-wrap gap-3">
@@ -78,7 +91,7 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
             </div>
           </div>
           <Button size="sm" className="gap-1" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}{tr("حفظ")}</Button>
-          <Button size="sm" variant="outline" disabled={saving} onClick={() => setEditing(false)}>{tr("إلغاء")}</Button>
+          <Button size="sm" variant="outline" disabled={saving} onClick={() => { setEditing(false); setExpiry(toDateInput(company.expiry_date)) }}>{tr("إلغاء")}</Button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-4">

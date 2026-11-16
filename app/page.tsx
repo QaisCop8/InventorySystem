@@ -76,6 +76,9 @@ const ManufacturingComponentsImport = lazyDefault(() => import("@/components/too
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
 const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
+const CashFlowDashboard = lazyNamed(() => import("@/components/reports/statistical-dashboards"), "CashFlowDashboard")
+const SalesDashboard = lazyNamed(() => import("@/components/reports/statistical-dashboards"), "SalesDashboard")
+const ReceivablesDashboard = lazyNamed(() => import("@/components/reports/statistical-dashboards"), "ReceivablesDashboard")
 const ReceiptsReport = lazyNamed(() => import("@/components/reports/receipts-expenses-report"), "ReceiptsReport")
 const ExpensesReport = lazyNamed(() => import("@/components/reports/receipts-expenses-report"), "ExpensesReport")
 const ReceivablesAgingReport = lazyNamed(() => import("@/components/reports/receivables-aging-report"), "ReceivablesAgingReport")
@@ -278,6 +281,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "accounting-balances-report": AccountingBalancesReport,
   "receivables-aging-report": ReceivablesAgingReport,
   "receipts-report": ReceiptsReport,
+  "cash-flow-dashboard": CashFlowDashboard,
+  "sales-dashboard": SalesDashboard,
+  "receivables-dashboard": ReceivablesDashboard,
   "expenses-report": ExpensesReport,
   "vouchers-report": VouchersReport,
   "transactions-report": TransactionsReport,

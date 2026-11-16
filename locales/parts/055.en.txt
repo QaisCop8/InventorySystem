@@ -1,0 +1,73 @@
+Monday
+No data for this period
+Cash Flow & Liquidity Dashboard
+Monthly receipts and payments, payment methods, upcoming cheques, and cash and bank balances
+Sales & Profitability Dashboard
+Net sales, gross profit and margin, year-over-year comparison, and top customers, items and branches
+Receivables & Collections Dashboard
+Receivable balances and aging, top debtors against credit limits, and credit sales against collections
+Could not load the dashboard
+Statistical Reports
+Receipt vouchers + cash sales
+Payment vouchers + cash purchases
+Net Cash Flow
+Cash surplus for the period
+Cash deficit for the period
+Liquidity (cash + banks)
+Incoming cheques in 12 weeks: {0}
+Monthly Receipts vs. Payments
+Line: net cash flow
+By Payment Method
+Payments
+Cheques Due in 12 Weeks
+Incoming in safe/under collection and outgoing not yet cashed — by due week
+Incoming
+Outgoing
+Week starting
+Cash & Bank Balances
+As of period end — top 10 accounts
+No sales in the same period last year
+vs. same period last year
+Margin
+Cost Quality
+Lines without cost — profit is overstated
+All lines have a cost
+Sales: This Period vs. Last Year
+Net invoices (sales − returns)
+This period
+Last year
+Monthly Sales & Gross Profit
+Before tax, average cost
+Top 10 Customers
+By net sales
+Cost
+Top 10 Items
+Sales by Weekday
+debtor accounts
+Credit
+Overdue > 60 Days
+of receivables
+Days Sales Outstanding (DSO)
+Receivables ÷ average daily debit movements
+Collection Rate
+Receipts ÷ (opening balance + debit movements)
+Over Credit Limit
+Accounts with balance above their limit
+No overruns
+Receivables Aging
+In days as of period end
+Credit Sales vs. Collections
+Monthly — receivable invoices and receipt vouchers
+Credit sales
+Collections
+Top 10 Debtors
+Balance split: current (up to 60 days) and overdue
+Current
+Overdue 60+
+Over limit:
+Unknown dashboard
+Receipts Statement
+Expenses Statement
+Migrate from Shamel
+Subscription expiry date
+Invalid subscription expiry date

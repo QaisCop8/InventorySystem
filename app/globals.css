@@ -3135,3 +3135,36 @@ td {
 }
 .balance-sheet-grids { min-height: 420px; }
 .balance-sheet-grids > div { min-height: 0; }
+
+/* لوحات «تقارير احصائية» (components/reports/statistical-dashboards.tsx): ألوان الرسوم كأدوار — فئات بترتيب ثابت
+   (1 أزرق، 2 برتقالي، 3 أخضر مائي) ومتدرّج أزرق واحد لأعمار الذمم؛ قيم الداكن مختارة لسطح داكن لا قلباً آلياً */
+.viz-root {
+  --viz-surface: #ffffff;
+  --viz-text: #334155;
+  --viz-axis: #94a3b8;
+  --viz-grid: #e2e8f0;
+  --viz-hover: rgb(148 163 184 / 0.12);
+  --viz-series-1: #2a78d6;
+  --viz-series-2: #eb6834;
+  --viz-series-3: #1baf7a;
+  --viz-seq-1: #86b6ef;
+  --viz-seq-2: #5598e7;
+  --viz-seq-3: #2a78d6;
+  --viz-seq-4: #1c5cab;
+  --viz-seq-5: #104281;
+}
+.dark .viz-root {
+  --viz-surface: #020617;
+  --viz-text: #cbd5e1;
+  --viz-axis: #64748b;
+  --viz-grid: #1e293b;
+  --viz-hover: rgb(148 163 184 / 0.10);
+  --viz-series-1: #3987e5;
+  --viz-series-2: #d95926;
+  --viz-series-3: #199e70;
+  --viz-seq-1: #1c5cab;
+  --viz-seq-2: #256abf;
+  --viz-seq-3: #3987e5;
+  --viz-seq-4: #6da7ec;
+  --viz-seq-5: #9ec5f4;
+}

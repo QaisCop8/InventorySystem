@@ -4,7 +4,8 @@ import managementSql from "@/lib/management-db"
 import { countTenantUsage, ensureLicenseTables } from "@/lib/company-license"
 import { isCompanyModule } from "@/lib/company-modules-shared"
 
-// تعديل الترخيص مباشرة من مسؤول المنصة: عدد المستخدمين والفروع ونقاط البيع ومواقع المطاعم المسموح بها للشركة.
+// تعديل الترخيص مباشرة من مسؤول المنصة: عدد المستخدمين والفروع ونقاط البيع ومواقع المطاعم المسموح بها للشركة،
+// وتاريخ انتهاء الاشتراك (اختياري — الانتهاء محسوب من expiry_date فتمديده يعيد تفعيل الشركة تلقائياً).
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureLicenseTables()
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!Number.isFinite(posPoints) || posPoints < 0 || posPoints > 100000) return NextResponse.json({ error: "عدد نقاط البيع يجب أن يكون 0 أو أكثر" }, { status: 400 })
     const restaurantLocations = Math.floor(Number(data.number_of_restaurant_locations ?? 0))
     if (!Number.isFinite(restaurantLocations) || restaurantLocations < 0 || restaurantLocations > 100000) return NextResponse.json({ error: "عدد مواقع المطاعم يجب أن يكون 0 أو أكثر" }, { status: 400 })
+    const expiryRaw = data.expiry_date == null || data.expiry_date === "" ? null : String(data.expiry_date)
+    if (expiryRaw && (!/^d{4}-d{2}-d{2}$/.test(expiryRaw) || Number.isNaN(Date.parse(expiryRaw)))) return NextResponse.json({ error: "تاريخ انتهاء الاشتراك غير صالح" }, { status: 400 })
     const company = (await managementSql`SELECT id, db_name, status FROM companies WHERE id = ${companyId}`)[0]
     if (!company) return NextResponse.json({ error: "الشركة غير موجودة" }, { status: 404 })
     // لا يُسمح بحد أقل من الاستخدام الحالي (وإلا تصبح الشركة مخالفة للترخيص فوراً).
@@ -31,6 +34,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     await managementSql`UPDATE companies SET number_of_users = ${users}, number_of_branches = ${branches}, number_of_pos_points = ${posPoints}, number_of_restaurant_locations = ${restaurantLocations},
       license_initialized = true, pos_license_initialized = true, restaurant_license_initialized = true WHERE id = ${companyId}`
+    // نهاية اليوم المحدد — تبقى الشركة فعّالة طوال يوم الانتهاء
+    if (expiryRaw) await managementSql`UPDATE companies SET expiry_date = (${expiryRaw}::date + INTERVAL '1 day' - INTERVAL '1 second') WHERE id = ${companyId}`
     // الوحدات الإضافية (ترحيل البيانات...) — تُحدَّث فقط إن أُرسلت
     if (Array.isArray(data.enabled_modules)) {
       const modules = [...new Set(data.enabled_modules.filter(isCompanyModule))]

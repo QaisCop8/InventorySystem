@@ -68,7 +68,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, FileSpreadsheet, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound, HeartHandshake, HandCoins, MinusCircle } from "lucide-react"
+  LucideIcon, FileSpreadsheet, BadgePercent, Sunrise, Globe, Lock, Keyboard, Ship, CalendarCheck2, MessageSquareText, ClipboardList, Layers, PackageSearch, Timer, UserRound, Eye, Factory, KeyRound, HeartHandshake, HandCoins, MinusCircle, PieChart, Banknote } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 import { PoweredBy } from "@/components/brand/powered-by"
@@ -430,6 +430,17 @@ export const menuItems: MenuItem[] = [
     title: tr("التقارير"),
     icon: BarChart3,
     submenu: [
+      {
+        // لوحات تحليلية برسوم بيانية (components/reports/statistical-dashboards.tsx) — صلاحية مستقلة لكل لوحة
+        id: "statistical-reports",
+        title: tr("تقارير احصائية"),
+        icon: PieChart,
+        submenu: [
+          { title: tr("لوحة التدفق النقدي والسيولة"), section: "cash-flow-dashboard", icon: Banknote },
+          { title: tr("لوحة تحليل المبيعات والربحية"), section: "sales-dashboard", icon: TrendingUp },
+          { title: tr("لوحة الذمم والتحصيل"), section: "receivables-dashboard", icon: Users },
+        ],
+      },
       {
         id: "accounting-reports",
         title: tr("تقارير محاسبية"),

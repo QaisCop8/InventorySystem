@@ -16,8 +16,9 @@ export type ChequeOperation = {
 }
 
 export const CHEQUE_OPERATIONS: ChequeOperation[] = [
-  // الإيداع للشيك برسم التحصيل فقط: شيك الصندوق (مستحق/مؤجل/راجع) يُحوَّل أولاً إلى حساب التحصيل
-  { code:"deposit",name:"إيداع الشيك",type:1,allowed:[8],status:4,needsAccount:true,accountKind:"bank",dateField:"pay_date",createsJournal:true,requiresDue:true },
+  // الإيداع (نفس الشامل ChequesOperationsBulk): شيكات الصندوق (مستحق/مؤجل) والراجعة وبرسم التحصيل — المستحقة فقط.
+  // القيد: من الحساب الحالي للشيك (شيكات برسم التحصيل للصندوق، أو حساب التحصيل لحالة 8) إلى الحساب الجاري للبنك
+  { code:"deposit",name:"إيداع الشيك",type:1,allowed:[1,3,5,8],status:4,needsAccount:true,accountKind:"bank",dateField:"pay_date",createsJournal:true,requiresDue:true },
   { code:"postpone",name:"تغيير تاريخ الاستحقاق",type:1,allowed:[1,2,3,5,8],status:3,needsDate:true },
   { code:"return_source",name:"إرجاع الشيك للمصدر",type:1,allowed:[1,2,3,5],status:6,dateField:"return_date",createsJournal:true },
   { code:"return_bank",name:"إرجاع الشيك من البنك",type:1,allowed:[4,8],status:5,needsAccount:true,accountKind:"ledger",dateField:"return_date",createsJournal:true },
