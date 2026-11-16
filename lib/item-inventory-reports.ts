@@ -1,4 +1,4 @@
-import sql, { resolveCurrentDbName } from "@/lib/database"
+import sql, { queryRowsViaPool, resolveCurrentDbName } from "@/lib/database"
 import { summarizeVoucherInventory, type LineCost } from "@/lib/voucher-inventory-valuation"
 import { getSystemSettingValue } from "@/lib/system-settings"
 import { ensureLandedCostSchema } from "@/lib/landed-costs"
@@ -109,7 +109,8 @@ export async function getProductBalances(_organizationId: number, toDate: string
           AND (${excludeProductIds.length}=0 OR NOT (p.id=ANY(${excludeProductIds}::int[])))
           AND (${search}='' OR p.product_code ILIKE ${`%${search}%`} OR p.product_name ILIKE ${`%${search}%`})
         ORDER BY p.product_code,p.product_name`,
-    sql`
+    // آلاف أسطر الحركة: عبر Pool لا Neon HTTP (2026-11-16)
+    queryRowsViaPool(sql`
       -- تكاليف الشحن والجمارك المحمّلة على سطر الشراء حتى تاريخ التقرير (lib/landed-costs.ts)، بعملة الفاتورة
       WITH landed AS MATERIALIZED (
         SELECT voucher_item_id, SUM(amount) AS amount FROM landed_cost_lines_v
@@ -119,11 +120,21 @@ export async function getProductBalances(_organizationId: number, toDate: string
       -- من أسطر السند) فاستغرق التقرير دقيقة مع ~60 ألف سطر
       cost_headers AS MATERIALIZED (
         SELECT h.id, ${sql.unsafe(headerSelect)}
-        FROM voucher_header_tbl h WHERE h.vch_type IN (8,9,10,11,12,13,14,15,16,17,18,19)
+        FROM voucher_header_tbl h WHERE h.vch_type IN (8,17,18,19)
       ),
       -- معامل الوحدة: أول سطر لكل صنف+وحدة (نفس ORDER BY id LIMIT 1 السابق) مرة واحدة بدل بحث لكل سطر
       unit_factors AS MATERIALIZED (
         SELECT DISTINCT ON (product_id, unit_id) product_id, unit_id, to_main_qnty FROM product_units ORDER BY product_id, unit_id, id
+      ),
+      -- آخر فاتورة شراء مرتبطة بكل سطر إرسالية شراء (نفس ORDER BY السابق) — مرة واحدة بدل LATERAL لكل سطر حركة
+      linked_invoices AS MATERIALIZED (
+        SELECT DISTINCT ON (invoice_item.delivery_item_id) invoice_item.delivery_item_id, invoice_item.id
+        FROM voucher_items_tbl invoice_item
+        JOIN voucher_header_tbl invoice ON invoice.id=invoice_item.voucher_id
+        WHERE invoice_item.delivery_item_id>0
+          AND invoice.vch_type=17 AND (${includeUnposted} OR invoice.vch_status=2) AND COALESCE(invoice.status,1)<>3
+          AND invoice.vch_date::date<=${toDate}::date
+        ORDER BY invoice_item.delivery_item_id,invoice.vch_date DESC,invoice_item.id DESC
       ),
       cost_totals AS MATERIALIZED (
         SELECT line.voucher_id, SUM(COALESCE(line.qnty,0)*COALESCE(line.price,0)
@@ -152,33 +163,29 @@ export async function getProductBalances(_organizationId: number, toDate: string
       LEFT JOIN unit_factors pu ON pu.product_id=vi.item_id AND pu.unit_id=vi.unit_id
       -- A purchase delivery owns the quantity; its posted invoice supplies the
       -- final purchase price, only if that invoice existed by the report date.
-      LEFT JOIN LATERAL (
-        SELECT invoice_item.id
-        FROM voucher_items_tbl invoice_item
-        JOIN voucher_header_tbl invoice ON invoice.id=invoice_item.voucher_id
-        WHERE vh.vch_type=18 AND invoice_item.delivery_item_id=vi.id
-          AND invoice.vch_type=17 AND (${includeUnposted} OR invoice.vch_status=2) AND COALESCE(invoice.status,1)<>3
-          AND invoice.vch_date::date<=${toDate}::date
-        ORDER BY invoice.vch_date DESC,invoice_item.id DESC LIMIT 1
-      ) linked_invoice ON TRUE
-      JOIN voucher_items_tbl cost_item ON cost_item.id=COALESCE(linked_invoice.id,vi.id)
-      JOIN voucher_header_tbl cost_header ON cost_header.id=cost_item.voucher_id
+      LEFT JOIN linked_invoices linked_invoice ON vh.vch_type=18 AND linked_invoice.delivery_item_id=vi.id
+      -- كلفة السطر تُستخدم فقط للمشتريات (8,17,18) ومرتجعها (19، حسب الإعداد) — summarizeVoucherInventory؛
+      -- باقي الحركات (مبيعات/تحويل/إخراج) لا تحتاج هذه الانضمامات الخمسة فتبقى أعمدتها فارغة (2026-11-16)
+      LEFT JOIN voucher_items_tbl cost_item ON vh.vch_type IN (8,17,18,19) AND cost_item.id=COALESCE(linked_invoice.id,vi.id)
+      LEFT JOIN voucher_header_tbl cost_header ON cost_header.id=cost_item.voucher_id
       LEFT JOIN unit_factors cost_unit ON cost_unit.product_id=cost_item.item_id AND cost_unit.unit_id=cost_item.unit_id
       LEFT JOIN landed ON landed.voucher_item_id=cost_item.id
       LEFT JOIN cost_headers ch ON ch.id=cost_header.id
       LEFT JOIN cost_totals ON cost_totals.voucher_id=cost_header.id
-      WHERE (${includeUnposted} OR vh.vch_status=2) AND COALESCE(vh.status,1)<>3 AND vh.vch_date::date<=${toDate}::date
+      -- شروط بصيغة يقدّر المخطط عدد صفوفها (COALESCE(col,..) يُقدَّر 0.5%: 13 صفاً بدل 58 ألفاً ← فرز على القرص
+      -- وحلقات متداخلة)؛ vch_date من نوع timestamp فـ < اليوم التالي تعادل ::date <= اليوم — 2026-11-16
+      WHERE (${includeUnposted} OR vh.vch_status=2) AND vh.status IS DISTINCT FROM 3 AND vh.vch_date<(${toDate}::date+1)
         AND vh.vch_type IN (8,9,10,11,12,13,14,15,16,17,18,19)
         AND (${branchIds.length}=0 OR vh.branch_id=ANY(${branchIds}::int[]))
         AND (${warehouseIds.length}=0 OR vi.store_id=ANY(${warehouseIds}::int[]) OR (vh.vch_type=10 AND (vh.from_store_id=ANY(${warehouseIds}::int[]) OR vh.to_store_id=ANY(${warehouseIds}::int[]))))
         AND (${productIds.length}=0 OR p.id=ANY(${productIds}::int[]))
         AND (${excludeProductIds.length}=0 OR NOT (p.id=ANY(${excludeProductIds}::int[])))
         AND (vh.vch_type NOT IN (12,17) OR COALESCE(vi.delivery_item_id,0)=0)
-        AND COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
+        AND p.deleted IS NOT TRUE AND p.status IS DISTINCT FROM 3 AND (p.type=1 OR p.type IS NULL)
         AND (${productId}=0 OR p.id=${productId})
         AND (${search}='' OR p.product_code ILIKE ${`%${search}%`} OR p.product_name ILIKE ${`%${search}%`})
-      ORDER BY vh.vch_date,vh.id,vi.id
-    `,
+      -- بلا ORDER BY: summarizeVoucherInventory يرتّب الأسطر بنفسه (التاريخ، السند، السطر)
+    `, { workMem: "32MB" }),
     getSystemSettingValue("include_purchase_returns_in_cost", false),
   ])
   // سعر صرف عملة الصنف بتاريخ سند الكلفة: آخر سعر نشط حتى تاريخه (rate_date DESC, id DESC) — جدول صغير يُقرأ مرة

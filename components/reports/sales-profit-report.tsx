@@ -168,6 +168,24 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     return (data?.rows || []).filter((row) => !term || [row.label, row.code, row.vch_code, row.customer_name].some((value) => String(value || "").toLowerCase().includes(term)))
   }, [data, search])
   const totals = data?.totals
+  // تذييل الجدول (2026-11-16): مجموع كل الأعمدة الرقمية للصفوف الظاهرة (يتبع البحث داخل النتائج)؛
+  // النسب والمعدلات تُحسب من المجاميع لا بجمعها.
+  const footer = useMemo<Record<string, number> | null>(() => {
+    if (!rows.length) return null
+    const sum = (key: string) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0)
+    const result: Record<string, number> = {}
+    for (const key of ["quantity", "bonus", "lines", "sale_total", "cost_total", "bonus_cost", "profit", "sale_share", "profit_share"]) result[key] = sum(key)
+    const cost = result.cost_total + result.bonus_cost
+    result.profit_margin = result.sale_total ? (result.profit / result.sale_total) * 100 : 0
+    result.markup = cost ? (result.profit / cost) * 100 : 0
+    // معدلات البيع/التكلفة لها معنى عند التجميع حسب الصنف (الكميات بالوحدة الرئيسية)، لا لأسطر بوحدات مختلفة
+    if (activeGroup === "item") {
+      result.sale_rate = result.quantity ? result.sale_total / result.quantity : 0
+      result.cost_rate = result.quantity + result.bonus ? cost / (result.quantity + result.bonus) : 0
+    }
+    for (const key of Object.keys(result)) result[key] = Math.round(result[key] * 1000) / 1000
+    return result
+  }, [rows, activeGroup])
 
   const exportCsv = () => {
     const csv = [columns.map((column) => column.label).join(","), ...rows.map((row) => columns.map((column) => JSON.stringify(row[column.key] ?? (column.key === "label" ? row.label : "") ?? "")).join(","))].join("\n")
@@ -253,7 +271,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
           columns={columns.map((column): ReportGridColumn => ({
             key: column.key, label: column.label, width: column.numeric ? 140 : "*", minWidth: column.numeric ? 110 : 160,
             type: column.numeric ? "number" : "text", render: column.render,
-            total: column.total && totals ? Number((totals as any)[column.key] ?? 0) : undefined,
+            total: column.numeric && footer && footer[column.key] !== undefined ? footer[column.key] : undefined,
           }))}/>
     </section>
   </ReportPage>

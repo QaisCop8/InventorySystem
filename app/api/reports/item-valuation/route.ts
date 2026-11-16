@@ -3,7 +3,7 @@ import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { applyReportUnits } from "@/lib/report-units"
-import { getInventoryReportProducts, getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
+import { getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
 export async function GET(request: NextRequest) {
   // الفهارس تُبنى بالخلفية مرة لكل قاعدة — لا ينتظرها التقرير
@@ -21,17 +21,15 @@ export async function GET(request: NextRequest) {
     const toDate = reportDate(params.get("to_date"))
     const priceWay = ["last", "fifo"].includes(params.get("price_way") || "") ? params.get("price_way") : "average"
     const withZeros = params.get("with_zeros") === "1"
-    const [products, balances] = await Promise.all([
-      getInventoryReportProducts(organizationId, productId, search),
-      getProductBalances(organizationId, toDate, productId, search, { ...inventoryFilters(params), includeUnposted: true }),
-    ])
+    // قائمة الأصناف الكاملة لم تعد تُرسل مع النتيجة — الشاشة لا تستخدمها وكانت تضخّم الرد (2026-11-16)
+    const balances = await getProductBalances(organizationId, toDate, productId, search, { ...inventoryFilters(params), includeUnposted: true })
     const rows = balances.filter((row: any) => withZeros || Math.abs(Number(row.balance || 0)) > 0.000001).map((row: any) => {
       const price = Number(priceWay === "last" ? row.last_incoming_cost : priceWay === "fifo" ? row.fifo_cost : row.average_cost) || 0
       return { ...row, valuation_price: price, valuation_amount: Number(row.balance || 0) * price }
     })
     // الكمية وسعر التقييم بوحدة التقارير (قيمة التقييم لا تتغير)
     const reportRows = await applyReportUnits(rows, { quantityFields: ["balance", "received_quantity", "issued_quantity", "cost_quantity"], unitPriceFields: [...["average_cost", "last_incoming_cost", "fifo_cost"], "valuation_price"] })
-    return NextResponse.json({ report: "item-valuation", to_date: toDate, products, rows: reportRows })
+    return NextResponse.json({ report: "item-valuation", to_date: toDate, rows: reportRows })
   } catch (error) {
     console.error("Item valuation report error:", error)
     return NextResponse.json({ error: "تعذر تحميل تقييم البضاعة" }, { status: 500 })

@@ -1,4 +1,4 @@
-import sql, { getTenantPool } from "@/lib/database"
+import sql, { getTenantPool, queryRowsViaPool } from "@/lib/database"
 import { getProductBalances } from "@/lib/item-inventory-reports"
 import type { LineCost } from "@/lib/voucher-inventory-valuation"
 
@@ -41,8 +41,9 @@ const num = (value: unknown) => { const parsed = Number(value); return Number.is
 async function loadSalesLines(filters: ProfitFilters) {
   const values: unknown[] = [filters.from, filters.to, filters.types]
   const where = [
-    "vh.vch_type = ANY($3::int[])", "COALESCE(vh.status, 1) <> 3",
-    "vh.vch_date >= $1::date", "vh.vch_date < ($2::date + INTERVAL '1 day')", "COALESCE(p.type, 1) = 1",
+    // بصيغة يقدّر المخطط صفوفها (COALESCE(col,..) يُقدَّر بـ 0.5% فيختار حلقات متداخلة) — 2026-11-16
+    "vh.vch_type = ANY($3::int[])", "vh.status IS DISTINCT FROM 3",
+    "vh.vch_date >= $1::date", "vh.vch_date < ($2::date + INTERVAL '1 day')", "(p.type = 1 OR p.type IS NULL)",
   ]
   const add = (ids: number[], column: string) => { if (ids.length) { values.push(ids); where.push(`${column} = ANY($${values.length}::int[])`) } }
   add(filters.productIds, "vi.item_id"); add(filters.groupIds, "p.category_id"); add(filters.warehouseIds, "vi.store_id")
@@ -60,7 +61,7 @@ async function loadSalesLines(filters: ProfitFilters) {
     optional.has(`voucher_header_tbl.${column}`) ? `COALESCE(h.${column}::${cast}, ${fallback})` : fallback
   // مجموع السند (لتوزيع خصمه) وحقول رأسه الاختيارية تُقرأ باستعلام ثانٍ مرة لكل سند ثم تُدمج — كانت تُحسب لكل سطر بيع
   // (to_jsonb لكل أسطر السند مع كل سطر) فاستغرق التقرير قرابة دقيقة مع آلاف الفواتير
-  const lines = (await pool.query(`
+  const lines = await queryRowsViaPool({ text: `
     SELECT vi.id AS line_id, vh.id AS voucher_id, vh.vch_type, vh.vch_code, vh.vch_date::date::text AS vch_date,
       vi.item_id AS product_id, p.product_code, COALESCE(p.product_name, vi.item_name) AS product_name,
       u.unit_name, COALESCE(g.id, mg.id) AS group_id, COALESCE(NULLIF(g.group_name, ''), mg.group_name) AS group_name,
@@ -89,7 +90,7 @@ async function loadSalesLines(filters: ProfitFilters) {
       ON pu.product_id = vi.item_id AND pu.unit_id = vi.unit_id
     -- خصم السند يوزَّع على الأسطر بنسبة صافي كل سطر من مجموع السند كاملاً (لا الأسطر المفلترة فقط).
     WHERE ${where.join(" AND ")}
-    ORDER BY vh.vch_date, vh.id, vi.id`, values)).rows
+    ORDER BY vh.vch_date, vh.id, vi.id`, params: values }, { workMem: "32MB" })
   if (!lines.length) return lines
   const voucherIds = [...new Set(lines.map((line: any) => Number(line.voucher_id)))]
   const info = (await pool.query(`

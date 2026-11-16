@@ -410,6 +410,30 @@ sql.unsafe = (text: string, params: any[] = []) => makeAwaitableFragment(text, p
 
 export default sql
 
+/**
+ * ينفّذ استعلام sql`...` (fragment) عبر Pool بروتوكول Postgres بدل عميل Neon HTTP — للاستعلامات ذات النتائج الكبيرة
+ * (عشرات آلاف الأسطر): HTTP يعيد النتيجة JSON واحداً ضخماً (أبطأ، وله حد لحجم الرد). داخل معاملة يُستخدم عميلها.
+ * workMem: يرفع work_mem لهذا الاستعلام فقط (SET LOCAL داخل معاملة قصيرة) كي لا تُفرز عشرات آلاف الأسطر على القرص.
+ */
+export async function queryRowsViaPool(fragment: any, options: { workMem?: "16MB" | "32MB" | "64MB" } = {}): Promise<any[]> {
+  const transactionClient = transactionClientStorage.getStore()
+  if (transactionClient) return transactionClient.query(fragment.text, fragment.params)
+  const pool = await getTenantPool()
+  if (!options.workMem) return (await pool.query(fragment.text, fragment.params)).rows
+  const client = await pool.connect()
+  try {
+    await client.query(`BEGIN READ ONLY; SET LOCAL work_mem = '${options.workMem}'`)
+    const result = await client.query(fragment.text, fragment.params)
+    await client.query("COMMIT")
+    return result.rows
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined)
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 // Database utility functions
 export async function executeQuery(query: string, params: any[] = []) {
   try {
