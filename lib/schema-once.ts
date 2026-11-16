@@ -81,3 +81,15 @@ export async function runSchemaOnce(key: string, body: () => Promise<unknown>): 
   }
   await pending
 }
+
+/**
+ * ينسى تطبيق دوال ensure محددة لقاعدة الشركة الحالية (الذاكرة + app_schema_state) فتُعاد في استدعائها التالي —
+ * لقاعدة سُجّل فيها التطبيق بينما الأعمدة غير موجودة فعلاً (مثل voucher_header_tbl.branch_id قبل الترحيل).
+ */
+export async function forgetSchemaOnce(keys: string[]): Promise<void> {
+  const dbName = await resolveCurrentDbName()
+  const applied = await loadApplied(dbName)
+  for (const key of keys) applied.delete(key)
+  const [exists] = await sql`SELECT to_regclass('public.app_schema_state') IS NOT NULL AS ok`
+  if (exists?.ok) await sql`DELETE FROM app_schema_state WHERE key = ANY(${keys}::text[])`
+}
