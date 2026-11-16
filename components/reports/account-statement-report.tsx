@@ -113,6 +113,9 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
   const [search, setSearch] = useState("")
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null)
   const reportRequestRef = useRef(0)
+  // نوع الذمة (account_tbl.type): يضيّق قائمة الذمم، ويُسقط من المختار ما ليس من الأنواع المحددة — فارغ = كل الأنواع
+  const [accountTypes, setAccountTypes] = useState<number[]>([])
+  const accountTypeOptions: ReportOption[] = useMemo(() => [{ id: 2, name: tr("العملاء") }, { id: 3, name: tr("الموردين") }, { id: 5, name: tr("المشتركين") }, { id: 6, name: tr("الموظفين") }], [])
   const [filters, setFilters] = useState({
     accountIds: [] as number[], currencyIds: [] as number[], branchIds: [] as number[], salesmanIds: [] as number[],
     fromDate: yearStart(), toDate: today(), behavior: "all", status: "all",
@@ -188,6 +191,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
 
   const reset = () => {
     reportRequestRef.current += 1
+    setAccountTypes([])
     setFilters(current => ({ ...current, accountIds: meta.accounts[0]?.id ? [Number(meta.accounts[0].id)] : [], currencyIds: meta.currencies[0]?.id ? [Number(meta.currencies[0].id)] : [], branchIds: [], salesmanIds: [], fromDate: yearStart(), toDate: today(), behavior: "all", status: "all", showOpening: true, showTransactionCurrency: true, showOtherCurrencies: true, showCounterAccounts: false, showCheques: false, showInvoiceDetails: false, showNotDueCheques: false, showReturnedCheques: false }))
     setLoading(false); setActiveAccountId(null); setRows([]); setSummary(emptySummary); setSearch(""); setError("")
   }
@@ -253,7 +257,14 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
       <ReportFilters>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
-          <ReportMultiChoice label={isReceivables ? tr("الذمم") : tr("الحسابات")} options={meta.accounts} selected={filters.accountIds} onChange={accountIds => { reportRequestRef.current += 1; setLoading(false); setFilters({...filters,accountIds}); setActiveAccountId(null); setRows([]); setSummary(emptySummary) }} placeholder={loadingMeta ? tr("جاري التحميل...") : tr("اختر الحسابات")}/>
+          {isReceivables && <ReportMultiChoice label={tr("نوع الذمة")} options={accountTypeOptions} selected={accountTypes} onChange={types => {
+            setAccountTypes(types)
+            if (!types.length) return
+            const allowed = new Set(meta.accounts.filter((account: any) => types.includes(Number(account.type))).map(account => Number(account.id)))
+            reportRequestRef.current += 1; setLoading(false); setActiveAccountId(null); setRows([]); setSummary(emptySummary)
+            setFilters(current => ({ ...current, accountIds: current.accountIds.filter(id => allowed.has(id)) }))
+          }} placeholder={tr("جميع الأنواع")}/>}
+          <ReportMultiChoice label={isReceivables ? tr("الذمم") : tr("الحسابات")} options={accountTypes.length ? meta.accounts.filter((account: any) => accountTypes.includes(Number(account.type))) : meta.accounts} selected={filters.accountIds} onChange={accountIds => { reportRequestRef.current += 1; setLoading(false); setFilters({...filters,accountIds}); setActiveAccountId(null); setRows([]); setSummary(emptySummary) }} placeholder={loadingMeta ? tr("جاري التحميل...") : tr("اختر الحسابات")}/>
           <div className="space-y-2"><Label>{tr("سلوك الرصيد")}</Label><Select value={filters.behavior} onValueChange={behavior => setFilters({...filters,behavior})}><SelectTrigger className="rounded-xl"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">{tr("جميع الحسابات")}</SelectItem><SelectItem value="debit">{tr("أرصدة مدينة")}</SelectItem><SelectItem value="credit">{tr("أرصدة دائنة")}</SelectItem><SelectItem value="zero">{tr("أرصدة صفرية")}</SelectItem></SelectContent></Select></div>
           <div className="space-y-2"><Label>{tr("من تاريخ")}</Label><div className="relative"><CalendarRange className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-teal-600"/><Input type="date" value={filters.fromDate} onChange={e => setFilters({...filters,fromDate:e.target.value})} className="rounded-xl ps-9"/></div></div>
           <div className="space-y-2"><Label>{tr("إلى تاريخ")}</Label><Input type="date" value={filters.toDate} onChange={e => setFilters({...filters,toDate:e.target.value})} className="rounded-xl"/></div>
