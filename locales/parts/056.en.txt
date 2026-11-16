@@ -1,0 +1,5 @@
+The server took too long — try a shorter period or retry
+Unexpected server response — please retry
+Could not calculate profit
+Calculating cost...
+Before tax

@@ -431,17 +431,6 @@ export const menuItems: MenuItem[] = [
     icon: BarChart3,
     submenu: [
       {
-        // لوحات تحليلية برسوم بيانية (components/reports/statistical-dashboards.tsx) — صلاحية مستقلة لكل لوحة
-        id: "statistical-reports",
-        title: tr("تقارير احصائية"),
-        icon: PieChart,
-        submenu: [
-          { title: tr("لوحة التدفق النقدي والسيولة"), section: "cash-flow-dashboard", icon: Banknote },
-          { title: tr("لوحة تحليل المبيعات والربحية"), section: "sales-dashboard", icon: TrendingUp },
-          { title: tr("لوحة الذمم والتحصيل"), section: "receivables-dashboard", icon: Users },
-        ],
-      },
-      {
         id: "accounting-reports",
         title: tr("تقارير محاسبية"),
         icon: BookOpen,
@@ -561,6 +550,17 @@ export const menuItems: MenuItem[] = [
             { title: tr("تقرير الارساليات الداخلية"), section: "internal-deliveries-report", icon: ArrowLeftRight },
             { title: tr("الفواتير الصادرة من إرسالية برسم البيع"), section: "consignment-invoices-report", icon: FileText },
           ],
+      },
+      {
+        // لوحات تحليلية برسوم بيانية (components/reports/statistical-dashboards.tsx) — صلاحية مستقلة لكل لوحة
+        id: "statistical-reports",
+        title: tr("تقارير احصائية"),
+        icon: PieChart,
+        submenu: [
+          { title: tr("لوحة التدفق النقدي والسيولة"), section: "cash-flow-dashboard", icon: Banknote },
+          { title: tr("لوحة تحليل المبيعات والربحية"), section: "sales-dashboard", icon: TrendingUp },
+          { title: tr("لوحة الذمم والتحصيل"), section: "receivables-dashboard", icon: Users },
+        ],
       },
     ],
   },

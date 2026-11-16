@@ -2,7 +2,7 @@
 import { tr, appDir } from "@/lib/i18n"
 import { amountNumberFormat } from "@/lib/decimals"
 
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts"
@@ -113,49 +113,84 @@ const TITLES: Record<Kind, { title: string; description: string; icon: any }> = 
   receivables: { title: "لوحة الذمم والتحصيل", description: "أرصدة الذمم وأعمارها، أكبر المدينين مقابل سقف الدين، والمبيعات الآجلة مقابل التحصيلات", icon: Users2 },
 }
 
-function DashboardShell({ kind, children }: { kind: Kind; children: (data: any) => ReactNode }) {
+/** يقرأ ردّ الخادم كـ JSON بأمان: صفحة HTML (مهلة البوابة/إعادة تشغيل الخادم) تصبح رسالة مفهومة لا "Unexpected token <". */
+async function readJson(response: Response) {
+  const text = await response.text()
+  try { return JSON.parse(text) } catch {
+    throw new Error(response.status === 504 || response.status === 502 || response.status === 503
+      ? tr("استغرق الخادم وقتاً طويلاً — جرّب فترة أقصر أو أعد المحاولة")
+      : tr("استجابة غير متوقعة من الخادم — أعد المحاولة"))
+  }
+}
+
+type Aux = { data: any; loading: boolean; error: string }
+
+function DashboardShell({ kind, auxKind, children }: { kind: Kind; auxKind?: string; children: (data: any, aux: Aux) => ReactNode }) {
   const meta = TITLES[kind]
   const [filters, setFilters] = useState({ from: listYearStart(), to: listToday(), branchIds: [] as number[] })
   const [branches, setBranches] = useState<ReportOption[]>([])
   const [data, setData] = useState<any>(null)
+  const [aux, setAux] = useState<Aux>({ data: null, loading: false, error: "" })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const controller = useRef<AbortController | null>(null)
+  useEffect(() => () => controller.current?.abort(), [])
 
   const load = useCallback(async (withMeta = false) => {
+    controller.current?.abort()
+    const current = new AbortController()
+    controller.current = current
     setLoading(true)
     setError("")
+    const params = new URLSearchParams({ kind, from_date: filters.from, to_date: filters.to })
+    if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
     try {
-      const params = new URLSearchParams({ kind, from_date: filters.from, to_date: filters.to })
-      if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
-      if (withMeta) params.set("meta", "1")
-      const response = await fetch(`/api/reports/dashboards?${params}`, { cache: "no-store" })
-      const body = await response.json()
+      const response = await fetch(`/api/reports/dashboards?${params}${withMeta ? "&meta=1" : ""}`, { cache: "no-store", signal: current.signal })
+      const body = await readJson(response)
       if (!response.ok) throw new Error(body.error || tr("تعذر تحميل اللوحة"))
       if (body.meta?.branches) setBranches(body.meta.branches)
       setData(body)
     } catch (reason) {
+      if (current.signal.aborted) return
       setError(reason instanceof Error ? reason.message : tr("تعذر تحميل اللوحة"))
+      return
     } finally {
-      setLoading(false)
+      if (!current.signal.aborted) setLoading(false)
     }
-  }, [kind, filters])
+    // الجزء الثقيل (الربح) بعد ظهور اللوحة — لا يحجب الصفحة، وفشله لا يُسقطها
+    if (!auxKind) return
+    setAux({ data: null, loading: true, error: "" })
+    try {
+      params.set("kind", auxKind)
+      const response = await fetch(`/api/reports/dashboards?${params}`, { cache: "no-store", signal: current.signal })
+      const body = await readJson(response)
+      if (!response.ok) throw new Error(body.error || tr("تعذر حساب الربح"))
+      if (!current.signal.aborted) setAux({ data: body, loading: false, error: "" })
+    } catch (reason) {
+      if (!current.signal.aborted) setAux({ data: null, loading: false, error: reason instanceof Error ? reason.message : tr("تعذر حساب الربح") })
+    }
+  }, [kind, auxKind, filters])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(true) }, [kind])
 
   return (
-    <ReportPage loading={loading}>
+    // طبقة التحميل الكاملة فقط بالتحميل الأول؛ التحديث يُبقي اللوحة الحالية قابلة للاستخدام (باهتة) مع مؤشر بالزر
+    <ReportPage loading={loading && !data}>
       <ReportHeader icon={meta.icon} category={tr("تقارير احصائية")} title={<>{tr(meta.title)}</>} description={<>{tr(meta.description)}</>}
         actions={<Button className="bg-white text-emerald-800 hover:bg-emerald-50" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!data}><Printer className="me-2 h-4 w-4" />{tr("طباعة")}</Button>} />
-      <div className="report-filters flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="space-y-1.5"><Label>{tr("من تاريخ")}</Label><Input type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="w-44 rounded-xl" /></div>
-        <div className="space-y-1.5"><Label>{tr("إلى تاريخ")}</Label><Input type="date" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="w-44 rounded-xl" /></div>
-        <div className="w-64"><ReportMultiChoice label={tr("الفروع")} options={branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("جميع الفروع المتاحة")} /></div>
+      <div className="report-filters viz-filters flex shrink-0 flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="space-y-1.5"><Label>{tr("من تاريخ")}</Label><Input type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })} className="w-44 max-w-full rounded-xl" /></div>
+        <div className="space-y-1.5"><Label>{tr("إلى تاريخ")}</Label><Input type="date" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })} className="w-44 max-w-full rounded-xl" /></div>
+        <div className="w-64 max-w-full"><ReportMultiChoice label={tr("الفروع")} options={branches} selected={filters.branchIds} onChange={(branchIds) => setFilters({ ...filters, branchIds })} placeholder={tr("جميع الفروع المتاحة")} /></div>
         <Button data-report-apply onClick={() => void load()} disabled={loading} className="rounded-xl bg-gradient-to-l from-teal-600 to-emerald-600">
           {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <RefreshCw className="me-2 h-4 w-4" />}{tr("تحديث")}
         </Button>
       </div>
-      {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-      <div className="viz-root flex flex-col gap-4">{data ? children(data) : !error && <div className="grid h-64 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-teal-600" /></div>}</div>
+      {error && <p className="shrink-0 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {/* .report-body ارتفاعه ثابت وoverflow:hidden (لشبكات التقارير) ⇐ اللوحة تمرّر داخلياً حتى آخر بطاقة */}
+      <div className={`viz-root flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-6 transition-opacity ${loading && data ? "pointer-events-none opacity-60" : ""}`}>
+        {data ? children(data, aux) : !error && <div className="grid h-64 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-teal-600" /></div>}
+      </div>
     </ReportPage>
   )
 }
@@ -217,24 +252,35 @@ export function CashFlowDashboard() {
 }
 
 // ── 2) المبيعات والربحية ──
+// المبيعات تصل فوراً؛ الربح (aux) يُحسب بعدها — إلى أن يصل تُعرض المبيعات وحدها
 export function SalesDashboard() {
-  return <DashboardShell kind="sales">{(data) => {
+  return <DashboardShell kind="sales" auxKind="sales-profit">{(data, aux) => {
     const k = data.kpis
-    const weekdays = (data.weekdays || []).map((row: any) => ({ ...row, name: tr(WEEKDAYS[row.day]) }))
+    const p = aux.data
+    const profitOf = (map: Record<string, number> | undefined, key: string) => (map && key in map ? map[key] : null)
+    const pending = aux.loading ? tr("جاري حساب الكلفة...") : aux.error || "—"
+    const weekdays = (data.weekdays || []).map((row: any) => ({ ...row, name: tr(WEEKDAYS[row.day]), profit: profitOf(p?.by_dow, String(row.day)) }))
+    const monthly = (data.monthly || []).map((row: any) => ({ ...row, profit: profitOf(p?.by_month, row.month) }))
+    const split = (rows: any[], map?: Record<string, number>) => rows.map((row: any) => {
+      const profit = profitOf(map, row.key)
+      return profit == null ? { ...row, cost_part: row.sales, profit_part: 0 } : { ...row, profit, profit_part: Math.max(profit, 0), cost_part: Math.max(row.sales - Math.max(profit, 0), 0) }
+    })
+    const rankLegend = p ? [{ label: "الكلفة", color: S2 }, { label: "مجمل الربح", color: S3 }] : [{ label: "المبيعات", color: S2 }]
     return <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi label="صافي المبيعات" value={money.format(k.sales)} icon={TrendingUp} tone={k.growth == null ? undefined : k.growth >= 0 ? "good" : "bad"}
           hint={k.growth == null ? tr("لا مبيعات بنفس الفترة من السنة السابقة") : `${pct(k.growth)} ${tr("عن نفس الفترة من السنة السابقة")}`} />
-        <Kpi label="مجمل الربح" value={money.format(k.profit)} icon={Gauge} tone={k.profit >= 0 ? "good" : "bad"} hint={`${tr("هامش")} ${k.margin.toFixed(1)}%`} />
+        <Kpi label="مجمل الربح" value={p ? money.format(p.profit) : "…"} icon={Gauge} tone={p ? (p.profit >= 0 ? "good" : "bad") : aux.error ? "bad" : undefined}
+          hint={p ? `${tr("هامش")} ${p.margin.toFixed(1)}%` : pending} />
         <Kpi label="عدد الفواتير" value={k.invoices.toLocaleString("en-US")} icon={PieIcon} hint={`${tr("متوسط الفاتورة")} ${money.format(k.average_invoice)}`} />
         <Kpi label="المرتجعات" value={money.format(k.returns)} icon={ArrowDownRight} tone={k.returns > 0 ? "warn" : undefined} hint={`${k.returns_count} ${tr("مرتجع")}`} />
-        <Kpi label="جودة الكلفة" value={k.unpriced_lines ? `${k.unpriced_lines}` : "✓"} icon={AlertTriangle} tone={k.unpriced_lines ? "warn" : "good"}
-          hint={k.unpriced_lines ? tr("أسطر بلا كلفة — الربح أعلى من الحقيقي") : tr("كل الأسطر مسعّرة بالكلفة")} />
+        <Kpi label="جودة الكلفة" value={p ? (p.unpriced_lines ? `${p.unpriced_lines}` : "✓") : "…"} icon={AlertTriangle} tone={p ? (p.unpriced_lines ? "warn" : "good") : undefined}
+          hint={p ? (p.unpriced_lines ? tr("أسطر بلا كلفة — الربح أعلى من الحقيقي") : tr("كل الأسطر مسعّرة بالكلفة")) : pending} />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card title="المبيعات: هذه الفترة مقابل السنة السابقة" subtitle="صافي الفواتير (مبيعات − مرتجعات)" legend={[{ label: "هذه الفترة", color: S1 }, { label: "السنة السابقة", color: S2, dashed: true }]}>
           <div className="h-72" dir="ltr"><ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data.monthly}>
+            <LineChart data={monthly}>
               {grid}<XAxis dataKey="month" {...AXIS} tickFormatter={monthLabel} />{yAxis()}
               <Tooltip content={<ChartTooltip labelFormat={monthLabel} />} />
               <Line dataKey="invoiced" name={tr("هذه الفترة")} stroke={S1} strokeWidth={2} dot={{ r: 4, strokeWidth: 2, stroke: "var(--viz-surface)" }} />
@@ -242,9 +288,9 @@ export function SalesDashboard() {
             </LineChart>
           </ResponsiveContainer></div>
         </Card>
-        <Card title="المبيعات ومجمل الربح شهرياً" subtitle="قبل الضريبة، الكلفة بالمعدل" legend={[{ label: "المبيعات", color: S1 }, { label: "مجمل الربح", color: S3 }]}>
+        <Card title="المبيعات ومجمل الربح شهرياً" subtitle={p ? "قبل الضريبة، الكلفة بالمعدل" : aux.loading ? "جاري حساب الكلفة..." : "قبل الضريبة"} legend={[{ label: "المبيعات", color: S1 }, { label: "مجمل الربح", color: S3 }]}>
           <div className="h-72" dir="ltr"><ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.monthly} barGap={2}>
+            <BarChart data={monthly} barGap={2}>
               {grid}<XAxis dataKey="month" {...AXIS} tickFormatter={monthLabel} />{yAxis()}
               <Tooltip cursor={{ fill: "var(--viz-hover)" }} content={<ChartTooltip labelFormat={monthLabel} />} />
               <Bar dataKey="sales" name={tr("المبيعات")} fill={S1} radius={BAR_RADIUS} maxBarSize={22} />
@@ -254,11 +300,11 @@ export function SalesDashboard() {
         </Card>
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="أفضل 10 عملاء" subtitle="حسب صافي المبيعات" legend={[{ label: "الكلفة", color: S2 }, { label: "مجمل الربح", color: S3 }]}>
-          <RankBars rows={(data.customers || []).map((row: any) => ({ ...row, profit_part: Math.max(row.profit, 0), cost_part: Math.max(row.sales - Math.max(row.profit, 0), 0) }))} dataKey="cost_part" name="الكلفة" color={S2} extra={{ dataKey: "profit_part", name: "مجمل الربح", color: S3 }} height={320} />
+        <Card title="أفضل 10 عملاء" subtitle="حسب صافي المبيعات" legend={rankLegend}>
+          <RankBars rows={split(data.customers || [], p?.by_customer)} dataKey="cost_part" name={p ? "الكلفة" : "المبيعات"} color={S2} extra={p ? { dataKey: "profit_part", name: "مجمل الربح", color: S3 } : undefined} height={320} />
         </Card>
-        <Card title="أفضل 10 أصناف" subtitle="حسب صافي المبيعات" legend={[{ label: "الكلفة", color: S2 }, { label: "مجمل الربح", color: S3 }]}>
-          <RankBars rows={(data.items || []).map((row: any) => ({ ...row, profit_part: Math.max(row.profit, 0), cost_part: Math.max(row.sales - Math.max(row.profit, 0), 0) }))} dataKey="cost_part" name="الكلفة" color={S2} extra={{ dataKey: "profit_part", name: "مجمل الربح", color: S3 }} height={320} />
+        <Card title="أفضل 10 أصناف" subtitle="حسب صافي المبيعات" legend={rankLegend}>
+          <RankBars rows={split(data.items || [], p?.by_item)} dataKey="cost_part" name={p ? "الكلفة" : "المبيعات"} color={S2} extra={p ? { dataKey: "profit_part", name: "مجمل الربح", color: S3 } : undefined} height={320} />
         </Card>
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
