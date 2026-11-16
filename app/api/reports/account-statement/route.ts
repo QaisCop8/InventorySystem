@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
 
     const params = request.nextUrl.searchParams
     const kind = params.get("kind") === "receivables" ? "receivables" : "accounting"
-    const accountIds = parseIds(params.get("account_ids"))
+    let accountIds = parseIds(params.get("account_ids"))
+    // بلا اختيار حساب: كل الحسابات المتاحة للمستخدم (للذمم: العملاء/الموردون/المشتركون/الموظفون، أو أنواع «نوع الذمة» المختارة)
+    const allAccounts = params.get("all_accounts") === "1" && accountIds.length === 0
+    const accountTypes = parseIds(params.get("account_types")).filter((type) => [2, 3, 5, 6].includes(type))
     const currencyIds = parseIds(params.get("currency_ids"))
     const branchIds = parseIds(params.get("branch_ids"))
     const salesmanIds = parseIds(params.get("salesman_ids"))
@@ -61,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // القوائم (الحسابات/الفروع/المندوبون) تُحمَّل مرة مع meta=1 عند فتح الشاشة — طلب البيانات لا يعيدها (كانت تُرسل مع
     // كل عرض: آلاف الحسابات)، ويكفيه العملات لعملة التقرير
-    const wantsMeta = params.get("meta") === "1" || accountIds.length === 0
+    const wantsMeta = params.get("meta") === "1" || (accountIds.length === 0 && !allAccounts)
     const none = Promise.resolve([] as any[])
     const [accounts, currencies, branches, salesmen] = await Promise.all([
       !wantsMeta ? none : sql`SELECT a.id, a.code, a.name, a.type, a.currency_id, c.currency_code, c.currency_name
@@ -79,6 +82,12 @@ export async function GET(request: NextRequest) {
     if (wantsMeta) {
       const visibleAccounts = await filterAccessibleAccounts(request, accounts as any[])
       return NextResponse.json({ meta: { accounts: visibleAccounts, currencies, branches, salesmen } })
+    }
+    if (allAccounts) {
+      const types = kind === "receivables" ? (accountTypes.length ? accountTypes : [2, 3, 5, 6]) : []
+      const candidates = await sql`SELECT a.id, a.code, a.name FROM account_tbl a WHERE COALESCE(a.status,1)<>3 AND (${kind === "accounting"} OR a.type = ANY(${types}::int[])) ORDER BY a.code`
+      accountIds = ((await filterAccessibleAccounts(request, candidates as any[])) as any[]).map((row) => Number(row.id))
+      if (!accountIds.length) return NextResponse.json({ rows: [], summary: { opening_balance: 0, total_debit: 0, total_credit: 0, final_balance: 0 } })
     }
     const accessError = await accountAccessError(request, accountIds)
     if (accessError) return NextResponse.json({ error: accessError }, { status: 403 })

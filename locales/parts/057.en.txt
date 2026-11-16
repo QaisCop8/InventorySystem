@@ -62,3 +62,4 @@ Balance incl. returned cheques
 Double-click an account to open its statement in a new tab
 Double-click an account to open its statement in a new tab
 Accounts, customers, items and lists + accounts start balance (Start Balance) and current quantities as opening balances
+All accounts

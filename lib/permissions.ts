@@ -468,7 +468,7 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
 // (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
 // أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
 // تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
-const PERMISSION_SYNC_VERSION = 10
+const PERMISSION_SYNC_VERSION = 11
 const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
 const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
 
@@ -860,9 +860,10 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
           [name, reportCategory.id],
         )
         if (inserted[0]?.id) {
+          // تقرير جديد يُمنح للأدوار الحالية — عدا كاشير ونادل (شاشات الكاشير/المطعم فقط): يُمنع لهما صراحةً
           await client.query(
             `INSERT INTO role_permissions (role_id, access_id, is_granted)
-             SELECT id, $1::integer, TRUE FROM job_roles
+             SELECT id, $1::integer, LOWER(BTRIM(name)) NOT IN ('كاشير', 'نادل') FROM job_roles
              ON CONFLICT (role_id, access_id) DO NOTHING`,
             [inserted[0].id],
           )
@@ -870,6 +871,21 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
         await client.query(`UPDATE access_list SET category_id = $2::integer, sort_order = $3::integer WHERE name = $1::varchar`, [name, reportCategory.id, index * actions.length + actionIndex + 1])
       }
     }
+  }
+
+  // ترحيل لمرة (2026-11-16): التقارير المضافة سابقاً مُنحت تلقائياً لكل الأدوار ومنها كاشير ونادل (فظهرت لهما كشف
+  // المقبوضات/المصروفات والتقارير الإحصائية) ⇐ تُمنع كل التقارير لهذين الدورين. صلاحيات المستخدمين المباشرة لا تتأثر.
+  const posRolesReportsMigration = "pos-roles-reports-deny-v1"
+  await client.query(`CREATE TABLE IF NOT EXISTS permission_migrations (name VARCHAR(100) PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`, [])
+  if (reportCategory?.id && !(await client.query(`SELECT 1 FROM permission_migrations WHERE name = $1::varchar`, [posRolesReportsMigration])).length) {
+    await client.query(
+      `INSERT INTO role_permissions (role_id, access_id, is_granted)
+       SELECT r.id, a.id, FALSE FROM job_roles r CROSS JOIN access_list a
+       WHERE LOWER(BTRIM(r.name)) IN ('كاشير', 'نادل') AND a.category_id = $1::integer
+       ON CONFLICT (role_id, access_id) DO UPDATE SET is_granted = FALSE`,
+      [reportCategory.id],
+    )
+    await client.query(`INSERT INTO permission_migrations (name) VALUES ($1::varchar) ON CONFLICT DO NOTHING`, [posRolesReportsMigration])
   }
 
   const cashierCategoryRows = await client.query(
