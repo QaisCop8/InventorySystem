@@ -45,7 +45,9 @@ export async function processAccountBalances(rows: Row[], ctx: StepContext, last
   ctx.stats.received += rows.length
   if (!last) return
   const all = await takeStaged(ctx.run.id, ctx.step)
-  const useStart = ctx.run.mode === "full"
+  // سند الأرصدة الافتتاحية = «Start Balance» من جدول balances بالشامل في كل الأنماط (طلب المستخدم 2026-11-16):
+  // الرصيد الحالي كان يُقيَّد في «التعريفات فقط» فتتكرر الحركات حين تُرحَّل السندات لاحقاً بـ«السندات فقط»
+  const useStart = true
   const accounts = await mapGet("account", all.map((row) => text(row.code)))
   const parentIds = new Set(((await sql`SELECT DISTINCT father_id FROM account_tbl WHERE father_id IS NOT NULL`) as any[]).map((row) => Number(row.father_id)))
   const lines: OpeningBalanceLine[] = []

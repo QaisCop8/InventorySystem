@@ -42,7 +42,6 @@ const STATUS: Record<string, { label: string; className: string }> = {
 }
 const KIND_TITLES: Record<VoucherType["kind"], string> = { sales: "المبيعات والمشتريات", stock: "حركات المخزون", finance: "السندات المالية والقيود", orders: "الطلبيات (تُربط بها الفواتير والإرساليات)" }
 const firstOfYear = () => `${new Date().getFullYear()}-01-01`
-const today = () => new Date().toISOString().slice(0, 10)
 const formatTime = (value: string | null) => (value ? new Date(value).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : "—")
 
 export default function DataMigration() {
@@ -50,7 +49,7 @@ export default function DataMigration() {
   const [voucherTypes, setVoucherTypes] = useState<VoucherType[]>([])
   const [mode, setMode] = useState<Mode>("definitions")
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
-  const [balanceDate, setBalanceDate] = useState(today())
+  const [balanceDate, setBalanceDate] = useState(firstOfYear())
   const [resetLookups, setResetLookups] = useState(true)
   const [token, setToken] = useState("")
   const [copied, setCopied] = useState(false)
@@ -98,7 +97,7 @@ export default function DataMigration() {
     return () => clearInterval(timer)
   }, [active, load])
   useEffect(() => { if (current) void loadLog(current.id, logLevel, logStep) }, [current?.id, current?.progress, logLevel, logStep, loadLog])
-  useEffect(() => { setBalanceDate(mode === "full" ? firstOfYear() : today()) }, [mode])
+  useEffect(() => { setBalanceDate(firstOfYear()) }, [mode])
 
   const create = async () => {
     if ((mode === "full" || mode === "transactions") && selectedTypes.size === 0) { setError(tr("اختر نوع سند واحداً على الأقل")); return }
@@ -174,7 +173,7 @@ export default function DataMigration() {
         <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-bold"><KeyRound className="h-5 w-5 text-emerald-600" />{tr("1) إعداد الترحيل وإنشاء الرمز")}</h2>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + الأرصدة والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً، بلا أرصدة افتتاحية ولا حذف تعريفات"], ["employees", "الموظفون وحساباتهم فقط لشركة رُحّلت تعريفاتها سابقاً — بلا أرصدة ولا سندات ولا حذف تعريفات"]] as const).map(([value, hint]) => (
+            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + رصيد أول المدة للحسابات (Start Balance) والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً، بلا أرصدة افتتاحية ولا حذف تعريفات"], ["employees", "الموظفون وحساباتهم فقط لشركة رُحّلت تعريفاتها سابقاً — بلا أرصدة ولا سندات ولا حذف تعريفات"]] as const).map(([value, hint]) => (
               <button key={value} type="button" onClick={() => setMode(value)}
                 className={`rounded-xl border p-3 text-start transition ${mode === value ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900" : "hover:border-emerald-300"}`}>
                 <div className="font-semibold">{tr(MODE_TITLES[value])}</div>
@@ -214,7 +213,7 @@ export default function DataMigration() {
 
           {(mode === "definitions" || mode === "full") && <>
           <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor="shamel-balance-date">{tr(mode === "full" ? "تاريخ رصيد أول المدة" : "تاريخ الأرصدة الافتتاحية")}</Label>
+            <Label htmlFor="shamel-balance-date">{tr("تاريخ رصيد أول المدة")}</Label>
             <Input id="shamel-balance-date" type="date" value={balanceDate} onChange={(event) => setBalanceDate(event.target.value)} />
           </div>
 

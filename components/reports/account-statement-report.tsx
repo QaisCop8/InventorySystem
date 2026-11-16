@@ -10,7 +10,7 @@ import { ReportFilters } from "@/components/reports/report-filters"
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react"
 import { ReportCurrencyFilter, OtherCurrenciesFilter } from "@/components/reports/report-currency-filter"
 import { VoucherLink } from "@/components/reports/voucher-link"
-import { STATEMENT_PREFILL_EVENT, clearReceivablesStatementPrefill, takeReceivablesStatementPrefill } from "@/lib/statement-prefill"
+import { STATEMENT_PREFILL_EVENT, clearStatementPrefill, takeStatementPrefill } from "@/lib/statement-prefill"
 import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { ReportGrid, type ReportGridColumn } from "@/components/reports/report-grid"
 import { Badge } from "@/components/ui/badge"
@@ -137,15 +137,18 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     return () => { active = false }
   }, [kind])
 
-  // فتح البيان لذمة محددة من شاشة العملاء/الموردين/المشتركين (lib/statement-prefill.ts): تُختار الذمة ثم يُعرض البيان
+  // فتح البيان لحساب محدد من شاشة أخرى (العملاء/الموردين، أو نقر مزدوج في تقرير الأرصدة) — lib/statement-prefill.ts:
+  // يُختار الحساب (وحتى تاريخ تقرير الأرصدة إن مُرِّر) ثم يُعرض البيان
   const [prefillAccountId, setPrefillAccountId] = useState<number | null>(null)
   useEffect(() => {
-    if (kind !== "receivables") return
-    const pending = takeReceivablesStatementPrefill()
-    if (pending) setPrefillAccountId(pending)
+    const pending = takeStatementPrefill(kind)
+    if (pending) {
+      if (pending.toDate) setFilters(current => ({ ...current, toDate: pending.toDate!, fromDate: current.fromDate > pending.toDate! ? `${pending.toDate!.slice(0, 4)}-01-01` : current.fromDate }))
+      setPrefillAccountId(pending.accountId)
+    }
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ kind: string; accountId: number }>).detail
-      if (detail?.kind === "receivables" && detail.accountId > 0) { clearReceivablesStatementPrefill(); setPrefillAccountId(detail.accountId) }
+      if (detail?.kind === kind && detail.accountId > 0) { clearStatementPrefill(kind); setPrefillAccountId(detail.accountId) }
     }
     window.addEventListener(STATEMENT_PREFILL_EVENT, handler)
     return () => window.removeEventListener(STATEMENT_PREFILL_EVENT, handler)
