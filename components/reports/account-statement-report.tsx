@@ -167,17 +167,15 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
 
   const runReport = async (requestedAccountId?: number) => {
     if (filters.fromDate > filters.toDate) { setError(tr("تاريخ البداية يجب أن يسبق تاريخ النهاية")); return }
-    // بلا اختيار حساب ⇐ بيان كل الحسابات (أو أنواع «نوع الذمة» المختارة) في جدول واحد، الرصيد المتراكم لكل حساب
-    const allAccounts = !filters.accountIds.length && !requestedAccountId
-    const accountId = allAccounts ? 0 : requestedAccountId || (activeAccountId && filters.accountIds.includes(activeAccountId) ? activeAccountId : filters.accountIds[0])
+    // بلا اختيار حساب ⇐ كأن كل الحسابات (أو أنواع «نوع الذمة» المختارة) مختارة: قائمة «الذمم المحددة» تعرضها ويُعرض أولها
+    const accountId = requestedAccountId || (activeAccountId && effectiveAccountIds.includes(activeAccountId) ? activeAccountId : effectiveAccountIds[0])
+    if (!accountId) { setError(isReceivables ? tr("لا توجد ذمم مطابقة") : tr("لا توجد حسابات مطابقة")); return }
     const requestId = ++reportRequestRef.current
-    if (allAccounts || accountId !== activeAccountId) { setRows([]); setSummary(emptySummary); setSearch("") }
-    setActiveAccountId(allAccounts ? null : accountId)
+    if (accountId !== activeAccountId) { setRows([]); setSummary(emptySummary); setSearch("") }
+    setActiveAccountId(accountId)
     setLoading(true); setError("")
     try {
-      const params = new URLSearchParams({ kind, from_date: filters.fromDate, to_date: filters.toDate, behavior: filters.behavior, status: filters.status })
-      if (allAccounts) { params.set("all_accounts", "1"); if (accountTypes.length) params.set("account_types", accountTypes.join(",")) }
-      else params.set("account_ids", String(accountId))
+      const params = new URLSearchParams({ kind, account_ids: String(accountId), from_date: filters.fromDate, to_date: filters.toDate, behavior: filters.behavior, status: filters.status })
       if (filters.currencyIds[0]) params.set("report_currency_id", String(filters.currencyIds[0]))
       if (!filters.showOtherCurrencies && filters.currencyIds.length) params.set("currency_ids", filters.currencyIds.join(","))
       if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
@@ -201,7 +199,13 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     setLoading(false); setActiveAccountId(null); setRows([]); setSummary(emptySummary); setSearch(""); setError("")
   }
 
-  const selectedAccounts = useMemo(() => filters.accountIds.map(id => meta.accounts.find(account => Number(account.id) === id)).filter(Boolean) as ReportOption[], [filters.accountIds, meta.accounts])
+  // الحسابات المعروضة في «الذمم المحددة»: المختارة، أو بلا اختيار كل الحسابات (مصفّاة بـ«نوع الذمة»)
+  const typedAccounts = useMemo(() => accountTypes.length ? meta.accounts.filter((account: any) => accountTypes.includes(Number(account.type))) : meta.accounts, [meta.accounts, accountTypes])
+  const effectiveAccountIds = useMemo(() => filters.accountIds.length ? filters.accountIds : typedAccounts.map(account => Number(account.id)), [filters.accountIds, typedAccounts])
+  const selectedAccounts = useMemo(() => {
+    const byId = new Map(meta.accounts.map(account => [Number(account.id), account]))
+    return effectiveAccountIds.map(id => byId.get(id)).filter(Boolean) as ReportOption[]
+  }, [effectiveAccountIds, meta.accounts])
   const activeAccount = selectedAccounts.find(account => Number(account.id) === activeAccountId)
   const visibleRows = useMemo(() => rows.filter(row => !search || `${row.vch_code} ${row.voucher_type_name} ${row.account_code} ${row.account_name} ${row.note || ""} ${row.voucher_note || ""}`.toLowerCase().includes(search.toLowerCase())), [rows, search])
   const rowCheques = (row: ReportRow) => (row.cheques || []).filter(cheque => {
@@ -293,7 +297,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
           <div className="min-h-0 flex-1 overflow-y-auto"><table className="w-full table-fixed text-sm"><thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 to-sky-700 text-white"><tr><th className="px-3 py-2.5 text-start">{isReceivables ? tr("اسم الذمة") : tr("اسم الحساب")}</th><th className="w-20 px-2 py-2.5 text-center">{tr("الإجراء")}</th></tr></thead><tbody>{selectedAccounts.map(account => { const isActive = Number(account.id) === activeAccountId; return <tr key={account.id} className={`border-b transition ${isActive ? "bg-teal-50 dark:bg-teal-950/30" : "hover:bg-slate-50 dark:hover:bg-slate-900"}`}><td className="min-w-0 px-3 py-3"><p className={`truncate text-[13px] font-semibold ${isActive ? "text-teal-800 dark:text-teal-200" : ""}`} title={account.name || account.account_name}>{account.name || account.account_name}</p><p className="mt-1 truncate font-mono text-xs text-muted-foreground">{account.code || account.account_code}</p></td><td className="px-2 py-3 text-center"><Button size="sm" variant={isActive ? "default" : "outline"} disabled={loading && isActive} onClick={() => void runReport(Number(account.id))} className={`h-8 rounded-lg px-3 ${isActive ? "bg-teal-600 hover:bg-teal-700" : ""}`}>{loading && isActive ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : tr("عرض")}</Button></td></tr>})}</tbody></table></div>
         </aside>}
         <section className="report-results">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b p-4 print:hidden"><div><h2 className="text-sm font-bold leading-snug">{tr("حركات الحساب")}{activeAccount ? ` — ${activeAccount.name || activeAccount.account_name}` : !filters.accountIds.length && rows.length ? ` — ${isReceivables ? tr("كل الذمم") : tr("كل الحسابات")}` : ""}</h2><p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")}{tr(" حركة ضمن الفترة المحددة")}</p></div><div className="relative w-full sm:w-80"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("ابحث في النتائج...")} className="rounded-xl bg-muted/40 ps-9"/></div></div>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b p-4 print:hidden"><div><h2 className="text-sm font-bold leading-snug">{tr("حركات الحساب")}{activeAccount ? ` — ${activeAccount.name || activeAccount.account_name}` : ""}</h2><p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar-u-nu-latn")}{tr(" حركة ضمن الفترة المحددة")}</p></div><div className="relative w-full sm:w-80"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tr("ابحث في النتائج...")} className="rounded-xl bg-muted/40 ps-9"/></div></div>
         <div className="flex min-h-[350px] flex-1 flex-col p-2">
           <ReportGrid
             rows={gridRows}

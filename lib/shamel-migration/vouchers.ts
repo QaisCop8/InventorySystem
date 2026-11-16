@@ -624,6 +624,8 @@ async function writeVouchers(prepared: PreparedVoucher[]): Promise<Map<string, n
 // والمبلغ الصفري (سندات القيد) = مجموع المدين بعملة الأساس ÷ سعر السند
 export async function fixMigratedVouchers() {
   await ensureUsersCurrenciesDefaultTable()
+  // أرقام الطلبيات المرحّلة بـ8 خانات (عمود أقصر قصّها) ⇐ 10 خانات
+  await import("@/lib/shamel-migration/orders").then((module) => module.repairMigratedOrderNumbers()).catch((error) => console.error("order numbers repair failed:", error))
   await sql`
     WITH target AS (
       SELECT h.id, h.vch_type,

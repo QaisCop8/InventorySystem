@@ -110,6 +110,11 @@ export function toCode10(raw: unknown, numericFill: "end" | "start" = "end") {
 // عمود ⇐ أقصى طول للنص (null = بلا حد): القواعد القديمة فيها أعمدة أقصر (salesmen.code varchar(8) مثلاً)
 const columnCache = new Map<string, Promise<Map<string, number | null>>>()
 
+/** بعد توسيع عمود (ALTER) في نفس العملية: تُنسى أطوال الجدول المحفوظة فلا يُقصّ النص على الطول القديم */
+export async function forgetTableColumns(table: string) {
+  columnCache.delete(`${await resolveCurrentDbName()}|${table}`)
+}
+
 export async function tableColumns(table: string): Promise<Map<string, number | null>> {
   const key = `${await resolveCurrentDbName()}|${table}`
   if (!columnCache.has(key)) {

@@ -1,5 +1,5 @@
 import sql, { withTenantTransaction } from "@/lib/database"
-import { MigrationRun, StepContext, date, insertRow, mapGet, mapSet, num, text, toCode10 } from "@/lib/shamel-migration/core"
+import { MigrationRun, StepContext, date, forgetTableColumns, insertRow, mapGet, mapSet, num, text, toCode10 } from "@/lib/shamel-migration/core"
 import { stageRows } from "@/lib/shamel-migration/balances"
 import { ensureOrderReadColumns } from "@/lib/order-schema"
 
@@ -32,8 +32,40 @@ export const ordersSql = (run: MigrationRun) => {
   order by o."Order ID", t."Pos"`
 }
 
+/**
+ * رقم الطلبية 10 خانات (toCode10: T0000012 ⇐ T000000012). قواعد قديمة فيها orders.order_number أقصر (8) فكان
+ * insertRow يقصّ الرقم على طول العمود فيبقى برقم الشامل الأصلي (T0000000) — يُوسَّع العمود أولاً.
+ */
+async function ensureOrderNumberWidth() {
+  await sql.unsafe(`DO $$ BEGIN
+    IF (SELECT character_maximum_length FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'orders' AND column_name = 'order_number') < 30 THEN
+      ALTER TABLE orders ALTER COLUMN order_number TYPE VARCHAR(30);
+    END IF;
+  END $$`, [])
+  await forgetTableColumns("orders")
+}
+
+/** يصحّح أرقام الطلبيات المرحّلة سابقاً إلى 10 خانات (إن لم يكن الرقم الجديد مستخدماً لطلبية أخرى) */
+export async function repairMigratedOrderNumbers() {
+  await ensureOrderNumberWidth()
+  const rows = (await sql`
+    SELECT m.shamel_key, o.id, o.order_number FROM shamel_migration_map m JOIN orders o ON o.id = m.web_id
+    WHERE m.kind = 'order'`.catch(() => [])) as any[]
+  let fixed = 0
+  for (const row of rows) {
+    const target = toCode10(row.shamel_key)
+    if (!target || target === String(row.order_number || "")) continue
+    const taken = (await sql`SELECT 1 FROM orders WHERE order_number = ${target} AND id <> ${Number(row.id)} LIMIT 1`)[0]
+    if (taken) continue
+    await sql`UPDATE orders SET order_number = ${target} WHERE id = ${Number(row.id)}`
+    fixed++
+  }
+  return fixed
+}
+
 export async function processOrders(rows: Row[], ctx: StepContext, last: boolean) {
   await ensureOrderReadColumns().catch(() => undefined)
+  await ensureOrderNumberWidth()
   await stageRows(ctx.run.id, "orders_carry", []) // ينشئ جدول التخزين المؤقت إن لم يوجد
   // الطلبية الأخيرة بالدفعة قد تكمل بالدفعة التالية ⇐ تؤجَّل لها (نفس السندات)
   const carried = (await sql`SELECT payload FROM shamel_migration_stage WHERE run_id = ${ctx.run.id} AND step = 'orders_carry' ORDER BY id`) as any[]
