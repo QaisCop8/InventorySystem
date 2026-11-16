@@ -7,7 +7,7 @@ import { runSchemaOnce } from "@/lib/schema-once"
 // shamel_migration_map يربط كل رمز بالشامل (حساب/صنف/مستودع...) برقم السجل هنا، فإعادة التشغيل لا تُكرِّر شيئاً.
 
 // transactions = السندات المختارة فقط: التعريفات رُحّلت بتشغيل سابق (تُقرأ من shamel_migration_map) — بلا أرصدة ولا حذف تعريفات
-export type MigrationMode = "definitions" | "full" | "transactions"
+export type MigrationMode = "definitions" | "full" | "transactions" | "employees"
 
 export type MigrationRun = {
   id: number
@@ -236,7 +236,7 @@ export async function addStepProgress(runId: number, step: string, stats: StepSt
 
 export const runFromRow = (row: any): MigrationRun => ({
   id: Number(row.id),
-  mode: row.mode === "full" || row.mode === "transactions" ? row.mode : "definitions",
+  mode: row.mode === "full" || row.mode === "transactions" || row.mode === "employees" ? row.mode : "definitions",
   voucher_types: Array.isArray(row.voucher_types) ? row.voucher_types.map(String) : [],
   from_date: row.from_date ? String(row.from_date instanceof Date ? row.from_date.toISOString() : row.from_date).slice(0, 10) : null,
   balance_date: String(row.balance_date instanceof Date ? row.balance_date.toISOString() : row.balance_date).slice(0, 10),

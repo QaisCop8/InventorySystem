@@ -4,3 +4,5 @@ Could not calculate profit
 Calculating cost...
 Before tax
 Customers, suppliers, subscribers and employees
+Employees only
+Employees and their accounts only, for a company whose definitions were already migrated — no balances, vouchers or lookup deletion

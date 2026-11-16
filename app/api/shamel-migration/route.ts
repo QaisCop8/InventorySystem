@@ -62,15 +62,16 @@ export async function POST(request: NextRequest) {
   try {
     await ensureShamelMigrationResetColumns()
     const body = await request.json().catch(() => ({}))
-    const mode = body?.mode === "full" || body?.mode === "transactions" ? body.mode : "definitions"
-    const voucherTypes = mode !== "definitions" ? cleanVoucherTypes(body?.voucher_types) : []
-    if (mode !== "definitions" && !voucherTypes.length) return NextResponse.json({ error: "اختر نوع سند واحداً على الأقل" }, { status: 400 })
-    if (mode === "transactions") {
+    const mode = body?.mode === "full" || body?.mode === "transactions" || body?.mode === "employees" ? body.mode : "definitions"
+    const withVouchers = mode === "full" || mode === "transactions"
+    const voucherTypes = withVouchers ? cleanVoucherTypes(body?.voucher_types) : []
+    if (withVouchers && !voucherTypes.length) return NextResponse.json({ error: "اختر نوع سند واحداً على الأقل" }, { status: 400 })
+    if (mode === "transactions" || mode === "employees") {
       // السندات تربط الحسابات والأصناف والمستودعات عبر shamel_migration_map — لا بد من ترحيل التعريفات قبلها
       const [mapped] = await sql`SELECT COUNT(*) FILTER (WHERE kind = 'account')::int AS accounts FROM shamel_migration_map`.catch(() => [null]) as any[]
       if (!Number(mapped?.accounts || 0)) return NextResponse.json({ error: "لم تُرحَّل التعريفات من الشامل بعد — رحّل التعريفات أولاً ثم السندات فقط" }, { status: 400 })
     }
-    const resetLookupsFlag = mode !== "transactions" && body?.reset_lookups !== false
+    const resetLookupsFlag = (mode === "definitions" || mode === "full") && body?.reset_lookups !== false
     const balanceDate = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.balance_date || "")) ? String(body.balance_date) : new Date().toISOString().slice(0, 10)
     const branch = (await sql`SELECT id FROM branches WHERE COALESCE(is_bank_branch, false) = false ORDER BY id LIMIT 1`)[0] as any
     if (!branch) return NextResponse.json({ error: "لا يوجد فرع للشركة — عرّف الفرع الرئيسي أولاً" }, { status: 400 })

@@ -19,8 +19,8 @@ type Run = {
   progress: Record<string, StepProgress>; message: string | null; created_at: string; last_seen_at: string | null; finished_at: string | null
   errors: number; warnings: number
 }
-type Mode = "definitions" | "full" | "transactions"
-const MODE_TITLES: Record<Mode, string> = { definitions: "التعريفات فقط", full: "التعريفات والسندات", transactions: "السندات فقط" }
+type Mode = "definitions" | "full" | "transactions" | "employees"
+const MODE_TITLES: Record<Mode, string> = { definitions: "التعريفات فقط", full: "التعريفات والسندات", transactions: "السندات فقط", employees: "الموظفون فقط" }
 type VoucherType = { prefix: string; title: string; kind: "sales" | "stock" | "finance" | "orders" }
 type LogRow = { id: number; step: string; level: string; ref: string | null; message: string; created_at: string }
 type SummaryRow = { step: string; level: string; message: string; count: number; sample_ref: string | null }
@@ -101,7 +101,7 @@ export default function DataMigration() {
   useEffect(() => { setBalanceDate(mode === "full" ? firstOfYear() : today()) }, [mode])
 
   const create = async () => {
-    if (mode !== "definitions" && selectedTypes.size === 0) { setError(tr("اختر نوع سند واحداً على الأقل")); return }
+    if ((mode === "full" || mode === "transactions") && selectedTypes.size === 0) { setError(tr("اختر نوع سند واحداً على الأقل")); return }
     if (active && !(await confirmYesNo(tr("يوجد ترحيل غير مكتمل — إنشاء رمز جديد يلغي الرمز السابق. هل تريد المتابعة؟")))) return
     setCreating(true)
     setError("")
@@ -109,7 +109,7 @@ export default function DataMigration() {
       const response = await fetch("/api/shamel-migration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, voucher_types: [...selectedTypes], balance_date: balanceDate, reset_lookups: mode !== "transactions" && resetLookups }),
+        body: JSON.stringify({ mode, voucher_types: [...selectedTypes], balance_date: balanceDate, reset_lookups: (mode === "definitions" || mode === "full") && resetLookups }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || tr("تعذر إنشاء رمز الترحيل"))
@@ -173,8 +173,8 @@ export default function DataMigration() {
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-bold"><KeyRound className="h-5 w-5 text-emerald-600" />{tr("1) إعداد الترحيل وإنشاء الرمز")}</h2>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + الأرصدة والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً، بلا أرصدة افتتاحية ولا حذف تعريفات"]] as const).map(([value, hint]) => (
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + الأرصدة والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً، بلا أرصدة افتتاحية ولا حذف تعريفات"], ["employees", "الموظفون وحساباتهم فقط لشركة رُحّلت تعريفاتها سابقاً — بلا أرصدة ولا سندات ولا حذف تعريفات"]] as const).map(([value, hint]) => (
               <button key={value} type="button" onClick={() => setMode(value)}
                 className={`rounded-xl border p-3 text-start transition ${mode === value ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900" : "hover:border-emerald-300"}`}>
                 <div className="font-semibold">{tr(MODE_TITLES[value])}</div>
@@ -183,7 +183,7 @@ export default function DataMigration() {
             ))}
           </div>
 
-          {mode !== "definitions" && (
+          {(mode === "full" || mode === "transactions") && (
             <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
               <div className="flex items-center justify-between">
                 <Label className="font-semibold">{tr("السندات المطلوب ترحيلها")}</Label>
@@ -212,7 +212,7 @@ export default function DataMigration() {
             </div>
           )}
 
-          {mode !== "transactions" && <>
+          {(mode === "definitions" || mode === "full") && <>
           <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor="shamel-balance-date">{tr(mode === "full" ? "تاريخ رصيد أول المدة" : "تاريخ الأرصدة الافتتاحية")}</Label>
             <Input id="shamel-balance-date" type="date" value={balanceDate} onChange={(event) => setBalanceDate(event.target.value)} />

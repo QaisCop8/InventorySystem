@@ -4070,6 +4070,8 @@
  "الموظفون": "Employees",
  "الموظفون *": "Employees *",
  "الموظفون الموزع عليهم": "Employees assigned",
+ "الموظفون فقط": "Employees only",
+ "الموظفون وحساباتهم فقط لشركة رُحّلت تعريفاتها سابقاً — بلا أرصدة ولا سندات ولا حذف تعريفات": "Employees and their accounts only, for a company whose definitions were already migrated — no balances, vouchers or lookup deletion",
  "الموظفين": "Employees",
  "الموظفين التابعين للقسم": "Department employees",
  "الموظفين:": "Employees:",
