@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const restaurantLocations = Math.floor(Number(data.number_of_restaurant_locations ?? 0))
     if (!Number.isFinite(restaurantLocations) || restaurantLocations < 0 || restaurantLocations > 100000) return NextResponse.json({ error: "عدد مواقع المطاعم يجب أن يكون 0 أو أكثر" }, { status: 400 })
     const expiryRaw = data.expiry_date == null || data.expiry_date === "" ? null : String(data.expiry_date)
-    if (expiryRaw && (!/^d{4}-d{2}-d{2}$/.test(expiryRaw) || Number.isNaN(Date.parse(expiryRaw)))) return NextResponse.json({ error: "تاريخ انتهاء الاشتراك غير صالح" }, { status: 400 })
+    if (expiryRaw && (!/^\d{4}-\d{2}-\d{2}$/.test(expiryRaw) || Number.isNaN(Date.parse(expiryRaw)))) return NextResponse.json({ error: "تاريخ انتهاء الاشتراك غير صالح" }, { status: 400 })
     const company = (await managementSql`SELECT id, db_name, status FROM companies WHERE id = ${companyId}`)[0]
     if (!company) return NextResponse.json({ error: "الشركة غير موجودة" }, { status: 404 })
     // لا يُسمح بحد أقل من الاستخدام الحالي (وإلا تصبح الشركة مخالفة للترخيص فوراً).
