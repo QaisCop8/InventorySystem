@@ -2,7 +2,7 @@ import sql, { withTenantTransaction } from "@/lib/database"
 import { ensureOpeningBalanceClearingAccount, type OpeningBalanceLine } from "@/lib/opening-balances"
 import { AutoJournalLine, INTERNAL_VOUCHER, createAutoJournal, getBaseCurrencyId, getRateByDate } from "@/lib/auto-journals"
 import { withYearOpened } from "@/lib/year-end-closing"
-import { STOCK_IN_VCH_TYPE, STOCK_OUT_VCH_TYPE, applyVoucherStockEffect, regenerateVoucherCode, saveVoucherItems } from "@/app/api/stock-vouchers/_lib"
+import { STOCK_IN_VCH_TYPE, STOCK_OUT_VCH_TYPE, applyStockMovement, applyVoucherStockEffect, regenerateVoucherCode, saveVoucherItems } from "@/app/api/stock-vouchers/_lib"
 import { StepContext, insertRow, mapGet, num, text } from "@/lib/shamel-migration/core"
 import { currencyId } from "@/lib/shamel-migration/definitions"
 
@@ -157,12 +157,48 @@ export async function voucherBookFor(userId: string, vchType: number): Promise<n
 
 const STOCK_VOUCHER_MAX_LINES = 500
 
+/**
+ * كميات أول المدة رُحِّلت سابقاً بوضع «التعريفات فقط» بالكمية الحالية (Qnty)، ثم رُحِّلت السندات «السندات فقط» فتضاعفت
+ * حركة السنة (مثال: الشامل 2320 والنظام 3835). عند ترحيل السندات تُصحَّح الأسطر المرحّلة إلى «St Qnty»: الكمية
+ * تُعدَّل بالفرق مع حركة مخزون بالفرق، وسطر صارت كميته صفراً أو انعكست إشارته يُحذف (ويُعكس أثره) ليُضاف بالاتجاه الصحيح.
+ * (2026-11-16)
+ */
+async function correctOpeningQuantities(previous: number[], direction: "in" | "out", lines: any[], ctx: StepContext) {
+  const target = new Map<number, number>(lines.map((line) => [Number(line.product_id), Number(line.quantity)]))
+  const posted = (await sql`
+    SELECT vi.id, vi.voucher_id, vi.item_id, COALESCE(vi.qnty, 0)::float8 AS qnty, vi.store_id
+    FROM voucher_items_tbl vi WHERE vi.voucher_id = ANY(${previous}::int[])`) as any[]
+  let changed = 0
+  for (const row of posted) {
+    const wanted = target.get(Number(row.item_id)) ?? 0
+    const delta = wanted - Number(row.qnty)
+    if (Math.abs(delta) < 0.0000005) continue
+    // سند إدخال: زيادة الكمية = إدخال بالفرق؛ سند إخراج: زيادة الكمية = إخراج بالفرق
+    const grows = delta > 0
+    const movement: "in" | "out" = (direction === "in") === grows ? "in" : "out"
+    await withTenantTransaction(async () => {
+      if (wanted > 0) await sql`UPDATE voucher_items_tbl SET qnty = ${wanted} WHERE id = ${row.id}`
+      else await sql`DELETE FROM voucher_items_tbl WHERE id = ${row.id}`
+      await applyStockMovement([{ product_id: Number(row.item_id), quantity: Math.abs(delta), store_id: row.store_id }], movement, Number(row.voucher_id))
+    })
+    changed++
+  }
+  if (changed) {
+    await sql`
+      UPDATE voucher_header_tbl h SET amount = ROUND(COALESCE((SELECT SUM(vi.qnty * vi.price) FROM voucher_items_tbl vi WHERE vi.voucher_id = h.id), 0)::numeric, 3)
+      WHERE h.id = ANY(${previous}::int[])`
+    ctx.info(`تصحيح ${changed} سطر من كميات أول المدة (${direction === "in" ? "إدخال" : "إخراج"}) إلى كمية بداية السنة St Qnty — كانت بالكمية الحالية فتضاعفت حركة السنة مع السندات`)
+  }
+}
+
 export async function processStockBalances(rows: Row[], ctx: StepContext, last: boolean) {
   await stageRows(ctx.run.id, ctx.step, rows)
   ctx.stats.received += rows.length
   if (!last) return
   const all = await takeStaged(ctx.run.id, ctx.step)
-  const useStart = ctx.run.mode === "full"
+  // مع ترحيل السندات (كامل أو «السندات فقط») تكون كمية أول المدة «St Qnty» — السندات المرحّلة تضيف حركة السنة.
+  // «التعريفات فقط» وحده يرحّل الكمية الحالية «Qnty»
+  const useStart = ctx.run.mode === "full" || ctx.run.mode === "transactions"
   const items = await mapGet("item", all.map((row) => text(row.code)))
   const stores = await mapGet("store", all.map((row) => String(num(row.store_pos))))
   const units = new Map<number, number>(((await sql`
@@ -192,7 +228,11 @@ export async function processStockBalances(rows: Row[], ctx: StepContext, last: 
       const previous = await postedVoucherIds(postedPrefix)
       if (previous.length) {
         const postedItems = new Set(((await sql`SELECT DISTINCT item_id FROM voucher_items_tbl WHERE voucher_id = ANY(${previous}::int[])`) as any[]).map((row) => Number(row.item_id)))
-        const fresh = lines.filter((line) => !postedItems.has(Number(line.product_id)))
+        if (useStart) await correctOpeningQuantities(previous, direction, lines, ctx)
+        const stillPosted = useStart
+          ? new Set(((await sql`SELECT DISTINCT item_id FROM voucher_items_tbl WHERE voucher_id = ANY(${previous}::int[])`) as any[]).map((row) => Number(row.item_id)))
+          : postedItems
+        const fresh = lines.filter((line) => !stillPosted.has(Number(line.product_id)))
         // أسطر رُحِّلت سابقاً بسعر 0 (كان السعر من «Market price» الفارغ غالباً) ⇐ سعر التكلفة B.Price، ومجموع السند
         const priced = lines.filter((line) => postedItems.has(Number(line.product_id)) && line.price > 0)
         if (priced.length) {

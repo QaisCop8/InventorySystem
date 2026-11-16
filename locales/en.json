@@ -3130,6 +3130,7 @@
  "السند يدعم بطاقة واحدة. أنشئ سنداً مستقلاً لكل بطاقة": "The voucher supports one card. Create a separate voucher for each card",
  "السندات": "Vouchers",
  "السندات السابقة مرتبطة بالعملة نفسها وستظهر بالاسم والرمز الجديدين.": "Existing vouchers are linked to the same currency and will show the new name and code.",
+ "السندات المختارة فقط — التعريفات رُحّلت سابقاً؛ كميات أول المدة تُصحَّح إلى كمية بداية السنة (St Qnty) — بلا أرصدة حسابات ولا حذف تعريفات": "Selected vouchers only — definitions were migrated before; opening quantities are corrected to the start-of-year quantity (St Qnty) — no account balances, no definition deletion",
  "السندات المرتبطة": "Linked vouchers",
  "السندات المرتبطة بالفاتورة": "Vouchers linked to the invoice",
  "السندات والترقيم": "Vouchers and numbering",

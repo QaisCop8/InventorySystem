@@ -211,7 +211,8 @@ export function stepsForRun(run: MigrationRun): MigrationStep[] {
   // «الموظفون فقط»: خطوة العملاء وحدها (تمر على حسابات الموظفين Attr 524288 فتنشئ سجلاتهم وتجعل نوع حساباتهم 6)
   // — لشركة رُحّلت تعريفاتها قبل دعم الموظفين؛ بلا أرصدة ولا حذف تعريفات، والعميل المرحّل سابقاً لا يتكرر
   if (run.mode === "employees") return STEPS.filter((step) => step.key === "customers")
-  if (run.mode === "transactions") return STEPS.filter((step) => step.group === "vouchers" && stepApplies(step, run))
+  // «السندات فقط»: معها خطوة كميات أول المدة لتصحيح كميات رُحِّلت بالكمية الحالية إلى «St Qnty» (وإلا تتضاعف حركة السنة)
+  if (run.mode === "transactions") return STEPS.filter((step) => step.key === "stock_balances" || (step.group === "vouchers" && stepApplies(step, run)))
   if (run.mode !== "full") return STEPS.filter((step) => step.group !== "vouchers")
   return STEPS.filter((step) => stepApplies(step, run))
 }

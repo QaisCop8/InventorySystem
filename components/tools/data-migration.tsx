@@ -173,7 +173,7 @@ export default function DataMigration() {
         <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-bold"><KeyRound className="h-5 w-5 text-emerald-600" />{tr("1) إعداد الترحيل وإنشاء الرمز")}</h2>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + رصيد أول المدة للحسابات (Start Balance) والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً، بلا أرصدة افتتاحية ولا حذف تعريفات"], ["employees", "الموظفون وحساباتهم فقط لشركة رُحّلت تعريفاتها سابقاً — بلا أرصدة ولا سندات ولا حذف تعريفات"]] as const).map(([value, hint]) => (
+            {([["definitions", "الحسابات والعملاء والأصناف والقوائم + رصيد أول المدة للحسابات (Start Balance) والكميات الحالية كأرصدة افتتاحية"], ["full", "التعريفات + رصيد أول المدة + السندات المختارة كما هي بالشامل"], ["transactions", "السندات المختارة فقط — التعريفات رُحّلت سابقاً؛ كميات أول المدة تُصحَّح إلى كمية بداية السنة (St Qnty) — بلا أرصدة حسابات ولا حذف تعريفات"], ["employees", "الموظفون وحساباتهم فقط لشركة رُحّلت تعريفاتها سابقاً — بلا أرصدة ولا سندات ولا حذف تعريفات"]] as const).map(([value, hint]) => (
               <button key={value} type="button" onClick={() => setMode(value)}
                 className={`rounded-xl border p-3 text-start transition ${mode === value ? "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900" : "hover:border-emerald-300"}`}>
                 <div className="font-semibold">{tr(MODE_TITLES[value])}</div>
