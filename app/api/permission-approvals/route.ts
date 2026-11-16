@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
+import sql from "@/lib/database"
 import { cleanApprovalContext, requestPermissionApproval, unusedApprovalTokens, verifyManagerPin, verifyPermissionApproval, type ApprovalScope } from "@/lib/permission-approvals"
 
 // موافقة على صلاحية غير ممنوحة في الكاشير/المطعم (lib/permission-approvals.ts):
@@ -18,9 +19,11 @@ export async function POST(request: NextRequest) {
     if (action === "request" || action === "pin") {
       if (scope !== "pos" && scope !== "restaurant") return NextResponse.json({ error: "نوع الطلب غير صالح" }, { status: 400 })
     }
+    // بلا نقطة/موقع محدد: فرع العمل النشط (x-branch-id) أو الفرع الافتراضي للمستخدم
+    const branchId = Number(request.headers.get("x-branch-id")) || Number((await sql`SELECT branch_id FROM user_settings WHERE user_id::text = ${String(user.user_id)} LIMIT 1`.catch(() => []))[0]?.branch_id) || null
     if (action === "request") {
       const result = await requestPermissionApproval({
-        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""), context,
+        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, branchId, permission: String(data.permission || ""), context,
       })
       return NextResponse.json({ id: result.id, sent_to: result.sentTo, minutes: result.minutes })
     }
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
     if (action === "pin") {
       const result = await verifyManagerPin({
-        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, permission: String(data.permission || ""), pin: String(data.pin || ""), context,
+        userId: String(user.user_id), userName, scope, scopeId: Number(data.scope_id) || 0, branchId, permission: String(data.permission || ""), pin: String(data.pin || ""), context,
       })
       return NextResponse.json({ token: result.token, scope: result.scope, permission: result.permission, minutes: result.minutes, approver: result.approver })
     }

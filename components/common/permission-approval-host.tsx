@@ -55,7 +55,6 @@ export function PermissionApprovalHost() {
 
   const sendCode = async () => {
     if (!state || busy) return
-    if (!state.request.scopeId) { setError(tr("تعذر تحديد نقطة البيع/الموقع لإرسال الرمز")); return }
     setMode("email"); setBusy(true); setError("")
     try {
       const data = await post({ action: "request", scope: state.request.scope, scope_id: state.request.scopeId, permission: state.request.key, context: state.request.context ?? null })
@@ -95,7 +94,6 @@ export function PermissionApprovalHost() {
 
   const verifyPin = async () => {
     if (!state || busy) return
-    if (!state.request.scopeId) { setError(tr("تعذر تحديد نقطة البيع/الموقع")); return }
     if (!/^\d{4,8}$/.test(pin)) { setError(tr("رمز المدير من 4 إلى 8 أرقام")); return }
     setBusy(true); setError("")
     try {

@@ -22,6 +22,16 @@ const SCOPES: Record<ApprovalScope, { table: string; label: string; names: Recor
   restaurant: { table: "restaurant_locations_tbl", label: "موقع المطعم", names: RESTAURANT_PERMISSIONS },
 }
 
+/**
+ * أماكن الاعتماد: نقطة البيع/الموقع المحدد، أو — بلا مكان (مثل الدخول لشاشة المطعم قبل اختيار طاولة) — كل النقاط/المواقع
+ * النشطة على فرع المستخدم: رمز PIN يُقبل من أيٍّ منها، والبريد يُرسل لايميلاتها.
+ */
+async function approvalPlaces(table: string, scopeId: number, branchId: number | null | undefined, columns: string) {
+  if (scopeId > 0) return (await sql.unsafe(`SELECT id, name, ${columns} FROM ${table} WHERE id = $1 LIMIT 1`, [scopeId])) as any[]
+  if (!branchId) return []
+  return (await sql.unsafe(`SELECT id, name, ${columns} FROM ${table} WHERE branch_id = $1 AND COALESCE(status, 1) = 1 ORDER BY id`, [branchId]).catch(() => [])) as any[]
+}
+
 const digest = (value: string) => crypto.createHash("sha256").update(String(value).trim()).digest("hex")
 const validEmail = (value: unknown) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim())
 
@@ -83,16 +93,19 @@ async function ensureApprovalTable() {
 }
 
 /** ينشئ رمزاً من 6 أرقام ويرسله بالبريد لمدير النظام والمسؤول على نقطة البيع/الموقع. */
-export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; context?: ApprovalContext | null }) {
+export async function requestPermissionApproval(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; branchId?: number | null; permission: string; context?: ApprovalContext | null }) {
   const config = SCOPES[input.scope]
   if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
   const name = approvalPermissionName(input.scope, input.permission)
   if (!name) throw Object.assign(new Error("الصلاحية غير معروفة"), { status: 400 })
   await ensureApprovalTable()
-  const place = (await sql.unsafe(`SELECT name, admin_email, manager_email FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
-  if (!place) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
-  const recipients = [...new Set([place.admin_email, place.manager_email].map((value: unknown) => String(value || "").trim().toLowerCase()).filter(validEmail))]
-  if (!recipients.length) throw Object.assign(new Error(`لم يُعرَّف ايميل مدير النظام أو ايميل المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
+  const places = await approvalPlaces(config.table, Number(input.scopeId) || 0, input.branchId, "admin_email, manager_email")
+  if (!places.length) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
+  const withEmails = places.filter((row) => [row.admin_email, row.manager_email].some(validEmail))
+  const place = withEmails[0] || places[0]
+  input = { ...input, scopeId: Number(place.id) }
+  const recipients = [...new Set(withEmails.flatMap((row) => [row.admin_email, row.manager_email]).map((value: unknown) => String(value || "").trim().toLowerCase()).filter(validEmail))]
+  if (!recipients.length) throw Object.assign(new Error(places.length > 1 ? `لم يُعرَّف ايميل مدير النظام أو ايميل المسؤول في أي ${config.label} على هذا الفرع` : `لم يُعرَّف ايميل مدير النظام أو ايميل المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
 
   const code = String(crypto.randomInt(100000, 1000000))
   // طلب جديد يُلغي الرموز السابقة غير المستخدمة لنفس المستخدم والصلاحية
@@ -160,22 +173,29 @@ export function managerPinChanges(data: any): { error?: string; admin?: string |
 }
 
 /** يتحقق من رمز مدير النظام أو المسؤول ويعيد رمز موافقة لمرة واحدة (نفس ما يعيده التحقق من رمز البريد). */
-export async function verifyManagerPin(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; permission: string; pin: string; context?: ApprovalContext | null }) {
+export async function verifyManagerPin(input: { userId: string; userName: string; scope: ApprovalScope; scopeId: number; branchId?: number | null; permission: string; pin: string; context?: ApprovalContext | null }) {
   const config = SCOPES[input.scope]
   if (!config) throw Object.assign(new Error("نوع الطلب غير صالح"), { status: 400 })
   const name = approvalPermissionName(input.scope, input.permission)
   if (!name) throw Object.assign(new Error("الصلاحية غير معروفة"), { status: 400 })
   await ensureApprovalTable()
-  const place = (await sql.unsafe(`SELECT name, admin_pin_hash, manager_pin_hash FROM ${config.table} WHERE id = $1 LIMIT 1`, [Number(input.scopeId) || 0]))[0] as any
-  if (!place) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
-  if (!place.admin_pin_hash && !place.manager_pin_hash) throw Object.assign(new Error(`لم يُعرَّف رمز PIN لمدير النظام أو المسؤول في تعريف ${config.label} "${place.name}"`), { status: 400 })
+  const places = (await approvalPlaces(config.table, Number(input.scopeId) || 0, input.branchId, "admin_pin_hash, manager_pin_hash"))
+  if (!places.length) throw Object.assign(new Error(`${config.label} غير موجود`), { status: 404 })
+  const withPins = places.filter((row) => row.admin_pin_hash || row.manager_pin_hash)
+  if (!withPins.length) throw Object.assign(new Error(places.length > 1 ? `لم يُعرَّف رمز PIN لمدير النظام أو المسؤول في أي ${config.label} على هذا الفرع` : `لم يُعرَّف رمز PIN لمدير النظام أو المسؤول في تعريف ${config.label} "${places[0].name}"`), { status: 400 })
   // قفل بعد 5 محاولات خاطئة خلال 15 دقيقة لنفس المستخدم (منع التخمين)
   const failures = Number(((await sql`
     SELECT COUNT(*)::int AS n FROM permission_approvals_tbl
     WHERE user_id = ${input.userId} AND sent_to = 'pin-failed' AND created_at > CURRENT_TIMESTAMP - (${PIN_LOCK_MINUTES} * INTERVAL '1 minute')`)[0] as any)?.n || 0)
   if (failures >= PIN_MAX_FAILURES) throw Object.assign(new Error(`تم تجاوز عدد المحاولات — حاول بعد ${PIN_LOCK_MINUTES} دقيقة`), { status: 429 })
   const pin = String(input.pin || "").trim()
-  const approver = validManagerPin(pin) ? (pinMatches(pin, place.admin_pin_hash) ? "مدير النظام" : pinMatches(pin, place.manager_pin_hash) ? "المسؤول" : "") : ""
+  let approver = ""
+  if (validManagerPin(pin)) {
+    for (const row of withPins) {
+      approver = pinMatches(pin, row.admin_pin_hash) ? "مدير النظام" : pinMatches(pin, row.manager_pin_hash) ? "المسؤول" : ""
+      if (approver) { input = { ...input, scopeId: Number(row.id) }; break }
+    }
+  }
   if (!approver) {
     await sql`
       INSERT INTO permission_approvals_tbl (user_id, scope, scope_id, permission_key, code_hash, expires_at, sent_to)
