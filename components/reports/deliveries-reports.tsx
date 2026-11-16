@@ -53,7 +53,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
   const [filters, setFilters] = useState({
     fromDate: monthStart(), toDate: today(), currencyId: 0, branchIds: [] as number[], status: "all",
     voucherTypes: [] as number[], accountIds: [] as number[], itemIds: [] as number[], invoiceStatus: "all",
-    fromStoreIds: [] as number[], toStoreIds: [] as number[], consignmentId: "", includeDetails: false,
+    fromStoreIds: [] as number[], toStoreIds: [] as number[], consignmentId: "", includeDetails: false, vchCode: "",
   })
   const set = (patch: Partial<typeof filters>) => setFilters((current) => ({ ...current, ...patch }))
 
@@ -79,6 +79,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
       const params = new URLSearchParams({ kind, from_date: filters.fromDate, to_date: filters.toDate, report_currency_id: String(filters.currencyId), status: filters.status })
       if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
       if (filters.itemIds.length) params.set("item_ids", filters.itemIds.join(","))
+      if (kind !== "consignment-invoices" && filters.vchCode.trim()) params.set("vch_code", filters.vchCode.trim())
       if (kind === "deliveries") {
         if (filters.voucherTypes.length) params.set("voucher_types", filters.voucherTypes.join(","))
         if (filters.accountIds.length) params.set("account_ids", filters.accountIds.join(","))
@@ -105,7 +106,7 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
   }
 
   const reset = () => {
-    set({ fromDate: monthStart(), toDate: today(), branchIds: [], status: "all", voucherTypes: [], accountIds: [], itemIds: [], invoiceStatus: "all", fromStoreIds: [], toStoreIds: [], consignmentId: "", includeDetails: false })
+    set({ fromDate: monthStart(), toDate: today(), branchIds: [], status: "all", voucherTypes: [], accountIds: [], itemIds: [], invoiceStatus: "all", fromStoreIds: [], toStoreIds: [], consignmentId: "", includeDetails: false, vchCode: "" })
     setResult(null)
     setSearch("")
     setError("")
@@ -245,6 +246,13 @@ export function DeliveriesReport({ kind }: { kind: Kind }) {
               <div className="space-y-2"><Label>{tr("من تاريخ")}</Label><Input type="date" dir="ltr" value={filters.fromDate} onChange={(event) => set({ fromDate: event.target.value })} className="rounded-xl" /></div>
               <div className="space-y-2"><Label>{tr("الى تاريخ")}</Label><Input type="date" dir="ltr" value={filters.toDate} onChange={(event) => set({ toDate: event.target.value })} className="rounded-xl" /></div>
             </>
+          )}
+          {kind !== "consignment-invoices" && (
+            <div className="space-y-2">
+              <Label>{tr("رقم الارسالية")}</Label>
+              <Input value={filters.vchCode} onChange={(event) => set({ vchCode: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") void run() }}
+                placeholder={tr("رقم السند أو اليدوي — يتجاهل التاريخ")} className="rounded-xl" dir="ltr" />
+            </div>
           )}
           {kind === "deliveries" && <ReportMultiChoice label={tr("نوع الارسالية")} options={meta.voucher_types} selected={filters.voucherTypes} onChange={(voucherTypes) => set({ voucherTypes })} placeholder={tr("جميع الأنواع")} />}
           {kind === "deliveries" && <ReportMultiChoice label={tr("العملاء")} options={meta.accounts} selected={filters.accountIds} onChange={(accountIds) => set({ accountIds })} placeholder={tr("جميع العملاء")} />}

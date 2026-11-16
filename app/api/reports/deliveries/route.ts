@@ -6,6 +6,17 @@ import { reportAccessDenied } from "@/lib/report-permissions"
 import { reportAmountSql } from "@/lib/report-currency"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
+import { ensureCarsTable } from "@/app/api/cars/_lib"
+import { ensureDriversTable } from "@/app/api/drivers/_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
+
+// السيارات والسائقون وshipping_info تُنشأ عند فتح شاشاتها/سندات المبيعات؛ شركة لم تفتحها بعد (جديدة أو مرحّلة من الشامل)
+// كان التقرير يفشل عليها بـ relation "cars" does not exist / column vh.shipping_info does not exist (2026-11-16)
+const ensureReportTables = () => runSchemaOnce("app/api/reports/deliveries#tables", async () => {
+  await ensureCarsTable()
+  await ensureDriversTable()
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shipping_info JSONB`
+})
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // تقارير الإرساليات (منقولة من ShamelAPI: DeliveryReport، InternalDeliveryReport، InvoicesFromConsignmentReport)
@@ -26,6 +37,7 @@ const DELIVERY_TYPES = [13, 14, 15, 18]
 const TYPE_NAMES: Record<number, string> = { 10: "إرسالية داخلية", 12: "فاتورة مبيعات", 13: "إرسالية مبيعات", 14: "إرسالية برسم البيع", 15: "مرتجع إرسالية برسم البيع", 17: "فاتورة مشتريات", 18: "إرسالية مشتريات" }
 const ids = (value: string | null) => String(value || "").split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0)
 const isoDate = (value: string | null, fallback: string) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback)
+const sqlLiteral = (value: string) => `'${value.replace(/'/g, "''")}'`
 const round = (value: number, digits = 2) => Math.round((Number(value) || 0) * 10 ** digits) / 10 ** digits
 
 export async function GET(request: NextRequest) {
@@ -39,6 +51,7 @@ export async function GET(request: NextRequest) {
     const denied = await reportAccessDenied(request, [KINDS[kind]])
     if (denied) return denied
     await ensureVoucherTables()
+    await ensureReportTables()
 
     const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
     const permitted = memberships.map((row: any) => Number(row.branch_id)).filter(Number.isFinite)
@@ -79,7 +92,12 @@ export async function GET(request: NextRequest) {
     const itemsSql = itemIds.length
       ? `(SELECT COUNT(DISTINCT x.item_id) FROM voucher_items_tbl x WHERE x.voucher_id = vh.id AND x.item_id = ANY(ARRAY[${itemIds.join(",")}]::int[])) = ${itemIds.length}`
       : "TRUE"
-    const base = { kind, currency: targetCurrency, filters: { from_date: fromDate, to_date: toDate } }
+    // رقم الإرسالية (أو السند اليدوي): بحث جزئي، ومع إدخاله لا يُقيَّد بالتاريخ — لإيجاد إرسالية بعينها
+    const voucherCode = String(p.get("vch_code") || "").trim()
+    const codeSql = voucherCode ? `(vh.vch_code ILIKE ${sqlLiteral(`%${voucherCode}%`)} OR COALESCE(vh.manual_voucher, '') ILIKE ${sqlLiteral(`%${voucherCode}%`)})` : "TRUE"
+    const dateFrom = voucherCode ? "1900-01-01" : fromDate
+    const dateTo = voucherCode ? "9999-12-31" : toDate
+    const base = { kind, currency: targetCurrency, filters: { from_date: fromDate, to_date: toDate, vch_code: voucherCode } }
 
     // ═════════ تقرير الإرساليات ═════════
     if (kind === "deliveries") {
@@ -111,8 +129,8 @@ export async function GET(request: NextRequest) {
         LEFT JOIN drivers d ON d.id = NULLIF(vh.shipping_info->>'driver_id', '')::int
         WHERE vh.vch_type = ANY(${types.length ? types : DELIVERY_TYPES}::int[])
           AND ${sql.unsafe(statusSql)} AND ${sql.unsafe(branchSql)} AND ${sql.unsafe(itemsSql)}
-          AND (${accountIds.length === 0} OR vh.account_id = ANY(${accountIds}::int[]))
-          AND vh.vch_date::date BETWEEN ${fromDate}::date AND ${toDate}::date
+          AND (${accountIds.length === 0} OR vh.account_id = ANY(${accountIds}::int[])) AND ${sql.unsafe(codeSql)}
+          AND vh.vch_date::date BETWEEN ${dateFrom}::date AND ${dateTo}::date
         ORDER BY vh.vch_date, vh.id
       `) as any[]
       const result = rows
@@ -149,8 +167,8 @@ export async function GET(request: NextRequest) {
         LEFT JOIN drivers d ON d.id = NULLIF(vh.shipping_info->>'driver_id', '')::int
         WHERE vh.vch_type = 10 AND ${sql.unsafe(statusSql)} AND ${sql.unsafe(branchSql)} AND ${sql.unsafe(itemsSql)}
           AND (${fromStores.length === 0} OR vh.from_store_id = ANY(${fromStores}::int[]))
-          AND (${toStores.length === 0} OR vh.to_store_id = ANY(${toStores}::int[]))
-          AND vh.vch_date::date BETWEEN ${fromDate}::date AND ${toDate}::date
+          AND (${toStores.length === 0} OR vh.to_store_id = ANY(${toStores}::int[])) AND ${sql.unsafe(codeSql)}
+          AND vh.vch_date::date BETWEEN ${dateFrom}::date AND ${dateTo}::date
         ORDER BY vh.vch_date, vh.id
       `) as any[]
       return NextResponse.json({ ...base, shape: "internal", rows: rows.map((row) => ({ ...row, amount: round(row.amount), quantity: round(row.quantity, 3) })) })

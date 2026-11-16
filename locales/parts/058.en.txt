@@ -2,3 +2,5 @@ Selected vouchers only — definitions were migrated before; opening quantities 
  — Valuation method:
 Last price source
 Opening price
+Delivery number
+Voucher or manual number — ignores dates
