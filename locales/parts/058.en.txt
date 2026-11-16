@@ -1,1 +1,4 @@
 Selected vouchers only — definitions were migrated before; opening quantities are corrected to the start-of-year quantity (St Qnty) — no account balances, no definition deletion
+ — Valuation method:
+Last price source
+Opening price

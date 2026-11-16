@@ -35,6 +35,9 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     average_cost: number(product.initial_price) || number(product.last_purchase_price),
     fifo_cost: number(product.initial_price) || number(product.last_purchase_price),
     last_movement_at: null as string | null,
+    // السند الذي أخذ منه «آخر سعر» (للمطابقة مع الشامل)
+    last_incoming_voucher_id: null as number | null,
+    last_incoming_date: null as string | null,
   }]))
   const layers = new Map<number, { quantity: number; cost: number }[]>()
   const lastLayerCosts = new Map<number, number>()
@@ -74,7 +77,11 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     if (purchaseTypes.has(type) && quantity > 0) {
       result.received_value += unitCost * quantity
       result.cost_quantity += quantity
-      if (lastPriceTypes.has(type)) result.last_incoming_cost = unitCost
+      if (lastPriceTypes.has(type)) {
+        result.last_incoming_cost = unitCost
+        result.last_incoming_voucher_id = number(line.voucher_id) || null
+        result.last_incoming_date = line.movement_date
+      }
     }
 
     // Shamel's average is a moving weighted average of the stock still on hand,

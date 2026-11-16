@@ -3,6 +3,7 @@ import { ensureVoucherIndexes } from "@/lib/voucher-indexes"
 import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { applyReportUnits } from "@/lib/report-units"
+import sql from "@/lib/database"
 import { getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
 export async function GET(request: NextRequest) {
@@ -27,6 +28,15 @@ export async function GET(request: NextRequest) {
       const price = Number(priceWay === "last" ? row.last_incoming_cost : priceWay === "fifo" ? row.fifo_cost : row.average_cost) || 0
       return { ...row, valuation_price: price, valuation_amount: Number(row.balance || 0) * price }
     })
+    // آخر سعر: رقم السند الذي أُخذ منه السعر وتاريخه — للمطابقة مع تقييم الشامل
+    if (priceWay === "last") {
+      const ids = [...new Set(rows.map((row: any) => Number(row.last_incoming_voucher_id)).filter((id: number) => id > 0))]
+      const codes = new Map<number, string>(ids.length ? ((await sql`SELECT id, vch_code FROM voucher_header_tbl WHERE id = ANY(${ids}::int[])`) as any[]).map((row) => [Number(row.id), String(row.vch_code || "")]) : [])
+      for (const row of rows as any[]) {
+        const code = codes.get(Number(row.last_incoming_voucher_id))
+        row.last_price_source = code ? `${code} — ${row.last_incoming_date}` : "سعر أول المدة"
+      }
+    }
     // الكمية وسعر التقييم بوحدة التقارير (قيمة التقييم لا تتغير)
     const reportRows = await applyReportUnits(rows, { quantityFields: ["balance", "received_quantity", "issued_quantity", "cost_quantity"], unitPriceFields: [...["average_cost", "last_incoming_cost", "fifo_cost"], "valuation_price"] })
     return NextResponse.json({ report: "item-valuation", to_date: toDate, rows: reportRows })
