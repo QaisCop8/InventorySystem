@@ -2271,6 +2271,7 @@ export default function UnifiedStockVoucher({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           price_category_id: priceCategoryId,
+          date: form.vch_date ? String(form.vch_date).slice(0, 10) : undefined,
           items: targets.map((index) => ({ product_id: itemsRef.current[index].product_id, unit_name: itemsRef.current[index].unit })),
         }),
       })
@@ -2304,6 +2305,7 @@ export default function UnifiedStockVoucher({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           price_category_id: priceCategoryId,
+          date: form.vch_date ? String(form.vch_date).slice(0, 10) : undefined,
           items: rows.map((row) => ({ product_id: row.product_id, unit_name: row.unit })),
         }),
       })

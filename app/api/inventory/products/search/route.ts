@@ -1,4 +1,5 @@
 import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
+import { resolvePriceCategoryId } from "@/lib/price-category"
 import { withDerivedUnitPrices } from "@/lib/unit-prices"
 import { projectFileLookup } from "@/lib/file-permissions"
 
@@ -44,7 +45,9 @@ export async function GET(request: NextRequest) {
     let is_barcode = false;
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("query") || searchParams.get("code");
-    const priceCategoryId = Number(searchParams.get("priceCategoryId") || 1);
+    // 0 = بلا فئة (سندات المخزون)؛ فئة غير موجودة ⇐ أول فئة فعّالة
+    const requestedPriceCategory = Number(searchParams.get("priceCategoryId") || 1);
+    const priceCategoryId = requestedPriceCategory > 0 ? await resolvePriceCategoryId(requestedPriceCategory) : requestedPriceCategory;
     const unitRoleParam = searchParams.get("unitRole");
     const unitRole: UnitRole | null = unitRoleParam === "purchase" || unitRoleParam === "stock_count" || unitRoleParam === "report" ? unitRoleParam : null;
     // numberType=factory|original: عمود الرقم في السند يعرض/يبحث برقم المصنع (product_numbers.type 2) أو الأصلي (1)

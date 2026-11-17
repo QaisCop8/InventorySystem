@@ -82,10 +82,49 @@ async function priceCategoryFor(pos: number): Promise<number | null> {
   const mapped = await mapOne("price_class", String(pos))
   if (mapped) return mapped
   const name = priceClassNames.get(pos) || `فئة ${pos + 1}`
+  // فئة الشامل الأولى = فئة النظام رقم 1 (الافتراضية في بحث الأصناف والشاشات: priceCategoryId=1) — وإلا تُرحَّل
+  // الأسعار لفئة جديدة فيظهر السعر صفراً (2026-11-17)
+  if (pos === 0) {
+    const id = await ensurePrimaryPriceCategory(name)
+    await mapSet("price_class", "0", id)
+    return id
+  }
   const existing = (await sql`SELECT id FROM pricecategory WHERE TRIM(name) = ${name} LIMIT 1`)[0] as any
   const id = existing ? Number(existing.id) : Number((await sql`INSERT INTO pricecategory (name) VALUES (${name}) RETURNING id`)[0].id)
   await mapSet("price_class", String(pos), id)
   return id
+}
+
+/** فئة السعر رقم 1: تُعاد تسميتها باسم فئة الشامل الأولى، أو تُنشأ برقم 1 إن حذفها تصفير القوائم. */
+async function ensurePrimaryPriceCategory(name: string): Promise<number> {
+  const [primary] = await sql`SELECT id FROM pricecategory WHERE id = 1` as any[]
+  if (primary) {
+    await sql`UPDATE pricecategory SET name = ${name}, status = 1 WHERE id = 1`
+  } else {
+    await sql`INSERT INTO pricecategory (id, name, status) VALUES (1, ${name}, 1)`
+    await sql`SELECT setval(pg_get_serial_sequence('pricecategory', 'id'), GREATEST((SELECT MAX(id) FROM pricecategory), 1))`.catch(() => undefined)
+  }
+  return 1
+}
+
+/**
+ * ترحيل سابق وضع أسعار فئة الشامل الأولى في فئة غير رقم 1 (بحث الأصناف يعرض الفئة 1 ⇐ السعر صفر). تُنقل أسعارها
+ * للفئة 1 (ما لم يوجد سعر لنفس الصنف/الوحدة) وتُحدَّث الخريطة — مرة واحدة (علامة repair:price_class_primary_v1).
+ */
+export async function repairPrimaryPriceClass() {
+  const done = await sql`SELECT 1 FROM shamel_migration_map WHERE kind = 'repair' AND shamel_key = 'price_class_primary_v1' LIMIT 1`
+  if (done.length) return
+  const mapped = await mapOne("price_class", "0")
+  if (mapped && mapped !== 1) {
+    const [old] = await sql`SELECT name FROM pricecategory WHERE id = ${mapped}` as any[]
+    await ensurePrimaryPriceCategory(String(old?.name || "فئة 1"))
+    await sql`
+      UPDATE product_prices p SET price_category_id = 1
+      WHERE p.price_category_id = ${mapped}
+        AND NOT EXISTS (SELECT 1 FROM product_prices q WHERE q.product_id = p.product_id AND q.unit_id IS NOT DISTINCT FROM p.unit_id AND q.price_category_id = 1)`
+    await mapSet("price_class", "0", 1)
+  }
+  await sql`INSERT INTO shamel_migration_map (kind, shamel_key, web_id) VALUES ('repair', 'price_class_primary_v1', 0) ON CONFLICT DO NOTHING`
 }
 
 // ---------- العملات وأسعار الصرف ----------

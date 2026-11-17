@@ -681,6 +681,8 @@ export async function fixMigratedVouchers() {
     WHERE h.id = d.voucher_id AND COALESCE(h.amount, 0) = 0 AND d.debit_base > 0`
   await convertMigratedPricesToGross().catch((error: unknown) => console.error("[shamel-migration] gross price repair failed:", error))
   await repairMigratedItemTypes().catch((error: unknown) => console.error("[shamel-migration] item type repair failed:", error))
+  await import("@/lib/shamel-migration/definitions").then((module) => module.repairPrimaryPriceClass())
+    .catch((error: unknown) => console.error("[shamel-migration] price class repair failed:", error))
 }
 
 /**

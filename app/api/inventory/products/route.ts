@@ -9,6 +9,7 @@ import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupSco
 import { runSchemaOnce } from "@/lib/schema-once"
 import { validateLeafAccountFields } from "@/lib/leaf-accounts"
 import { getSystemSettingValue } from "@/lib/system-settings"
+import { resolvePriceCategoryId } from "@/lib/price-category"
 import { ensureLastPurchaseColumns } from "@/lib/last-purchase"
 import { UNIT_ROLE_COLUMNS, UNIT_ROLE_LABELS, type UnitRole } from "@/lib/product-unit-roles"
 import { ensureComponentUnitColumns, loadComponentUnits, resolveComponentUnit } from "@/lib/manufacturing-component-units"
@@ -326,7 +327,8 @@ export async function GET(request: NextRequest) {
     await ensureLastPurchaseColumns()
     const url = new URL(request.url)
     const typeParam = url.searchParams.get('type') ?? 'NULL'
-    const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
+    // الفئة المطلوبة (افتراضياً 1) أو أول فئة فعّالة إن لم تكن موجودة
+    const priceCategoryId = await resolvePriceCategoryId(Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1)
     const requestedProductId = Number.parseInt(url.searchParams.get('productId') || url.searchParams.get('id') || '0', 10) || 0
     const activeOnly = url.searchParams.get('activeOnly') === 'true' || url.searchParams.get('activeOnly') === '1'
     const requestedProductIds = [...new Set(String(url.searchParams.get('ids') || '').split(',').map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))].slice(0, 500)

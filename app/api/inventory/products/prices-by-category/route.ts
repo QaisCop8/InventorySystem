@@ -2,6 +2,7 @@ import { authorizeStoredProduct } from "@/app/api/inventory/products/_permission
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { withDerivedUnitPrices } from "@/lib/unit-prices"
+import { getProductBalances } from "@/lib/item-inventory-reports"
 
 // إعادة احتساب أسعار مجموعة أصناف دفعة واحدة حسب "فئة سعر" مختارة — نظير جماعي لِمنطق
 // /api/inventory/products/search (الذي يجلب سعر صنف واحد فقط حسب priceCategoryId)، مطابق لِـ
@@ -9,9 +10,7 @@ import { withDerivedUnitPrices } from "@/lib/unit-prices"
 //
 // معرّفات سالبة خاصة (بدل صفوف جدول pricecategory الحقيقية) — نفس أسلوب القائمة القديمة
 // (prices_class_list.splice سالبة الفهرس) لكن هنا مربوطة ببيانات فعلية بدل تصميم واجهة فقط:
-//   -3 متوسط الأسعار: متوسط مرجّح بالكمية المتاحة من دفعات المخزون (product_lots.unit_cost)
-//   -4 داخل أول خارج أول: تكلفة أقدم دفعة لا تزال متوفرة (نفس ترتيب FIFO في lib/lot-management.ts)
-//   -5 اخر سعر: سعر آخر عملية شراء فعلية لهذا الصنف (purchase_order_items/purchase_orders)
+//   -3 متوسط الكلفة، -4 داخل أول خارج أول، -5 آخر سعر شراء — من محرك تقييم المخزون (getProductBalances)
 // -1 (سعر الإنتاج) و-2 (يدوي) لا تصلان إلى هذا الـ endpoint إطلاقاً: الأولى لا يوجد لها مصدر بيانات
 // في هذا النظام (لا BOM ولا عمود تكلفة تصنيع) فتبقى معطَّلة في القائمة، والثانية تُصفِّر السعر محلياً
 // في الواجهة دون أي طلب شبكة.
@@ -42,39 +41,27 @@ export async function POST(request: NextRequest) {
     }
 
     if (priceCategoryId === -3 || priceCategoryId === -4 || priceCategoryId === -5) {
-      const priceByProduct = new Map<number, number>()
-
-      if (priceCategoryId === -3) {
-        const rows = await sql`
-          SELECT product_id, SUM(unit_cost * available_quantity) / NULLIF(SUM(available_quantity), 0) AS avg_price
-          FROM product_lots
-          WHERE product_id = ANY(${productIds}) AND available_quantity > 0
-          GROUP BY product_id
-        `
-        for (const row of rows as any[]) priceByProduct.set(Number(row.product_id), Number(row.avg_price || 0))
-      } else if (priceCategoryId === -4) {
-        const rows = await sql`
-          SELECT DISTINCT ON (product_id) product_id, unit_cost
-          FROM product_lots
-          WHERE product_id = ANY(${productIds}) AND available_quantity > 0
-          ORDER BY product_id, expiry_date ASC NULLS LAST, created_at ASC
-        `
-        for (const row of rows as any[]) priceByProduct.set(Number(row.product_id), Number(row.unit_cost || 0))
-      } else {
-        const rows = await sql`
-          SELECT DISTINCT ON (poi.product_id) poi.product_id, poi.unit_price
-          FROM purchase_order_items poi
-          JOIN purchase_orders po ON po.id = poi.purchase_order_id
-          WHERE poi.product_id = ANY(${productIds})
-          ORDER BY poi.product_id, po.order_date DESC, poi.id DESC
-        `
-        for (const row of rows as any[]) priceByProduct.set(Number(row.product_id), Number(row.unit_price || 0))
+      // كلفة الصنف من محرك تقييم المخزون نفسه (lib/item-inventory-reports getProductBalances — نفس «تقييم المخزون بتاريخ
+      // معين» وقواعد الشامل): -3 متوسط الكلفة، -4 FIFO، -5 آخر سعر شراء (فاتورة/إرسالية مشتريات). كانت -5 تقرأ أوامر
+      // الشراء و-3/-4 دفعات product_lots فتعود صفراً (2026-11-17). الكلفة للوحدة الرئيسية حتى تاريخ السند، ثم × علاقة وحدة السطر.
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.date || "")) ? String(body.date) : new Date().toISOString().slice(0, 10)
+      const balances = await getProductBalances(0, date, 0, "", { productIds, includeUnposted: true })
+      const costByProduct = new Map<number, number>((balances as any[]).map((row) => [Number(row.id), Number(
+        priceCategoryId === -3 ? row.average_cost : priceCategoryId === -4 ? row.fifo_cost : row.last_incoming_cost) || 0]))
+      const unitRows = await sql`
+        SELECT pu.product_id, u.unit_name, COALESCE(NULLIF(pu.to_main_qnty, 0), 1)::float8 AS factor
+        FROM product_units pu LEFT JOIN units u ON u.id = pu.unit_id
+        WHERE pu.product_id = ANY(${productIds}) ORDER BY pu.id`
+      const factorOf = (productId: number, unitName: string) => {
+        const name = unitName.trim().toLowerCase()
+        const row = (unitRows as any[]).find((unit) => Number(unit.product_id) === productId && String(unit.unit_name || "").trim().toLowerCase() === name)
+        return Number(row?.factor) || 1
       }
-
+      const round = (value: number) => Math.round(value * 1e6) / 1e6
       const results = items.map((item) => ({
         product_id: item.product_id,
         unit_name: item.unit_name || "",
-        price: priceByProduct.get(Number(item.product_id)) ?? 0,
+        price: round((costByProduct.get(Number(item.product_id)) ?? 0) * factorOf(Number(item.product_id), item.unit_name || "")),
       }))
       return NextResponse.json({ results })
     }
