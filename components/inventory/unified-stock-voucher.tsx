@@ -3012,6 +3012,7 @@ export default function UnifiedStockVoucher({
         />
 
         <ConfirmDialogYesNo
+          useAppDialog
           visible={showDeleteConfirm}
           title={form.status === 2 ? tr("تأكيد إلغاء {0}", labels.title) : tr("تأكيد حذف {0}", labels.title)}
           message={form.status === 2 ? tr("السند معتمد هل تريد الغاؤه منطقياً؟") : tr("هل تريد حذف هذا {0}؟", labels.title)}
@@ -3054,6 +3055,7 @@ export default function UnifiedStockVoucher({
         />
 
         <ConfirmDialogYesNo
+          useAppDialog
           visible={showCurrencyRecalcConfirm}
           title={tr("تأكيد تغيير العملة")}
           message={tr("تغيير العملة يغير سعر الصرف، هل تريد تغيير الأسعار بناءا على ذلك؟")}
@@ -3074,6 +3076,8 @@ export default function UnifiedStockVoucher({
         />
 
         <ConfirmDialogYesNo
+          // داخل نافذة Radix: الحوار الافتراضي (PrimeReact على body) يظهر ولا يُضغط — كان «إعادة احتساب الأسعار» لا يعمل
+          useAppDialog
           visible={showPriceRecalcConfirm}
           title={tr("تأكيد إعادة احتساب الأسعار")}
           message={tr("سيتم إعادة احتساب أسعار جميع الأصناف حسب فئة السعر المختارة، هل تريد المتابعة؟")}
